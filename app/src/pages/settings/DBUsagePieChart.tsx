@@ -1,0 +1,160 @@
+import { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
+import type { TooltipContentProps } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+
+import {
+  ChartTooltip,
+  ChartTooltipItem,
+  getCategoryChartColor,
+  useCategoryChartColors,
+} from "@phoenix/components/chart";
+import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
+import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
+
+import type { DBUsagePieChart_data$key } from "./__generated__/DBUsagePieChart_data.graphql";
+
+const REMAINING_TEXT = "remaining";
+function TooltipContent({ active, payload }: TooltipContentProps) {
+  if (active && payload && payload.length) {
+    return (
+      <ChartTooltip>
+        <ChartTooltipItem
+          shape="square"
+          color={payload[0].payload.fill}
+          name={String(payload[0].name ?? "--")}
+          value={storageSizeFormatter(Number(payload[0].value) || 0)}
+        />
+      </ChartTooltip>
+    );
+  }
+
+  return null;
+}
+
+export function DBUsagePieChart({
+  query,
+}: {
+  query: DBUsagePieChart_data$key;
+}) {
+  const categoryColors = useCategoryChartColors();
+  const data = useFragment<DBUsagePieChart_data$key>(
+    graphql`
+      fragment DBUsagePieChart_data on Query {
+        dbTableStats {
+          tableName
+          numBytes
+        }
+        dbStorageCapacityBytes
+      }
+    `,
+    query
+  );
+
+  const totalUsedBytes = data.dbTableStats.reduce(
+    (acc, table) => acc + (table?.numBytes ?? 0),
+    0
+  );
+  const remainingBytes =
+    typeof data.dbStorageCapacityBytes === "number"
+      ? data.dbStorageCapacityBytes - totalUsedBytes
+      : null;
+  const chartData = useMemo(() => {
+    const chartData = [...data.dbTableStats];
+    if (remainingBytes !== null && remainingBytes > 0) {
+      chartData.push({
+        tableName: REMAINING_TEXT,
+        numBytes: remainingBytes,
+      });
+    }
+    return chartData;
+  }, [data.dbTableStats, remainingBytes]);
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <PieChart>
+        <Pie
+          data={chartData}
+          dataKey="numBytes"
+          nameKey="tableName"
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={85}
+          strokeWidth={0}
+          stroke="transparent"
+        >
+          {chartData.map((x, index) => (
+            <Cell
+              stroke="0"
+              key={`cell-${index}`}
+              fill={
+                x.tableName === REMAINING_TEXT
+                  ? "var(--global-color-gray-200)"
+                  : getCategoryChartColor({ index, colors: categoryColors })
+              }
+            />
+          ))}
+        </Pie>
+        <Tooltip content={TooltipContent} />
+        <text
+          x="50%"
+          y="50%"
+          textAnchor="middle"
+          fill="var(--global-text-color-900)"
+          fontSize="var(--global-font-size-xl)"
+        >
+          {`${typeof data.dbStorageCapacityBytes === "number" ? percentFormatter((totalUsedBytes / data.dbStorageCapacityBytes) * 100) : storageSizeFormatter(totalUsedBytes)}`}
+        </text>
+        <text
+          x="50%"
+          y="50%"
+          dy={25}
+          textAnchor="middle"
+          fill="var(--global-text-color-900)"
+          fontSize="var(--global-font-size-s)"
+        >
+          {`Used`}
+        </text>
+        <g>
+          {typeof data.dbStorageCapacityBytes === "number" && (
+            <>
+              <text
+                x="0%"
+                y="0%"
+                dx={10}
+                dy={15}
+                textAnchor="start"
+                fill="var(--global-text-color-500)"
+                fontSize="var(--global-font-size-xs)"
+              >
+                {"Capacity:"}
+              </text>
+              <text
+                x="0%"
+                y="0%"
+                dx={10}
+                dy={28}
+                textAnchor="start"
+                fill="var(--global-text-color-500)"
+                fontSize="var(--global-font-size-xs)"
+              >
+                {storageSizeFormatter(data.dbStorageCapacityBytes)}
+              </text>
+            </>
+          )}
+          <text
+            x="100%"
+            y="100%"
+            dx={-80}
+            dy={-2}
+            textAnchor="end"
+            fill="var(--global-text-color-500)"
+            fontSize="var(--global-font-size-xs)"
+          >
+            {"* approximate"}
+          </text>
+        </g>
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}

@@ -1,0 +1,169 @@
+import { useCallback, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { graphql, useMutation } from "react-relay";
+
+import {
+  Alert,
+  Button,
+  Card,
+  FieldError,
+  Flex,
+  Form,
+  Heading,
+  Input,
+  Label,
+  LinkButton,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { useNotifySuccess } from "@phoenix/contexts";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
+
+import type { ViewerProfileCardMutation } from "./__generated__/ViewerProfileCardMutation.graphql";
+
+type EditProfileFormParams = {
+  username: string;
+};
+export function ViewerProfileCard() {
+  const { viewer, refetchViewer } = useViewer();
+  const [error, setError] = useState<string | null>(null);
+  const notifySuccess = useNotifySuccess();
+  const [commit, isCommitting] = useMutation<ViewerProfileCardMutation>(graphql`
+    mutation ViewerProfileCardMutation($input: PatchViewerInput!) {
+      patchViewer(input: $input) {
+        __typename
+      }
+    }
+  `);
+  const {
+    control,
+    handleSubmit,
+    formState: { isDirty },
+    reset,
+  } = useForm<EditProfileFormParams>({
+    defaultValues: {
+      username: viewer?.username || "",
+    },
+  });
+
+  const onSubmit = useCallback(
+    (data: EditProfileFormParams) => {
+      commit({
+        variables: {
+          input: {
+            newUsername: data.username,
+          },
+        },
+        onCompleted: () => {
+          notifySuccess({
+            title: "Profile updated",
+            message: "Your profile has been updated",
+          });
+          reset({ username: data.username });
+          refetchViewer();
+        },
+        onError: (error) => {
+          setError(error.message);
+        },
+      });
+    },
+    [commit, notifySuccess, reset, refetchViewer]
+  );
+  if (!viewer) {
+    return null;
+  }
+  return (
+    <Card
+      title="Profile"
+      extra={
+        viewer.authMethod === "LOCAL" && (
+          <LinkButton size="S" to="/reset-password">
+            Reset Password
+          </LinkButton>
+        )
+      }
+    >
+      {error && <Alert variant="danger">{error}</Alert>}
+      <View paddingTop="size-200" paddingStart="size-200" paddingEnd="size-200">
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <UserPicture
+            name={viewer.username}
+            profilePictureUrl={viewer.profilePictureUrl}
+          />
+          <Flex direction="column" gap="size-50">
+            <Heading level={2} weight="heavy">
+              {viewer.username}
+            </Heading>
+            <Text>{viewer.role.name.toLocaleLowerCase()}</Text>
+          </Flex>
+        </Flex>
+      </View>
+      <View>
+        <Form onSubmit={handleSubmit(onSubmit)}>
+          <View padding="size-200">
+            <Flex direction="column" gap="size-100">
+              {viewer.email && (
+                <TextField value={viewer.email} isReadOnly size="S">
+                  <Label>Email</Label>
+                  <Input />
+                </TextField>
+              )}
+              <Controller
+                name="username"
+                control={control}
+                rules={{
+                  required: "A username is required as it needs to be unique",
+                }}
+                render={({
+                  field: { name, onChange, onBlur, value },
+                  fieldState: { invalid, error },
+                }) => (
+                  <TextField
+                    isRequired
+                    name={name}
+                    isInvalid={invalid}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    defaultValue={value}
+                    size="S"
+                  >
+                    <Label>Username</Label>
+                    <Input />
+                    {error ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">A unique username</Text>
+                    )}
+                  </TextField>
+                )}
+              />
+            </Flex>
+          </View>
+          <View
+            paddingTop="size-100"
+            paddingBottom="size-100"
+            paddingStart="size-200"
+            paddingEnd="size-200"
+            borderTopColor="default"
+            borderTopWidth="thin"
+          >
+            <Flex direction="row" gap="size-100" justifyContent="end">
+              <Button
+                variant={isDirty ? "primary" : "default"}
+                size="S"
+                isDisabled={!isDirty}
+                onPress={() => {
+                  handleSubmit(onSubmit)();
+                }}
+              >
+                {isCommitting ? "Saving..." : "Save"}
+              </Button>
+            </Flex>
+          </View>
+        </Form>
+      </View>
+    </Card>
+  );
+}

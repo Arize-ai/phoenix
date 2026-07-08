@@ -1,0 +1,35 @@
+name: 🐛 Bug Report
+description: Help us improve Phoenix by reporting a bug
+title: "[BUG]: "
+labels: ["bug", "triage"]
+projects: ["Arize-ai/42"]
+body:
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: Where do you use Phoenix
+      options:
+        - Self-hosted
+        - Phoenix Cloud
+      default: 0
+  - type: input
+    id: version
+    attributes:
+      label: What version of Phoenix are you using?
+      placeholder: e.g. 11.1.0
+      description: The version is visible by hovering over the Phoenix logo in the top left
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you saw
+    validations:
+      required: true
+  - type: textarea
+    id: additional-information
+    attributes:
+      label: Additional information
+      description: Please include any additional information that can help us with your issue like operating system, version of Python, instrumentation, etc.

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+    name: phoenix
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: phoenix
+    template:
+        metadata:
+            annotations:
+                prometheus.io/path: /metrics
+                prometheus.io/port: "9090"
+                prometheus.io/scrape: "true"
+            labels:
+                app: phoenix
+        spec:
+            containers:
+                - args:
+                      - -m
+                      - phoenix.server.main
+                      - serve
+                  command:
+                      - python
+                  env:
+                      - name: PHOENIX_WORKING_DIR
+                        value: /mnt/data
+                      - name: PHOENIX_PORT
+                        value: "6006"
+                      - name: PHOENIX_SQL_DATABASE_URL
+                        value: "postgresql://postgres:postgres123@postgres:5432/postgres"
+                  image: arizephoenix/phoenix:version-17.20.0
+                  name: phoenix
+                  ports:
+                      - containerPort: 6006
+                      - containerPort: 9090
+                      - containerPort: 4317
+                  readinessProbe:
+                      httpGet:
+                          port: 6006 # readiness probe on root of application port to guarantee app is really serving before becoming ready in kubernetes

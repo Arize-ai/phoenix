@@ -1,0 +1,141 @@
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
+import type {
+  ExperimentScaffold,
+  PlaygroundInstance,
+} from "@phoenix/store/playground";
+
+type PlaygroundAgentContext = Extract<AgentContext, { type: "playground" }>;
+type PlaygroundAgentInstance = NonNullable<
+  PlaygroundAgentContext["instances"]
+>[number];
+type PlaygroundAgentScaffold = NonNullable<
+  PlaygroundAgentContext["nextExperimentScaffold"]
+>;
+
+export function getPlaygroundInstanceForAgent(
+  instance: Pick<PlaygroundInstance, "id" | "model" | "experiment">
+): PlaygroundAgentInstance {
+  // Surface the experiment id whenever a run produced one, including ephemeral
+  // experiments: those persist in the DB for ~24h (the server sweeps them only
+  // after EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS), so they stay queryable via
+  // phoenix-gql within the window the agent reads this context.
+  const experimentId = instance.experiment?.id;
+  const { modelName } = instance.model;
+  if (modelName == null) {
+    return {
+      instanceId: instance.id,
+      experimentId,
+    };
+  }
+  if (instance.model.customProvider) {
+    return {
+      instanceId: instance.id,
+      experimentId,
+      model: {
+        type: "custom",
+        customProviderId: instance.model.customProvider.id,
+        customProviderName: instance.model.customProvider.name,
+        provider: instance.model.provider,
+        modelName,
+      },
+    };
+  }
+  return {
+    instanceId: instance.id,
+    experimentId,
+    model: {
+      type: "builtin",
+      provider: instance.model.provider,
+      modelName,
+    },
+  };
+}
+
+function arePlaygroundAgentModelsEqual(
+  left: PlaygroundAgentInstance["model"],
+  right: PlaygroundAgentInstance["model"]
+): boolean {
+  if (left == null || right == null) {
+    return left == null && right == null;
+  }
+  if (
+    left.type !== right.type ||
+    left.provider !== right.provider ||
+    left.modelName !== right.modelName
+  ) {
+    return false;
+  }
+  if (left.type === "custom" && right.type === "custom") {
+    return (
+      left.customProviderId === right.customProviderId &&
+      left.customProviderName === right.customProviderName
+    );
+  }
+  return true;
+}
+
+export function getExperimentScaffoldForAgent(
+  scaffold: ExperimentScaffold | null
+): PlaygroundAgentScaffold | null {
+  if (scaffold == null) {
+    return null;
+  }
+  return {
+    name: scaffold.name ?? null,
+    description: scaffold.description ?? null,
+    hasMetadata:
+      scaffold.metadata != null && Object.keys(scaffold.metadata).length > 0,
+  };
+}
+
+export function areExperimentScaffoldsForAgentEqual(
+  left: PlaygroundAgentScaffold | null,
+  right: PlaygroundAgentScaffold | null
+): boolean {
+  if (left == null || right == null) {
+    return left == null && right == null;
+  }
+  return (
+    left.name === right.name &&
+    left.description === right.description &&
+    left.hasMetadata === right.hasMetadata
+  );
+}
+
+export function arePlaygroundInstancesForAgentEqual(
+  left: PlaygroundAgentInstance[],
+  right: PlaygroundAgentInstance[]
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((leftInstance, index) => {
+      const rightInstance = right[index];
+      return (
+        rightInstance != null &&
+        leftInstance.instanceId === rightInstance.instanceId &&
+        leftInstance.experimentId === rightInstance.experimentId &&
+        arePlaygroundAgentModelsEqual(leftInstance.model, rightInstance.model)
+      );
+    })
+  );
+}
+
+export function buildPlaygroundAgentContext({
+  recordExperiments,
+  repetitions,
+  nextExperimentScaffold,
+  instances,
+}: {
+  recordExperiments: boolean;
+  repetitions: number;
+  nextExperimentScaffold: PlaygroundAgentScaffold | null;
+  instances: PlaygroundAgentInstance[];
+}): PlaygroundAgentContext {
+  return {
+    type: "playground",
+    recordExperiments,
+    repetitions,
+    nextExperimentScaffold: nextExperimentScaffold ?? undefined,
+    instances,
+  };
+}

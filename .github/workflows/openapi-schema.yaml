@@ -1,0 +1,41 @@
+name: OpenAPI Schema Backward Compatibility
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "schemas/openapi.json"
+  pull_request:
+    paths:
+      - "schemas/openapi.json"
+
+jobs:
+  openapi-schema-backward-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout: schemas/openapi.json
+          sparse-checkout-cone-mode: false
+      - name: Snapshot head schema
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.before }}
+        run: |
+          jq '.paths |= with_entries(select(.key | startswith("/agent") | not))' \
+            schemas/openapi.json > head.json
+          if [ -z "$BASE_REF" ]; then
+            echo "::error::Could not determine base ref for OpenAPI schema comparison"
+            exit 1
+          fi
+          git checkout "$BASE_REF"
+      - name: Snapshot base schema
+        run: |
+          jq '.paths |= with_entries(select(.key | startswith("/agent") | not))' \
+            schemas/openapi.json > base.json
+      - uses: docker://openapitools/openapi-diff@sha256:82291446e5554742d9c0725d7b315d18e93958c5526f9a663e8885227bdd6cb6 # latest
+        with:
+          args: --fail-on-incompatible base.json head.json

@@ -1,0 +1,133 @@
+---
+title: "OpenAI Go SDK"
+description: Instrument and observe OpenAI calls in Go
+---
+
+This module provides instrumentation for the [OpenAI Go SDK (`openai/openai-go`)](https://github.com/openai/openai-go) using the [`openinference-instrumentation-openai-go`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go) Go package, exporting OpenInference LLM spans to Phoenix.
+
+## Install
+
+```bash
+go get github.com/openai/openai-go
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+go get go.opentelemetry.io/otel/sdk
+```
+
+## Setup
+
+Configure an OTLP/HTTP exporter pointed at Phoenix. Create `tracing.go`:
+
+```go expandable
+package main
+
+import (
+	"context"
+	"os"
+	"strings"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+)
+
+func phoenixTraceEndpoint(endpoint string) string {
+	endpoint = strings.TrimRight(endpoint, "/")
+	if strings.HasSuffix(endpoint, "/v1/traces") {
+		return endpoint
+	}
+	return endpoint + "/v1/traces"
+}
+
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	// Default: self-hosted Phoenix on localhost.
+	// For Phoenix Cloud, set PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint("localhost:6006"),
+		otlptracehttp.WithURLPath("/v1/traces"),
+		otlptracehttp.WithInsecure(),
+	}
+	if endpoint := os.Getenv("PHOENIX_COLLECTOR_ENDPOINT"); endpoint != "" {
+		opts = []otlptracehttp.Option{
+			otlptracehttp.WithEndpointURL(phoenixTraceEndpoint(endpoint)),
+			otlptracehttp.WithHeaders(map[string]string{
+				"Authorization": "Bearer " + os.Getenv("PHOENIX_API_KEY"),
+			}),
+		}
+	}
+
+	exporter, err := otlptracehttp.New(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	res, _ := resource.New(ctx, resource.WithAttributes(
+		semconv.ServiceName("openai-go-app"),
+	))
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(tp)
+	return tp, nil
+}
+```
+
+## Run OpenAI
+
+Pass `openaiotel.Middleware` to the client via `option.WithMiddleware`. Session and user identifiers are stored on the Go context and applied to every LLM span descended from it.
+
+```go expandable
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/shared"
+	"go.opentelemetry.io/otel"
+
+	"github.com/Arize-ai/openinference/go/openinference-instrumentation"
+	openaiotel "github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go"
+)
+
+func main() {
+	ctx := context.Background()
+	tp, _ := initTracer(ctx)
+	defer tp.Shutdown(ctx)
+
+	client := openai.NewClient(
+		option.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
+		option.WithMiddleware(openaiotel.Middleware(otel.Tracer("openai-go-app"))),
+	)
+
+	ctx = instrumentation.WithSession(ctx, "session-abc")
+	ctx = instrumentation.WithUser(ctx, "user-xyz")
+
+	resp, _ := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+		Model: shared.ChatModelGPT4o,
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.UserMessage("Write a haiku."),
+		},
+	})
+	fmt.Println(resp.Choices[0].Message.Content)
+}
+```
+
+To redact sensitive data, set `OPENINFERENCE_HIDE_INPUTS=true` or `OPENINFERENCE_HIDE_OUTPUTS=true`. See the [openinference Go README](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go) for the full env-var matrix and the in-code `WithTraceConfig` override.
+
+## Observe
+
+After setting up instrumentation and running your OpenAI application, traces will appear in the Phoenix UI for visualization and analysis.
+
+## Resources
+
+* [OpenInference Go package for OpenAI](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go)
+
+* [OpenAI Go SDK](https://github.com/openai/openai-go)

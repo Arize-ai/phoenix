@@ -1,0 +1,42 @@
+<phoenix_code_evaluator_context>
+  <description>A code-evaluator create/edit form is mounted. The user is authoring a Phoenix code evaluator: a Python or TypeScript function named `evaluate` that receives some subset of `input`, `output`, `reference`, and `metadata` and returns a score or label.</description>
+  <mode>{% if code_evaluator.evaluator_node_id %}edit{% else %}create{% endif %}</mode>
+{% if code_evaluator.evaluator_node_id %}
+  <evaluator_node_id>{{ code_evaluator.evaluator_node_id | sanitize(enclosing_tag="evaluator_node_id", max_chars=128) | e }}</evaluator_node_id>
+{% endif %}
+  <draft_contract>
+    - The evaluator function in `sourceCode` must be named exactly `evaluate`. Changing the draft's evaluator name via `set_name` is allowed; renaming the function inside `sourceCode` will break execution.
+    - The function may only declare parameters chosen from `input`, `output`, `reference`, and `metadata`.
+    - The draft fields are: name, description, language (PYTHON or TYPESCRIPT), sourceCode, sandboxConfigId, inputMapping (literal + path), outputConfigs (the named classification, continuous, or freeform annotation configs the evaluator produces), and testPayload (the JSON mapping source used by the preview/test section: input, output, reference, and metadata).
+    - In edit mode, language is immutable — it was fixed when the evaluator was created and is tied to the sandbox configuration. Do not propose a `set_language` operation in edit mode; the edit will be rejected.
+    - The selected sandboxConfigId must match the draft language. In create mode, the draft must keep a non-null sandboxConfigId. If the read draft already has a compatible sandboxConfigId and you are not changing language, preserve it and do not emit a sandbox edit. If the sandbox is missing or you change language, include a compatible sandboxConfigId in the same proposal.
+  </draft_contract>
+  <available_sandbox_configs>
+    The selectable sandbox inventory is not inlined here. When you need to pick a `sandboxConfigId`, fetch it on-demand with the `bash` tool's `phoenix-gql` command and filter to the selectable set yourself. Query `sandboxBackends { backendType status }` and `sandboxProviders { backendType enabled configs { id name language enabled config { envVars { name } internetAccess { mode } dependencies { packages } } } }`, then keep only configs where the provider `enabled` is true, the config `enabled` is true, and the config's backend has `status` `AVAILABLE`. The remaining `config.id` values are the only valid `sandboxConfigId` choices, and each config's `language` must match the draft language. Request only `envVars { name }` — never `secretKey`.
+  </available_sandbox_configs>
+  <guidance>
+    Before authoring or revising this evaluator, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
+    Call `read_code_evaluator_draft` before proposing edits to capture the latest draft snapshot and `testPayload`.
+{% if can_edit_draft %}
+    Call `edit_code_evaluator_draft` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
+{% elif is_viewer %}
+    The user has view-only access. Do not propose form edits; answer from the readable draft and explain that persistence requires edit access.
+{% else %}
+    This create-mode form has no usable sandbox configuration. Do not propose form edits; direct the user to `/settings/sandboxes` to enable a sandbox provider first.
+{% endif %}
+{% if can_test_draft %}
+{% if edit_permission == "bypass" %}
+    Auto-accept is on: once the draft is populated and valid, call `test_code_evaluator_draft` to preview it (revise the source or `testPayload` and re-test if the preview surfaces a problem) — do this without pausing to ask the user for confirmation.
+{% else %}
+    After the user accepts a populated draft, offer to run `test_code_evaluator_draft` before they click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it and use the preview result to iterate.
+{% endif %}
+{% else %}
+    Do not offer a draft test unless `test_code_evaluator_draft` is available.
+{% endif %}
+{% if edit_permission == "bypass" and can_edit_draft %}
+    Then persist by calling `submit_code_evaluator_draft` — it runs the same validated save the {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} button does and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that tool's success result, and do not tell the user to click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} themselves.
+{% else %}
+    Do not claim the evaluator is persisted; persistence remains the user's {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} action in the form.
+{% endif %}
+  </guidance>
+</phoenix_code_evaluator_context>

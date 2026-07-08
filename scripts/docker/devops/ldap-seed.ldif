@@ -1,0 +1,244 @@
+# Phoenix LDAP Development Seed Data
+# This file populates the OpenLDAP server with test users and groups
+
+# Create organizational units
+dn: ou=users,dc=example,dc=com
+objectClass: organizationalUnit
+ou: users
+
+dn: ou=groups,dc=example,dc=com
+objectClass: organizationalUnit
+ou: groups
+
+# Create groups
+dn: cn=admins,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: admins
+description: Phoenix Administrators
+member: uid=admin,ou=users,dc=example,dc=com
+member: uid=multigroup,ou=users,dc=example,dc=com
+member: uid=duplicate,ou=IT,dc=example,dc=com
+member: uid=duplicate,ou=HR,dc=example,dc=com
+
+dn: cn=members,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: members
+description: Phoenix Members
+member: uid=alice,ou=users,dc=example,dc=com
+member: uid=bob,ou=users,dc=example,dc=com
+member: uid=multigroup,ou=users,dc=example,dc=com
+member: uid=josé,ou=users,dc=example,dc=com
+
+dn: cn=viewers,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: viewers
+description: Phoenix Viewers
+member: uid=charlie,ou=users,dc=example,dc=com
+member: uid=nodisplay,ou=users,dc=example,dc=com
+member: uid=special(user),ou=users,dc=example,dc=com
+member: uid=multigroup,ou=users,dc=example,dc=com
+
+# Create users
+dn: uid=admin,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: admin
+cn: Admin User
+sn: User
+givenName: Admin
+displayName: Admin User
+mail: admin@example.com
+userPassword: password123
+uidNumber: 10001
+gidNumber: 10001
+homeDirectory: /home/admin
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
+
+dn: uid=alice,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: alice
+cn: Alice Smith
+sn: Smith
+givenName: Alice
+displayName: Alice Smith
+mail: alice@example.com
+userPassword: password123
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/alice
+loginShell: /bin/bash
+memberOf: cn=members,ou=groups,dc=example,dc=com
+
+dn: uid=bob,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: bob
+cn: Bob Johnson
+sn: Johnson
+givenName: Bob
+displayName: Bob Johnson
+mail: bob@example.com
+userPassword: password123
+uidNumber: 10003
+gidNumber: 10003
+homeDirectory: /home/bob
+loginShell: /bin/bash
+memberOf: cn=members,ou=groups,dc=example,dc=com
+
+dn: uid=charlie,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: charlie
+cn: Charlie Brown
+sn: Brown
+givenName: Charlie
+displayName: Charlie Brown
+mail: charlie@example.com
+userPassword: password123
+uidNumber: 10004
+gidNumber: 10004
+homeDirectory: /home/charlie
+loginShell: /bin/bash
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: User with NO groups (tests wildcard "*" fallback)
+dn: uid=nogroups,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: nogroups
+cn: No Groups User
+sn: User
+givenName: No Groups
+mail: nogroups@example.com
+userPassword: password123
+uidNumber: 10005
+gidNumber: 10005
+homeDirectory: /home/nogroups
+loginShell: /bin/bash
+
+# Edge case: User in MULTIPLE groups (tests role precedence - first match wins)
+dn: uid=multigroup,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: multigroup
+cn: Multi Group User
+sn: User
+givenName: Multi
+displayName: Multi Group User
+mail: multigroup@example.com
+userPassword: password123
+uidNumber: 10006
+gidNumber: 10006
+homeDirectory: /home/multigroup
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
+memberOf: cn=members,ou=groups,dc=example,dc=com
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: User with missing displayName (tests fallback to email prefix)
+dn: uid=nodisplay,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: nodisplay
+cn: No Display
+sn: Display
+givenName: No
+mail: nodisplay@example.com
+userPassword: password123
+uidNumber: 10007
+gidNumber: 10007
+homeDirectory: /home/nodisplay
+loginShell: /bin/bash
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: Special characters in username (tests LDAP injection prevention)
+dn: uid=special(user),ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: special(user)
+cn: Special User
+sn: User
+givenName: Special
+displayName: Special (User)
+mail: special@example.com
+userPassword: password123
+uidNumber: 10008
+gidNumber: 10008
+homeDirectory: /home/special
+loginShell: /bin/bash
+memberOf: cn=viewers,ou=groups,dc=example,dc=com
+
+# Edge case: Unicode/International characters
+dn: uid=josé,ou=users,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: josé
+cn: José García
+sn: García
+givenName: José
+displayName: José García
+mail: jose.garcia@example.com
+userPassword: password123
+uidNumber: 10009
+gidNumber: 10009
+homeDirectory: /home/jose
+loginShell: /bin/bash
+memberOf: cn=members,ou=groups,dc=example,dc=com
+
+# Different OUs for organizational structure testing
+dn: ou=IT,dc=example,dc=com
+objectClass: organizationalUnit
+ou: IT
+description: IT Department
+
+dn: ou=HR,dc=example,dc=com
+objectClass: organizationalUnit
+ou: HR
+description: Human Resources Department
+
+# Edge case: Duplicate usernames in different OUs (tests ambiguous search rejection)
+dn: uid=duplicate,ou=IT,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: duplicate
+cn: IT Duplicate
+sn: Duplicate
+givenName: IT
+displayName: IT Admin
+mail: duplicate-it@example.com
+userPassword: password123
+uidNumber: 10010
+gidNumber: 10010
+homeDirectory: /home/duplicate-it
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
+
+dn: uid=duplicate,ou=HR,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: duplicate
+cn: HR Duplicate
+sn: Duplicate
+givenName: HR
+displayName: HR Admin
+mail: duplicate-hr@example.com
+userPassword: password123
+uidNumber: 10011
+gidNumber: 10011
+homeDirectory: /home/duplicate-hr
+loginShell: /bin/bash
+memberOf: cn=admins,ou=groups,dc=example,dc=com
+

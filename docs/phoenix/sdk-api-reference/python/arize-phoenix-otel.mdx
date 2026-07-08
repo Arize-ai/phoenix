@@ -1,0 +1,228 @@
+---
+title: "arize-phoenix-otel"
+description: "Lightweight OpenTelemetry wrapper with Phoenix-aware defaults"
+---
+
+[![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-otel)](https://pypi.org/project/arize-phoenix-otel/)
+
+Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults. Also includes tracing decorators for common GenAI patterns.
+
+## Installation
+
+```sh
+pip install "arize-phoenix-otel>=0.16.0"
+```
+
+<Note>
+Starting in **0.16.0**, `phoenix.otel` re-exports the OpenInference context managers and semantic conventions, so manual instrumentation no longer requires separately installing `openinference-instrumentation` or `openinference-semantic-conventions`. On older versions, import them from `openinference.instrumentation` and `openinference.semconv.trace` instead.
+</Note>
+
+## Quick Start
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register()
+```
+
+That's it! By default, `register` reads the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, falling back to `http://localhost:4317` using gRPC if the variable is not set.
+
+## Configuration
+
+### Environment Variables
+
+The SDK automatically reads these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix server URL |
+| `PHOENIX_PROJECT_NAME` | Project name for traces |
+| `PHOENIX_API_KEY` | API key (automatically adds auth header) |
+| `PHOENIX_CLIENT_HEADERS` | Custom headers for requests |
+| `PHOENIX_GRPC_PORT` | Override default gRPC port |
+
+```python
+# Environment variables are picked up automatically
+# export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.com:6006
+# export PHOENIX_API_KEY=your-api-key
+
+from phoenix.otel import register
+
+tracer_provider = register()
+```
+
+### Endpoint Configuration
+
+You can also configure the endpoint directly in code:
+
+```python
+from phoenix.otel import register
+
+# HTTP endpoint (must include full path)
+tracer_provider = register(endpoint="http://localhost:6006/v1/traces")
+
+# gRPC endpoint
+tracer_provider = register(endpoint="http://localhost:4317")
+
+# Force a specific protocol
+tracer_provider = register(endpoint="http://localhost:9999", protocol="grpc")
+```
+
+<Info>
+When using the `endpoint` argument, you must specify the fully qualified URL. HTTP uses `/v1/traces`, while gRPC uses port `4317` by default.
+</Info>
+
+### Register Options
+
+| Parameter | Description |
+|-----------|-------------|
+| `project_name` | Phoenix project name (or `PHOENIX_PROJECT_NAME` env var) |
+| `endpoint` | Collector endpoint URL |
+| `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"` |
+| `headers` | Custom headers for requests |
+| `batch` | Process spans in batch (default: `False`) |
+| `auto_instrument` | Auto-instrument supported libraries |
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="my-app",
+    headers={"Authorization": "Bearer TOKEN"},
+    batch=True,
+    auto_instrument=True,
+)
+```
+
+---
+
+<Note>
+Spans may not be exported if still queued in the processor when your process exits. With `batch=True`, call `tracer_provider.shutdown()` to explicitly flush before exit. Alternatively, use `batch=False` for immediate export or a context manager (`with register(...) as tracer_provider`).
+</Note>
+
+---
+
+## Manual Instrumentation Helpers
+
+`phoenix.otel` re-exports the OpenInference context managers and semantic conventions so you can add session, user, metadata, tag, prompt template, and suppression context — plus set OpenInference span attributes — from a single import:
+
+```python
+from phoenix.otel import (
+    # Context managers (usable as `with` blocks or decorators)
+    suppress_tracing,
+    using_attributes,
+    using_metadata,
+    using_prompt_template,
+    using_session,
+    using_tags,
+    using_user,
+    # OpenInference semantic conventions
+    SpanAttributes,
+    OpenInferenceSpanKindValues,
+    OpenInferenceMimeTypeValues,
+)
+
+with using_session(session_id="abc-123"):
+    # auto-instrumented spans inside this block inherit session.id
+    ...
+```
+
+<Info>
+Requires `arize-phoenix-otel>=0.16.0`. Lower-level helpers (`get_llm_attributes`, `TraceConfig`, `Message`, `Image`, …) continue to live in the `openinference-instrumentation` package.
+</Info>
+
+See [Using Tracing Helpers](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for a full walkthrough of manual instrumentation.
+
+---
+
+## Advanced: OTel Primitives
+
+For granular control, use Phoenix wrappers as drop-in replacements for OpenTelemetry primitives:
+
+```python
+from opentelemetry import trace as trace_api
+from phoenix.otel import HTTPSpanExporter, TracerProvider, SimpleSpanProcessor
+
+tracer_provider = TracerProvider()
+span_exporter = HTTPSpanExporter(endpoint="http://localhost:6006/v1/traces")
+span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
+tracer_provider.add_span_processor(span_processor)
+trace_api.set_tracer_provider(tracer_provider)
+```
+
+These wrappers accept an `endpoint` argument to automatically infer the appropriate `SpanExporter`.
+
+<Accordion title="More examples">
+
+**Using environment variables:**
+
+```python
+# export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+
+from opentelemetry import trace as trace_api
+from phoenix.otel import TracerProvider
+
+tracer_provider = TracerProvider()
+trace_api.set_tracer_provider(tracer_provider)
+```
+
+**Custom resources:**
+
+```python
+from opentelemetry import trace as trace_api
+from phoenix.otel import Resource, PROJECT_NAME, TracerProvider
+
+tracer_provider = TracerProvider(resource=Resource({PROJECT_NAME: "my-project"}))
+trace_api.set_tracer_provider(tracer_provider)
+```
+
+**Batch processing:**
+
+```python
+from opentelemetry import trace as trace_api
+from phoenix.otel import TracerProvider, BatchSpanProcessor
+
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(BatchSpanProcessor())
+```
+
+**Custom gRPC endpoint:**
+
+```python
+from opentelemetry import trace as trace_api
+from phoenix.otel import TracerProvider, BatchSpanProcessor, GRPCSpanExporter
+
+tracer_provider = TracerProvider()
+batch_processor = BatchSpanProcessor(
+    span_exporter=GRPCSpanExporter(endpoint="http://custom-endpoint.com:6789")
+)
+tracer_provider.add_span_processor(batch_processor)
+```
+
+</Accordion>
+
+---
+
+## Advanced: TracerProvider Options
+
+Both `register()` and `TracerProvider` accept standard OpenTelemetry `TracerProvider` kwargs for advanced features like custom ID generators and sampling:
+
+```python
+from opentelemetry.sdk.extension.aws.trace import AwsXRayIdGenerator
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="my-app",
+    id_generator=AwsXRayIdGenerator(),  # AWS X-Ray compatible IDs
+    sampler=TraceIdRatioBased(0.1),     # Sample 10% of traces
+)
+```
+
+---
+
+## Reference Documentation
+
+<Card title="Full API Reference" icon="arrow-up-right-from-square" href="https://arize-phoenix.readthedocs.io/projects/otel/">
+  Complete API documentation for tracing setup, decorators, and OpenTelemetry configuration
+</Card>

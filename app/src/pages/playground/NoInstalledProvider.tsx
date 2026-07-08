@@ -1,0 +1,54 @@
+import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { BashBlock } from "@phoenix/components/code";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
+
+// The playground is disabled if no LLM provider client is installed on the server.
+// This message is displayed until the user installs a provider for the server to use, and then restarts the server.
+const NO_PROVIDER_MESSAGE = `
+The playground is not available until an LLM provider client is installed on the server.
+`;
+
+type AvailableProvider = {
+  readonly dependencies: readonly string[];
+  readonly dependenciesInstalled: boolean;
+  readonly name: string;
+};
+
+const makeInstallString = (
+  providers: NoInstalledProviderProps["availableProviders"]
+) => `
+# Installing one or more of the clients will enable the playground
+${Array.from(
+  providers.reduce((acc, curr) => {
+    curr.dependencies.forEach((dep) => acc.add(dep));
+    return acc;
+  }, new Set<string>())
+)
+  .map((dep) => `pip install ${dep}`)
+  .join("\n")}
+`;
+
+type NoInstalledProviderProps = {
+  availableProviders: readonly AvailableProvider[];
+};
+
+export const NoInstalledProvider = (props: NoInstalledProviderProps) => {
+  return (
+    <View height="100%" width="100%">
+      <Flex
+        direction="column"
+        alignItems="center"
+        justifyContent="center"
+        gap="size-200"
+      >
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.AlertCircle />} />}
+          description={NO_PROVIDER_MESSAGE.trim()}
+        />
+        {/* display instructions for installing a provider and a link to the documentation */}
+        <Text>The following clients are supported:</Text>
+        <BashBlock value={makeInstallString(props.availableProviders)} />
+      </Flex>
+    </View>
+  );
+};

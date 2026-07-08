@@ -1,0 +1,33 @@
+You are an expert evaluator for the GetRecipes state in a recipe recommendation pipeline. Your task is to evaluate whether the recipe search tool returned relevant and appropriate recipes based on the search arguments.
+
+#### What GetRecipes should do:
+- Execute recipe search using provided arguments
+- Return recipes that match the search criteria
+- Provide complete recipe information (name, description, ingredients, instructions)
+- Ensure recipes align with dietary constraints and serving requirements
+
+#### Evaluation Criteria:
+1. **Relevance**: Do the returned recipes match the search criteria?
+2. **Completeness**: Are all required recipe fields present?
+3. **Dietary compliance**: Do recipes respect the specified dietary constraints?
+4. **Format**: Is the output in valid JSON format as expected?
+
+#### What counts as a failure:
+- **Irrelevant recipes**: Returned recipes don't match the search criteria
+- **Dietary violations**: Recipes don't comply with specified dietary constraints
+- **Missing information**: Essential recipe fields are absent
+- **Invalid format**: Output is not parseable JSON
+- **Empty results**: No recipes returned when valid results should exist
+
+#### What does NOT count as a failure:
+- Reasonable variations in recipe selection
+- Minor differences in recipe descriptions
+- Standard formatting variations
+
+Here is the input: {attributes.input.value}
+Here is the output: {attributes.output.value}
+
+#### Output (JSON only)
+Return exactly this JSON object:
+  "explanation": "<one or two short sentences citing exact snippets from the trace that justify your choice. Include at least one short quoted fragment from the GetRecipes state's content.>",
+  "label": "<'pass' or 'fail'>"

@@ -1,0 +1,242 @@
+---
+title: "Release Notes"
+---
+
+# Session Turns API
+
+March 11, 2026
+
+**Available in arize-phoenix-client 2.0.0+ (Python) and @arizeai/phoenix-client 6.4.0+ (TypeScript)**
+
+Phoenix now provides a dedicated session turns API that reconstructs the ordered input/output pairs across all traces in a session. The new `get_session_turns()` method (Python) and `getSessionTurns()` function (TypeScript) fetch all traces within a session, extract root span `input.value` / `output.value` attributes (per OpenInference semantic conventions), and return chronologically ordered `SessionTurn` objects.
+
+Each `SessionTurn` corresponds to a single trace and contains the root span's input and output as `SessionTurnIO` objects (with `value` and optional `mime_type`). This API is **experimental** and may change in future releases.
+
+- **Chronological turn ordering** from session traces sorted by `start_time`
+- **`SessionTurnIO` with MIME type** — supports `text/plain`, `application/json`, and image types
+- **Batched root span fetching** with pagination to handle large sessions (up to 50 trace IDs per batch)
+- **Async variants** — `async_client.sessions.get_session_turns()` (Python) and the same `getSessionTurns()` function (TypeScript, natively async)
+
+**Python example:**
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# List sessions in a project
+sessions = client.sessions.list(project_name="default", limit=5)
+
+# Get the ordered turns for a session
+turns = client.sessions.get_session_turns(session_id="my-session")
+for turn in turns:
+    input_val = turn.get("input", {}).get("value", "<no input>")
+    output_val = turn.get("output", {}).get("value", "<no output>")
+    print(f"Turn (trace={turn['trace_id']}): {input_val} → {output_val}")
+```
+
+**TypeScript example:**
+
+```ts
+import { getSessionTurns } from "@arizeai/phoenix-client/sessions";
+
+const turns = await getSessionTurns({ sessionId: "my-session" });
+for (const turn of turns) {
+  console.log(`[${turn.startTime}] Input: ${turn.input?.value}`);
+  console.log(`[${turn.startTime}] Output: ${turn.output?.value}`);
+}
+```
+
+# Session Management REST APIs
+
+March 10, 2026
+
+**Available in arize-phoenix 13.13.0+ (server), arize-phoenix-client 1.31.0+ (Python), @arizeai/phoenix-client 6.1.0+ (TypeScript)**
+
+Phoenix now exposes comprehensive session management through REST API endpoints on the server. Retrieve individual sessions, list sessions with pagination and project filtering, and delete sessions with cascading cleanup of associated traces, spans, and annotations.
+
+REST endpoints added to the server:
+- `GET /v1/sessions/{session_id}` — retrieve a single session by ID or GlobalID
+- `GET /v1/projects/{project}/sessions` — paginated session listing with cursor-based pagination
+- `DELETE /v1/sessions/{session_id}` — delete a session with cascade through traces and spans (requires arize-phoenix 13.13.0+)
+- `POST /v1/sessions/delete` — bulk delete sessions by a list of identifiers (requires arize-phoenix 13.13.0+)
+
+Client SDK wrappers:
+
+```python
+# Python (arize-phoenix-client 1.31.0+)
+from phoenix.client import Client
+
+client = Client()
+
+# Get a single session
+session = client.sessions.get(session_id="my-session")
+
+# List sessions for a project
+sessions = client.sessions.list(project_name="default", limit=100)
+
+# Delete a session (cascades to traces/spans/annotations)
+client.sessions.delete(session_id="my-session")
+
+# Bulk delete
+client.sessions.bulk_delete(session_ids=["session-1", "session-2"])
+
+# Export sessions to a DataFrame
+df = client.sessions.get_sessions_dataframe(project_name="default")
+```
+
+```ts
+// TypeScript (@arizeai/phoenix-client 6.1.0+)
+import { getSession, listSessions, deleteSession } from "@arizeai/phoenix-client/sessions";
+
+const session = await getSession({ sessionId: "my-session" });
+const { sessions } = await listSessions({ project: "default" });
+await deleteSession({ sessionId: "my-session" });
+```
+
+# Filter Spans by Trace ID and Parent Relationships
+
+March 9, 2026
+
+**Available in arize-phoenix 13.12.0+ (server), arize-phoenix-client 2.0.0+ (Python), @arizeai/phoenix-client 6.3.0+ (TypeScript)**
+
+The `GET /v1/spans` REST endpoint now supports filtering by `trace_id` (available since arize-phoenix 13.9.0) and `parent_id` (added in arize-phoenix 13.12.0), enabling precise traversal of trace hierarchies. Pass `parent_id=null` to retrieve root spans only, or filter by a specific parent span ID to retrieve all direct children.
+
+Client SDK support:
+
+```python
+# Python (arize-phoenix-client 2.0.0+)
+from phoenix.client import Client
+
+client = Client()
+
+# Get root spans for a specific trace
+spans = client.spans.get_spans(
+    project_identifier="default",
+    trace_ids=["trace-abc123"],
+    parent_id="null",  # root spans only
+)
+
+# Filter by multiple trace IDs
+spans = client.spans.get_spans(
+    project_identifier="default",
+    trace_ids=["trace-abc123", "trace-def456"],
+)
+```
+
+```ts
+// TypeScript (@arizeai/phoenix-client 6.3.0+)
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+// Get root spans for a trace
+const { spans } = await getSpans({
+  project: { projectName: "default" },
+  traceIds: ["trace-abc123"],
+  parentId: null,  // root spans only
+});
+```
+
+# Incremental Evaluation Metrics in Playground
+
+March 4, 2026
+
+**Available in arize-phoenix 13.8.0+**
+
+The Playground now displays evaluation metrics, cost, and latency aggregates in real-time as dataset experiments run. Metrics update incrementally every ~2 seconds, providing immediate feedback on experiment performance without waiting for completion.
+
+# Brute Force Login Protection
+
+March 4, 2026
+
+**Available in arize-phoenix 13.8.0+**
+
+Phoenix now automatically protects login endpoints against brute force attacks. After 5 consecutive failed login attempts within a 5-minute window, the account is temporarily locked for 5 minutes. This applies to both basic auth and LDAP login endpoints.
+
+- **Enabled by default** — no configuration required
+- **Configurable attempt threshold** via `PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS` (default: 5)
+- **Disable if needed** by setting `PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION=true`
+- **Automatic recovery** — the lockout resets after the 5-minute window expires, and clears immediately on successful login or password reset
+
+# Unified Dataset Upload with Drag-and-Drop
+
+March 7, 2026
+
+**Available in arize-phoenix 13.9.0+**
+
+Dataset creation from files is now streamlined with automatic file type detection and a unified upload experience. Drag-and-drop CSV or JSONL files anywhere in the upload form, and Phoenix automatically parses headers and previews data without loading entire files into memory.
+
+- **Automatic format detection** for CSV and JSONL files
+- **Drag-and-drop file selection** with visual feedback
+- **Streaming parser** that handles large files efficiently
+- **RFC 4180 CSV support** including quoted fields, escaped quotes, and BOM handling
+- **Detailed error messages** for parsing issues with line-by-line feedback
+
+# Drag-and-Drop Column Assignment for Datasets
+
+March 10, 2026
+
+**Available in arize-phoenix 13.13.0+**
+
+Dataset creation now features an intuitive drag-and-drop column assignment interface. Assign columns to input, output, or metadata buckets with automatic suggestions based on common naming conventions, and preview exactly how your data will appear in the final dataset.
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/dataset_creation.mp4" type="video/mp4" />
+</video>
+
+- **Visual column assignment** with draggable chips and drop targets
+- **Smart auto-assignment** based on column names like "input", "output", "reference"
+- **Live dataset preview** showing the final structure as you make changes
+- **Keyboard navigation support** for accessibility
+- **Raw data preview** in tabular format alongside final dataset view
+
+# Extended Model Provider Support
+
+March 8, 2026
+
+**Available in arize-phoenix 13.10.0+ (Cerebras, Fireworks, Groq, Moonshot) and arize-phoenix 13.11.0+ (Perplexity, Together AI)**
+
+Phoenix Playground now supports six additional OpenAI-compatible model providers: Perplexity AI, Together AI, Cerebras, Fireworks AI, Groq, and Moonshot (Kimi). Access hundreds of new models including specialized reasoning models and fine-tuned variants through familiar OpenAI-compatible APIs.
+
+- **Perplexity AI** for research and web-grounded responses
+- **Together AI** with models from Moonshot, DeepSeek, Qwen, and GLM
+- **Cerebras** for ultra-fast inference with Llama models
+- **Fireworks AI** with Llama 4 Scout and Maverick variants
+- **Groq** for low-latency Llama and Qwen deployments
+- **Moonshot (Kimi)** with extended 128k and 32k context models
+- **Cost tracking enabled** for Cerebras, Fireworks, Groq, and Moonshot
+
+# Provider Visibility Controls
+
+March 10, 2026
+
+**Available in arize-phoenix 13.13.0+**
+
+Control which model providers appear in the Phoenix UI using the `PHOENIX_ALLOWED_PROVIDERS` environment variable. Set it to a comma-separated list of provider names to show only those providers, keeping your interface focused on the tools you actually use.
+
+- **Allow-list mode** to show only specified providers
+- **Case-insensitive configuration** with typo detection warnings
+- **Set to NONE** to hide all providers from the UI
+
+# Latest OpenAI GPT Models
+
+March 8, 2026
+
+**Available in arize-phoenix 13.10.0+**
+
+Phoenix Playground now includes the latest OpenAI models: GPT-5.4 family, GPT-5.3-chat-latest, GPT-5.2-pro variants, and o3-pro-2025-06-10. All models include cost tracking and are ready to use in experiments and prompt testing.
+
+# Project Editing from Settings
+
+March 8, 2026
+
+**Available in arize-phoenix 13.10.0+**
+
+Edit project descriptions and customize gradient colors directly from the Project Settings page. Click the edit button to update project metadata inline, with changes persisting immediately across the Phoenix UI.
+
+# Breaking Change: Removed Deprecated Annotations API
+
+March 11, 2026
+
+**Breaking change in arize-phoenix-client 2.0.0**
+
+The deprecated `client.annotations` module has been removed. All annotation methods remain available on `client.spans`. Update your code to use `client.spans.add_span_annotation()` and `client.spans.log_span_annotations()` instead of the `client.annotations` variants.

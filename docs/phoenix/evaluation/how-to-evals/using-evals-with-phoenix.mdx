@@ -1,0 +1,44 @@
+---
+title: "Using Evals with Phoenix"
+description: "The evals library is designed to work independently — you can run evaluations without any other part of Phoenix. That said, it integrates naturally with tracing, datasets, and experiments when you need it. For more information about how to use the evals library with other Phoenix features, reference these guides:"
+---
+
+
+## Evals + Traces
+[Running evals on traces and logging them to Phoenix. ](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+
+[Logging evals as annotations in Phoenix. ](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+## Evals + Experiments
+[How to run experiment evaluators. ](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+<Info>
+All `arize-phoenix-evals` Evaluators are drop-in compatible with experiments.
+</Info>
+
+## Evals + Prompt Management (Python)
+
+If your evaluation prompt is versioned in Phoenix Prompt Management, you can fetch it with `phoenix-client` and convert it into an eval-ready `PromptTemplate`.
+
+```python
+from phoenix.client import Client
+from phoenix.evals import (
+    ClassificationEvaluator,
+    LLM,
+    phoenix_prompt_to_prompt_template,
+)
+
+client = Client(base_url="http://localhost:6006")
+prompt_version = client.prompts.get(prompt_identifier="test-prompt")
+
+prompt_template = phoenix_prompt_to_prompt_template(prompt_version)
+
+evaluator = ClassificationEvaluator(
+    name="response_quality",
+    llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
+    prompt_template=prompt_template,
+    choices={"good": 1.0, "bad": 0.0},
+)
+```
+
+This keeps your eval logic aligned with prompt versions managed in Phoenix while still using the standard `arize-phoenix-evals` API.

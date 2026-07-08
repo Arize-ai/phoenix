@@ -1,0 +1,31 @@
+---
+title: "Deno"
+description: "Run simple TypeScript code evaluators locally inside the Phoenix server."
+---
+
+<div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" alt="Deno" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
+<div>
+
+The **Deno** sandbox is a **local sandbox** for **simple TypeScript evaluators** — pure-logic checks like regex matches, JSON parsing, and scoring functions. It runs locally inside the Phoenix server, starts in milliseconds, and needs no credentials.
+
+</div>
+</div>
+
+Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
+
+## What it supports
+
+The Deno sandbox runs your TypeScript in a locked-down local process. It is intentionally limited to **self-contained code**:
+
+| Capability | Supported? |
+| :-- | :-- |
+| Environment variables | ❌ Not supported — use a hosted sandbox |
+| Network access | ❌ Not supported — use a hosted sandbox |
+| Third-party dependencies | ❌ Not supported — use a hosted sandbox |
+
+If your evaluator needs **any** of the above, it cannot run on Deno. Use a [hosted sandbox](/docs/phoenix/settings/sandboxes#local-vs-hosted-sandboxes) (E2B, Daytona, Vercel, or Modal) instead — those run each evaluation on an isolated remote VM with full support for environment variables, outbound network access, and installed packages.
+
+## Running untrusted code
+
+The Deno sandbox is tightly restricted, but it runs in the Phoenix server process, so it is **not a substitute for running untrusted code on isolated infrastructure**. The script shares CPU and memory with Phoenix, and the security boundary depends on Deno itself. If you need to evaluate code from sources you cannot verify, use a [hosted sandbox](/docs/phoenix/settings/sandboxes#local-vs-hosted-sandboxes).

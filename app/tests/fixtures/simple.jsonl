@@ -1,0 +1,3 @@
+{"input": "What is 2+2?", "output": "4", "metadata": "math"}
+{"input": "What is the capital of France?", "output": "Paris", "metadata": "geography"}
+{"input": "Translate hello to Spanish", "output": "Hola", "metadata": "translation"}

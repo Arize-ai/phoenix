@@ -1,0 +1,24 @@
+packages:
+  - packages/*
+  - examples/apps/*
+  - benchmarks/*
+
+managePackageManagerVersions: true
+
+minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - "@arizeai/openinference-core"
+
+allowBuilds:
+  esbuild: true
+  msw: false
+  protobufjs: true
+
+overrides:
+  # Pre-existing exact pin: forces peer-dep alignment across @mastra/* packages
+  # that each declare narrow hono ranges.
+  "hono": "4.12.18"
+  # Still load-bearing: @langchain/core and @braintrust/core pin uuid 9.x/10.x.
+  "uuid@<11.1.1": ">=11.1.1"
+  # Still load-bearing: some transitive still pulls in vulnerable ip-address.
+  "ip-address@<10.1.1": ">=10.1.1"

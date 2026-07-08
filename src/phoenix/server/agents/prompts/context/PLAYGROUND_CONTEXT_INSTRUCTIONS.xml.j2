@@ -1,0 +1,53 @@
+{% macro safe_attr(value) -%}{{ value | sanitize(enclosing_tag="phoenix_playground_context", max_chars=200) | e }}{%- endmacro %}
+<phoenix_playground_context>
+  <description>The playground prompt editor is mounted. Use the alphabetic `label` (A, B, C, D) when discussing instances with the user, and pass the numeric `instanceId` when calling tools.</description>
+  <experiment_recording recordExperiments="{{ 'true' if playground.record_experiments else 'false' }}" mode="{{ 'persistent' if playground.record_experiments else 'ephemeral' }}"/>
+  <repetitions count="{{ playground.repetitions }}"/>
+{% if playground.next_experiment_scaffold %}
+  <next_experiment_scaffold{% if playground.next_experiment_scaffold.name %} name="{{ safe_attr(playground.next_experiment_scaffold.name) }}"{% endif %}{% if playground.next_experiment_scaffold.description %} description="{{ safe_attr(playground.next_experiment_scaffold.description) }}"{% endif %} hasMetadata="{{ 'true' if playground.next_experiment_scaffold.has_metadata else 'false' }}"/>
+{% else %}
+  <next_experiment_scaffold/>
+{% endif %}
+  <instances>
+{% for instance in playground.instances %}
+    <instance label="{{ labels[loop.index0] }}" instanceId="{{ instance.instance_id }}"{% if instance.experiment_id %} experimentId="{{ safe_attr(instance.experiment_id) }}"{% endif %}{% if instance.model %} provider="{{ safe_attr(instance.model.provider) }}" modelName="{{ safe_attr(instance.model.model_name) }}"{% if instance.model.type == "custom" %} customProviderId="{{ safe_attr(instance.model.custom_provider_id) }}" customProviderName="{{ safe_attr(instance.model.custom_provider_name) }}"{% endif %}{% endif %}/>
+{% endfor %}
+  </instances>
+  <guidance>
+    Call `read_prompt_instance` before proposing edits to an existing prompt instance, `add_prompt_instance` when the user wants a fresh comparison instance that starts from the default prompt messages, `clone_prompt_instance` when the user wants a comparison variant that starts from existing prompt content, `remove_prompt_instance` when the user asks to delete a specific prompt instance, and `edit_prompt_instance` to show the user an approval diff before changing prompt messages.
+    Call `list_playground_model_targets` before suggesting or listing available playground models, `set_playground_model` to switch an instance's model immediately, and `set_variable_values` when the user wants to populate manual playground variable inputs.
+    Call `set_template_variables_path` when a prompt needs dataset fields outside the default `input` root (`reference`, `metadata`, or the whole example) — variable names resolve relative to the chosen path, so pair it with `edit_prompt_instance` to rename references that no longer match.
+    Call `set_appended_messages_path` when the user wants to append or clear a dataset message-list for message-based dataset re-runs, `set_playground_experiment_recording` before `run_playground` only when the user wants the next dataset-backed run recorded or unrecorded, or wants to name, describe, or attach metadata to the next experiment, and the current `recordExperiments` value and `nextExperimentScaffold` do not already match that request, `set_playground_repetitions` before `run_playground` when the user wants repeated runs for confidence, flake checks, structured output validation, or tool-call validation, and `run_playground` when the user wants to run the mounted playground.
+    Call `set_dataset_evaluator_selection` when the user wants to choose which existing dataset evaluators run in the experiment, `read_dataset_evaluator_definition` to inspect one or a few existing evaluators' full bodies by id before comparing, selecting, or editing them, and `open_dataset_evaluator_for_edit` when the user wants to change an existing code or LLM evaluator's configuration.
+    Call `cancel_playground_run` when the user wants to stop an active playground run, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state.
+    For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.
+{% if dataset %}
+    Running a prompt over the loaded dataset is implicitly an experiment: `load_skill` the `experiments` skill before designing a dataset run or reading experiment results, if it is not already loaded.
+{% endif %}
+  </guidance>
+  <dataset_evaluator_authoring>
+{% if dataset %}
+    A dataset is loaded in the playground. If the user asks to create or iterate on a code evaluator for experiment scoring, do not treat that as a prompt-edit task and do not give a manual form walkthrough.
+    1. If `open_code_evaluator_form` is available, call it to open the code-evaluator form in place. Do not navigate away from the current playground URL.
+    2. Once the code-evaluator form is mounted, use `read_code_evaluator_draft` and `edit_code_evaluator_draft` to populate or revise the draft.
+{% if edit_permission == "bypass" %}
+    3. Once the form is mounted, follow the `<phoenix_code_evaluator_context>` guidance — under auto-accept it drives the populated draft through `test_code_evaluator_draft` and persists it with `submit_code_evaluator_draft` automatically. Do not stop before persistence or wait for a manual Create click; never claim the evaluator is created until that save's success result comes back.
+{% else %}
+    3. After the user accepts the draft edit, offer to run `test_code_evaluator_draft` before they click Create. If the user agrees, run it and use the preview result to iterate.
+    4. Stop before persistence. Do NOT use GraphQL mutations or claim the evaluator is created; the user clicks Create from the form when ready.
+{% endif %}
+{% else %}
+    If the user asks to create a code evaluator for experiment scoring, ask them to load a dataset first. Do not give a manual form walkthrough or propose evaluator source code until a dataset context is available.
+{% endif %}
+  </dataset_evaluator_authoring>
+  <existing_dataset_evaluators>
+{% if playground.evaluators %}
+    These evaluators already exist on the loaded dataset. Only id, name, kind, and flags are listed here — not the body. Reference them by name; pass the `datasetEvaluatorId` when calling tools. `applied="true"` means the evaluator runs in the next experiment. To read an evaluator's full definition (source, judge messages, or built-in config), call `read_dataset_evaluator_definition` with the id(s) you need. To change which evaluators run, call `set_dataset_evaluator_selection` with the complete desired set of ids — it replaces the current selection wholesale. To change an existing evaluator's configuration, call `open_dataset_evaluator_for_edit` with its id, then use the draft tools that appear. Only code and LLM evaluators are agent-editable; built-in evaluators (`builtin="true"`) can be selected and read but not yet edited via the agent.
+{% for evaluator in playground.evaluators %}
+    <evaluator datasetEvaluatorId="{{ safe_attr(evaluator.dataset_evaluator_id) }}" name="{{ safe_attr(evaluator.name) }}" kind="{{ evaluator.kind }}" builtin="{{ evaluator.is_builtin | lower }}" applied="{{ evaluator.is_applied | lower }}"/>
+{% endfor %}
+{% else %}
+    The loaded dataset has no evaluators yet. To score experiments, author one with the create-evaluator flow above before selecting or editing.
+{% endif %}
+  </existing_dataset_evaluators>
+</phoenix_playground_context>

@@ -1,0 +1,172 @@
+---
+title: "Analyzing Customer Review Evals with Repetition Experiments"
+description: "Large Language Models (LLMs) are probabilistic; the same prompt can yield different outputs across runs. This variability makes it hard to tell if a change truly improves performance or is just random noise."
+---
+
+
+
+**Repetitions** help address this by running the same input multiple times, reducing uncertainty and revealing stable patterns. In evals, repetitions ensure metrics are more reliable, comparisons between experiments are meaningful, and improvements can be validated with confidence.
+
+<Frame>
+  <iframe width="768" height="432" src="https://www.youtube.com/embed/ucq9hV8cR2U" title="Analyzing LLM Evaluations of Customer Reviews Using Repetitions Feature" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen className="aspect-video"></iframe>
+</Frame>
+
+This guide walks through how to:
+
+* Generate a dataset of synthetic customer reviews
+* Upload them into Phoenix
+* Run experiments that capture repetition patterns
+* Compare how repetitions impact evaluations across experiment runs
+
+Along the way, we’ll show both **code snippets** and **Phoenix UI screenshots** to demonstrate the full workflow.
+
+## Notebook Walkthrough
+
+<Card title="phoenix/tutorials/experiments/running_experiments_with_repetitions.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/experiments/running_experiments_with_repetitions.ipynb" icon="github" horizontal>
+GitHub
+</Card>
+
+### Create Synthetic Customer Review Data&#x20;
+
+```python expandable
+few_shot_prompt = """
+You are a creative writer simulating customer product reviews for a clothing brand.
+Generate exactly 25 unique reviews. Each review should be a few sentences long (max 200 words each) and sound like something a real customer might write.
+
+Balance them across the following categories:
+1. Highly Positive & Actionable → clear praise AND provides constructive suggestions for improvement.
+2. Positive but Generic → generally favorable but vague.
+3. Neutral / Mixed → highlights both pros and cons.
+4. Negative but Actionable → critical but with constructive feedback.
+5. Highly Negative & Non-Constructive → strongly negative, unhelpful venting.
+6. Off-topic → not about clothing at all (e.g., a review mistakenly left about a different product or service). Don't say anything about how the product is not about clothing.
+
+Constraints:
+- Cover all 6 categories across the 25 reviews.
+- Use a natural human voice, with realistic details.
+- Constructive feedback should be specific and actionable.
+- Make them really hard for someone else to classify. Add ambiguous reviews and reviews that are not clear, such as "The shirt is fine. Not bad, not great. Might buy again"
+- Decide the classified label randomly first and then write the review. Double check all the reviews and make sure you classify them correctly.
+
+OUTPUT SHAPE (JSON array ONLY; no extra text):
+[
+  {
+    "input": str,
+    "label": "highly positive & actionable" | "positive but generic" | "neutral" | "negative but actionable" | "highly negative" | "off-topic",
+  }
+]
+
+Style Examples, Here are examples for guidance (do not repeat):
+{
+  "input": "I absolutely love the new denim jacket I purchased. The fit is perfect, the stitching feels durable, and I’ve already gotten compliments. The inside lining is soft and makes it comfortable to wear for hours. One small suggestion would be to add an inner pocket for a phone or keys — that would make it perfect. Overall, I’ll definitely be back for more.",
+  "label": "highly positive & actionable"
+}
+{
+  "input": "The T-shirt I bought was nice. The color was good and it felt comfortable. I liked it overall and would probably buy again.",
+  "label": "positive but generic"
+}
+{
+  "input": "The dress arrived on time and the material is soft. However, the sizing runs a bit small, and the shade of blue was lighter than pictured. It’s not bad, but I’m not as excited about it as I hoped.",
+  "label": "neutral"
+}
+{
+  "input": "The shoes looked stylish but the soles wore down quickly after just a month. If the company improved the durability of the soles, these would be a great buy. Right now, I don’t think they’re worth the price.",
+  "label": "negative but actionable"
+}
+{
+  "input": "This sweater is terrible. The worst thing I’ve ever bought. Waste of money.",
+  "label": "highly negative & non-constructive"
+}
+{
+  "input": "I'm very disappointed in my delivery. The dog food arrived late and was leaking.",
+  "label": "off-topic"
+}
+"""
+```
+
+```python expandable
+resp = await openai_client.chat.completions.create(
+    model="gpt-5",
+    messages=[{"role": "user", "content": few_shot_prompt}],
+)
+content = resp.choices[0].message.content.strip()
+
+try:
+    data = json.loads(content)
+except json.JSONDecodeError:
+    m = re.search(r"\[\s*{.*}\s*\]\s*$", content, re.S)
+    assert m, "Model did not return a JSON array."
+    data = json.loads(m.group(0))
+```
+
+### Upload as a Dataset in Phoenix&#x20;
+
+```python expandable
+df = pd.DataFrame(data)[["input", "label"]]
+dataset_name = "my-customer-product-reviews"
+dataset = await client.datasets.create_dataset(
+    name=dataset_name,
+    dataframe=df,
+    input_keys=["input"],
+    output_keys=["label"],
+)
+```
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/repetitions_dataset_view.png" />
+</Frame>
+
+### Define Evaluation Task as the Experiment to Run
+
+```python expandable
+async def my_task(theInput) -> str:
+    TASK_PROMPT = f"""
+        You will be given a single customer review about products from a clothing brand.
+        Your job is to classify the type of review into a label.
+        Please provide an explanation as to how you came to your answer.
+
+        Allowed labels:
+        - Highly Positive & Actionable
+        - Positive but Generic
+        - Neutral / Mixed
+        - Negative but Actionable
+        - Highly Negative & Non-Constructive
+        - Off-topic
+
+        Here is the customer review: {theInput}
+
+        RESPONSE FORMAT:
+        First provide your explanation, then on a new line write "LABEL:" followed by the exact label.
+        Example:
+        EXPLANATION: This review shows mixed sentiment with both positive and negative aspects...
+        LABEL: Neutral / Mixed
+    """
+    resp = await openai_client.chat.completions.create(
+        model="gpt-4o-mini", messages=[{"role": "user", "content": TASK_PROMPT}], temperature=1.0
+    )
+    content = resp.choices[0].message.content.strip()
+
+    if "LABEL:" in content:
+        label = content.split("LABEL:")[-1].strip()
+        return label
+    else:
+        return content.split("\n")[-1].strip()
+```
+
+### Run Experiment!&#x20;
+
+```python
+from phoenix.client.experiments import async_run_experiment
+
+experiment = await async_run_experiment(
+    dataset=dataset,
+    task=my_task,
+    experiment_name="testing explanations",
+    client=client,
+    repetitions=3,
+)
+```
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/repetitions_experiment_view.png" />
+</Frame>

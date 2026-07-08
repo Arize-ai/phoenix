@@ -1,0 +1,47 @@
+/* sr-only: Visually hidden but accessible to screen readers and AI agents */
+/* Used for AI context blocks that should be in DOM but not visible to users */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.card-group .card img {
+    max-height: 197px !important;
+}
+
+.card-group[class$="-2"] .card img {
+    height: 160px !important;
+}
+
+.card-group[class$="-3"] .card img {
+    height: 150px !important;
+}
+
+table {
+    display: table !important;
+}
+
+.step-title {
+    font-size: 1.5rem !important;
+}
+
+/* Invert monochrome-black logos in dark mode (e.g. vendor SVGs with hardcoded fill="#000"). */
+.dark .invert-on-dark {
+    filter: invert(1);
+}
+
+/* Read more link styling for release notes */
+.release-update-read-more {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-weight: 500;
+    color: var(--primary);
+    text-decoration: none;
+}

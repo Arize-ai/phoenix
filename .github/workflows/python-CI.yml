@@ -1,0 +1,682 @@
+name: Python CI
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+      - version-*
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: test-python-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  pip-version: 24.2
+  OPENAI_API_KEY: "sk-fake-openai-key" # fake openai key so that llama_index doesn't download huggingface embeddings
+
+jobs:
+  changes:
+    name: Filter Changes
+    runs-on: ubuntu-latest
+    outputs:
+      ipynb: ${{ steps.filter.outputs.ipynb }}
+      ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
+      proto: ${{ steps.filter.outputs.proto }}
+      prompts: ${{ steps.filter.outputs.prompts }}
+      phoenix: ${{ steps.filter.outputs.phoenix }}
+      phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
+      phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
+      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      uv_lock: ${{ steps.filter.outputs.uv_lock }}
+      json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          list-files: shell
+          filters: |
+            ipynb:
+              - "**/*.ipynb"
+            prompts:
+              - "prompts/**"
+              - "scripts/prompts/compile_python_prompts.py"
+            phoenix:
+              - "evals/**"
+              - "src/**"
+              - "tests/**"
+              - "tutorials/**"
+              - "pyproject.toml"
+              - "tox.ini"
+            phoenix_client:
+              - "packages/phoenix-client/**"
+              - "tox.ini"
+            phoenix_evals:
+              - "packages/phoenix-evals/**"
+              - "tox.ini"
+            phoenix_otel:
+              - "packages/phoenix-otel/**"
+              - "tox.ini"
+            migrations:
+              - "src/phoenix/db/migrations/versions/**"
+            json_canonicalization_schema:
+              - "src/phoenix/vendor/json_canonicalization_scheme/**/*.py"
+            uv_lock:
+              - "**/pyproject.toml"
+              - "uv.lock"
+      - name: Print Filters
+        env:
+          IPYNB: ${{ steps.filter.outputs.ipynb }}
+          IPYNB_FILES: ${{ steps.filter.outputs.ipynb_files }}
+          PROMPTS: ${{ steps.filter.outputs.prompts }}
+          PHOENIX: ${{ steps.filter.outputs.phoenix }}
+          PHOENIX_CLIENT: ${{ steps.filter.outputs.phoenix_client }}
+          PHOENIX_EVALS: ${{ steps.filter.outputs.phoenix_evals }}
+          PHOENIX_OTEL: ${{ steps.filter.outputs.phoenix_otel }}
+          MIGRATIONS: ${{ steps.filter.outputs.migrations }}
+          UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
+          JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
+        run: |
+          echo "ipynb: $IPYNB"
+          echo "ipynb_files: $IPYNB_FILES"
+          echo "prompts: $PROMPTS"
+          echo "phoenix: $PHOENIX"
+          echo "phoenix_client: $PHOENIX_CLIENT"
+          echo "phoenix_evals: $PHOENIX_EVALS"
+          echo "phoenix_otel: $PHOENIX_OTEL"
+          echo "migrations: $MIGRATIONS"
+          echo "uv_lock: $UV_LOCK"
+          echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
+
+  phoenix-client:
+    name: Phoenix Client
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.10", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-client/
+            packages/phoenix-evals/
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - run: uvx tox run -e phoenix_client -- -ra -x
+
+  phoenix-evals:
+    name: Phoenix Evals
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-evals/
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - run: uvx tox run -e phoenix_evals -- -ra -x
+
+  phoenix-otel:
+    name: Phoenix OTel
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-otel/
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - run: uvx tox run -e phoenix_otel -- -ra -x
+
+  test-json-canonicalization-schema:
+    name: JSON Canonicalization Schema (${{ matrix.py }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.json_canonicalization_schema == 'true' }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - py: "3.10"
+            os: ubuntu-latest
+          - py: "3.11"
+            os: macos-latest
+          - py: "3.12"
+            os: ubuntu-latest
+          - py: "3.13"
+            os: windows-latest
+          - py: "3.14"
+            os: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/ci/json-canonicalization-schema/
+            src/phoenix/
+            packages/
+            .jcs-test-data/
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Install make (Windows)
+        if: runner.os == 'Windows'
+        run: choco install make --no-progress -y
+      - name: Cache test data
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: .jcs-test-data
+          key: jcs-test-data
+      - name: Run JSON canonicalization schema tests
+        shell: bash
+        run: make test-jcs
+
+  clean-jupyter-notebooks:
+    name: Clean Jupyter Notebooks
+    needs: changes
+    if: ${{ needs.changes.outputs.ipynb == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Clean Jupyter notebooks
+        run: make clean-notebooks
+      - run: git diff --exit-code
+
+  build-graphql-schema:
+    name: Build GraphQL Schema
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Build GraphQL schema
+        run: make schema-graphql
+      - run: git diff --exit-code
+
+  doctests:
+    name: Doctests
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Run doctests
+        run: make doctest
+
+  build-openapi-schema:
+    name: Build OpenAPI Schema
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Build OpenAPI schema
+        run: make schema-openapi
+      - run: git diff --exit-code
+
+  codegen-prompts:
+    name: Compile Prompts
+    needs: changes
+    if: ${{ needs.changes.outputs.prompts == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Compile Prompts
+        run: make codegen-prompts
+      - name: Check for changes
+        run: git diff --exit-code
+
+  check-lockfile:
+    name: Check uv.lock is up to date
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.uv_lock == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.14"]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Check lockfile is up to date
+        run: uv lock --check
+
+  format-and-lint:
+    name: Format and Lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Run formatter and linter
+        run: |
+          make format-python
+          make lint-python
+      - run: git diff --exit-code
+
+  type-check:
+    name: Type Check Python
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.uv_lock == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.14"]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/ci/
+            requirements/
+            src/
+            packages/
+            tests/
+            evals/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Type check all Python code
+        run: uv run mypy
+      - name: Ensure GraphQL mutations have permission classes
+        run: make check-graphql-permissions
+
+  unit-tests:
+    name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})
+    runs-on: oss-4-core-runner
+    needs: changes
+    if: ${{ (needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.uv_lock == 'true') && github.event_name == 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10"]
+        db: [sqlite, postgresql]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            evals/
+            packages/phoenix-evals/
+            tests/unit/
+            tests/conftest.py
+            tests/__generated__/
+            tests/__init__.py
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Install PostgreSQL
+        if: matrix.db == 'postgresql'
+        run: sudo apt-get -yqq install postgresql
+      - name: Run SQLite tests
+        if: matrix.db == 'sqlite'
+        timeout-minutes: 60
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 16 --dist loadscope
+      - name: Run PostgreSQL tests
+        if: matrix.db == 'postgresql'
+        timeout-minutes: 60
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.phoenix_client == 'true' || needs.changes.outputs.uv_lock == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10"]
+        db: [sqlite, postgresql]
+        os: [oss-4-core-runner]
+    env:
+      CI_TEST_DB_BACKEND: ${{ matrix.db }}
+    services:
+      postgres:
+        # Applying this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --name postgres
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            packages/phoenix-client/
+            packages/phoenix-evals/
+            tests/integration/
+            tests/__generated__/
+            tests/__init__.py
+      - name: Increase PostgreSQL max_connections
+        if: matrix.db == 'postgresql'
+        run: |
+          docker exec postgres sed -i 's/^max_connections = .*/max_connections = 300/' /var/lib/postgresql/data/postgresql.conf
+          docker restart postgres
+          until docker exec postgres pg_isready -U postgres; do sleep 1; done
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Run integration tests
+        timeout-minutes: 30
+        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 16
+
+  test-migrations:
+    name: DB Migration Continuity (${{ matrix.db }}${{ matrix.concurrently == true && ', concurrently' || '' }})
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.migrations == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgresql]
+        concurrently: [false]
+        include:
+          - db: postgresql
+            concurrently: true
+    services:
+      postgres:
+        # Applying this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.14
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Install arize-phoenix and database dependencies
+        run: |
+          uv pip install --system -qU 'arize-phoenix[pg]'
+          PHOENIX_PATH=$(python -c "import phoenix.db; print(phoenix.db.__path__[0])")
+          echo "PHOENIX_PATH=$PHOENIX_PATH" >> $GITHUB_ENV
+      - name: Set database environment variable
+        run: |
+          if [ "${{ matrix.db }}" = "postgresql" ]; then
+            echo "PHOENIX_SQL_DATABASE_URL=postgresql://postgres:phoenix@localhost:5432/postgres" >> $GITHUB_ENV
+          else
+            echo "PHOENIX_SQL_DATABASE_URL=sqlite:///phoenix_test.db" >> $GITHUB_ENV
+          fi
+          if [ "${{ matrix.concurrently }}" = "true" ]; then
+            echo "PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true" >> $GITHUB_ENV
+          fi
+      - name: Run migrations on installed Phoenix
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic history
+          alembic upgrade head
+          alembic current
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: src/phoenix/
+      - name: Install Phoenix from current branch
+        run: |
+          uv pip install --system --reinstall-package arize-phoenix --no-sources .
+      - name: Test new migrations
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic history
+          alembic upgrade head
+          alembic current
+      - name: Test down migrations
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic downgrade base
+          alembic current
+      - name: Test up migrations
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic upgrade head
+          alembic current
+
+  phoenix-client-canary-tests-sdk:
+    name: Phoenix Client Canary Tests for Third-Party SDKs
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10"]
+        pkg: [openai, anthropic]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-client/
+            packages/phoenix-evals/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Run canary tests for ${{ matrix.pkg }}
+        run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
+
+  ci-required:
+    name: Python CI Required
+    needs:
+      - format-and-lint
+      - changes
+      - phoenix-client
+      - phoenix-evals
+      - phoenix-otel
+      - clean-jupyter-notebooks
+      - build-graphql-schema
+      - build-openapi-schema
+      - codegen-prompts
+      - check-lockfile
+      - type-check
+      - unit-tests
+      - integration-tests
+      - test-migrations
+      - test-json-canonicalization-schema
+      - phoenix-client-canary-tests-sdk
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"

@@ -1,0 +1,201 @@
+name: Check Dependabot uv Version
+
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"  # Weekdays 13:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: check-dependabot-uv-version
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # contents: read is all Claude can reach: the read-only workflow token is
+      # passed to the action below (so no write-scoped App token is minted via
+      # OIDC), and publishing is done by later steps with a PAT.
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Shallow clone: nothing here reads git history, and origin/main at
+          # the tip is enough for the publish step's blocked-file restore.
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Get uv version supported by Dependabot
+        id: dependabot
+        run: |
+          set -euo pipefail
+          version=$(curl -sLf https://raw.githubusercontent.com/dependabot/dependabot-core/main/uv/Dockerfile \
+            | grep -oE 'ghcr\.io/astral-sh/uv:[0-9]+\.[0-9]+\.[0-9]+' \
+            | head -1 | cut -d: -f2)
+          if [ -z "$version" ]; then
+            echo "::error::Could not extract uv version from dependabot-core/uv/Dockerfile"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Get uv version pinned in this repo
+        id: repo
+        run: |
+          set -euo pipefail
+          version=$(grep -E '^required-version\s*=' pyproject.toml \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ -z "$version" ]; then
+            echo "::error::Could not extract uv version from pyproject.toml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing open bump PR
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version
+        id: existing_pr
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          UV_VERSION: ${{ steps.dependabot.outputs.version }}
+        run: |
+          set -euo pipefail
+          count=$(gh pr list \
+            --search "chore(deps): bump uv to $UV_VERSION in:title" \
+            --state open --json number --jq 'length')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
+            echo "An open PR for uv $UV_VERSION already exists; skipping."
+          fi
+
+      - name: Create branch
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
+        env:
+          UV_VERSION: ${{ steps.dependabot.outputs.version }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="claude/bump-uv-$UV_VERSION-$DATE"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          mkdir -p .scratch
+
+      - name: Install target uv version
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ steps.dependabot.outputs.version }}
+
+      - name: Install subprocess isolation deps
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
+        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
+        # needs both bubblewrap AND socat, and Ubuntu 24.04+ blocks the unprivileged
+        # user namespaces it relies on by default.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: Run Claude Code
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
+        id: claude
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Hand the action the read-only workflow token instead of letting it
+          # mint a write-scoped Claude App token via OIDC. Claude never writes
+          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
+          # in its environment stays read-only.
+          github_token: ${{ github.token }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
+          show_full_output: 'true'
+          prompt: |
+            Bump the pinned uv CLI version across this repo from `${{ steps.repo.outputs.version }}` to `${{ steps.dependabot.outputs.version }}` so it matches the version Dependabot supports.
+
+            Steps:
+            1. Use `git grep` (or ripgrep) to find every reference to `${{ steps.repo.outputs.version }}` that pins the uv CLI. Likely locations: `pyproject.toml` (`[tool.uv] required-version`), `Dockerfile` and other Dockerfiles (`ghcr.io/astral-sh/uv:` image tags, `pip install uv==`), and `.github/workflows/*.yml|*.yaml` (`astral-sh/setup-uv` `version:` inputs). Do NOT change unrelated occurrences of the same version string (e.g., CHANGELOG entries, unrelated dependency pins, lockfile-internal version metadata for other packages).
+            2. Update each genuine uv pin to `${{ steps.dependabot.outputs.version }}`.
+            3. After editing, run `git grep '${{ steps.repo.outputs.version }}'` and confirm any remaining matches are NOT uv pins (CHANGELOG entries, etc.). If any uv pin is left behind, fix it.
+            4. Run `uv lock` to regenerate the lockfile against the new uv version.
+            5. If you see no genuine uv pins to update, exit without making changes.
+            6. When done, write a PR body to `.scratch/pr-body.md`. Do not commit, push, or open a PR; the workflow handles publishing.
+               The PR body must link to https://github.com/dependabot/dependabot-core/blob/main/uv/Dockerfile and note this PR was generated by `.github/workflows/check-dependabot-uv-version.yml`.
+
+            Do NOT manually edit CHANGELOG.md or pre-existing release notes — those are historical records. Do NOT hand-edit `uv.lock`; only modify it via `uv lock`.
+          claude_args: '--model claude-sonnet-4-6 --allowedTools Read,Write,Edit,Glob,Grep,"Bash(git status:*)","Bash(git diff:*)","Bash(git grep:*)","Bash(rg:*)","Bash(grep:*)","Bash(sed:*)","Bash(find:*)","Bash(ls:*)","Bash(cat:*)","Bash(date:*)","Bash(uv:*)","Bash(mkdir:*)"'
+
+      - name: Commit and open pull request
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0' && steps.claude.outcome == 'success'
+        env:
+          # Separate publishing token; the claude-code-action app token has
+          # already been revoked by this point.
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          UV_VERSION: ${{ steps.dependabot.outputs.version }}
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No uv version changes — exiting cleanly."
+            exit 0
+          fi
+          gh auth setup-git
+          # The Claude step rewrites origin to embed its app token in the URL
+          # and revokes that token when the step ends. URL-embedded credentials
+          # take precedence over gh's credential helper, so reset the remote to
+          # a clean URL to push with the PAT configured above.
+          git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Allow .github/ (uv pins live in workflow files) but restore other
+          # agent-instruction paths from origin/main so an injected prompt can't
+          # widen its own permissions while pretending to bump a version.
+          blocked_files=$(git diff --name-only | awk '
+            /^\.cursor\// ||
+            /^\.claude\// ||
+            /^\.agents\// ||
+            /(^|\/)AGENTS\.md$/ ||
+            /(^|\/)CLAUDE\.md$/
+          ')
+          if [ -n "$blocked_files" ]; then
+            echo "::warning::uv version bump touched agent-instruction files; restoring them from origin/main."
+            printf '%s\n' "$blocked_files"
+            while IFS= read -r file; do
+              if git cat-file -e "origin/main:$file" 2>/dev/null; then
+                git restore --source=origin/main --worktree --staged -- "$file"
+              else
+                git restore --staged -- "$file" 2>/dev/null || true
+                rm -f -- "$file"
+              fi
+            done <<< "$blocked_files"
+          fi
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "Only blocked files changed; restored them and skipping PR."
+            exit 0
+          fi
+          git add -A
+          git commit -m "chore(deps): bump uv to $UV_VERSION"
+          git push -u origin "$BRANCH"
+          if [ -s .scratch/pr-body.md ]; then
+            BODY_FILE=.scratch/pr-body.md
+          else
+            BODY_FILE=$(mktemp)
+            {
+              echo "Bumps the pinned uv CLI version to $UV_VERSION so it matches Dependabot."
+              echo ""
+              echo "Source: https://github.com/dependabot/dependabot-core/blob/main/uv/Dockerfile"
+              echo ""
+              echo 'Generated by `.github/workflows/check-dependabot-uv-version.yml`.'
+            } > "$BODY_FILE"
+          fi
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore(deps): bump uv to $UV_VERSION to match Dependabot" \
+            --body-file "$BODY_FILE"

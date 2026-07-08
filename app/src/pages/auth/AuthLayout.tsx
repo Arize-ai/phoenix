@@ -1,0 +1,66 @@
+import { css } from "@emotion/react";
+import type { PropsWithChildren } from "react";
+
+import { View } from "@phoenix/components";
+
+export function AuthLayout({ children }: PropsWithChildren) {
+  return (
+    <main
+      css={css`
+        padding-top: 200px;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: radial-gradient(
+          90% 60% at 50% 30%,
+          rgba(5, 145, 193, 0.4) 0%,
+          transparent 100%
+        );
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-sizing: border-box;
+      `}
+    >
+      <View
+        borderColor="default"
+        borderWidth="thin"
+        width="size-5000"
+        padding="size-400"
+        backgroundColor="gray-75"
+        marginStart="auto"
+        marginEnd="auto"
+        borderRadius="medium"
+        overflow="auto"
+      >
+        {children}
+      </View>
+      <footer
+        css={css`
+          display: flex;
+          justify-content: center;
+          padding: var(--global-dimension-size-400);
+          gap: var(--global-dimension-size-200);
+          a {
+            color: var(--global-text-color-700);
+            transition: color 0.2s ease-in-out;
+            text-decoration: none;
+            &:hover {
+              color: var(--global-text-color-900);
+              text-decoration: underline;
+            }
+          }
+        `}
+      >
+        <a href="https://arize.com/docs/phoenix">Documentation</a>|
+        <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g">
+          Community
+        </a>
+        |<a href="https://twitter.com/ArizePhoenix">X</a>|
+        <a href="https://www.linkedin.com/showcase/113218220">LinkedIn</a>|
+        <a href="https://github.com/Arize-ai/phoenix">GitHub</a>|
+        <a href="https://github.com/Arize-ai/phoenix/releases">{`arize-phoenix v${window.Config.platformVersion}`}</a>
+      </footer>
+    </main>
+  );
+}

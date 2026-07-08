@@ -1,0 +1,41 @@
+name: Collect customer issues
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "0 12 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  collect-issues-pending-triage:
+    name: Pending Triage
+    runs-on: ubuntu-latest
+    env:
+      LOOKBACK_DAYS: 120
+      STALENESS_THRESHOLD_IN_DAYS: 14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/
+      - name: Retrieve and format issues
+        id: retrieve-issues
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const script = require(".github/.scripts/collect-customer-issues.js");
+            await script({github, context, core});
+      - name: Send message to Slack
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        if: steps.retrieve-issues.outputs.has_issues == 'true'
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "type": "mrkdwn",
+              "text": ${{ toJSON(steps.retrieve-issues.outputs.slack_message) }}
+            }

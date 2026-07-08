@@ -1,0 +1,54 @@
+import type { Ref } from "react";
+
+import type { NumberFieldProps } from "@phoenix/components";
+import { Flex, Input, NumberField, Text } from "@phoenix/components";
+import { AnnotationInputExplanation } from "@phoenix/components/annotation/AnnotationInputExplanation";
+import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
+import type { AnnotationConfigContinuous } from "@phoenix/pages/settings/types";
+
+import type { AnnotationInputPropsBase } from "./types";
+
+type ContinuousAnnotationInputProps =
+  AnnotationInputPropsBase<AnnotationConfigContinuous> & NumberFieldProps;
+
+export function ContinuousAnnotationInput({
+  ref,
+  annotationConfig,
+  annotation,
+  onSubmitExplanation,
+  ...props
+}: ContinuousAnnotationInputProps & { ref?: Ref<HTMLDivElement> }) {
+  return (
+    <Flex gap="size-50" alignItems="center" position="relative">
+      <AnnotationInputExplanation
+        annotation={annotation}
+        onSubmit={onSubmitExplanation}
+      />
+      <NumberField
+        defaultValue={annotation?.score ?? undefined}
+        {...props}
+        ref={ref}
+        size="S"
+        minValue={annotationConfig?.lowerBound ?? 0}
+        maxValue={annotationConfig?.upperBound ?? 1}
+        css={{
+          width: "100%",
+        }}
+      >
+        <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
+        <Input
+          placeholder={
+            annotationConfig?.optimizationDirection === "MAXIMIZE"
+              ? `e.g. ${annotationConfig.upperBound}`
+              : `e.g. ${annotationConfig.lowerBound}`
+          }
+        />
+        <Text slot="description">
+          from {annotationConfig.lowerBound} to {annotationConfig.upperBound}
+        </Text>
+      </NumberField>
+    </Flex>
+  );
+}
+
+ContinuousAnnotationInput.displayName = "ContinuousAnnotationInput";

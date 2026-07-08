@@ -1,0 +1,559 @@
+import { css, keyframes } from "@emotion/react";
+import { AnimatePresence, motion } from "motion/react";
+import type { Ref, RefObject } from "react";
+import type { ButtonProps as AriaButtonProps } from "react-aria-components";
+import { Button as AriaButton } from "react-aria-components";
+import { createPortal } from "react-dom";
+import { useHotkeys } from "react-hotkeys-hook";
+
+import {
+  Flex,
+  Keyboard,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  VisuallyHidden,
+} from "@phoenix/components";
+import { useTheme } from "@phoenix/contexts";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
+
+import { AgentFabPositioner } from "./AgentFabPositioner";
+import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
+import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
+import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
+
+const OPEN_AGENT_HOTKEY = "mod+i";
+
+const thinkingBorderWipe = keyframes`
+  0% {
+    -webkit-mask-position: 200% center;
+    mask-position: 200% center;
+  }
+
+  100% {
+    -webkit-mask-position: 0% center;
+    mask-position: 0% center;
+  }
+`;
+
+const ringBreathe = keyframes`
+  0%, 100% {
+    box-shadow: var(--agent-chat-widget-glow-outer-rest);
+  }
+  50% {
+    box-shadow: var(--agent-chat-widget-glow-outer-strong);
+  }
+`;
+
+const hoverWipe = keyframes`
+  0% {
+    opacity: 0;
+    -webkit-mask-position: 200% center;
+    mask-position: 200% center;
+  }
+  8% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0;
+    -webkit-mask-position: -60% center;
+    mask-position: -60% center;
+  }
+  100% {
+    opacity: 0;
+    -webkit-mask-position: -60% center;
+    mask-position: -60% center;
+  }
+`;
+
+const hoverRingOpacity = keyframes`
+  0%, 100% {
+    opacity: 0;
+  }
+  8%, 40% {
+    opacity: 0.95;
+  }
+  55% {
+    opacity: 0;
+  }
+`;
+
+const glyphBreathe = keyframes`
+  0%, 100% {
+    color: var(--agent-chat-widget-glyph-rest-color);
+    filter: drop-shadow(0 0 0 var(--agent-chat-widget-glyph-pulse-shadow));
+  }
+
+  50% {
+    color: var(--agent-chat-widget-glyph-pulse-color);
+    filter: drop-shadow(0 0 3px var(--agent-chat-widget-glyph-pulse-shadow));
+  }
+`;
+
+const buttonCSS = css`
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+`;
+
+const inlineButtonCSS = css`
+  position: relative;
+`;
+
+// Applied when the button is used as a drag handle inside the FAB positioner.
+// The positioner owns the cursor (pointer / grabbing) and consumes touch
+// gestures itself, so the button only needs to opt out of both.
+const draggableButtonCSS = css`
+  cursor: inherit;
+  touch-action: none;
+`;
+
+const darkThemeGlyphThemeCSS = css`
+  &[data-theme="dark"] {
+    --agent-chat-widget-glyph-rest-color: #1f2730;
+    --agent-chat-widget-glyph-pulse-color: #6b7c8f;
+    --agent-chat-widget-glyph-pulse-shadow: rgba(107, 124, 143, 0.4);
+  }
+`;
+
+const lightThemeGlyphThemeCSS = css`
+  &[data-theme="light"] {
+    --agent-chat-widget-glyph-rest-color: var(--global-color-gray-50);
+    --agent-chat-widget-glyph-pulse-color: #a4a9ae;
+    --agent-chat-widget-glyph-pulse-shadow: rgba(156, 205, 255, 0.4);
+  }
+`;
+
+const darkThemeThinkingGlowCSS = css`
+  &[data-theme="dark"] {
+    --agent-chat-widget-glow-outer-rest:
+      0 0 2px 1px rgba(248, 242, 255, 0.78),
+      0 0 4px 2px rgba(154, 102, 255, 0.68),
+      0 0 8px 4px rgba(52, 128, 255, 0.52),
+      0 0 13px 5px rgba(198, 72, 255, 0.4),
+      0 0 17px 6px rgba(44, 216, 255, 0.26);
+    --agent-chat-widget-glow-outer-strong:
+      0 0 3px 2px rgba(250, 244, 255, 0.88),
+      0 0 7px 3px rgba(160, 108, 255, 0.82),
+      0 0 12px 6px rgba(58, 134, 255, 0.66),
+      0 0 19px 8px rgba(205, 78, 255, 0.52),
+      0 0 26px 10px rgba(50, 220, 255, 0.34);
+  }
+`;
+
+const lightThemeThinkingGlowCSS = css`
+  &[data-theme="light"] {
+    --agent-chat-widget-glow-outer-rest:
+      0 0 3px 1px rgba(245, 249, 255, 0.88),
+      0 0 5px 2px rgba(199, 190, 242, 0.56),
+      0 0 9px 4px rgba(88, 152, 255, 0.54),
+      0 0 14px 5px rgba(200, 150, 236, 0.23),
+      0 0 20px 7px rgba(116, 212, 255, 0.17);
+    --agent-chat-widget-glow-outer-strong:
+      0 0 4px 1px rgba(248, 251, 255, 0.94),
+      0 0 8px 3px rgba(203, 194, 244, 0.68),
+      0 0 13px 5px rgba(96, 159, 255, 0.64),
+      0 0 20px 7px rgba(205, 154, 238, 0.31),
+      0 0 26px 9px rgba(119, 214, 255, 0.22);
+  }
+`;
+
+const shapeCSS = css`
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--global-color-gray-900);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  color: var(--agent-chat-widget-glyph-rest-color);
+  font-size: var(--global-font-size-s);
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  gap: 4px;
+  overflow: visible;
+  isolation: isolate;
+
+  .fab-glyph {
+    overflow: visible;
+    flex-shrink: 0;
+  }
+
+  .fab-glyph circle,
+  .fab-glyph rect {
+    fill: currentColor;
+    transition: fill 160ms ease-out;
+  }
+
+  .agent-chat-widget__indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    isolation: isolate;
+    flex-shrink: 0;
+  }
+`;
+
+const shapeContentCSS = css`
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  color: inherit;
+  transition:
+    color 160ms ease-out,
+    filter 160ms ease-out,
+    opacity 160ms ease-out;
+  will-change: color, filter, opacity;
+`;
+
+const thinkingBorderCSS = css`
+  .agent-chat-widget__shimmer {
+    position: absolute;
+    inset: -28px;
+    z-index: 0;
+    border-radius: inherit;
+    mix-blend-mode: plus-lighter;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 15%,
+      black 45%,
+      black 55%,
+      transparent 85%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 15%,
+      black 45%,
+      black 55%,
+      transparent 85%
+    );
+    -webkit-mask-size: 200% 200%;
+    mask-size: 200% 200%;
+    -webkit-mask-position: center;
+    mask-position: center;
+    animation: ${thinkingBorderWipe} 3s linear infinite both -0.5s;
+  }
+
+  .agent-chat-widget__shimmer::before {
+    content: "";
+    position: absolute;
+    inset: 28px;
+    border-radius: inherit;
+    opacity: 1;
+  }
+
+  .agent-chat-widget__shimmer::before {
+    box-shadow: var(--agent-chat-widget-glow-outer-rest);
+    animation: ${ringBreathe} 2400ms ease-in-out infinite;
+    z-index: -1;
+  }
+`;
+
+const restingHoverWipeCSS = css`
+  .agent-chat-widget__content {
+    opacity: 0.9;
+  }
+
+  .agent-chat-widget__hover-shimmer {
+    position: absolute;
+    inset: -28px;
+    z-index: 0;
+    border-radius: inherit;
+    mix-blend-mode: plus-lighter;
+    pointer-events: none;
+    opacity: 0;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 15%,
+      black 45%,
+      black 55%,
+      transparent 85%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 15%,
+      black 45%,
+      black 55%,
+      transparent 85%
+    );
+    -webkit-mask-size: 200% 200%;
+    mask-size: 200% 200%;
+    -webkit-mask-position: 200% center;
+    mask-position: 200% center;
+  }
+
+  .agent-chat-widget__hover-shimmer::before {
+    content: "";
+    position: absolute;
+    inset: 28px;
+    border-radius: inherit;
+    box-shadow: var(--agent-chat-widget-glow-outer-rest);
+    opacity: 0;
+    transition:
+      opacity 240ms ease-out,
+      box-shadow 240ms ease-out;
+  }
+
+  &:hover .agent-chat-widget__hover-shimmer {
+    animation: ${hoverWipe} 2400ms linear infinite;
+  }
+
+  &:hover .agent-chat-widget__hover-shimmer::before {
+    opacity: 0.95;
+    animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+  }
+
+  &:hover .agent-chat-widget__content {
+    opacity: 1;
+  }
+`;
+
+const entranceHoverWipeCSS = css`
+  @media (prefers-reduced-motion: no-preference) {
+    &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"]
+      .agent-chat-widget__hover-shimmer::before {
+      animation:
+        ${ringBreathe} 2400ms ease-in-out 1,
+        ${hoverRingOpacity} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"] .agent-chat-widget__content {
+      opacity: 1;
+    }
+
+    &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear infinite;
+    }
+
+    &[data-entrance-animation="true"]:hover
+      .agent-chat-widget__hover-shimmer::before {
+      opacity: 0.95;
+      animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+    }
+  }
+`;
+
+const thinkingGlyphPulseCSS = css`
+  .agent-chat-widget__content {
+    animation: ${glyphBreathe} 2400ms ease-in-out infinite;
+  }
+`;
+
+export type { PxiGlyphAnimation } from "./PxiGlyph";
+
+export interface AgentChatWidgetButtonProps extends Omit<
+  AriaButtonProps,
+  "aria-label" | "children" | "type"
+> {
+  ref?: Ref<HTMLButtonElement>;
+  isStreaming?: boolean;
+  ariaLabel?: string;
+  isDragHandle?: boolean;
+  glyphAnimation?: PxiGlyphAnimation;
+}
+
+export function AgentChatWidgetButton({
+  ref,
+  isStreaming = false,
+  ariaLabel = "Open assistant",
+  isDragHandle = false,
+  glyphAnimation = "wave-reveal",
+  ...buttonProps
+}: AgentChatWidgetButtonProps) {
+  const { theme } = useTheme();
+  const shouldShowEntranceAnimation = !isStreaming;
+  return (
+    <AriaButton
+      ref={ref}
+      type="button"
+      css={[
+        buttonCSS,
+        inlineButtonCSS,
+        isDragHandle ? draggableButtonCSS : undefined,
+      ]}
+      {...buttonProps}
+      aria-label={ariaLabel}
+    >
+      <motion.div
+        css={[
+          shapeCSS,
+          darkThemeGlyphThemeCSS,
+          lightThemeGlyphThemeCSS,
+          darkThemeThinkingGlowCSS,
+          lightThemeThinkingGlowCSS,
+          !isStreaming ? [thinkingBorderCSS, restingHoverWipeCSS] : undefined,
+          shouldShowEntranceAnimation ? entranceHoverWipeCSS : undefined,
+          isStreaming ? thinkingBorderCSS : undefined,
+          isStreaming ? thinkingGlyphPulseCSS : undefined,
+        ]}
+        data-theme={theme}
+        data-entrance-animation={
+          shouldShowEntranceAnimation ? "true" : undefined
+        }
+        initial={false}
+        animate={{
+          width: isStreaming ? 40 : 58,
+          height: isStreaming ? 40 : 36,
+          borderRadius: isStreaming ? 20 : 18,
+          paddingLeft: isStreaming ? 0 : 8,
+          paddingRight: isStreaming ? 0 : 8,
+          paddingTop: 0,
+          paddingBottom: 0,
+        }}
+        transition={{
+          duration: 0.3,
+          ease: [0.2, 0.9, 0.2, 1],
+        }}
+      >
+        {!isStreaming ? (
+          <span className="agent-chat-widget__hover-shimmer" />
+        ) : null}
+        {isStreaming ? <span className="agent-chat-widget__shimmer" /> : null}
+        <div className="agent-chat-widget__content" css={shapeContentCSS}>
+          {isStreaming ? (
+            <div className="agent-chat-widget__indicator">
+              <PxiGlyph
+                className="fab-glyph"
+                fill="currentColor"
+                animation={glyphAnimation}
+              />
+            </div>
+          ) : (
+            <PxiGlyph
+              className="fab-glyph"
+              fill="currentColor"
+              css={css`
+                transform: scale(0.7);
+              `}
+            />
+          )}
+          <AnimatePresence>
+            {!isStreaming && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.18, ease: [0.2, 0.9, 0.2, 1] }}
+              >
+                PXI
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </AriaButton>
+  );
+}
+
+export type AgentChatWidgetProps = {
+  boundaryRef?: RefObject<HTMLElement | null>;
+};
+
+export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
+  const isAssistantAgentEnabled = useAssistantAgentEnabled();
+  const isOpen = useAgentContext((state) => state.isOpen);
+  const toggleOpen = useAgentContext((state) => state.toggleOpen);
+  const fabPlacement = useAgentContext((state) => state.fabPlacement);
+  const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
+  const activeSessionId = useAgentContext((state) => state.activeSessionId);
+  const activeModalPortalContainer = useActiveModalPortalContainerElement();
+  const hasOpenModal = activeModalPortalContainer !== null;
+  const isStreaming = useAgentContext((state) =>
+    activeSessionId
+      ? state.chatStatusBySessionId[activeSessionId] === "streaming"
+      : false
+  );
+
+  useHotkeys(
+    OPEN_AGENT_HOTKEY,
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleOpen();
+    },
+    {
+      enabled: isAssistantAgentEnabled,
+      preventDefault: true,
+    },
+    [isAssistantAgentEnabled, toggleOpen]
+  );
+
+  if (!isAssistantAgentEnabled) {
+    return null;
+  }
+
+  const portalContainer = activeModalPortalContainer ?? document.body;
+
+  return createPortal(
+    <AgentFabPositioner
+      boundaryRef={hasOpenModal ? undefined : boundaryRef}
+      isHidden={isOpen}
+      layer={hasOpenModal ? "modal" : "content"}
+      placement={fabPlacement}
+      size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
+      onActivate={toggleOpen}
+      onPlacementChange={setFabPlacement}
+    >
+      <TooltipTrigger delay={1000} closeDelay={0}>
+        <AgentChatWidgetButton
+          ariaLabel="Open assistant"
+          isDragHandle
+          isStreaming={isStreaming}
+          onPress={(event) => {
+            if (
+              event.pointerType === "keyboard" ||
+              event.pointerType === "virtual"
+            ) {
+              toggleOpen();
+            }
+          }}
+        />
+        <AgentChatWidgetTooltip />
+      </TooltipTrigger>
+    </AgentFabPositioner>,
+    portalContainer ?? document.body
+  );
+}
+
+function AgentChatWidgetTooltip() {
+  const modifierKey = useModifierKey();
+  const modifierGlyph = modifierKey === "Cmd" ? "⌘" : "Ctrl";
+
+  return (
+    <Tooltip placement="top" offset={6}>
+      <TooltipArrow />
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <span>Open assistant</span>
+        <Keyboard>
+          <VisuallyHidden>{modifierKey}</VisuallyHidden>
+          <span aria-hidden="true">{modifierGlyph}</span>
+          <VisuallyHidden>i</VisuallyHidden>
+          <span aria-hidden="true">I</span>
+        </Keyboard>
+      </Flex>
+    </Tooltip>
+  );
+}

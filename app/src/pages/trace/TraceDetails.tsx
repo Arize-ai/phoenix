@@ -1,0 +1,366 @@
+import { css } from "@emotion/react";
+import type { PropsWithChildren } from "react";
+import { Suspense, useMemo } from "react";
+import { Focusable } from "react-aria";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
+import { useSearchParams } from "react-router";
+import invariant from "tiny-invariant";
+
+import {
+  Flex,
+  LinkButton,
+  Loading,
+  RichTooltip,
+  Text,
+  TooltipArrow,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
+import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
+import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
+
+import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
+import type {
+  TraceDetailsQuery,
+  TraceDetailsQuery$data,
+} from "./__generated__/TraceDetailsQuery.graphql";
+import { ConnectedTraceTree } from "./ConnectedTraceTree";
+import { SpanDetails } from "./SpanDetails";
+import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
+import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
+
+type RootSpan = NonNullable<
+  TraceDetailsQuery$data["project"]["trace"]
+>["rootSpans"]["edges"][number]["span"];
+
+type CostSummary = NonNullable<
+  TraceDetailsQuery$data["project"]["trace"]
+>["costSummary"];
+
+export type TraceDetailsProps = {
+  traceId: string;
+  projectId: string;
+};
+
+/**
+ * A component that shows the details of a trace (e.g. a collection of spans)
+ */
+export function TraceDetails(props: TraceDetailsProps) {
+  const { traceId, projectId } = props;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const data = useLazyLoadQuery<TraceDetailsQuery>(
+    graphql`
+      query TraceDetailsQuery($traceId: ID!, $id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            trace(traceId: $traceId) {
+              id
+              projectSessionId
+              ...ConnectedTraceTree
+              rootSpans: spans(
+                first: 1
+                rootSpansOnly: true
+                orphanSpanAsRootSpan: true
+              ) {
+                edges {
+                  span: node {
+                    statusCode
+                    id
+                    spanId
+                    parentId
+                  }
+                }
+              }
+              latencyMs
+              costSummary {
+                prompt {
+                  cost
+                }
+                completion {
+                  cost
+                }
+                total {
+                  cost
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    { traceId: traceId as string, id: projectId as string },
+    {
+      fetchPolicy: "store-and-network",
+    }
+  );
+  invariant(data.project.trace, "Trace is required to view the trace details");
+  const traceLatencyMs =
+    data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
+  const costSummary = data?.project?.trace?.costSummary;
+  const rootSpans: RootSpan[] = useMemo(() => {
+    const gqlSpans = data.project.trace?.rootSpans.edges || [];
+    return gqlSpans.map((node) => node.span);
+  }, [data]);
+  const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  invariant(rootSpans.length > 0, "At least one root must be resolvable");
+  const rootSpan = rootSpans[0];
+  const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
+
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "trace-details-layout",
+    storage: localStorage,
+  });
+
+  return (
+    <main
+      css={css`
+        flex: 1 1 auto;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      `}
+    >
+      <TraceHeader
+        projectId={projectId}
+        traceNodeId={data.project.trace.id}
+        rootSpan={rootSpan}
+        latencyMs={traceLatencyMs}
+        costSummary={costSummary}
+        sessionId={data.project.trace?.projectSessionId}
+      />
+      <Group
+        orientation="horizontal"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+        css={css`
+          flex: 1 1 auto;
+          overflow: hidden;
+        `}
+      >
+        <Panel id="trace-tree" defaultSize="30%" minSize="5%">
+          <TraceTreeProvider>
+            <ScrollingPanelContent>
+              <TraceTreeToolbar />
+              <ConnectedTraceTree
+                trace={data.project.trace}
+                selectedSpanNodeId={selectedSpanNodeId}
+                onSpanClick={(span) => {
+                  setSearchParams(
+                    (searchParams) => {
+                      searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+                      return searchParams;
+                    },
+                    { replace: true }
+                  );
+                }}
+              />
+            </ScrollingPanelContent>
+          </TraceTreeProvider>
+        </Panel>
+        <Separator css={compactResizeHandleCSS} />
+        <Panel id="span-details">
+          <ScrollingTabsWrapper>
+            {selectedSpanNodeId ? (
+              <Suspense fallback={<Loading />}>
+                <SpanDetails spanNodeId={selectedSpanNodeId} />
+              </Suspense>
+            ) : null}
+          </ScrollingTabsWrapper>
+        </Panel>
+      </Group>
+    </main>
+  );
+}
+
+function TraceHeader({
+  rootSpan,
+  traceNodeId,
+  latencyMs,
+  costSummary,
+  sessionId,
+  projectId,
+}: {
+  rootSpan: RootSpan | null;
+  traceNodeId: string;
+  latencyMs: number | null;
+  costSummary?: CostSummary | null;
+  sessionId?: string | null;
+  projectId: string;
+}) {
+  const [searchParams] = useSearchParams();
+  const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
+  const sessionSearch = clearSelectionScopedParams(searchParams);
+  return (
+    <View
+      paddingTop="size-100"
+      paddingBottom="size-150"
+      paddingX="size-200"
+      borderBottomWidth="thin"
+      borderBottomColor="default"
+    >
+      <Flex
+        direction="row"
+        gap="size-400"
+        alignItems="start"
+        css={css`
+          box-sizing: content-box;
+        `}
+      >
+        <Flex
+          direction="column"
+          alignItems="start"
+          css={css`
+            align-self: stretch;
+          `}
+        >
+          <Text elementType="h3" size="S" color="text-700">
+            Status
+          </Text>
+          <div
+            css={css`
+              flex: 1 1 auto;
+              display: flex;
+              align-items: center;
+            `}
+          >
+            <SpanStatusBadge statusCode={statusCode} labelVariant="full" />
+          </div>
+        </Flex>
+        <Flex direction="column">
+          <Text elementType="h3" size="S" color="text-700">
+            Total Cost
+          </Text>
+          <TooltipTrigger delay={0}>
+            <Focusable>
+              <Text size="L" role="button">
+                {costFormatter(costSummary?.total?.cost ?? 0)}
+              </Text>
+            </Focusable>
+            <RichTooltip placement="bottom">
+              <TooltipArrow />
+              <View width="size-3600">
+                <RichTokenBreakdown
+                  valueLabel="cost"
+                  totalValue={costSummary?.total?.cost ?? 0}
+                  formatter={costFormatter}
+                  segments={[
+                    {
+                      name: "Prompt",
+                      value: costSummary?.prompt?.cost ?? 0,
+                      color: "rgba(254, 119, 99, 1)",
+                    },
+                    {
+                      name: "Completion",
+                      value: costSummary?.completion?.cost ?? 0,
+                      color: "rgba(98, 104, 239, 1)",
+                    },
+                  ]}
+                />
+              </View>
+            </RichTooltip>
+          </TooltipTrigger>
+        </Flex>
+        <Flex direction="column">
+          <Text elementType="h3" size="S" color="text-700">
+            Latency
+          </Text>
+          {typeof latencyMs === "number" ? (
+            <LatencyText latencyMs={latencyMs} size="L" />
+          ) : (
+            <Text size="L">--</Text>
+          )}
+        </Flex>
+        <Suspense fallback={null}>
+          <Flex
+            direction="row"
+            gap="size-400"
+            alignItems="stretch"
+            alignSelf="stretch"
+          >
+            {rootSpan ? (
+              <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
+            ) : null}
+            <TraceHeaderTraceAnnotations traceId={traceNodeId} />
+          </Flex>
+        </Suspense>
+        {sessionId && (
+          <span
+            css={css`
+              align-self: center;
+              margin-left: auto;
+            `}
+          >
+            <LinkButton
+              size="S"
+              variant="primary"
+              to={{
+                pathname: `/projects/${projectId}/sessions/${sessionId}`,
+                search: sessionSearch,
+              }}
+            >
+              View Session
+            </LinkButton>
+          </span>
+        )}
+      </Flex>
+    </View>
+  );
+}
+
+function ScrollingTabsWrapper({ children }: PropsWithChildren) {
+  return (
+    <div
+      data-testid="scrolling-tabs-wrapper"
+      css={css`
+        height: 100%;
+        overflow: hidden;
+        .tabs {
+          height: 100%;
+          overflow: hidden;
+          .tabs__extra {
+            width: 100%;
+            padding-right: var(--global-dimension-size-200);
+            padding-bottom: var(--global-dimension-size-50);
+          }
+          .tabs__pane-container {
+            min-height: 100%;
+            height: 100%;
+            overflow-y: auto;
+            div[role="tabpanel"] {
+              height: 100%;
+            }
+          }
+        }
+      `}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ScrollingPanelContent({ children }: PropsWithChildren) {
+  return (
+    <div
+      data-testid="scrolling-panel-content"
+      css={css`
+        height: 100%;
+        overflow-y: auto;
+      `}
+    >
+      {children}
+    </div>
+  );
+}

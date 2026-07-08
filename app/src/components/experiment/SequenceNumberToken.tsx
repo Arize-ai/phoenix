@@ -1,0 +1,13 @@
+import { Token } from "@phoenix/components/core/token";
+
+export function SequenceNumberToken({
+  sequenceNumber,
+}: {
+  sequenceNumber: number;
+}) {
+  return (
+    <Token color="var(--global-color-yellow-500)" size="S">
+      #{sequenceNumber}
+    </Token>
+  );
+}

@@ -1,0 +1,6 @@
+AVAILABLE COMPONENTS (4):
+
+- BarChart: { title?: string, data: Array<{ label: string, value: number }> } - Horizontal categorical bar chart with label/value rows.
+- VerticalBarChart: { title?: string, data: Array<{ label: string, value: number, highlight?: number }>, baseLabel?: string, highlightLabel?: string } - Compact vertical bar chart for time buckets, optionally with one highlighted segment stacked on top of the base value.
+- StackedBarChart: { title?: string, data: Array<{ label: string, segments: Array<{ label: string, value: number }> }> } - Horizontal stacked bar chart for comparing segment totals across categories.
+- LineChart: { title?: string, lines: Array<{ label?: string, data: Array<number> }>, xLabels?: Array<string> } - Compact multi-line trend chart with optional series labels and x-axis labels.

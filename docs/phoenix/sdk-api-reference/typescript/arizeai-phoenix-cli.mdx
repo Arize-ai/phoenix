@@ -1,0 +1,892 @@
+---
+title: "@arizeai/phoenix-cli"
+description: Command-line interface for retrieving trace data from Arize Phoenix projects.
+---
+
+<a href="https://www.npmjs.com/package/@arizeai/phoenix-cli"><img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli" className='inline'/></a>
+
+<Card
+  horizontal
+  title="phoenix/js/packages/phoenix-cli at main · Arize-ai/phoenix"
+  href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli"
+  icon="github"
+>
+  GitHub
+</Card>
+
+Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+
+You can use Phoenix CLI for:
+
+* **Immediate Debugging**: Fetch the most recent trace of a failed or unexpected run with a single command
+* **Bulk Export**: Export large numbers of traces or experiment results to JSON files for offline analysis
+* **Dataset & Experiment Access**: List datasets and retrieve full experiment data including runs, evaluations, and trace IDs
+* **Prompt Introspection**: View and export prompt templates for analysis, optimization, or use with other tools
+* **Terminal Workflows**: Integrate trace and experiment data into your existing tools, piping output to Unix utilities like `jq`
+* **AI Coding Assistants**: Use with Claude Code, Cursor, Windsurf, or other AI-powered tools to analyze traces, experiments, and optimize prompts
+
+Don't see a use-case covered? `@arizeai/phoenix-cli` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
+
+## Installation
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+Or run directly with npx:
+
+```bash
+npx @arizeai/phoenix-cli
+```
+
+## Quick Start
+
+```bash
+# Configure your Phoenix instance
+export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_PROJECT=my-project
+export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
+
+# Fetch the most recent trace
+px trace list --limit 1
+
+# Fetch a specific trace by ID
+px trace get abc123def456
+
+# Fetch recent LLM spans
+px span list --span-kind LLM --limit 10
+
+# Export traces to a directory
+px trace list ./my-traces --limit 50
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PHOENIX_HOST` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
+| `PHOENIX_PROJECT` | Project name or ID |
+| `PHOENIX_API_KEY` | API key for authentication (if required) |
+| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
+
+CLI flags take priority over environment variables.
+
+## Profiles
+
+A profile saves the endpoint, project, API key, and headers for a Phoenix instance under a name like `prod` or `staging`. Activate a profile and every `px` command picks up those settings without re-exporting environment variables. Environment variables and CLI flags still override the active profile, so existing scripts keep working.
+
+### `px profile create <name>`
+
+Create a new profile.
+
+```bash
+px profile create prod \
+  --endpoint https://prod.phoenix.example.com \
+  --project main \
+  --api-key sk-xxx \
+  --activate
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<name>` | Profile name (alphanumeric, hyphens, underscores) | — |
+| `--endpoint <url>` | Phoenix API endpoint | — |
+| `--project <name>` | Default project name | — |
+| `--api-key <key>` | Phoenix API key | — |
+| `--header <key=value>` | Custom HTTP header (repeatable) | — |
+| `--activate` | Make this the active profile after creation | Off |
+
+### `px profile list`
+
+List all profiles. The active profile is marked in a `current` column (kubectl-style).
+
+```bash
+px profile list
+px profile list --format json
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
+
+### `px profile show [name]`
+
+Show a profile (defaults to the active one).
+
+```bash
+px profile show           # active profile
+px profile show staging   # specific profile
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[name]` | Profile name | active profile |
+| `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
+
+### `px profile use <name>`
+
+Set the active profile. Reports the transition (`Switched active profile: staging → prod`); a no-op if the profile is already active.
+
+```bash
+px profile use prod
+```
+
+### `px profile edit <name>`
+
+Open a profile in `$PHOENIX_EDITOR` if set, otherwise `$EDITOR`, falling back to `vi`. The CLI validates the JSON on save and re-opens the editor on validation failure. Edits are discarded if the editor exits non-zero.
+
+```bash
+px profile edit prod
+```
+
+### `px profile delete <name>`
+
+Delete a profile. Deleting the active profile leaves no profile active — set a new one with `px profile use <name>`.
+
+```bash
+px profile delete staging
+px profile delete staging --yes  # skip confirmation
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--yes` | Skip the confirmation prompt | — |
+
+### Editor autocomplete via JSON Schema
+
+`@arizeai/phoenix-cli` publishes a JSON Schema for the settings file. Add a `$schema` key to enable autocomplete and validation in editors that support JSON Schema:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json",
+  "activeProfile": "prod",
+  "profiles": {
+    "prod": {
+      "endpoint": "https://prod.phoenix.example.com",
+      "apiKey": "...",
+      "project": "production"
+    }
+  }
+}
+```
+
+## Commands
+
+### `px project list`
+
+List all available projects.
+
+```bash
+px project list
+px project list --format raw  # JSON output for piping
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum projects to fetch per page | 100 |
+
+### `px trace list [directory]`
+
+Fetch recent traces from the configured project.
+
+```bash
+px trace list --limit 10                          # Output to stdout
+px trace list ./my-traces --limit 10              # Save to directory
+px trace list --last-n-minutes 60 --limit 20      # Filter by time
+px trace list --since 2026-01-13T10:00:00Z        # Since timestamp
+px trace list --format raw --no-progress | jq     # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[directory]` | Save traces as JSON files to directory | stdout |
+| `-n, --limit <number>` | Number of traces to fetch (newest first) | 10 |
+| `--last-n-minutes <number>` | Only fetch traces from the last N minutes | — |
+| `--since <timestamp>` | Fetch traces since ISO timestamp | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress output | — |
+| `--max-concurrent <number>` | Maximum concurrent fetches | 10 |
+
+### `px trace get <trace-id>`
+
+Fetch a specific trace by ID.
+
+```bash
+px trace get abc123def456
+px trace get abc123def456 --file trace.json      # Save to file
+px trace get abc123def456 --format raw | jq      # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px span list [file]`
+
+Fetch individual spans from the configured project with comprehensive filtering.
+
+```bash
+px span list --limit 20                                    # Recent spans (table view)
+px span list --last-n-minutes 60 --limit 50                # Spans from last hour
+px span list --span-kind LLM --limit 10                    # Only LLM spans
+px span list --status-code ERROR --limit 20                # Only errored spans
+px span list --span-kind LLM TOOL --status-code OK         # Combine filters
+px span list --name chat_completion --limit 10             # Filter by span name
+px span list --trace-id abc123 --format raw | jq           # All spans for a trace
+px span list --attribute llm.model_name:gpt-4              # Filter by attribute
+px span list --attribute llm.model_name:gpt-4 --attribute user.role:admin  # AND filters
+px span list --include-annotations --limit 10              # Include annotation scores
+px span list output.json --limit 100                       # Save to JSON file
+px span list --format raw --no-progress | jq               # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[file]` | Save spans as JSON to file | stdout |
+| `-n, --limit <number>` | Maximum spans to fetch (newest first) | 100 |
+| `--last-n-minutes <number>` | Only fetch spans from the last N minutes | — |
+| `--since <timestamp>` | Fetch spans since ISO timestamp | — |
+| `--span-kind <kinds...>` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | — |
+| `--status-code <codes...>` | Filter by status code (`OK`, `ERROR`, `UNSET`) | — |
+| `--name <names...>` | Filter by span name(s) | — |
+| `--trace-id <ids...>` | Filter by trace ID(s) | — |
+| `--parent-id <id>` | Filter by parent span ID (use `"null"` for root spans) | — |
+| `--attribute <filters...>` | Filter by attribute key-value pairs. Format: `key:value`. Repeat to AND multiple filters. Values containing colons are supported (split on first `:` only). To match a string attribute that looks like a number or boolean, JSON-quote the value (e.g., `'user.id:"12345"'`). Requires Phoenix server ≥ 14.9.0. | — |
+| `--include-annotations` | Include span annotations in output | Off |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px span add-note <span-id>`
+
+Notes are a reserved annotation type. Unlike other annotations, notes are open-ended and multiple notes can be attached to the same span.
+
+```bash
+px span add-note abc123def456 --text "Escalated: retrieval returned empty results"
+px span add-note abc123def456 --text "Reviewed by on-call" --format json
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<span-id>` | OpenTelemetry span ID | — |
+| `--text <text>` | Note text to attach to the span | **Required** |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px session list`
+
+List sessions (multi-turn conversations) for a project.
+
+```bash
+px session list                                              # List recent sessions
+px session list --limit 20                                   # More sessions
+px session list --order asc                                  # Oldest first
+px session list --include-annotations --include-notes        # With annotations and notes
+px session list --format raw --no-progress | jq              # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-n, --limit <number>` | Maximum number of sessions to return | 10 |
+| `--order <order>` | Sort order: `asc` or `desc` | `desc` |
+| `--include-annotations` | Include session annotations, excluding notes | — |
+| `--include-notes` | Include session notes when present | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px session get <session-id>`
+
+View a session's conversation flow, including all traces (turns) in the session.
+
+```bash
+px session get my-chat-session-001                              # By session_id
+px session get UHJvamVjdFNlc3Npb24...                           # By GlobalID
+px session get my-chat-session-001 --include-annotations        # With annotations
+px session get my-chat-session-001 --include-notes              # With notes
+px session get my-chat-session-001 --file session.json          # Save to file
+px session get my-chat-session-001 --format raw | jq            # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--include-annotations` | Include session annotations, excluding notes | Off |
+| `--include-notes` | Include session notes when present | Off |
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px session annotate <session-id>`
+
+Add or update an annotation on a session. Address the session by GlobalID or by user-provided `session_id`.
+
+```bash
+px session annotate my-session-id --name correctness --label pass
+px session annotate my-session-id --name correctness --score 0.9 --format raw --no-progress
+px session annotate my-session-id --name groundedness --label pass --annotator-kind LLM
+px session annotate my-session-id --name correctness --explanation "needs follow-up"
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <name>` | Annotation name (what is being measured) | Required |
+| `--label <label>` | Categorical result (e.g. `pass`, `fail`) | — |
+| `--score <number>` | Numeric score | — |
+| `--explanation <text>` | Free-text justification | — |
+| `--annotator-kind <kind>` | `HUMAN`, `LLM`, or `CODE` | `HUMAN` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+At least one of `--label`, `--score`, or `--explanation` is required.
+
+### `px session add-note <session-id>`
+
+Add a free-text note to a session. Address the session by GlobalID or by user-provided `session_id`. A session can carry multiple notes; each receives a unique identifier. Requires Phoenix server `>= 14.17.0`.
+
+```bash
+px session add-note my-session-id --text "needs follow-up"
+px session add-note my-session-id --text "agent triage complete" --format raw --no-progress
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--text <text>` | Note text to add | Required |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px dataset list`
+
+List all available datasets.
+
+```bash
+px dataset list
+px dataset list --format json                    # JSON output
+px dataset list --format raw --no-progress | jq  # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of datasets | — |
+
+### `px dataset get <dataset-identifier>`
+
+Fetch examples from a dataset.
+
+```bash
+px dataset get query_response                        # Fetch all examples
+px dataset get query_response --split train          # Filter by split
+px dataset get query_response --split train --split test  # Multiple splits
+px dataset get query_response --version <version-id> # Specific version
+px dataset get query_response --file dataset.json    # Save to file
+px dataset get query_response --format raw | jq '.examples[].input'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--split <name>` | Filter by split (can be used repeatedly) | — |
+| `--version <id>` | Fetch from specific dataset version | latest |
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px experiment list --dataset <name-or-id>`
+
+List experiments for a dataset, optionally exporting full data to files.
+
+```bash
+px experiment list --dataset my-dataset                 # List experiments
+px experiment list --dataset my-dataset --format json   # JSON output
+px experiment list --dataset my-dataset ./experiments   # Export to directory
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--dataset <name-or-id>` | Dataset name or ID (required) | — |
+| `[directory]` | Export experiment JSON files to directory | stdout |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of experiments | — |
+
+### `px experiment get <experiment-id>`
+
+Fetch a single experiment with all run data, including inputs, outputs, evaluations, and trace IDs.
+
+```bash
+px experiment get RXhwZXJpbWVudDox
+px experiment get RXhwZXJpbWVudDox --file exp.json   # Save to file
+px experiment get RXhwZXJpbWVudDox --format json     # JSON output
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px prompt list`
+
+List all available prompts.
+
+```bash
+px prompt list
+px prompt list --format json                    # JSON output
+px prompt list --format raw --no-progress | jq  # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of prompts | — |
+
+### `px prompt get <prompt_identifier>`
+
+Show a Phoenix prompt.
+ Supports multiple output formats including a `text` format optimized for piping to AI coding assistants.
+
+```bash
+px prompt get my-assistant-prompt                    # Latest version (pretty)
+px prompt get my-assistant-prompt --tag production   # Get by tag
+px prompt get my-assistant-prompt --version abc123   # Specific version
+px prompt get my-assistant-prompt --format json      # JSON output
+px prompt get my-assistant-prompt --format text      # Plain text for piping
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--tag <name>` | Get prompt version by tag name | — |
+| `--version <id>` | Get specific prompt version by ID | latest |
+| `--format <format>` | `pretty`, `json`, `raw`, or `text` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+The `text` format outputs prompt content with XML-style role tags, ideal for piping to AI assistants:
+
+```xml
+<system>You are a helpful assistant specialized in...</system>
+<user>{{user_input}}</user>
+```
+
+### `px api graphql <query>`
+
+Make authenticated GraphQL queries against the Phoenix API. Output is `{"data": {...}}` JSON — pipe with `jq '.data.<field>'` to extract values. Only queries are permitted; mutations and subscriptions are rejected before hitting the server.
+
+```bash
+px api graphql '<query>' [--endpoint <url>] [--api-key <key>]
+```
+
+| Argument/Option | Description | Default |
+|-----------------|-------------|---------|
+| `<query>` | GraphQL query string | — |
+| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_HOST` |
+| `--api-key <key>` | Phoenix API key | `$PHOENIX_API_KEY` |
+
+#### Discover the schema with introspection
+
+Use introspection to explore what fields and types are available without leaving your terminal:
+
+```bash
+$ px api graphql '{ __schema { queryType { fields { name } } } }' | \
+    jq '.data.__schema.queryType.fields[].name'
+"projects"
+"datasets"
+"prompts"
+"evaluators"
+"projectCount"
+"datasetCount"
+"promptCount"
+"evaluatorCount"
+"serverStatus"
+"viewer"
+...
+
+$ px api graphql '{ __type(name: "Experiment") { fields { name type { name } } } }' | \
+    jq '.data.__type.fields[] | {name, type: .type.name}'
+{"name": "id", "type": "ID"}
+{"name": "name", "type": "String"}
+{"name": "runCount", "type": "Int"}
+{"name": "errorRate", "type": "Float"}
+{"name": "averageRunLatencyMs", "type": "Float"}
+```
+
+#### Projects
+
+```bash
+$ px api graphql '{ projects { edges { node { name traceCount tokenCountTotal } } } }'
+{
+  "data": {
+    "projects": {
+      "edges": [
+        { "node": { "name": "default", "traceCount": 1482, "tokenCountTotal": 219083 } }
+      ]
+    }
+  }
+}
+
+$ px api graphql '{ projects { edges { node { name traceCount } } } }' | \
+    jq '.data.projects.edges[].node'
+{"name": "default", "traceCount": 1482}
+```
+
+Available fields: `id`, `name`, `traceCount`, `recordCount`, `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `createdAt`, `updatedAt`.
+
+#### Datasets
+
+```bash
+$ px api graphql '{ datasets { edges { node { name exampleCount experimentCount } } } }' | \
+    jq '.data.datasets.edges[].node'
+{"name": "eval-golden-set", "exampleCount": 120, "experimentCount": 4}
+{"name": "rag-test-cases", "exampleCount": 50, "experimentCount": 1}
+
+$ px api graphql '{ datasetCount }' | jq '.data.datasetCount'
+12
+```
+
+Available fields: `id`, `name`, `description`, `exampleCount`, `experimentCount`, `evaluatorCount`, `createdAt`, `updatedAt`.
+
+#### Experiments
+
+Experiments are nested under datasets in the GraphQL schema:
+
+```bash
+$ px api graphql '{
+  datasets {
+    edges {
+      node {
+        name
+        experiments {
+          edges {
+            node { name runCount errorRate averageRunLatencyMs }
+          }
+        }
+      }
+    }
+  }
+}' | jq '.data.datasets.edges[].node | {dataset: .name, experiments: [.experiments.edges[].node]}'
+
+# Find experiments with non-zero error rate
+$ px api graphql '{
+  datasets { edges { node { name experiments { edges { node { name errorRate runCount } } } } } }
+}' | jq '.. | objects | select(.errorRate? > 0)'
+```
+
+To inspect individual run outputs, errors, and trace IDs:
+
+```bash
+$ px api graphql '{
+  datasets(first: 1) {
+    edges { node { experiments(first: 1) { edges { node {
+      name
+      runs { edges { node { traceId output error latencyMs } } }
+    } } } } }
+  }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[0].node.runs.edges[].node'
+{"traceId": "b696d0ac...", "output": {"answer": "Moore's Law is..."}, "error": null, "latencyMs": 1006}
+```
+
+Available run fields: `traceId`, `output`, `error`, `latencyMs`, `startTime`, `endTime`.
+
+#### Evaluators
+
+```bash
+$ px api graphql '{ evaluators { edges { node { name kind description isBuiltin } } } }' | \
+    jq '.data.evaluators.edges[].node'
+{"name": "correctness", "kind": "LLM", "description": "Evaluates answer correctness", "isBuiltin": true}
+```
+
+#### Instance summary
+
+```bash
+$ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+{
+  "data": {
+    "projectCount": 1,
+    "datasetCount": 12,
+    "promptCount": 3,
+    "evaluatorCount": 2
+  }
+}
+
+## Output Formats
+
+**`pretty`** (default) — Human-readable tree view:
+
+```
+┌─ Trace: abc123def456
+│
+│  Input: What is the weather in San Francisco?
+│  Output: The weather is currently sunny...
+│
+│  Spans:
+│  └─ ✓ agent_run (CHAIN) - 1250ms
+│     ├─ ✓ llm_call (LLM) - 800ms
+│     └─ ✓ tool_execution (TOOL) - 400ms
+└─
+```
+
+**`json`** — Formatted JSON with indentation.
+
+**`raw`** — Compact JSON for piping to `jq` or other tools.
+
+## JSON Structure
+
+```json
+{
+  "traceId": "abc123def456",
+  "spans": [
+    {
+      "name": "chat_completion",
+      "context": {
+        "trace_id": "abc123def456",
+        "span_id": "span-1"
+      },
+      "span_kind": "LLM",
+      "parent_id": null,
+      "start_time": "2026-01-17T10:00:00.000Z",
+      "end_time": "2026-01-17T10:00:01.250Z",
+      "status_code": "OK",
+      "attributes": {
+        "llm.model_name": "gpt-4",
+        "llm.token_count.prompt": 512,
+        "llm.token_count.completion": 256,
+        "input.value": "What is the weather?",
+        "output.value": "The weather is sunny..."
+      }
+    }
+  ],
+  "rootSpan": { ... },
+  "startTime": "2026-01-17T10:00:00.000Z",
+  "endTime": "2026-01-17T10:00:01.250Z",
+  "duration": 1250,
+  "status": "OK"
+}
+```
+
+Spans include [OpenInference](https://github.com/Arize-ai/openinference) semantic attributes like `llm.model_name`, `llm.token_count.*`, `input.value`, `output.value`, `tool.name`, and `exception.*`.
+
+## Examples
+
+### Debug failed traces
+
+```bash
+px trace list --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+```
+
+### Find slowest traces
+
+```bash
+px trace list --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
+```
+
+### Find errored spans
+
+```bash
+px span list --status-code ERROR --limit 50 --format raw --no-progress | jq '.[] | {name, status_message}'
+```
+
+### Inspect LLM spans with annotations
+
+```bash
+px span list --span-kind LLM --include-annotations --limit 20
+```
+
+### Extract LLM models used
+
+```bash
+px trace list --limit 50 --format raw --no-progress | \
+  jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
+```
+
+### Count errors
+
+```bash
+px trace list --limit 100 --format raw --no-progress | jq '[.[] | select(.status == "ERROR")] | length'
+```
+
+### List datasets and experiments
+
+```bash
+# List all datasets
+px dataset list --format raw --no-progress | jq '.[].name'
+# Output: "query_response"
+
+# List experiments for a dataset
+px experiment list --dataset query_response --format raw --no-progress | \
+  jq '.[] | {id, successful_run_count, failed_run_count}'
+# Output: {"id":"RXhwZXJpbWVudDox","successful_run_count":249,"failed_run_count":1}
+
+# Export all experiment data for a dataset to a directory
+px experiment list --dataset query_response ./experiments/
+```
+
+### Analyze experiment results
+
+```bash
+# Get input queries and latency from an experiment
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | {query: .input.query, latency_ms, trace_id}'
+
+# Find failed runs in an experiment
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | select(.error != null) | {query: .input.query, error}'
+# Output: {"query":"looking for complex fodmap meal ideas","error":"peer closed connection..."}
+
+# Calculate average latency across runs
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '[.[].latency_ms] | add / length'
+```
+
+### Work with prompts
+
+```bash
+# List all prompts
+px prompt list --format raw --no-progress | jq '.[].name'
+
+# Get prompt template content
+px prompt get my-evaluator --format text --no-progress
+
+# View prompt with all metadata
+px prompt get my-evaluator --format json --no-progress | jq '.template'
+
+# Get a specific tagged version
+px prompt get my-evaluator --tag production --format text --no-progress
+```
+
+### Query the GraphQL API directly
+
+```bash
+# Quick instance summary
+$ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+{"data": {"projectCount": 1, "datasetCount": 12, "promptCount": 3, "evaluatorCount": 2}}
+
+# Discover all available query fields
+$ px api graphql '{ __schema { queryType { fields { name } } } }' | \
+    jq '.data.__schema.queryType.fields[].name'
+
+# Projects with stats
+$ px api graphql '{ projects { edges { node { name traceCount tokenCountTotal } } } }' | \
+    jq '.data.projects.edges[].node'
+
+# Datasets with counts
+$ px api graphql '{ datasets { edges { node { name exampleCount experimentCount } } } }' | \
+    jq '.data.datasets.edges[].node'
+
+# Find experiments with errors
+$ px api graphql '{
+  datasets { edges { node { name experiments { edges { node { name errorRate runCount } } } } } }
+}' | jq '.. | objects | select(.errorRate? > 0)'
+
+# Drill into run outputs
+$ px api graphql '{
+  datasets(first: 1) { edges { node {
+    experiments(first: 1) { edges { node {
+      runs { edges { node { traceId output error latencyMs } } }
+    } } }
+  } } }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[0].node.runs.edges[].node'
+
+# Get viewer info (authenticated instances)
+$ px api graphql '{ viewer { username email } }'
+```
+
+## Use with AI Coding Assistants
+
+Phoenix CLI is designed to work seamlessly with AI coding assistants like Claude Code, Cursor, and Windsurf.
+
+### Claude Code
+
+Ask Claude Code:
+
+```
+Use px to fetch the last 3 traces from my Phoenix project and analyze them for potential improvements
+```
+
+Claude Code will discover the CLI via `px --help` and fetch your traces for analysis.
+
+#### Prompt Optimization with Claude Code
+
+Pipe your Phoenix prompts directly to Claude Code for analysis and optimization suggestions:
+
+```bash
+# Get prompt optimization ideas
+px prompt get my-evaluator --format text --no-progress | claude -p "Review this prompt and suggest improvements for clarity and effectiveness"
+
+# Analyze prompt for edge cases
+px prompt get my-assistant --format text --no-progress | claude -p "What edge cases might this prompt fail to handle?"
+
+# Generate test cases for a prompt
+px prompt get my-classifier --format text --no-progress | claude -p "Generate 5 diverse test inputs to evaluate this prompt"
+```
+
+You can also ask Claude Code to work with your prompts interactively:
+
+```
+Fetch my "correctness-evaluator" prompt from Phoenix and suggest how to make the rubric more specific
+```
+
+### Cursor / Windsurf
+
+Run the CLI in the terminal and ask the AI to interpret:
+
+```
+Fetch my recent Phoenix traces using px and explain what my agent is doing
+```
+
+For prompt work:
+
+```
+List my Phoenix prompts with px and help me improve the system prompt for my assistant
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Retrieve Traces via CLI" icon="terminal" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli">
+    User guide for fetching traces from the command line
+  </Card>
+  <Card title="@arizeai/phoenix-client" icon="code" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client">
+    TypeScript client for the Phoenix API
+  </Card>
+</CardGroup>
+
+## License
+
+Apache 2.0

@@ -1,0 +1,20 @@
+interactions:
+- request:
+    body: '{"max_tokens":64,"messages":[{"role":"user","content":[{"text":"Weather
+      in Paris?","type":"text"}]},{"role":"assistant","content":[{"id":"toolu_test_1","type":"tool_use","name":"get_weather","input":{"city":"Paris"}}]},{"role":"user","content":[{"tool_use_id":"toolu_test_1","type":"tool_result","content":[{"text":"sunny,
+      20C","type":"text"}],"is_error":false}]}],"model":"claude-haiku-4-5","stream":false,"system":"Use
+      the tool then summarize.","tool_choice":{"type":"auto"},"tools":[{"name":"get_weather","description":"Look
+      up the current weather for a city.","input_schema":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}]}'
+    headers: {}
+    method: POST
+    uri: https://api.anthropic.com/v1/messages?beta=true
+  response:
+    body:
+      string: "{\"model\":\"claude-haiku-4-5-20251001\",\"id\":\"msg_01BKkizy1hBNrqDhM5jxJygy\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"The
+        weather in Paris is currently **sunny with a temperature of 20\xB0C (68\xB0F)**
+        \u2014 nice conditions for a day out!\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":642,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":33,\"service_tier\":\"standard\",\"inference_geo\":\"not_available\"}}"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -1,0 +1,62 @@
+# Optimize OIDC server build context
+# Exclude development files and directories
+
+# Dependencies (installed fresh in container)
+node_modules/
+.pnpm-store/
+npm-debug.log
+yarn-error.log
+
+# Development and build artifacts  
+.git/
+.gitignore
+*.log
+.env*
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing and coverage
+coverage/
+.nyc_output/
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Frontend build artifacts (built in container)
+frontend/node_modules/
+frontend/dist/
+dist-frontend/
+
+# Be explicit about what frontend files we need
+!frontend/src/
+!frontend/public/
+!frontend/index.html
+!frontend/vite.config.ts
+!frontend/tsconfig.json  
+!frontend/tsconfig.node.json
+
+# Runtime artifacts (generated in container)
+runtime/
+generate-certs.sh
+
+# Linting and formatting configs (not needed in container)
+.eslintrc.json
+.prettierrc
+.prettierignore
+frontend/.eslintrc.json
+frontend/.prettierrc
+frontend/.prettierignore

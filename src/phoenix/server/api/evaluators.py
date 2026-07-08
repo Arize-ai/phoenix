@@ -1,0 +1,3081 @@
+import ast
+import asyncio
+import json
+import logging
+import re
+import traceback as _traceback
+from abc import ABC, abstractmethod
+from copy import deepcopy
+from datetime import datetime, timezone
+from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
+
+import openinference.instrumentation as oi
+from jsonpath_ng import parse as parse_jsonpath
+from jsonschema import ValidationError, validate
+from openinference.semconv.trace import (
+    MessageAttributes,
+)
+from opentelemetry.context import Context
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import with_polymorphic
+from strawberry.relay import GlobalID
+from typing_extensions import NotRequired, TypedDict, assert_never
+
+from phoenix.db import models
+from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    FreeformOutputConfig,
+    OptimizationDirection,
+    OutputConfigType,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptInvocationParameters,
+    PromptTemplateFormat,
+    PromptTools,
+    RoleConversion,
+    TextContentPart,
+)
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
+from phoenix.server.api.helpers.playground_clients import (
+    PlaygroundStreamingClient,
+    get_playground_client,
+)
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
+from phoenix.server.api.input_types.GenerativeCredentialInput import (
+    GenerativeCredentialInput,
+)
+from phoenix.server.api.input_types.PromptVersionInput import (
+    PromptChatTemplateInput,
+    TextContentValueInput,
+)
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.sandbox import (  # noqa: E402
+    MissingSecretError,
+    SecretsContext,
+    build_sandbox_backend,
+)
+from phoenix.server.sandbox.session_manager import (
+    SandboxSessionManager,
+    SessionInvalidated,
+    SessionLimitExceeded,
+)
+from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
+
+logger = logging.getLogger(__name__)
+
+
+def _mask_attrs(
+    attrs: dict[str, Any],
+    masker: SandboxSecretMasker,
+) -> dict[str, Any]:
+    return {k: masker.mask(v) if isinstance(v, str) else v for k, v in attrs.items()}
+
+
+def _set_masked_status(
+    span: Any,
+    status_code: StatusCode,
+    description: str,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.set_status(Status(status_code, masker.mask(description)))
+
+
+def _record_masked_exception(
+    span: Any,
+    exc: BaseException,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.add_event(
+        "exception",
+        {
+            "exception.type": type(exc).__name__,
+            "exception.message": masker.mask(str(exc)),
+            "exception.stacktrace": masker.mask(_traceback.format_exc()),
+        },
+    )
+
+
+ToolCallId: TypeAlias = str
+
+
+class ToolCall(TypedDict):
+    name: str
+    arguments: str
+
+
+class EvaluationResult(TypedDict):
+    name: str
+    annotator_kind: str
+    label: Optional[str]
+    score: Optional[float]
+    explanation: Optional[str]
+    metadata: dict[str, Any]
+    error: Optional[str]
+    trace_id: Optional[str]
+    start_time: datetime
+    end_time: datetime
+    error_exc: NotRequired[Optional[Exception]]
+
+
+class BaseEvaluator(ABC):
+    """
+    Base interface for all evaluators that attach annotations to tasks.
+
+    This is the unified ABC that both LLMEvaluator (instance-based) and
+    BuiltInEvaluator (class-based with registry) implement.
+    """
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """The display name of this evaluator."""
+        ...
+
+    @property
+    @abstractmethod
+    def description(self) -> Optional[str]:
+        """Optional description of what this evaluator does."""
+        ...
+
+    @property
+    @abstractmethod
+    def input_schema(self) -> dict[str, Any]:
+        """Returns the JSON schema describing the input format for this evaluator."""
+        ...
+
+    @property
+    @abstractmethod
+    def output_configs(self) -> Sequence[OutputConfigType]:
+        """Returns the output configurations for this evaluator."""
+        ...
+
+    @abstractmethod
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        """
+        Evaluate the given context and return evaluation results.
+
+        Produces one EvaluationResult per output config. For LLM evaluators, this
+        is done with a single LLM call that returns multiple tool calls matched to
+        configs by name. For built-in evaluators, each config is evaluated independently.
+
+        Annotation naming: when there are multiple output configs (K>1), each result
+        is named ``name.config_name``. When there is a single output config (K=1),
+        the result is named ``name``.
+
+        Args:
+            context: The evaluation context containing input data.
+            input_mapping: Mapping configuration for inputs.
+            name: The evaluator name used for annotation naming.
+            output_configs: Configurations for the evaluation outputs.
+            tracer: Optional OpenTelemetry tracer for recording spans.
+                   If provided, the caller is responsible for managing the tracer
+                   and retrieving any recorded spans after evaluation.
+        """
+        ...
+
+
+class LLMEvaluator(BaseEvaluator):
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str],
+        template: PromptChatTemplate,
+        template_format: PromptTemplateFormat,
+        tools: PromptTools,
+        invocation_parameters: PromptInvocationParameters,
+        model_provider: ModelProvider,
+        llm_client: PlaygroundStreamingClient[Any],
+        output_configs: Sequence[CategoricalOutputConfig],
+        prompt_name: str,
+    ):
+        self._name = name
+        self._description = description
+        self._template = template
+        self._template_format = template_format
+        self._tools = tools
+        self._invocation_parameters = invocation_parameters
+        self._model_provider = model_provider
+        self._llm_client = llm_client
+        self._output_configs = output_configs
+        self._prompt_name = prompt_name
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def output_configs(self) -> Sequence[OutputConfigType]:
+        return self._output_configs
+
+    @property
+    def llm_client(self) -> "PlaygroundStreamingClient[Any]":
+        return self._llm_client
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        formatter = get_template_formatter(self._template_format)
+        section_vars: set[str] = set()
+        string_vars: set[str] = set()
+
+        for msg in self._template.messages:
+            if isinstance(msg.content, str):
+                parsed = formatter.parse_with_types(msg.content)
+                section_vars.update(parsed.section_variables())
+                string_vars.update(parsed.string_variables())
+            elif isinstance(msg.content, list):
+                for part in msg.content:
+                    if isinstance(part, TextContentPart):
+                        parsed = formatter.parse_with_types(part.text)
+                        section_vars.update(parsed.section_variables())
+                        string_vars.update(parsed.string_variables())
+            else:
+                assert_never(msg.content)
+
+        # Section vars get empty schema (accepts any type), string vars get type: string
+        # Sort iteration order for deterministic key ordering in the resulting dict
+        properties: dict[str, dict[str, Any]] = {}
+        for var in sorted(section_vars):
+            properties[var] = {}  # Empty schema accepts any JSON type
+        for var in sorted(string_vars):
+            if var not in section_vars:  # Section type takes precedence
+                properties[var] = {"type": "string"}
+
+        all_vars = section_vars | string_vars
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": sorted(all_vars),
+        }
+
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        start_time = datetime.now(timezone.utc)
+
+        # LLMEvaluator only supports categorical output configs
+        categorical_configs: list[CategoricalOutputConfig] = []
+        for config in output_configs:
+            if not isinstance(config, CategoricalOutputConfig):
+                raise ValueError(
+                    f"LLMEvaluator only supports CategoricalOutputConfig, "
+                    f"got {type(config).__name__}"
+                )
+            categorical_configs.append(config)
+
+        multi_output = len(categorical_configs) > 1
+        configs_by_name: dict[str, CategoricalOutputConfig] = {
+            config.name: config for config in categorical_configs
+        }
+
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),  # inject blank context to ensure the evaluator span is the root
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            try:
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as input_mapping_span:
+                    template_variables = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    template_variables = cast_template_variable_types(
+                        template_variables=template_variables,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=template_variables,
+                        input_schema=self.input_schema,
+                    )
+                    input_mapping_span.set_attributes(oi.get_output_attributes(template_variables))
+                    input_mapping_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    f"Prompt: {self._prompt_name}",
+                    attributes={
+                        **oi.get_span_kind_attributes("prompt"),
+                        **oi.get_input_attributes(template_variables),
+                    },
+                ) as prompt_span:
+                    template_formatter = get_template_formatter(self._template_format)
+                    messages: list[PlaygroundMessage] = []
+                    for msg in self._template.messages:
+                        role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
+                        if isinstance(msg.content, str):
+                            formatted_content = template_formatter.format(
+                                msg.content, **template_variables
+                            )
+                        else:
+                            text_parts = []
+                            for part in msg.content:
+                                if isinstance(part, TextContentPart):
+                                    formatted_text = template_formatter.format(
+                                        part.text, **template_variables
+                                    )
+                                    text_parts.append(formatted_text)
+                            formatted_content = "".join(text_parts)
+                        messages.append(create_playground_message(role, formatted_content))
+
+                    formatted_messages = [
+                        oi.Message(role=msg["role"].value.lower(), content=msg["content"])
+                        for msg in messages
+                    ]
+                    prompt_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "messages": [
+                                    {"role": msg["role"], "content": msg["content"]}
+                                    for msg in formatted_messages
+                                ]
+                            }
+                        )
+                    )
+                    prompt_span.set_status(Status(StatusCode.OK))
+
+                tool_call_by_id: dict[ToolCallId, ToolCall] = {}
+
+                async for chunk in self._llm_client.chat_completion_create(
+                    messages=messages,
+                    tools=self._tools,
+                    tracer=tracer_,
+                    invocation_parameters=self._invocation_parameters,
+                    stream_model_output=False,
+                ):
+                    if isinstance(chunk, ToolCallChunk):
+                        if chunk.id not in tool_call_by_id:
+                            tool_call_by_id[chunk.id] = ToolCall(
+                                name=chunk.function.name,
+                                arguments=chunk.function.arguments,
+                            )
+                        else:
+                            tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "tool_calls": {
+                                    call_id: {"name": call["name"], "arguments": call["arguments"]}
+                                    for call_id, call in tool_call_by_id.items()
+                                },
+                                "output_configs": {
+                                    config_name: {
+                                        "values": [
+                                            {"label": v.label, "score": v.score}
+                                            for v in config.values
+                                        ]
+                                    }
+                                    for config_name, config in configs_by_name.items()
+                                },
+                            }
+                        ),
+                    },
+                ) as chain_span:
+                    if not tool_call_by_id:
+                        raise ValueError("No tool calls received from LLM")
+
+                    # Match each tool call to its output config by name.
+                    # Tool calls whose name doesn't match any config are skipped.
+                    # Configs with no matching tool call are skipped.
+                    results: list[EvaluationResult] = []
+                    for tool_call in tool_call_by_id.values():
+                        matched_config = configs_by_name.get(tool_call["name"])
+                        if matched_config is None:
+                            continue
+                        args = json.loads(tool_call["arguments"])
+                        label = args.get("label")
+                        if label is None:
+                            raise ValueError(
+                                "LLM response missing required 'label' field in tool call arguments"
+                            )
+                        scores_by_label = {
+                            config_value.label: config_value.score
+                            for config_value in matched_config.values
+                        }
+                        score = scores_by_label.get(label)
+                        explanation = args.get("explanation")
+                        annotation_name = f"{name}.{matched_config.name}" if multi_output else name
+                        end_time = datetime.now(timezone.utc)
+                        results.append(
+                            EvaluationResult(
+                                name=annotation_name,
+                                annotator_kind="LLM",
+                                label=label,
+                                score=score,
+                                explanation=explanation,
+                                metadata={},
+                                error=None,
+                                trace_id=trace_id,
+                                start_time=start_time,
+                                end_time=end_time,
+                            )
+                        )
+
+                    chain_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                    }
+                                    for r in results
+                                ]
+                            }
+                        )
+                    )
+                    chain_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "results": [
+                                {
+                                    "name": r["name"],
+                                    "label": r["label"],
+                                    "score": r["score"],
+                                    "explanation": r["explanation"],
+                                }
+                                for r in results
+                            ]
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+            except Exception as e:
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                # On error, return a single error result for the evaluator.
+                results = [
+                    EvaluationResult(
+                        name=name,
+                        annotator_kind="LLM",
+                        label=None,
+                        score=None,
+                        explanation=None,
+                        metadata={},
+                        error=str(e),
+                        trace_id=trace_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                        error_exc=e,
+                    )
+                ]
+
+        return results
+
+
+class BuiltInEvaluator(BaseEvaluator):
+    """
+    Base class for built-in evaluators with registry support.
+
+    Built-in evaluators are class-based (instantiated fresh for each evaluation)
+    and registered via the @register_builtin_evaluator decorator.
+
+    Note: BuiltInEvaluator uses class-level `name` and `description` attributes
+    which satisfy the BaseEvaluator ABC's abstract property requirements.
+    """
+
+    # _key is a unique identifier for this evaluator used for registry lookups.
+    # It should be lowercase snake_case and should NEVER change once an evaluator
+    # is released to ensure stable references.
+    _key: str
+    # Class-level attributes that define the evaluator's identity
+    # These satisfy the abstract properties from the BaseEvaluator ABC
+    name: str
+    description: Optional[str] = None
+    metadata: dict[str, Any] = {}
+
+    @property
+    @abstractmethod
+    def input_schema(self) -> dict[str, Any]:
+        """Returns the JSON schema describing the input format for this evaluator."""
+        ...
+
+    @property
+    @abstractmethod
+    def output_configs(self) -> list[OutputConfigType]:
+        """Returns the output configurations for this evaluator."""
+        ...
+
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        multi_output = len(output_configs) > 1
+        results: list[EvaluationResult] = []
+        for config in output_configs:
+            annotation_name = f"{name}.{config.name}" if multi_output else name
+            result = await self._evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name=annotation_name,
+                output_config=config,
+                tracer=tracer,
+            )
+            results.append(result)
+        return results
+
+    @abstractmethod
+    async def _evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_config: OutputConfigType,
+        tracer: Optional[Tracer] = None,
+    ) -> EvaluationResult: ...
+
+    def _map_boolean_to_label_and_score(
+        self,
+        matched: bool,
+        output_config: OutputConfigType,
+    ) -> tuple[Optional[str], Optional[float]]:
+        """
+        Map a boolean result to a label and score using the output config.
+        For categorical configs, uses positional indexing where:
+        - values[0] is the "matched/pass" case
+        - values[1] is the "not matched/fail" case
+        """
+        if isinstance(output_config, CategoricalOutputConfig):
+            index = 0 if matched else 1
+            if index < len(output_config.values):
+                value = output_config.values[index]
+                return value.label, value.score
+            return None, 1.0 if matched else 0.0
+        else:
+            return None, 1.0 if matched else 0.0
+
+
+_BUILTIN_EVALUATORS: dict[str, type[BuiltInEvaluator]] = {}
+_BUILTIN_EVALUATORS_BY_KEY: dict[str, type[BuiltInEvaluator]] = {}
+
+T = TypeVar("T", bound=BuiltInEvaluator)
+
+
+def register_builtin_evaluator(cls: type[T]) -> type[T]:
+    _BUILTIN_EVALUATORS[cls.name] = cls
+    _BUILTIN_EVALUATORS_BY_KEY[cls._key] = cls
+    return cls
+
+
+def get_builtin_evaluators() -> list[tuple[str, type[BuiltInEvaluator]]]:
+    """Returns list of (key, evaluator_class) tuples."""
+    return [(cls._key, cls) for cls in _BUILTIN_EVALUATORS.values()]
+
+
+def get_builtin_evaluator_by_key(key: str) -> Optional[type[BuiltInEvaluator]]:
+    return _BUILTIN_EVALUATORS_BY_KEY.get(key)
+
+
+async def get_builtin_evaluator_from_orm(
+    session: AsyncSession,
+    evaluator_id: int,
+) -> type[BuiltInEvaluator]:
+    """
+    Fetch a builtin evaluator class from the database by evaluator ID.
+
+    Args:
+        session: SQLAlchemy async session
+        evaluator_id: The ID of the BuiltinEvaluator record
+
+    Returns:
+        The evaluator class registered for this builtin evaluator
+
+    Raises:
+        NotFound: If the evaluator doesn't exist or its key isn't registered
+    """
+    builtin = await session.get(models.BuiltinEvaluator, evaluator_id)
+    if builtin is None:
+        raise NotFound(f"Built-in evaluator not found: {evaluator_id}")
+    evaluator_class = get_builtin_evaluator_by_key(builtin.key)
+    if evaluator_class is None:
+        raise NotFound(f"Built-in evaluator class not found for key: {builtin.key}")
+    return evaluator_class
+
+
+async def _get_llm_evaluators(
+    *,
+    llm_evaluator_orms: Sequence[models.LLMEvaluator],
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+) -> list[LLMEvaluator]:
+    """
+    Build runtime LLM evaluators from ORM rows already loaded (e.g. via polymorphic join).
+
+    Returns instances in the same order as ``llm_evaluator_orms``.
+    """
+    if not llm_evaluator_orms:
+        return []
+
+    result: list[LLMEvaluator] = []
+    for llm_evaluator_orm in llm_evaluator_orms:
+        prompt_id = llm_evaluator_orm.prompt_id
+        prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
+        if prompt_version_tag_id is not None:
+            # Get the tagged version
+            prompt_version_query = (
+                select(models.PromptVersion)
+                .join(models.PromptVersionTag)
+                .where(models.PromptVersionTag.id == prompt_version_tag_id)
+            )
+        else:
+            # Get the latest version
+            prompt_version_query = (
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == prompt_id)
+                .order_by(models.PromptVersion.id.desc())
+                .limit(1)
+            )
+        prompt_version = await session.scalar(prompt_version_query)
+        if prompt_version is None:
+            raise NotFound(f"Prompt version not found for LLM evaluator id {llm_evaluator_orm.id}")
+
+        # Get the prompt to access its name
+        prompt = await session.get(models.Prompt, prompt_id)
+        if prompt is None:
+            raise NotFound(f"Prompt not found for LLM evaluator id {llm_evaluator_orm.id}")
+
+        llm_client = await get_playground_client(
+            model_provider=prompt_version.model_provider,
+            model_name=prompt_version.model_name,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+            connection=prompt_version.custom_provider_id,
+        )
+
+        template = prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+        tools = prompt_version.tools
+        assert tools is not None
+
+        result.append(
+            LLMEvaluator(
+                name=llm_evaluator_orm.name.root,
+                description=llm_evaluator_orm.description,
+                template=template,
+                template_format=prompt_version.template_format,
+                tools=tools,
+                invocation_parameters=prompt_version.invocation_parameters,
+                model_provider=prompt_version.model_provider,
+                llm_client=llm_client,
+                output_configs=llm_evaluator_orm.output_configs,
+                prompt_name=prompt.name.root,
+            )
+        )
+
+    return result
+
+
+async def get_evaluators(
+    *,
+    dataset_evaluator_ids: Sequence[int],
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    experiment_id: int,
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+    sandbox_session_manager: SandboxSessionManager,
+) -> list[BaseEvaluator]:
+    """
+    Get all evaluators for the given DatasetEvaluator row IDs.
+
+    Returns a list of BaseEvaluator instances in the same order as the input IDs.
+    This ordering guarantee is important for correlating evaluators with their inputs.
+
+    For each DatasetEvaluator, resolves to the underlying LLM or BuiltIn evaluator.
+    Multiple DatasetEvaluators can reference the same underlying evaluator (e.g., two
+    "Contains" evaluators with different names), and this function preserves that
+    multiplicity by returning separate evaluator instances for each.
+
+    ``experiment_id`` partitions the sandbox session key for code evaluators
+    so two concurrent experiments using the same evaluator never converge on
+    the same provider sandbox. Intra-experiment reuse still amortizes the
+    sandbox warmup across all runs of the same experiment.
+    """
+    if not dataset_evaluator_ids:
+        return []
+
+    # Join subclass tables so BuiltinEvaluator.key / LLM columns are loaded (see with_polymorphic).
+    PolymorphicEvaluator = with_polymorphic(
+        models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
+    )
+    dataset_evaluators_result = (
+        await session.execute(
+            select(models.DatasetEvaluators, PolymorphicEvaluator)
+            .join(
+                PolymorphicEvaluator,
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+            )
+            .where(models.DatasetEvaluators.id.in_(dataset_evaluator_ids))
+        )
+    ).all()
+    dataset_evaluators_by_id: dict[int, tuple[models.DatasetEvaluators, models.Evaluator]] = {
+        de.id: (de, ev) for de, ev in dataset_evaluators_result
+    }
+
+    for de_id in dataset_evaluator_ids:
+        if de_id not in dataset_evaluators_by_id:
+            raise NotFound(f"DatasetEvaluator with ID '{de_id}' not found")
+
+    llm_orm_by_id: dict[int, models.LLMEvaluator] = {}
+    code_orm_by_id: dict[int, models.CodeEvaluator] = {}
+    for _, ev in dataset_evaluators_result:
+        if isinstance(ev, models.LLMEvaluator):
+            llm_orm_by_id[ev.id] = ev
+        elif isinstance(ev, models.CodeEvaluator):
+            code_orm_by_id[ev.id] = ev
+
+    llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
+    if llm_orm_by_id:
+        llm_evaluator_orms = [llm_orm_by_id[eid] for eid in sorted(llm_orm_by_id)]
+        llm_evaluators_list = await _get_llm_evaluators(
+            llm_evaluator_orms=llm_evaluator_orms,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+        )
+        for llm_evaluator_orm, llm_evaluator in zip(llm_evaluator_orms, llm_evaluators_list):
+            llm_evaluators_by_id[llm_evaluator_orm.id] = llm_evaluator
+
+    code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
+    code_evaluator_languages_by_id: dict[int, str] = {}
+    if code_orm_by_id:
+        code_rows = [code_orm_by_id[evaluator_id] for evaluator_id in sorted(code_orm_by_id)]
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
+            list(code_orm_by_id), session
+        )
+        tip_sandbox_config_ids = {
+            code_row.sandbox_config_id
+            for code_row in code_rows
+            if code_row.sandbox_config_id is not None
+        }
+        sandbox_by_config_id: dict[int, tuple[models.SandboxConfig, models.SandboxProvider]] = {}
+        if tip_sandbox_config_ids:
+            sandbox_rows = await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider)
+                .join(
+                    models.SandboxProvider,
+                    models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
+                )
+                .where(models.SandboxConfig.id.in_(tip_sandbox_config_ids))
+            )
+            sandbox_by_config_id = {
+                sandbox_config.id: (sandbox_config, sandbox_provider)
+                for sandbox_config, sandbox_provider in sandbox_rows
+            }
+        backend_by_sandbox_key: dict[tuple[str, int], Optional[SandboxBackend]] = {}
+        evaluator_base_by_id = {
+            evaluator.id: evaluator for _, evaluator in dataset_evaluators_by_id.values()
+        }
+
+        for code_row in code_rows:
+            code_version = latest_versions.get(code_row.id)
+            if code_version is None:
+                continue
+            evaluator_language = code_row.language
+            code_evaluator_languages_by_id[code_row.id] = evaluator_language
+
+            backend = None
+            language = evaluator_language
+            sandbox_timeout: Optional[int] = None
+            tip_sandbox_config_id = code_row.sandbox_config_id
+            if tip_sandbox_config_id is not None:
+                sandbox_pair = sandbox_by_config_id.get(tip_sandbox_config_id)
+                if sandbox_pair is None:
+                    raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                live_sandbox_config, live_sandbox_provider = sandbox_pair
+                if not live_sandbox_config.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox configuration '{live_sandbox_config.name}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
+                    )
+                if not live_sandbox_provider.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox provider '{live_sandbox_provider.backend_type}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
+                    )
+                sandbox_timeout = live_sandbox_config.timeout
+                sandbox_key = (live_sandbox_provider.backend_type, live_sandbox_config.id)
+                if sandbox_key not in backend_by_sandbox_key:
+                    try:
+                        backend_by_sandbox_key[sandbox_key] = await build_sandbox_backend(
+                            live_sandbox_config,
+                            secrets=SecretsContext(session=session, decrypt=decrypt),
+                        )
+                    except (
+                        MissingSecretError,
+                        UnsupportedOperation,
+                        PydanticValidationError,
+                        ValueError,
+                    ) as exc:
+                        raise BadRequest(str(exc))
+                backend = backend_by_sandbox_key[sandbox_key]
+
+            evaluator_base = evaluator_base_by_id.get(code_row.id)
+            eval_name = evaluator_base.name.root if evaluator_base else str(code_row.id)
+            eval_description = evaluator_base.description if evaluator_base else None
+
+            if backend is not None:
+                output_cfgs: list[OutputConfigType] = [
+                    c
+                    for c in code_row.output_configs
+                    if isinstance(
+                        c, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+                    )
+                ]
+                runner = CodeEvaluatorRunner(
+                    name=eval_name,
+                    description=eval_description,
+                    source_code=code_version.source_code,
+                    stored_output_configs=output_cfgs,
+                    sandbox_backend=backend,
+                    language=language,
+                    timeout=sandbox_timeout,
+                    evaluator_version_id=str(
+                        GlobalID("CodeEvaluatorVersion", str(code_version.id))
+                    ),
+                    # Partition by evaluator × experiment × replica so
+                    # concurrent runs never converge on the same provider
+                    # sandbox while intra-experiment reuse still amortizes.
+                    session_key=(
+                        f"evaluator:{code_row.id}"
+                        f":exp:{experiment_id}"
+                        f":{sandbox_session_manager.replica_id}"
+                    ),
+                    sandbox_session_manager=sandbox_session_manager,
+                )
+                code_evaluators_by_id[code_row.id] = runner
+
+    evaluators: list[BaseEvaluator] = []
+    for de_id in dataset_evaluator_ids:
+        _, ev = dataset_evaluators_by_id[de_id]
+        if isinstance(ev, models.LLMEvaluator):
+            resolved = llm_evaluators_by_id.get(ev.id)
+            if resolved is None:
+                raise NotFound(f"LLM evaluator with ID '{ev.id}' not found")
+            evaluators.append(resolved)
+        elif isinstance(ev, models.BuiltinEvaluator):
+            builtin_evaluator_cls = get_builtin_evaluator_by_key(ev.key)
+            if builtin_evaluator_cls is None:
+                raise NotFound(f"Built-in evaluator with key '{ev.key}' not found in registry")
+            evaluators.append(builtin_evaluator_cls())
+        elif isinstance(ev, models.CodeEvaluator):
+            code_runner = code_evaluators_by_id.get(ev.id)
+            if code_runner is None:
+                ev_name = ev.name.root if ev.name else str(ev.id)
+                evaluator_lang = code_evaluator_languages_by_id.get(ev.id, "")
+                lang_hint = f" for language '{evaluator_lang}'" if evaluator_lang else ""
+                raise NotFound(
+                    f"Code evaluator '{ev_name}' could not be resolved{lang_hint}. "
+                    "Please configure a sandbox provider at /settings/sandboxes."
+                )
+            evaluators.append(code_runner)
+        else:
+            raise BadRequest(
+                f"DatasetEvaluator '{de_id}' references evaluator with unsupported kind: {ev.kind}"
+            )
+
+    return evaluators
+
+
+async def get_evaluator_project_ids(
+    dataset_evaluator_ids: Sequence[int],
+    session: AsyncSession,
+) -> list[int]:
+    """
+    Look up project IDs for DatasetEvaluators.
+
+    Returns a list of project IDs in the same order as the input dataset_evaluator_ids.
+    Raises NotFound if any DatasetEvaluator is not found.
+    """
+
+    if not dataset_evaluator_ids:
+        return []
+
+    # Single batch query for all DatasetEvaluator records
+    dataset_evaluators_result = await session.scalars(
+        select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.id.in_(dataset_evaluator_ids)
+        )
+    )
+    project_ids_by_de_id: dict[int, int] = {
+        de.id: de.project_id for de in dataset_evaluators_result
+    }
+
+    # Build result list in input order
+    result: list[int] = []
+    for db_id in dataset_evaluator_ids:
+        project_id = project_ids_by_de_id.get(db_id)
+        if project_id is None:
+            raise NotFound(f"DatasetEvaluator with ID '{db_id}' not found")
+        result.append(project_id)
+
+    return result
+
+
+def apply_input_mapping(
+    *,
+    input_schema: dict[str, Any],
+    input_mapping: InputMapping,
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    # apply path mappings
+    if input_mapping.path_mapping:
+        for key, path_expr in input_mapping.path_mapping.items():
+            try:
+                jsonpath = parse_jsonpath(path_expr)
+            except Exception as e:
+                raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
+            matches = jsonpath.find(context)
+            if matches:
+                if len(matches) == 1:
+                    result[key] = matches[0].value
+                else:
+                    result[key] = [match.value for match in matches]
+            else:
+                raise ValueError(
+                    f"JSONPath expression '{path_expr}' for key '{key}' did not match any values"
+                )
+
+    # literal mappings take priority over path mappings
+    if input_mapping.literal_mapping:
+        for key, value in input_mapping.literal_mapping.items():
+            result[key] = value
+
+    # for any key in the input schema that is still not in result,
+    # set result[input_schema_key] to context[input_schema_key]
+    for key in input_schema.get("properties", {}).keys():
+        if key not in result and key in context:
+            result[key] = context[key]
+
+    return result
+
+
+def cast_template_variable_types(
+    *,
+    template_variables: dict[str, Any],
+    input_schema: dict[str, Any],
+) -> dict[str, Any]:
+    casted_template_variables = deepcopy(template_variables)
+    properties = input_schema.get("properties", {})
+
+    for key, prop_schema in properties.items():
+        if key in casted_template_variables:
+            prop_type = prop_schema.get("type")
+            if prop_type == "string" and not isinstance(casted_template_variables[key], str):
+                casted_template_variables[key] = str(casted_template_variables[key])
+
+    return casted_template_variables
+
+
+def validate_template_variables(
+    *,
+    template_variables: dict[str, Any],
+    input_schema: dict[str, Any],
+) -> None:
+    try:
+        validate(instance=template_variables, schema=input_schema)
+    except ValidationError as e:
+        raise ValueError(f"Input validation failed: {e.message}")
+
+
+def infer_input_schema_from_template(
+    *,
+    template: PromptChatTemplateInput,
+    template_format: PromptTemplateFormat,
+) -> dict[str, Any]:
+    """
+    Infer the input schema from an evaluator template.
+
+    Uses parse_with_types() to detect variable types:
+    - Section variables ({{#name}} or {{^name}}) get empty schema (accepts any JSON type)
+    - String variables ({{name}}) get {"type": "string"} schema
+    """
+    formatter = get_template_formatter(template_format)
+    section_vars: set[str] = set()
+    string_vars: set[str] = set()
+
+    for msg in template.messages:
+        content = msg.content
+        for part in content:
+            if isinstance(part.text, TextContentValueInput):
+                parsed = formatter.parse_with_types(part.text.text)
+                section_vars.update(parsed.section_variables())
+                string_vars.update(parsed.string_variables())
+
+    # Section vars get empty schema (accepts any type), string vars get type: string
+    # Sort iteration order for deterministic key ordering in the resulting dict
+    properties: dict[str, dict[str, Any]] = {}
+    for var in sorted(section_vars):
+        properties[var] = {}  # Empty schema accepts any JSON type
+    for var in sorted(string_vars):
+        if var not in section_vars:  # Section type takes precedence
+            properties[var] = {"type": "string"}
+
+    all_vars = section_vars | string_vars
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": sorted(all_vars),
+    }
+
+
+def evaluation_result_to_model(
+    result: EvaluationResult,
+    *,
+    experiment_run_id: Optional[int] = None,
+) -> models.ExperimentRunAnnotation:
+    return models.ExperimentRunAnnotation(
+        experiment_run_id=experiment_run_id,
+        name=result["name"],
+        annotator_kind=result["annotator_kind"],
+        label=result["label"],
+        score=result["score"],
+        explanation=result["explanation"],
+        trace_id=result["trace_id"],
+        error=result["error"],
+        metadata_=result["metadata"],
+        start_time=result["start_time"],
+        end_time=result["end_time"],
+    )
+
+
+def evaluation_result_to_span_annotation(
+    result: EvaluationResult,
+    *,
+    span_rowid: int,
+) -> models.SpanAnnotation:
+    return models.SpanAnnotation(
+        span_rowid=span_rowid,
+        name=result["name"],
+        annotator_kind=result["annotator_kind"],
+        label=result["label"],
+        score=result["score"],
+        explanation=result["explanation"],
+        metadata_=result["metadata"],
+        identifier=result["name"],
+        source="API",
+        created_at=result["start_time"],
+        updated_at=result["end_time"],
+        user_id=None,
+    )
+
+
+def create_llm_evaluator_from_inline(
+    *,
+    prompt_version_orm: models.PromptVersion,
+    llm_client: "PlaygroundStreamingClient[Any]",
+    output_configs: Sequence[CategoricalOutputConfig],
+    name: str,
+    description: Optional[str] = None,
+) -> LLMEvaluator:
+    """
+    Creates an LLMEvaluator instance from inline definition without database persistence.
+    Used for evaluator preview functionality.
+    """
+    template = prompt_version_orm.template
+    assert isinstance(template, PromptChatTemplate)
+    tools = prompt_version_orm.tools
+    assert tools is not None
+
+    return LLMEvaluator(
+        name=name,
+        description=description,
+        template=template,
+        template_format=prompt_version_orm.template_format,
+        tools=tools,
+        invocation_parameters=prompt_version_orm.invocation_parameters,
+        model_provider=prompt_version_orm.model_provider,
+        llm_client=llm_client,
+        output_configs=output_configs,
+        prompt_name="preview-prompt",
+    )
+
+
+@register_builtin_evaluator
+class ContainsEvaluator(BuiltInEvaluator):
+    _key = "contains"
+    name = "contains"
+    description = (
+        "Evaluates whether the text contains any (or all) of the specified comma-separated words"
+    )
+    metadata = {"type": "string_matching"}
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "words": {
+                    "type": "string",
+                    "description": "A comma separated list of words to search for in the output",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "The text to search for the words in",
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Whether to match the string case sensitive",
+                },
+                "require_all": {
+                    "type": "boolean",
+                    "description": (
+                        "If true, all words must be present. If false (default), any word matches."
+                    ),
+                },
+            },
+            "required": ["words", "text"],
+        }
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        return [
+            CategoricalOutputConfig(
+                type="CATEGORICAL",
+                name="contains",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
+
+    async def _evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_config: OutputConfigType,
+        tracer: Optional[Tracer] = None,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            try:
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                words = [
+                    word.strip() for word in inputs.get("words", "").split(",") if word.strip()
+                ]
+                text = inputs.get("text", "")
+                case_sensitive = inputs.get("case_sensitive", False)
+                require_all = inputs.get("require_all", False)
+
+                with tracer_.start_as_current_span(
+                    self.name,
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "words": words,
+                                "text": text,
+                                "case_sensitive": case_sensitive,
+                                "require_all": require_all,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    if not words:
+                        matched = False
+                    elif case_sensitive:
+                        match_fn = all if require_all else any
+                        matched = match_fn(word in text for word in words)
+                    else:
+                        match_fn = all if require_all else any
+                        matched = match_fn(word.lower() in text.lower() for word in words)
+
+                    if not words:
+                        explanation = "No valid words were provided to check."
+                    else:
+                        word_list = ", ".join(words)
+                        truncated_text = (text[:100] + "...") if len(text) > 100 else text
+                        if case_sensitive:
+                            found_words = [w for w in words if w in text]
+                            missing_words = [w for w in words if w not in text]
+                        else:
+                            text_lower = text.lower()
+                            found_words = [w for w in words if w.lower() in text_lower]
+                            missing_words = [w for w in words if w.lower() not in text_lower]
+
+                        if require_all:
+                            if matched:
+                                explanation = (
+                                    f"All of the words [{word_list}] were found"
+                                    f" in the text: '{truncated_text}'."
+                                )
+                            else:
+                                missing_list = ", ".join(missing_words)
+                                explanation = (
+                                    f"Not all of the words [{word_list}] were"
+                                    f" found in the text: '{truncated_text}'."
+                                    f" Missing: {missing_list}"
+                                )
+                        else:
+                            if matched:
+                                matched_list = ", ".join(found_words)
+                                explanation = (
+                                    f"One or more of the words [{word_list}]"
+                                    f" were found in the text:"
+                                    f" '{truncated_text}'."
+                                    f" Matched: {matched_list}"
+                                )
+                            else:
+                                explanation = (
+                                    f"None of the words [{word_list}]"
+                                    f" were found in the text:"
+                                    f" '{truncated_text}'."
+                                )
+
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            json.dumps(matched), mime_type="application/json"
+                        ),
+                    },
+                ) as parse_span:
+                    label, score = self._map_boolean_to_label_and_score(matched, output_config)
+
+                    parse_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata={
+                        "words": words,
+                        "text": text,
+                        "case_sensitive": case_sensitive,
+                        "require_all": require_all,
+                    },
+                    error=None,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
+
+
+@register_builtin_evaluator
+class ExactMatchEvaluator(BuiltInEvaluator):
+    _key = "exact_match"
+    name = "exact_match"
+    description = "Evaluates whether the actual text exactly matches the expected text"
+    metadata = {"type": "string_matching"}
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "expected": {
+                    "type": "string",
+                    "description": "The expected text",
+                },
+                "actual": {
+                    "type": "string",
+                    "description": "The actual text to compare",
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Whether comparison is case-sensitive (default: True)",
+                },
+            },
+            "required": ["expected", "actual"],
+        }
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        return [
+            CategoricalOutputConfig(
+                type="CATEGORICAL",
+                name="exact_match",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
+
+    async def _evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_config: OutputConfigType,
+        tracer: Optional[Tracer] = None,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            try:
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                expected = inputs.get("expected", "")
+                actual = inputs.get("actual", "")
+                case_sensitive = inputs.get("case_sensitive", True)
+
+                with tracer_.start_as_current_span(
+                    self.name,
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "expected": expected,
+                                "actual": actual,
+                                "case_sensitive": case_sensitive,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    if case_sensitive:
+                        matched = expected == actual
+                    else:
+                        matched = expected.lower() == actual.lower()
+
+                    explanation = f"expected {'matches' if matched else 'does not match'} actual"
+
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            json.dumps(matched), mime_type="application/json"
+                        ),
+                    },
+                ) as parse_span:
+                    label, score = self._map_boolean_to_label_and_score(matched, output_config)
+
+                    parse_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata={
+                        "expected": expected,
+                        "actual": actual,
+                        "case_sensitive": case_sensitive,
+                    },
+                    error=None,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
+
+
+@register_builtin_evaluator
+class RegexEvaluator(BuiltInEvaluator):
+    _key = "regex"
+    name = "regex"
+    description = "Evaluates whether the text matches a regex pattern"
+    metadata = {"type": "pattern_matching"}
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "The regex pattern to match",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "The text to search",
+                },
+                "full_match": {
+                    "type": "boolean",
+                    "description": (
+                        "If true, pattern must match entire text; "
+                        "if false, searches for pattern anywhere (default: False)"
+                    ),
+                },
+            },
+            "required": ["pattern", "text"],
+        }
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        return [
+            CategoricalOutputConfig(
+                type="CATEGORICAL",
+                name="regex",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
+
+    async def _evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_config: OutputConfigType,
+        tracer: Optional[Tracer] = None,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            try:
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                pattern = inputs.get("pattern", "")
+                text = inputs.get("text", "")
+                full_match = inputs.get("full_match", False)
+
+                with tracer_.start_as_current_span(
+                    self.name,
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "pattern": pattern,
+                                "text": text,
+                                "full_match": full_match,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    try:
+                        if full_match:
+                            match = re.fullmatch(pattern, text)
+                        else:
+                            match = re.search(pattern, text)
+                        matched = match is not None
+                        error = None
+                    except re.error as e:
+                        matched = False
+                        error = f"Invalid regex pattern: {e}"
+
+                    if error:
+                        explanation = error
+                    else:
+                        match_type = "full match" if full_match else "search"
+                        explanation = (
+                            f"pattern {'matched' if matched else 'did not match'} ({match_type})"
+                        )
+
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            json.dumps(matched), mime_type="application/json"
+                        ),
+                    },
+                ) as parse_span:
+                    if error:
+                        label, score = None, None
+                    else:
+                        label, score = self._map_boolean_to_label_and_score(matched, output_config)
+
+                    parse_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata={"pattern": pattern, "text": text, "full_match": full_match},
+                    error=error,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
+
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    if len(s1) < len(s2):
+        s1, s2 = s2, s1
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+
+@register_builtin_evaluator
+class LevenshteinDistanceEvaluator(BuiltInEvaluator):
+    _key = "levenshtein_distance"
+    name = "levenshtein_distance"
+    description = "Calculates the Levenshtein (edit) distance between two strings"
+    metadata = {"type": "string_distance"}
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "expected": {
+                    "type": "string",
+                    "description": "The expected text",
+                },
+                "actual": {
+                    "type": "string",
+                    "description": "The actual text to compare",
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Whether comparison is case-sensitive (default: True)",
+                },
+            },
+            "required": ["expected", "actual"],
+        }
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        return [
+            ContinuousOutputConfig(
+                type="CONTINUOUS",
+                name="levenshtein_distance",
+                optimization_direction=OptimizationDirection.MINIMIZE,
+                lower_bound=0.0,
+            )
+        ]
+
+    async def _evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_config: OutputConfigType,
+        tracer: Optional[Tracer] = None,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            try:
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                expected = inputs.get("expected", "")
+                actual = inputs.get("actual", "")
+                case_sensitive = inputs.get("case_sensitive", True)
+
+                with tracer_.start_as_current_span(
+                    self.name,
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "expected": expected,
+                                "actual": actual,
+                                "case_sensitive": case_sensitive,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    if case_sensitive:
+                        distance = levenshtein_distance(expected, actual)
+                    else:
+                        distance = levenshtein_distance(expected.lower(), actual.lower())
+
+                    explanation = f"edit distance between expected and actual is {distance}"
+
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(distance, mime_type="application/json")
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(distance, mime_type="application/json"),
+                    },
+                ) as parse_span:
+                    label = None
+                    score = float(distance)
+
+                    parse_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=float(distance),
+                    explanation=explanation,
+                    metadata={
+                        "expected": expected,
+                        "actual": actual,
+                        "case_sensitive": case_sensitive,
+                    },
+                    error=None,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
+
+
+def json_diff_count(expected: Any, actual: Any) -> int:
+    if type(expected) is not type(actual):
+        return 1
+
+    if isinstance(expected, dict) and isinstance(actual, dict):
+        diff = 0
+        all_keys = set(expected.keys()) | set(actual.keys())
+        for key in all_keys:
+            if key not in expected:
+                diff += 1
+            elif key not in actual:
+                diff += 1
+            else:
+                diff += json_diff_count(expected[key], actual[key])
+        return diff
+
+    if isinstance(expected, list) and isinstance(actual, list):
+        diff = abs(len(expected) - len(actual))
+        for i in range(min(len(expected), len(actual))):
+            diff += json_diff_count(expected[i], actual[i])
+        return diff
+
+    return 0 if expected == actual else 1
+
+
+@register_builtin_evaluator
+class JSONDistanceEvaluator(BuiltInEvaluator):
+    _key = "json_distance"
+    name = "json_distance"
+    description = "Compares two JSON structures and returns the number of differences"
+    metadata = {"type": "json_comparison"}
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "expected": {
+                    "description": "The expected JSON structure",
+                },
+                "actual": {
+                    "description": "The actual JSON structure to compare",
+                },
+                "parse_strings": {
+                    "type": "boolean",
+                    "description": (
+                        "Whether to parse string inputs as JSON before comparison (default: True)"
+                    ),
+                },
+            },
+            "required": ["expected", "actual"],
+        }
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        return [
+            ContinuousOutputConfig(
+                type="CONTINUOUS",
+                name="json_distance",
+                optimization_direction=OptimizationDirection.MINIMIZE,
+                lower_bound=0.0,
+            )
+        ]
+
+    async def _evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_config: OutputConfigType,
+        tracer: Optional[Tracer] = None,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+            try:
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                expected_raw = inputs.get("expected", "")
+                actual_raw = inputs.get("actual", "")
+                parse_strings = inputs.get("parse_strings", True)
+
+                def _serialize_for_trace(value: Any) -> str:
+                    if isinstance(value, str):
+                        return value
+                    if isinstance(value, (dict, list)):
+                        return json.dumps(value)
+                    return str(value)
+
+                expected_trace = _serialize_for_trace(expected_raw)
+                actual_trace = _serialize_for_trace(actual_raw)
+
+                with tracer_.start_as_current_span(
+                    self.name,
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "expected": expected_trace,
+                                "actual": actual_trace,
+                                "parse_strings": parse_strings,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    distance = -1
+                    error = None
+                    explanation = None
+                    expected: Any = expected_raw
+                    actual: Any = actual_raw
+
+                    if parse_strings and isinstance(expected_raw, str):
+                        try:
+                            expected = json.loads(expected_raw)
+                        except json.JSONDecodeError as e:
+                            error = f"Invalid JSON in 'expected': {e}"
+                            explanation = (
+                                f"{error}. If 'expected' is a Python object (not a JSON string),"
+                                " set parse_strings=False to compare without parsing."
+                                " Otherwise ensure the value uses valid JSON formatting"
+                                " (double-quoted keys and string values)."
+                            )
+
+                    if error is None and parse_strings and isinstance(actual_raw, str):
+                        try:
+                            actual = json.loads(actual_raw)
+                        except json.JSONDecodeError as e:
+                            error = f"Invalid JSON in 'actual': {e}"
+                            explanation = (
+                                f"{error}. If 'actual' is a Python object (not a JSON string),"
+                                " set parse_strings=False to compare without parsing."
+                                " Otherwise ensure the value uses valid JSON formatting"
+                                " (double-quoted keys and string values)."
+                            )
+
+                    if error is None:
+                        distance = json_diff_count(expected, actual)
+                        explanation = f"JSON structures have {distance} difference(s)"
+
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(distance, mime_type="application/json")
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(distance, mime_type="application/json"),
+                    },
+                ) as parse_span:
+                    label = None
+                    score = float(distance) if error is None else None
+
+                    parse_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=float(distance) if error is None else None,
+                    explanation=explanation,
+                    metadata={
+                        "expected": expected_trace,
+                        "actual": actual_trace,
+                        "parse_strings": parse_strings,
+                    },
+                    error=error,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "label": result["label"],
+                            "score": result["score"],
+                            "explanation": result["explanation"],
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
+
+
+# message attributes
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_CONTENTS = MessageAttributes.MESSAGE_CONTENTS
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+
+# these constants will be added to openinference-semantic-conventions
+TEMPLATE_MESSAGES = "template.messages"
+TEMPLATE_FORMATTED_MESSAGES = "template.formatted_messages"
+TEMPLATE_PATH_MAPPING = "template.path_mapping"
+TEMPLATE_LITERAL_MAPPING = "template.literal_mapping"
+TEMPLATE_VARIABLES = "template.variables"
+
+
+def _get_messages_from_template(template: PromptChatTemplate) -> list[oi.Message]:
+    messages: list[oi.Message] = []
+    for msg in template.messages:
+        role = msg.role
+        if isinstance(msg.content, str):
+            messages.append(oi.Message(role=role, content=msg.content))
+        elif isinstance(msg.content, list):
+            contents: list[oi.TextMessageContent] = []
+            for part in msg.content:
+                if isinstance(part, TextContentPart):
+                    contents.append(oi.TextMessageContent(type="text", text=part.text))
+                else:
+                    raise ValueError(f"Unsupported content part type: {type(part)}")
+            messages.append(oi.Message(role=role, contents=contents))
+        else:
+            assert_never(msg.content)
+    return messages
+
+
+# the following helper functions will be refactored to `openinference-instrumentation`
+def _get_template_message_attributes(*, messages: list[oi.Message]) -> dict[str, Any]:
+    attributes: dict[str, Any] = {}
+    for msg_idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
+        if "content" in msg:
+            attributes[f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_CONTENT}"] = msg["content"]
+        elif "contents" in msg:
+            for content_idx, content_part in enumerate(msg["contents"]):
+                if content_part.get("type") == "text":
+                    attributes[
+                        f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
+                    ] = content_part.get("text", "")
+    return attributes
+
+
+def _get_template_formatted_message_attributes(*, messages: list[oi.Message]) -> dict[str, Any]:
+    attributes: dict[str, Any] = {}
+    for msg_idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
+        if "content" in msg:
+            attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_CONTENT}"] = msg[
+                "content"
+            ]
+        elif "contents" in msg:
+            for content_idx, content_part in enumerate(msg["contents"]):
+                if content_part.get("type") == "text":
+                    attributes[
+                        f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
+                    ] = content_part.get("text", "")
+    return attributes
+
+
+def _get_template_path_mapping_attributes(*, path_mapping: dict[str, str]) -> dict[str, Any]:
+    return {TEMPLATE_PATH_MAPPING: json.dumps(path_mapping)}
+
+
+def _get_template_literal_mapping_attributes(*, literal_mapping: dict[str, str]) -> dict[str, Any]:
+    return {TEMPLATE_LITERAL_MAPPING: json.dumps(literal_mapping)}
+
+
+def _get_template_variables_attributes(*, variables: dict[str, Any]) -> dict[str, Any]:
+    return {TEMPLATE_VARIABLES: json.dumps(variables)}
+
+
+def _make_object_input_schema(
+    parameter_names: Sequence[str],
+    required_names: Sequence[str],
+) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {name: {} for name in parameter_names},
+        "required": list(required_names),
+    }
+
+
+_SUPPORTED_CODE_EVALUATOR_INPUT_NAMES = ("output", "reference", "input", "metadata")
+
+
+def _validate_code_evaluator_input_names(
+    parameter_names: Sequence[str],
+    *,
+    language: str,
+) -> Optional[str]:
+    unsupported_names = [
+        name for name in parameter_names if name not in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES
+    ]
+    if not unsupported_names:
+        return None
+    supported_names = ", ".join(f"`{name}`" for name in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES)
+    invalid_names = ", ".join(f"`{name}`" for name in unsupported_names)
+    return (
+        f"Could not infer the {language} evaluator inputs because the `evaluate(...)` signature "
+        f"uses unsupported parameter names: {invalid_names}. Supported parameter names are "
+        f"{supported_names}."
+    )
+
+
+def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any], Optional[str]]:
+    try:
+        module = ast.parse(source_code)
+    except SyntaxError as exc:
+        return (
+            {},
+            (
+                "Could not parse the Python evaluator signature. "
+                "Define a top-level function like "
+                "`def evaluate(output, reference=None, input=None, metadata=None):`. "
+                f"Parser error: {exc.msg}"
+            ),
+        )
+
+    evaluate_function = next(
+        (
+            node
+            for node in module.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "evaluate"
+        ),
+        None,
+    )
+    if evaluate_function is None:
+        return (
+            {},
+            (
+                "Could not infer the Python evaluator inputs because no top-level "
+                "`evaluate(...)` function was found. Define a function like "
+                "`def evaluate(output, reference=None, input=None, metadata=None):`."
+            ),
+        )
+
+    args = evaluate_function.args
+    positional_args = [*args.posonlyargs, *args.args]
+    positional_required_count = len(positional_args) - len(args.defaults)
+    required_names = [arg.arg for arg in positional_args[:positional_required_count]]
+    required_names.extend(
+        arg.arg for arg, default in zip(args.kwonlyargs, args.kw_defaults) if default is None
+    )
+
+    parameter_names = [arg.arg for arg in positional_args]
+    parameter_names.extend(arg.arg for arg in args.kwonlyargs)
+
+    invalid_name_error = _validate_code_evaluator_input_names(
+        parameter_names,
+        language="Python",
+    )
+    if invalid_name_error is not None:
+        return ({}, invalid_name_error)
+
+    return (_make_object_input_schema(parameter_names, required_names), None)
+
+
+_TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
+_TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
+
+_PHOENIX_RESULT_BEGIN = "===PHOENIX_RESULT_BEGIN==="
+_PHOENIX_RESULT_END = "===PHOENIX_RESULT_END==="
+_PHOENIX_RESULT_BEGIN_RE = re.compile(
+    r"^" + re.escape(_PHOENIX_RESULT_BEGIN) + r"\s*$", re.MULTILINE
+)
+_PHOENIX_RESULT_END_RE = re.compile(r"^" + re.escape(_PHOENIX_RESULT_END) + r"\s*$", re.MULTILINE)
+
+_TYPESCRIPT_RESULT_BEGIN = _PHOENIX_RESULT_BEGIN
+_TYPESCRIPT_RESULT_END = _PHOENIX_RESULT_END
+
+
+def _extract_fenced_result(stdout: str) -> tuple[Optional[str], str]:
+    """Extract the last complete fenced region from ``stdout``.
+
+    Returns ``(fenced_text, non_fenced_text)`` where ``fenced_text`` is the
+    content between the last complete BEGIN/END pair (or ``None``).
+    """
+    begin_matches = list(_PHOENIX_RESULT_BEGIN_RE.finditer(stdout))
+    end_matches = list(_PHOENIX_RESULT_END_RE.finditer(stdout))
+    if not begin_matches or not end_matches:
+        return None, stdout
+
+    pairs: list[tuple[re.Match[str], re.Match[str]]] = []
+    end_idx = 0
+    for begin in begin_matches:
+        while end_idx < len(end_matches) and end_matches[end_idx].start() <= begin.end():
+            end_idx += 1
+        if end_idx >= len(end_matches):
+            break
+        pairs.append((begin, end_matches[end_idx]))
+        end_idx += 1
+
+    if not pairs:
+        return None, stdout
+
+    last_begin, last_end = pairs[-1]
+    fenced = stdout[last_begin.end() : last_end.start()].strip("\r\n")
+    pre = stdout[: last_begin.start()].rstrip("\r\n")
+    post = stdout[last_end.end() :].lstrip("\r\n")
+    non_fenced = ("\n".join(p for p in (pre, post) if p)).rstrip()
+    return fenced, non_fenced
+
+
+def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], list[str]]:
+    destructured = re.match(r"^\{([^}]*)\}", params.strip())
+    if destructured is None:
+        return ([], [])
+
+    parameter_names: list[str] = []
+    for raw_part in destructured.group(1).split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        part = part.split(":", 1)[0].strip()
+        if not part:
+            continue
+        name = part.split("=", 1)[0].rstrip("?").strip()
+        if not name:
+            continue
+        parameter_names.append(name)
+    return (parameter_names, [])
+
+
+def _infer_typescript_evaluate_input_schema(
+    source_code: str,
+) -> tuple[dict[str, Any], Optional[str]]:
+    signature = _TYPESCRIPT_FUNCTION_SIGNATURE_RE.search(
+        source_code
+    ) or _TYPESCRIPT_ARROW_SIGNATURE_RE.search(source_code)
+    if signature is None:
+        return (
+            {},
+            (
+                "Could not infer the TypeScript evaluator inputs because no supported "
+                "`evaluate(...)` signature was found. Define `evaluate` as either "
+                "`function evaluate({ output, reference, input, metadata }: "
+                "EvaluatorParams) { ... }` or `const evaluate = ({ output, "
+                "reference, input, metadata }: EvaluatorParams) => { ... }`."
+            ),
+        )
+
+    parameter_names, required_names = _extract_typescript_object_parameter_keys(signature.group(1))
+    if not parameter_names:
+        return (
+            {},
+            (
+                "Could not infer the TypeScript evaluator inputs from the `evaluate(...)` "
+                "signature. Use a destructured object parameter like "
+                "`function evaluate({ output, reference, input, metadata }: "
+                "EvaluatorParams) { ... }`."
+            ),
+        )
+
+    invalid_name_error = _validate_code_evaluator_input_names(
+        parameter_names,
+        language="TypeScript",
+    )
+    if invalid_name_error is not None:
+        return ({}, invalid_name_error)
+
+    return (_make_object_input_schema(parameter_names, required_names), None)
+
+
+class CodeEvaluatorRunner(BaseEvaluator):
+    """Evaluator that executes user-provided source code in a sandbox."""
+
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str],
+        source_code: str,
+        stored_output_configs: Sequence[OutputConfigType],
+        sandbox_backend: "SandboxBackend",
+        language: str,
+        sandbox_session_manager: Optional[SandboxSessionManager],
+        timeout: Optional[int] = None,
+        evaluator_version_id: Optional[str] = None,
+        session_key: Optional[str] = None,
+    ) -> None:
+        self._name = name
+        self._description = description
+        self._source_code = source_code
+        self._stored_output_configs = list(stored_output_configs)
+        self._sandbox_backend: SandboxBackend = sandbox_backend
+        self._language = language.upper()
+        self._timeout = timeout
+        self._evaluator_version_id = evaluator_version_id
+        # ``session_key`` is required on the managed path; the ephemeral
+        # path does not consult it.
+        if sandbox_session_manager is not None and session_key is None:
+            raise ValueError(
+                "CodeEvaluatorRunner: session_key is required when "
+                "sandbox_session_manager is supplied."
+            )
+        self._session_key = session_key
+        self._sandbox_session_manager = sandbox_session_manager
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def output_configs(self) -> Sequence[OutputConfigType]:
+        return self._stored_output_configs
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        schema, _ = self._infer_input_schema()
+        return schema
+
+    def _infer_input_schema(self) -> tuple[dict[str, Any], Optional[str]]:
+        if self._language == "PYTHON":
+            return _infer_python_evaluate_input_schema(self._source_code)
+        if self._language == "TYPESCRIPT":
+            return _infer_typescript_evaluate_input_schema(self._source_code)
+        return ({}, None)
+
+    def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        return (
+            f"{self._source_code}\n\n"
+            f"import json as _json\n"
+            f"_inputs = {mapped_inputs!r}\n"
+            f"_result = evaluate(**_inputs)\n"
+            f"print('{_PHOENIX_RESULT_BEGIN}')\n"
+            f"print(_json.dumps(_result))\n"
+            f"print('{_PHOENIX_RESULT_END}')\n"
+        )
+
+    def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        inputs_json = json.dumps(mapped_inputs)
+        return (
+            f"{self._source_code}\n\n"
+            f"const _inputs = {inputs_json};\n"
+            f"const _run = async () => {{\n"
+            f"  const _result = await evaluate(_inputs);\n"
+            f"  console.log('{_PHOENIX_RESULT_BEGIN}');\n"
+            f"  console.log(JSON.stringify(_result));\n"
+            f"  console.log('{_PHOENIX_RESULT_END}');\n"
+            f"}};\n"
+            f"await _run();\n"
+        )
+
+    def _make_error_result(
+        self,
+        name: str,
+        error: str,
+        start_time: datetime,
+        trace_id: Optional[str] = None,
+    ) -> EvaluationResult:
+        return EvaluationResult(
+            name=name,
+            annotator_kind="CODE",
+            label=None,
+            score=None,
+            explanation=None,
+            metadata={},
+            error=error,
+            trace_id=trace_id,
+            start_time=start_time,
+            end_time=datetime.now(timezone.utc),
+        )
+
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        from phoenix.server.api.coerce_output import _coerce_output
+
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+        masker = SandboxSecretMasker(self._sandbox_backend.secret_values)
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes=_mask_attrs(
+                {
+                    **oi.get_span_kind_attributes("evaluator"),
+                    **oi.get_input_attributes(context),
+                },
+                masker,
+            ),
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            input_schema, inference_error = self._infer_input_schema()
+            if inference_error is not None:
+                evaluator_span.set_status(Status(StatusCode.ERROR, inference_error))
+                return [
+                    self._make_error_result(name, inference_error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
+
+            # OTel auto-record is disabled so explicit masked exception
+            # records below are the only thing persisted on these spans.
+            with tracer_.start_as_current_span(
+                "Input Mapping",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as input_mapping_span:
+                try:
+                    mapped_inputs = apply_input_mapping(
+                        input_schema=input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    input_mapping_span.set_attributes(
+                        _mask_attrs(oi.get_output_attributes(mapped_inputs), masker)
+                    )
+                    input_mapping_span.set_status(Status(StatusCode.OK))
+                except Exception as exc:
+                    err = f"Input mapping failed: {exc}"
+                    _record_masked_exception(input_mapping_span, exc, masker)
+                    _set_masked_status(input_mapping_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+
+            if self._language == "PYTHON":
+                code = self._build_python_harness(mapped_inputs)
+            else:
+                code = self._build_typescript_harness(mapped_inputs)
+
+            session_key = self._session_key or ""
+
+            sandbox_metadata: dict[str, Any] = {
+                "backend_type": type(self._sandbox_backend).__name__,
+                "language": self._language,
+            }
+            if self._timeout is not None:
+                sandbox_metadata["timeout"] = int(self._timeout)
+            if self._evaluator_version_id is not None:
+                sandbox_metadata["code_evaluator_version_id"] = self._evaluator_version_id
+
+            with tracer_.start_as_current_span(
+                f"Sandbox: {self._name}",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("tool"),
+                        **oi.get_tool_attributes(
+                            name=self._name,
+                            description=self._description,
+                            parameters=input_schema,
+                        ),
+                        **oi.get_input_attributes(mapped_inputs),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as sandbox_span:
+                try:
+                    if self._sandbox_session_manager is None:
+                        # Ephemeral path: backend.execute owns the sandbox
+                        # lifecycle (created and torn down inside the call).
+                        execution = await asyncio.wait_for(
+                            self._sandbox_backend.execute(
+                                code,
+                                session_key=session_key,
+                                timeout=self._timeout,
+                            ),
+                            timeout=self._timeout,
+                        )
+                    else:
+                        # Managed path: ``wait_for`` brackets acquire+execute
+                        # so the slow ``find_or_create_session`` leg also
+                        # respects the evaluator timeout. ``SessionInvalidated``
+                        # is transient (entry mid-drain) — wait once and retry.
+                        async def _managed_execute() -> ExecutionResult:
+                            assert self._sandbox_session_manager is not None
+                            manager = self._sandbox_session_manager
+                            try:
+                                async with manager.acquire(
+                                    self._sandbox_backend, session_key
+                                ) as session:
+                                    return await session.execute(code, timeout=self._timeout)
+                            except SessionInvalidated:
+                                await manager.wait_for_drain(session_key, self._sandbox_backend)
+                                async with manager.acquire(
+                                    self._sandbox_backend, session_key
+                                ) as session:
+                                    return await session.execute(code, timeout=self._timeout)
+
+                        execution = await asyncio.wait_for(
+                            _managed_execute(), timeout=self._timeout
+                        )
+                except SessionLimitExceeded as exc:
+                    err = SessionLimitExceeded.MESSAGE
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except SessionInvalidated as exc:
+                    err = SessionInvalidated.MESSAGE
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except asyncio.TimeoutError as exc:
+                    # Managed path: route teardown through the manager so
+                    # the tracked entry is dropped (acquire's finally only
+                    # decrements in_flight) and the task is awaited at
+                    # shutdown. Ephemeral path: backend.execute's async-with
+                    # already kills the sandbox on cancellation.
+                    if self._sandbox_session_manager is not None:
+                        self._sandbox_session_manager.schedule_eviction(
+                            session_key, self._sandbox_backend
+                        )
+                    execution = ExecutionResult(stdout="", stderr="", error="timeout")
+                    sandbox_span.set_attributes(
+                        _mask_attrs(
+                            oi.get_metadata_attributes(
+                                metadata={**sandbox_metadata, "error": "timeout"}
+                            ),
+                            masker,
+                        )
+                    )
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    sandbox_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    evaluator_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    return [
+                        self._make_error_result(
+                            name, execution.error or "timeout", start_time, trace_id=trace_id
+                        )
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except UnsupportedOperation as exc:
+                    err = f"Sandbox backend does not support this operation: {exc}"
+                    sandbox_span.set_attributes(
+                        _mask_attrs(
+                            oi.get_metadata_attributes(metadata={**sandbox_metadata, "error": err}),
+                            masker,
+                        )
+                    )
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except Exception as exc:
+                    err = f"Sandbox execution failed: {exc}"
+                    sandbox_span.set_attributes(
+                        _mask_attrs(
+                            oi.get_metadata_attributes(metadata={**sandbox_metadata, "error": err}),
+                            masker,
+                        )
+                    )
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+
+                fenced_text, non_fenced_stdout = _extract_fenced_result(execution.stdout)
+
+                raw_value: Any = None
+                parse_error: Optional[str] = None
+                if not execution.error:
+                    if fenced_text is None:
+                        parse_error = "no result markers found"
+                    else:
+                        try:
+                            raw_value = json.loads(fenced_text)
+                        except json.JSONDecodeError as exc:
+                            parse_error = f"result JSON parse failed: {exc.msg}"
+
+                # Single OI metadata write — repeated writes overwrite, not merge.
+                merged_metadata = dict(sandbox_metadata)
+                if non_fenced_stdout:
+                    merged_metadata["stdout"] = non_fenced_stdout
+                if execution.stderr:
+                    merged_metadata["stderr"] = execution.stderr
+                if parse_error is not None:
+                    merged_metadata["parse_error"] = parse_error
+                if execution.error and not parse_error:
+                    merged_metadata["error"] = execution.error
+                sandbox_span.set_attributes(
+                    _mask_attrs(
+                        oi.get_metadata_attributes(metadata=merged_metadata),
+                        masker,
+                    )
+                )
+
+                if execution.error:
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, execution.error, masker)
+                elif parse_error is not None:
+                    if fenced_text is not None:
+                        sandbox_span.set_attributes(
+                            _mask_attrs(
+                                oi.get_output_attributes(fenced_text, mime_type="text/plain"),
+                                masker,
+                            )
+                        )
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, parse_error, masker)
+                else:
+                    sandbox_span.set_attributes(
+                        _mask_attrs(oi.get_output_attributes(raw_value), masker)
+                    )
+                    sandbox_span.set_status(Status(StatusCode.OK))
+
+            if execution.error:
+                _set_masked_status(evaluator_span, StatusCode.ERROR, execution.error, masker)
+                return [
+                    self._make_error_result(name, execution.error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
+
+            multi_output = len(output_configs) > 1
+
+            # Route per-config when raw_value is a dict covering every config.name.
+            routed = (
+                parse_error is None
+                and multi_output
+                and isinstance(raw_value, dict)
+                and all(c.name in raw_value for c in output_configs)
+            )
+            shared_explanation: Optional[str] = None
+            if routed and isinstance(raw_value, dict):
+                top_level_explanation = raw_value.get("explanation")
+                if isinstance(top_level_explanation, str):
+                    shared_explanation = top_level_explanation
+
+            results: list[EvaluationResult] = []
+            any_coerce_error = False
+            last_coerce_error: Optional[str] = None
+            parse_input: Any
+            if parse_error is None:
+                parse_input = raw_value
+            else:
+                parse_input = fenced_text if fenced_text is not None else ""
+            with tracer_.start_as_current_span(
+                "Parse Eval Result",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(parse_input),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as parse_span:
+                for config in output_configs:
+                    annotation_name = f"{name}.{config.name}" if multi_output else name
+                    if parse_error is not None:
+                        any_coerce_error = True
+                        last_coerce_error = parse_error
+                        results.append(
+                            self._make_error_result(
+                                annotation_name, parse_error, start_time, trace_id=trace_id
+                            )
+                        )
+                        continue
+                    coerce_value = (
+                        raw_value[config.name]
+                        if routed and isinstance(raw_value, dict)
+                        else raw_value
+                    )
+                    try:
+                        label, score, explanation = _coerce_output(
+                            coerce_value, config, language=self._language
+                        )
+                    except ValueError as exc:
+                        any_coerce_error = True
+                        last_coerce_error = str(exc)
+                        results.append(
+                            self._make_error_result(
+                                annotation_name, str(exc), start_time, trace_id=trace_id
+                            )
+                        )
+                        continue
+                    if explanation is None:
+                        explanation = shared_explanation
+                    results.append(
+                        EvaluationResult(
+                            name=annotation_name,
+                            annotator_kind="CODE",
+                            label=label,
+                            score=score,
+                            explanation=explanation,
+                            metadata={},
+                            error=None,
+                            trace_id=trace_id,
+                            start_time=start_time,
+                            end_time=datetime.now(timezone.utc),
+                        )
+                    )
+
+                parse_span.set_attributes(
+                    _mask_attrs(
+                        oi.get_output_attributes(
+                            {
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                        "error": r["error"],
+                                    }
+                                    for r in results
+                                ]
+                            }
+                        ),
+                        masker,
+                    )
+                )
+                if any_coerce_error:
+                    _set_masked_status(
+                        parse_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
+                    )
+                else:
+                    parse_span.set_status(Status(StatusCode.OK))
+
+            evaluator_span.set_attributes(
+                _mask_attrs(
+                    dict(oi.get_output_attributes(raw_value)),
+                    masker,
+                )
+            )
+            if any_coerce_error:
+                _set_masked_status(
+                    evaluator_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
+                )
+            else:
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+        return results

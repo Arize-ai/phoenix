@@ -1,0 +1,128 @@
+---
+title: "Custom AI Providers"
+description: "Configure server-managed AI providers for shared use across the Phoenix platform."
+---
+
+Custom providers let you store provider credentials and routing settings on the server and reuse them across the playground and prompt versions. This is ideal for shared environments where you want a single, managed configuration instead of per-browser API keys or ephemeral routing fields.
+
+![Custom provider configuration in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/custom-provider-config.png)
+
+## Creating a Custom Provider
+
+To create a custom provider:
+
+1. Go to **Settings** → **AI Providers**.
+2. In **Custom Providers**, select **New Provider**.
+3. Enter a **Name** and a **Provider String**.
+4. Choose the **SDK** and fill in the required fields.
+5. Click **Test** to validate the credentials, then **Create Provider**.
+
+## Supported SDKs and Fields
+
+**OpenAI**
+*   **Required**: API key, API type (Chat Completions or Responses)
+*   **Optional**: Base URL, Organization, Project, Default headers
+
+**Azure OpenAI**
+*   **Required**: Endpoint, authentication method
+    *   API key auth: API key
+    *   AD token provider auth: Tenant ID, Client ID, Client Secret (Scope optional)
+    *   Default credentials auth: Endpoint only
+*   **Optional**: Default headers
+
+**Anthropic**
+*   **Required**: API key
+*   **Optional**: Base URL, Default headers
+
+**AWS Bedrock**
+*   **Required**: Region, authentication method
+    *   Access keys auth: Access Key ID, Secret Access Key (Session Token optional)
+    *   Default credentials auth: Region only
+*   **Optional**: Endpoint URL
+
+**Google GenAI**
+*   **Required**: API key
+*   **Optional**: Base URL, Headers
+
+## Example: Azure OpenAI Configuration
+
+Azure OpenAI supports three authentication methods in Phoenix. Here is how to configure each one.
+
+### API Key Authentication
+
+Best for simple deployments or quick prototyping.
+
+1.  **Endpoint**: Your Azure OpenAI endpoint (e.g., `https://my-resource.openai.azure.com/`).
+2.  **Auth Method**: Select **API Key**.
+3.  **API Key**: Enter one of the keys from the "Keys and Endpoint" blade in the Azure Portal.
+
+### Azure Active Directory (Service Principal)
+
+Best for production environments where you have a dedicated Service Principal.
+
+1.  **Endpoint**: Your Azure OpenAI endpoint.
+2.  **Auth Method**: Select **Azure AD Token Provider**.
+3.  **Tenant ID**: The Directory (tenant) ID from your App Registration.
+4.  **Client ID**: The Application (client) ID from your App Registration.
+5.  **Client Secret**: A valid client secret for the App Registration.
+
+<Note>
+Ensure the Service Principal has the **Cognitive Services OpenAI User** role assigned on the Azure OpenAI resource.
+</Note>
+
+### Default Credentials (Managed Identity)
+
+Best for applications running on Azure infrastructure (VMs, App Service, AKS) or local development with Azure CLI.
+
+1.  **Endpoint**: Your Azure OpenAI endpoint.
+2.  **Auth Method**: Select **Default Credentials**.
+
+This method attempts to retrieve credentials from the environment in the following order:
+1.  Environment variables (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`).
+2.  Workload Identity (AKS).
+3.  Managed Identity (when running on Azure services).
+4.  Azure CLI (local development).
+
+## Example: AWS Bedrock Configuration
+
+AWS Bedrock supports two authentication methods in Phoenix.
+
+### Access Keys Authentication
+
+Best for cross-account access or scenarios requiring explicit IAM user credentials.
+
+1.  **Region**: The AWS region where your Bedrock models are enabled (e.g., `us-east-1`).
+2.  **Auth Method**: Select **Access Keys**.
+3.  **Access Key ID**: Your IAM user's access key ID.
+4.  **Secret Access Key**: Your IAM user's secret access key.
+5.  **Session Token**: (Optional) Temporary session token if using temporary credentials.
+
+### Default Credentials (IAM Role)
+
+Best for applications running on AWS infrastructure (EC2, ECS, EKS, Lambda) or local development with AWS CLI.
+
+1.  **Region**: The AWS region where your Bedrock models are enabled.
+2.  **Auth Method**: Select **Default Credentials**.
+
+This method automatically discovers credentials from the environment in the following order:
+1.  Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
+2.  Shared credentials file (`~/.aws/credentials`).
+3.  ECS/EKS Task Roles.
+4.  EC2 Instance Metadata (IAM Role attached to the instance).
+
+## Configuration Tips
+
+*   **Azure OpenAI Endpoints**: You only need to provide the base resource URL (e.g., `https://my-resource.openai.azure.com/`). Phoenix automatically appends the necessary `/openai/v1` path.
+*   **Azure AD Scope**: The default scope for Azure AD Token Provider is `https://cognitiveservices.azure.com/.default`. This works for most Azure OpenAI resources.
+*   **Environment Isolation**: Custom providers (except "Default Credentials") are isolated from the server's local environment variables. This ensures that the credentials you save are exactly what is used, preventing accidental leakage from server-side environment configurations.
+*   **Encryption**: API keys and secrets stored in custom provider configurations are encrypted at rest in the database. Note that if the server's `PHOENIX_SECRET` environment variable is changed, previously stored entries will become unreadable and will need to be updated.
+
+## Usage
+
+Once configured, custom providers appear in model selection menus in the Playground as their own provider group.
+
+*   The model list mirrors the built-in model list for that SDK.
+*   Routing fields (base URL, Azure endpoint, AWS region) are pulled from the custom provider configuration.
+*   Prompt versions saved with a custom provider will use that provider's configuration.
+
+For more details on using providers in the Playground, see [Configure AI Providers](/docs/phoenix/prompt-engineering/how-to-prompts/configure-ai-providers).

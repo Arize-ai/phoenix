@@ -1,0 +1,11 @@
+<tool name="list_dataset_labels">
+  <description>List the labels applied to the dataset the user is viewing, returning each label's id, name, description, and color. Read-only. A label is a tag attached to datasets to organize and find them.</description>
+  <when_to_use>
+    - The user asks what labels this dataset has.
+    - Before set_dataset_labels, to see what is already applied (it replaces the dataset's labels, so include the current ones you want to keep).
+  </when_to_use>
+  <rules>
+    - Prefer this over hand-writing GraphQL to read the dataset's labels.
+    - This shows only the labels on this dataset. To see every label that exists in the instance (e.g. to apply one that is not yet on this dataset), use list_labels.
+  </rules>
+</tool>

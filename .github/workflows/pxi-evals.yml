@@ -1,0 +1,242 @@
+name: PXI Evals
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - "evals/**"
+      - "src/phoenix/server/agents/**"
+  workflow_dispatch:
+
+concurrency:
+  group: pxi-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+  PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+
+jobs:
+  regression:
+    name: PXI Regression Evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Run regression split for all PXI datasets
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          shopt -s nullglob
+          dataset_files=(evals/pxi/datasets/*.yaml)
+
+          if [[ "${#dataset_files[@]}" -eq 0 ]]; then
+            echo "::notice::No PXI dataset YAML files found"
+            exit 0
+          fi
+
+          # Pre-flight: verify Phoenix is reachable before touching any
+          # datasets. The runner retries internally (3x / 10s), so a transient
+          # blip won't fail here; but if Phoenix is genuinely down this exits
+          # once cleanly rather than burning through every dataset in the loop.
+          phoenix_url="${PHOENIX_COLLECTOR_ENDPOINT:-http://localhost:6006}"
+          phoenix_url="${phoenix_url%/}"
+          echo "Checking Phoenix connectivity at ${phoenix_url}..."
+          phoenix_ok=0
+          for attempt in 1 2 3; do
+            if curl -sf --max-time 5 "${phoenix_url}/healthz" > /dev/null 2>&1; then
+              echo "Phoenix reachable (attempt ${attempt})"
+              phoenix_ok=1
+              break
+            fi
+            if [[ "${attempt}" -lt 3 ]]; then
+              echo "Phoenix not reachable (attempt ${attempt}/3), retrying in 10s..." >&2
+              sleep 10
+            fi
+          done
+          if [[ "${phoenix_ok}" -eq 0 ]]; then
+            echo "::error::Phoenix unavailable at ${phoenix_url} after 3 attempts — aborting all dataset runs. Check PHOENIX_COLLECTOR_ENDPOINT."
+            exit 1
+          fi
+
+          report_dir="${RUNNER_TEMP}/pxi-eval-reports"
+          mkdir -p "${report_dir}"
+
+          failed=0
+          failed_datasets=()
+          short_sha="${GITHUB_SHA::7}"
+          branch_slug="${GITHUB_REF_NAME//\//-}"
+          step_summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+          # Cumulative budget for embedding full reports in the step summary:
+          # GitHub caps the whole summary at 1 MiB, so the budget is shared
+          # across ALL failed datasets, not per report.
+          summary_embed_budget=786432
+
+          {
+            echo "## PXI Regression Evals"
+            echo ""
+            echo "| Dataset | Result |"
+            echo "| --- | --- |"
+          } >> "${step_summary}"
+
+          # Append a per-dataset failure section to the step summary: a digest
+          # table built from the JSON report plus the full agent-readable
+          # Markdown report inside a <details> block (browser copy-paste into
+          # any coding agent is select-all on the expanded section).
+          append_failure_summary() {
+            local dataset="$1"
+            local report_json="${report_dir}/${dataset}.report.json"
+            local report_md="${report_dir}/${dataset}.report.md"
+            {
+              echo ""
+              echo "### ❌ \`${dataset}\`"
+              echo ""
+              if [[ -f "${report_json}" ]]; then
+                local experiment_url
+                experiment_url="$(jq -r '.experiment_url // empty' "${report_json}")"
+                if [[ -n "${experiment_url}" ]]; then
+                  echo "Experiment: ${experiment_url}"
+                  echo ""
+                fi
+                echo "| Example | Evaluator | Score | Explanation |"
+                echo "| --- | --- | --- | --- |"
+                jq -r '
+                  .failures[] | . as $f
+                  | ((if .task_error != null
+                      then [{name: "(task)", score: "error", text: .task_error}]
+                      else [] end)
+                     + [.evaluations[] | select(.passed | not)
+                        | {name,
+                           score: (if .error != null then "error"
+                                   elif .score == null then "missing"
+                                   else (.score | tostring) end),
+                           text: (.error // .explanation // "")}])[]
+                  | "| `\($f.example_id)` | `\(.name)` | \(.score) | \(.text | gsub("[|]"; "\\|") | gsub("\n"; " ") | .[0:200]) |"
+                ' "${report_json}"
+              fi
+              if [[ -f "${report_md}" ]]; then
+                local report_bytes
+                report_bytes="$(wc -c < "${report_md}")"
+                if [[ "${report_bytes}" -lt "${summary_embed_budget}" ]]; then
+                  summary_embed_budget=$((summary_embed_budget - report_bytes))
+                  echo ""
+                  echo "<details><summary>Full failure report (paste into a coding agent)</summary>"
+                  echo ""
+                  cat "${report_md}"
+                  echo ""
+                  echo "</details>"
+                else
+                  echo ""
+                  echo "Full report too large to embed here — fetch it with" \
+                    "\`gh run view ${GITHUB_RUN_ID} --log-failed\` or" \
+                    "\`gh run download ${GITHUB_RUN_ID} -n pxi-eval-reports-${GITHUB_RUN_ID}\`."
+                fi
+              fi
+            } >> "${step_summary}"
+          }
+
+          for dataset_file in "${dataset_files[@]}"; do
+            dataset="$(basename "${dataset_file}" .yaml)"
+            experiment_name="ci-pxi-eval-${dataset}-${branch_slug}-${short_sha}-${GITHUB_RUN_ID}"
+            echo "::group::PXI eval dataset: ${dataset}"
+            echo "Dataset file: ${dataset_file}"
+            echo "Running PXI regression eval: ${experiment_name}"
+            if uv run python -m evals.pxi.harness.run_experiment \
+              --dataset "${dataset}" \
+              --splits regression \
+              --fail-on-regression \
+              --report-dir "${report_dir}" \
+              --experiment-name "${experiment_name}"; then
+              dataset_result=0
+            else
+              dataset_result=1
+            fi
+            echo "::endgroup::"
+
+            if [[ "${dataset_result}" -ne 0 ]]; then
+              failed=1
+              failed_datasets+=("${dataset}")
+              # Embed the full agent-readable report in the job log under its
+              # own collapsed group. The sentinel markers inside the report
+              # (===== BEGIN/END PXI EVAL REPORT: <dataset> =====) make it
+              # greppable from `gh run view <run-id> --log-failed`. The report
+              # embeds untrusted model output, so suspend workflow-command
+              # processing while printing it: a payload line starting with
+              # '::' must not close the group or spoof annotations.
+              # A missing report file means the runner crashed before writing
+              # one (e.g. an infrastructure error), not a confirmed regression.
+              report_md="${report_dir}/${dataset}.report.md"
+              if [[ -f "${report_md}" ]]; then
+                echo "❌ ${dataset}: regressions detected — see the failure report group below"
+                stop_token="pxi-report-${GITHUB_RUN_ID}-${RANDOM}${RANDOM}"
+                echo "::group::PXI EVAL FAILURE REPORT (agent-readable): ${dataset}"
+                echo "::stop-commands::${stop_token}"
+                cat "${report_md}"
+                echo "::${stop_token}::"
+                echo "::endgroup::"
+                echo "::error title=PXI eval regression failure::Dataset '${dataset}' had regression failures. Expand 'PXI EVAL FAILURE REPORT (agent-readable): ${dataset}' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+              else
+                echo "❌ ${dataset}: run failed before a report could be written — expand above for details"
+                echo "::error title=PXI eval failure::Dataset '${dataset}' failed before a report could be written. Expand the '${dataset}' group above for the runner output."
+              fi
+              echo "| \`${dataset}\` | ❌ FAILED |" >> "${step_summary}"
+            else
+              echo "✅ ${dataset}: all passed"
+              echo "| \`${dataset}\` | ✅ passed |" >> "${step_summary}"
+            fi
+          done
+
+          total="${#dataset_files[@]}"
+          n_failed="${#failed_datasets[@]}"
+
+          echo ""
+          echo "════════════════════════════════════════"
+          if [[ "${failed}" -ne 0 ]]; then
+            echo "RESULT: ${n_failed}/${total} dataset(s) failed — ${failed_datasets[*]}"
+            {
+              echo ""
+              echo "**Result: ❌ ${n_failed} of ${total} datasets failed**"
+              echo ""
+              echo "Failed: $(IFS=', '; echo "${failed_datasets[*]}")"
+              echo ""
+              echo "Agent-readable reports: \`gh run view ${GITHUB_RUN_ID} --log-failed\`" \
+                "(full reports are in the failed step log between" \
+                "\`===== BEGIN PXI EVAL REPORT\` markers) or" \
+                "\`gh run download ${GITHUB_RUN_ID} -n pxi-eval-reports-${GITHUB_RUN_ID}\`" \
+                "for the JSON artifacts."
+            } >> "${step_summary}"
+            for dataset in "${failed_datasets[@]}"; do
+              append_failure_summary "${dataset}"
+            done
+          else
+            echo "RESULT: all ${total} dataset(s) passed"
+            {
+              echo ""
+              echo "**Result: ✅ All ${total} datasets passed**"
+            } >> "${step_summary}"
+          fi
+
+          exit "${failed}"
+      - name: Upload eval failure reports
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: pxi-eval-reports-${{ github.run_id }}
+          path: ${{ runner.temp }}/pxi-eval-reports/
+          if-no-files-found: ignore

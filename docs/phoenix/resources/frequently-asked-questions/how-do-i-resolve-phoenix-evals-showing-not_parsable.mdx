@@ -1,0 +1,40 @@
+---
+title: "How do I resolve Phoenix Evals showing NOT\_PARSABLE?"
+description: "`NOT_PARSABLE` errors often occur when LLM responses exceed the `max_tokens` limit or produce incomplete JSON."
+---
+
+
+Here's how to fix it:
+
+<Steps>
+<Step>
+    Increase `max_tokens`: Update the model configuration as follows:
+
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals import ClassificationEvaluator
+
+    llm = LLM(
+        provider="openai",
+        model="gpt-4o-2024-08-06",
+        api_key=getpass("Enter your OpenAI API key..."),
+    )
+    # Pass max_tokens and temperature when creating the evaluator
+    evaluator = ClassificationEvaluator(
+        ...,
+        llm=llm,
+        temperature=0.2,
+        max_tokens=1000,  # Increase token limit
+    )
+    ```
+    </Step>
+    <Step>
+    Update Phoenix: Use version ≥0.17.4, which removes token limits for OpenAI and increases defaults for other APIs.
+    </Step>
+    <Step>
+    Check Logs: Look for `finish_reason="length"` to confirm token limits caused the issue.
+    </Step>
+    <Step>
+    If the above doesn't work, it's possible the llm-as-a-judge output might not fit into the defined choices for that particular custom Phoenix eval. Double check the prompt output matches the expected choices.
+    </Step>
+</Steps>

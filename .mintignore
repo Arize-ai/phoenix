@@ -1,0 +1,15 @@
+# ignore everything
+*
+
+# allow config files
+!.mintignore
+!docs.json
+!sitemap.xml
+
+# allow docs tree
+!docs
+!docs/**
+
+# allow schemas
+!schemas
+!schemas/**

@@ -1,0 +1,19 @@
+---
+title: "Release Notes"
+---
+
+# Delete Prompts and Prompt Version Tags via REST API
+
+March 30, 2026
+
+**Available in arize-phoenix 13.20.0+**
+
+Two new REST endpoints let you delete prompts and remove tags from prompt versions programmatically.
+
+`DELETE /v1/prompts/{prompt_identifier}` deletes a prompt and all of its versions, tags, and labels in one operation. The `prompt_identifier` can be the prompt name or its numeric ID.
+
+`DELETE /v1/prompt_versions/{prompt_version_id}/tags/{tag_name}` removes a single named tag from a specific prompt version. The tag is resolved within the scope of the prompt linked to that version.
+
+- **`DELETE /v1/prompts/{prompt_identifier}`** — permanently deletes the prompt and every version, tag, and label associated with it
+- **`DELETE /v1/prompt_versions/{prompt_version_id}/tags/{tag_name}`** — removes a tag from a prompt version without affecting other tags or the version itself
+- Both endpoints return **204 No Content** on success; attempting to delete a non-existent tag returns **404 Not Found**

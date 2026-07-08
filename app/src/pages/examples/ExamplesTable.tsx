@@ -1,0 +1,441 @@
+import { css } from "@emotion/react";
+import type { ColumnDef, Updater } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate, useParams } from "react-router";
+
+import { CopyToClipboardButton, Truncate } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { Link } from "@phoenix/components/core/Link";
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import {
+  CellWithControlsWrap,
+  CompactJSONCell,
+  createRowSelectionColumn,
+} from "@phoenix/components/table";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/constants";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
+import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
+import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
+import type { Mutable } from "@phoenix/typeUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
+
+import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
+import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
+import type { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
+import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
+
+const PAGE_SIZE = 100;
+
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
+
+export function ExamplesTable({
+  dataset,
+}: {
+  dataset: examplesLoaderQuery$data["dataset"];
+}) {
+  "use no memo";
+  const {
+    filter,
+    selectedExampleIds,
+    setSelectedExampleIds,
+    selectedSplitIds,
+    examplesCache,
+    setExamplesCache,
+  } = useExamplesFilterContext();
+  const navigate = useNavigate();
+  const { exampleId: selectedExampleId } = useParams();
+  const latestVersion = useDatasetContext((state) => state.latestVersion);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [columnSizing, setColumnSizing] = useState({});
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
+      graphql`
+        fragment ExamplesTableFragment on Dataset
+        @refetchable(queryName: "ExamplesTableQuery")
+        @argumentDefinitions(
+          datasetVersionId: { type: "ID" }
+          splitIds: { type: "[ID!]" }
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 100 }
+          filter: { type: "String", defaultValue: null }
+        ) {
+          examples(
+            datasetVersionId: $datasetVersionId
+            first: $first
+            after: $after
+            filter: $filter
+            splitIds: $splitIds
+          ) @connection(key: "ExamplesTable_examples") {
+            edges {
+              example: node {
+                id
+                externalId
+                datasetSplits {
+                  id
+                  name
+                  color
+                }
+                revision {
+                  input
+                  output
+                  metadata
+                }
+              }
+            }
+          }
+        }
+      `,
+      dataset
+    );
+
+  // Refetch the data when the dataset version changes or the filter changes
+  useEffect(() => {
+    startTransition(() => {
+      refetch(
+        {
+          datasetVersionId: latestVersion?.id || null,
+          filter,
+          splitIds: selectedSplitIds,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [latestVersion, filter, refetch, selectedSplitIds]);
+  // sync selected examples into cache for later access
+  useEffect(() => {
+    setExamplesCache(
+      data.examples.edges
+        .map((example) => ({
+          id: example.example.id,
+          datasetSplits: example.example.datasetSplits as Mutable<
+            typeof example.example.datasetSplits
+          >,
+        }))
+        .filter((example) => selectedExampleIds.includes(example.id))
+        .reduce((acc, example) => {
+          acc[example.id] = example;
+          return acc;
+        }, {} as ExamplesCache)
+    );
+  }, [data, selectedExampleIds, setExamplesCache]);
+  const rowSelection = useMemo(() => {
+    return selectedExampleIds.reduce(
+      (acc, id) => {
+        acc[id] = true;
+        return acc;
+      },
+      {} as Record<string, boolean>
+    );
+  }, [selectedExampleIds]);
+  const setRowSelection = useCallback(
+    (rowSelection: Updater<Record<string, boolean>>) => {
+      setSelectedExampleIds((prevSelection) => {
+        if (typeof rowSelection === "function") {
+          return Object.keys(
+            rowSelection(
+              prevSelection.reduce(
+                (acc, id) => {
+                  acc[id] = true;
+                  return acc;
+                },
+                {} as Record<string, boolean>
+              )
+            )
+          );
+        }
+        return Object.keys(rowSelection);
+      });
+    },
+    [setSelectedExampleIds]
+  );
+
+  const tableData = useMemo(
+    () =>
+      data.examples.edges.map((edge) => {
+        const example = edge.example;
+        const revision = example.revision;
+        return {
+          id: example.id,
+          externalId: example.externalId ?? null,
+          splits: example.datasetSplits,
+          input: revision.input,
+          output: revision.output,
+          metadata: revision.metadata,
+        };
+      }),
+    [data]
+  );
+  type TableRow = (typeof tableData)[number];
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
+
+  const columns = useMemo(() => {
+    const cols: ColumnDef<TableRow>[] = [
+      createRowSelectionColumn<TableRow>({
+        selectRow,
+        size: 30,
+        minSize: 30,
+        maxSize: 30,
+      }),
+      {
+        header: "id",
+        accessorKey: "id",
+        maxSize: 180,
+        size: 30,
+        minSize: 30,
+        cell: ({ row }) => {
+          const exampleId = row.original.id;
+          const displayId = row.original.externalId ?? exampleId;
+          return (
+            <CellWithControlsWrap
+              controls={<CopyToClipboardButton text={displayId} />}
+            >
+              <Link
+                to={`${exampleId}`}
+                css={css`
+                  width: 100%;
+                `}
+              >
+                <Truncate maxWidth={"100%"}>{displayId}</Truncate>
+              </Link>
+            </CellWithControlsWrap>
+          );
+        },
+      },
+      {
+        header: "input",
+        accessorKey: "input",
+        size: 300,
+        cell: CompactJSONCell,
+      },
+      {
+        header: "output",
+        accessorKey: "output",
+        size: 300,
+        cell: CompactJSONCell,
+      },
+      {
+        header: "metadata",
+        accessorKey: "metadata",
+        size: 250,
+        cell: CompactJSONCell,
+      },
+    ];
+    cols.splice(2, 0, {
+      header: "splits",
+      accessorKey: "splits",
+      maxSize: 150,
+      size: 30,
+      minSize: 30,
+      cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
+    });
+    return cols;
+  }, [selectRow]);
+
+  const table = useReactTable<TableRow>({
+    columns,
+    data: tableData,
+    state: {
+      rowSelection,
+      columnSizing,
+      columnPinning: CHECKBOX_COLUMN_PINNING,
+    },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
+    onRowSelectionChange: setRowSelection,
+    onColumnSizingChange: setColumnSizing,
+    getCoreRowModel: getCoreRowModel(),
+    // ensure row IDs are the example IDs and not the index
+    getRowId: (row) => row.id,
+  });
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+
+  /**
+   * Calculate all column sizes at once as CSS variables for performance
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedExamples = selectedRows.map((row) => row.original);
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+  }, [setRowSelection]);
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+  return (
+    <div
+      css={css`
+        flex: 1 1 auto;
+        overflow: auto;
+      `}
+      ref={tableContainerRef}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+    >
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  style={{
+                    ...getCommonPinningStyles(header.column),
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                  }}
+                >
+                  {header.isPlaceholder ? null : (
+                    <>
+                      <div>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
+                  )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        {isEmpty ? (
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="genericAdd" />}
+              description="No examples found"
+            />
+          </TableEmptyWrap>
+        ) : (
+          <tbody>
+            {rows.map((row) => {
+              const isSelected = row.original.id === selectedExampleId;
+              return (
+                <tr
+                  key={row.id}
+                  data-selected={isSelected}
+                  onClick={() => navigate(`${row.original.id}`)}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+                    return (
+                      <td
+                        key={cell.id}
+                        onClick={(e) => {
+                          // prevent the row click event from firing on the select cell
+                          if (cell.column.id === CHECKBOX_COLUMN_ID) {
+                            e.stopPropagation();
+                            selectRow({ event: e, row, table });
+                          }
+                        }}
+                        style={{
+                          ...getCommonPinningStyles(cell.column),
+                          width: `calc(var(${colSizeVar}) * 1px)`,
+                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                          overflowWrap: "anywhere",
+                          // prevent text selection on the select cell
+                          userSelect:
+                            cell.column.id === CHECKBOX_COLUMN_ID
+                              ? "none"
+                              : undefined,
+                        }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        )}
+      </table>
+      {selectedRows.length ? (
+        <ExampleSelectionToolbar
+          selectedExamples={selectedExamples}
+          examplesCache={examplesCache}
+          onClearSelection={clearSelection}
+          onExamplesDeleted={() => {
+            refetch({}, { fetchPolicy: "store-and-network" });
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}

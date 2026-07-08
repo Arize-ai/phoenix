@@ -1,0 +1,115 @@
+---
+title: "Self-Hosting"
+description: How to self-host a Phoenix instance
+---
+
+Phoenix is **free to self-host** with no feature limitations. Your data stays entirely within your infrastructure—nothing is sent to Arize and can be fully air-gapped.
+
+<CardGroup cols={3}>
+  <Card title="100% Free" icon="gift" href="/docs/phoenix/self-hosting/license">
+    No license fees, no usage limits, no feature gates
+  </Card>
+  <Card title="Complete Privacy" icon="shield-check" href="/docs/phoenix/self-hosting/security/privacy">
+    Your traces, prompts, and data never leave your infrastructure
+  </Card>
+  <Card title="Full Featured" icon="sparkles" href="/docs/phoenix/user-guide">
+    Tracing, evals, datasets, experiments, prompt management
+  </Card>
+</CardGroup>
+
+<Tip>
+**New to Phoenix?** Try [Phoenix Cloud](/docs/phoenix/phoenix-cloud) to get started instantly without any setup, then self-host when you're ready for production.
+</Tip>
+
+## Choose Your Deployment
+
+<CardGroup cols={3}>
+  <Card title="Terminal" href="/docs/phoenix/self-hosting/deployment-options/terminal" icon="terminal">
+    Run via CLI
+  </Card>
+  <Card title="Docker" href="/docs/phoenix/self-hosting/deployment-options/docker" icon="docker">
+    Docker or Compose
+  </Card>
+  <Card title="Kubernetes" href="/docs/phoenix/self-hosting/deployment-options/kubernetes" icon="rocket-launch">
+    Deploy on K8s
+  </Card>
+  <Card title="Helm" href="/docs/phoenix/self-hosting/deployment-options/kubernetes-helm" icon="dharmachakra">
+    Helm charts
+  </Card>
+  <Card title="AWS" href="/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation" icon="aws">
+    CloudFormation
+  </Card>
+  <Card title="Railway" href="/docs/phoenix/self-hosting/deployment-options/railway" icon="train">
+    One-click deploy
+  </Card>
+</CardGroup>
+
+<Info>
+  For an on-premise or self-hosted enterprise option with Arize support, see [Arize AX](https://arize.com/docs/ax/selfhosting/info/on-premise-overview).
+</Info>
+
+## Configure Your Instance
+
+<CardGroup cols={3}>
+  <Card title="Environment Variables" href="/docs/phoenix/self-hosting/configuration#environment-variables" icon="sliders">
+    Ports, storage, database connections
+  </Card>
+  <Card title="Authentication" href="/docs/phoenix/self-hosting/features/authentication" icon="lock">
+    OAuth2, LDAP, local accounts
+  </Card>
+  <Card title="Access Controls" href="/docs/phoenix/settings/access-control-rbac" icon="user-shield">
+    Role-based permissions
+  </Card>
+  <Card title="Data Retention" href="/docs/phoenix/settings/data-retention" icon="clock">
+    Trace retention policies
+  </Card>
+  <Card title="Sandbox Backends" href="/docs/phoenix/self-hosting/features/sandbox-runtimes" icon="box">
+    Code-execution backends shipped in the container
+  </Card>
+  <Card title="Network Security" href="/docs/phoenix/self-hosting/security/network-security" icon="network-wired">
+    Outbound access, SSRF protection, CSRF
+  </Card>
+  <Card title="Privacy" href="/docs/phoenix/self-hosting/security/privacy" icon="shield-check">
+    Telemetry, air-gapped deployments
+  </Card>
+</CardGroup>
+
+## Images
+
+### Docker
+
+Available on [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix/tags):
+
+| Tag | Description |
+| :-- | :---------- |
+| `arizephoenix/phoenix:latest` | Latest released version using root permissions. |
+| `arizephoenix/phoenix:latest-nonroot` | Latest released version using nonroot permissions. **Ensure the image has the required filesystem permissions before using.** |
+| `arizephoenix/phoenix:latest-debug` | Latest released version using a debug base image. |
+| `arizephoenix/phoenix:version-X.X.X` | Pinned release version using root permissions. |
+| `arizephoenix/phoenix:version-X.X.X-nonroot` | Pinned release version using nonroot permissions. |
+| `arizephoenix/phoenix:version-X.X.X-debug` | Pinned release version using a debug base image. |
+
+<Warning>
+Pin to a specific version (e.g., `arizephoenix/phoenix:version-8.0.0`) for production deployments.
+</Warning>
+
+### Helm
+
+Available on [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix-helm/tags):
+
+| Chart | Description |
+| :-- | :---------- |
+| `arizephoenix/phoenix-helm:X.X.X` | Helm chart for Kubernetes deployments. New patch versions defaulting to the latest Phoenix release are regularly published. |
+
+See the [Helm deployment guide](/docs/phoenix/self-hosting/deployment-options/kubernetes-helm) for installation instructions.
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Architecture" href="/docs/phoenix/self-hosting/architecture" icon="sitemap">
+    Storage options, scaling patterns, tenancy
+  </Card>
+  <Card title="Start Tracing" href="/docs/phoenix/get-started/get-started-tracing" icon="play">
+    Send your first traces to Phoenix
+  </Card>
+</CardGroup>

@@ -1,0 +1,154 @@
+---
+title: "Exporter and OTLP"
+sidebarTitle: "Exporter and OTLP"
+description: "How OpenTelemetry ships spans out of your application — exporters, the OTLP protocol, and the choice between gRPC and HTTP transport."
+keywords: ['exporter', 'OTLP', 'gRPC', 'HTTP', 'OpenTelemetry', 'OTLPSpanExporter', 'protobuf']
+---
+
+An **exporter** sends telemetry data out of your application to a backend system. It's the component that does the actual network call to Phoenix (or any other OTel-compatible backend).
+
+The exporter handles a handful of distinct concerns:
+
+| Concern | What the exporter does |
+| :--- | :--- |
+| **Serialization** | Converts spans into Protobuf, JSON, or another wire format. |
+| **Transport** | Sends the bytes over HTTP, gRPC, or another protocol. |
+| **Authentication** | Attaches API keys, tokens, or TLS credentials. |
+| **Compression** | Reduces payload size (typically gzip). |
+| **Timeouts** | Protects you from slow or broken networks. |
+
+<Info>
+Exporter timeouts are different from [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) timeouts. The exporter timeout protects you from slow networks; the processor timeout protects you from slow or overloaded export pipelines. Set the processor timeout higher than the exporter timeout — see the pitfalls section below.
+</Info>
+
+For the full specification, see [Exporter documentation](https://opentelemetry.io/docs/specs/otel/protocol/exporter/).
+
+# OTLP (OpenTelemetry Protocol)
+
+OTLP is the standardized wire format and transport for OpenTelemetry data. Phoenix accepts spans over OTLP, and most OTel-compatible backends do too.
+
+OTLP defines three things:
+
+| Layer | Options |
+| :--- | :--- |
+| **Data model** | The structure of spans, metrics, and logs on the wire. |
+| **Serialization** | Protocol Buffers (compact binary format) or JSON. |
+| **Transport** | gRPC or HTTP. |
+
+For the full specification, see [OTLP Specification](https://opentelemetry.io/docs/specs/otlp/).
+
+# Transport: gRPC vs HTTP
+
+OTLP supports two transports. They're not identical — pick based on your environment.
+
+| | OTLP/gRPC | OTLP/HTTP |
+| :--- | :--- | :--- |
+| **Serialization** | Protobuf only | Protobuf or JSON |
+| **Underlying protocol** | HTTP/2 (via gRPC) | Standard HTTP POST |
+| **Default port** | 4317 | 4318 |
+| **Strengths** | Best for production, high-throughput workloads | Easier through proxies, meshes, and corporate firewalls; JSON is easier to debug |
+| **Trade-offs** | Some proxies and load balancers don't handle gRPC well | Slightly higher overhead than gRPC |
+
+## OTLP/gRPC Configuration
+
+Phoenix serves OTLP/gRPC on port `4317` by default. The gRPC endpoint is `host:port` (no URL path):
+
+```python
+import grpc
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+otlp_exporter = OTLPSpanExporter(
+    endpoint="localhost:4317",                 # host:port — no path, no scheme
+    insecure=True,                             # Local Phoenix has no TLS
+    headers={                                  # Auth header (optional for local Phoenix)
+        "Authorization": "Bearer PHOENIX_API_KEY",
+    },
+    timeout=10,                                # Network timeout (seconds)
+    compression=grpc.Compression.Gzip,         # grpc.Compression enum
+)
+```
+
+For a Phoenix Cloud or TLS-fronted Phoenix deployment, drop `insecure=True` and pass `credentials=grpc.ssl_channel_credentials()`.
+
+## OTLP/HTTP Configuration
+
+```python
+from opentelemetry.exporter.otlp.proto.http import Compression
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+otlp_exporter = OTLPSpanExporter(
+    endpoint="http://localhost:6006/v1/traces",
+    headers={                                  # Auth header (optional for local Phoenix)
+        "Authorization": "Bearer PHOENIX_API_KEY",
+    },
+    timeout=10,
+    compression=Compression.Gzip,              # http Compression enum
+)
+```
+
+Three differences worth knowing about the HTTP exporter:
+
+- No `credentials` constructor argument — TLS is automatic when the endpoint starts with `https://`. For client certificates, pass `certificate_file`, `client_key_file`, or `client_certificate_file`.
+- No `insecure=True` option — controlled entirely by the `http://` vs `https://` scheme on the endpoint.
+- No `protocol` constructor argument. To switch the body format between `http/protobuf` (default) and `http/json`, set `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` in the environment.
+
+For the full set of constructor parameters, see the [OTLP Exporter API reference](https://opentelemetry-python.readthedocs.io/en/latest/exporter/otlp/otlp.html).
+
+# Multiple Exporters
+
+You can attach multiple exporters to the same Tracer Provider — useful for development (export to Phoenix *and* to the console) or for fan-out to multiple backends.
+
+```python
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
+phoenix_exporter = OTLPSpanExporter(
+    endpoint="localhost:4317",                 # host:port for gRPC
+    insecure=True,                             # Local Phoenix has no TLS
+    headers={                                  # Auth header (optional for local Phoenix)
+        "Authorization": "Bearer PHOENIX_API_KEY",
+    },
+)
+
+console_exporter = ConsoleSpanExporter()
+
+tracer_provider.add_span_processor(BatchSpanProcessor(phoenix_exporter))
+tracer_provider.add_span_processor(BatchSpanProcessor(console_exporter))
+```
+
+Each exporter gets its own span processor. They run independently — a failure in one doesn't affect the other.
+
+# Environment Variables
+
+You can configure the exporter entirely from the environment, which is the recommended pattern for production:
+
+| Generic | Traces-only override |
+| :--- | :--- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` |
+| `OTEL_EXPORTER_OTLP_HEADERS` | `OTEL_EXPORTER_OTLP_TRACES_HEADERS` |
+| `OTEL_EXPORTER_OTLP_CERTIFICATE` | `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE` |
+| `OTEL_EXPORTER_OTLP_INSECURE` | `OTEL_EXPORTER_OTLP_TRACES_INSECURE` |
+| `OTEL_EXPORTER_OTLP_COMPRESSION` | `OTEL_EXPORTER_OTLP_TRACES_COMPRESSION` |
+| `OTEL_EXPORTER_OTLP_TIMEOUT` | `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` |
+
+The traces-only variant takes priority over the generic one when both are set. For the full reference, see [OpenTelemetry environment variables](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options).
+
+# Common Pitfalls
+
+A few exporter failure modes worth knowing about up front:
+
+- **Wrong OTLP port or endpoint** — gRPC defaults to 4317, HTTP to 4318. Mixing them up surfaces as connection refused or 404s.
+- **Wrong encoding for the transport** — gRPC requires Protobuf. Trying to send JSON over gRPC will silently fail.
+- **Proxies breaking gRPC** — corporate proxies, service meshes, and some load balancers don't handle HTTP/2 well. If you see flaky gRPC errors, switch to HTTP.
+- **TLS mismatches** — forgetting `insecure=True` when running against a local collector over `http://` fails. So does setting `insecure=False` against an `http://` endpoint. Match `insecure` to the scheme: `True` for `http://`, `False` (default) for `https://`.
+- **Exporter timeout too high** — if the exporter timeout exceeds the [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) timeout, the processor can fire a retry while the original export is still in flight, leading to queue buildup and dropped spans.
+- **Spans over 4 MB hit gRPC message-size limits** — very large attributes (full document text, base64 images) can blow past the gRPC default. Truncate large attributes with [`TraceConfig`](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes) or chunk them.
+
+---
+
+## Next step
+
+The exporter sends spans. The span processor decides *when* and *how often*:
+
+<Card title="Next: Span Processor" icon="arrow-right" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor" />

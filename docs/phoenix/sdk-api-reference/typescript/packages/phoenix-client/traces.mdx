@@ -1,0 +1,134 @@
+---
+title: "Traces"
+description: "Retrieve traces and annotate them with @arizeai/phoenix-client"
+---
+
+The traces module provides trace retrieval and trace-level annotation functions.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li>
+      <code>src/traces/getTraces.ts</code> for the exact query shape and server
+      requirement
+    </li>
+    <li>
+      <code>src/traces/addTraceAnnotation.ts</code> for single annotation writes
+    </li>
+    <li>
+      <code>src/traces/logTraceAnnotations.ts</code> for batched annotation writes
+    </li>
+    <li>
+      <code>src/traces/types.ts</code> for the <code>TraceAnnotation</code> type
+    </li>
+  </ul>
+</section>
+
+## Retrieve Traces
+
+Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session.
+
+```ts
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const result = await getTraces({
+  project: { projectName: "support-bot" },
+  startTime: new Date("2026-03-01T00:00:00Z"),
+  endTime: new Date("2026-03-02T00:00:00Z"),
+  includeSpans: true,
+  limit: 50,
+});
+
+for (const trace of result.traces) {
+  console.log(trace.trace_id);
+}
+
+console.log(result.nextCursor);
+```
+
+### Supported Filters
+
+- `project`
+- `startTime`
+- `endTime`
+- `sort`
+- `order`
+- `limit`
+- `cursor`
+- `includeSpans`
+- `sessionId`
+
+### Notes
+
+- `getTraces` requires a Phoenix server that supports project trace listing
+- Use the returned `nextCursor` to continue pagination
+- Set `includeSpans` when you need a trace-centric fetch that also contains span details
+- `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
+
+## Annotate a Single Trace
+
+Use `addTraceAnnotation` to attach a label, score, or explanation to one trace. If you supply an `identifier`, Phoenix upserts the annotation when an annotation with that identifier already exists.
+
+```ts
+import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
+
+const result = await addTraceAnnotation({
+  traceAnnotation: {
+    traceId: "abc123",
+    name: "correctness",
+    label: "correct",
+    score: 1.0,
+    annotatorKind: "HUMAN",
+  },
+});
+
+// result is { id: string } when sync: true, or null when sync: false (default)
+```
+
+Set `sync: true` to receive the annotation ID immediately; omit it (or pass `false`) for higher-throughput async writes.
+
+### TraceAnnotation Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `traceId` | `string` | Yes | OpenTelemetry Trace ID (hex, no `0x` prefix) |
+| `name` | `string` | Yes | What is being measured (e.g. `"groundedness"`). The name `"note"` is reserved — use `addTraceNote` instead. |
+| `annotatorKind` | `"HUMAN" \| "LLM" \| "CODE"` | No | Defaults to `"HUMAN"` |
+| `label` | `string` | At least one of label/score/explanation | Categorical result (e.g. `"correct"`) |
+| `score` | `number` | At least one of label/score/explanation | Numeric result (e.g. `0.95`) |
+| `explanation` | `string` | At least one of label/score/explanation | Free-text justification |
+| `identifier` | `string` | No | Stable ID for idempotent upserts |
+| `metadata` | `Record<string, unknown>` | No | Arbitrary context |
+
+## Annotate Multiple Traces
+
+Use `logTraceAnnotations` to batch-write annotations across many traces in a single request.
+
+```ts
+import { logTraceAnnotations } from "@arizeai/phoenix-client/traces";
+
+const results = await logTraceAnnotations({
+  traceAnnotations: [
+    { traceId: "abc123", name: "faithfulness", score: 0.9, annotatorKind: "LLM" },
+    { traceId: "def456", name: "faithfulness", score: 0.7, annotatorKind: "LLM" },
+  ],
+  sync: true,
+});
+
+for (const r of results) {
+  console.log(r.id);
+}
+```
+
+`logTraceAnnotations` sends all annotations in a single POST and returns an array of `{ id: string }` objects (or an empty array when `sync: false`).
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/traces/getTraces.ts</code></li>
+    <li><code>src/traces/addTraceAnnotation.ts</code></li>
+    <li><code>src/traces/logTraceAnnotations.ts</code></li>
+    <li><code>src/traces/types.ts</code></li>
+    <li><code>src/types/projects.ts</code></li>
+  </ul>
+</section>

@@ -1,0 +1,119 @@
+name: Package Version Check
+
+on:
+  pull_request:
+    paths:
+      - "app/package.json"
+      - "js/package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    name: Check package version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Check pnpm version consistency
+        run: |
+          APP_VERSION=$(jq -r '.packageManager // empty' app/package.json | sed 's/pnpm@//')
+          JS_VERSION=$(jq -r '.packageManager // empty' js/package.json | sed 's/pnpm@//')
+
+          echo "app/package.json: pnpm@$APP_VERSION"
+          echo "js/package.json: pnpm@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing packageManager field"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing packageManager field"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::pnpm versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "pnpm versions are consistent: $APP_VERSION"
+
+      - name: Check oxlint version consistency
+        run: |
+          APP_VERSION=$(jq -r '.devDependencies.oxlint // empty' app/package.json)
+          JS_VERSION=$(jq -r '.devDependencies.oxlint // empty' js/package.json)
+
+          echo "app/package.json: oxlint@$APP_VERSION"
+          echo "js/package.json: oxlint@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing oxlint in devDependencies"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing oxlint in devDependencies"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::oxlint versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "oxlint versions are consistent: $APP_VERSION"
+
+      - name: Check oxfmt version consistency
+        run: |
+          APP_VERSION=$(jq -r '.devDependencies.oxfmt // empty' app/package.json)
+          JS_VERSION=$(jq -r '.devDependencies.oxfmt // empty' js/package.json)
+
+          echo "app/package.json: oxfmt@$APP_VERSION"
+          echo "js/package.json: oxfmt@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing oxfmt in devDependencies"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing oxfmt in devDependencies"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::oxfmt versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "oxfmt versions are consistent: $APP_VERSION"
+
+      - name: Check typescript version consistency
+        run: |
+          APP_VERSION=$(jq -r '.devDependencies.typescript // empty' app/package.json)
+          JS_VERSION=$(jq -r '.devDependencies.typescript // empty' js/package.json)
+
+          echo "app/package.json: typescript@$APP_VERSION"
+          echo "js/package.json: typescript@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing typescript in devDependencies"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing typescript in devDependencies"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::typescript versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "typescript versions are consistent: $APP_VERSION"

@@ -1,0 +1,59 @@
+import { css } from "@emotion/react";
+import type { Ref } from "react";
+import type { BreadcrumbProps as AriaBreadcrumbProps } from "react-aria-components";
+import { Breadcrumb as AriaBreadcrumb } from "react-aria-components";
+
+import { Icon, Icons } from "../icon";
+
+interface BreadcrumbProps extends AriaBreadcrumbProps {}
+
+const breadcrumbCSS = css`
+  display: flex;
+  align-items: center;
+
+  a {
+    color: var(--global-text-color-700);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 40ch;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &[data-current],
+  &[data-current] a {
+    color: var(--global-text-color-900);
+    font-weight: 600;
+    cursor: default;
+    &:hover {
+      text-decoration: none;
+    }
+  }
+`;
+
+function Breadcrumb({
+  ref,
+  ...props
+}: BreadcrumbProps & { ref?: Ref<HTMLLIElement> }) {
+  const { children, ...rest } = props;
+  return (
+    <AriaBreadcrumb
+      css={breadcrumbCSS}
+      {...rest}
+      className="breadcrumb"
+      ref={ref}
+    >
+      {({ isCurrent }) => (
+        <>
+          {children}
+          {!isCurrent && <Icon svg={<Icons.ChevronRightSmall />} />}
+        </>
+      )}
+    </AriaBreadcrumb>
+  );
+}
+
+export { Breadcrumb };

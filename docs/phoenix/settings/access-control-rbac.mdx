@@ -1,0 +1,88 @@
+---
+title: "Access Control (RBAC)"
+---
+
+The role-based access control (RBAC) in Phoenix is based on the following user roles:
+
+* `admin` - full control to the system, can administer users, system keys, etc.
+* `member` - a developer that can add traces, experiments, datasets, etc.
+* `viewer` - read-only access; cannot create, update, or delete most entities.
+
+A user's role controls their access via the UI as well as through the APIs.
+
+<Info>
+  For SSO (SAML), multi-level RBAC (account → organizations → spaces), and JIT user provisioning, see [Arize AX](https://arize.com/docs/ax/security-and-settings/sso-and-rbac).
+</Info>
+
+## User Management
+
+| Action | Admin | Member | Viewer |
+| --- | :---: | :---: | :---: |
+| Create User | ✅ Yes | No | No |
+| Delete User | ✅ Yes | No | No |
+| Change Own Password | ✅ Yes | ✅ Yes | ✅ Yes |
+| Change Other's Password | ✅ Yes | No | No |
+| Change Own Username | ✅ Yes | ✅ Yes | ✅ Yes |
+| Change Other's Username | ✅ Yes | No | No |
+| Create System API Keys | ✅ Yes | No | No |
+| Delete System API Keys | ✅ Yes | No | No |
+| Create Own User API Keys | ✅ Yes | ✅ Yes | ✅ Yes |
+| Delete Own User API Keys | ✅ Yes | ✅ Yes | ✅ Yes |
+| Delete Other's User API Keys | ✅ Yes | No | No |
+
+## API Key Management
+
+| Action | Admin | Member | Viewer |
+| --- | :---: | :---: | :---: |
+| List All System API Keys | ✅ Yes | No | No |
+| List All User API Keys | ✅ Yes | No | No |
+| List All Users | ✅ Yes | No | No |
+| Fetch Other User's Info, e.g. emails | ✅ Yes | No | No |
+
+## Secrets Management
+
+| Action | Admin | Member | Viewer |
+| --- | :---: | :---: | :---: |
+| List Secret Keys | ✅ Yes | ✅ Yes | ✅ Yes |
+| Create/Update Secrets | ✅ Yes | No | No |
+| Delete Secrets | ✅ Yes | No | No |
+
+## Evaluator Management
+
+| Action | Admin | Member | Viewer |
+| --- | :---: | :---: | :---: |
+| View Evaluators | ✅ Yes | ✅ Yes | ✅ Yes |
+| Create Evaluators | ✅ Yes | ✅ Yes | No |
+| Update Evaluators | ✅ Yes | ✅ Yes | No |
+| Delete Evaluators | ✅ Yes | ✅ Yes | No |
+| Test Evaluators | ✅ Yes | ✅ Yes | No |
+
+## AI Provider Management
+
+Custom AI providers store credentials, so they are managed by admins only.
+
+| Action | Admin | Member | Viewer |
+| --- | :---: | :---: | :---: |
+| View Custom AI Providers | ✅ Yes | ✅ Yes | ✅ Yes |
+| Create Custom AI Provider | ✅ Yes | No | No |
+| Update Custom AI Provider | ✅ Yes | No | No |
+| Delete Custom AI Provider | ✅ Yes | No | No |
+| Test Provider Credentials | ✅ Yes | No | No |
+
+## Sandbox Management
+
+Sandbox configurations can store provider API keys and environment variables, so they are managed by admins only.
+
+| Action | Admin | Member | Viewer |
+| --- | :---: | :---: | :---: |
+| View Sandbox Configurations | ✅ Yes | ✅ Yes | ✅ Yes |
+| Create Sandbox Configuration | ✅ Yes | No | No |
+| Update Sandbox Configuration | ✅ Yes | No | No |
+| Delete Sandbox Configuration | ✅ Yes | No | No |
+| Enable/Disable Sandbox Provider | ✅ Yes | No | No |
+
+<Warning>
+  Environment variables added to a sandbox configuration are mounted into the sandbox at runtime and are readable by any code that runs there. Because **Members can test evaluators**, and testing a code evaluator executes arbitrary code inside the sandbox, any user who can test evaluators can read these environment variables — even though only admins can create or edit the sandbox configuration itself.
+
+  Treat environment variables mounted in sandboxes as visible to all admins and members. Do not store secrets in them that should be restricted from members.
+</Warning>

@@ -1,0 +1,423 @@
+services:
+  # ==========================================================================
+  # CORE SERVICES (Always Running)
+  # ==========================================================================
+  
+  traefik:
+    image: traefik:v3.6.2
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=INFO"
+      - "--log.format=json"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.fields.headers.defaultmode=keep"
+    ports:
+      - "18273:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "service.name=traefik"
+      - "service.type=reverse-proxy"
+      - "monitoring.priority=high"
+      - "network.simulation=false"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  phoenix:
+    build:
+      dockerfile: scripts/docker/devops/Dockerfile
+      context: ../../..
+    expose:
+      - "6006"
+      - "4317"
+      - "9090"
+    volumes:
+      - dev_cursor_server_data:/root/.cursor-server
+    depends_on:
+      oidc-dev:
+        condition: service_started
+      smtp-dev:
+        condition: service_started
+    environment:
+      - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5433/postgres
+      - PHOENIX_ENABLE_PROMETHEUS=true
+      - PHOENIX_LOG_LEVEL=DEBUG
+      - PHOENIX_HOST_ROOT_PATH=/phoenix
+      - PHOENIX_ROOT_URL=http://localhost:18273/phoenix
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      # OIDC Authentication
+      - PHOENIX_ENABLE_AUTH=true
+      - PHOENIX_DISABLE_BASIC_AUTH=true
+      - PHOENIX_SECRET=phoenix-secret-abc-123-for-development-only-not-secure
+      - PHOENIX_ADMIN_SECRET=phoenix-admin-secret-abc-123-for-development-only-not-secure
+      - PHOENIX_ADMINS=TestUser=testuser@arize.com
+      - PHOENIX_OAUTH2_DEV_CLIENT_ID=phoenix-oidc-client-id
+      - PHOENIX_OAUTH2_DEV_CLIENT_SECRET=phoenix-oidc-client-secret-abc-123
+      - PHOENIX_OAUTH2_DEV_OIDC_CONFIG_URL=http://localhost:18273/oidc/.well-known/openid-configuration
+      - PHOENIX_OAUTH2_DEV_DISPLAY_NAME=OIDC
+      - PHOENIX_OAUTH2_DEV_ALLOW_SIGN_UP=false
+      - PHOENIX_OAUTH2_DEV_AUTO_LOGIN=true
+      # SMTP Configuration
+      - PHOENIX_SMTP_HOSTNAME=localhost
+      - PHOENIX_SMTP_PORT=1025
+      - PHOENIX_SMTP_USERNAME=dev
+      - PHOENIX_SMTP_PASSWORD=dev
+      - PHOENIX_SMTP_MAIL_FROM=noreply@phoenix.dev
+      - PHOENIX_SMTP_VALIDATE_CERTS=false
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phoenix-redirect.rule=Host(`localhost`) && Path(`/phoenix`)"
+      - "traefik.http.routers.phoenix-redirect.middlewares=phoenix-redirect-middleware"
+      - "traefik.http.routers.phoenix-redirect.service=phoenix"
+      - "traefik.http.middlewares.phoenix-redirect-middleware.redirectregex.regex=^/phoenix$$"
+      - "traefik.http.middlewares.phoenix-redirect-middleware.redirectregex.replacement=/phoenix/"
+      - "traefik.http.routers.phoenix.rule=Host(`localhost`) && PathPrefix(`/phoenix/`)"
+      - "traefik.http.services.phoenix.loadbalancer.server.port=6006"
+      - "traefik.http.middlewares.phoenix-stripprefix.stripprefix.prefixes=/phoenix"
+      - "traefik.http.routers.phoenix.middlewares=phoenix-stripprefix"
+      - "service.name=phoenix"
+      - "service.type=application"
+      - "monitoring.priority=high"
+      - "network.simulation=false"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+
+  smtp-dev:
+    build:
+      context: ./smtp-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "1025"
+      - "8025"
+    environment:
+      - SMTP_PORT=1025
+      - WEB_PORT=8025
+      - HOST=0.0.0.0
+      - MAX_EMAILS=1000
+      - LOG_LEVEL=info
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.smtp.rule=Host(`localhost`) && PathPrefix(`/mail`)"
+      - "traefik.http.services.smtp.loadbalancer.server.port=8025"
+      - "traefik.http.middlewares.smtp-stripprefix.stripprefix.prefixes=/mail"
+      - "traefik.http.routers.smtp.middlewares=smtp-stripprefix"
+      - "service.name=smtp-dev"
+      - "service.type=development"
+      - "monitoring.priority=medium"
+      - "network.simulation=false"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  oidc-dev:
+    build:
+      context: ./oidc-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+    expose:
+      - "9000"
+    volumes:
+      - ./oidc-server/runtime:/app/runtime:rw,cached
+    environment:
+      - OIDC_PORT=9000
+      - OIDC_ISSUER=http://localhost:18273/oidc
+      - OIDC_PUBLIC_BASE_URL=http://localhost:18273/oidc
+      - OIDC_AUTH_ENDPOINT=http://localhost:18273/oidc/auth
+      - OIDC_CLIENT_ID=phoenix-oidc-client-id
+      - OIDC_CLIENT_SECRET=phoenix-oidc-client-secret-abc-123
+      - OIDC_CLIENT_AUTH_METHOD=oidc
+      # Database connection
+      - DB_HOST=db
+      - DB_PORT=5433
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oidcserver.rule=Host(`localhost`) && PathPrefix(`/oidc`)"
+      - "traefik.http.services.oidcserver.loadbalancer.server.port=9000"
+      - "traefik.http.middlewares.oidcserver-stripprefix.stripprefix.prefixes=/oidc"
+      - "traefik.http.routers.oidcserver.middlewares=oidcserver-stripprefix"
+      - "service.name=oidc-dev"
+      - "service.type=development"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_INITDB_ARGS=--data-checksums
+      - PGPORT=5433
+    command: |
+      postgres
+      -p 5433
+      -c shared_preload_libraries=pg_stat_statements
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    ports:
+      - "5433:5433"
+    volumes:
+      - dev_database_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres -p 5433"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    labels:
+      - "traefik.enable=false"
+      - "service.name=postgresql"
+      - "service.type=database"
+      - "monitoring.priority=high"
+      - "network.simulation=false"
+
+  # ==========================================================================
+  # VITE PROFILE (Development Mode)
+  # ==========================================================================
+  
+  vite-dev:
+    build:
+      context: ../../..
+      dockerfile: scripts/docker/devops/vite-dev/Dockerfile
+    profiles: ["vite"]
+    restart: unless-stopped
+    expose:
+      - "5173"
+    volumes:
+      - ../../../app:/app:cached
+      - /app/node_modules
+      - /app/.vite-config
+    environment:
+      - NODE_ENV=development
+      - VITE_HMR_CLIENT_PORT=18273
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vite-dev.rule=Host(`localhost`) && PathPrefix(`/phoenix/vite`)"
+      - "traefik.http.routers.vite-dev.priority=100"
+      - "traefik.http.services.vite-dev.loadbalancer.server.port=5173"
+      - "service.name=vite-dev"
+      - "service.type=development"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "8.0"
+
+  # ==========================================================================
+  # GRAFANA PROFILE (Grafana + Prometheus Monitoring)
+  # ==========================================================================
+  
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    profiles: ["grafana"]
+    restart: always
+    expose:
+      - "9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - dev_prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    labels:
+      - "traefik.enable=false"
+      - "service.name=prometheus"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    profiles: ["grafana"]
+    restart: always
+    expose:
+      - "3000"
+    environment:
+      # Basic Grafana settings
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:18273/grafana
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      # Disable basic auth since we're using OIDC
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_DISABLE_SIGNOUT_MENU=false
+      # Generic OAuth (OIDC) Configuration
+      - GF_AUTH_GENERIC_OAUTH_ENABLED=true
+      - GF_AUTH_GENERIC_OAUTH_NAME=OIDC
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_ID=grafana-oidc-client-id
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=grafana-oidc-client-secret-abc-123
+      - GF_AUTH_GENERIC_OAUTH_SCOPES=openid email profile groups roles
+      # OIDC URLs
+      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=http://localhost:18273/oidc/auth
+      - GF_AUTH_GENERIC_OAUTH_TOKEN_URL=http://oidc-dev:9000/token
+      - GF_AUTH_GENERIC_OAUTH_API_URL=http://oidc-dev:9000/userinfo
+      # User attribute mappings
+      - GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH=email
+      - GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH=name
+      - GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH=email
+      # Groups and role mappings
+      - GF_AUTH_GENERIC_OAUTH_GROUPS_ATTRIBUTE_PATH=groups
+      - GF_AUTH_GENERIC_OAUTH_ALLOWED_GROUPS=phoenix-admins
+      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=role
+      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT=true
+      - GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
+      # OIDC-specific settings
+      - GF_AUTH_GENERIC_OAUTH_USE_PKCE=false
+      - GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=true
+      # Auto-login configuration
+      - GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN=true
+      # Debug logging for OAuth
+      - GF_LOG_LEVEL=debug
+      - GF_LOG_FILTERS=oauth:debug
+      # Allow all OIDC users to be admins in dev environment
+      - GF_USERS_AUTO_ASSIGN_ORG=true
+      - GF_USERS_AUTO_ASSIGN_ORG_ROLE=Admin
+    volumes:
+      - dev_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`localhost`) && PathPrefix(`/grafana`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "service.name=grafana"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    profiles: ["grafana"]
+    restart: always
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:postgres@db:5433/postgres?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      - db
+    labels:
+      - "traefik.enable=false"
+      - "service.name=postgres-exporter"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.51.0
+    profiles: ["grafana"]
+    restart: always
+    expose:
+      - "8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    command:
+      - '--docker_only=true'
+      - '--store_container_labels=true'
+      - '--raw_cgroup_prefix_whitelist=/docker/'
+      - '--application_metrics_count_limit=0'
+    labels:
+      - "traefik.enable=false"
+      - "service.name=cadvisor"
+      - "service.type=monitoring"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+  # ==========================================================================
+  # TOXIPROXY PROFILE (Network Simulation)
+  # ==========================================================================
+  
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.11.0
+    profiles: ["toxiproxy"]
+    restart: unless-stopped
+    expose:
+      - "5433"
+      - "8474"
+    depends_on:
+      - db
+    labels:
+      - "traefik.enable=false"
+      - "service.name=toxiproxy"
+      - "service.type=network-proxy"
+      - "monitoring.priority=medium"
+      - "network.simulation=proxy"
+
+  toxiproxy-init:
+    image: curlimages/curl:8.11.1
+    profiles: ["toxiproxy"]
+    depends_on:
+      - toxiproxy
+      - db
+    volumes:
+      - ./scripts/setup-toxiproxy.sh:/setup-toxiproxy.sh:ro
+    command: sh /setup-toxiproxy.sh
+    restart: "no"
+    labels:
+      - "traefik.enable=false"
+      - "service.name=toxiproxy-init"
+      - "service.type=init"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+
+volumes:
+  dev_database_data:
+    driver: local
+  dev_prometheus_data:
+    driver: local
+  dev_grafana_data:
+    driver: local
+  dev_cursor_server_data:
+    driver: local
+

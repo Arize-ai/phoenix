@@ -1,0 +1,42 @@
+import type { Meta, StoryFn } from "@storybook/react";
+
+import type { TagGroupProps } from "@phoenix/components";
+import { Label, Tag, TagGroup, TagList } from "@phoenix/components";
+
+const meta: Meta = {
+  title: "Core/Forms/Tag Group",
+  component: TagGroup,
+  parameters: {
+    controls: { expanded: true },
+  },
+  argTypes: {
+    selectionMode: {
+      options: ["none", "single", "multiple"],
+      control: {
+        type: "radio",
+      },
+    },
+  },
+};
+
+export default meta;
+
+const Template: StoryFn<TagGroupProps> = (args) => (
+  <TagGroup {...args}>
+    <Label>Categories</Label>
+    <TagList>
+      <Tag>News</Tag>
+      <Tag>Travel</Tag>
+      <Tag>Gaming</Tag>
+      <Tag>Shopping</Tag>
+    </TagList>
+  </TagGroup>
+);
+
+export const Default = {
+  render: Template,
+
+  args: {
+    selectionMode: "multiple",
+  },
+};

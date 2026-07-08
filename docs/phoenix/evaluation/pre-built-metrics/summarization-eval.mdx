@@ -1,0 +1,108 @@
+---
+title: "Summarization"
+---
+
+<Warning>
+**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and will be removed in a future version. You can migrate the template to a custom evaluator as shown below.
+</Warning>
+
+## When To Use Summarization Eval Template
+
+This Eval helps evaluate the summarization results of a summarization task. The template variables are:
+
+- **document**: The document text to summarize
+- **summary**: The summary of the document
+
+## Summarization Eval Template
+
+```
+You are comparing a summary to its original document and trying to determine
+if the summary is good. Here is the data:
+
+<data>
+
+<summary>
+{output}
+</summary>
+
+<original_document>
+{input}
+</original_document>
+
+</data>
+
+Compare the summary above to the original document and determine if the summary is
+comprehensive, concise, coherent, and independent relative to the original document.
+Your response must be a single word, either "good" or "bad", and should not contain any text
+or characters aside from that. "bad" means that the summary is not comprehensive,
+concise, coherent, and independent relative to the original document. "good" means the
+summary is comprehensive, concise, coherent, and independent relative to the original document.
+```
+
+## How To Run the Summarization Eval
+
+```python
+from phoenix.evals import ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+SUMMARIZATION_TEMPLATE = """You are comparing a summary to its original document and trying to determine
+if the summary is good. Here is the data:
+
+<data>
+
+<summary>
+{output}
+</summary>
+
+<original_document>
+{input}
+</original_document>
+
+</data>
+
+Compare the summary above to the original document and determine if the summary is
+comprehensive, concise, coherent, and independent relative to the original document.
+"bad" means that the summary is not comprehensive, concise, coherent, and independent relative to the original document.
+"good" means the summary is comprehensive, concise, coherent, and independent relative to the original document."""
+
+summarization_evaluator = ClassificationEvaluator(
+    name="summarization",
+    prompt_template=SUMMARIZATION_TEMPLATE,
+    model=LLM(provider="openai", model="gpt-4o"),
+    choices={"bad": 0, "good": 1},
+)
+
+result = summarization_evaluator.evaluate({
+    "input": "Original document text here...",
+    "output": "Summary text here..."
+})
+```
+
+The above shows how to use the summarization Eval template.
+
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using a [Daily Mail CNN summarization dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/summarization-classification/summarization-test.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `SUMMARIZATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the summarization dataset to generate the confusion matrices below.
+
+<Frame caption="Try it out!">
+  <Card
+    title="Google Colab"
+    href="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_summarization_classifications.ipynb"
+    icon="/images/image-10.png"
+    horizontal
+  >
+    colab.research.google.com
+  </Card>
+</Frame>
+
+#### GPT-4 Results
+
+<Frame>
+  <img src="/images/image-12.png" alt="" />
+</Frame>
+
+| Eval      | GPT-4o                                | GPT-4                                 |
+| :-------- | :------------------------------------ | :------------------------------------ |
+| Precision | <p style={{color: "green"}}>0.87 </p> | <p style={{color: "green"}}>0.79 </p> |
+| Recall    | <p style={{color: "green"}}>0.63 </p> | <p style={{color: "green"}}>0.88 </p> |
+| F1        | <p style={{color: "green"}}>0.73 </p> | <p style={{color: "green"}}>0.83 </p> |

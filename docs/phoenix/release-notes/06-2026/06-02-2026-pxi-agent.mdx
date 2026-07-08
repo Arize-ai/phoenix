@@ -1,0 +1,41 @@
+---
+title: "06.02.2026: Introducing PXI"
+description: "PXI (Phoenix Intelligence) is the AI engineering agent built into Phoenix — hand it an investigation instead of digging through traces, prompts, and experiments yourself."
+---
+
+**Available in arize-phoenix 17.0.0+ (beta)**
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/pxi/pxi_playground.mp4" type="video/mp4" />
+</video>
+
+PXI (pronounced "pixie," short for Phoenix Intelligence) is the AI engineering agent built directly into Phoenix. Instead of manually digging through traces, prompts, evaluations, and experiments, you can hand the investigation to an agent that already understands the context you're looking at.
+
+PXI is modeled after a coding agent, but instead of operating on a codebase it operates on your observability data. It runs in a computer-like environment with a filesystem, bash, and tools like `jq`, so it can build its own troubleshooting workflows — creating scratchpads, saving intermediate findings, and breaking large, messy investigations into steps rather than holding everything in a single context window.
+
+## What PXI can do
+
+- **Investigate failures**: inspect traces, find root causes, and track down what went wrong without leaving the page.
+- **Iterate on prompts**: propose prompt changes as reviewable diffs and compare prompt versions.
+- **Run and compare experiments**: kick off experiments, author evaluators, and compare results.
+- **Annotate and navigate**: annotate spans, apply filters, inspect outputs, and navigate Phoenix on your behalf.
+
+## Context-aware by default
+
+PXI knows the trace you opened, the prompt you're editing, the filters you've applied, and the project you're in. It also has access to the tools and history already in Phoenix — prompt versions, experiment results, datasets, evaluations, annotations, and trace data — so it can move past generic advice and actually help you do the work.
+
+Under the hood, PXI runs in a sandboxed environment with authenticated access to Phoenix, a growing library of reusable skills, and direct access to Phoenix documentation through MCP so it stays current as the product evolves. When enabled, PXI can also access the web for additional research.
+
+## Built-in controls
+
+- **Approval by default**: state-changing actions require your approval before they run.
+- **Runs on your deployment**: everything executes on your own Phoenix instance.
+- **Fully optional**: PXI can be disabled entirely if you don't want it.
+
+PXI is in beta and will make mistakes — try it out and tell us where it breaks. Open an issue or start a discussion; we read everything.
+
+<CardGroup cols={2}>
+  <Card title="PXI Agent" icon="robot" href="/docs/phoenix/pxi">
+    Learn how to enable and use PXI in your Phoenix deployment.
+  </Card>
+</CardGroup>

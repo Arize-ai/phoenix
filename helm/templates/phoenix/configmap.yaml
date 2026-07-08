@@ -1,0 +1,191 @@
+{{- include "phoenix.validatePersistence" . }}
+{{- include "phoenix.validateExternalDatabase" . }}
+{{- include "phoenix.validateDatabaseUrl" . }}
+{{- include "phoenix.validateLdapNoEmail" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "phoenix.fullname" . }}-configmap
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    app: {{ include "phoenix.fullname" . }}
+data:
+  # Authentication configuration
+  PHOENIX_ENABLE_AUTH: {{ .Values.auth.enableAuth | quote }}
+  PHOENIX_DISABLE_BASIC_AUTH: {{ .Values.auth.disableBasicAuth | default false | quote }}
+  PHOENIX_USE_SECURE_COOKIES: {{ .Values.auth.useSecureCookies | quote }}
+  PHOENIX_COOKIES_PATH: {{ .Values.auth.cookiesPath | default "/" | quote }}
+  PHOENIX_CSRF_TRUSTED_ORIGINS: {{ join "," .Values.auth.csrfTrustedOrigins | quote }}
+  PHOENIX_ALLOWED_ORIGINS: {{ join "," .Values.auth.allowedOrigins | quote }}
+  PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.accessTokenExpiryMinutes | quote }}
+  PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
+  PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
+  PHOENIX_ENABLE_STRONG_PASSWORD_POLICY: {{ .Values.auth.enableStrongPasswordPolicy | default false | quote }}
+  PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION: {{ .Values.auth.disableBruteForceLoginProtection | default false | quote }}
+  PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS: {{ .Values.auth.bruteForceLoginProtectionMaxAttempts | default 5 | quote }}
+  {{- if .Values.auth.admins }}
+  PHOENIX_ADMINS: {{ .Values.auth.admins | quote }}
+  {{- end }}
+  
+  # OAuth2/OIDC Identity Provider Configuration
+  {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
+  {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
+  {{- $provider_upper := $provider_name | upper }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_ID: {{ $provider_config.client_id | quote }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_OIDC_CONFIG_URL: {{ $provider_config.oidc_config_url | quote }}
+  {{- if $provider_config.display_name }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_DISPLAY_NAME: {{ $provider_config.display_name | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "allow_sign_up" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ALLOW_SIGN_UP: {{ $provider_config.allow_sign_up | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "auto_login" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_AUTO_LOGIN: {{ $provider_config.auto_login | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "use_pkce" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_USE_PKCE: {{ $provider_config.use_pkce | quote }}
+  {{- end }}
+  {{- if $provider_config.token_endpoint_auth_method }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_TOKEN_ENDPOINT_AUTH_METHOD: {{ $provider_config.token_endpoint_auth_method | quote }}
+  {{- end }}
+  {{- if $provider_config.scopes }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_SCOPES: {{ $provider_config.scopes | quote }}
+  {{- end }}
+  {{- if $provider_config.groups_attribute_path }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_GROUPS_ATTRIBUTE_PATH: {{ $provider_config.groups_attribute_path | quote }}
+  {{- end }}
+  {{- if $provider_config.allowed_groups }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ALLOWED_GROUPS: {{ join "," $provider_config.allowed_groups | quote }}
+  {{- end }}
+  {{- if $provider_config.role_attribute_path }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ROLE_ATTRIBUTE_PATH: {{ $provider_config.role_attribute_path | quote }}
+  {{- end }}
+  {{- if $provider_config.role_mapping }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ROLE_MAPPING: {{ $provider_config.role_mapping | quote }}
+  {{- end }}
+  {{- if hasKey $provider_config "role_attribute_strict" }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_ROLE_ATTRIBUTE_STRICT: {{ $provider_config.role_attribute_strict | quote }}
+  {{- end }}
+  {{- if $provider_config.email_attribute_path }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_EMAIL_ATTRIBUTE_PATH: {{ $provider_config.email_attribute_path | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  
+  # LDAP Authentication Configuration
+  {{- if .Values.auth.ldap.enabled }}
+  PHOENIX_LDAP_HOST: {{ .Values.auth.ldap.host | quote }}
+  {{- if .Values.auth.ldap.port }}
+  PHOENIX_LDAP_PORT: {{ .Values.auth.ldap.port | quote }}
+  {{- end }}
+  PHOENIX_LDAP_TLS_MODE: {{ .Values.auth.ldap.tlsMode | quote }}
+  PHOENIX_LDAP_TLS_VERIFY: {{ .Values.auth.ldap.tlsVerify | quote }}
+  {{- if .Values.auth.ldap.tlsCaCertFile }}
+  PHOENIX_LDAP_TLS_CA_CERT_FILE: {{ .Values.auth.ldap.tlsCaCertFile | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.tlsClientCertFile }}
+  PHOENIX_LDAP_TLS_CLIENT_CERT_FILE: {{ .Values.auth.ldap.tlsClientCertFile | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.tlsClientKeyFile }}
+  PHOENIX_LDAP_TLS_CLIENT_KEY_FILE: {{ .Values.auth.ldap.tlsClientKeyFile | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.bindDn }}
+  PHOENIX_LDAP_BIND_DN: {{ .Values.auth.ldap.bindDn | quote }}
+  {{- end }}
+  PHOENIX_LDAP_USER_SEARCH_BASE_DNS: {{ .Values.auth.ldap.userSearchBaseDns | toJson | quote }}
+  PHOENIX_LDAP_USER_SEARCH_FILTER: {{ .Values.auth.ldap.userSearchFilter | quote }}
+  PHOENIX_LDAP_ATTR_EMAIL: {{ .Values.auth.ldap.attrEmail | quote }}
+  PHOENIX_LDAP_ATTR_DISPLAY_NAME: {{ .Values.auth.ldap.attrDisplayName | quote }}
+  {{- if .Values.auth.ldap.attrMemberOf }}
+  PHOENIX_LDAP_ATTR_MEMBER_OF: {{ .Values.auth.ldap.attrMemberOf | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.attrUniqueId }}
+  PHOENIX_LDAP_ATTR_UNIQUE_ID: {{ .Values.auth.ldap.attrUniqueId | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.groupSearchBaseDns }}
+  PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS: {{ .Values.auth.ldap.groupSearchBaseDns | toJson | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.groupSearchFilter }}
+  PHOENIX_LDAP_GROUP_SEARCH_FILTER: {{ .Values.auth.ldap.groupSearchFilter | quote }}
+  {{- end }}
+  {{- if .Values.auth.ldap.groupSearchFilterUserAttr }}
+  PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR: {{ .Values.auth.ldap.groupSearchFilterUserAttr | quote }}
+  {{- end }}
+  PHOENIX_LDAP_GROUP_ROLE_MAPPINGS: {{ .Values.auth.ldap.groupRoleMappings | quote }}
+  PHOENIX_LDAP_ALLOW_SIGN_UP: {{ .Values.auth.ldap.allowSignUp | quote }}
+  {{- end }}
+
+  # Server configuration
+  PHOENIX_HOST: {{ .Values.server.host | quote }}
+  PHOENIX_PORT: {{ .Values.server.port | quote }}
+  PHOENIX_GRPC_PORT: {{ .Values.server.grpcPort | quote }}
+  PHOENIX_HOST_ROOT_PATH: {{ .Values.server.hostRootPath | quote }}
+  PHOENIX_WORKING_DIR: {{ .Values.server.workingDir | default "/data" | quote }}
+  PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
+  PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
+  PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
+  PHOENIX_TELEMETRY_ENABLED: {{ .Values.server.telemetryEnabled | quote }}
+  PHOENIX_MAX_SPANS_QUEUE_SIZE: {{ .Values.server.maxSpansQueueSize | default 20000 | quote }}
+  {{- if .Values.server.allowedProviders }}
+  PHOENIX_ALLOWED_PROVIDERS: {{ .Values.server.allowedProviders | quote }}
+  {{- end }}
+
+  # Database configuration
+  {{- if .Values.database.url }}
+  PHOENIX_SQL_DATABASE_URL: {{ .Values.database.url | quote }}
+  {{- else if and (not .Values.persistence.enabled) (include "phoenix.postgres" .) .Values.database.postgres.port .Values.database.postgres.user .Values.database.postgres.db }}
+  PHOENIX_POSTGRES_HOST: {{ include "phoenix.postgres" . | quote }}
+  PHOENIX_POSTGRES_PORT: {{ .Values.database.postgres.port | quote }}
+  PHOENIX_POSTGRES_USER: {{ .Values.database.postgres.user | quote }}
+  PHOENIX_POSTGRES_DB: {{ .Values.database.postgres.db | quote }}
+  {{- if .Values.database.postgres.useAwsIamAuth }}
+  PHOENIX_POSTGRES_USE_AWS_IAM_AUTH: {{ .Values.database.postgres.useAwsIamAuth | quote }}
+  {{- end }}
+  {{- if .Values.database.postgres.useAzureManagedIdentity }}
+  PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY: {{ .Values.database.postgres.useAzureManagedIdentity | quote }}
+  {{- end }}
+  {{- if .Values.database.postgres.azureScope }}
+  PHOENIX_POSTGRES_AZURE_SCOPE: {{ .Values.database.postgres.azureScope | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.database.readReplicaUrl }}
+  PHOENIX_SQL_DATABASE_READ_REPLICA_URL: {{ .Values.database.readReplicaUrl | quote }}
+  {{- end }}
+  {{- if .Values.database.postgres.schema }}
+  PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
+  {{- end }}
+  PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
+  PHOENIX_DEFAULT_RETENTION_POLICY_DAYS: {{ .Values.database.defaultRetentionPolicyDays | quote }}
+
+  # SMTP configuration
+  PHOENIX_SMTP_HOSTNAME: {{ .Values.smtp.hostname | quote }}
+  PHOENIX_SMTP_PORT: {{ .Values.smtp.port | quote }}
+  PHOENIX_SMTP_USERNAME: {{ .Values.smtp.username | quote }}
+  PHOENIX_SMTP_MAIL_FROM: {{ .Values.smtp.mailFrom | quote }}
+  PHOENIX_SMTP_VALIDATE_CERTS: {{ .Values.smtp.validateCerts | quote }}
+
+  # Logging
+  PHOENIX_LOGGING_MODE: {{ .Values.logging.mode | quote }}
+  PHOENIX_LOGGING_LEVEL: {{ .Values.logging.level | quote }}
+  PHOENIX_DB_LOGGING_LEVEL: {{ .Values.logging.dbLevel | quote }}
+  PHOENIX_LOG_MIGRATIONS: {{ .Values.logging.logMigrations | quote }}
+  PHOENIX_LOG_SQL: {{ .Values.logging.logSql | quote }}
+
+  # TLS configuration
+  PHOENIX_TLS_ENABLED: {{ .Values.tls.enabled | quote }}
+  PHOENIX_TLS_ENABLED_FOR_GRPC: {{ .Values.tls.enabledForGrpc | quote }}
+  PHOENIX_TLS_ENABLED_FOR_HTTP: {{ .Values.tls.enabledForHttp | quote }}
+  PHOENIX_TLS_CERT_FILE: {{ .Values.tls.certFile | quote }}
+  PHOENIX_TLS_KEY_FILE: {{ .Values.tls.keyFile | quote }}
+  PHOENIX_TLS_KEY_FILE_PASSWORD: {{ .Values.tls.keyFilePassword | default "" | quote }}
+  PHOENIX_TLS_CA_FILE: {{ .Values.tls.caFile | quote }}
+  PHOENIX_TLS_VERIFY_CLIENT: {{ .Values.tls.verifyClient | quote }}
+
+  # Instrumentation
+  PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorHttpEndpoint | quote }}
+  PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorGrpcEndpoint | quote }}
+
+  # Code evaluator sandboxing
+  {{- if .Values.sandbox.allowedProviders }}
+  PHOENIX_ALLOWED_SANDBOX_PROVIDERS: {{ .Values.sandbox.allowedProviders | quote }}
+  {{- end }}

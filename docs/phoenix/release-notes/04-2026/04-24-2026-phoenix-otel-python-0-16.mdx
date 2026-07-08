@@ -1,0 +1,96 @@
+---
+title: "04.24.2026 arize-phoenix-otel 0.16"
+description: "OpenInference context managers and semantic conventions ship from a single phoenix.otel import — no second install required."
+---
+
+**Available in arize-phoenix-otel 0.16.0+**
+
+`arize-phoenix-otel` now re-exports the most common OpenInference context managers and semantic conventions, so manual instrumentation no longer requires pulling in `openinference-instrumentation` or `openinference-semantic-conventions` as separate dependencies.
+
+## Install
+
+```bash
+pip install "arize-phoenix-otel>=0.16.0"
+```
+
+<Note>
+`phoenix.otel` re-exports require **0.16.0 or later**. On older versions you must continue to import from `openinference.instrumentation` and `openinference.semconv.trace`.
+</Note>
+
+## Context Managers
+
+Propagate session IDs, user IDs, metadata, tags, prompt templates, and custom attributes to every span inside a block. Each helper works as both a `with` context manager and a function decorator.
+
+```python
+from phoenix.otel import (
+    register,
+    suppress_tracing,
+    using_attributes,
+    using_metadata,
+    using_prompt_template,
+    using_session,
+    using_tags,
+    using_user,
+)
+
+register(project_name="my-app", auto_instrument=True)
+
+with using_session(session_id="sess-123"), using_user("user-456"):
+    # auto-instrumented spans inside this block inherit session.id and user.id
+    ...
+
+@using_attributes(
+    session_id="sess-123",
+    metadata={"environment": "production"},
+    tags=["checkout", "v2"],
+)
+def handle_request(payload):
+    ...
+
+with suppress_tracing():
+    # spans created inside this block are dropped
+    ...
+```
+
+## OpenInference Semantic Conventions
+
+`SpanAttributes`, `OpenInferenceSpanKindValues`, and `OpenInferenceMimeTypeValues` are re-exported for use when building spans by hand.
+
+```python
+from phoenix.otel import (
+    OpenInferenceMimeTypeValues,
+    OpenInferenceSpanKindValues,
+    SpanAttributes,
+)
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+with tracer.start_as_current_span(
+    "support-agent",
+    attributes={
+        SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.AGENT.value,
+        SpanAttributes.INPUT_VALUE: "where is my order?",
+        SpanAttributes.INPUT_MIME_TYPE: OpenInferenceMimeTypeValues.TEXT.value,
+    },
+) as span:
+    ...
+```
+
+## What's Not Re-exported
+
+Lower-level helpers continue to live in `openinference-instrumentation` and need a separate install when you use them:
+
+- Attribute builders — `get_llm_attributes`, `get_input_attributes`, `get_output_attributes`, `get_retriever_attributes`, `get_embedding_attributes`, `get_tool_attributes`
+- Trace redaction — `TraceConfig`
+- OpenInference message types — `Message`, `Image`, `TextMessageContent`, `ImageMessageContent`, `ToolCall`
+- Auto-instrumentor packages — `openinference-instrumentation-openai`, `openinference-instrumentation-langchain`, …
+
+<CardGroup cols={2}>
+  <Card title="arize-phoenix-otel Reference" icon="book" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel">
+    Full API reference for register, OTel primitives, and manual instrumentation helpers.
+  </Card>
+  <Card title="Using Tracing Helpers" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Manual instrumentation walkthrough with decorators, context managers, and span kinds.
+  </Card>
+</CardGroup>

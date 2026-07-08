@@ -1,0 +1,58 @@
+# Minimize build context for faster transfers
+# Exclude everything by default
+*
+
+# Include only necessary files for build
+!/src/
+!/app/
+!/scripts/docker/devops/
+!/pyproject.toml
+!/LICENSE
+!/IP_NOTICE
+!/README.md
+
+# Exclude heavy directories from app
+/app/node_modules/
+/app/test-results/
+/app/playwright-report/
+/app/stories/
+
+# Exclude development and build artifacts
+node_modules/
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.tox/
+dist/
+build/
+*.egg-info/
+.venv/
+env/
+venv/
+
+# Exclude documentation and examples
+docs/
+examples/
+tutorials/
+*.md
+!README.md
+
+# Exclude test files
+tests/
+test-results/
+**/test_*.py
+**/*_test.py
+**/*.test.ts
+**/*.spec.ts
+
+# Exclude development files
+.env*
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

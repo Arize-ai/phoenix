@@ -1,0 +1,22 @@
+services:
+  phoenix:
+    image: arizephoenix/phoenix:version-13.0.3
+    container_name: cli-agent-phoenix
+    ports:
+      - "6006:6006"
+    environment:
+      - PHOENIX_WORKING_DIR=/data
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - phoenix-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6006/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  phoenix-data:
+    name: cli-agent-phoenix-data

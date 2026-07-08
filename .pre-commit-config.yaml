@@ -1,0 +1,62 @@
+repos:
+  - repo: local
+    hooks:
+      - id: format-python
+        name: format python
+        language: system
+        entry: make format-python
+        files: \.py$
+        pass_filenames: false
+      - id: lint-python
+        name: lint python
+        language: system
+        entry: make lint-python
+        files: \.py$
+        pass_filenames: false
+      - id: clean-notebooks
+        name: clean notebooks
+        entry: >-
+          uv run jupyter nbconvert
+          --ClearOutputPreprocessor.enabled=True
+          --ClearMetadataPreprocessor.enabled=True
+          --inplace
+        language: system
+        files: \.ipynb$
+        exclude: ^tutorials/(evals|ai_evals_course)/
+        stages: [pre-commit]
+      - id: oxfmt-app
+        name: oxfmt (app)
+        entry: pnpm --dir app run fmt
+        language: system
+        files: ^app/.*\.(jsx?|tsx?|css|md|json|ya?ml)$
+        pass_filenames: false
+      - id: oxfmt-js
+        name: oxfmt (js)
+        entry: pnpm --dir js run fmt
+        language: system
+        files: ^js/.*\.(jsx?|tsx?|md|json|ya?ml)$
+        pass_filenames: false
+      - id: oxlint-app
+        name: oxlint (app)
+        entry: pnpm --dir app run lint
+        language: system
+        files: ^app/.*\.[jt]sx?$
+        pass_filenames: false
+      - id: oxlint-js
+        name: oxlint (js)
+        entry: pnpm --dir js run lint
+        language: system
+        files: ^js/.*\.[jt]sx?$
+        pass_filenames: false
+      - id: forbid-commit-to-local-main-branch
+        name: Check branch before committing
+        entry: bash -c '[[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]] || { echo "Should not commit to local main branch."; exit 1; }'
+        language: system
+        stages: [pre-commit]
+      - id: uv-lock-check
+        name: uv lock --check
+        entry: uv lock --check
+        language: system
+        files: (pyproject\.toml$|^uv\.lock$)
+        pass_filenames: false
+        stages: [pre-commit]

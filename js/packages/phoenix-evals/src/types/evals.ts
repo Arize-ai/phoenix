@@ -1,0 +1,166 @@
+import type { LanguageModel } from "ai";
+
+import type { ObjectMapping } from "./data";
+import type { WithTelemetry } from "./otel";
+import type { PromptTemplate } from "./templating";
+
+/**
+ * A specific AI example that is under evaluation
+ */
+export interface ExampleRecord<OutputType, InputType> {
+  output: OutputType;
+  expected?: OutputType;
+  input?: InputType;
+  [key: string]: unknown;
+}
+
+export interface WithLLM {
+  model: LanguageModel;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface LLMEvaluationArgs extends WithLLM {}
+
+/**
+ * The result of an evaluation
+ */
+export interface EvaluationResult {
+  /**
+   * The score of the evaluation.
+   * @example 0.95
+   */
+  score?: number;
+  /**
+   * The label of the evaluation.
+   * @example "correct"
+   */
+  label?: string;
+  /**
+   * The explanation of the evaluation.
+   * @example "The model correctly identified the sentiment of the text."
+   */
+  explanation?: string;
+}
+
+/**
+ * The result of a classification
+ */
+export interface ClassificationResult {
+  label: string;
+  explanation?: string;
+}
+
+/**
+ * The choice (e.g. the label and score mapping) of a classification based evaluation
+ */
+export interface ClassificationChoice {
+  label: string;
+  score: number;
+}
+
+/**
+ * A mapping of labels to scores
+ */
+export type ClassificationChoicesMap = Record<string, number>;
+
+/**
+ * The arguments for creating a classification-based evaluator
+ */
+export interface CreateClassifierArgs extends WithTelemetry {
+  /*
+   * The LLM to use for classification / evaluation
+   */
+  model: LanguageModel;
+  /**
+   * The choices to classify the example into.
+   * e.g. { "correct": 1, "incorrect": 0 }
+   */
+  choices: ClassificationChoicesMap;
+  /**
+   * The prompt template to use for classification
+   */
+  promptTemplate: PromptTemplate;
+}
+
+export interface CreateEvaluatorArgs<
+  ExampleType extends Record<string, unknown> = Record<string, unknown>,
+> extends WithTelemetry {
+  /**
+   * The name of the metric that the evaluator produces
+   * E.x. "correctness"
+   */
+  name: string;
+  /**
+   * The kind of the evaluation. Also known as the "kind" of evaluator.
+   */
+  kind: EvaluationKind;
+  /**
+   * If present, represents the direction in which you want the metric to be optimized
+   * E.x. "MAXIMIZE" means you want the number to be higher.
+   */
+  optimizationDirection?: OptimizationDirection;
+  /**
+   * The mapping of the input to evaluate to the shape that the evaluator expects
+   */
+  inputMapping?: ObjectMapping<ExampleType>;
+}
+
+export type CreateLLMEvaluatorArgs<RecordType extends Record<string, unknown>> =
+  Omit<CreateEvaluatorArgs<RecordType>, "kind">;
+
+export interface CreateClassificationEvaluatorArgs<
+  RecordType extends Record<string, unknown>,
+>
+  extends CreateClassifierArgs, CreateLLMEvaluatorArgs<RecordType> {
+  /**
+   * The prompt template to use for classification
+   */
+  promptTemplate: PromptTemplate;
+}
+
+export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
+  args: ExampleType
+) => Promise<EvaluationResult>;
+
+/**
+ * The kind of the evaluation
+ */
+export type EvaluationKind = "LLM" | "CODE";
+
+/**
+ * The direction to optimize the numeric evaluation score
+ * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
+ */
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NEUTRAL";
+
+/**
+ * The description of an evaluator
+ */
+interface EvaluatorDescription {
+  /**
+   * The name of the evaluator / the metric that it measures
+   */
+  name: string;
+  /**
+   * The kind of the evaluation. Also known as the "kind" of evaluator.
+   */
+  kind: EvaluationKind;
+  /**
+   * The direction to optimize the numeric evaluation score
+   * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
+   */
+  optimizationDirection?: OptimizationDirection;
+}
+
+/**
+ * The Base Evaluator interface
+ * This is the interface that all evaluators must implement
+ */
+export interface EvaluatorInterface<
+  ExampleType extends Record<string, unknown>,
+> extends EvaluatorDescription {
+  /**
+   * The function that evaluates the example
+   */
+  evaluate: EvaluatorFn<ExampleType>;
+}

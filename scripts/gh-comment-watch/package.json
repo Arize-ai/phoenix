@@ -1,0 +1,41 @@
+{
+  "name": "gh-comment-watch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Surface GitHub issue/PR comments from outside users that nobody on the team has replied to or reacted to.",
+  "type": "module",
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "dev": "pnpm db:migrate && tsx watch src/server.ts",
+    "dev:web": "pnpm --filter gh-comment-watch-web dev",
+    "start": "pnpm install && pnpm --filter gh-comment-watch-web install && pnpm build && pnpm db:migrate && tsx src/server.ts",
+    "build": "pnpm --filter gh-comment-watch-web build",
+    "typecheck": "tsc --noEmit && pnpm --filter gh-comment-watch-web typecheck",
+    "lint": "oxlint src && pnpm --filter gh-comment-watch-web lint",
+    "lint:fix": "oxlint --fix src && pnpm --filter gh-comment-watch-web lint:fix",
+    "fmt": "oxfmt --config ../../.oxfmtrc.jsonc src && pnpm --filter gh-comment-watch-web fmt",
+    "fmt:check": "oxfmt --check --config ../../.oxfmtrc.jsonc src && pnpm --filter gh-comment-watch-web fmt:check",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.4",
+    "better-sqlite3": "^11.8.1",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.23"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^25.3.1",
+    "drizzle-kit": "^0.31.10",
+    "oxfmt": "^0.51.0",
+    "oxlint": "~1.66.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.3.0"
+}

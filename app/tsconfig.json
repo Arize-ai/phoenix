@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "@emotion/react",
+    "module": "ES2020",
+    "moduleResolution": "bundler",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["@emotion/react/types/css-prop", "vitest/globals"],
+    "plugins": [
+      {
+        "name": "ts-plugin-sort-import-suggestions",
+        // Matches `@/`, `../` and `./`, move them up in the suggestions (This is the default config if you leave it empty)
+        "moveUpPatterns": ["@/", "\\.{1,2}/", "@phoenix/components"],
+        // Move `dist` down in the suggestions, by default it's `[]`
+        "moveDownPatterns": [
+          "recharts",
+          "dist",
+          "react-aria-components",
+          "@arize/components",
+          "@react-three/drei"
+        ]
+      }
+    ],
+    "paths": {
+      "@phoenix/*": ["./src/*"]
+    }
+  }
+}

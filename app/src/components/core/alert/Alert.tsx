@@ -1,0 +1,177 @@
+import { css } from "@emotion/react";
+import type { ReactNode, SyntheticEvent } from "react";
+
+import { useTheme } from "@phoenix/contexts/ThemeContext";
+
+import { Text } from "../content";
+import { Icon } from "../icon";
+import { Close } from "../icon/Icons";
+import type { SeverityLevel } from "../types";
+import { getSeverityIcon } from "./getSeverityIcon";
+
+export interface AlertProps {
+  variant: SeverityLevel;
+  children?: ReactNode;
+  /**
+   * Title of the alert. Optional
+   */
+  title?: ReactNode;
+  /**
+   * A custom icon to show
+   */
+  icon?: ReactNode;
+  /**
+   * Whether or not an icon is shown on the left
+   * @default true
+   */
+  showIcon?: boolean;
+  /**
+   * If set to true, a close button is rendered
+   * @default false
+   */
+  dismissable?: boolean;
+  /**
+   * dismiss callback
+   */
+  onDismissClick?: (e: SyntheticEvent<HTMLButtonElement>) => void;
+  /**
+   * If set to true, this alert is being placed at the top of a page
+   * @default false
+   */
+  banner?: boolean;
+  /**
+   * Extra content (typically a button) added to the alert
+   */
+  extra?: ReactNode;
+}
+
+const alertCSS = css`
+  --alert-base-color: var(--global-color-info);
+  --alert-bg-color: lch(from var(--alert-base-color) 96 calc(c * 0.3) h);
+  --alert-border-color: lch(from var(--alert-base-color) 88 calc(c * 0.4) h);
+  --alert-text-color: lch(from var(--alert-base-color) 45 c h);
+
+  padding: var(--global-dimension-static-size-100)
+    var(--global-dimension-static-size-200);
+  border-radius: var(--global-rounding-small);
+  color: var(--alert-text-color);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--alert-border-color);
+  background-color: var(--alert-bg-color);
+
+  &[data-banner="true"] {
+    border-radius: 0;
+    border-left: 0px;
+    border-right: 0px;
+  }
+
+  &[data-variant="warning"] {
+    --alert-base-color: var(--global-color-warning);
+  }
+
+  &[data-variant="info"] {
+    --alert-base-color: var(--global-color-info);
+  }
+
+  &[data-variant="danger"] {
+    --alert-base-color: var(--global-color-danger);
+  }
+
+  &[data-variant="success"] {
+    --alert-base-color: var(--global-color-success);
+  }
+
+  &[data-theme="light"] {
+    --alert-bg-color: lch(from var(--alert-base-color) 96 calc(c * 0.3) h);
+    --alert-border-color: lch(from var(--alert-base-color) 88 calc(c * 0.4) h);
+    --alert-text-color: lch(from var(--alert-base-color) 45 c h);
+  }
+
+  &[data-theme="dark"] {
+    --alert-bg-color: lch(from var(--alert-base-color) 18 calc(c * 0.2) h);
+    --alert-border-color: lch(from var(--alert-base-color) 28 calc(c * 0.3) h);
+    --alert-text-color: lch(from var(--alert-base-color) 90 calc(c * 0.8) h);
+  }
+
+  .alert__icon-title-wrap {
+    display: flex;
+    flex-direction: row;
+
+    .icon-wrap {
+      margin-top: 4px;
+      margin-right: var(--global-dimension-static-size-200);
+      font-size: var(--global-font-size-l);
+    }
+  }
+`;
+
+const iconTitleWrapCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex: 1 1 auto;
+`;
+
+const dismissButtonCSS = css`
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  margin-left: var(--global-dimension-static-size-200);
+`;
+
+export const Alert = ({
+  variant,
+  title,
+  icon,
+  children,
+  showIcon = true,
+  dismissable = false,
+  onDismissClick,
+  banner = false,
+  extra,
+  ...otherProps
+}: AlertProps) => {
+  const { theme } = useTheme();
+
+  if (!icon && showIcon) {
+    icon = getSeverityIcon(variant);
+  }
+
+  return (
+    <div
+      {...otherProps}
+      css={alertCSS}
+      data-variant={variant}
+      data-banner={banner}
+      data-has-title={!!title}
+      data-theme={theme}
+    >
+      <div css={iconTitleWrapCSS} className="alert__icon-title-wrap">
+        {icon}
+        <div>
+          {title ? (
+            <Text elementType="h5" size="L" weight="heavy" color="inherit">
+              {title}
+            </Text>
+          ) : null}
+          <Text color="inherit" size="M">
+            {children}
+          </Text>
+        </div>
+      </div>
+      {extra}
+      {dismissable ? (
+        <button css={dismissButtonCSS} onClick={onDismissClick}>
+          {<Icon svg={<Close />} />}
+        </button>
+      ) : null}
+    </div>
+  );
+};

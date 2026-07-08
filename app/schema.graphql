@@ -1,0 +1,4680 @@
+directive @oneOf on INPUT_OBJECT
+
+type AWSBedrockAccessKeys {
+  awsAccessKeyId: String!
+  awsSecretAccessKey: RedactedString!
+  awsSessionToken: RedactedString
+}
+
+input AWSBedrockAccessKeysInput {
+  awsAccessKeyId: String!
+  awsSecretAccessKey: RedactedString!
+  awsSessionToken: RedactedString
+}
+
+type AWSBedrockAuthenticationMethod {
+  """Explicit AWS access key credentials."""
+  accessKeys: AWSBedrockAccessKeys
+
+  """Use SDK default credentials (IAM role, env vars, config files)."""
+  defaultCredentials: Boolean
+}
+
+input AWSBedrockAuthenticationMethodInput @oneOf {
+  """Explicit AWS access key credentials."""
+  accessKeys: AWSBedrockAccessKeysInput
+
+  """Use SDK default credentials (IAM role, env vars, config files)."""
+  defaultCredentials: Boolean
+}
+
+type AWSBedrockClientKwargs {
+  regionName: String!
+  endpointUrl: String
+}
+
+input AWSBedrockClientKwargsInput {
+  regionName: String!
+  endpointUrl: String
+}
+
+type AWSBedrockConnectionConfig {
+  regionName: String
+  endpointUrl: String
+}
+
+type AWSBedrockCustomProviderConfig {
+  awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
+  awsBedrockClientKwargs: AWSBedrockClientKwargs!
+}
+
+input AWSBedrockCustomProviderConfigInput {
+  awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput!
+  awsBedrockClientKwargs: AWSBedrockClientKwargsInput!
+}
+
+input AddAnnotationConfigToProjectInput {
+  projectId: ID!
+  annotationConfigId: ID!
+}
+
+type AddAnnotationConfigToProjectPayload {
+  query: Query!
+  project: Project!
+}
+
+input AddExamplesToDatasetInput {
+  datasetId: ID!
+  examples: [DatasetExampleInput!]!
+  datasetVersionDescription: String
+  datasetVersionMetadata: JSON
+}
+
+input AddSpansToDatasetInput {
+  datasetId: ID!
+  spanIds: [ID!]!
+  datasetVersionDescription: String
+  datasetVersionMetadata: JSON
+}
+
+type AgentAssistantEnabled {
+  enabled: Boolean!
+}
+
+type AgentSkill {
+  """
+  The unique skill identifier used to load the skill (e.g. 'debug-trace').
+  """
+  name: String!
+
+  """The model-facing trigger guidance shown to the assistant."""
+  description: String!
+
+  """The summary for this skill."""
+  summary: String!
+}
+
+type AgentTraceRecording {
+  allowLocalTraces: Boolean!
+  allowRemoteExport: Boolean!
+}
+
+type AgentsConfig {
+  """
+  The collector endpoint used by the server-side agents to export traces. Resolved from the PHOENIX_AGENTS_COLLECTOR_ENDPOINT environment variable.
+  """
+  collectorEndpoint: String
+
+  """
+  The project name used for assistant agent traces. Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable.
+  """
+  assistantProjectName: String!
+
+  """
+  Whether PXI can expose native web search and web fetch capabilities. False when external resources are disabled or PHOENIX_AGENTS_DISABLE_WEB_ACCESS is true.
+  """
+  webAccessEnabled: Boolean!
+
+  """
+  Admin ceiling for the agent assistant feature. Sourced from the `agent.assistant.enabled` system setting. When False, agent chat is disabled for the entire workspace regardless of individual user preferences.
+  """
+  assistantEnabled: Boolean!
+
+  """
+  Admin ceiling for persisting PXI traces in this Phoenix instance. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on local trace recording for themselves.
+  """
+  allowLocalTraces: Boolean!
+
+  """
+  Admin ceiling for exporting PXI traces to the remote collector. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on remote trace export for themselves.
+  """
+  allowRemoteExport: Boolean!
+}
+
+interface Annotation {
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The identifier of the annotation."""
+  identifier: String!
+
+  """The date and time the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time the annotation was last updated."""
+  updatedAt: DateTime!
+
+  """The user that produced the annotation."""
+  user: User
+}
+
+union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
+
+interface AnnotationConfigBase {
+  name: String!
+  description: String
+  annotationType: AnnotationType!
+}
+
+"""A connection to a list of items."""
+type AnnotationConfigConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [AnnotationConfigEdge!]!
+}
+
+"""An edge in a connection."""
+type AnnotationConfigEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: AnnotationConfig!
+}
+
+input AnnotationConfigInput @oneOf {
+  categorical: CategoricalAnnotationConfigInput
+  continuous: ContinuousAnnotationConfigInput
+  freeform: FreeformAnnotationConfigInput
+}
+
+input AnnotationFilter {
+  include: AnnotationFilterCondition
+  exclude: AnnotationFilterCondition
+}
+
+input AnnotationFilterCondition {
+  names: [String!]
+  sources: [AnnotationSource!]
+  userIds: [ID]
+}
+
+type AnnotationNameCount {
+  name: String!
+  count: Int!
+}
+
+type AnnotationScoreTimeSeries {
+  data: [AnnotationScoreTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type AnnotationScoreTimeSeriesDataPoint {
+  timestamp: DateTime!
+  scoresWithLabels: [AnnotationScoreWithLabel!]!
+}
+
+type AnnotationScoreWithLabel {
+  label: String!
+  score: Float!
+}
+
+enum AnnotationSource {
+  API
+  APP
+}
+
+type AnnotationSummary {
+  name: String!
+  count: Int!
+  labels: [String!]!
+  labelFractions: [LabelFraction!]!
+  meanScore: Float
+  scoreCount: Int!
+  labelCount: Int!
+}
+
+enum AnnotationTimeRangeField {
+  ANNOTATION_CREATED_AT
+  SOURCE_START_TIME
+}
+
+enum AnnotationType {
+  CATEGORICAL
+  CONTINUOUS
+  FREEFORM
+}
+
+enum AnnotatorKind {
+  LLM
+  HUMAN
+  CODE
+}
+
+type AnthropicAuthenticationMethod {
+  apiKey: RedactedString
+}
+
+input AnthropicAuthenticationMethodInput {
+  apiKey: RedactedString!
+}
+
+type AnthropicClientKwargs {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+input AnthropicClientKwargsInput {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+type AnthropicConnectionConfig {
+  baseUrl: String
+}
+
+type AnthropicCustomProviderConfig {
+  anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
+  anthropicClientKwargs: AnthropicClientKwargs
+}
+
+input AnthropicCustomProviderConfigInput {
+  anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput!
+  anthropicClientKwargs: AnthropicClientKwargsInput
+}
+
+enum AnthropicOutputConfigEffort {
+  LOW
+  MEDIUM
+  HIGH
+  XHIGH
+  MAX
+}
+
+input AnthropicThinkingAdaptiveInput {
+  display: AnthropicThinkingDisplay = null
+}
+
+input AnthropicThinkingDisabledMarkerInput {
+  disabled: Boolean! = true
+}
+
+enum AnthropicThinkingDisplay {
+  SUMMARIZED
+  OMITTED
+}
+
+input AnthropicThinkingEnabledInput {
+  budgetTokens: Int!
+  display: AnthropicThinkingDisplay = null
+}
+
+interface ApiKey {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+}
+
+enum AuthMethod {
+  LOCAL
+  OAUTH2
+  LDAP
+}
+
+"""
+Inputs that determine which assistant skills are available given the current state of the UI.
+"""
+input AvailableAgentSkillsInput {
+  """Whether a playground instance is mounted in the current UI context."""
+  hasPlaygroundContext: Boolean! = false
+
+  """Whether a dataset is mounted in the current UI context."""
+  hasDatasetContext: Boolean! = false
+
+  """Whether an LLM evaluator is mounted in the current UI context."""
+  hasLlmEvaluatorContext: Boolean! = false
+
+  """Whether a code evaluator is mounted in the current UI context."""
+  hasCodeEvaluatorContext: Boolean! = false
+}
+
+type AzureADTokenProvider {
+  azureTenantId: String!
+  azureClientId: String!
+  azureClientSecret: RedactedString!
+  scope: String!
+}
+
+input AzureOpenAIADTokenProviderInput {
+  azureTenantId: String!
+  azureClientId: String!
+  azureClientSecret: RedactedString!
+  scope: String
+}
+
+type AzureOpenAIAuthenticationMethod {
+  apiKey: RedactedString
+  azureAdTokenProvider: AzureADTokenProvider
+
+  """Use SDK default credentials (Managed Identity, Azure CLI, env vars)."""
+  defaultCredentials: Boolean
+}
+
+input AzureOpenAIAuthenticationMethodInput @oneOf {
+  apiKey: RedactedString
+  azureAdTokenProvider: AzureOpenAIADTokenProviderInput
+
+  """Use SDK default credentials (Managed Identity, Azure CLI, env vars)."""
+  defaultCredentials: Boolean
+}
+
+type AzureOpenAIClientKwargs {
+  azureEndpoint: String!
+  defaultHeaders: JSON
+}
+
+input AzureOpenAIClientKwargsInput {
+  azureEndpoint: String!
+  defaultHeaders: JSON
+}
+
+type AzureOpenAIConnectionConfig {
+  azureEndpoint: String!
+  openaiApiType: OpenAIApiType!
+}
+
+type AzureOpenAICustomProviderConfig {
+  azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
+  azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
+  openaiApiType: OpenAIApiType!
+}
+
+input AzureOpenAICustomProviderConfigInput {
+  azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput!
+  azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput!
+  openaiApiType: OpenAIApiType = RESPONSES
+}
+
+type BuiltInEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isBuiltin: Boolean!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
+  inputSchema: JSON
+  user: User
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+}
+
+union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
+
+type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  annotationType: AnnotationType!
+  optimizationDirection: OptimizationDirection!
+  values: [CategoricalAnnotationValue!]!
+  shapeExamples(language: ShapeExamplesLanguage! = PYTHON, mode: ShapeExamplesMode! = FULL): [String!]!
+}
+
+input CategoricalAnnotationConfigInput {
+  name: String!
+  description: String = null
+  optimizationDirection: OptimizationDirection!
+  values: [CategoricalAnnotationConfigValueInput!]!
+}
+
+input CategoricalAnnotationConfigValueInput {
+  label: String!
+  score: Float = null
+}
+
+type CategoricalAnnotationValue {
+  label: String!
+  score: Float
+}
+
+input ChatCompletionInput {
+  promptVersion: ChatPromptVersionInput!
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
+  credentials: [GenerativeCredentialInput!]
+  template: PromptTemplateOptions
+  promptName: Identifier = null
+  repetitions: Int!
+  evaluators: [PlaygroundEvaluatorInput!]! = []
+  streamModelOutput: Boolean! = true
+}
+
+input ChatCompletionOverDatasetInput {
+  promptVersionId: ID = null
+  promptVersion: ChatPromptVersionInput!
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
+  credentials: [GenerativeCredentialInput!]
+  repetitions: Int!
+  datasetId: ID!
+  datasetVersionId: ID = null
+  splitIds: [ID!] = null
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = null
+  promptName: Identifier = null
+  evaluators: [PlaygroundEvaluatorInput!]! = []
+
+  """
+  Dot-notation path to messages in dataset example input to append to prompt
+  """
+  appendedMessagesPath: String = null
+
+  """
+  Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
+  """
+  templateVariablesPath: String = "input"
+  tracingEnabled: Boolean! = true
+  streamModelOutput: Boolean! = true
+  createEphemeralExperiment: Boolean = false
+  maxConcurrency: Int! = 10
+}
+
+type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  message: String!
+  span: Span
+  experimentRun: ExperimentRun
+}
+
+type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  experiment: Experiment!
+}
+
+interface ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+}
+
+type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  span: Span
+  experimentRun: ExperimentRun
+}
+
+input ChatPromptVersionInput {
+  description: String = null
+  templateFormat: PromptTemplateFormat!
+  template: PromptChatTemplateInput!
+  invocationParameters: PromptInvocationParametersInput!
+  tools: PromptToolsInput = null
+  responseFormat: PromptResponseFormatJSONSchemaInput = null
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  customProviderId: ID = null
+}
+
+type ClassificationEvaluatorConfig {
+  name: String!
+  description: String
+  optimizationDirection: OptimizationDirection!
+  messages: [PromptMessage!]!
+  choices: JSON!
+}
+
+input ClearProjectInput {
+  id: ID!
+
+  """The time up to which to purge data. Time is right-open /non-inclusive."""
+  endTime: DateTime
+}
+
+input ClonePromptInput {
+  name: Identifier!
+  promptId: ID!
+  description: String
+  metadata: JSON
+}
+
+type CodeEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isBuiltin: Boolean!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
+  sandboxConfig: SandboxConfig
+  inputMapping: EvaluatorInputMapping!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  currentVersion: CodeEvaluatorVersion
+  version(versionId: ID!): CodeEvaluatorVersion
+  versionCount: Int!
+  versions(first: Int = 50, last: Int, after: String, before: String): CodeEvaluatorVersionConnection!
+  inputSchema: JSON
+  sourceCode: String!
+  language: Language!
+  user: User
+}
+
+type CodeEvaluatorMutationPayload {
+  evaluator: CodeEvaluator!
+  query: Query!
+}
+
+type CodeEvaluatorVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  sourceCode: String!
+  createdAt: DateTime!
+  inputSchema: JSON!
+  previousVersion: CodeEvaluatorVersion
+  sequenceNumber: Int!
+  user: User
+}
+
+"""A connection to a list of items."""
+type CodeEvaluatorVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [CodeEvaluatorVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type CodeEvaluatorVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: CodeEvaluatorVersion!
+}
+
+union ConnectionConfig = OpenAIConnectionConfig | AzureOpenAIConnectionConfig | AnthropicConnectionConfig | AWSBedrockConnectionConfig | GoogleGenAIConnectionConfig
+
+input ConnectionConfigInput {
+  baseUrl: String = null
+  azureEndpoint: String = null
+  regionName: String = null
+  endpointUrl: String = null
+  openaiApiType: OpenAIApiType = null
+  organization: String = null
+  project: String = null
+}
+
+union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
+
+input ContentPartInput @oneOf {
+  text: TextContentValueInput
+  toolCall: ToolCallContentValueInput
+  toolResult: ToolResultContentValueInput
+}
+
+type ContinuousAnnotationConfig implements Node & AnnotationConfigBase {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  annotationType: AnnotationType!
+  optimizationDirection: OptimizationDirection!
+  lowerBound: Float
+  upperBound: Float
+  shapeExamples(language: ShapeExamplesLanguage! = PYTHON, mode: ShapeExamplesMode! = FULL): [String!]!
+}
+
+input ContinuousAnnotationConfigInput {
+  name: String!
+  description: String = null
+  optimizationDirection: OptimizationDirection!
+  lowerBound: Float = null
+  upperBound: Float = null
+}
+
+type CostBreakdown {
+  """
+  Total number of tokens, including tokens for which no cost was computed.
+  """
+  tokens: Float
+  cost: Float
+}
+
+input CreateAnnotationConfigInput {
+  annotationConfig: AnnotationConfigInput!
+}
+
+type CreateAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: AnnotationConfig!
+}
+
+input CreateApiKeyInput {
+  name: String!
+  description: String
+  expiresAt: DateTime
+}
+
+input CreateChatPromptInput {
+  name: Identifier!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+  metadata: JSON = null
+  tags: [CreatePromptVersionTagInput!] = null
+}
+
+input CreateChatPromptVersionInput {
+  promptId: ID!
+  promptVersion: ChatPromptVersionInput!
+  tags: [CreatePromptVersionTagInput!] = null
+}
+
+input CreateCodeEvaluatorInput {
+  name: Identifier!
+  sourceCode: String!
+  language: Language!
+  sandboxConfigId: ID!
+  description: String = null
+  outputConfigs: [AnnotationConfigInput!] = null
+  inputMapping: EvaluatorInputMappingInput = null
+}
+
+input CreateCodeEvaluatorVersionInput {
+  codeEvaluatorId: ID!
+  sourceCode: String!
+}
+
+type CreateCodeEvaluatorVersionPayload {
+  evaluator: CodeEvaluator!
+
+  """
+  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code was unchanged.
+  """
+  wasCreated: Boolean!
+  query: Query!
+}
+
+input CreateDatasetBuiltinEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!] = null
+  description: String = null
+}
+
+input CreateDatasetCodeEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!] = null
+  description: String = null
+}
+
+input CreateDatasetInput {
+  name: String!
+  description: String
+  metadata: JSON
+}
+
+input CreateDatasetLLMEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  description: String
+  promptVersionId: ID
+  promptVersion: ChatPromptVersionInput!
+  outputConfigs: [AnnotationConfigInput!]!
+  inputMapping: EvaluatorInputMappingInput = null
+}
+
+input CreateDatasetLabelInput {
+  name: String!
+  description: String
+  color: String!
+  datasetIds: [ID!]
+}
+
+type CreateDatasetLabelMutationPayload {
+  datasetLabel: DatasetLabel!
+  datasets: [Dataset!]!
+}
+
+input CreateDatasetSplitInput {
+  name: String!
+  description: String
+  color: String!
+  metadata: JSON
+}
+
+input CreateDatasetSplitWithExamplesInput {
+  name: String!
+  description: String
+  color: String!
+  metadata: JSON
+  exampleIds: [ID!]!
+}
+
+input CreateDocumentAnnotationInput {
+  spanId: ID!
+  documentPosition: Int!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON!
+  source: AnnotationSource!
+  identifier: String
+}
+
+input CreateGenerativeModelCustomProviderMutationInput {
+  name: String!
+  description: String
+  provider: String!
+  clientConfig: GenerativeModelCustomerProviderConfigInput!
+}
+
+type CreateGenerativeModelCustomProviderMutationPayload {
+  provider: GenerativeModelCustomProvider!
+  query: Query!
+}
+
+input CreateModelMutationInput {
+  name: String!
+  provider: String = null
+  namePattern: String!
+  costs: [TokenPriceInput!]!
+  startTime: DateTime = null
+}
+
+type CreateModelMutationPayload {
+  model: GenerativeModel!
+  query: Query!
+}
+
+input CreateProjectInput {
+  name: String!
+  description: String
+  gradientStartColor: String
+  gradientEndColor: String
+}
+
+input CreateProjectSessionAnnotationInput {
+  projectSessionId: ID!
+  name: String!
+  annotatorKind: AnnotatorKind! = HUMAN
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON!
+  source: AnnotationSource! = APP
+  identifier: String
+}
+
+input CreateProjectTraceRetentionPolicyInput {
+  name: String!
+  cronExpression: CronExpression!
+  rule: ProjectTraceRetentionRuleInput!
+  addProjects: [ID!]
+}
+
+input CreatePromptLabelInput {
+  name: String!
+  description: String = null
+  color: String!
+}
+
+input CreatePromptVersionTagInput {
+  name: Identifier!
+  description: String = null
+}
+
+input CreateSandboxConfigInput {
+  config: SandboxConfigVariantInput!
+  name: Identifier!
+  description: String = null
+  timeout: Int = null
+  enabled: Boolean! = true
+}
+
+type CreateSandboxConfigPayload {
+  sandboxConfig: SandboxConfig!
+  query: Query!
+}
+
+input CreateSpanAnnotationInput {
+  spanId: ID!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON!
+  source: AnnotationSource!
+  identifier: String
+}
+
+input CreateSpanNoteInput {
+  spanId: ID!
+  note: String!
+}
+
+type CreateSystemApiKeyMutationPayload {
+  jwt: String!
+  apiKey: SystemApiKey!
+  query: Query!
+}
+
+input CreateTraceAnnotationInput {
+  traceId: ID!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON!
+  source: AnnotationSource!
+  identifier: String
+}
+
+input CreateUserApiKeyInput {
+  name: String!
+  description: String
+  expiresAt: DateTime
+}
+
+type CreateUserApiKeyMutationPayload {
+  jwt: String!
+  apiKey: UserApiKey!
+  query: Query!
+}
+
+input CreateUserInput {
+  email: String!
+  username: String!
+  password: String
+  role: UserRoleInput!
+  sendWelcomeEmail: Boolean = false
+  authMethod: AuthMethod = LOCAL
+}
+
+scalar CronExpression
+
+union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
+
+type Dataset implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
+
+  """
+  Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
+  """
+  exampleCount(datasetVersionId: ID, splitIds: [ID!]): Int!
+  examples(
+    datasetVersionId: ID
+    splitIds: [ID!]
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+    filter: String
+
+    """
+    When provided, return only the examples with the given IDs — a membership lookup that avoids paging the whole connection.
+    """
+    filterIds: [ID!]
+  ): DatasetExampleConnection!
+  splits: [DatasetSplit!]!
+
+  """
+  Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
+  """
+  experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
+  experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
+  experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
+  labels: [DatasetLabel!]!
+
+  """Number of evaluators associated with this dataset."""
+  evaluatorCount: Int!
+  datasetEvaluator(datasetEvaluatorId: ID!): DatasetEvaluator!
+  datasetEvaluators(first: Int = 50, last: Int, after: String, before: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
+  lastUpdatedAt: DateTime
+}
+
+enum DatasetColumn {
+  createdAt
+  name
+}
+
+"""A connection to a list of items."""
+type DatasetConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Dataset!
+}
+
+type DatasetEvaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  updatedAt: DateTime!
+  dataset: Dataset!
+  evaluator: Evaluator!
+  description: String
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  inputMapping: EvaluatorInputMapping!
+  user: User
+  project: Project!
+}
+
+enum DatasetEvaluatorColumn {
+  name
+  kind
+  createdAt
+  updatedAt
+}
+
+"""A connection to a list of items."""
+type DatasetEvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetEvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetEvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetEvaluator!
+}
+
+"""The filter key and value for dataset evaluator connections"""
+input DatasetEvaluatorFilter {
+  col: DatasetEvaluatorFilterColumn!
+  value: String!
+}
+
+enum DatasetEvaluatorFilterColumn {
+  name
+}
+
+type DatasetEvaluatorMutationPayload {
+  evaluator: DatasetEvaluator!
+  query: Query!
+}
+
+"""The sort key and direction for evaluator connections"""
+input DatasetEvaluatorSort {
+  col: DatasetEvaluatorColumn!
+  dir: SortDir!
+}
+
+type DatasetExample implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  externalId: String
+  createdAt: DateTime!
+  revision(datasetVersionId: ID): DatasetExampleRevision!
+  span: Span
+  experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
+  experimentRepeatedRunGroups(experimentIds: [ID!]!): [ExperimentRepeatedRunGroup!]!
+  datasetSplits: [DatasetSplit!]!
+}
+
+"""A connection to a list of items."""
+type DatasetExampleConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetExampleEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetExampleEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetExample!
+}
+
+input DatasetExampleInput {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  spanId: ID
+  externalId: String
+}
+
+input DatasetExamplePatch {
+  exampleId: ID!
+  input: JSON
+  output: JSON
+  metadata: JSON
+}
+
+type DatasetExampleRevision implements ExampleRevision {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  revisionKind: RevisionKind!
+  createdAt: DateTime!
+}
+
+type DatasetExperimentAnnotationSummary {
+  annotationName: String!
+  minScore: Float
+  maxScore: Float
+}
+
+"""A filter for datasets"""
+input DatasetFilter {
+  col: DatasetFilterColumn = null
+  value: String = null
+  filterLabels: [String!]
+}
+
+enum DatasetFilterColumn {
+  name
+}
+
+type DatasetLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  color: String!
+
+  """The number of datasets that this label is applied to."""
+  usageCount: Int!
+}
+
+"""A connection to a list of items."""
+type DatasetLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetLabelEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetLabel!
+}
+
+type DatasetMutationPayload {
+  dataset: Dataset!
+}
+
+"""The sort key and direction for dataset connections"""
+input DatasetSort {
+  col: DatasetColumn!
+  dir: SortDir!
+}
+
+type DatasetSplit implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  metadata: JSON!
+  color: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type DatasetSplitConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetSplitEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetSplitEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetSplit!
+}
+
+type DatasetSplitMutationPayload {
+  datasetSplit: DatasetSplit!
+  query: Query!
+}
+
+type DatasetSplitMutationPayloadWithExamples {
+  datasetSplit: DatasetSplit!
+  query: Query!
+  examples: [DatasetExample!]!
+}
+
+type DatasetVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+}
+
+enum DatasetVersionColumn {
+  createdAt
+}
+
+"""A connection to a list of items."""
+type DatasetVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetVersion!
+}
+
+"""The sort key and direction for dataset version connections"""
+input DatasetVersionSort {
+  col: DatasetVersionColumn!
+  dir: SortDir!
+}
+
+"""Date with time (isoformat)"""
+scalar DateTime
+
+input DaytonaConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type DaytonaDeploymentData {
+  apiUrl: String
+  target: String
+}
+
+input DaytonaDeploymentInput {
+  apiUrl: String = null
+  target: String = null
+}
+
+type DbTableStats {
+  tableName: String!
+  numBytes: Float!
+}
+
+type DecryptedSecret {
+  value: RedactedString!
+}
+
+input DeleteAnnotationConfigsInput {
+  ids: [ID!]!
+}
+
+type DeleteAnnotationConfigsPayload {
+  query: Query!
+  annotationConfigs: [AnnotationConfig!]!
+}
+
+input DeleteAnnotationsInput {
+  annotationIds: [ID!]!
+}
+
+input DeleteApiKeyInput {
+  id: ID!
+}
+
+type DeleteApiKeyMutationPayload {
+  apiKeyId: ID!
+  query: Query!
+}
+
+input DeleteDatasetEvaluatorsInput {
+  datasetEvaluatorIds: [ID!]!
+  deleteAssociatedPrompt: Boolean! = true
+}
+
+type DeleteDatasetEvaluatorsPayload {
+  datasetEvaluatorIds: [ID!]!
+  query: Query!
+}
+
+input DeleteDatasetExamplesInput {
+  exampleIds: [ID!]!
+  datasetVersionDescription: String
+  datasetVersionMetadata: JSON
+
+  """
+  When provided, every deleted example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
+  """
+  datasetId: ID
+}
+
+input DeleteDatasetInput {
+  datasetId: ID!
+}
+
+input DeleteDatasetLabelsInput {
+  datasetLabelIds: [ID!]!
+}
+
+type DeleteDatasetLabelsMutationPayload {
+  datasetLabels: [DatasetLabel!]!
+}
+
+input DeleteDatasetSplitInput {
+  datasetSplitIds: [ID!]!
+}
+
+type DeleteDatasetSplitsMutationPayload {
+  datasetSplits: [DatasetSplit!]!
+  query: Query!
+}
+
+input DeleteExperimentsInput {
+  experimentIds: [ID!]!
+}
+
+input DeleteGenerativeModelCustomProviderMutationInput {
+  id: ID!
+}
+
+type DeleteGenerativeModelCustomProviderMutationPayload {
+  id: ID!
+  query: Query!
+}
+
+input DeleteModelMutationInput {
+  id: ID!
+}
+
+type DeleteModelMutationPayload {
+  model: GenerativeModel!
+  query: Query!
+}
+
+type DeleteProjectAnnotationsByNamePayload {
+  deletedAnnotationCount: Int!
+  query: Query!
+}
+
+input DeleteProjectAnnotationsInput {
+  projectId: ID!
+  annotationName: String!
+
+  """
+  If provided, only annotations whose timestamp falls within this range are deleted. The end of the range is right-exclusive.
+  """
+  timeRange: TimeRange
+
+  """
+  Which timestamp the time range is applied against. Defaults to the annotation's own creation time.
+  """
+  timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
+}
+
+input DeleteProjectTraceRetentionPolicyInput {
+  id: ID!
+}
+
+input DeletePromptInput {
+  promptId: ID!
+}
+
+input DeletePromptLabelsInput {
+  promptLabelIds: [ID!]!
+}
+
+type DeletePromptMutationPayload {
+  query: Query!
+}
+
+input DeletePromptVersionTagInput {
+  promptVersionTagId: ID!
+}
+
+input DeleteSandboxConfigInput {
+  id: ID!
+}
+
+type DeleteSandboxConfigPayload {
+  deletedId: ID!
+  query: Query!
+}
+
+input DeleteUsersInput {
+  userIds: [ID!]!
+}
+
+type DeleteUsersPayload {
+  userIds: [ID!]!
+}
+
+input DenoConfigInput {
+  language: Language!
+}
+
+input DependenciesInput {
+  packages: [String!]! = []
+}
+
+type DismissExperimentPayload {
+  experiment: Experiment!
+}
+
+type DocumentAnnotation implements Node & Annotation {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+
+  """The metadata associated with the annotation."""
+  metadata: JSON!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The identifier of the annotation."""
+  identifier: String!
+
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
+
+  """The user that produced the annotation."""
+  user: User
+
+  """The position of the annotation in the document."""
+  documentPosition: Int!
+
+  """The span associated with the annotation."""
+  span: Span!
+}
+
+type DocumentAnnotationMutationPayload {
+  documentAnnotations: [DocumentAnnotation!]!
+  query: Query!
+}
+
+"""
+Summarization of retrieval metrics: Average NDCG@K, Average Precision@K, Mean Reciprocal Rank, Hit Rate, etc.
+"""
+type DocumentEvaluationSummary {
+  evaluationName: String!
+  averageNdcg(k: Int): Float
+  countNdcg(k: Int): Int!
+  averagePrecision(k: Int): Float
+  countPrecision(k: Int): Int!
+  meanReciprocalRank: Float
+  countReciprocalRank: Int!
+  hitRate: Float
+  countHit: Int!
+}
+
+"""
+A collection of retrieval metrics computed on a list of document evaluation scores: NDCG@K, Precision@K, Reciprocal Rank, etc.
+"""
+type DocumentRetrievalMetrics {
+  evaluationName: String!
+
+  """
+  Normalized Discounted Cumulative Gain (NDCG) at `k` with log base 2 discounting. If `k` is None, it's set to the length of the scores. If `k` < 1, return 0.0.
+  """
+  ndcg(k: Int): Float
+
+  """
+  Precision at `k`, defined as the fraction of truthy scores among first `k` positions (1-based index). If `k` is None, then it's set to the length of the scores. If `k` < 1, return 0.0.
+  """
+  precision(k: Int): Float
+
+  """
+  Return `1/R` where `R` is the rank of the first hit, i.e. the 1-based index position of first truthy score, e.g. score=1. If a non-finite value (e.g. `NaN`) is encountered before the first (finite) truthy score, then return `NaN`, otherwise if no truthy score is found (or if the count of scores is zero), return 0.0.
+  """
+  reciprocalRank: Float
+
+  """
+  Return 1.0 if any score is truthy (i.e. is a hit), e.g. score=1. Otherwise, return `NaN` if any score is non-finite (e.g. `NaN`), or return 0.0 if all scores are falsy, e.g. all scores are 0.
+  """
+  hit: Float
+}
+
+input E2BConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type E2BDeploymentData {
+  domain: String
+  apiUrl: String
+}
+
+input E2BDeploymentInput {
+  domain: String = null
+  apiUrl: String = null
+}
+
+input EnvVarInput {
+  name: String!
+  secretKey: String!
+}
+
+enum EvalAttr {
+  score
+  label
+}
+
+input EvalResultKey {
+  name: String!
+  attr: EvalAttr!
+}
+
+type EvalWorkItemId {
+  experimentRunId: Int!
+  datasetEvaluatorId: Int!
+}
+
+type EvaluationChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  evaluatorName: String!
+  experimentRunEvaluation: ExperimentRunAnnotation
+  trace: Trace
+  error: String
+}
+
+type EvaluationResult {
+  evaluatorName: String!
+  annotation: ExperimentRunAnnotation
+  trace: Trace
+  error: String
+}
+
+interface Evaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isBuiltin: Boolean!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
+}
+
+enum EvaluatorColumn {
+  name
+  kind
+  createdAt
+  updatedAt
+}
+
+"""A connection to a list of items."""
+type EvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [EvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type EvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Evaluator!
+}
+
+"""The filter key and value for evaluator connections"""
+input EvaluatorFilter {
+  col: EvaluatorFilterColumn!
+  value: String!
+}
+
+enum EvaluatorFilterColumn {
+  name
+}
+
+type EvaluatorInputMapping {
+  literalMapping: JSON!
+  pathMapping: JSON!
+}
+
+input EvaluatorInputMappingInput {
+  literalMapping: JSON!
+  pathMapping: JSON!
+}
+
+enum EvaluatorKind {
+  LLM
+  CODE
+  BUILTIN
+}
+
+input EvaluatorPreviewInput @oneOf {
+  builtInEvaluatorId: ID
+  inlineLlmEvaluator: InlineLLMEvaluatorInput
+  codeEvaluatorId: ID
+  inlineCodeEvaluator: InlineCodeEvaluatorInput
+}
+
+input EvaluatorPreviewItemInput {
+  evaluator: EvaluatorPreviewInput!
+  context: JSON!
+  inputMapping: EvaluatorInputMappingInput!
+}
+
+input EvaluatorPreviewsInput {
+  previews: [EvaluatorPreviewItemInput!]!
+  credentials: [GenerativeCredentialInput!]
+}
+
+type EvaluatorPreviewsPayload {
+  results: [EvaluationResult!]!
+}
+
+"""The sort key and direction for evaluator connections"""
+input EvaluatorSort {
+  col: EvaluatorColumn!
+  dir: SortDir!
+}
+
+interface ExampleRevision {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+}
+
+type Experiment implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  projectName: String
+  description: String
+
+  """
+  Whether the experiment is ephemeral. Ephemeral experiments are automatically deleted after 24 hours.
+  """
+  isEphemeral: Boolean!
+  repetitions: Int!
+  datasetVersion: DatasetVersion!
+  dataset: Dataset!
+  metadata: JSON!
+  isBaseline: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """The user that created the experiment."""
+  user: User
+
+  """Sequence number (1-based) of experiments belonging to the same dataset"""
+  sequenceNumber: Int!
+  runs(first: Int = 50, after: String, sort: ExperimentRunSort): ExperimentRunConnection!
+  runCount: Int!
+
+  """
+  Expected number of experiment runs: dataset examples in scope times repetitions.
+  """
+  expectedRunCount: Int!
+  annotationSummaries: [ExperimentAnnotationSummary!]!
+  errorRate: Float
+  averageRunLatencyMs: Float
+  project: Project
+  lastUpdatedAt: DateTime
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  datasetSplits: DatasetSplitConnection!
+  job: ExperimentJob
+}
+
+type ExperimentAnnotationSummary {
+  annotationName: String!
+  minScore: Float
+  maxScore: Float
+  meanScore: Float
+  count: Int!
+  errorCount: Int!
+  scoreCount: Int!
+  labelCount: Int!
+}
+
+type ExperimentComparison implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  example: DatasetExample!
+  repeatedRunGroups: [ExperimentRepeatedRunGroup!]!
+}
+
+"""A connection to a list of items."""
+type ExperimentComparisonConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentComparisonEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentComparisonEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentComparison!
+}
+
+"""A connection to a list of items."""
+type ExperimentConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Experiment!
+}
+
+type ExperimentJob implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  experiment: Experiment!
+  status: ExperimentJobStatus!
+  createdAt: DateTime!
+
+  """Most recent error from this experiment, or null if no errors."""
+  lastError: ExperimentLog
+
+  """Errors recorded during experiment execution, most recent first."""
+  errors(first: Int = 50, last: Int, after: String, before: String): ExperimentLogConnection!
+  maxConcurrency: Int!
+
+  """
+  Task configuration snapshot. Use to rehydrate the playground with the exact settings used for this experiment.
+  """
+  taskConfig: PromptTaskConfig
+
+  """Dataset evaluators attached to this experiment job."""
+  datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
+}
+
+"""A connection to a list of items."""
+type ExperimentJobConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentJobEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentJobEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentJob!
+}
+
+enum ExperimentJobStatus {
+  RUNNING
+  COMPLETED
+  STOPPED
+  ERROR
+}
+
+type ExperimentLog implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  occurredAt: DateTime!
+  category: ExperimentLogCategory!
+  level: ExperimentLogLevel!
+  message: String!
+  detail: ExperimentLogDetail
+}
+
+enum ExperimentLogCategory {
+  TASK
+  EVAL
+  EXPERIMENT
+}
+
+"""A connection to a list of items."""
+type ExperimentLogConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentLogEdge!]!
+}
+
+union ExperimentLogDetail = FailureDetail | RetriesExhaustedDetail
+
+"""An edge in a connection."""
+type ExperimentLogEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentLog!
+}
+
+enum ExperimentLogLevel {
+  ERROR
+  WARN
+  INFO
+}
+
+union ExperimentLogWorkItemId = TaskWorkItemId | EvalWorkItemId
+
+type ExperimentMutationPayload {
+  experiments: [Experiment!]!
+}
+
+type ExperimentRepeatedRunGroup implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  runs: [ExperimentRun!]!
+  experimentId: ID!
+  averageLatencyMs: Float
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  annotationSummaries: [ExperimentRepeatedRunGroupAnnotationSummary!]!
+}
+
+type ExperimentRepeatedRunGroupAnnotationSummary {
+  annotationName: String!
+  meanScore: Float
+}
+
+type ExperimentRun implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  experimentId: ID!
+  repetitionNumber: Int!
+  traceId: String
+  output: JSON
+  startTime: DateTime!
+  endTime: DateTime!
+  error: String
+  latencyMs: Float!
+  annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
+  trace: Trace
+  example: DatasetExample!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+}
+
+type ExperimentRunAnnotation implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: ExperimentRunAnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+
+  """Error message if the annotation failed to produce a result."""
+  error: String
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """The date and time when the annotation was created."""
+  startTime: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  endTime: DateTime!
+
+  """The identifier of the trace associated with the annotation."""
+  traceId: ID
+
+  """The trace associated with the annotation."""
+  trace: Trace
+}
+
+"""A connection to a list of items."""
+type ExperimentRunAnnotationConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentRunAnnotationEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentRunAnnotationEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentRunAnnotation!
+}
+
+enum ExperimentRunAnnotatorKind {
+  LLM
+  HUMAN
+  CODE
+}
+
+input ExperimentRunColumn @oneOf {
+  metric: ExperimentRunMetric
+  annotationName: String
+}
+
+"""A connection to a list of items."""
+type ExperimentRunConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentRunEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentRunEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentRun!
+}
+
+enum ExperimentRunMetric {
+  latencyMs
+}
+
+type ExperimentRunMetricComparison {
+  """
+  The number of runs in which the base experiment improved on the best run in any compare experiment.
+  """
+  numRunsImproved: Int!
+
+  """
+  The number of runs in which the base experiment regressed on the best run in any compare experiment.
+  """
+  numRunsRegressed: Int!
+
+  """
+  The number of runs in which the base experiment is equal to the best run in any compare experiment.
+  """
+  numRunsEqual: Int!
+
+  """
+  The number of runs in the base experiment that could not be compared, either because the base experiment run was missing a value or because all compare experiment runs were missing values.
+  """
+  numRunsWithoutComparison: Int!
+}
+
+type ExperimentRunMetricComparisons {
+  latency: ExperimentRunMetricComparison!
+  totalTokenCount: ExperimentRunMetricComparison!
+  promptTokenCount: ExperimentRunMetricComparison!
+  completionTokenCount: ExperimentRunMetricComparison!
+  totalCost: ExperimentRunMetricComparison!
+  promptCost: ExperimentRunMetricComparison!
+  completionCost: ExperimentRunMetricComparison!
+}
+
+"""The sort key and direction for experiment run connections"""
+input ExperimentRunSort {
+  col: ExperimentRunColumn!
+  dir: SortDir!
+}
+
+type FailureDetail {
+  workItem: ExperimentLogWorkItemId
+  errorType: String!
+}
+
+type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  annotationType: AnnotationType!
+  optimizationDirection: OptimizationDirection!
+  threshold: Float
+  lowerBound: Float
+  upperBound: Float
+}
+
+input FreeformAnnotationConfigInput {
+  name: String!
+  description: String = null
+  optimizationDirection: OptimizationDirection = null
+  threshold: Float = null
+  lowerBound: Float = null
+  upperBound: Float = null
+}
+
+type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  name: String!
+  arguments: String!
+}
+
+input GenerativeCredentialInput {
+  envVarName: String!
+  value: SecretString!
+}
+
+type GenerativeModel implements Node & ModelInterface {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  providerKey: GenerativeProviderKey
+  provider: String
+  namePattern: String!
+  kind: GenerativeModelKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  startTime: DateTime
+  tokenPrices: [TokenPrice!]!
+  costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  lastUsedAt: DateTime
+}
+
+"""A connection to a list of items."""
+type GenerativeModelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [GenerativeModelEdge!]!
+}
+
+type GenerativeModelCustomProvider implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The name of this provider."""
+  name: String!
+
+  """The description of this provider."""
+  description: String
+
+  """The provider of this provider."""
+  provider: String!
+
+  """The creation timestamp of this provider."""
+  createdAt: DateTime!
+
+  """The last updated timestamp of this provider."""
+  updatedAt: DateTime!
+
+  """The SDK of this provider."""
+  sdk: GenerativeModelSDK!
+
+  """The config of this provider."""
+  config: CustomProviderConfig!
+
+  """The user that created this provider."""
+  user: User
+
+  """The model names available for this provider."""
+  modelNames: [String!]!
+}
+
+"""A connection to a list of items."""
+type GenerativeModelCustomProviderConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [GenerativeModelCustomProviderEdge!]!
+}
+
+"""An edge in a connection."""
+type GenerativeModelCustomProviderEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: GenerativeModelCustomProvider!
+}
+
+input GenerativeModelCustomerProviderConfigInput @oneOf {
+  openai: OpenAICustomProviderConfigInput
+  azureOpenai: AzureOpenAICustomProviderConfigInput
+  anthropic: AnthropicCustomProviderConfigInput
+  awsBedrock: AWSBedrockCustomProviderConfigInput
+  googleGenai: GoogleGenAICustomProviderConfigInput
+}
+
+"""An edge in a connection."""
+type GenerativeModelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: GenerativeModel!
+}
+
+enum GenerativeModelKind {
+  CUSTOM
+  BUILT_IN
+}
+
+enum GenerativeModelSDK {
+  OPENAI
+  AZURE_OPENAI
+  ANTHROPIC
+  AWS_BEDROCK
+  GOOGLE_GENAI
+}
+
+type GenerativeProvider {
+  name: String!
+  key: GenerativeProviderKey!
+  dependencies: [String!]!
+  dependenciesInstalled: Boolean!
+
+  """The credential requirements for the provider"""
+  credentialRequirements: [GenerativeProviderCredentialConfig!]!
+
+  """Whether the credentials are set on the server for the provider"""
+  credentialsSet: Boolean!
+}
+
+type GenerativeProviderCredentialConfig {
+  envVarName: String!
+  isRequired: Boolean!
+}
+
+enum GenerativeProviderKey {
+  OPENAI
+  ANTHROPIC
+  AZURE_OPENAI
+  GOOGLE
+  DEEPSEEK
+  XAI
+  OLLAMA
+  AWS
+  CEREBRAS
+  FIREWORKS
+  GROQ
+  MOONSHOT
+  PERPLEXITY
+  TOGETHER
+}
+
+type GoogleGenAIAuthenticationMethod {
+  apiKey: RedactedString
+}
+
+input GoogleGenAIAuthenticationMethodInput {
+  apiKey: RedactedString!
+}
+
+type GoogleGenAIClientKwargs {
+  httpOptions: GoogleGenAIHttpOptions
+}
+
+input GoogleGenAIClientKwargsInput {
+  httpOptions: GoogleGenAIHttpOptionsInput
+}
+
+type GoogleGenAIConnectionConfig {
+  baseUrl: String
+}
+
+type GoogleGenAICustomProviderConfig {
+  googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
+  googleGenaiClientKwargs: GoogleGenAIClientKwargs
+}
+
+input GoogleGenAICustomProviderConfigInput {
+  googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput!
+  googleGenaiClientKwargs: GoogleGenAIClientKwargsInput
+}
+
+type GoogleGenAIHttpOptions {
+  baseUrl: String
+  headers: JSON
+}
+
+input GoogleGenAIHttpOptionsInput {
+  baseUrl: String
+  headers: JSON
+}
+
+enum GoogleThinkingLevel {
+  MINIMAL
+  LOW
+  MEDIUM
+  HIGH
+}
+
+scalar Identifier
+
+input InlineCodeEvaluatorInput {
+  name: String!
+  language: Language!
+  sourceCode: String!
+  outputConfigs: [AnnotationConfigInput!]!
+  sandboxConfigId: ID = null
+  description: String = null
+}
+
+input InlineLLMEvaluatorInput {
+  name: String!
+  promptVersion: ChatPromptVersionInput!
+  outputConfigs: [AnnotationConfigInput!]!
+  description: String = null
+}
+
+enum InternetAccessChoice {
+  ALLOW
+  DENY
+}
+
+input InternetAccessInput {
+  mode: InternetAccessChoice!
+}
+
+enum InternetAccessMode {
+  NONE
+  BOOLEAN
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
+"""
+scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
+
+type LLMEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isBuiltin: Boolean!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  prompt: Prompt!
+  promptVersionTag: PromptVersionTag
+  inputSchema: JSON
+  user: User
+  promptVersion: PromptVersion!
+}
+
+type LabelFraction {
+  label: String!
+  fraction: Float!
+}
+
+enum Language {
+  PYTHON
+  TYPESCRIPT
+}
+
+enum MimeType {
+  text
+  json
+}
+
+input ModalConfigInput {
+  language: Language! = PYTHON
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+interface ModelInterface {
+  name: String!
+  providerKey: GenerativeProviderKey
+}
+
+enum ModelProvider {
+  OPENAI
+  AZURE_OPENAI
+  ANTHROPIC
+  GOOGLE
+  DEEPSEEK
+  XAI
+  OLLAMA
+  AWS
+  CEREBRAS
+  FIREWORKS
+  GROQ
+  MOONSHOT
+  PERPLEXITY
+  TOGETHER
+}
+
+input ModelsInput {
+  providerKey: GenerativeProviderKey
+  modelName: String = null
+  openaiApiType: OpenAIApiType = null
+}
+
+type Mutation {
+  createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
+  updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
+  deleteAnnotationConfigs(input: DeleteAnnotationConfigsInput!): DeleteAnnotationConfigsPayload!
+  addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
+  removeAnnotationConfigFromProject(input: [RemoveAnnotationConfigFromProjectInput!]!): RemoveAnnotationConfigFromProjectPayload!
+  createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
+  createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
+  deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
+  deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
+  evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewsPayload!
+  createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
+  deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
+  setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
+  createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
+  patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
+  addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
+  addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
+  deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
+  patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
+  deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
+  createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
+  patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
+  deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
+  setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
+
+  """
+  Batch form of setDatasetExampleSplits: replaces the split membership of every listed example in a single transaction, so a failure on any example leaves no partial assignment.
+  """
+  setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
+  createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+  createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
+  patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
+  deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
+  createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
+  createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createDatasetCodeEvaluator(input: CreateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetCodeEvaluator(input: UpdateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+  patchCodeEvaluator(input: PatchCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+
+  """
+  Append a new immutable CodeEvaluatorVersion. If source_code matches the current tip, no row is appended and was_created=false.
+  """
+  createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
+  stopExperiment(experimentId: ID!): StopExperimentPayload!
+  resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
+  dismissExperiment(experimentId: ID!): DismissExperimentPayload!
+  reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
+  patchExperiment(input: PatchExperimentInput!): PatchExperimentPayload!
+  setExperimentBaseline(experimentId: ID!, baseline: Boolean!): SetExperimentBaselinePayload!
+  deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
+  createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
+  patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
+  testGenerativeModelCustomProviderCredentials(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderCredentialsResult!
+  deleteGenerativeModelCustomProvider(input: DeleteGenerativeModelCustomProviderMutationInput!): DeleteGenerativeModelCustomProviderMutationPayload!
+  createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
+  updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
+  deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+
+  """
+  Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSpanAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every trace annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectTraceAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+  createProject(input: CreateProjectInput!): ProjectMutationPayload!
+  deleteProject(id: ID!): Query!
+  clearProject(input: ClearProjectInput!): Query!
+  patchProject(input: PatchProjectInput!): ProjectMutationPayload!
+  createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  patchProjectTraceRetentionPolicy(input: PatchProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  deleteProjectTraceRetentionPolicy(input: DeleteProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  createChatPrompt(input: CreateChatPromptInput!): Prompt!
+  createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
+  deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
+  clonePrompt(input: ClonePromptInput!): Prompt!
+  patchPrompt(input: PatchPromptInput!): Prompt!
+  deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
+  setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
+  createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
+  patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
+  deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
+  setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
+  updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
+  deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
+  updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
+  upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
+  createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
+  createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
+  patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
+  deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
+  setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
+  setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
+  createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
+  createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
+  patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
+  deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
+  deleteTraces(traceIds: [ID!]!): Query!
+  transferTracesToProject(traceIds: [ID!]!, projectId: ID!): Query!
+  createUser(input: CreateUserInput!): UserMutationPayload!
+  patchUser(input: PatchUserInput!): UserMutationPayload!
+  patchViewer(input: PatchViewerInput!): UserMutationPayload!
+  deleteUsers(input: DeleteUsersInput!): DeleteUsersPayload!
+}
+
+"""An object with a Globally Unique ID"""
+interface Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+}
+
+enum OpenAIApiType {
+  """
+  OpenAI Chat Completions API. Only function tools are supported; built-in tools (web_search etc.) are not.
+  """
+  CHAT_COMPLETIONS
+
+  """
+  OpenAI Responses API. Accepts both function tools and built-in tools (web_search, file_search, computer_use_preview, ...) as vendor passthrough.
+  """
+  RESPONSES
+}
+
+type OpenAIAuthenticationMethod {
+  apiKey: RedactedString
+}
+
+input OpenAIAuthenticationMethodInput {
+  apiKey: RedactedString!
+}
+
+type OpenAIClientKwargs {
+  baseUrl: String
+  organization: String
+  project: String
+  defaultHeaders: JSON
+}
+
+input OpenAIClientKwargsInput {
+  baseUrl: String
+  organization: String
+  project: String
+  defaultHeaders: JSON
+}
+
+type OpenAIConnectionConfig {
+  baseUrl: String
+  organization: String
+  project: String
+  openaiApiType: OpenAIApiType!
+}
+
+type OpenAICustomProviderConfig {
+  openaiAuthenticationMethod: OpenAIAuthenticationMethod!
+  openaiClientKwargs: OpenAIClientKwargs
+  openaiApiType: OpenAIApiType!
+}
+
+input OpenAICustomProviderConfigInput {
+  openaiAuthenticationMethod: OpenAIAuthenticationMethodInput!
+  openaiClientKwargs: OpenAIClientKwargsInput
+  openaiApiType: OpenAIApiType = RESPONSES
+}
+
+enum OpenAIReasoningEffort {
+  NONE
+  MINIMAL
+  LOW
+  MEDIUM
+  HIGH
+  XHIGH
+}
+
+enum OptimizationDirection {
+  MINIMIZE
+  MAXIMIZE
+  NONE
+}
+
+"""Information to aid in pagination."""
+type PageInfo {
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+
+  """When paginating backwards, the cursor to continue."""
+  startCursor: String
+
+  """When paginating forwards, the cursor to continue."""
+  endCursor: String
+}
+
+input PatchAnnotationInput {
+  annotationId: ID!
+  name: String
+  annotatorKind: AnnotatorKind
+  label: String
+  score: Float
+  explanation: String
+  metadata: JSON
+  identifier: String
+  source: AnnotationSource
+}
+
+input PatchCodeEvaluatorInput {
+  id: ID!
+  name: Identifier
+  description: String
+  sandboxConfigId: ID
+  inputMapping: EvaluatorInputMappingInput
+  outputConfigs: [AnnotationConfigInput!]
+}
+
+input PatchDatasetExamplesInput {
+  patches: [DatasetExamplePatch!]!
+  versionDescription: String
+  versionMetadata: JSON
+
+  """
+  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
+  """
+  datasetId: ID
+}
+
+input PatchDatasetInput {
+  datasetId: ID!
+  name: String
+  description: String
+  metadata: JSON
+}
+
+input PatchDatasetSplitInput {
+  datasetSplitId: ID!
+  name: String
+  description: String
+  color: String
+  metadata: JSON
+}
+
+input PatchExperimentInput {
+  experimentId: ID!
+  name: String
+  description: String
+  metadata: JSON
+}
+
+type PatchExperimentPayload {
+  experiment: Experiment!
+}
+
+input PatchGenerativeModelCustomProviderMutationInput {
+  id: ID!
+  name: String
+  description: String
+  provider: String
+  clientConfig: GenerativeModelCustomerProviderConfigInput
+}
+
+type PatchGenerativeModelCustomProviderMutationPayload {
+  provider: GenerativeModelCustomProvider!
+  query: Query!
+}
+
+input PatchProjectInput {
+  id: ID!
+  description: String
+  gradientStartColor: String
+  gradientEndColor: String
+}
+
+input PatchProjectTraceRetentionPolicyInput {
+  id: ID!
+  name: String
+  cronExpression: CronExpression
+  rule: ProjectTraceRetentionRuleInput
+  addProjects: [ID!]
+  removeProjects: [ID!]
+}
+
+input PatchPromptInput {
+  promptId: ID!
+  description: String
+  metadata: JSON
+}
+
+input PatchPromptLabelInput {
+  promptLabelId: ID!
+  name: String = null
+  description: String = null
+}
+
+input PatchUserInput {
+  userId: ID!
+  newRole: UserRoleInput
+  newUsername: String
+  newPassword: String
+}
+
+input PatchViewerInput {
+  newUsername: String
+  newPassword: String
+  currentPassword: String
+}
+
+type PlaygroundConfig {
+  templateVariablesPath: String
+  appendedMessagesPath: String
+}
+
+input PlaygroundEvaluatorInput {
+  id: ID!
+  name: Identifier!
+  description: String = null
+  inputMapping: EvaluatorInputMappingInput!
+  outputConfigs: [AnnotationConfigInput!] = null
+}
+
+type PlaygroundModel implements ModelInterface {
+  name: String!
+  providerKey: GenerativeProviderKey!
+}
+
+type Project implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  gradientStartColor: String!
+  gradientEndColor: String!
+  startTime: DateTime
+  endTime: DateTime
+
+  """Whether the project has any trace data."""
+  hasTraces: Boolean!
+  recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
+  traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
+  tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
+  tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
+  tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
+  costSummary(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): SpanCostSummary!
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
+  trace(traceId: ID!): Trace
+  spans(timeRange: TimeRange, first: Int!, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
+
+  """
+  Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Int!
+
+  """
+  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  averageSessionDurationMs(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+
+  """
+  Average number of traces (e.g. conversation turns) per session, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  averageTracesPerSession(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+
+  """
+  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+
+  """
+  Names of all available annotations for traces. (The list contains no duplicates.)
+  """
+  traceAnnotationsNames: [String!]!
+
+  """
+  Names of all available annotations for spans. (The list contains no duplicates.)
+  """
+  spanAnnotationNames: [String!]!
+
+  """
+  Names of all available annotations for sessions. (The list contains no duplicates.)
+  """
+  sessionAnnotationNames: [String!]!
+
+  """
+  Span annotation names along with the number of span annotations that have been added for each name in this project.
+  """
+  spanAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Trace annotation names along with the number of trace annotations that have been added for each name in this project.
+  """
+  traceAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Session annotation names along with the number of session annotations that have been added for each name in this project.
+  """
+  sessionAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """Names of available document evaluations."""
+  documentEvaluationNames(spanId: ID): [String!]!
+  traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
+  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
+
+  """
+  Summary (score and label fractions) of a session annotation across the project's sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String): AnnotationSummary
+  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
+  streamingLastUpdatedAt: DateTime
+  validateSpanFilterCondition(condition: String!): ValidationResult!
+  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
+  traceRetentionPolicy: ProjectTraceRetentionPolicy!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, filterCondition: String): SpanCountTimeSeries!
+  traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
+  traceCountByStatusTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountByStatusTimeSeries!
+  traceLatencyMsPercentileTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceLatencyPercentileTimeSeries!
+  traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
+  traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
+  spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
+  topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
+}
+
+enum ProjectColumn {
+  name
+  endTime
+}
+
+"""A connection to a list of items."""
+type ProjectConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Project!
+}
+
+"""The filter key and value for project connections"""
+input ProjectFilter {
+  col: ProjectFilterColumn!
+  value: String!
+}
+
+enum ProjectFilterColumn {
+  name
+}
+
+type ProjectMutationPayload {
+  project: Project!
+  query: Query!
+}
+
+type ProjectSession implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  sessionId: String!
+  startTime: DateTime!
+  endTime: DateTime!
+  project: Project!
+  numTraces: Int!
+  numTracesWithError: Int!
+  firstInput: SpanIOValue
+  lastOutput: SpanIOValue
+  tokenUsage: TokenUsage!
+  traces(first: Int!, last: Int, after: String, before: String): TraceConnection!
+  traceLatencyMsQuantile(probability: Float!): Float
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  sessionAnnotations: [ProjectSessionAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the session"""
+  sessionAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
+}
+
+enum ProjectSessionAnnoAttr {
+  score
+  label
+}
+
+input ProjectSessionAnnoResultKey {
+  name: String!
+  attr: ProjectSessionAnnoAttr!
+}
+
+type ProjectSessionAnnotation implements Node & Annotation {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The identifier of the annotation."""
+  identifier: String!
+
+  """The date and time the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time the annotation was last updated."""
+  updatedAt: DateTime!
+
+  """The user that produced the annotation."""
+  user: User
+
+  """The project session associated with the annotation."""
+  projectSessionId: ID!
+
+  """The project session associated with the annotation."""
+  projectSession: ProjectSession!
+}
+
+type ProjectSessionAnnotationMutationPayload {
+  projectSessionAnnotation: ProjectSessionAnnotation!
+  query: Query!
+}
+
+enum ProjectSessionColumn {
+  startTime
+  endTime
+  tokenCountTotal
+  numTraces
+  costTotal
+}
+
+"""A connection to a list of items."""
+type ProjectSessionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectSessionEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectSessionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectSession!
+}
+
+"""The sort key and direction for ProjectSession connections."""
+input ProjectSessionSort {
+  col: ProjectSessionColumn
+  annoResultKey: ProjectSessionAnnoResultKey
+  dir: SortDir!
+}
+
+"""The sort key and direction for project connections"""
+input ProjectSort {
+  col: ProjectColumn!
+  dir: SortDir!
+}
+
+type ProjectTraceRetentionPolicy implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  cronExpression: CronExpression!
+  rule: TraceRetentionRule!
+  projects(first: Int = 100, last: Int, after: String, before: String): ProjectConnection!
+}
+
+"""A connection to a list of items."""
+type ProjectTraceRetentionPolicyConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectTraceRetentionPolicyEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectTraceRetentionPolicyEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectTraceRetentionPolicy!
+}
+
+type ProjectTraceRetentionPolicyMutationPayload {
+  query: Query!
+  node: ProjectTraceRetentionPolicy!
+}
+
+input ProjectTraceRetentionRuleInput @oneOf {
+  maxDays: ProjectTraceRetentionRuleMaxDaysInput
+  maxCount: ProjectTraceRetentionRuleMaxCountInput
+  maxDaysOrCount: ProjectTraceRetentionRuleMaxDaysOrCountInput
+}
+
+input ProjectTraceRetentionRuleMaxCountInput {
+  maxCount: Int!
+}
+
+input ProjectTraceRetentionRuleMaxDaysInput {
+  maxDays: Float!
+}
+
+input ProjectTraceRetentionRuleMaxDaysOrCountInput {
+  maxDays: Float!
+  maxCount: Int!
+}
+
+type Prompt implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  sourcePromptId: ID
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+  version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
+  versionCount: Int!
+  versionTags: [PromptVersionTag!]!
+  promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
+  sourcePrompt: Prompt
+  labels: [PromptLabel!]!
+}
+
+type PromptAnthropicInvocationParameters {
+  maxTokens: Int!
+  temperature: Float
+  topP: Float
+  stopSequences: [String!]
+  outputConfig: PromptAnthropicOutputConfig
+  thinking: PromptAnthropicThinkingConfig
+  extraBody: JSON
+}
+
+input PromptAnthropicInvocationParametersInput {
+  maxTokens: Int!
+  temperature: Float = null
+  topP: Float = null
+  stopSequences: [String!] = null
+  outputConfig: PromptAnthropicOutputConfigInput = null
+  thinking: PromptAnthropicThinkingConfigInput = null
+  extraBody: JSON = null
+}
+
+type PromptAnthropicOutputConfig {
+  effort: AnthropicOutputConfigEffort
+}
+
+input PromptAnthropicOutputConfigInput {
+  effort: AnthropicOutputConfigEffort = null
+}
+
+type PromptAnthropicThinkingAdaptive {
+  display: AnthropicThinkingDisplay
+}
+
+union PromptAnthropicThinkingConfig = PromptAnthropicThinkingDisabled | PromptAnthropicThinkingEnabled | PromptAnthropicThinkingAdaptive
+
+input PromptAnthropicThinkingConfigInput @oneOf {
+  disabled: AnthropicThinkingDisabledMarkerInput
+  enabled: AnthropicThinkingEnabledInput
+  adaptive: AnthropicThinkingAdaptiveInput
+}
+
+type PromptAnthropicThinkingDisabled {
+  disabled: Boolean!
+}
+
+type PromptAnthropicThinkingEnabled {
+  budgetTokens: Int!
+  display: AnthropicThinkingDisplay
+}
+
+type PromptAwsInvocationParameters {
+  maxTokens: Int
+  temperature: Float
+  topP: Float
+  stopSequences: [String!]
+}
+
+input PromptAwsInvocationParametersInput {
+  maxTokens: Int = null
+  temperature: Float = null
+  topP: Float = null
+  stopSequences: [String!] = null
+}
+
+type PromptChatTemplate {
+  messages: [PromptMessage!]!
+}
+
+input PromptChatTemplateInput {
+  messages: [PromptMessageInput!]!
+}
+
+type PromptConfig {
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  tools: PromptTools
+  responseFormat: PromptResponseFormatJSONSchema
+  invocationParameters: PromptInvocationParameters!
+
+  """The model provider (OPENAI, ANTHROPIC, etc.)"""
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  promptVersion: PromptVersion
+}
+
+"""A connection to a list of items."""
+type PromptConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Prompt!
+}
+
+"""The filter key and value for prompt connections"""
+input PromptFilter {
+  col: PromptFilterColumn!
+  value: String!
+}
+
+enum PromptFilterColumn {
+  name
+}
+
+type PromptGoogleInvocationParameters {
+  temperature: Float
+  maxOutputTokens: Int
+  stopSequences: [String!]
+  presencePenalty: Float
+  frequencyPenalty: Float
+  topP: Float
+  topK: Int
+  thinkingConfig: PromptGoogleThinkingConfig
+}
+
+input PromptGoogleInvocationParametersInput {
+  temperature: Float = null
+  maxOutputTokens: Int = null
+  stopSequences: [String!] = null
+  presencePenalty: Float = null
+  frequencyPenalty: Float = null
+  topP: Float = null
+  topK: Int = null
+  thinkingConfig: PromptGoogleThinkingConfigInput = null
+}
+
+type PromptGoogleThinkingConfig {
+  thinkingBudget: Int
+  thinkingLevel: GoogleThinkingLevel
+  includeThoughts: Boolean
+}
+
+input PromptGoogleThinkingConfigInput {
+  thinkingBudget: Int = null
+  thinkingLevel: GoogleThinkingLevel = null
+  includeThoughts: Boolean = null
+}
+
+union PromptInvocationParameters = PromptOpenAIInvocationParameters | PromptAnthropicInvocationParameters | PromptGoogleInvocationParameters | PromptAwsInvocationParameters
+
+input PromptInvocationParametersInput @oneOf {
+  openai: PromptOpenAIInvocationParametersInput
+  anthropic: PromptAnthropicInvocationParametersInput
+  google: PromptGoogleInvocationParametersInput
+  aws: PromptAwsInvocationParametersInput
+}
+
+type PromptLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  color: String
+
+  """The number of prompts that this label is applied to."""
+  usageCount: Int!
+}
+
+type PromptLabelAssociationMutationPayload {
+  query: Query!
+}
+
+"""A connection to a list of items."""
+type PromptLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptLabelEdge!]!
+}
+
+type PromptLabelDeleteMutationPayload {
+  deletedPromptLabelIds: [ID!]!
+  query: Query!
+}
+
+"""An edge in a connection."""
+type PromptLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: PromptLabel!
+}
+
+type PromptLabelMutationPayload {
+  promptLabels: [PromptLabel!]!
+  query: Query!
+}
+
+type PromptMessage {
+  role: PromptMessageRole!
+  content: [ContentPart!]!
+}
+
+input PromptMessageInput {
+  role: PromptMessageRole!
+  content: [ContentPartInput!]!
+}
+
+enum PromptMessageRole {
+  USER
+  SYSTEM
+  AI
+  TOOL
+}
+
+type PromptOpenAIInvocationParameters {
+  temperature: Float
+  maxTokens: Int
+  maxCompletionTokens: Int
+  frequencyPenalty: Float
+  presencePenalty: Float
+  topP: Float
+  seed: Int
+  stop: [String!]
+  reasoningEffort: OpenAIReasoningEffort
+  extraBody: JSON
+}
+
+input PromptOpenAIInvocationParametersInput {
+  temperature: Float = null
+  maxTokens: Int = null
+  maxCompletionTokens: Int = null
+  frequencyPenalty: Float = null
+  presencePenalty: Float = null
+  topP: Float = null
+  seed: Int = null
+  stop: [String!] = null
+  reasoningEffort: OpenAIReasoningEffort = null
+  extraBody: JSON = null
+}
+
+type PromptResponseFormatJSONSchema {
+  jsonSchema: PromptResponseFormatJSONSchemaDefinition!
+}
+
+type PromptResponseFormatJSONSchemaDefinition {
+  name: String!
+  description: String
+  schema: JSON
+  strict: Boolean
+}
+
+input PromptResponseFormatJSONSchemaDefinitionInput {
+  name: String!
+  description: String = null
+  schema: JSON = null
+  strict: Boolean = null
+}
+
+input PromptResponseFormatJSONSchemaInput {
+  type: String!
+  jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput!
+}
+
+type PromptStringTemplate {
+  template: String!
+}
+
+type PromptTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  prompt: PromptConfig!
+  connection: ConnectionConfig
+  playgroundConfig: PlaygroundConfig
+  streamModelOutput: Boolean!
+
+  """
+  The custom provider used by this experiment, if any. Resolved from the task config's connection.
+  """
+  customProvider: GenerativeModelCustomProvider
+}
+
+union PromptTemplate = PromptStringTemplate | PromptChatTemplate
+
+enum PromptTemplateFormat {
+  MUSTACHE
+  F_STRING
+  NONE
+}
+
+input PromptTemplateOptions {
+  variables: JSON!
+  format: PromptTemplateFormat!
+}
+
+enum PromptTemplateType {
+  STRING
+  CHAT
+}
+
+type PromptToolChoice {
+  type: PromptToolChoiceType!
+  functionName: String
+}
+
+input PromptToolChoiceInput @oneOf {
+  none: Boolean
+  zeroOrMore: Boolean
+  oneOrMore: Boolean
+  functionName: String
+}
+
+enum PromptToolChoiceType {
+  NONE
+  ZERO_OR_MORE
+  ONE_OR_MORE
+  SPECIFIC_FUNCTION
+}
+
+"""
+A normalized function tool: a JSON-Schema-typed function the model can call by name. Phoenix knows the shape of `function` and converts it to each provider's native function-tool format at request time.
+"""
+type PromptToolFunction {
+  function: PromptToolFunctionDefinition!
+}
+
+type PromptToolFunctionDefinition {
+  name: String!
+  description: String
+  parameters: JSON!
+  strict: Boolean
+}
+
+input PromptToolFunctionDefinitionInput {
+  name: String!
+  description: String = null
+  parameters: JSON = null
+  strict: Boolean = null
+}
+
+union PromptToolFunctionPromptToolRaw = PromptToolFunction | PromptToolRaw
+
+"""
+A single tool on a prompt — set exactly one of `function` or `raw`. `function` is a normalized JSON-Schema-typed function tool that Phoenix converts to each provider's native format. `raw` is a vendor passthrough tool: an opaque JSON object forwarded to the provider SDK as-is (e.g. OpenAI Responses `web_search`, Anthropic `computer_use`).
+"""
+input PromptToolInput @oneOf {
+  """
+  Normalized function tool — provider-agnostic, converted at request time.
+  """
+  function: PromptToolFunctionDefinitionInput
+
+  """Vendor passthrough tool — opaque JSON forwarded to the provider SDK."""
+  raw: JSON
+}
+
+"""
+A vendor passthrough tool: an opaque JSON object that Phoenix forwards to the target provider SDK without normalization. Used for built-in tools like OpenAI Responses' `web_search`, Anthropic's `computer_use`, or any provider-specific tool whose shape Phoenix doesn't model.
+"""
+type PromptToolRaw {
+  raw: JSON!
+}
+
+type PromptTools {
+  tools: [PromptToolFunctionPromptToolRaw!]!
+  toolChoice: PromptToolChoice
+  disableParallelToolCalls: Boolean
+}
+
+input PromptToolsInput {
+  tools: [PromptToolInput!]!
+  toolChoice: PromptToolChoiceInput = null
+  disableParallelToolCalls: Boolean = null
+}
+
+type PromptVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  description: String
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  invocationParameters: PromptInvocationParameters!
+  tools: PromptTools
+  responseFormat: PromptResponseFormatJSONSchema
+  modelName: String!
+  modelProvider: ModelProvider!
+  metadata: JSON!
+  createdAt: DateTime!
+  tags: [PromptVersionTag!]!
+  user: User
+  customProvider: GenerativeModelCustomProvider
+  previousVersion: PromptVersion
+
+  """
+  Sequence number (1-based) of prompt versions belonging to the same prompt
+  """
+  sequenceNumber: Int!
+  isLatest: Boolean!
+}
+
+"""A connection to a list of items."""
+type PromptVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: PromptVersion!
+}
+
+type PromptVersionTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  promptVersionId: ID!
+  name: Identifier!
+  description: String
+  user: User
+}
+
+type PromptVersionTagMutationPayload {
+  promptVersionTag: PromptVersionTag
+  prompt: Prompt!
+  query: Query!
+}
+
+type Query {
+  modelProviders: [GenerativeProvider!]!
+  generativeModelCustomProviders(first: Int = 50, last: Int, after: String, before: String): GenerativeModelCustomProviderConnection!
+  secrets(keys: [String!] = null, first: Int = 50, last: Int, after: String, before: String): SecretConnection!
+  generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
+  playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
+  users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
+  userRoles: [UserRole!]!
+  userApiKeys: [UserApiKey!]!
+  systemApiKeys: [SystemApiKey!]!
+  projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
+  projectsLastUpdatedAt: DateTime
+  datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort, filter: DatasetFilter): DatasetConnection!
+  datasetsLastUpdatedAt: DateTime
+  compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
+  experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
+  validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
+  node(id: ID!): Node!
+  viewer: User
+  prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
+  promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
+  datasetLabels(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+
+    """
+    When provided, return only labels whose name exactly matches one of the given names — a lookup that avoids paging through the entire instance-wide vocabulary.
+    """
+    names: [String!]
+  ): DatasetLabelConnection!
+  datasetSplits(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+
+    """
+    When provided, return only splits whose name exactly matches one of the given names — a lookup that avoids paging through the entire instance-wide vocabulary.
+    """
+    names: [String!]
+  ): DatasetSplitConnection!
+  builtInEvaluators: [BuiltInEvaluator!]!
+  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
+  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
+  classificationEvaluatorConfigs(labels: [String!]): [ClassificationEvaluatorConfig!]!
+  defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
+  projectTraceRetentionPolicies(first: Int = 100, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
+
+  """
+  The allocated storage capacity of the database in bytes. Return None if this information is unavailable.
+  """
+  dbStorageCapacityBytes: Float
+  dbTableStats: [DbTableStats!]!
+  serverStatus: ServerStatus!
+  agentsConfig: AgentsConfig!
+
+  """The assistant skills available given the supplied UI context."""
+  availableAgentSkills(input: AvailableAgentSkillsInput): [AgentSkill!]!
+  validateRegularExpression(regex: String!): ValidationResult!
+  getSpanByOtelId(spanId: String!): Span
+  getTraceByOtelId(traceId: String!): Trace
+  getProjectByName(name: String!): Project
+  getProjectSessionById(sessionId: String!): ProjectSession
+  getDatasetExampleByExternalId(datasetId: ID!, externalId: String!): DatasetExample
+  applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
+  projectCount: Int!
+  datasetCount: Int!
+  promptCount: Int!
+  evaluatorCount: Int!
+  sandboxBackends: [SandboxBackendInfo!]!
+  sandboxProviders: [SandboxProvider!]!
+}
+
+"""
+A string that is automatically redacted on output and un-redacted on input. Values are symmetrically encrypted with a key derived from PHOENIX_SECRET; tokens remain valid across replicas and restarts as long as the secret is unchanged.
+"""
+scalar RedactedString
+
+type ReinstateExperimentPayload {
+  experiment: Experiment!
+}
+
+input RemoveAnnotationConfigFromProjectInput {
+  projectId: ID!
+  annotationConfigId: ID!
+}
+
+type RemoveAnnotationConfigFromProjectPayload {
+  query: Query!
+  project: Project!
+}
+
+union ResolvedSecret = DecryptedSecret | UnparsableSecret
+
+type ResumeExperimentPayload {
+  job: ExperimentJob!
+}
+
+type RetriesExhaustedDetail {
+  workItem: ExperimentLogWorkItemId
+  retryCount: Int!
+  reason: String!
+}
+
+enum RevisionKind {
+  CREATE
+  PATCH
+  DELETE
+}
+
+type SandboxBackendInfo {
+  backendType: SandboxBackendType!
+  displayName: String!
+  hostingType: SandboxHostingType!
+  supportedLanguages: [Language!]!
+  status: SandboxBackendStatus!
+  statusDetail: String
+  dependencyHints: [String!]!
+  supportsEnvVars: Boolean!
+  internetAccess: InternetAccessMode!
+  supportsDependencies: Boolean!
+  credentialSpecs: [SandboxProviderCredentialSpec!]!
+}
+
+enum SandboxBackendStatus {
+  AVAILABLE
+  MISSING_CREDENTIALS
+  UNAVAILABLE
+  NOT_INSTALLED
+  DISABLED
+}
+
+enum SandboxBackendType {
+  WASM
+  E2B
+  DAYTONA
+  VERCEL
+  DENO
+  MODAL
+}
+
+type SandboxConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  language: Language!
+  config: SandboxConfigData!
+
+  """
+  Execution timeout in seconds (includes package install on ephemeral calls).
+  """
+  timeout: Int!
+  enabled: Boolean!
+  provider: SandboxProvider!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+}
+
+type SandboxConfigData {
+  envVars: [SandboxConfigEnvVar!]!
+  internetAccess: SandboxConfigInternetAccess
+  dependencies: SandboxConfigDependencies
+}
+
+type SandboxConfigDependencies {
+  packages: [String!]!
+}
+
+type SandboxConfigEnvVar {
+  name: String!
+  secretKey: String!
+}
+
+type SandboxConfigInternetAccess {
+  mode: InternetAccessChoice!
+}
+
+input SandboxConfigVariantInput @oneOf {
+  e2b: E2BConfigInput
+  daytona: DaytonaConfigInput
+  deno: DenoConfigInput
+  vercel: VercelConfigInput
+  wasm: WASMConfigInput
+  modal: ModalConfigInput
+}
+
+"""
+Admin-scoped deployment routing for a sandbox provider. Only providers that expose routing kwargs on their SDK ``create()`` appear in this union; others (WASM, Deno, Vercel, Modal) expose ``deployment: null``.
+"""
+union SandboxDeployment = DaytonaDeploymentData | E2BDeploymentData
+
+input SandboxDeploymentVariantInput @oneOf {
+  daytona: DaytonaDeploymentInput
+  e2b: E2BDeploymentInput
+}
+
+enum SandboxHostingType {
+  LOCAL
+  HOSTED
+}
+
+type SandboxProvider implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  backendType: SandboxBackendType!
+  supportedLanguages: [Language!]!
+  enabled: Boolean!
+
+  """
+  Admin-scoped deployment routing parsed from the stored ``SandboxProvider.config`` JSON. Returns ``null`` for providers whose SDK has no routing kwargs (WASM, Deno, Vercel, Modal) or when the stored blob is empty.
+  """
+  deployment: SandboxDeployment
+  configs: [SandboxConfig!]!
+  updatedAt: DateTime!
+  user: User
+}
+
+type SandboxProviderCredentialSpec {
+  key: String!
+  displayName: String!
+  description: String!
+  isRequired: Boolean!
+}
+
+type Secret implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  key: String!
+  value: ResolvedSecret!
+  updatedAt: DateTime!
+  user: User
+}
+
+"""A connection to a list of items."""
+type SecretConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [SecretEdge!]!
+}
+
+"""An edge in a connection."""
+type SecretEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Secret!
+}
+
+input SecretKeyValueInput {
+  key: String!
+
+  """The value of the secret. If null, the secret will be deleted."""
+  value: String
+}
+
+"""A secret string value."""
+scalar SecretString
+
+type ServerStatus {
+  insufficientStorage: Boolean!
+}
+
+input SetAgentAssistantEnabledInput {
+  enabled: Boolean!
+}
+
+input SetAgentTraceRecordingInput {
+  allowLocalTraces: Boolean!
+  allowRemoteExport: Boolean!
+}
+
+input SetDatasetExampleSplitsInput {
+  exampleId: ID!
+  datasetSplitIds: [ID!]!
+}
+
+type SetDatasetExampleSplitsMutationPayload {
+  query: Query!
+  example: DatasetExample!
+}
+
+input SetDatasetExamplesSplitsInput {
+  exampleIds: [ID!]!
+  datasetSplitIds: [ID!]!
+
+  """
+  When provided, every example must belong to this dataset or the whole mutation is rejected — lets callers scope a batch write to the dataset they believe they are editing.
+  """
+  datasetId: ID
+}
+
+type SetDatasetExamplesSplitsMutationPayload {
+  query: Query!
+  examples: [DatasetExample!]!
+}
+
+input SetDatasetLabelsInput {
+  datasetId: ID!
+  datasetLabelIds: [ID!]!
+}
+
+type SetDatasetLabelsMutationPayload {
+  query: Query!
+  dataset: Dataset!
+}
+
+type SetExperimentBaselinePayload {
+  experiment: Experiment!
+  previousBaselineExperiment: Experiment
+}
+
+input SetPromptLabelsInput {
+  promptId: ID!
+  promptLabelIds: [ID!]!
+}
+
+input SetPromptVersionTagInput {
+  promptVersionId: ID!
+  name: Identifier!
+  description: String = null
+}
+
+enum ShapeExamplesLanguage {
+  PYTHON
+  TYPESCRIPT
+}
+
+enum ShapeExamplesMode {
+  FULL
+  CURATED
+}
+
+enum SortDir {
+  asc
+  desc
+}
+
+type Span implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  statusCode: SpanStatusCode!
+  statusMessage: String!
+  startTime: DateTime!
+  endTime: DateTime
+  latencyMs: Float
+
+  """the parent span ID. If null, it is a root span"""
+  parentId: ID
+  spanKind: SpanKind!
+  spanId: ID!
+  trace: Trace!
+  context: SpanContext!
+
+  """Span attributes as a JSON string"""
+  attributes: String!
+
+  """Metadata as a JSON string"""
+  metadata: String
+  numDocuments: Int
+
+  """
+  Total LLM token count for this span only (prompt plus completion). Typically populated on LLM spans.
+  """
+  tokenCountTotal: Int
+
+  """
+  Prompt token count for this span only. Typically populated on LLM spans.
+  """
+  tokenCountPrompt: Int
+
+  """
+  Completion token count for this span only. Typically populated on LLM spans.
+  """
+  tokenCountCompletion: Int
+
+  """
+  Breakdown of this span's prompt tokens by kind (e.g., cache reads, cache writes, audio). These counts are a decomposition of `tokenCountPrompt`, not additive on top of it, and are typically used for cost analysis.
+  """
+  tokenPromptDetails: TokenCountPromptDetails!
+  input: SpanIOValue
+  output: SpanIOValue
+  events: [SpanEvent!]!
+
+  """
+  Cumulative (prompt plus completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountTotal: Float
+
+  """
+  Cumulative prompt token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountPrompt: Float
+
+  """
+  Cumulative completion token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountCompletion: Float
+
+  """
+  Propagated status code that percolates up error status codes from descendant spans (children, grandchildren, etc.)
+  """
+  propagatedStatusCode: SpanStatusCode!
+
+  """
+  Annotations associated with the span. This encompasses both LLM and human annotations.
+  """
+  spanAnnotations(sort: SpanAnnotationSort, filter: AnnotationFilter = null): [SpanAnnotation!]!
+
+  """Notes associated with the span."""
+  spanNotes: [SpanAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the span"""
+  spanAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
+
+  """
+  Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
+  """
+  documentEvaluations: [DocumentAnnotation!]!
+
+  """Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc."""
+  documentRetrievalMetrics(evaluationName: String): [DocumentRetrievalMetrics!]!
+  numChildSpans: Int!
+
+  """All descendant spans (children, grandchildren, etc.)"""
+  descendants(
+    """
+    Maximum depth of breadth first search. For example, maxDepth=1 searches for only the immediate child spans (if any); maxDepth=2 searches for the immediate child spans plus their children. maxDepth=0 (or None) means no limit.
+    """
+    maxDepth: Int = 3
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+  ): SpanConnection!
+
+  """
+  The span's attributes translated into an example revision for a dataset
+  """
+  asExampleRevision: SpanAsExampleRevision!
+
+  """The project that this span belongs to."""
+  project: Project!
+
+  """Indicates if the span is contained in any dataset"""
+  containedInDataset: Boolean!
+  costSummary: SpanCostSummary
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+}
+
+type SpanAnnotation implements Node & Annotation {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The identifier of the annotation."""
+  identifier: String!
+
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
+
+  """The user that produced the annotation."""
+  user: User
+  spanId: ID!
+
+  """The span associated with the annotation."""
+  span: Span!
+}
+
+enum SpanAnnotationColumn {
+  createdAt
+  name
+}
+
+type SpanAnnotationMutationPayload {
+  spanAnnotations: [SpanAnnotation!]!
+  query: Query!
+}
+
+"""The sort key and direction for SpanAnnotation connections"""
+input SpanAnnotationSort {
+  col: SpanAnnotationColumn!
+  dir: SortDir!
+}
+
+type SpanAsExampleRevision implements ExampleRevision {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+}
+
+enum SpanColumn {
+  startTime
+  endTime
+  latencyMs
+  tokenCountTotal
+  tokenCountPrompt
+  tokenCountCompletion
+  cumulativeTokenCountTotal
+  cumulativeTokenCountPrompt
+  cumulativeTokenCountCompletion
+  cumulativeTokenCostTotal
+  tokenCostTotal
+}
+
+"""A connection to a list of items."""
+type SpanConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [SpanEdge!]!
+}
+
+type SpanContext {
+  traceId: ID!
+  spanId: ID!
+}
+
+type SpanCostDetailSummaryEntry {
+  tokenType: String!
+  isPrompt: Boolean!
+  value: CostBreakdown!
+}
+
+type SpanCostSummary {
+  prompt: CostBreakdown!
+  completion: CostBreakdown!
+  total: CostBreakdown!
+}
+
+type SpanCountTimeSeries {
+  data: [SpanCountTimeSeriesDataPoint!]!
+}
+
+type SpanCountTimeSeriesDataPoint {
+  timestamp: DateTime!
+  okCount: Int
+  errorCount: Int
+  unsetCount: Int
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type SpanEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Span!
+}
+
+type SpanErrorTypeCount {
+  """
+  The `exception.type` attribute of the span event. `None` when no type could be determined — either the errored span has no accompanying `exception` event, or an `exception` event is present but its `exception.type` attribute is missing or malformed.
+  """
+  exceptionType: String
+  count: Int!
+}
+
+type SpanEvent {
+  name: String!
+  message: String!
+  timestamp: DateTime!
+  attributes: JSON!
+}
+
+type SpanIOValue {
+  mimeType: MimeType!
+
+  """Truncated value up to 100 characters, appending '...' if truncated."""
+  truncatedValue: String!
+  value: String!
+}
+
+enum SpanKind {
+  chain
+  tool
+  llm
+  prompt
+  retriever
+  embedding
+  agent
+  reranker
+  evaluator
+  guardrail
+  unknown
+}
+
+type SpanKindCount {
+  spanKind: SpanKind!
+  count: Int!
+}
+
+"""
+The sort key and direction for span connections. Must specify one and only one of either `col` or `evalResultKey`.
+"""
+input SpanSort {
+  col: SpanColumn
+  evalResultKey: EvalResultKey
+  dir: SortDir!
+}
+
+enum SpanStatusCode {
+  OK
+  ERROR
+  UNSET
+}
+
+type StopExperimentPayload {
+  job: ExperimentJob!
+}
+
+type Subscription {
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
+}
+
+type SystemApiKey implements ApiKey & Node {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+
+  """The Globally Unique ID of this object"""
+  id: ID!
+}
+
+type TaskWorkItemId {
+  datasetExampleId: Int!
+  repetitionNumber: Int!
+}
+
+type TestGenerativeModelCustomProviderCredentialsResult {
+  error: String
+}
+
+type TextChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  content: String!
+}
+
+type TextContentPart {
+  text: TextContentValue!
+}
+
+type TextContentValue {
+  text: String!
+}
+
+input TextContentValueInput {
+  text: String!
+}
+
+input TimeBinConfig {
+  """The scale of time bins for aggregation."""
+  scale: TimeBinScale! = HOUR
+
+  """Offset in minutes from UTC for local time binning."""
+  utcOffsetMinutes: Int! = 0
+}
+
+enum TimeBinScale {
+  MINUTE
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+input TimeRange {
+  """The start of the time range"""
+  start: DateTime = null
+
+  """The end of the time range. Right exclusive."""
+  end: DateTime = null
+}
+
+interface TimeSeries {
+  data: [TimeSeriesDataPoint!]!
+}
+
+type TimeSeriesDataPoint {
+  timestamp: DateTime!
+  value: Float
+}
+
+"""
+Breakdown of an LLM span's prompt tokens by kind. These counts are a decomposition of the span's prompt token count, not additive on top of it, and are typically used for cost analysis.
+"""
+type TokenCountPromptDetails {
+  """Prompt tokens served from the provider's prompt cache."""
+  cacheRead: Int
+
+  """Prompt tokens written into the provider's prompt cache."""
+  cacheWrite: Int
+
+  """Prompt tokens that were audio tokens."""
+  audio: Int
+}
+
+enum TokenKind {
+  PROMPT
+  COMPLETION
+}
+
+type TokenPrice {
+  tokenType: String!
+  kind: TokenKind!
+  costPerMillionTokens: Float!
+  costPerToken: Float!
+}
+
+input TokenPriceInput {
+  tokenType: String!
+  costPerMillionTokens: Float!
+  kind: TokenKind!
+}
+
+type TokenUsage {
+  prompt: Float!
+  completion: Float!
+  total: Float!
+}
+
+type ToolCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  id: String!
+  function: FunctionCallChunk!
+}
+
+type ToolCallContentPart {
+  toolCall: ToolCallContentValue!
+}
+
+type ToolCallContentValue {
+  toolCallId: String!
+  toolCall: ToolCallFunction!
+}
+
+input ToolCallContentValueInput {
+  toolCallId: String!
+  toolCall: ToolCallFunctionInput!
+}
+
+type ToolCallFunction {
+  name: String!
+  arguments: String!
+}
+
+input ToolCallFunctionInput {
+  type: String = "function"
+  name: String!
+  arguments: String!
+}
+
+type ToolResultContentPart {
+  toolResult: ToolResultContentValue!
+}
+
+type ToolResultContentValue {
+  toolCallId: String!
+  result: JSON!
+}
+
+input ToolResultContentValueInput {
+  toolCallId: String!
+  result: JSON!
+}
+
+type Trace implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  traceId: ID!
+  startTime: DateTime!
+  endTime: DateTime!
+  latencyMs: Float
+  project: Project!
+  projectId: ID!
+  projectSessionId: ID
+  session: ProjectSession
+  rootSpan: Span
+  numSpans: Int!
+
+  """
+  Count of each span kind present under this trace. Only kinds with count > 0 are returned.
+  """
+  spanCountsByKind: [SpanKindCount!]!
+
+  """Count of spans under this trace with `status_code == ERROR`."""
+  errorCount: Int!
+
+  """
+  Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket.
+  """
+  errorsByType: [SpanErrorTypeCount!]!
+  spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true, filterCondition: String): SpanConnection!
+
+  """Annotations associated with the trace."""
+  traceAnnotations(sort: TraceAnnotationSort, filter: AnnotationFilter = null): [TraceAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the trace"""
+  traceAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
+  costSummary: SpanCostSummary!
+  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+}
+
+type TraceAnnotation implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """The kind of annotator that produced the annotation."""
+  annotatorKind: AnnotatorKind!
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """The identifier of the annotation."""
+  identifier: String!
+
+  """The source of the annotation."""
+  source: AnnotationSource!
+
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
+
+  """The trace associated with the annotation."""
+  trace: Trace!
+
+  """The user that produced the annotation."""
+  user: User
+}
+
+enum TraceAnnotationColumn {
+  createdAt
+  name
+}
+
+type TraceAnnotationMutationPayload {
+  traceAnnotations: [TraceAnnotation!]!
+  query: Query!
+}
+
+"""The sort key and direction for TraceAnnotation connections"""
+input TraceAnnotationSort {
+  col: TraceAnnotationColumn!
+  dir: SortDir!
+}
+
+"""A connection to a list of items."""
+type TraceConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [TraceEdge!]!
+}
+
+type TraceCountByStatusTimeSeries {
+  data: [TraceCountByStatusTimeSeriesDataPoint!]!
+}
+
+type TraceCountByStatusTimeSeriesDataPoint {
+  timestamp: DateTime!
+  okCount: Int!
+  errorCount: Int!
+  totalCount: Int!
+}
+
+type TraceCountTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
+}
+
+"""An edge in a connection."""
+type TraceEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Trace!
+}
+
+type TraceLatencyMsPercentileTimeSeriesDataPoint {
+  timestamp: DateTime!
+  p50: Float
+  p75: Float
+  p90: Float
+  p95: Float
+  p99: Float
+  p999: Float
+  max: Float
+}
+
+type TraceLatencyPercentileTimeSeries {
+  data: [TraceLatencyMsPercentileTimeSeriesDataPoint!]!
+}
+
+union TraceRetentionRule = TraceRetentionRuleMaxDays | TraceRetentionRuleMaxCount | TraceRetentionRuleMaxDaysOrCount
+
+type TraceRetentionRuleMaxCount {
+  maxCount: Int!
+}
+
+type TraceRetentionRuleMaxDays {
+  maxDays: Float!
+}
+
+type TraceRetentionRuleMaxDaysOrCount {
+  maxDays: Float!
+  maxCount: Int!
+}
+
+type TraceTokenCostTimeSeries {
+  data: [TraceTokenCostTimeSeriesDataPoint!]!
+}
+
+type TraceTokenCostTimeSeriesDataPoint {
+  timestamp: DateTime!
+  promptCost: Float
+  completionCost: Float
+  totalCost: Float
+}
+
+type TraceTokenCountDetailsTimeSeriesEntry {
+  tokenType: String!
+  tokenCount: Float
+}
+
+type TraceTokenCountTimeSeries {
+  data: [TraceTokenCountTimeSeriesDataPoint!]!
+}
+
+type TraceTokenCountTimeSeriesDataPoint {
+  timestamp: DateTime!
+  promptTokenCount: Float
+  completionTokenCount: Float
+  totalTokenCount: Float
+  promptTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
+  completionTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
+}
+
+type UnparsableConfig {
+  parseError: String!
+}
+
+type UnparsableSecret {
+  parseError: String!
+}
+
+input UnsetPromptLabelsInput {
+  promptId: ID!
+  promptLabelIds: [ID!]!
+}
+
+input UpdateAnnotationConfigInput {
+  id: ID!
+  annotationConfig: AnnotationConfigInput!
+}
+
+type UpdateAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: AnnotationConfig!
+}
+
+input UpdateAnnotationInput {
+  id: ID!
+  name: String!
+  annotatorKind: AnnotatorKind! = HUMAN
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON!
+  source: AnnotationSource! = APP
+}
+
+input UpdateDatasetBuiltinEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!]
+  description: String
+}
+
+input UpdateDatasetCodeEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!]
+  description: String
+}
+
+input UpdateDatasetLLMEvaluatorInput {
+  datasetEvaluatorId: ID!
+  datasetId: ID!
+  name: Identifier!
+  description: String = null
+  promptVersionId: ID
+  promptVersion: ChatPromptVersionInput!
+  outputConfigs: [AnnotationConfigInput!]!
+  inputMapping: EvaluatorInputMappingInput = null
+}
+
+input UpdateModelMutationInput {
+  id: ID!
+  name: String!
+  provider: String
+  namePattern: String!
+  costs: [TokenPriceInput!]!
+  startTime: DateTime = null
+}
+
+type UpdateModelMutationPayload {
+  model: GenerativeModel!
+  query: Query!
+}
+
+input UpdateSandboxConfigInput {
+  id: ID!
+  description: String
+  config: SandboxConfigVariantInput
+  timeout: Int
+  enabled: Boolean
+}
+
+type UpdateSandboxConfigPayload {
+  sandboxConfig: SandboxConfig!
+  query: Query!
+}
+
+input UpdateSandboxProviderInput {
+  id: ID!
+  enabled: Boolean
+  deployment: SandboxDeploymentVariantInput
+}
+
+type UpdateSandboxProviderPayload {
+  sandboxProvider: SandboxProvider!
+  query: Query!
+}
+
+input UpsertOrDeleteSecretsMutationInput {
+  """
+  A list of secret key-value pairs to upsert or delete. Must contain at least one secret. When the same key appears multiple times in the list, the last occurrence determines the final action (upsert with that value, or delete if value is null).
+  """
+  secrets: [SecretKeyValueInput!]!
+}
+
+type UpsertOrDeleteSecretsMutationPayload {
+  """List of secrets that were created or updated."""
+  upsertedSecrets: [Secret!]!
+
+  """List of GlobalIDs for secrets that were deleted."""
+  deletedIds: [ID!]!
+  query: Query!
+}
+
+type User implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  passwordNeedsReset: Boolean!
+  email: String
+  username: String!
+  profilePictureUrl: String
+  createdAt: DateTime!
+  authMethod: AuthMethod!
+  role: UserRole!
+  apiKeys: [UserApiKey!]!
+  isManagementUser: Boolean!
+}
+
+type UserApiKey implements ApiKey & Node {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+
+  """The Globally Unique ID of this object"""
+  id: ID!
+  user: User!
+}
+
+"""A connection to a list of items."""
+type UserConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [UserEdge!]!
+}
+
+"""An edge in a connection."""
+type UserEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: User!
+}
+
+type UserMutationPayload {
+  user: User!
+}
+
+type UserRole implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+}
+
+enum UserRoleInput {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+type ValidationResult {
+  isValid: Boolean!
+  errorMessage: String
+}
+
+input VercelConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+input WASMConfigInput {
+  language: Language! = PYTHON
+}

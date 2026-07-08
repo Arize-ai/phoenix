@@ -1,0 +1,110 @@
+import { css } from "@emotion/react";
+
+import { fieldPopoverCSS } from "../field/styles";
+
+export const comboBoxCSS = css`
+  &[data-size="M"] {
+    --combobox-input-height: var(--global-input-height-s);
+    --combobox-vertical-padding: 6px;
+    --combobox-start-padding: var(--global-dimension-static-size-100);
+    --combobox-end-padding: var(--global-dimension-static-size-50);
+  }
+  &[data-size="L"] {
+    --combobox-input-height: var(--global-input-height-m);
+    --combobox-vertical-padding: 10px;
+    --combobox-start-padding: var(--global-dimension-static-size-200);
+    --combobox-end-padding: var(--global-dimension-static-size-100);
+  }
+  color: var(--global-text-color-900);
+  &[data-required] {
+    .react-aria-Label {
+      &::after {
+        content: " *";
+      }
+    }
+  }
+
+  .combobox__container {
+    display: flex;
+    flex-direction: row;
+    min-width: 200px;
+    position: relative;
+
+    .react-aria-Input {
+      height: var(--combobox-input-height);
+      box-sizing: border-box;
+      padding: var(--combobox-vertical-padding) var(--combobox-end-padding)
+        var(--combobox-vertical-padding) var(--combobox-start-padding);
+      }
+    }
+    .react-aria-Button {
+      /* Account for the border width of the input */
+      padding: 0 calc(var(--combobox-end-padding) + 1px);
+      background: none;
+      color: inherit;
+      forced-color-adjust: none;
+      position: absolute;
+      top: 50%;
+      right: 0;
+      border: none;
+      transform: translateY(-50%);
+      cursor: pointer;
+
+      &[data-disabled] {
+        opacity: var(--global-opacity-disabled);
+      }
+    }
+  }
+`;
+
+export const comboBoxPopoverCSS = css(
+  fieldPopoverCSS,
+  css`
+    .react-aria-ListBox {
+      display: block;
+      width: unset;
+      max-height: inherit;
+      min-height: unset;
+      border: none;
+      overflow: auto;
+    }
+  `
+);
+
+export const comboBoxItemCSS = css`
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--global-text-color-900);
+  padding: var(--global-dimension-static-size-100)
+    var(--global-dimension-static-size-200);
+  font-size: var(--global-dimension-static-font-size-100);
+  cursor: pointer;
+  position: relative;
+  & > .icon-wrap.menu-item__selected-checkmark {
+    height: var(--global-dimension-static-size-200);
+    width: var(--global-dimension-static-size-200);
+  }
+  &[href] {
+    text-decoration: none;
+    cursor: pointer;
+  }
+  &[data-selected] {
+    i {
+      color: var(--global-color-primary);
+    }
+  }
+  &[data-focused],
+  &[data-hovered] {
+    background-color: var(--global-menu-item-background-color-hover);
+  }
+
+  &[data-disabled] {
+    cursor: not-allowed;
+    color: var(--global-color-text-30);
+  }
+  &[data-focus-visible] {
+    outline: none;
+  }
+`;

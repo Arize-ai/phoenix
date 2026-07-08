@@ -1,0 +1,8 @@
+-- PostgreSQL Query Runtime Summarizer
+-- Paste your SQL queries below, separated by semicolons (;)
+-- Comments starting with -- will be ignored
+--
+-- Example:
+-- SELECT * FROM spans ORDER BY id LIMIT 100;
+-- SELECT COUNT(*) FROM spans;
+--

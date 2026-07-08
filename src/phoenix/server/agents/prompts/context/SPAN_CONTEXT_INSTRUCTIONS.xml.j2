@@ -1,0 +1,11 @@
+<phoenix_span_context>
+  <description>The span the user has selected.</description>
+{% if span.project_node_id is not none %}
+  <project_node_id format="phoenix_node_id">{{ span.project_node_id }}</project_node_id>
+{% endif %}
+{% if span.span_node_id is not none %}
+  <span_node_id format="phoenix_node_id">{{ span.span_node_id }}</span_node_id>
+{% else %}
+  <otel_span_id format="otel_hex">{{ span.otel_span_id }}</otel_span_id>
+{% endif %}
+</phoenix_span_context>

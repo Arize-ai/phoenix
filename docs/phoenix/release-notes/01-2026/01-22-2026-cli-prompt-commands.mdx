@@ -1,0 +1,135 @@
+---
+title: "01.22.2026 CLI Prompt Commands: Pipe Prompts to AI Assistants"
+---
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Full documentation
+  </Card>
+  <Card title="npm" icon="npm" href="https://www.npmjs.com/package/@arizeai/phoenix-cli">
+    Install from npm
+  </Card>
+</CardGroup>
+
+## Overview
+
+Phoenix CLI now supports prompt introspection with two new commands: `px prompts` and `px prompt`. These commands let you list, view, and export prompt templates directly from the terminal—and pipe them to AI coding assistants for optimization.
+
+```bash
+# List all prompts
+px prompts
+
+# View a specific prompt
+px prompt my-evaluator
+
+# Get prompt text for piping
+px prompt my-evaluator --format text --no-progress
+```
+
+## Prompt Optimization with AI Assistants
+
+The `--format text` option outputs prompt content in a clean format with XML-style role tags, designed for piping to AI assistants like Claude Code:
+
+```bash
+# Get optimization suggestions
+px prompt my-evaluator --format text --no-progress | claude -p "Review this prompt and suggest improvements"
+
+# Analyze for edge cases
+px prompt my-assistant --format text --no-progress | claude -p "What edge cases might this prompt fail to handle?"
+
+# Generate test inputs
+px prompt my-classifier --format text --no-progress | claude -p "Generate 5 diverse test inputs for this prompt"
+```
+
+The text output format:
+
+```xml
+<system>You are an expert evaluator...
+
+<rubric>
+A correct answer:
+- Matches the reference exactly
+- Contains no hallucinations
+</rubric></system>
+<user>Evaluate this response: {{output}}</user>
+```
+
+## Use Cases
+
+### Prompt Version Management
+
+Access specific versions of your prompts:
+
+```bash
+# Get the production-tagged version
+px prompt my-assistant --tag production
+
+# Get a specific version by ID
+px prompt my-assistant --version UHJvbXB0VmVyc2lvbjox
+```
+
+### Prompt Analysis
+
+Export prompts for offline analysis or documentation:
+
+```bash
+# Full JSON with model settings and tools
+px prompt my-evaluator --format json
+
+# List all prompts as JSON
+px prompts --format raw --no-progress | jq '.[].name'
+```
+
+### Interactive Development
+
+Ask AI assistants to work with your prompts directly:
+
+```
+Fetch my "correctness-evaluator" prompt from Phoenix and help me make the rubric more specific for code review tasks
+```
+
+## Why This Matters
+
+Prompts are code. They should be versioned, reviewed, and optimized with the same rigor as application code. By making prompts accessible through the CLI:
+
+1. **Version Control Integration**: Export prompts to files for git tracking
+2. **AI-Assisted Optimization**: Pipe prompts to Claude, GPT, or other models for improvement suggestions
+3. **Automated Testing**: Generate test cases programmatically from prompt templates
+4. **Documentation**: Extract prompt content for technical documentation
+
+This continues the pattern of making Phoenix data accessible where developers already work—in the terminal and through AI coding assistants.
+
+## Commands Reference
+
+### `px prompts`
+
+List all prompts with names and descriptions.
+
+| Option | Description |
+|--------|-------------|
+| `--format <format>` | `pretty`, `json`, or `raw` |
+| `--limit <number>` | Maximum prompts to fetch |
+
+### `px prompt <identifier>`
+
+Show a specific prompt's content and configuration.
+
+| Option | Description |
+|--------|-------------|
+| `--tag <name>` | Get version by tag |
+| `--version <id>` | Get specific version |
+| `--format <format>` | `pretty`, `json`, `raw`, or `text` |
+
+The `text` format is optimized for piping—no progress messages, just the prompt content with role tags.
+
+## Installation
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+Or update an existing installation:
+
+```bash
+npm update -g @arizeai/phoenix-cli
+```

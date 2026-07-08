@@ -1,0 +1,41 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "test-session-context-summarization-summarization-1-questions",
+  "agent": {
+    "name": "terminus-2-summarization-questions",
+    "version": "2.0.0",
+    "model_name": "openai/gpt-4o",
+    "extra": {
+      "parent_session_id": "NORMALIZED_SESSION_ID",
+      "summarization_index": 1
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "user",
+      "message": "You are picking up work from a previous AI agent on this task:\n\n**Original Task:** Create a file called hello.txt with \"Hello, world!\" as the content.\n\n**Summary from Previous Agent:**\nI have been working on creating hello.txt. Here's what I've accomplished:\n\n1. **Major Actions Completed**:\n   - Created a test directory with `mkdir test_dir`\n   - Created file1.txt, file2.txt in the test directory\n   - Attempted to list files to verify creation\n\n2. **Important Information Learned**:\n   - All test files are located in /app/test_dir/\n   - The working directory is /app/\n   - The terminal environment is working correctly\n\n3. **Challenging Problems Addressed**:\n   - None so far, everything has been straightforward\n\n4. **Current Status**:\n   - Test setup is partially complete\n   - Still need to create the main hello.txt file with \"Hello, world!\" content in /app/\n\n**Current Terminal Screen:**\nroot@CONTAINER_ID:/app# mkdir test_dir\nroot@CONTAINER_ID:/app# echo 'test1' > test_dir/file1.txt\nroot@CONTAINER_ID:/app# echo 'test2' > test_dir/file2.txt\n\nPlease begin by asking several questions (at least five, more if necessary)\nabout the current state of the solution that are not answered in the summary\nfrom the prior agent. After you ask these questions you will be on your own,\nso ask everything you need to know."
+    },
+    {
+      "step_id": 2,
+      "source": "agent",
+      "model_name": "gpt-4o",
+      "message": "I have the following questions about the current state:\n\n1. What exactly is in the test_dir directory? Which files have been created?\n2. What are the contents of file1.txt and file2.txt?\n3. Has the main hello.txt file been created yet in /app/?\n4. Are there any errors or issues I should be aware of?\n5. What is the exact task requirement again for hello.txt?",
+      "metrics": {
+        "prompt_tokens": 100,
+        "completion_tokens": 20,
+        "cached_tokens": 0,
+        "cost_usd": 0.00045,
+        "prompt_token_ids": [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199],
+        "completion_token_ids": [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019],
+        "logprobs": [-0.1, -0.2, -0.30000000000000004, -0.4, -0.5, -0.6000000000000001, -0.7000000000000001, -0.8, -0.9, -1.0, -1.1, -1.2000000000000002, -1.3, -1.4000000000000001, -1.5, -1.6, -1.7000000000000002, -1.8, -1.9000000000000001, -2.0]
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 100,
+    "total_completion_tokens": 20,
+    "total_cached_tokens": 0,
+    "total_cost_usd": 0.00045
+  }
+}

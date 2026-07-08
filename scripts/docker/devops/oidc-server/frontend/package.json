@@ -1,0 +1,34 @@
+{
+  "name": "oidc-user-selector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "User selection interface for Phoenix OIDC server",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && vite build",
+    "check": "pnpm run fmt:check && pnpm run lint",
+    "dev": "vite",
+    "fix": "pnpm run fmt && pnpm run lint:fix",
+    "fmt": "oxfmt --config ../../../../../.oxfmtrc.jsonc",
+    "fmt:check": "oxfmt --check --config ../../../../../.oxfmtrc.jsonc",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "oxfmt": "^0.51.0",
+    "oxlint": "~1.66.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.2"
+  },
+  "packageManager": "pnpm@11.3.0"
+}

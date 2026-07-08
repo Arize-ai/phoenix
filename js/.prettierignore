@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+dist
+build
+__generated__
+docs

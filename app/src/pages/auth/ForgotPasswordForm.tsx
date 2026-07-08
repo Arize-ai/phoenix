@@ -1,0 +1,109 @@
+import { css } from "@emotion/react";
+import { useCallback, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
+import { prependBasename } from "@phoenix/utils/routingUtils";
+
+type ForgotPasswordFormParams = {
+  email: string;
+};
+
+export function ForgotPasswordForm({
+  onResetSent,
+}: {
+  onResetSent: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const onSubmit = useCallback(
+    async (params: ForgotPasswordFormParams) => {
+      setError(null);
+      setIsLoading(true);
+
+      // Sanitize email by trimming whitespace and converting to lowercase
+      const sanitizedParams = {
+        ...params,
+        email: params.email.trim().toLowerCase(),
+      };
+
+      try {
+        const response = await fetch(
+          prependBasename("/auth/password-reset-email"),
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(sanitizedParams),
+          }
+        );
+        if (!response.ok) {
+          const message = await response.text();
+          setError(message);
+          return;
+        }
+        onResetSent();
+      } finally {
+        setIsLoading(() => false);
+      }
+    },
+    [onResetSent, setError]
+  );
+  const { control, handleSubmit } = useForm<ForgotPasswordFormParams>({
+    defaultValues: { email: "" },
+  });
+  return (
+    <>
+      {error ? (
+        <View paddingBottom="size-100">
+          <Alert variant="danger">{error}</Alert>
+        </View>
+      ) : null}
+      <Form onSubmit={handleSubmit(onSubmit)}>
+        <Controller
+          name="email"
+          control={control}
+          render={({ field: { onChange, value, onBlur } }) => (
+            <TextField
+              name="email"
+              isRequired
+              type="email"
+              onChange={onChange}
+              onBlur={onBlur}
+              value={value}
+            >
+              <Label>Email</Label>
+              <Input placeholder="your email address" />
+              <Text slot="description">
+                Enter the email address associated with your account.
+              </Text>
+            </TextField>
+          )}
+        />
+        <div
+          css={css`
+            margin-top: var(--global-dimension-size-200);
+            margin-bottom: var(--global-dimension-size-50);
+            button {
+              width: 100%;
+            }
+          `}
+        >
+          <Button variant="primary" type={"submit"} isDisabled={isLoading}>
+            {isLoading ? "Sending..." : "Send"}
+          </Button>
+        </div>
+      </Form>
+    </>
+  );
+}

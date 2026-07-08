@@ -1,0 +1,18 @@
+mypy==2.1.0
+numpy<2.3; python_version < "3.12"
+pytest
+pytest-xdist
+pytest-asyncio
+uvloop; platform_system != 'Windows'
+pydantic>=1.0,!=2.0.*,<3
+pyright[nodejs]==1.1.394
+pytest-randomly
+pytest-rerunfailures
+deepdiff==8.6.2
+anthropic
+openai>=2.14.0
+pystache
+PyYAML
+aioboto3
+azure-identity
+ldap3

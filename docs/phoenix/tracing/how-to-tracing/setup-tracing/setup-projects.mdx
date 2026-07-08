@@ -1,0 +1,132 @@
+---
+title: "Setup Projects"
+---
+
+# Log to a specific project
+
+Phoenix uses projects to group traces. If left unspecified, all traces are sent to a default project.
+
+<Tabs>
+
+  <Tab title="Using Phoenix Wrappers">
+
+    In the notebook, you can set the `PHOENIX_PROJECT_NAME` environment variable **before** adding instrumentation or running any of your code.
+
+    In python this would look like:
+
+    ```javascript
+    import os
+
+    os.environ['PHOENIX_PROJECT_NAME'] = "<your-project-name>"
+    ```
+
+    <Warning>
+    Note that setting a project via an environment variable only works in a notebook and must be done **BEFORE** instrumentation is initialized. If you are using OpenInference Instrumentation, see the Server tab for how to set the project name in the Resource attributes.
+
+    </Warning>
+
+    Alternatively, you can set the project name in your `register` function call:
+
+    ```javascript
+    from phoenix.otel import register
+
+    tracer_provider = register(
+        project_name="my-project-name",
+        ....
+    )
+    ```
+
+  </Tab>
+
+  <Tab title="Using OTEL Directly">
+
+    If you are using Phoenix as a collector and running your application separately, you can set the project name in the `Resource` attributes for the trace provider.
+
+    ```python expandable
+    from openinference.semconv.resource import ResourceAttributes
+    from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+    from opentelemetry import trace as trace_api
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk import trace as trace_sdk
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+    resource = Resource(attributes={
+        ResourceAttributes.PROJECT_NAME: '<your-project-name>'
+    })
+    tracer_provider = trace_sdk.TracerProvider(resource=resource)
+    span_exporter = OTLPSpanExporter(endpoint="http://phoenix:6006/v1/traces")
+    span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
+    tracer_provider.add_span_processor(span_processor=span_processor)
+    trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+    # Add any auto-instrumentation you want
+    LlamaIndexInstrumentor().instrument()
+    ```
+
+  </Tab>
+
+  <Tab title="Via HTTP Header">
+
+    If you are using a configuration-based OTEL tool (such as an OTEL Collector, OpenClaw, or any framework that does not let you set resource attributes in code), you can route traces to a specific Phoenix project by setting the `x-project-name` HTTP header on OTLP HTTP exports.
+
+    The header takes precedence over the `openinference.project.name` resource attribute, so every span in the request is assigned to the named project regardless of what the sending library sets in its resource.
+
+    **Using `OTEL_EXPORTER_OTLP_HEADERS` environment variable:**
+
+    ```bash
+    export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:6006"
+    export OTEL_EXPORTER_OTLP_HEADERS="x-project-name=my-project"
+    ```
+
+    **Using an OTEL Collector `otlphttp` exporter:**
+
+    ```yaml
+    exporters:
+      otlphttp:
+        endpoint: "http://phoenix:6006"
+        headers:
+          x-project-name: "my-project"
+    ```
+
+    **Setting the header in Python directly:**
+
+    ```python
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+    exporter = OTLPSpanExporter(
+        endpoint="http://localhost:6006/v1/traces",
+        headers={"x-project-name": "my-project"},
+    )
+    ```
+
+    <Note>
+    The `x-project-name` header is only supported by the **HTTP** OTLP endpoint (`/v1/traces`). If you are using gRPC, set the project name via the `openinference.project.name` resource attribute instead.
+    </Note>
+
+  </Tab>
+
+</Tabs>
+
+Projects work by setting something called the **Resource** attributes (as seen in the OTEL example above). The phoenix server uses the project name attribute to group traces into the appropriate project. Alternatively, the `x-project-name` HTTP header can be used to override the project name for all spans in an OTLP HTTP request.
+
+# Switching projects in a notebook
+
+Typically you want traces for an LLM app to all be grouped in one project. However, while working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects. You can use this to trace things like evaluations.
+
+<Tabs>
+
+  <Tab title="Notebook">
+
+    ```python
+    from openinference.instrumentation import dangerously_using_project
+
+    # Switch project to run evals
+    with dangerously_using_project("my-eval-project"):
+        # all spans created within this context will be associated with
+        # the "my-eval-project" project.
+        # Run evaluations here...
+    ```
+
+  </Tab>
+
+</Tabs>

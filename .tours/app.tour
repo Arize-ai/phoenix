@@ -1,0 +1,60 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "app",
+  "steps": [
+    {
+      "title": "Introduction",
+      "description": "Welcome to the code tour for the app, the react powered frontend of phoenix! In this tour you will learn about how the application architected, built, and hosted."
+    },
+    {
+      "file": "app/src/App.tsx",
+      "description": "The application is built using `react` - a javascript view library. While `react` can be used to build server-rendered websites, react is only used on the frontend. Because of this, phoenix is a SPA - a single page application that uses data served by an API server. Here we can see the outline of the application:\n\n- uses `react-router` routes to display different pages\n- uses `react-relay` to fetch data from the GraphQL server\n- uses `@arizeai/components` for components and styles",
+      "line": 14
+    },
+    {
+      "file": "app/src/Routes.tsx",
+      "description": "The frontend application has various pages - a model home page, a tracing home page and so on. Each one of these pages is a `react` component that gets mounted in the UI based on a route that matches the nested routing structure seen below.",
+      "line": 20
+    },
+    {
+      "file": "app/src/pages/project/ProjectPage.tsx",
+      "description": "All top-level page components can be found in the `/pages` directory. A page directory encapsulates both styles, components, and network requests to serve that specific page and route. If your components are to be shared across pages, add it in `/components` instead.",
+      "line": 57
+    },
+    {
+      "file": "app/src/pages/project/ProjectPage.tsx",
+      "description": "The Phoenix app uses `react-relay` to execute GraphQL queries efficienatly. Relay expects you to colocate GraphQL queries with the component that needs that data and the queries must match the name of the file name. E.x. above, the query is for the ProjectPage so it must be prefixed with `ProjectPage`",
+      "line": 71
+    },
+    {
+      "file": "app/package.json",
+      "description": "The fontend build is invokable via `npm` scripts. This means that a single command such as `npm run build` will:\n\n- build the static assets for the pages (images, icons)\n- build the optemized `relay` queries for data loading\n- build the javascript bundle by converting the typescript files to a minified entrypoint",
+      "line": 89
+    },
+    {
+      "file": "app/vite.config.mts",
+      "description": "The app build uses vite. Since the backend for Phoenix is python, Vite compiles the JS chuncks and advertises a manifest file to the backend to be served from the FastAPI server.\n\nNote that in development mode you will be running two servers - the vite web dev server for HMR (hot module reloading) and the backend python server.",
+      "line": 30
+    },
+    {
+      "file": "app/src/components/trace/__tests__/utils.test.ts",
+      "description": "The fontend also utilizes `vitest` to run unit tests to make sure certain code paths are properly tested. All tests can be run via the `npm` command `npm run test` which runs all the tests that fall under `__tests__` directories with the postfix `.test.ts`.",
+      "line": 4
+    },
+    {
+      "file": "app/package.json",
+      "description": "When developing the UI, you will most likely want to build against a fixture of data. the `dev:init` script can be modified to add different fixture data that can be used to develop against.",
+      "line": 99
+    },
+    {
+      "file": "app/package.json",
+      "description": "The app is also auto-formatted via `prettier` to ensure that all files are well-formatted and conform to a single style.",
+      "line": 102
+    },
+    {
+      "file": "app/global-setup.ts",
+      "description": "The Phoenix app uses playwright to run browser tests (end-to-end). Once a server is launched (see `testServer.mjs`), the app is scaffolded with two user accounts, an admin and a member, which can be used to test different UI flows.",
+      "line": 3
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+<tool name="edit_prompt_instance">
+  <description>Propose edits to one playground prompt instance. The browser renders an inline diff and the user accepts or rejects it — this tool does not change the prompt immediately.</description>
+  <when_to_use>
+    - The user asks to modify, add, remove, or reorder messages in a playground prompt.
+    - You want to suggest a concrete prompt change rather than describing it in chat.
+  </when_to_use>
+  <preflight>
+    - Always call `read_prompt_instance` first to obtain stable message IDs and the latest `revision`.
+    - Pass that `revision` back as `expectedRevision`. If the prompt changed since the read, the edit is rejected; re-read and retry.
+    - Use the alphabetic label (A, B, C, D) from `read_prompt_instance` when telling the user which instance is being edited; pass the numeric `instanceId` when calling this tool.
+    - If the user wants to compare a variant against the original, call `clone_prompt_instance` first and edit the clone.
+  </preflight>
+  <operations>
+    - `operations` must always be an array, even for a single edit. Operations apply in order.
+    - Use camelCase field names exactly as shown.
+    - Common shapes:
+      - `{"type":"update_message","messageId":1,"content":"new text"}`
+      - `{"type":"insert_message","afterMessageId":1,"role":"user","content":"new text"}` — omit or null `afterMessageId` to insert at the beginning.
+      - `{"type":"delete_message","messageId":1}`
+      - `{"type":"reorder_messages","messageIds":[1,2,3]}` — pass the full desired order.
+    - Required fields by operation: `update_message` requires `messageId` and at least one of `role`/`content`/`toolCalls`; `insert_message` requires `role` and optionally `afterMessageId`/`content`/`toolCalls`; `delete_message` requires `messageId`; `reorder_messages` requires `messageIds`.
+  </operations>
+  <guidelines>
+    - Message content can reference template variables whose names resolve relative to the active template-variables path (default `input`); a name's first segment must be a key at that path — e.g. `question` under `input`, or `input.question` / `reference.answer` at the example root. To pull a field from a different root, the name and the path must agree; set the root with `set_template_variables_path`.
+    - Keep edits small and focused so the user can read the diff. If the user asked for several conceptually distinct changes, group them by intent rather than dumping every operation at once.
+    - After proposing the edit, briefly summarize what the diff will show so the user knows what they are accepting or rejecting.
+  </guidelines>
+</tool>

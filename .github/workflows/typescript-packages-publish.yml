@@ -1,0 +1,68 @@
+name: Typescript Packages Publish
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+on:
+  push:
+    branches:
+      - main
+env:
+  CI: true
+  PNPM_CACHE_FOLDER: .pnpm-store
+jobs:
+  version:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: setup node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org/
+          scope: "@arizeai"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+      - name: setup pnpm config
+        run: pnpm config set store-dir $PNPM_CACHE_FOLDER
+      - name: Install Dependencies
+        working-directory: ./js
+        run: pnpm install --frozen-lockfile
+      - name: Creating .npmrc
+        run: |
+          cat << EOF > "$HOME/.npmrc"
+            //registry.npmjs.org/:_authToken=$NPM_TOKEN
+          EOF
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: create and publish versions
+        # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
+        # can trigger subsequent workflows (like publish) when merged
+        # Pinned to v1.5.2 because released versions after that still break monorepo
+        # cwd handling; the upstream fix merged after v1.7.0 but is not released yet.
+        uses: changesets/action@d183df40791e90508058cd180e6435cdd9ba16a4 # v1.5.2
+        with:
+          version: pnpm ci:version
+          commit: "chore(js): update versions"
+          title: "chore(js): update versions"
+          publish: pnpm ci:publish
+          createGithubReleases: true
+          # v1.5.2 resolves cwd relative to the action runtime, not github.workspace.
+          cwd: "${{ github.workspace }}/js"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_CHANGESET_TOKEN }}
+      # - name: Release docs
+      # Run pnpm run docs in js/packages/phoenix-client
+      # Deploy the static files in js/packages/phoenix-client/docs to github pages

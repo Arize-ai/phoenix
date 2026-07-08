@@ -1,0 +1,973 @@
+from datetime import datetime, timezone
+
+import pytest
+from sqlalchemy import insert, select, update
+from strawberry.relay import GlobalID
+
+from phoenix.db import models
+from phoenix.db.insertion.dataset import (
+    DatasetAction,
+    DatasetNameConflictError,
+    ExampleContent,
+    ExampleWithHash,
+    add_dataset_examples,
+    bulk_assign_examples_to_splits,
+    bulk_create_dataset_splits,
+    resolve_span_ids_to_rowids,
+)
+from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
+
+
+def _hash_examples(examples: list[ExampleContent]) -> list[ExampleWithHash]:
+    return [
+        ExampleWithHash(
+            content=ex,
+            content_hash=compute_example_content_hash(
+                input=ex.input, output=ex.output, metadata=ex.metadata
+            ),
+        )
+        for ex in examples
+    ]
+
+
+async def test_create_dataset(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1, "y": 2}, output={"z": 3}, metadata={"zz": 4}),
+                    ExampleContent(input={"x": 11, "y": 22}, output={"z": 33}, metadata={"zz": 44}),
+                ]
+            ),
+            name="abc",
+            description="xyz",
+            metadata={"m": 0},
+        )
+    async with db() as session:
+        data = await session.scalars(
+            select(models.DatasetExampleRevision)
+            .join(models.DatasetExample)
+            .join_from(models.DatasetExample, models.Dataset)
+            .where(models.Dataset.name == "abc")
+            .where(models.Dataset.description == "xyz")
+            .where(models.Dataset.metadata_["m"].as_float() == 0)
+            .order_by(models.DatasetExampleRevision.id)
+        )
+    rev = next(data)
+    assert rev.input == {"x": 1, "y": 2}
+    assert rev.output == {"z": 3}
+    assert rev.metadata_ == {"zz": 4}
+    rev = next(data)
+    assert rev.input == {"x": 11, "y": 22}
+    assert rev.output == {"z": 33}
+    assert rev.metadata_ == {"zz": 44}
+
+
+async def test_create_dataset_with_span_links(
+    db: DbSessionFactory,
+) -> None:
+    """Test that dataset examples can be linked to spans via span_id."""
+    # First, create a trace and span to link to
+    async with db() as session:
+        # Create a project
+        project_id = await session.scalar(
+            insert(models.Project).values(name="test-project").returning(models.Project.id)
+        )
+
+        # Create a trace
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                project_rowid=project_id,
+                trace_id="test-trace-123",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+
+        # Create spans
+        span_rowid_1 = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_id,
+                span_id="span-abc-123",
+                name="test_span_1",
+                span_kind="INTERNAL",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+
+        span_rowid_2 = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_id,
+                span_id="span-def-456",
+                name="test_span_2",
+                span_kind="INTERNAL",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+
+        await session.commit()
+
+    # Now create dataset with span links
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"z": 3},
+                        span_id="span-abc-123",
+                    ),
+                    ExampleContent(
+                        input={"x": 2},
+                        output={"z": 6},
+                        span_id="span-def-456",
+                    ),
+                    ExampleContent(
+                        input={"x": 3},
+                        output={"z": 9},
+                        span_id="nonexistent-span",  # This span doesn't exist
+                    ),
+                    ExampleContent(
+                        input={"x": 4},
+                        output={"z": 12},
+                        span_id=None,  # No span link
+                    ),
+                ]
+            ),
+            name="dataset-with-spans",
+        )
+
+    # Verify the dataset examples are linked correctly
+    async with db() as session:
+        examples = await session.scalars(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == "dataset-with-spans")
+            .order_by(models.DatasetExample.id)
+        )
+
+        examples_list = list(examples)
+        assert len(examples_list) == 4
+
+        # First example should be linked to span 1
+        assert examples_list[0].span_rowid == span_rowid_1
+
+        # Second example should be linked to span 2
+        assert examples_list[1].span_rowid == span_rowid_2
+
+        # Third example should have no link (span doesn't exist)
+        assert examples_list[2].span_rowid is None
+
+        # Fourth example should have no link (no span_id provided)
+        assert examples_list[3].span_rowid is None
+
+
+async def test_resolve_span_ids_to_rowids_deduplicates_input(
+    db: DbSessionFactory,
+) -> None:
+    """Test that resolve_span_ids_to_rowids deduplicates span IDs before querying.
+
+    This is critical for performance: 10,000 examples referencing the same 5 span IDs
+    should only consume 5 query parameters, not 10,000.
+    """
+    # Create a trace and span
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project).values(name="dedup-test-project").returning(models.Project.id)
+        )
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                project_rowid=project_id,
+                trace_id="dedup-test-trace",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+        span_rowid = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_id,
+                span_id="duplicate-span-id",
+                name="test_span",
+                span_kind="INTERNAL",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        await session.commit()
+
+    # Pass many duplicates of the same span ID
+    span_ids_with_duplicates: list[str | None] = (
+        ["duplicate-span-id"] * 100 + [None] * 50 + [""] * 25
+    )
+
+    async with db() as session:
+        result = await resolve_span_ids_to_rowids(session, span_ids_with_duplicates)
+
+    # Should still resolve correctly
+    assert len(result) == 1
+    assert result["duplicate-span-id"] == span_rowid
+
+
+async def test_resolve_span_ids_to_rowids_batches_large_inputs(
+    db: DbSessionFactory,
+) -> None:
+    """Test that resolve_span_ids_to_rowids processes large inputs in batches.
+
+    With a small batch_size, we can verify batching works without creating
+    thousands of spans.
+    """
+    # Create multiple spans
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project).values(name="batch-test-project").returning(models.Project.id)
+        )
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                project_rowid=project_id,
+                trace_id="batch-test-trace",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+
+        # Create 10 spans
+        span_id_strs = [f"span-batch-{i}" for i in range(10)]
+        span_rowids: dict[str, int] = {}
+        for span_id in span_id_strs:
+            rowid = await session.scalar(
+                insert(models.Span)
+                .values(
+                    trace_rowid=trace_id,
+                    span_id=span_id,
+                    name=f"test_span_{span_id}",
+                    span_kind="INTERNAL",
+                    start_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(timezone.utc),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                .returning(models.Span.id)
+            )
+            assert rowid is not None
+            span_rowids[span_id] = rowid
+        await session.commit()
+
+    # Resolve with a small batch size to force multiple batches
+    # Cast to list[str | None] as required by the function signature
+    span_ids_input: list[str | None] = list(span_id_strs)
+    async with db() as session:
+        result = await resolve_span_ids_to_rowids(session, span_ids_input, batch_size=3)
+
+    # All 10 spans should be resolved correctly
+    assert len(result) == 10
+    for span_id in span_id_strs:
+        assert result[span_id] == span_rowids[span_id]
+
+
+async def test_bulk_assign_examples_to_splits_batches_large_inputs(
+    db: DbSessionFactory,
+) -> None:
+    """Test that bulk_assign_examples_to_splits processes large inputs in batches.
+
+    With 2 params per row, large datasets with multiple splits can easily exceed
+    the 32,767 parameter limit. This test verifies batching works correctly.
+    """
+    # Create a dataset with examples
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [ExampleContent(input={"x": i}, output={"z": i * 2}) for i in range(10)]
+            ),
+            name="batch-split-test",
+        )
+
+    # Get the example IDs
+    async with db() as session:
+        examples = await session.scalars(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == "batch-split-test")
+        )
+        example_ids = [e.id for e in examples]
+
+        # Create multiple splits
+        split_name_to_id = await bulk_create_dataset_splits(
+            session, {"split-a", "split-b", "split-c"}
+        )
+
+        # Create assignments (every example to every split = 30 assignments)
+        assignments = [
+            (example_id, split_id)
+            for example_id in example_ids
+            for split_id in split_name_to_id.values()
+        ]
+
+        # Use small batch_size to verify batching
+        await bulk_assign_examples_to_splits(session, assignments, batch_size=5)
+        await session.commit()
+
+    # Verify all assignments were made
+    async with db() as session:
+        result = await session.execute(select(models.DatasetSplitDatasetExample))
+        all_assignments = result.scalars().all()
+        assert len(all_assignments) == 30  # 10 examples x 3 splits
+
+
+async def test_bulk_assign_examples_to_splits_handles_duplicates(
+    db: DbSessionFactory,
+) -> None:
+    """Test that bulk_assign_examples_to_splits handles duplicate assignments gracefully.
+
+    The ON CONFLICT DO NOTHING clause should prevent errors from duplicates.
+    """
+    # Create a dataset with examples
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"z": 2}),
+                ]
+            ),
+            name="duplicate-split-test",
+        )
+
+    async with db() as session:
+        examples = await session.scalars(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == "duplicate-split-test")
+        )
+        example_id = next(iter(examples)).id
+
+        split_name_to_id = await bulk_create_dataset_splits(session, {"test-split"})
+        split_id = split_name_to_id["test-split"]
+
+        # Assign the same example-split pair multiple times
+        duplicate_assignments = [(example_id, split_id)] * 5
+
+        # Should not raise an error
+        await bulk_assign_examples_to_splits(session, duplicate_assignments)
+        await session.commit()
+
+    # Verify only one assignment exists
+    async with db() as session:
+        result = await session.execute(
+            select(models.DatasetSplitDatasetExample).where(
+                models.DatasetSplitDatasetExample.dataset_example_id == example_id
+            )
+        )
+        all_assignments = result.scalars().all()
+        assert len(all_assignments) == 1
+
+
+async def test_add_dataset_examples_returns_update_counts(
+    db: DbSessionFactory,
+) -> None:
+    initial_examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+            ExampleContent(input={"x": 3}, output={"y": 3}, external_id="c"),
+        ]
+    )
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=initial_examples,
+            name="update-counts",
+            action=DatasetAction.UPDATE,
+        )
+    assert first_event.num_created_examples == 3
+    assert first_event.num_patched_examples == 0
+    assert first_event.num_deleted_examples == 0
+
+    async with db() as session:
+        unchanged_event = await add_dataset_examples(
+            session=session,
+            examples=initial_examples,
+            name="update-counts",
+            action=DatasetAction.UPDATE,
+        )
+    assert unchanged_event.num_created_examples == 0
+    assert unchanged_event.num_patched_examples == 0
+    assert unchanged_event.num_deleted_examples == 0
+    assert unchanged_event.dataset_version_id == first_event.dataset_version_id
+
+    mixed_examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 222}, external_id="b"),
+            ExampleContent(input={"x": 9}, output={"y": 9}, external_id="d"),
+        ]
+    )
+    async with db() as session:
+        update_event = await add_dataset_examples(
+            session=session,
+            examples=mixed_examples,
+            name="update-counts",
+            action=DatasetAction.UPDATE,
+        )
+    assert update_event.num_created_examples == 1
+    assert update_event.num_patched_examples == 1
+    assert update_event.num_deleted_examples == 1
+    assert update_event.dataset_version_id != first_event.dataset_version_id
+
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 42}, output={"y": 42}, external_id="e"),
+                ]
+            ),
+            name="update-counts",
+            action=DatasetAction.APPEND,
+        )
+    assert append_event.num_created_examples == 1
+    assert append_event.num_patched_examples == 0
+    assert append_event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_splits_only_change_counts_as_patch(
+    db: DbSessionFactory,
+) -> None:
+    """Changing only splits (content unchanged) should count as patched examples
+    without producing a new dataset version."""
+    initial = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": 1}, output={"y": 1}, splits=frozenset({"train"}), external_id="a"
+            ),
+            ExampleContent(
+                input={"x": 2}, output={"y": 2}, splits=frozenset({"train"}), external_id="b"
+            ),
+        ]
+    )
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=initial,
+            name="splits-only-change",
+            action=DatasetAction.UPDATE,
+        )
+    assert first_event.num_created_examples == 2
+    assert first_event.num_patched_examples == 0
+
+    splits_changed = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": 1}, output={"y": 1}, splits=frozenset({"test"}), external_id="a"
+            ),
+            ExampleContent(
+                input={"x": 2}, output={"y": 2}, splits=frozenset({"test"}), external_id="b"
+            ),
+        ]
+    )
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=splits_changed,
+            name="splits-only-change",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 2
+    assert event.num_deleted_examples == 0
+    # Splits are not versioned, so no new dataset version is created.
+    assert event.dataset_version_id == first_event.dataset_version_id
+
+
+async def test_add_dataset_examples_splits_only_change_append_counts_as_patch(
+    db: DbSessionFactory,
+) -> None:
+    """APPEND where the only change for a matched example is its split
+    membership should count as a patched example."""
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 1},
+                        splits=frozenset({"train"}),
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="splits-only-append",
+            action=DatasetAction.CREATE,
+        )
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 1},
+                        splits=frozenset({"test"}),
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="splits-only-append",
+            action=DatasetAction.APPEND,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 1
+    assert event.num_deleted_examples == 0
+    assert event.dataset_version_id == first_event.dataset_version_id
+
+
+async def test_add_dataset_examples_content_and_splits_change_counts_once(
+    db: DbSessionFactory,
+) -> None:
+    """An example whose content AND splits both change should count as a
+    single patched example, not two."""
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 1},
+                        splits=frozenset({"train"}),
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="content-and-splits",
+            action=DatasetAction.UPDATE,
+        )
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 999},  # content changed
+                        splits=frozenset({"test"}),  # splits changed too
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="content-and-splits",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 1
+    assert event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_identical_splits_is_noop(
+    db: DbSessionFactory,
+) -> None:
+    """Re-uploading identical content AND identical splits should not count
+    any example as patched."""
+    examples = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": 1}, output={"y": 1}, splits=frozenset({"train"}), external_id="a"
+            ),
+        ]
+    )
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="splits-identical-noop",
+            action=DatasetAction.UPDATE,
+        )
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="splits-identical-noop",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 0
+    assert event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_create_raises_on_name_conflict(
+    db: DbSessionFactory,
+) -> None:
+    examples = _hash_examples([ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a")])
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="create-conflict",
+            action=DatasetAction.CREATE,
+        )
+
+    async with db() as session:
+        with pytest.raises(DatasetNameConflictError, match='"create-conflict"'):
+            await add_dataset_examples(
+                session=session,
+                examples=examples,
+                name="create-conflict",
+                action=DatasetAction.CREATE,
+            )
+
+    # CREATE must not block APPEND on an existing dataset.
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b")]
+            ),
+            name="create-conflict",
+            action=DatasetAction.APPEND,
+        )
+    assert append_event.num_created_examples == 1
+
+    # UPDATE on the existing dataset converges without raising.
+    async with db() as session:
+        update_event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="create-conflict",
+            action=DatasetAction.UPDATE,
+        )
+    assert update_event.num_deleted_examples == 1  # the example added by APPEND
+
+
+async def test_add_dataset_examples_update_auto_creates_missing_dataset(
+    db: DbSessionFactory,
+) -> None:
+    examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+        ]
+    )
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="update-auto-create",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 2
+    assert event.num_patched_examples == 0
+    assert event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_with_many_splits(
+    db: DbSessionFactory,
+) -> None:
+    """Test end-to-end that creating examples with splits works correctly with batching.
+
+    This tests the full flow through add_dataset_examples -> bulk_assign_examples_to_splits.
+    """
+    # Create 15 examples each belonging to 3 different splits
+    hashed_examples = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": i},
+                output={"z": i * 2},
+                splits=frozenset(["train", "eval", "test"]),
+            )
+            for i in range(15)
+        ]
+    )
+
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=hashed_examples,
+            name="many-splits-dataset",
+        )
+
+    # Verify all examples have all splits assigned
+    async with db() as session:
+        result = await session.execute(
+            select(models.DatasetSplitDatasetExample)
+            .join(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == "many-splits-dataset")
+        )
+        all_assignments = result.scalars().all()
+        # 15 examples x 3 splits = 45 assignments
+        assert len(all_assignments) == 45
+
+
+@pytest.mark.parametrize("batch_size", [1, 3, 7, 100])
+async def test_resolve_span_ids_to_rowids_various_batch_sizes(
+    db: DbSessionFactory,
+    batch_size: int,
+) -> None:
+    """Test that resolve_span_ids_to_rowids works correctly with various batch sizes."""
+    # Create spans
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project)
+            .values(name=f"batch-size-{batch_size}-project")
+            .returning(models.Project.id)
+        )
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                project_rowid=project_id,
+                trace_id=f"batch-size-{batch_size}-trace",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+
+        # Create 10 spans
+        expected_mappings: dict[str, int] = {}
+        for i in range(10):
+            span_id = f"span-size-{batch_size}-{i}"
+            rowid = await session.scalar(
+                insert(models.Span)
+                .values(
+                    trace_rowid=trace_id,
+                    span_id=span_id,
+                    name=f"test_span_{i}",
+                    span_kind="INTERNAL",
+                    start_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(timezone.utc),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                .returning(models.Span.id)
+            )
+            assert rowid is not None
+            expected_mappings[span_id] = rowid
+        await session.commit()
+
+    # Resolve with parameterized batch size
+    async with db() as session:
+        span_ids: list[str | None] = list(expected_mappings.keys())
+        result = await resolve_span_ids_to_rowids(session, span_ids, batch_size=batch_size)
+
+    assert result == expected_mappings
+
+
+@pytest.mark.parametrize("batch_size", [1, 3, 7, 100])
+async def test_bulk_assign_examples_to_splits_various_batch_sizes(
+    db: DbSessionFactory,
+    batch_size: int,
+) -> None:
+    """Test that bulk_assign_examples_to_splits works correctly with various batch sizes."""
+    # Create a dataset with examples
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [ExampleContent(input={"x": i}, output={"z": i}) for i in range(5)]
+            ),
+            name=f"batch-size-{batch_size}-split-test",
+        )
+
+    async with db() as session:
+        examples = await session.scalars(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == f"batch-size-{batch_size}-split-test")
+        )
+        example_ids = [e.id for e in examples]
+
+        split_name_to_id = await bulk_create_dataset_splits(session, {"split-x", "split-y"})
+
+        # Create assignments (5 examples x 2 splits = 10 assignments)
+        assignments = [
+            (example_id, split_id)
+            for example_id in example_ids
+            for split_id in split_name_to_id.values()
+        ]
+
+        await bulk_assign_examples_to_splits(session, assignments, batch_size=batch_size)
+        await session.commit()
+
+    # Verify all assignments were made
+    async with db() as session:
+        result = await session.execute(
+            select(models.DatasetSplitDatasetExample)
+            .join(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == f"batch-size-{batch_size}-split-test")
+        )
+        all_assignments = result.scalars().all()
+        assert len(all_assignments) == 10
+
+
+async def _simulate_pre_v15_dataset(db: DbSessionFactory, dataset_name: str) -> list[int]:
+    """Null out content_hash and external_id on every revision/example in the
+    given dataset so it looks like a pre-v15 dataset (the v15 migration adds
+    those columns as nullable without a backfill). Returns the example db ids
+    in insertion order."""
+    async with db() as session:
+        example_ids = list(
+            (
+                await session.scalars(
+                    select(models.DatasetExample.id)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == dataset_name)
+                    .order_by(models.DatasetExample.id)
+                )
+            ).all()
+        )
+        await session.execute(
+            update(models.DatasetExampleRevision)
+            .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+            .values(content_hash=None)
+        )
+        await session.execute(
+            update(models.DatasetExample)
+            .where(models.DatasetExample.id.in_(example_ids))
+            .values(external_id=None)
+        )
+        await session.commit()
+    return example_ids
+
+
+async def test_action_update_deletes_pre_upsert_examples(
+    db: DbSessionFactory,
+) -> None:
+    """Examples in pre-v15 datasets (NULL content_hash, NULL external_id from
+    the nullable-without-backfill migration) must be deleted under
+    action=update when not referenced by the incoming payload — otherwise they
+    remain as invisible orphans."""
+    name = "pre-upsert-update-delete"
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+                    ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.CREATE,
+        )
+
+    await _simulate_pre_v15_dataset(db, name)
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 9}, output={"y": 9}, external_id="z"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 1
+    assert event.num_patched_examples == 0
+    assert event.num_deleted_examples == 2
+
+
+async def test_action_update_can_patch_pre_upsert_example_by_global_id(
+    db: DbSessionFactory,
+) -> None:
+    """An example in a pre-v15 dataset referenced by its DatasetExample
+    GlobalID is matched via the node_id branch and PATCHed (acquiring a
+    content_hash); other unmatched pre-v15 examples are deleted."""
+    name = "pre-upsert-update-patch"
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+                    ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.CREATE,
+        )
+
+    example_ids = await _simulate_pre_v15_dataset(db, name)
+    target_example_id = example_ids[0]
+    target_global_id = str(GlobalID(type_name="DatasetExample", node_id=str(target_example_id)))
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 100}, external_id=target_global_id),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 1
+    assert event.num_deleted_examples == 1
+
+    async with db() as session:
+        latest_revision = await session.scalar(
+            select(models.DatasetExampleRevision)
+            .where(models.DatasetExampleRevision.dataset_example_id == target_example_id)
+            .order_by(models.DatasetExampleRevision.id.desc())
+            .limit(1)
+        )
+        assert latest_revision is not None
+        assert latest_revision.content_hash is not None
+        assert latest_revision.output == {"y": 100}

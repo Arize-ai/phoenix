@@ -1,0 +1,33 @@
+{{- include "phoenix.validatePersistence" . }}
+{{- $isMemoryDatabase := .Values.persistence.inMemory | toString | eq "true" }}
+{{- if and (.Values.persistence.enabled | toString | eq "true") (not $isMemoryDatabase) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "phoenix.fullname" . }}-data-pvc
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    app: {{ include "phoenix.fullname" . }}
+    {{- if .Values.persistence.labels }}
+    {{- toYaml .Values.persistence.labels | nindent 4 }}
+    {{- end }}
+  {{- if .Values.persistence.annotations }}
+  annotations:
+    {{- toYaml .Values.persistence.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size | quote }}
+  {{- if .Values.persistence.storageClass }}
+  {{- if (eq "-" .Values.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}

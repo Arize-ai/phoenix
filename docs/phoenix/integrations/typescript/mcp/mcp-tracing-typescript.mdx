@@ -1,0 +1,145 @@
+---
+title: "MCP Tracing (TypeScript)"
+description: Trace MCP (Model Context Protocol) clients and servers in TypeScript/Node.js
+---
+
+This module provides instrumentation for [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) clients and servers, enabling context propagation between MCP clients and servers to unify traces.
+
+<Note>
+The `@arizeai/openinference-instrumentation-mcp` instrumentor enables context propagation between MCP clients and servers. It does not generate its own telemetry—you still need to generate OpenTelemetry traces in both the client and server to see a unified trace.
+</Note>
+
+## Install
+
+```bash
+npm install @arizeai/openinference-instrumentation-mcp @arizeai/phoenix-otel
+```
+
+## Setup
+
+To instrument your MCP application, use the `register` function from `@arizeai/phoenix-otel` and set up the MCP instrumentation.
+
+Create the `instrumentation.ts` file:
+
+```typescript expandable
+import { register } from "@arizeai/phoenix-otel";
+import { MCPInstrumentation } from "@arizeai/openinference-instrumentation-mcp";
+
+// Initialize Phoenix tracing
+const tracerProvider = register({
+  projectName: "mcp-app",
+  // If using Phoenix Cloud:
+  // url: "https://app.phoenix.arize.com/s/your-space-name",
+  // apiKey: process.env.PHOENIX_API_KEY,
+  // If using self-hosted Phoenix:
+  // url: "http://localhost:6006",
+});
+
+// Set up MCP instrumentation for context propagation
+const instrumentation = new MCPInstrumentation();
+instrumentation.enable();
+
+console.log("MCP instrumentation registered");
+```
+
+## MCP Client Example
+
+```typescript expandable
+import "./instrumentation.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
+async function main() {
+  const transport = new StdioClientTransport({
+    command: "node",
+    args: ["./server.js"],
+  });
+
+  const client = new Client({
+    name: "example-client",
+    version: "1.0.0",
+  }, {
+    capabilities: {},
+  });
+
+  await client.connect(transport);
+
+  // Call a tool on the MCP server
+  const result = await client.callTool({
+    name: "get_weather",
+    arguments: { location: "San Francisco" },
+  });
+
+  console.log(result);
+  await client.close();
+}
+
+main();
+```
+
+## MCP Server Example
+
+```typescript expandable
+import "./instrumentation.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const server = new Server({
+  name: "example-server",
+  version: "1.0.0",
+}, {
+  capabilities: {
+    tools: {},
+  },
+});
+
+// Define a tool
+server.setRequestHandler("tools/call", async (request) => {
+  if (request.params.name === "get_weather") {
+    const location = request.params.arguments?.location;
+    return {
+      content: [{
+        type: "text",
+        text: `Weather in ${location}: Sunny, 72°F`,
+      }],
+    };
+  }
+  throw new Error(`Unknown tool: ${request.params.name}`);
+});
+
+// List available tools
+server.setRequestHandler("tools/list", async () => {
+  return {
+    tools: [{
+      name: "get_weather",
+      description: "Get the weather for a location",
+      inputSchema: {
+        type: "object",
+        properties: {
+          location: { type: "string" },
+        },
+        required: ["location"],
+      },
+    }],
+  };
+});
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+main();
+```
+
+## Observe
+
+With MCP instrumentation enabled, traces from your MCP client and server will be connected in Phoenix, allowing you to see the full request flow across client-server boundaries.
+
+## Resources
+
+* [NPM Package](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-mcp)
+
+* [OpenInference package for MCP](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-mcp)
+
+* [Model Context Protocol Documentation](https://modelcontextprotocol.io/)

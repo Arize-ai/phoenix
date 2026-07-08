@@ -1,0 +1,699 @@
+dataset_name: product_knowledge
+description: >-
+  PXI product-knowledge eval suite for the phoenix_domain section of the base
+  system prompt. Happy-path examples check the agent recalls Phoenix domain
+  vocabulary (turns, sessions, span kinds, cost derivation, annotations,
+  annotation configs, evaluators, experiments, error analysis) directly from
+  the system prompt; adversarial examples plant a wrong premise the prompt
+  knowledge must override (e.g. llm.cost.* attributes, turn-vs-span confusion,
+  HUMAN evaluator kind). Every example forbids the docs MCP tools to assert
+  the answer does not require a documentation fetch.
+evaluators:
+  - assistant_text_substrings_match
+  - correct_tools_called
+
+examples:
+
+  # ===== Happy path: vocabulary recall from the system prompt =====
+
+  - id: turn-definition
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What's a turn in a session?
+    expected:
+      assistant_text:
+        contains_all:
+          - "trace"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: tracing-vocabulary
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          A turn is one trace within a session; "trace" is the discriminating
+          fact a wrong answer (span, message) would omit.
+
+  - id: session-grouping
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: how do i group traces into sessions
+    expected:
+      assistant_text:
+        contains_all:
+          - "session.id"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: tracing-vocabulary
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: Must name the session.id span attribute verbatim.
+
+  - id: span-kinds
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What span kinds does Phoenix support?
+    expected:
+      assistant_text:
+        contains_all:
+          - "chain"
+          - "retriev"
+          - "embedding"
+          - "rerank"
+          - "guardrail"
+          - "evaluator"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: tracing-vocabulary
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Annotators pinned different subsets; merged kinds with majority
+          support using robust stems. AGENT/LLM/TOOL omitted as too generic
+          to discriminate a correct enumeration.
+
+  - id: cost-computation
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: How does Phoenix calculate the cost shown on my LLM spans?
+    expected:
+      assistant_text:
+        contains_all:
+          - "token"
+          - ["price", "pricing"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: cost
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Token counts multiplied by configured model prices. Dropped a
+          minority assertion requiring model-name/Settings details — a
+          correct answer can explain the mechanism without them.
+
+  - id: missing-cost
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Why don't I see any costs in my project?
+    expected:
+      assistant_text:
+        contains_all:
+          - "token"
+          - ["price", "pricing"]
+          - ["model name", "model_name", "match"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: cost
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          The two prompt-documented causes: missing token counts, or model
+          name not matching a pricing entry.
+
+  - id: annotation-definition
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What is an annotation exactly?
+    expected:
+      assistant_text:
+        contains_all:
+          - "label"
+          - "score"
+          - "explanation"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: annotations
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          The label/score/explanation triple is the core anatomy. Dropped a
+          minority ["feedback", "judg"] group as plausibly omitted.
+
+  - id: annotator-kinds
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Can only humans annotate spans?
+    expected:
+      assistant_text:
+        contains_all:
+          - "llm"
+          - "code"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: annotations
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          A correct "no" must surface the LLM and CODE annotator kinds; a
+          wrong "yes, only humans" answer would mention neither.
+
+  - id: annotation-config-types
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: what kinds of annotation configs can I create
+    expected:
+      assistant_text:
+        contains_all:
+          - "categor"
+          - "continuous"
+          - ["freeform", "free-form", "free form"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: annotations
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: The three config types; "categor" stem is morphologically robust.
+
+  - id: evaluator-kinds
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What's the difference between an LLM evaluator and a code evaluator?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["judge", "subjective", "semantic"]
+          - ["determin", "sandbox"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: evals
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          LLM-as-judge for subjective/semantic quality vs deterministic
+          sandboxed code; merged to one any-of group per side.
+
+  - id: experiment-anatomy
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What actually happens when I run an experiment over a dataset?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["evaluat", "evals"]
+          - "score"
+          - "example"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: evals
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Evaluators scoring runs over dataset examples is the core fact.
+          Dropped a unanimous "task" assertion per the plausible-omission
+          rule ("runs your prompt over each example" is a correct phrasing).
+
+  - id: open-vs-axial-coding
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: open coding vs axial coding — what's the difference?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["note", "observation"]
+          - ["cluster", "group", "bucket"]
+          - "categor"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: ai-engineering
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Open coding = free-form notes per trace; axial = clustering into
+          named categories. Widened "note" with "observation".
+
+  - id: error-analysis-definition
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What is error analysis in AI engineering?
+    expected:
+      assistant_text:
+        contains_all:
+          - "trace"
+          - ["label", "wrong", "failure"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: ai-engineering
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Looking at real traces and labeling what went wrong; "trace" is the
+          discriminating anchor against a generic metrics-first answer.
+
+  # ===== Adversarial: wrong premises the prompt knowledge must override =====
+
+  - id: adv-llm-cost-attribute
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: I'm setting llm.cost.total on my spans but Phoenix shows no cost data. What gives?
+    expected:
+      assistant_text:
+        contains_all:
+          - "token"
+          - ["price", "pricing"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: cost
+      adversarial: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Phoenix does not read cost attributes off spans; the correct answer
+          redirects to token counts x configured prices. No not_contains on
+          "llm.cost" — a correct refutation quotes the premise.
+
+  - id: adv-turn-vs-span
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: A turn is the same thing as a span, right?
+    expected:
+      assistant_text:
+        contains_all:
+          - "trace"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: tracing-vocabulary
+      adversarial: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          The correction is that a turn is a trace within a session; "trace"
+          appears only in the corrected answer, not in the premise.
+
+  - id: adv-annotate-only-spans
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Annotations can only go on individual spans, correct?
+    expected:
+      assistant_text:
+        contains_all:
+          - "trace"
+          - "session"
+          - ["document", "experiment"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: annotations
+      adversarial: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Must list additional annotation targets beyond spans: traces,
+          sessions, and documents or experiment runs.
+
+  - id: adv-code-eval-llm
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Do code evaluators call an LLM under the hood?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["determin", "sandbox"]
+          - ["python", "typescript"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: evals
+      adversarial: true
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          No — deterministic sandboxed Python/TypeScript. The runtime names
+          discriminate: an answer affirming an LLM call would not name them.
+
+  - id: adv-conversation-id-attr
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What attribute do I set to group my chatbot conversations — conversation.id?
+    expected:
+      assistant_text:
+        contains_all:
+          - "session.id"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: tracing-vocabulary
+      adversarial: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          The OpenInference attribute is session.id. No not_contains on
+          "conversation.id" — a correct answer quotes it to refute it.
+
+  - id: adv-experiment-mutates
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Will running an experiment overwrite the outputs saved on my dataset examples?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["version", "snapshot", "unchanged", "untouched", "immutable", "not modif"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: evals
+      adversarial: true
+      annotation:
+        agreement: low
+        n_opinions: 3
+        notes: >-
+          No — experiments run against a dataset version and record results
+          on runs. Annotators diverged on strictness; merged to a wide any-of
+          since correct negation phrasings vary. Candidate for human review.
+
+  - id: adv-axial-coding-first
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: For error analysis I'll start with axial coding to bucket traces, then do open coding notes afterwards. Sound right?
+    expected:
+      assistant_text:
+        contains_all:
+          - "open coding"
+          - "note"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: ai-engineering
+      adversarial: true
+      annotation:
+        agreement: low
+        n_opinions: 3
+        notes: >-
+          Order is backwards: open coding (free-form notes) precedes axial
+          coding. Direction-correction phrasings ("backwards", "reverse",
+          ...) were judged unenumerable and dropped; the kept anchors are
+          weak. Candidate for human review.
+
+  - id: adv-optimization-direction
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Annotation configs only support maximize as the optimization direction, right?
+    expected:
+      assistant_text:
+        contains_all:
+          - "minimize"
+          - "none"
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: annotations
+      adversarial: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Must surface minimize and none as the other optimization
+          directions; both are literal enum values.
+
+  # ===== Dev: applied workflow gaps expected to fail current prompt guidance =====
+
+  - id: gap-trace-error-analysis-playbook
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: >-
+            I have hundreds of agent traces in Phoenix and don't know what evals
+            to write yet. How should I use Phoenix to figure out what is going
+            wrong first?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["sample", "inspect", "review"]
+          - "open coding"
+          - "axial coding"
+          - ["annotation config", "annotation configs"]
+          - ["dataset", "datasets"]
+          - ["experiment", "experiments"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: applied-workflow-gap
+      expected_current_behavior: fail
+      annotation:
+        agreement: human-authored
+        n_opinions: 1
+        notes: >-
+          This should fail with glossary-only guidance unless the prompt teaches
+          PXI the practical trace-to-eval workflow: sample/review traces, open
+          code observations, axial-code categories, turn categories into
+          annotation configs, curate examples into datasets, and run experiments
+          with evals.
+
+  - id: gap-annotation-taxonomy-design
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: >-
+            My RAG app failures seem to be wrong retrieval, missing citations,
+            and answers that ignore the question. What should I create in
+            Phoenix so my team can label these consistently?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["categorical", "category"]
+          - ["annotation config", "annotation configs"]
+          - ["wrong retrieval", "retrieval"]
+          - ["missing citations", "citation"]
+          - ["ignore", "off-topic", "does not answer"]
+          - ["label", "labels"]
+          - ["trace", "traces"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: applied-workflow-gap
+      expected_current_behavior: fail
+      annotation:
+        agreement: human-authored
+        n_opinions: 1
+        notes: >-
+          The current prompt defines annotation configs but does not guide PXI to
+          design a categorical failure taxonomy from observed trace failures or
+          recommend labeling traces consistently with that schema.
+
+  - id: gap-cost-debugging-playbook
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: >-
+            Costs are blank for my LLM traces. Before I change code, what should
+            I inspect in Phoenix and on the spans to narrow down why?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["LLM span", "LLM spans", "span kind"]
+          - ["token count", "token counts", "llm.token_count"]
+          - ["model name", "llm.model_name", "model_name"]
+          - ["Settings", "Models"]
+          - ["match", "matched"]
+          - ["provider", "llm.provider"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: applied-workflow-gap
+      expected_current_behavior: fail
+      annotation:
+        agreement: human-authored
+        n_opinions: 1
+        notes: >-
+          The prompt has the ingredients for cost calculation, but not a
+          stepwise debugging playbook that starts with the LLM span, checks token
+          count attributes, checks model/provider identity, and verifies a
+          matching Settings > Models pricing entry.
+
+  - id: gap-session-turn-investigation
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: >-
+            A user says the chatbot went off the rails halfway through a long
+            conversation. How should I inspect that in Phoenix using sessions,
+            turns, traces, and spans?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["session", "sessions"]
+          - ["turn", "turns"]
+          - ["trace", "traces"]
+          - ["root span", "root spans"]
+          - ["span", "spans"]
+          - ["compare", "timeline", "sequence"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: applied-workflow-gap
+      expected_current_behavior: fail
+      annotation:
+        agreement: human-authored
+        n_opinions: 1
+        notes: >-
+          The current prompt defines sessions and turns, but does not teach an
+          investigation pattern: open the session, follow the ordered turn/trace
+          sequence, compare root-span input/output per turn, then drill into
+          child spans around the first bad turn.
+
+  - id: gap-traces-to-dataset-curation
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: >-
+            We found five examples of tool misuse in production traces. What's
+            the Phoenix workflow to make sure the next agent change doesn't
+            regress on these cases?
+    expected:
+      assistant_text:
+        contains_all:
+          - ["curate", "add", "save"]
+          - ["dataset", "datasets"]
+          - ["example", "examples"]
+          - ["evaluator", "eval", "evals"]
+          - ["experiment", "experiments"]
+          - ["compare", "regress", "regression"]
+      tools:
+        forbidden: [search_phoenix, query_docs_filesystem_phoenix]
+    metadata:
+      category: applied-workflow-gap
+      expected_current_behavior: fail
+      annotation:
+        agreement: human-authored
+        n_opinions: 1
+        notes: >-
+          This asserts an applied loop that the current prompt only hints at:
+          preserve interesting production traces as dataset examples, attach an
+          evaluator for tool misuse, run an experiment for the candidate change,
+          and compare against prior results to catch regressions.
+
+  - id: adv-evaluator-human-kind
+    # Moved to dev: the agent often (correctly) calls get_route_info to link
+    # the evaluators page for this "how do I" question; that browser-side
+    # deferred tool ends the single-shot harness run before any text is
+    # produced, so the text assertion cannot be evaluated reliably.
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: How do I create a HUMAN evaluator to score my dataset?
+    expected:
+      assistant_text:
+        contains_all:
+          - "annotat"
+          - ["built-in", "builtin", "code"]
+    metadata:
+      category: evals
+      adversarial: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          There is no HUMAN evaluator kind; human judgment enters as
+          annotations (annotator kind HUMAN). The correct answer redirects
+          to annotations and names the real evaluator kinds.
+      triage:
+        notes: >-
+          Docs-forbid assertion removed: "how do I create" is a procedural
+          question, and the base prompt routing rule legitimately allows a
+          docs lookup for configuration specifics. The premise correction
+          itself is still asserted via assistant_text. Moved to dev because
+          the agent's legitimate get_route_info call (browser-side,
+          deferred) ends harness runs before text is produced.
+
+  - id: adv-cost-config-location
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: I heard you have to edit a YAML file to set model prices for cost tracking?
+    expected:
+      assistant_text:
+        contains_all:
+          - "settings"
+          - ["price", "pricing"]
+    metadata:
+      category: cost
+      adversarial: true
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Model prices are configured in Settings > Models in the UI, not a
+          YAML file. "settings" is the discriminator; no not_contains on
+          "yaml" since a correct refutation quotes it.
+      triage:
+        notes: >-
+          Docs-forbid assertion removed: "where do I configure" is a
+          configuration question, which the base prompt routing rule
+          legitimately allows a docs lookup for. The premise correction
+          itself is still asserted via assistant_text.

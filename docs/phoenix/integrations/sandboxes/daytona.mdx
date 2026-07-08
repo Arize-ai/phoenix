@@ -1,0 +1,15 @@
+---
+title: "Daytona"
+description: "Run Phoenix code evaluators in Daytona's managed development sandboxes."
+---
+
+<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/daytona.svg" alt="Daytona" style={{ height: '64px' }} />
+
+[**Daytona**](https://www.daytona.io/) provides managed development sandboxes with fast, snapshot-based startup. Phoenix uses Daytona as a hosted backend for both Python and TypeScript [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) that need stronger isolation than the local sandboxes, longer maximum timeouts, or runtime dependency installation.
+
+## Configure
+
+1. Sign up at [daytona.io](https://www.daytona.io/) and generate an API key.
+2. Add it as `DAYTONA_API_KEY` from **Settings → Sandboxes**.
+
+See [Settings → Sandboxes → Daytona](/docs/phoenix/settings/sandboxes/daytona) for full configuration details and [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for self-hosting setup.

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "phoenix.service" . }}
+  namespace: {{ .Release.Namespace | quote }}
+{{- if or .Values.server.annotations .Values.service.annotations }}
+  annotations:
+{{- if .Values.server.annotations }}
+{{ toYaml .Values.server.annotations | indent 4 }}
+{{- end }}
+{{- if .Values.service.annotations }}
+{{ toYaml .Values.service.annotations | indent 4 }}
+{{- end }}
+{{- end }}
+{{- if or .Values.server.labels .Values.service.labels }}
+  labels:
+    app: {{ include "phoenix.fullname" . }}
+{{- if .Values.server.labels }}
+{{ toYaml .Values.server.labels | indent 4 }}
+{{- end }}
+{{- if .Values.service.labels }}
+{{ toYaml .Values.service.labels | indent 4 }}
+{{- end }}
+{{- end }}
+spec:
+  type: {{ .Values.service.type | default "NodePort" }}
+  ports:
+    - name: {{ template "phoenix.grpcPortName" . }}
+      port: {{ template "phoenix.grpcPort" . }}
+    - name: {{ template "phoenix.appPortName" . }}
+      port: {{ template "phoenix.appPort" . }}
+    - name: {{ template "phoenix.metricsPortName" . }}
+      port: {{ template "phoenix.metricsPort" . }}
+  selector:
+    app: {{ include "phoenix.fullname" . }}

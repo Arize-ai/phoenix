@@ -1,0 +1,111 @@
+---
+title: "Release Notes"
+---
+
+# `px spans` — Fetch and Filter Spans from the CLI
+
+March 22, 2026
+
+**Available in arize-phoenix 13.16.0+ and @arizeai/phoenix-cli 0.12.0+**
+
+The Phoenix CLI (`px`) now has a `spans` command that fetches spans for a project with full filtering support. Pipe the output to other tools, save it to a file for offline analysis, or use it in scripts and CI pipelines.
+
+```bash
+# Fetch the 100 most recent spans (default)
+px spans
+
+# Fetch LLM spans with errors from the last hour
+px spans --span-kind LLM --status-code ERROR --last-n-minutes 60
+
+# Save spans to a JSON file
+px spans output.json --limit 500
+
+# Filter by span name or trace ID
+px spans --name my_chain_step --trace-id abc123
+
+# Include span annotations in output
+px spans --include-annotations
+
+# Root spans only (no parent)
+px spans --parent-id null
+```
+
+- **`--span-kind`** filters by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`); accepts multiple values
+- **`--status-code`** filters by status (`OK`, `ERROR`, `UNSET`); accepts multiple values
+- **`--name`** matches one or more span names
+- **`--trace-id`** narrows to specific traces; accepts multiple values
+- **`--last-n-minutes`** and **`--since`** control the time window
+- **`--format pretty|json|raw`** controls terminal output; file output is always JSON
+- **`--include-annotations`** attaches span annotations to each span in the output
+
+# `px self update` — Self-Update the CLI
+
+March 22, 2026
+
+**Available in @arizeai/phoenix-cli 0.12.0+**
+
+`px self update` upgrades the installed CLI to the latest published version. It detects how `px` was installed (npm, pnpm, bun, or Deno) and runs the appropriate update command automatically.
+
+```bash
+# Check if an update is available without installing
+px self update --check
+
+# Update to the latest version
+px self update
+```
+
+# `GET /v1/user` — Authenticated User Endpoint
+
+March 22, 2026
+
+**Available in arize-phoenix 13.16.0+**
+
+A new `GET /v1/user` endpoint returns the profile of the currently authenticated user, including their username, email, and role. When authentication is disabled, the endpoint returns an anonymous user representation instead of an error.
+
+```bash
+# Get the authenticated user's profile
+GET /v1/user
+```
+
+Response (authenticated):
+```json
+{
+  "data": {
+    "auth_method": "LOCAL",
+    "id": "VXNlcjox",
+    "username": "alice",
+    "email": "alice@example.com",
+    "role": "ADMIN",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "password_needs_reset": false
+  }
+}
+```
+
+Response (authentication disabled):
+```json
+{
+  "data": {
+    "auth_method": "ANONYMOUS"
+  }
+}
+```
+
+# `px auth status` Shows Username and Role
+
+March 23, 2026
+
+**Available in arize-phoenix 13.17.0+ and @arizeai/phoenix-cli 0.12.0+**
+
+`px auth status` now displays the authenticated username and role alongside the endpoint and token info. This uses the new `GET /v1/user` endpoint to verify credentials and surface identity at a glance.
+
+```bash
+px auth status
+# https://my-phoenix.example.com
+#   ✓ Logged in as alice (api key)
+#   - Role: ADMIN
+#   - Token: ************************************
+```
+
+When the server does not support the `/v1/user` endpoint (older versions), the command falls back gracefully and reports that verification is unavailable without failing.

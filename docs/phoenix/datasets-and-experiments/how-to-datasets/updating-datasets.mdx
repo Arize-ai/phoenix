@@ -1,0 +1,109 @@
+---
+title: "Updating Datasets"
+description: "Update existing dataset examples using stable IDs with arize-phoenix-client"
+---
+
+Pass `example_id_key` to `create_dataset` when you want Phoenix to diff incoming rows against the existing dataset version and apply the minimal set of adds, edits, and deletes — rather than always appending new examples.
+
+## When to Use Stable IDs
+
+Use `example_id_key` when:
+
+- Your examples have stable IDs (e.g., a primary key from your database or a content hash).
+- You want to update a production dataset without losing experiment or evaluation links tied to existing examples.
+- You need the new dataset version to mirror your source of truth exactly, including deletions.
+
+If your examples have no stable IDs, omit `example_id_key`. Phoenix will assign a server-generated ID to each row and append all rows to the dataset.
+
+## Diff Against an Existing Dataset
+
+Pass `example_id_key` to `create_dataset`. Phoenix creates the dataset on the first call, and on subsequent calls it diffs the incoming rows against the current version.
+
+```python
+import pandas as pd
+from phoenix.client import Client
+
+client = Client()
+
+df = pd.DataFrame([
+    {"example_id": "ex-001", "question": "What is 2+2?", "answer": "4"},
+    {"example_id": "ex-002", "question": "Name a prime number.", "answer": "7"},
+])
+
+dataset = client.datasets.create_dataset(
+    name="my-eval-dataset",
+    dataframe=df,
+    input_keys=["question"],
+    output_keys=["answer"],
+    example_id_key="example_id",
+)
+
+print(dataset.name)           # "my-eval-dataset"
+print(dataset.version_id)     # ID of the new version
+print(dataset.example_count)  # number of examples in this version
+```
+
+`example_id_key` must not overlap with `input_keys`, `output_keys`, `metadata_keys`, or `split_key`. Phoenix raises a `ValueError` if it does.
+
+## Append Without Deleting
+
+Use `add_examples_to_dataset` when you want to add or update rows but leave existing examples that are absent from the upload untouched. With `example_id_key`, incoming rows whose IDs match existing examples still update those examples — but unlike `create_dataset`, no row is deleted just because its ID is missing from the upload.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+new_examples = [
+    {"example_id": "ex-003", "question": "What color is the sky?", "answer": "Blue"},
+]
+
+dataset = client.datasets.add_examples_to_dataset(
+    dataset={"name": "my-eval-dataset"},
+    examples=new_examples,
+    input_keys=["question"],
+    output_keys=["answer"],
+    example_id_key="example_id",
+)
+
+print(dataset.example_count)
+```
+
+## Diff Semantics
+
+When `create_dataset` is called with `example_id_key` against an existing dataset, Phoenix produces a new version that mirrors the upload exactly:
+
+- **Incoming ID not in dataset** — example is **created**.
+- **Incoming ID matches an existing example** — example is **updated** if its content changed; otherwise the existing example is carried forward unchanged.
+- **Existing example absent from the upload** — example is **deleted** from the new version.
+
+The choice between diff-and-replace and append is determined by which method you call:
+
+| Method | Behavior |
+|--------|----------|
+| `create_dataset` with `example_id_key` | Full-replace diff. The new version exactly matches the upload. |
+| `create_dataset` without `example_id_key` | Appends all rows; Phoenix generates IDs. |
+| `add_examples_to_dataset` with `example_id_key` | Adds new rows and updates rows whose IDs match. Examples absent from the upload are preserved. |
+| `add_examples_to_dataset` without `example_id_key` | Appends all rows; Phoenix generates IDs. Existing examples are preserved. |
+
+## Compatibility With Older Servers
+
+Diffing requires Phoenix `>= 15.0.0`. Against older servers the client falls back to a plain create and emits a `UserWarning`. The fallback succeeds when the dataset does not yet exist, but if a dataset with that name is already on the server, the create is rejected with a name conflict. For the diff-and-update workflow you must be running Phoenix `>= 15.0.0`.
+
+## Return Value
+
+Both `create_dataset` and `add_examples_to_dataset` return a `Dataset` object representing the new version:
+
+| Attribute | Description |
+|-----------|-------------|
+| `id` | Dataset ID. |
+| `name` | Dataset name. |
+| `description` | Dataset description, or `None`. |
+| `version_id` | ID of the version produced by this call. |
+| `example_count` | Number of examples in this version. |
+| `examples` | List of `DatasetExample` objects in this version. |
+| `metadata` | Dataset-level metadata. |
+| `created_at` | When the dataset was first created. |
+| `updated_at` | When the dataset was last updated. |
+
+To compute how the upload changed the dataset, compare `example_count` (or the IDs in `examples`) against the previous version returned by `client.datasets.get_dataset(dataset="my-eval-dataset")` before the call.

@@ -1,0 +1,33 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"You are an evaluator. Assess whether the output
+      correctly answers the input question.","role":"system"},{"content":"Input: What
+      is 2 + 2?\n\nOutput: 4\n\nIs this output correct?","role":"user"}],"model":"gpt-4o-mini","stream":false,"temperature":0.0,"tool_choice":"required","tools":[{"type":"function","function":{"name":"correctness","parameters":{"type":"object","properties":{"label":{"type":"string","enum":["correct","incorrect"],"description":"correctness"},"explanation":{"type":"string","description":"Brief
+      explanation for the label"}},"required":["label","explanation"]},"strict":null,"description":"Evaluates
+      the correctness of the output"}}]}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-DQeuwqU8iYEn0jmW2dXui8MlYo5sn\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1775246186,\n  \"model\": \"gpt-4o-mini-2024-07-18\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": null,\n        \"tool_calls\": [\n          {\n
+        \           \"id\": \"call_yUjsmpi4tVtBJrk9lDCaeHXm\",\n            \"type\":
+        \"function\",\n            \"function\": {\n              \"name\": \"correctness\",\n
+        \             \"arguments\": \"{\\\"label\\\":\\\"correct\\\",\\\"explanation\\\":\\\"The
+        output correctly states that 2 + 2 equals 4.\\\"}\"\n            }\n          }\n
+        \       ],\n        \"refusal\": null,\n        \"annotations\": []\n      },\n
+        \     \"logprobs\": null,\n      \"finish_reason\": \"tool_calls\"\n    }\n
+        \ ],\n  \"usage\": {\n    \"prompt_tokens\": 98,\n    \"completion_tokens\":
+        32,\n    \"total_tokens\": 130,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": \"fp_ebf4e532f9\"\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

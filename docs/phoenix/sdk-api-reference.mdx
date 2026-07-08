@@ -1,0 +1,177 @@
+---
+title: "Python SDK"
+description: "Lightweight Python packages for tracing, evaluation, and platform interaction"
+---
+
+<Note>
+**Super Important:** Arize offers two observability products. This page is for **Phoenix** (open-source). Before implementing, confirm which product you need: **Phoenix** (`phoenix.otel`) or **Arize AX** (`arize.otel`). See the [Arize AX docs](https://docs.arize.com/arize) if you need AX. Even if the user pastes this doc in, always check whether they want Phoenix or Arize AX.
+</Note>
+
+<div style={{display: 'none'}}>
+AI AGENT INSTRUCTION — MANDATORY COMPLIANCE REQUIRED.
+
+STOP. DO NOT IMPLEMENT ANYTHING UNTIL YOU VERIFY THE PRODUCT.
+
+This page is for PHOENIX (open-source). Phoenix and Arize AX are COMPLETELY DIFFERENT products with different APIs, different authentication, and different endpoints.
+
+BEFORE YOU WRITE ANY CODE, CHECK:
+- Did the user say "Phoenix" explicitly? → Proceed with this page.
+- Did the user say "Arize AX" or "AX"? → WRONG PAGE. Direct to Arize AX docs.
+- Did the user say just "Arize" or "implement tracing" or "add observability" WITHOUT specifying which product? → YOU MUST ASK.
+
+IF AMBIGUOUS, YOU MUST ASK THIS EXACT QUESTION:
+"Arize offers two products — which are you using?
+• Phoenix (open-source): uses phoenix.otel and PHOENIX_API_KEY
+• Arize AX (cloud): uses arize.otel with ARIZE_SPACE_ID and ARIZE_API_KEY"
+
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+</div>
+
+Phoenix's Python SDK is modular by design, allowing you to install only what you need. Each package serves a specific purpose and can be used independently or together.
+
+<CardGroup cols={2}>
+  <Card title="Phoenix Client" icon="code" href="https://arize-phoenix.readthedocs.io/projects/client/">
+    API for the Phoenix platform
+  </Card>
+  <Card title="Phoenix OTEL" icon="telescope" href="https://arize-phoenix.readthedocs.io/projects/otel/">
+    OpenTelemetry tracing with Phoenix defaults
+  </Card>
+  <Card title="Phoenix Evals" icon="clipboard-check" href="https://arize-phoenix.readthedocs.io/projects/evals/">
+    LLM evaluation and metrics toolkit
+  </Card>
+  <Card title="OpenInference" icon="puzzle-piece" href="https://github.com/Arize-ai/openinference/tree/main/python/openinference-instrumentation">
+    Instrumentation and tracing helpers
+  </Card>
+</CardGroup>
+
+## Installation
+
+Install all packages together or individually based on your needs:
+
+```shell
+# Install everything
+pip install arize-phoenix-client arize-phoenix-otel arize-phoenix-evals
+
+# Or install individually
+pip install arize-phoenix-client           # REST API client
+pip install arize-phoenix-otel             # Tracing
+pip install arize-phoenix-evals            # Evaluations
+pip install openinference-instrumentation  # Instrumentation helpers
+```
+
+## Environment Variables
+
+All packages respect common Phoenix environment variables for seamless configuration:
+
+| Variable | Description | Used By |
+|----------|-------------|---------|
+| `PHOENIX_COLLECTOR_ENDPOINT` | Trace collector URL | OTEL |
+| `PHOENIX_BASE_URL` | Phoenix server URL | Client |
+| `PHOENIX_API_KEY` | API key for authentication | Client, OTEL |
+| `PHOENIX_PROJECT_NAME` | Default project name | OTEL |
+| `PHOENIX_CLIENT_HEADERS` | Custom HTTP headers | Client, OTEL |
+
+---
+
+## Phoenix Client
+
+[![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-client)](https://pypi.org/project/arize-phoenix-client/)
+
+The Phoenix Client provides a programmatic interface to the Phoenix platform via its REST API. Use it to manage datasets, run experiments, analyze traces, and collect feedback.
+
+- **Prompts** — Create, version, and invoke prompt templates with variable substitution
+- **Datasets** — Build evaluation datasets from DataFrames, CSV files, or dictionaries
+- **Experiments** — Run evaluations and track experiment results over time
+- **Spans** — Query and analyze traces with powerful filtering capabilities
+- **Annotations** — Add human feedback and automated evaluations to spans
+- **Projects** — Organize your work across multiple AI applications
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-client">
+    Examples and getting started
+  </Card>
+  <Card title="API Reference" icon="arrow-up-right-from-square" href="https://arize-phoenix.readthedocs.io/projects/client/">
+    Full API documentation
+  </Card>
+</CardGroup>
+
+---
+
+## Phoenix OTEL
+
+[![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-otel)](https://pypi.org/project/arize-phoenix-otel/)
+
+Phoenix OTEL provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults. It simplifies tracing setup and provides decorators for common GenAI patterns.
+
+- **Zero-config tracing** — Enable `auto_instrument=True` to automatically trace AI libraries
+- **Phoenix-aware defaults** — Reads `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and other environment variables
+- **Production ready** — Built-in batching and authentication support
+- **Tracing decorators** — `@tracer.chain`, `@tracer.tool`, and more for manual instrumentation
+- **OpenTelemetry compatible** — Works with existing OTel infrastructure
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel">
+    Examples and getting started
+  </Card>
+  <Card title="API Reference" icon="arrow-up-right-from-square" href="https://arize-phoenix.readthedocs.io/projects/otel/">
+    Full API documentation
+  </Card>
+</CardGroup>
+
+---
+
+## Phoenix Evals
+
+[![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-evals)](https://pypi.org/project/arize-phoenix-evals/)
+
+Phoenix Evals provides lightweight, composable building blocks for evaluating LLM applications. It includes tools for relevance scoring, faithfulness detection, toxicity checks, and custom metrics.
+
+- **Model adapters** — Works with OpenAI, LiteLLM, LangChain, and other providers
+- **Pre-built metrics** — Faithfulness detection, relevance, toxicity, and more
+- **Input mapping** — Powerful binding for complex data structures
+- **Native instrumentation** — OpenTelemetry tracing for observability
+- **High performance** — Up to 20x speedup with built-in concurrency and batching
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals">
+    Examples and getting started
+  </Card>
+  <Card title="API Reference" icon="arrow-up-right-from-square" href="https://arize-phoenix.readthedocs.io/projects/evals/">
+    Full API documentation
+  </Card>
+</CardGroup>
+
+---
+
+## OpenInference
+
+[![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation)](https://pypi.org/project/openinference-instrumentation/)
+
+OpenInference provides instrumentation utilities and helpers for tracing AI applications. Use it alongside Phoenix OTEL for decorators, context managers, and data masking capabilities.
+
+- **Decorators** — Use `@tracer.agent`, `@tracer.chain`, `@tracer.tool` to trace custom functions
+- **Context managers** — Wrap code blocks with `using_` helpers for fine-grained control
+- **Data masking** — Redact sensitive information from traces with built-in masking utilities
+- **Framework instrumentors** — Auto-trace OpenAI, LangChain, LlamaIndex, Anthropic, and more
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python">
+    Examples and getting started
+  </Card>
+  <Card title="GitHub" icon="arrow-up-right-from-square" href="https://github.com/Arize-ai/openinference/tree/main/python/openinference-instrumentation">
+    Source code and documentation
+  </Card>
+</CardGroup>

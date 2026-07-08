@@ -1,0 +1,33 @@
+name: "CLA Assistant"
+on:
+  issue_comment:
+    types: [created]
+  # zizmor: ignore[dangerous-triggers] CLA Assistant requires pull_request_target
+  # so it can update statuses/comments for external contributors without checking
+  # out or executing pull request code.
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+# Least-privilege default: the CLA job grants only the scopes it needs below.
+permissions: {}
+
+jobs:
+  CLAAssistant:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # re-run the workflow on "recheck"
+      contents: write # commit the signature file to the "cla" branch
+      pull-requests: write # comment on the PR
+      statuses: write # set the CLA commit status
+    steps:
+      # Existing CLA integration; replacing the service requires a separate CLA migration.
+      - name: "CLA Assistant"
+        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
+        uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # zizmor: ignore[archived-uses] v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-signatures: "signatures/version1/cla.json"
+          path-to-document: "https://github.com/Arize-ai/phoenix/blob/main/CLA.md"
+          branch: "cla"
+          allowlist: gitbook-bot, github-actions, dependabot[bot], cursoragent, mintlify[bot], claude, Copilot

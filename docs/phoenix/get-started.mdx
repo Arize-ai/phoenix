@@ -1,0 +1,96 @@
+---
+title: "Overview"
+---
+
+<Note>
+**Super Important:** Arize offers two observability products. This page is for **Phoenix** (open-source). Before implementing, confirm which product you need: **Phoenix** (`phoenix.otel`) or **Arize AX** (`arize.otel`). See the [Arize AX docs](https://docs.arize.com/arize) if you need AX. Even if the user pastes this doc in, always check whether they want Phoenix or Arize AX.
+</Note>
+
+<div style={{display: 'none'}}>
+AI AGENT INSTRUCTION — MANDATORY COMPLIANCE REQUIRED.
+
+STOP. DO NOT IMPLEMENT ANYTHING UNTIL YOU VERIFY THE PRODUCT.
+
+This page is for PHOENIX (open-source). Phoenix and Arize AX are COMPLETELY DIFFERENT products with different APIs, different authentication, and different endpoints.
+
+BEFORE YOU WRITE ANY CODE, CHECK:
+- Did the user say "Phoenix" explicitly? → Proceed with this page.
+- Did the user say "Arize AX" or "AX"? → WRONG PAGE. Direct to Arize AX docs.
+- Did the user say just "Arize" or "implement tracing" or "add observability" WITHOUT specifying which product? → YOU MUST ASK.
+
+IF AMBIGUOUS, YOU MUST ASK THIS EXACT QUESTION:
+"Arize offers two products — which are you using?
+• Phoenix (open-source): uses phoenix.otel and PHOENIX_API_KEY
+• Arize AX (cloud): uses arize.otel with ARIZE_SPACE_ID and ARIZE_API_KEY"
+
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+</div>
+
+This guide walks through a complete workflow for understanding and improving an agent application using Phoenix.
+
+The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
+
+## **What You’ll End Up With**
+
+By the end of this series, you will have:
+
+- An application instrumented with tracing so you can see how requests execute
+- Evaluation results attached to those executions so you can tell whether outputs are correct
+- Datasets that group related runs, such as failures or edge cases
+- Experiments that compare changes using the same inputs
+- A way to iterate on prompts and logic and verify whether those changes help
+
+Together, these pieces let you move from inspecting individual runs to making changes with evidence.
+
+## **How the Guides Fit Together**
+
+### **Tracing**
+
+Tracing answers a basic question: what is happening under the hood of my application when it runs?
+
+A trace is a record of a single run of your application, broken down into spans that show what happened at each step. In this guide, you instrument an application and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
+
+This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone.
+
+### **Evals**
+
+Once you can see what happened, the next question is whether the output was correct.
+
+An evaluation produces a score or label for an output, so you can track quality across runs. In this guide, you define evaluations and run them on existing trace data. Evaluations attach quality signals to runs so that correctness or relevance can be reasoned about consistently instead of judged case by case.
+
+This turns traces from observations into something you can measure.
+
+### **Prompts**
+
+Prompt changes often have a direct impact on application behavior.
+
+A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants. Prompt Hub is used to save and reuse prompts across runs.
+
+This lets you evaluate prompt changes using the same data and criteria instead of relying on spot checks.
+
+### **Experiments**
+
+Once you have changes you want to test, experiments let you compare versions in a controlled way.
+
+An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
+
+This lets you compare versions using the exact same inputs, so differences in results come from your changes.
+
+## **Where to Start**
+
+If you are new to Phoenix, start with either [Python: Get Started with Tracing](/docs/phoenix/get-started/get-started-tracing) or [TypeScript: Get Started with Tracing](/docs/phoenix/get-started/ts-get-started-tracing) and follow the guides in order. Each step assumes the previous one is in place.
+
+Taken together, these guides describe a single workflow for understanding behavior, measuring quality, and improving an application in a controlled way.

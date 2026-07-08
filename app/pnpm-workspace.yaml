@@ -1,0 +1,14 @@
+packages:
+  - "."
+
+managePackageManagerVersions: true
+
+minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - "@arizeai/*"
+
+allowBuilds:
+  "@mongodb-js/zstd": false
+  esbuild: true
+  node-liblzma: false
+  protobufjs: false

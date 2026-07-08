@@ -1,0 +1,55 @@
+{
+  "name": "phoenix-js",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for Arize Phoenix Javascript Tooling",
+  "keywords": [
+    "evaluation",
+    "llmops",
+    "observability",
+    "telemetry"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "ELv2",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "scripts": {
+    "build": "pnpm run -r build",
+    "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance",
+    "ci:version": "pnpm changeset version",
+    "clean": "pnpm run clean:node_modules",
+    "clean:node_modules": "rimraf --glob '**/node_modules/**'",
+    "docs:generate": "typedoc",
+    "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o",
+    "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
+    "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "sync-package-docs": "node ./scripts/sync-package-docs.mjs",
+    "test": "pnpm run -r test",
+    "typecheck": "pnpm run -r typecheck"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0",
+    "oxfmt": "^0.54.0",
+    "oxlint": "~1.69.0",
+    "pkg-pr-new": "^0.0.75",
+    "rimraf": "^6.1.3",
+    "tsc-alias": "1.8.17",
+    "typedoc": "^0.28.19",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3",
+    "vitest": "^4.1.9"
+  },
+  "engines": {
+    "node": ">=10",
+    "pnpm": ">=3"
+  },
+  "packageManager": "pnpm@11.3.0"
+}

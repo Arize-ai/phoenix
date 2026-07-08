@@ -1,0 +1,156 @@
+import invariant from "tiny-invariant";
+
+import { createClient } from "../client";
+import { DATASET_UPLOAD_EXAMPLE_IDS } from "../constants/serverRequirements";
+import type { ClientFn } from "../types/core";
+import type { Example } from "../types/datasets";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
+
+export type CreateDatasetParams = ClientFn & {
+  /**
+   * The name of the dataset
+   */
+  name: string;
+  /**
+   * The description of the dataset
+   */
+  description: string;
+  /**
+   * The examples to create in the dataset
+   */
+  examples: Example[];
+};
+
+export type CreateDatasetResponse = {
+  datasetId: string;
+};
+
+/**
+ * Create a dataset with the given examples.
+ *
+ * If a dataset with the same name already exists, it is updated to match the
+ * provided examples. Re-running with the same inputs is a no-op.
+ *
+ * @experimental this interface may change in the future
+ *
+ * @param params - The parameters for creating the dataset
+ * @param params.client - Optional Phoenix client instance
+ * @param params.name - The name of the dataset
+ * @param params.description - The description of the dataset
+ * @param params.examples - The examples to create in the dataset. Each example can include:
+ *   - `input`: Required input data for the example
+ *   - `output`: Optional expected output data
+ *   - `metadata`: Optional metadata for the example
+ *   - `splits`: Optional split assignment (string, array of strings, or null)
+ *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
+ *
+ * @returns A promise that resolves to the created dataset ID
+ *
+ * @example
+ * ```ts
+ * // Create a dataset with span links
+ * const { datasetId } = await createDataset({
+ *   name: "qa-dataset",
+ *   description: "Q&A examples from traces",
+ *   examples: [
+ *     {
+ *       input: { question: "What is AI?" },
+ *       output: { answer: "Artificial Intelligence is..." },
+ *       spanId: "abc123def456" // Links to the source span
+ *     },
+ *     {
+ *       input: { question: "Explain ML" },
+ *       output: { answer: "Machine Learning is..." },
+ *       spanId: "789ghi012jkl"
+ *     }
+ *   ]
+ * });
+ * ```
+ */
+export async function createDataset({
+  client: _client,
+  name,
+  description,
+  examples,
+}: CreateDatasetParams): Promise<CreateDatasetResponse> {
+  const client = _client || createClient();
+  const inputs = examples.map((example) => example.input);
+  const outputs = examples.map((example) => example?.output ?? {}); // Treat null as an empty object
+  const metadata = examples.map((example) => example?.metadata ?? {});
+  const splits = examples.map((example) =>
+    example?.splits !== undefined ? example.splits : null
+  );
+
+  // Extract span IDs from examples, preserving null/undefined as null
+  const spanIds = examples.map((example) => example?.spanId ?? null);
+
+  // Only include span_ids in the request if at least one example has a span ID
+  const hasSpanIds = spanIds.some((id) => id !== null);
+
+  // Extract example IDs from examples, preserving null/undefined as null
+  const exampleIds = examples.map((example) => example?.id ?? null);
+
+  // Only include example_ids in the request if at least one example has an ID
+  const hasExampleIds = exampleIds.some((id) => id !== null);
+
+  const post = (action: "update" | "create") =>
+    client.POST("/v1/datasets/upload", {
+      params: {
+        query: {
+          // TODO: parameterize this
+          sync: true,
+        },
+      },
+      body: {
+        name,
+        description,
+        action,
+        inputs,
+        outputs,
+        metadata,
+        splits,
+        ...(hasSpanIds ? { span_ids: spanIds } : {}),
+        ...(hasExampleIds ? { example_ids: exampleIds } : {}),
+      },
+    });
+
+  if (hasExampleIds) {
+    await ensureServerCapability({
+      client,
+      requirement: DATASET_UPLOAD_EXAMPLE_IDS,
+    });
+  }
+  let createDatasetResponse = await post("update");
+  if (isUnsupportedUpdateActionResponse(createDatasetResponse)) {
+    warnUpdateFallback();
+    createDatasetResponse = await post("create");
+  }
+  invariant(createDatasetResponse.data?.data, "Failed to create dataset");
+  const datasetId = createDatasetResponse.data.data.dataset_id;
+  return {
+    datasetId,
+  };
+}
+
+function isUnsupportedUpdateActionResponse(result: {
+  response?: Response;
+  error?: unknown;
+}): boolean {
+  if (result.response?.status !== 422) return false;
+  const body =
+    typeof result.error === "string"
+      ? result.error
+      : JSON.stringify(result.error ?? "");
+  return (
+    body.includes("Invalid dateset action") ||
+    body.includes("Invalid dataset action")
+  );
+}
+
+function warnUpdateFallback(): void {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "Phoenix server does not support declarative update semantics. " +
+      "Upgrade to Phoenix v15 or later."
+  );
+}

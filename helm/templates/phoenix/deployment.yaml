@@ -1,0 +1,178 @@
+{{/*
+Validate persistence configuration to prevent conflicts
+*/}}
+{{- include "phoenix.validatePersistence" . }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "phoenix.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    app: {{ include "phoenix.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  {{- if .Values.deployment.strategy }}
+  strategy:
+    {{- toYaml .Values.deployment.strategy | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "phoenix.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "phoenix.fullname" . }}
+    spec:
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "phoenix.fullname" .) }}
+      {{- end }}
+      {{- if .Values.securityContext.pod.enabled }}
+      securityContext: {{- omit .Values.securityContext.pod "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: phoenix
+          image: {{ .Values.image.registry }}/{{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          {{- if .Values.securityContext.container.enabled }}
+          securityContext: {{- omit .Values.securityContext.container "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.resources }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.server.port | default 6006 }}
+            - containerPort: 9090
+            - containerPort: {{ .Values.server.grpcPort | default 4317 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.server.port | default 6006 }}
+            initialDelaySeconds: {{ .Values.healthChecks.livenessProbe.initialDelaySeconds | default 0 }}
+            periodSeconds: {{ .Values.healthChecks.livenessProbe.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.healthChecks.livenessProbe.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.healthChecks.livenessProbe.failureThreshold | default 3 }}
+            successThreshold: {{ .Values.healthChecks.livenessProbe.successThreshold | default 1 }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.server.port | default 6006 }}
+            initialDelaySeconds: {{ .Values.healthChecks.readinessProbe.initialDelaySeconds | default 0 }}
+            periodSeconds: {{ .Values.healthChecks.readinessProbe.periodSeconds | default 5 }}
+            timeoutSeconds: {{ .Values.healthChecks.readinessProbe.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.healthChecks.readinessProbe.failureThreshold | default 3 }}
+            successThreshold: {{ .Values.healthChecks.readinessProbe.successThreshold | default 1 }}
+          {{- if .Values.healthChecks.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.server.port | default 6006 }}
+            initialDelaySeconds: {{ .Values.healthChecks.startupProbe.initialDelaySeconds | default 1 }}
+            periodSeconds: {{ .Values.healthChecks.startupProbe.periodSeconds | default 1 }}
+            timeoutSeconds: {{ .Values.healthChecks.startupProbe.timeoutSeconds | default 1 }}
+            failureThreshold: {{ .Values.healthChecks.startupProbe.failureThreshold | default 30 }}
+            successThreshold: {{ .Values.healthChecks.startupProbe.successThreshold | default 1 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "phoenix.fullname" . }}-configmap
+          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) (and .Values.auth.ldap.enabled .Values.auth.ldap.bindPassword) (and .Values.additionalEnv (gt (len .Values.additionalEnv) 0)) }}
+          env:
+          {{- if .Values.auth.secret }}
+          {{- range $authSecrets := .Values.auth.secret }}
+            - name: {{ $authSecrets.key }}
+              valueFrom:
+              {{- if $authSecrets.valueFrom }}
+                {{- $authSecrets.valueFrom | toYaml | nindent 16 }}
+              {{- else }}
+                secretKeyRef:
+                  name: {{ $.Values.auth.name }}
+                  key: {{ $authSecrets.key }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
+          {{- range $provider_name, $provider_config := .Values.auth.oauth2.providers }}
+          {{- if $provider_config.client_secret }}
+          {{- $provider_upper := $provider_name | upper }}
+            - name: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.auth.name }}
+                  key: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- if and .Values.auth.ldap.enabled .Values.auth.ldap.bindPassword }}
+            - name: PHOENIX_LDAP_BIND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.name }}
+                  key: PHOENIX_LDAP_BIND_PASSWORD
+          {{- end }}
+          {{- if and .Values.additionalEnv (gt (len .Values.additionalEnv) 0) }}
+          {{- .Values.additionalEnv | toYaml | nindent 12 }}
+          {{- end }}
+          {{- end }}
+
+          volumeMounts:
+            {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: var-tmp-volume
+              mountPath: /var/tmp
+            - name: var-log-volume
+              mountPath: /var/log
+            - name: home-volume
+              mountPath: /home/phoenix
+            {{- end }}
+            - name: data
+              mountPath: {{ .Values.server.workingDir | default "/data" | quote }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+
+      volumes:
+        {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+        - name: tmp-volume
+          emptyDir: {}
+        - name: var-tmp-volume
+          emptyDir: {}
+        - name: var-log-volume
+          emptyDir: {}
+        - name: home-volume
+          emptyDir: {}
+        {{- end }}
+        {{- $isMemoryDatabase := .Values.persistence.inMemory | toString | eq "true" }} 
+        {{- if and (.Values.persistence.enabled | toString | eq "true") (not $isMemoryDatabase) }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "phoenix.fullname" . }}-data-pvc
+        {{- else }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+      {{- if .Values.serviceAccount.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.serviceAccount.imagePullSecrets }}
+        - name: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+
+      {{- with .Values.deployment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

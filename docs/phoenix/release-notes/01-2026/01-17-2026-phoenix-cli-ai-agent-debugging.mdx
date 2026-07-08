@@ -1,0 +1,102 @@
+---
+title: "01.17.2026 Phoenix CLI: Terminal Access for AI Coding Assistants"
+---
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Full documentation
+  </Card>
+  <Card title="npm" icon="npm" href="https://www.npmjs.com/package/@arizeai/phoenix-cli">
+    Install from npm
+  </Card>
+</CardGroup>
+
+## Overview
+
+`@arizeai/phoenix-cli` is a command-line interface for retrieving trace data from Phoenix. It provides the same observability data available in the Phoenix UI, accessible through shell commands and file exports.
+
+```bash
+# List available projects
+px projects
+
+# Fetch recent traces
+px traces --limit 10 --format json
+
+# Export traces to files
+px traces ./debug-data --limit 50
+```
+
+## Why a CLI Matters Now
+
+AI coding assistants—Claude Code, Cursor, Windsurf, Codex, Gemini CLI—operate through two primary interfaces: **the terminal** and **the filesystem**. They run shell commands, read output, and process files. This is how they interact with your development environment.
+
+For these assistants to help debug and improve AI applications, they need access to observability data through these same interfaces. A browser-based UI, while useful for humans, is inaccessible to an AI assistant working in your IDE.
+
+The Phoenix CLI bridges this gap. Your AI assistant can now:
+
+1. Query your Phoenix instance directly via shell commands
+2. Retrieve trace data as structured JSON
+3. Export traces to files for analysis
+4. Pipe output to tools like `jq` for filtering
+
+## Practical Workflows
+
+### Debugging with AI Assistance
+
+When an agent fails, you no longer need to manually copy trace data from the UI. Instead:
+
+```
+Fetch the last 5 traces from my project using px and identify why 
+the agent is failing on tool calls.
+```
+
+Your AI assistant runs `px traces --limit 5 --format raw --no-progress`, parses the JSON output, and analyzes the span data directly.
+
+### Exporting for Analysis
+
+Build evaluation datasets by exporting traces to disk:
+
+```bash
+px traces ./eval-dataset --limit 100 --last-n-minutes 60
+```
+
+Each trace is saved as a separate JSON file, ready for processing by scripts or AI assistants.
+
+### Filtering and Processing
+
+Use standard Unix tools alongside the CLI:
+
+```bash
+# Find error traces
+px traces --limit 50 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+
+# Extract model names from LLM spans
+px traces --limit 20 --format raw --no-progress | \
+  jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
+```
+
+## Output Formats
+
+- **`pretty`** — Human-readable tree view showing span hierarchy
+- **`json`** — Formatted JSON with indentation
+- **`raw`** — Compact JSON for piping to other tools
+
+## Installation
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+Or run directly without installation:
+
+```bash
+npx @arizeai/phoenix-cli traces --limit 1
+```
+
+## Looking Ahead
+
+As AI assistants take on larger roles in software development, they will need access to the same data and tools that human developers use. Observability platforms built exclusively around browser UIs will become limiting.
+
+The CLI is our response to this shift. It makes Phoenix data available where AI assistants already work—in the terminal and through files. We expect this pattern to become standard as the tooling ecosystem adapts to AI-assisted development.
+
+Feedback and contributions are welcome on [GitHub](https://github.com/Arize-ai/phoenix).

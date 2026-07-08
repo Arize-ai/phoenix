@@ -1,0 +1,13 @@
+services:
+  phoenix:
+    build:
+      dockerfile: scripts/docker/devops/Dockerfile.vite
+      context: ../../..
+    depends_on:
+      oidc-dev:
+        condition: service_started
+      smtp-dev:
+        condition: service_started
+      vite-dev:
+        condition: service_started
+

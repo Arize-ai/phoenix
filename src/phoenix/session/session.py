@@ -1,0 +1,597 @@
+import json
+import logging
+import os
+import shutil
+import warnings
+from abc import ABC, abstractmethod
+from collections import UserList
+from enum import Enum
+from importlib.util import find_spec
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING, Awaitable, Callable, NamedTuple, Optional, Union
+from urllib.parse import urljoin
+
+import pandas as pd
+
+from phoenix.config import (
+    ENV_NOTEBOOK_ENV,
+    ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    ENV_PHOENIX_HOST,
+    ENV_PHOENIX_PORT,
+    ensure_working_dir_if_needed,
+    get_env_database_connection_str,
+    get_env_host,
+    get_env_host_root_path,
+    get_env_log_sql,
+    get_env_port,
+    get_working_dir,
+)
+from phoenix.db import get_printable_db_url
+from phoenix.db.engines import create_engine
+from phoenix.server.app import (
+    _db,
+    create_app,
+    instrument_engine_if_enabled,
+)
+from phoenix.server.thread_server import ThreadServer
+from phoenix.server.types import DbSessionFactory
+from phoenix.services import AppService
+from phoenix.settings import Settings
+from phoenix.trace.fixtures import evaluations_to_precursors
+from phoenix.trace.trace_dataset import TraceDataset
+
+logger = logging.getLogger(__name__)
+
+# type workaround
+# https://github.com/python/mypy/issues/5264#issuecomment-399407428
+if TYPE_CHECKING:
+    from IPython.display import IFrame
+
+    _BaseList = UserList[pd.DataFrame]
+else:
+    _BaseList = UserList
+
+# Temporary directory for the duration of the session
+global _session_working_dir
+_session_working_dir: Optional["TemporaryDirectory[str]"] = None
+
+
+DEFAULT_TIMEOUT_IN_SECONDS = 5
+
+
+class NotebookEnvironment(Enum):
+    COLAB = "colab"
+    LOCAL = "local"
+    SAGEMAKER = "sagemaker"
+    DATABRICKS = "databricks"
+
+
+class Session(ABC):
+    """Session that maintains a 1-1 shared state with the Phoenix App."""
+
+    trace_dataset: Optional[TraceDataset]
+    notebook_env: NotebookEnvironment
+    """The notebook environment that the session is running in."""
+
+    def __dir__(self) -> list[str]:
+        return ["view", "url"]
+
+    def __init__(
+        self,
+        database_url: str,
+        trace_dataset: Optional[TraceDataset] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        root_path: Optional[str] = None,
+        notebook_env: Optional[NotebookEnvironment] = None,
+    ):
+        self._database_url = database_url
+        self.trace_dataset = trace_dataset
+        self.host = host or get_env_host()
+        self.port = port or get_env_port()
+        self.temp_dir = TemporaryDirectory()
+        self.notebook_env = notebook_env or _get_notebook_environment()
+        self.root_path = (
+            (get_env_host_root_path() or _get_root_path(self.notebook_env, self.port))
+            if root_path is None
+            else root_path
+        )
+        if self.root_path and self.root_path != "/":
+            if not self.root_path.startswith("/"):
+                self.root_path = f"/{self.root_path}"
+            self.root_path = self.root_path.rstrip("/")
+
+    @abstractmethod
+    def end(self) -> None:
+        """Ends the session and closes the app service"""
+
+    @property
+    @abstractmethod
+    def active(self) -> bool:
+        """Whether session is active, i.e. whether server still serves"""
+
+    def view(self, *, height: int = 1000, slug: str = "") -> "IFrame":
+        """View the session in a notebook embedded iFrame.
+
+        Args:
+            slug (str, optional): the path of the app to view
+            height (int, optional): the height of the iFrame in px. Defaults to 1000.
+
+        Returns:
+            IFrame: the iFrame will be rendered in the notebook
+        """
+        try:
+            from IPython.display import IFrame
+        except ImportError as e:
+            raise ImportError(
+                "IPython is required to use the view() method. "
+                "Please install it with: pip install ipython"
+            ) from e
+        url_to_view = urljoin(self.url, slug)
+        print(f"📺 Opening a view to the Phoenix app. The app is running at {self.url}")
+        return IFrame(src=url_to_view, width="100%", height=height)
+
+    @property
+    def url(self) -> str:
+        """Returns the url for the phoenix app"""
+        return _get_url(self.host, self.port, self.notebook_env, self.root_path)
+
+    @property
+    def database_url(self) -> str:
+        return self._database_url
+
+
+_session: Optional[Session] = None
+
+
+class ProcessSession(Session):
+    def __init__(
+        self,
+        database_url: str,
+        trace_dataset: Optional[TraceDataset] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        root_path: Optional[str] = None,
+        notebook_env: Optional[NotebookEnvironment] = None,
+    ) -> None:
+        super().__init__(
+            database_url=database_url,
+            trace_dataset=trace_dataset,
+            host=host,
+            port=port,
+            root_path=root_path,
+            notebook_env=notebook_env,
+        )
+        if isinstance(trace_dataset, TraceDataset):
+            trace_dataset.to_disc()
+        # Initialize an app service that keeps the server running
+        self.app_service = AppService(
+            database_url=database_url,
+            host=self.host,
+            port=self.port,
+            root_path=self.root_path,
+        )
+
+    @property
+    def active(self) -> bool:
+        return self.app_service.active
+
+    def end(self) -> None:
+        self.app_service.stop()
+        self.temp_dir.cleanup()
+
+
+class ThreadSession(Session):
+    def __init__(
+        self,
+        database_url: str,
+        trace_dataset: Optional[TraceDataset] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        root_path: Optional[str] = None,
+        notebook_env: Optional[NotebookEnvironment] = None,
+    ):
+        super().__init__(
+            database_url=database_url,
+            trace_dataset=trace_dataset,
+            host=host,
+            port=port,
+            root_path=root_path,
+            notebook_env=notebook_env,
+        )
+        # Initialize an app service that keeps the server running
+        engine = create_engine(
+            connection_str=database_url,
+            migrate=not Settings.disable_migrations,
+            log_to_stdout=get_env_log_sql(),
+            log_migrations=self.notebook_env is None,
+        )
+        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
+        shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
+        # Ensure engine is disposed on shutdown to properly close database connections
+        shutdown_callbacks.append(engine.dispose)
+        factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+        self.app = create_app(
+            db=factory,
+            authentication_enabled=False,
+            initial_spans=trace_dataset.to_spans() if trace_dataset else None,
+            initial_annotation_precursors=(
+                [p for e in trace_dataset.evaluations for p in evaluations_to_precursors(e)]
+                if trace_dataset is not None and trace_dataset.evaluations
+                else None
+            ),
+            shutdown_callbacks=shutdown_callbacks,
+        )
+        self.server = ThreadServer(
+            app=self.app,
+            host=self.host,
+            port=self.port,
+            root_path=self.root_path,
+        ).run_in_thread()
+        # start the server
+        self.server_thread = next(self.server)
+
+    @property
+    def active(self) -> bool:
+        return self.server_thread.is_alive()
+
+    def end(self) -> None:
+        self.server.close()
+        self.temp_dir.cleanup()
+
+
+def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
+    """
+    Deletes the entire contents of the working directory. This will delete, traces, evaluations,
+    and any other data stored in the working directory.
+    """
+    global _session_working_dir
+    working_dir = get_working_dir()
+    directories_to_delete = []
+    if working_dir.exists():
+        directories_to_delete.append(working_dir)
+    if _session_working_dir is not None:
+        directories_to_delete.append(Path(_session_working_dir.name))
+
+    # Loop through directories to delete
+    for directory in directories_to_delete:
+        if prompt_before_delete:
+            input(
+                f"You have data at {directory}. Are you sure you want to delete?"
+                + " This cannot be undone. Press Enter to delete, Escape to cancel."
+            )
+        shutil.rmtree(directory)
+    _session_working_dir = None
+
+
+def launch_app(
+    trace: Optional[TraceDataset] = None,
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    root_path: Optional[str] = None,
+    run_in_thread: bool = True,
+    notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
+    use_temp_dir: bool = True,
+) -> Optional[Session]:
+    """
+    Launches the phoenix application and returns a session to interact with.
+
+    Parameters
+    ----------
+    trace: TraceDataset, optional
+        The trace dataset containing the trace data.
+    host: str, optional
+        The host on which the server runs. It can also be set using environment
+        variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
+    port: int, optional
+        The port on which the server listens. When using traces this should not be
+        used and should instead set the environment variable `PHOENIX_PORT`.
+        Defaults to 6006.
+    root_path: str, optional
+        The root path to serve the application under (useful when behind a proxy).
+        Can also be set using environment variable `PHOENIX_HOST_ROOT_PATH`.
+    run_in_thread: bool, optional, default=True
+        Whether the server should run in a Thread or Process.
+    notebook_environment: str, optional, default=None
+        The environment the notebook is running in. This is either 'local', 'colab', or 'sagemaker'.
+        If not provided, phoenix will try to infer the environment. This is only needed if
+        there is a failure to infer the environment.
+    use_temp_dir: bool, optional, default=True
+        Whether to use a temporary directory to store the data. If set to False, the data will be
+        stored in the directory specified by PHOENIX_WORKING_DIR environment variable via SQLite.
+
+    Returns
+    -------
+    session : Session
+        The session object that can be used to view the application
+
+    Examples
+    --------
+    .. code-block:: python
+
+        import phoenix as px
+
+        session = px.launch_app()
+    """
+    global _session
+
+    # First we must ensure that the working directory is setup
+    # NB: this is because the working directory can be deleted by the user
+    ensure_working_dir_if_needed()
+
+    if _session is not None and _session.active:
+        logger.warning(
+            "Existing running Phoenix instance detected! Shutting "
+            "it down and starting a new instance..."
+        )
+        _session.end()
+
+    # Detect mis-configurations and provide warnings
+    if (env_collector_endpoint := os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)) is not None:
+        logger.warning(
+            f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint}.\n"
+            "⚠️ This means that traces will be sent to the collector endpoint and not this app.\n"
+            "⚠️ If you would like to use this app to view traces, please unset this environment"
+            f"variable via e.g. `del os.environ['{ENV_PHOENIX_COLLECTOR_ENDPOINT}']` \n"
+            "⚠️ You will need to restart your notebook to apply this change."
+        )
+
+    # Normalize notebook environment
+    if isinstance(notebook_environment, str):
+        nb_env: Optional[NotebookEnvironment] = NotebookEnvironment(notebook_environment.lower())
+    else:
+        nb_env = notebook_environment
+
+    if port is not None:
+        warning_message = (
+            "❗️ The launch_app `port` parameter is deprecated and "
+            "will be removed in a future release. "
+            f"Use the `{ENV_PHOENIX_PORT}` environment variable instead."
+        )
+        print(warning_message)
+        warnings.warn(
+            warning_message,
+            DeprecationWarning,
+        )
+    if host is not None:
+        warning_message = (
+            "❗️ The launch_app `host` parameter is deprecated and "
+            "will be removed in a future release. "
+            f"Use the `{ENV_PHOENIX_HOST}` environment variable instead."
+        )
+        print(warning_message)
+        warnings.warn(
+            warning_message,
+            DeprecationWarning,
+        )
+
+    host = host or get_env_host()
+    port = port or get_env_port()
+    if use_temp_dir:
+        global _session_working_dir
+        _session_working_dir = _session_working_dir or TemporaryDirectory()
+        database_url = f"sqlite:///{_session_working_dir.name}/phoenix.db"
+    else:
+        database_url = get_env_database_connection_str()
+        # Raise error for PostgreSQL usage with launch_app
+        if database_url.startswith("postgresql"):
+            raise ValueError(
+                "PostgreSQL backend detected in your environment configuration. "
+                "This could be from PHOENIX_SQL_DATABASE_URL or PHOENIX_POSTGRES_* variables. "
+                "launch_app() is designed to work with SQLite for notebook environments. "
+                "To use PostgreSQL, please use 'phoenix serve' from the command line instead. "
+                "Make sure you have the PostgreSQL extras installed: "
+                "pip install 'arize-phoenix[pg]'"
+            )
+
+    if run_in_thread:
+        _session = ThreadSession(
+            database_url,
+            trace,
+            host=host,
+            port=port,
+            root_path=root_path,
+            notebook_env=nb_env,
+        )
+        # TODO: catch exceptions from thread
+    else:
+        _session = ProcessSession(
+            database_url,
+            trace,
+            host=host,
+            port=port,
+            root_path=root_path,
+            notebook_env=nb_env,
+        )
+
+    if not _session.active:
+        logger.error(
+            f"💥 Phoenix failed to start. Please try again (making sure that "
+            f"port {port} is not occupied by another process) or file an issue "
+            f"with us at https://github.com/Arize-ai/phoenix"
+        )
+        _session = None
+        return None
+
+    print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
+    if not use_temp_dir:
+        print(f"💽 Your data is being persisted to {get_printable_db_url(database_url)}")
+    print("📖 For more information on how to use Phoenix, check out https://arize.com/docs/phoenix")
+    return _session
+
+
+def active_session() -> Optional[Session]:
+    """
+    Returns the active session if one exists, otherwise returns None
+    """
+    if _session and _session.active:
+        return _session
+    return None
+
+
+def close_app(delete_data: bool = False) -> None:
+    """
+    Closes the phoenix application.
+    The application server is shut down and will no longer be accessible.
+
+    Parameters
+    ----------
+    delete_data : bool, optional
+        If set to true, all stored phoenix data, including traces and evaluations. Default False.
+    """
+    global _session
+    if _session is None:
+        print("No active session to close")
+        return
+    _session.end()
+    _session = None
+    logger.info("Session closed")
+    if delete_data:
+        logger.info("Deleting all data")
+        delete_all(prompt_before_delete=False)
+
+
+def _get_url(host: str, port: int, notebook_env: NotebookEnvironment, root_path: str) -> str:
+    """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
+    if notebook_env == NotebookEnvironment.COLAB:
+        from google.colab.output import eval_js
+
+        return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
+    if notebook_env == NotebookEnvironment.SAGEMAKER:
+        # NB: Sagemaker notebooks only work with port 6006 - which is used by tensorboard
+        return f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/"
+    if notebook_env == NotebookEnvironment.DATABRICKS:
+        context = _get_databricks_context()
+        return f"{_get_databricks_notebook_base_url(context)}/{port}/"
+    if not root_path.startswith("/"):
+        root_path = f"/{root_path}"
+    if host == "0.0.0.0" or host == "127.0.0.1":
+        # The app is running locally, so use localhost
+        return f"http://localhost:{port}{root_path}"
+    return f"http://{host}:{port}{root_path}"
+
+
+def _is_colab() -> bool:
+    """Determines whether this is in a Colab"""
+    try:
+        import google.colab  # noqa: F401
+    except ImportError:
+        return False
+    try:
+        from IPython.core.getipython import get_ipython
+    except ImportError:
+        return False
+    return get_ipython() is not None  # type: ignore[no-untyped-call]
+
+
+def _is_sagemaker() -> bool:
+    """Determines whether this is in a SageMaker notebook"""
+    if find_spec("sagemaker") is None:
+        return False
+    try:
+        _get_sagemaker_notebook_base_url()
+    except Exception:
+        return False
+    try:
+        from IPython.core.getipython import get_ipython
+    except ImportError:
+        return False
+    return get_ipython() is not None  # type: ignore[no-untyped-call]
+
+
+def _is_databricks() -> bool:
+    """Determines whether this is in a Databricks notebook"""
+    try:
+        from IPython.core.getipython import get_ipython
+    except ImportError:
+        return False
+    if (shell := get_ipython()) is None:  # type: ignore[no-untyped-call]
+        return False
+    try:
+        dbutils = shell.user_ns["dbutils"]
+    except KeyError:
+        return False
+    return dbutils is not None
+
+
+def _get_notebook_environment() -> NotebookEnvironment:
+    """Determines the notebook environment"""
+    if (notebook_env := os.getenv(ENV_NOTEBOOK_ENV)) is not None:
+        return NotebookEnvironment(notebook_env.lower())
+    return _infer_notebook_environment()
+
+
+def _infer_notebook_environment() -> NotebookEnvironment:
+    """Use feature detection to determine the notebook environment"""
+    if _is_databricks():
+        return NotebookEnvironment.DATABRICKS
+    if _is_colab():
+        return NotebookEnvironment.COLAB
+    if _is_sagemaker():
+        return NotebookEnvironment.SAGEMAKER
+    return NotebookEnvironment.LOCAL
+
+
+def _get_sagemaker_notebook_base_url() -> str:
+    """
+    Returns base url of the sagemaker notebook by parsing the Arn
+    src: https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/62c44aa5e69f4266955476f24647b99d9b597aaf/scripts/auto-stop-idle/autostop.py#L79
+    """
+    log_path = "/opt/ml/metadata/resource-metadata.json"
+    with open(log_path, "r") as logs:
+        logs = json.load(logs)
+    arn = logs["ResourceArn"]
+
+    # Parse the ARN to get the region and notebook instance name
+    # E.x. arn:aws:sagemaker:us-east-2:802164118598:notebook-instance/my-notebook-instance
+    parts = arn.split(":")
+    region = parts[3]
+    notebook_instance_name = parts[5].split("/")[1]
+
+    return f"https://{notebook_instance_name}.notebook.{region}.sagemaker.aws"
+
+
+def _get_root_path(environment: NotebookEnvironment, port: int) -> str:
+    """
+    Returns the base path for the app if the app is running behind a proxy
+    """
+    if environment == NotebookEnvironment.SAGEMAKER:
+        return f"/proxy/{port}/"
+    if environment == NotebookEnvironment.DATABRICKS:
+        context = _get_databricks_context()
+        return f"/driver-proxy/o/{context.org_id}/{context.cluster_id}/{port}/"
+    return ""
+
+
+class DatabricksContext(NamedTuple):
+    host: str
+    org_id: str
+    cluster_id: str
+
+
+def _get_databricks_context() -> DatabricksContext:
+    """
+    Returns the databricks context for constructing the base url
+    and the root_path for the app
+    """
+    from IPython.core.getipython import get_ipython
+
+    shell = get_ipython()  # type: ignore[no-untyped-call]
+    dbutils = shell.user_ns["dbutils"]
+    notebook_context = json.loads(
+        dbutils.entry_point.getDbutils().notebook().getContext().toJson()
+    )["tags"]
+
+    return DatabricksContext(
+        host=notebook_context["browserHostName"],
+        org_id=notebook_context["orgId"],
+        cluster_id=notebook_context["clusterId"],
+    )
+
+
+def _get_databricks_notebook_base_url(context: DatabricksContext) -> str:
+    """
+    Returns base url of the databricks notebook by parsing the tags
+    """
+    return f"https://{context.host}/driver-proxy/o/{context.org_id}/{context.cluster_id}"

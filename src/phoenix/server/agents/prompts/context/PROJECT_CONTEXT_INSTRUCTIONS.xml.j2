@@ -1,0 +1,17 @@
+<phoenix_project_context>
+  <description>The project the user is currently viewing.</description>
+  <project_node_id format="phoenix_node_id">{{ project.project_node_id }}</project_node_id>
+{% if project.span_filter is not none %}
+{% if project.span_filter %}
+  <span_filter status="applied"><condition>{{ project.span_filter | sanitize(enclosing_tag="phoenix_project_context", max_chars=512) }}</condition></span_filter>
+{% else %}
+  <span_filter status="available"/>
+{% endif %}
+{% endif %}
+{% if project.root_spans_only is true %}
+  <spans_table_view>root_spans_only</spans_table_view>
+  <spans_table_guidance>To include non-root spans on the next `set_spans_filter` call, set `rootSpansOnly: false`.</spans_table_guidance>
+{% elif project.root_spans_only is false %}
+  <spans_table_view>all_spans</spans_table_view>
+{% endif %}
+</phoenix_project_context>

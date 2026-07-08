@@ -1,0 +1,877 @@
+# serializer version: 1
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-error-is-not-free-attribute]
+  dict({
+    'filter_condition': "'invalid' in error",
+    'sql': "strpos(experiment_runs_0.error, 'invalid') > 0 OR strpos(experiment_runs_1.error, 'invalid') > 0",
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-eval-comparison]
+  dict({
+    'filter_condition': "evals['hallucination'].score < 10",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score < 10 OR experiment_run_annotations_1_2c229d9ff.score < 10',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-input-is-not-free-attribute]
+  dict({
+    'filter_condition': "input['score'] < 10",
+    'sql': "CAST((dataset_example_revisions.input -> 'score') AS FLOAT) < 10",
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-latency-ms-is-not-free-attribute]
+  dict({
+    'filter_condition': 'latency_ms < 1000',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) < 1000 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_1.end_time) - EXTRACT(EPOCH FROM experiment_runs_1.start_time)) * 1000 AS NUMERIC), 1) < 1000',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-metadata-is-not-free-attribute]
+  dict({
+    'filter_condition': "metadata['category'] == 'hard_questions'",
+    'sql': "CAST((dataset_example_revisions.metadata -> 'category') AS VARCHAR) = 'hard_questions'",
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-no-free-attributes]
+  dict({
+    'filter_condition': '5 == 5',
+    'sql': '5 = 5',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-output-is-not-free-attribute]
+  dict({
+    'filter_condition': "output['score'] < 10",
+    'sql': "CAST(((experiment_runs_0.output -> 'task_output') -> 'score') AS FLOAT) < 10 OR CAST(((experiment_runs_1.output -> 'task_output') -> 'score') AS FLOAT) < 10",
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-reference-output-is-not-free-attribute]
+  dict({
+    'filter_condition': "reference_output['score'] < 10",
+    'sql': "CAST((dataset_example_revisions.output -> 'score') AS FLOAT) < 10",
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-error-is-not-free-attribute]
+  dict({
+    'filter_condition': "'invalid' in error",
+    'sql': "text_contains(experiment_runs_0.error, 'invalid') > 0 OR text_contains(experiment_runs_1.error, 'invalid') > 0",
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-eval-comparison]
+  dict({
+    'filter_condition': "evals['hallucination'].score < 10",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score < 10 OR experiment_run_annotations_1_2c229d9ff.score < 10',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-input-is-not-free-attribute]
+  dict({
+    'filter_condition': "input['score'] < 10",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')) AS FLOAT) < 10',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-latency-ms-is-not-free-attribute]
+  dict({
+    'filter_condition': 'latency_ms < 1000',
+    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) < 1000 OR round((unixepoch(experiment_runs_1.end_time, 'subsec') - unixepoch(experiment_runs_1.start_time, 'subsec')) * 1000, 1) < 1000",
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-metadata-is-not-free-attribute]
+  dict({
+    'filter_condition': "metadata['category'] == 'hard_questions'",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.metadata, \'$."category"\')) AS VARCHAR) = \'hard_questions\'',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-no-free-attributes]
+  dict({
+    'filter_condition': '5 == 5',
+    'sql': '5 = 5',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-output-is-not-free-attribute]
+  dict({
+    'filter_condition': "output['score'] < 10",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."score"\')) AS FLOAT) < 10 OR CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."score"\')) AS FLOAT) < 10',
+  })
+# ---
+# name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-reference-output-is-not-free-attribute]
+  dict({
+    'filter_condition': "reference_output['score'] < 10",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."score"\')) AS FLOAT) < 10',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-complex-negation]
+  dict({
+    'filter_condition': "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",
+    'sql': 'NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-conjunction-of-three]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-conjunction]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-contains-reversed]
+  dict({
+    'filter_condition': "experiments[0].error in 'invalid'",
+    'sql': "strpos('invalid', experiment_runs_0.error) > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-contains]
+  dict({
+    'filter_condition': '"invalid" in experiments[0].error',
+    'sql': "strpos(experiment_runs_0.error, 'invalid') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-disjunction-of-three]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 OR experiment_runs_1.error IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-disjunction]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-eq-reversed]
+  dict({
+    'filter_condition': '1000 == experiments[0].latency_ms',
+    'sql': '1000 = round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-eq]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms == 1000',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) = 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-error-name]
+  dict({
+    'filter_condition': 'experiments[1].error',
+    'sql': 'experiment_runs_1.error',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-explanation-in]
+  dict({
+    'filter_condition': "'search-term' in experiments[0].evals['hallucination'].explanation",
+    'sql': "strpos(experiment_run_annotations_0_2c229d9ff.explanation, 'search-term') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-label-eq]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].label == 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label = 'hallucinated'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-score-gt]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-input-name]
+  dict({
+    'filter_condition': 'experiments[0].input',
+    'sql': 'dataset_example_revisions.input',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-eq-none]
+  dict({
+    'filter_condition': 'experiments[2].reference_output["answer"] == None',
+    'sql': "(dataset_example_revisions.output -> 'answer') IS NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-eq]
+  dict({
+    'filter_condition': 'experiments[1].reference_output["answer"] == "yes"',
+    'sql': "CAST((dataset_example_revisions.output -> 'answer') AS VARCHAR) = 'yes'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-gt]
+  dict({
+    'filter_condition': 'experiments[0].input["score"] > 0.5',
+    'sql': "CAST((dataset_example_revisions.input -> 'score') AS FLOAT) > 0.5",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-gte]
+  dict({
+    'filter_condition': 'experiments[0].output["confidence"] >= 0.8',
+    'sql': "CAST(((experiment_runs_0.output -> 'task_output') -> 'confidence') AS FLOAT) >= 0.8",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-in]
+  dict({
+    'filter_condition': "'search-term' in experiments[0].input['questions'][0]",
+    'sql': "strpos(CAST(((dataset_example_revisions.input -> 'questions') -> 0) AS VARCHAR), 'search-term') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-int-key]
+  dict({
+    'filter_condition': 'experiments[1].output[0]',
+    'sql': "(experiment_runs_1.output -> 'task_output') -> 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-is-none]
+  dict({
+    'filter_condition': 'experiments[2].output["result"] is None',
+    'sql': "((experiment_runs_2.output -> 'task_output') -> 'result') IS NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-is-not-none]
+  dict({
+    'filter_condition': 'experiments[2].input["metadata"] is not None',
+    'sql': "(dataset_example_revisions.input -> 'metadata') IS NOT NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-lt]
+  dict({
+    'filter_condition': 'experiments[0].input["length"] < 100',
+    'sql': "CAST((dataset_example_revisions.input -> 'length') AS FLOAT) < 100",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-lte]
+  dict({
+    'filter_condition': 'experiments[1].output["probability"] <= 0.3',
+    'sql': "CAST(((experiment_runs_1.output -> 'task_output') -> 'probability') AS FLOAT) <= 0.3",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-ne-none]
+  dict({
+    'filter_condition': 'experiments[0].output["category"] != None',
+    'sql': "((experiment_runs_0.output -> 'task_output') -> 'category') IS NOT NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-ne]
+  dict({
+    'filter_condition': 'experiments[1].metadata["category"] != "hard_question"',
+    'sql': "CAST((dataset_example_revisions.metadata -> 'category') AS VARCHAR) != 'hard_question'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-nested-int-string-keys]
+  dict({
+    'filter_condition': 'experiments[2].reference_output[0]["question"]',
+    'sql': "(dataset_example_revisions.output -> 0) -> 'question'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-not-in]
+  dict({
+    'filter_condition': "'search-term' not in experiments[0].input['questions'][0]",
+    'sql': "NOT strpos(CAST(((dataset_example_revisions.input -> 'questions') -> 0) AS VARCHAR), 'search-term') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-string-key]
+  dict({
+    'filter_condition': 'experiments[0].input["question"]',
+    'sql': "dataset_example_revisions.input -> 'question'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-latency-ms-name]
+  dict({
+    'filter_condition': 'experiments[2].latency_ms',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_2.end_time) - EXTRACT(EPOCH FROM experiment_runs_2.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-metadata-name]
+  dict({
+    'filter_condition': 'experiments[0].metadata',
+    'sql': 'dataset_example_revisions.metadata',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-output-name]
+  dict({
+    'filter_condition': 'experiments[1].output',
+    'sql': "experiment_runs_1.output -> 'task_output'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-reference-output-name]
+  dict({
+    'filter_condition': 'experiments[0].reference_output',
+    'sql': 'dataset_example_revisions.output',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gt-reversed]
+  dict({
+    'filter_condition': '1000 < experiments[0].latency_ms',
+    'sql': '1000 < round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gt]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms > 1000',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gte-reversed]
+  dict({
+    'filter_condition': '1000 <= experiments[0].latency_ms',
+    'sql': '1000 <= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gte]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms >= 1000',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) >= 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-int-constant]
+  dict({
+    'filter_condition': '1',
+    'sql': '1',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-is-none]
+  dict({
+    'filter_condition': 'experiments[0].error is None',
+    'sql': 'experiment_runs_0.error IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-is-not-none]
+  dict({
+    'filter_condition': 'experiments[0].error is not None',
+    'sql': 'experiment_runs_0.error IS NOT NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-eq-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] == experiments[0].output['question']",
+    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) = CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-in-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] in experiments[0].output['question']",
+    'sql': "strpos(CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR), CAST((dataset_example_revisions.input -> 'question') AS VARCHAR)) > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-in-output]
+  dict({
+    'filter_condition': "'x' in experiments[0].output",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%' ESCAPE '/'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-is-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] is experiments[0].output['question']",
+    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) IS CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-is-not-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] is not experiments[0].output['question']",
+    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) IS NOT CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-ne-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] != experiments[0].output['question']",
+    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) != CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-not-in-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].output['question'] not in experiments[0].output['question']",
+    'sql': "NOT strpos(CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR), CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)) > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-literal-comparison-eq]
+  dict({
+    'filter_condition': "'a' == 'b'",
+    'sql': "'a' = 'b'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-literal-comparison-lt]
+  dict({
+    'filter_condition': '1 < 1.1',
+    'sql': '1 < 1.1',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lt-reversed]
+  dict({
+    'filter_condition': '1000 > experiments[0].latency_ms',
+    'sql': '1000 > round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lt]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms < 1000',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) < 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lte-reversed]
+  dict({
+    'filter_condition': '1000 >= experiments[0].latency_ms',
+    'sql': '1000 >= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lte]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms <= 1000',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) <= 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-mixed-conjunction-and-disjunction-with-parentheses]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-mixed-conjunction-and-disjunction-without-parentheses]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-ne-reversed]
+  dict({
+    'filter_condition': '1000 != experiments[0].latency_ms',
+    'sql': '1000 != round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-ne]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms != 1000',
+    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) != 1000',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-negation]
+  dict({
+    'filter_condition': "not experiments[0].evals['hallucination'].label == 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label != 'hallucinated'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-not-contains]
+  dict({
+    'filter_condition': '"invalid" not in experiments[0].error',
+    'sql': "NOT strpos(experiment_runs_0.error, 'invalid') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-special-characters-in-attribute-escaped]
+  dict({
+    'filter_condition': "'%_' in experiments[0].output",
+    'sql': "strpos(CAST((experiment_runs_0.output -> 'task_output') AS VARCHAR), '%%_') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-string-constant]
+  dict({
+    'filter_condition': "'foo'",
+    'sql': "'foo'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-attribute]
+  dict({
+    'filter_condition': '-experiments[0].latency_ms',
+    'sql': '-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-comparison]
+  dict({
+    'filter_condition': '-experiments[0].latency_ms > -5',
+    'sql': 'CAST(-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) AS FLOAT) > CAST(-5 AS FLOAT)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-constant]
+  dict({
+    'filter_condition': '-5',
+    'sql': '-5',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-string-comparison]
+  dict({
+    'filter_condition': "-'hello' < 10",
+    'sql': "CAST(-'hello' AS FLOAT) < 10",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-complex-negation]
+  dict({
+    'filter_condition': "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",
+    'sql': "NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-conjunction-of-three]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-conjunction]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-contains-reversed]
+  dict({
+    'filter_condition': "experiments[0].error in 'invalid'",
+    'sql': "text_contains('invalid', experiment_runs_0.error) > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-contains]
+  dict({
+    'filter_condition': '"invalid" in experiments[0].error',
+    'sql': "text_contains(experiment_runs_0.error, 'invalid') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-disjunction-of-three]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 OR experiment_runs_1.error IS NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-disjunction]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-eq-reversed]
+  dict({
+    'filter_condition': '1000 == experiments[0].latency_ms',
+    'sql': "1000 = round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-eq]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms == 1000',
+    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) = 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-error-name]
+  dict({
+    'filter_condition': 'experiments[1].error',
+    'sql': 'experiment_runs_1.error',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-explanation-in]
+  dict({
+    'filter_condition': "'search-term' in experiments[0].evals['hallucination'].explanation",
+    'sql': "text_contains(experiment_run_annotations_0_2c229d9ff.explanation, 'search-term') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-label-eq]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].label == 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label = 'hallucinated'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-score-gt]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-input-name]
+  dict({
+    'filter_condition': 'experiments[0].input',
+    'sql': 'dataset_example_revisions.input',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-eq-none]
+  dict({
+    'filter_condition': 'experiments[2].reference_output["answer"] == None',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."answer"\')) IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-eq]
+  dict({
+    'filter_condition': 'experiments[1].reference_output["answer"] == "yes"',
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."answer"\')) AS VARCHAR) = \'yes\'',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-gt]
+  dict({
+    'filter_condition': 'experiments[0].input["score"] > 0.5',
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."score"\')) AS FLOAT) > 0.5',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-gte]
+  dict({
+    'filter_condition': 'experiments[0].output["confidence"] >= 0.8',
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."confidence"\')) AS FLOAT) >= 0.8',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-in]
+  dict({
+    'filter_condition': "'search-term' in experiments[0].input['questions'][0]",
+    'sql': 'text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."questions"\')), \'$[0]\')) AS VARCHAR), \'search-term\') > 0',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-int-key]
+  dict({
+    'filter_condition': 'experiments[1].output[0]',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$[0]\'))',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-is-none]
+  dict({
+    'filter_condition': 'experiments[2].output["result"] is None',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_2.output, \'$."task_output"\')), \'$."result"\')) IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-is-not-none]
+  dict({
+    'filter_condition': 'experiments[2].input["metadata"] is not None',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."metadata"\')) IS NOT NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-lt]
+  dict({
+    'filter_condition': 'experiments[0].input["length"] < 100',
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."length"\')) AS FLOAT) < 100',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-lte]
+  dict({
+    'filter_condition': 'experiments[1].output["probability"] <= 0.3',
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\')), \'$."probability"\')) AS FLOAT) <= 0.3',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-ne-none]
+  dict({
+    'filter_condition': 'experiments[0].output["category"] != None',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."category"\')) IS NOT NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-ne]
+  dict({
+    'filter_condition': 'experiments[1].metadata["category"] != "hard_question"',
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.metadata, \'$."category"\')) AS VARCHAR) != \'hard_question\'',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-nested-int-string-keys]
+  dict({
+    'filter_condition': 'experiments[2].reference_output[0]["question"]',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$[0]\')), \'$."question"\'))',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-not-in]
+  dict({
+    'filter_condition': "'search-term' not in experiments[0].input['questions'][0]",
+    'sql': 'NOT text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."questions"\')), \'$[0]\')) AS VARCHAR), \'search-term\') > 0',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-string-key]
+  dict({
+    'filter_condition': 'experiments[0].input["question"]',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\'))',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-latency-ms-name]
+  dict({
+    'filter_condition': 'experiments[2].latency_ms',
+    'sql': "round((unixepoch(experiment_runs_2.end_time, 'subsec') - unixepoch(experiment_runs_2.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-metadata-name]
+  dict({
+    'filter_condition': 'experiments[0].metadata',
+    'sql': 'dataset_example_revisions.metadata',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-output-name]
+  dict({
+    'filter_condition': 'experiments[1].output',
+    'sql': 'JSON_QUOTE(JSON_EXTRACT(experiment_runs_1.output, \'$."task_output"\'))',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-reference-output-name]
+  dict({
+    'filter_condition': 'experiments[0].reference_output',
+    'sql': 'dataset_example_revisions.output',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gt-reversed]
+  dict({
+    'filter_condition': '1000 < experiments[0].latency_ms',
+    'sql': "1000 < round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gt]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms > 1000',
+    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gte-reversed]
+  dict({
+    'filter_condition': '1000 <= experiments[0].latency_ms',
+    'sql': "1000 <= round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gte]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms >= 1000',
+    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) >= 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-int-constant]
+  dict({
+    'filter_condition': '1',
+    'sql': '1',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-is-none]
+  dict({
+    'filter_condition': 'experiments[0].error is None',
+    'sql': 'experiment_runs_0.error IS NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-is-not-none]
+  dict({
+    'filter_condition': 'experiments[0].error is not None',
+    'sql': 'experiment_runs_0.error IS NOT NULL',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-eq-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] == experiments[0].output['question']",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) = CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-in-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] in experiments[0].output['question']",
+    'sql': 'text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR), CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR)) > 0',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-in-output]
+  dict({
+    'filter_condition': "'x' in experiments[0].output",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%' ESCAPE '/'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-is-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] is experiments[0].output['question']",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) IS CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-is-not-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] is not experiments[0].output['question']",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) IS NOT CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-ne-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].input['question'] != experiments[0].output['question']",
+    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) != CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-not-in-json-attribute]
+  dict({
+    'filter_condition': "experiments[0].output['question'] not in experiments[0].output['question']",
+    'sql': 'NOT text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR), CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)) > 0',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-literal-comparison-eq]
+  dict({
+    'filter_condition': "'a' == 'b'",
+    'sql': "'a' = 'b'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-literal-comparison-lt]
+  dict({
+    'filter_condition': '1 < 1.1',
+    'sql': '1 < 1.1',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lt-reversed]
+  dict({
+    'filter_condition': '1000 > experiments[0].latency_ms',
+    'sql': "1000 > round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lt]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms < 1000',
+    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) < 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lte-reversed]
+  dict({
+    'filter_condition': '1000 >= experiments[0].latency_ms',
+    'sql': "1000 >= round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lte]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms <= 1000',
+    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) <= 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-mixed-conjunction-and-disjunction-with-parentheses]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-mixed-conjunction-and-disjunction-without-parentheses]
+  dict({
+    'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-ne-reversed]
+  dict({
+    'filter_condition': '1000 != experiments[0].latency_ms',
+    'sql': "1000 != round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-ne]
+  dict({
+    'filter_condition': 'experiments[0].latency_ms != 1000',
+    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) != 1000",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-negation]
+  dict({
+    'filter_condition': "not experiments[0].evals['hallucination'].label == 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label != 'hallucinated'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-not-contains]
+  dict({
+    'filter_condition': '"invalid" not in experiments[0].error',
+    'sql': "NOT text_contains(experiment_runs_0.error, 'invalid') > 0",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-special-characters-in-attribute-escaped]
+  dict({
+    'filter_condition': "'%_' in experiments[0].output",
+    'sql': 'text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')) AS VARCHAR), \'%_\') > 0',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-string-constant]
+  dict({
+    'filter_condition': "'foo'",
+    'sql': "'foo'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-attribute]
+  dict({
+    'filter_condition': '-experiments[0].latency_ms',
+    'sql': "-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-comparison]
+  dict({
+    'filter_condition': '-experiments[0].latency_ms > -5',
+    'sql': "CAST(-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) AS FLOAT) > CAST(-5 AS FLOAT)",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-constant]
+  dict({
+    'filter_condition': '-5',
+    'sql': '-5',
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-string-comparison]
+  dict({
+    'filter_condition': "-'hello' < 10",
+    'sql': "CAST(-'hello' AS FLOAT) < 10",
+  })
+# ---

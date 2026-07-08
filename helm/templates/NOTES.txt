@@ -1,0 +1,59 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+{{- if not .Values.postgresql.enabled }}
+{{- if and (not .Values.database.url) (or (not .Values.database.postgres.host) (and (eq .Values.database.postgres.host "phoenix-postgresql") (not .Values.postgresql.enabled))) }}
+
+WARNING: PostgreSQL is disabled but no external database is configured!
+Please configure either:
+  - database.url with full connection string, or  
+  - database.postgres.host with connection parameters
+
+{{- end }}
+{{- end }}
+
+{{- if eq .Values.service.type "ClusterIP" }}
+
+Service is configured as ClusterIP (service mesh compatible).
+{{- if .Values.ingress.enabled }}
+Access Phoenix via ingress at: {{ if .Values.ingress.host }}http://{{ .Values.ingress.host }}{{ else }}your-ingress-host{{ end }}{{ .Values.ingress.apiPath }}
+{{- else }}
+To access Phoenix:
+  1. Configure service mesh gateway (Istio/Linkerd), or
+  2. Port-forward: kubectl port-forward svc/{{ include "phoenix.service" . }} 6006:{{ .Values.server.port }}
+{{- end }}
+
+{{- else if eq .Values.service.type "NodePort" }}
+
+Service is configured as NodePort.
+To access Phoenix:
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[1].nodePort}" services {{ include "phoenix.service" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+
+{{- end }}
+
+{{- if .Values.auth.enableAuth }}
+
+Admin credentials:
+{{- if .Values.auth.secret }}
+  Username: admin
+{{- if .Values.auth.createSecret }}
+  Password: To get the admin password run:
+    kubectl get secret --namespace {{ .Release.Namespace }} {{ .Values.auth.name }} -o jsonpath="{.data.PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD}" | base64 -d
+{{- else }}
+  Password: Using externally managed secret "{{ .Values.auth.name }}". Retrieve the password from your secret management system.
+{{- end }}
+
+{{- end }}
+{{- end }}
+
+To learn more about the release, try:
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+Resources:
+ - Phoenix docs: https://arize.com/docs/phoenix
+ - Configuration: https://arize.com/docs/phoenix/self-hosting/configuration
+ - Service mesh examples: See examples/ directory in the chart

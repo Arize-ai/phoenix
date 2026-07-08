@@ -1,0 +1,37 @@
+{
+    "separate-pull-requests": true,
+    "sequential-calls": true,
+    "packages": {
+        ".": {
+            "package-name": "arize-phoenix",
+            "release-type": "python",
+            "exclude-paths": [
+              ".github",
+              ".tours",
+              "api_reference",
+              "docs",
+              "examples",
+              "internal_docs",
+              "js",
+              "kustomize",
+              "packages",
+              "requirements",
+              "scripts",
+              "tests",
+              "tutorials"
+            ]
+        },
+        "packages/phoenix-client": {
+            "package-name": "arize-phoenix-client",
+            "release-type": "python"
+        },
+        "packages/phoenix-evals": {
+            "package-name": "arize-phoenix-evals",
+            "release-type": "python"
+        },
+        "packages/phoenix-otel": {
+            "package-name": "arize-phoenix-otel",
+            "release-type": "python"
+        }
+    }
+}

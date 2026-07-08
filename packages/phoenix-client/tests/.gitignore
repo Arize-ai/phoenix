@@ -1,0 +1,7 @@
+*
+!canary/
+!canary/**
+!client/
+!client/**
+!.gitignore
+__pycache__/

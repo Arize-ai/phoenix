@@ -1,0 +1,577 @@
+from collections.abc import AsyncIterable
+from datetime import datetime
+from typing import TYPE_CHECKING, Annotated, Optional, cast
+
+import strawberry
+from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy import cast as sqlalchemy_cast
+from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.sql.functions import count
+from sqlalchemy.sql.sqltypes import String
+from strawberry import UNSET
+from strawberry.relay import Connection, GlobalID, Node, NodeID
+from strawberry.scalars import JSON
+from strawberry.types import Info
+
+from phoenix.db import models
+from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
+from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
+from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
+from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
+    DatasetExperimentAnnotationSummary,
+)
+from phoenix.server.api.types.DatasetLabel import DatasetLabel
+from phoenix.server.api.types.DatasetSplit import DatasetSplit
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Evaluator import DatasetEvaluator
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
+from phoenix.server.api.types.SortDir import SortDir
+
+if TYPE_CHECKING:
+    from .ExperimentJob import ExperimentJob
+
+
+@strawberry.type
+class Dataset(Node):
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.Dataset]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("Dataset ID mismatch")
+
+    @strawberry.field
+    async def name(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_record:
+            val = self.db_record.name
+        else:
+            val = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.name),
+            )
+        return val
+
+    @strawberry.field
+    async def description(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.description
+        else:
+            val = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.description),
+            )
+        return val
+
+    @strawberry.field
+    async def metadata(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        if self.db_record:
+            val = self.db_record.metadata_
+        else:
+            val = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.metadata_),
+            )
+        return JSON(val)
+
+    @strawberry.field
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_record:
+            val = self.db_record.created_at
+        else:
+            val = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.created_at),
+            )
+        return val
+
+    @strawberry.field
+    async def updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_record:
+            val = self.db_record.updated_at
+        else:
+            val = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.updated_at),
+            )
+        return val
+
+    @strawberry.field
+    async def versions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        sort: Optional[DatasetVersionSort] = UNSET,
+    ) -> Connection[DatasetVersion]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db.read() as session:
+            stmt = select(models.DatasetVersion).filter_by(dataset_id=self.id)
+            if sort:
+                # For now assume the the column names match 1:1 with the enum values
+                sort_col = getattr(models.DatasetVersion, sort.col.value)
+                if sort.dir is SortDir.desc:
+                    stmt = stmt.order_by(sort_col.desc(), models.DatasetVersion.id.desc())
+                else:
+                    stmt = stmt.order_by(sort_col.asc(), models.DatasetVersion.id.asc())
+            else:
+                stmt = stmt.order_by(models.DatasetVersion.created_at.desc())
+            versions = await session.scalars(stmt)
+        data = [DatasetVersion(id=version.id, db_record=version) for version in versions]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description="Number of examples in a specific version if version is specified, or in the "
+        "latest version if version is not specified."
+    )  # type: ignore
+    async def example_count(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+        split_ids: Optional[list[GlobalID]] = UNSET,
+    ) -> int:
+        dataset_id = self.id
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
+            )
+            if dataset_version_id is not UNSET and dataset_version_id is not None
+            else None
+        )
+
+        # Parse split IDs if provided
+        split_rowids: Optional[list[int]] = None
+        if split_ids:
+            split_rowids = []
+            for split_id in split_ids:
+                try:
+                    split_rowid = from_global_id_with_expected_type(
+                        global_id=split_id, expected_type_name=models.DatasetSplit.__name__
+                    )
+                    split_rowids.append(split_rowid)
+                except Exception:
+                    raise BadRequest(f"Invalid split ID: {split_id}")
+
+        return await info.context.data_loaders.dataset_example_counts.load(
+            (
+                dataset_id,
+                version_id,
+                tuple(sorted(set(split_rowids))) if split_rowids else (),
+            )
+        )
+
+    @strawberry.field
+    async def examples(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+        split_ids: Optional[list[GlobalID]] = UNSET,
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        filter: Optional[str] = UNSET,
+        # filter_ids is a stopgap until a query DSL is implemented
+        filter_ids: Annotated[
+            Optional[list[GlobalID]],
+            strawberry.argument(
+                description="When provided, return only the examples with the given "
+                "IDs — a membership lookup that avoids paging the whole connection."
+            ),
+        ] = UNSET,
+    ) -> Connection[DatasetExample]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        dataset_id = self.id
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id, expected_type_name=DatasetVersion.__name__
+            )
+            if dataset_version_id
+            else None
+        )
+
+        # Parse split IDs if provided
+        split_rowids: Optional[list[int]] = None
+        if split_ids:
+            split_rowids = []
+            for split_id in split_ids:
+                try:
+                    split_rowid = from_global_id_with_expected_type(
+                        global_id=split_id, expected_type_name=models.DatasetSplit.__name__
+                    )
+                    split_rowids.append(split_rowid)
+                except Exception:
+                    raise BadRequest(f"Invalid split ID: {split_id}")
+
+        # Parse filter IDs if provided
+        filter_rowids: Optional[list[int]] = None
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=DatasetExample.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .join(models.DatasetExample)
+            .where(models.DatasetExample.dataset_id == dataset_id)
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        )
+        if filter_rowids is not None:
+            # Restrict the latest-revision aggregation to the requested rows so
+            # an id-membership lookup doesn't aggregate the whole dataset.
+            revision_ids = revision_ids.where(models.DatasetExample.id.in_(filter_rowids))
+        if version_id:
+            version_id_subquery = (
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .where(models.DatasetVersion.id == version_id)
+                .scalar_subquery()
+            )
+            revision_ids = revision_ids.where(
+                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
+            )
+        query = (
+            select(models.DatasetExample)
+            .join(
+                models.DatasetExampleRevision,
+                onclause=models.DatasetExample.id
+                == models.DatasetExampleRevision.dataset_example_id,
+            )
+            .where(
+                and_(
+                    models.DatasetExampleRevision.id.in_(revision_ids),
+                    models.DatasetExampleRevision.revision_kind != "DELETE",
+                )
+            )
+            .order_by(models.DatasetExample.id.asc())
+        )
+
+        # Filter by split IDs if provided
+        if split_rowids:
+            query = (
+                query.join(
+                    models.DatasetSplitDatasetExample,
+                    onclause=(
+                        models.DatasetExample.id
+                        == models.DatasetSplitDatasetExample.dataset_example_id
+                    ),
+                )
+                .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
+                .distinct()
+            )
+        # Apply filter if provided - search through JSON fields (input, output, metadata)
+        if filter is not UNSET and filter:
+            # Create a filter that searches for the filter string in JSON fields
+            # Using PostgreSQL's JSON operators for case-insensitive text search
+            filter_condition = or_(
+                func.cast(models.DatasetExampleRevision.input, Text).ilike(f"%{filter}%"),
+                func.cast(models.DatasetExampleRevision.output, Text).ilike(f"%{filter}%"),
+                func.cast(models.DatasetExampleRevision.metadata_, Text).ilike(f"%{filter}%"),
+            )
+            query = query.where(filter_condition)
+
+        if filter_rowids is not None:
+            query = query.where(models.DatasetExample.id.in_(filter_rowids))
+
+        async with info.context.db.read() as session:
+            dataset_examples = [
+                DatasetExample(
+                    id=example.id,
+                    db_record=example,
+                    version_id=version_id,
+                )
+                async for example in await session.stream_scalars(query)
+            ]
+        return connection_from_list(data=dataset_examples, args=args)
+
+    @strawberry.field
+    async def splits(self, info: Info[Context, None]) -> list[DatasetSplit]:
+        return [
+            DatasetSplit(id=split.id, db_record=split)
+            for split in await info.context.data_loaders.dataset_dataset_splits.load(self.id)
+        ]
+
+    @strawberry.field(
+        description="Number of experiments for a specific version if version is specified, "
+        "or for all versions if version is not specified."
+    )  # type: ignore
+    async def experiment_count(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+        include_ephemeral: Optional[bool] = False,
+    ) -> int:
+        stmt = select(count(models.Experiment.id)).where(models.Experiment.dataset_id == self.id)
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
+            )
+            if dataset_version_id
+            else None
+        )
+        if version_id is not None:
+            stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
+        if not include_ephemeral:
+            stmt = stmt.where(models.Experiment.is_ephemeral.is_(False))
+        async with info.context.db.read() as session:
+            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field
+    async def experiments(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        include_ephemeral: Optional[bool] = False,
+        filter_condition: Optional[str] = UNSET,
+        filter_ids: Optional[
+            list[GlobalID]
+        ] = UNSET,  # this is a stopgap until a query DSL is implemented
+    ) -> Connection[Experiment]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        dataset_id = self.id
+        row_number = func.row_number().over(order_by=models.Experiment.id).label("row_number")
+        query = (
+            select(models.Experiment, row_number)
+            .where(models.Experiment.dataset_id == dataset_id)
+            .order_by(models.Experiment.id.desc())
+        )
+        if not include_ephemeral:
+            query = query.where(models.Experiment.is_ephemeral.is_(False))
+        if filter_condition is not UNSET and filter_condition:
+            # Search both name and description columns with case-insensitive partial matching
+            search_filter = or_(
+                models.Experiment.name.ilike(f"%{filter_condition}%"),
+                models.Experiment.description.ilike(f"%{filter_condition}%"),
+            )
+            query = query.where(search_filter)
+
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=Experiment.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+            query = query.where(models.Experiment.id.in_(filter_rowids))
+
+        async with info.context.db.read() as session:
+            experiments = [
+                to_gql_experiment(experiment, sequence_number)
+                async for experiment, sequence_number in cast(
+                    AsyncIterable[tuple[models.Experiment, int]],
+                    await session.stream(query),
+                )
+            ]
+        return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field
+    async def experiment_jobs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["ExperimentJob", strawberry.lazy(".ExperimentJob")]]:
+        from .ExperimentJob import ExperimentJob
+
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db.read() as session:
+            stmt = (
+                select(models.ExperimentJob)
+                .join(models.Experiment)
+                .where(models.Experiment.dataset_id == self.id)
+                .order_by(models.ExperimentJob.created_at.desc())
+            )
+            results = await session.scalars(stmt)
+            jobs = [ExperimentJob(id=config.id, db_record=config) for config in results]
+        return connection_from_list(data=jobs, args=args)
+
+    @strawberry.field
+    async def experiment_annotation_summaries(
+        self, info: Info[Context, None]
+    ) -> list[DatasetExperimentAnnotationSummary]:
+        dataset_id = self.id
+        query = (
+            select(
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                func.min(models.ExperimentRunAnnotation.score).label("min_score"),
+                func.max(models.ExperimentRunAnnotation.score).label("max_score"),
+            )
+            .select_from(models.ExperimentRunAnnotation)
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+            )
+            .join(
+                models.Experiment,
+                models.ExperimentRun.experiment_id == models.Experiment.id,
+            )
+            .where(models.Experiment.dataset_id == dataset_id)
+            .group_by(models.ExperimentRunAnnotation.name)
+            .order_by(models.ExperimentRunAnnotation.name)
+        )
+        async with info.context.db.read() as session:
+            return [
+                DatasetExperimentAnnotationSummary(
+                    annotation_name=scores_tuple.annotation_name,
+                    min_score=scores_tuple.min_score,
+                    max_score=scores_tuple.max_score,
+                )
+                async for scores_tuple in await session.stream(query)
+            ]
+
+    @strawberry.field
+    async def labels(self, info: Info[Context, None]) -> list[DatasetLabel]:
+        return [
+            DatasetLabel(id=label.id, db_record=label)
+            for label in await info.context.data_loaders.dataset_labels.load(self.id)
+        ]
+
+    @strawberry.field(description="Number of evaluators associated with this dataset.")  # type: ignore
+    async def evaluator_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(count(models.DatasetEvaluators.id)).where(
+            models.DatasetEvaluators.dataset_id == self.id
+        )
+        async with info.context.db.read() as session:
+            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field
+    async def dataset_evaluator(
+        self, info: Info[Context, None], dataset_evaluator_id: GlobalID
+    ) -> DatasetEvaluator:
+        try:
+            _, dataset_evaluator_rowid = from_global_id(
+                global_id=dataset_evaluator_id,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset evaluator ID: {dataset_evaluator_id}")
+
+        stmt = select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.id == dataset_evaluator_rowid,
+            models.DatasetEvaluators.dataset_id == self.id,
+        )
+
+        async with info.context.db.read() as session:
+            dataset_evaluator = await session.scalar(stmt)
+            if dataset_evaluator is None:
+                raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
+            return DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator)
+
+    @strawberry.field
+    async def dataset_evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        sort: Optional[DatasetEvaluatorSort] = UNSET,
+        filter: Optional[DatasetEvaluatorFilter] = UNSET,
+    ) -> Connection[DatasetEvaluator]:
+        """Returns all evaluators associated with this dataset."""
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+        )
+        stmt = (
+            select(models.DatasetEvaluators)
+            .outerjoin(
+                PolymorphicEvaluator,
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+            )
+            .where(models.DatasetEvaluators.dataset_id == self.id)
+        )
+        if filter:
+            column = getattr(models.DatasetEvaluators, filter.col.value)
+            if filter.col.value == "name":
+                column = sqlalchemy_cast(column, String)
+            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
+        if sort:
+            if sort.col.value == "kind":
+                sort_col = PolymorphicEvaluator.kind
+            else:
+                sort_col = getattr(models.DatasetEvaluators, sort.col.value)
+            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        else:
+            stmt = stmt.order_by(models.DatasetEvaluators.name.asc())
+
+        async with info.context.db.read() as session:
+            result = await session.scalars(stmt)
+            data: list[DatasetEvaluator] = [DatasetEvaluator(id=record.id) for record in result]
+        # TODO: we need to handle sorting for builtin evaluators as their "kind"
+        # (and other evaluator fields) are not part of the polymorphic table
+        # re-sort the final results by kind, this is necessary because builtin evaluators are not
+        #  part of the polymorphic table
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        return info.context.last_updated_at.get(models.Dataset, self.id)

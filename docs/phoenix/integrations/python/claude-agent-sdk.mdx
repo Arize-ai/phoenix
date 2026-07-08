@@ -1,0 +1,87 @@
+---
+title: "Claude Agent SDK (Python)"
+sidebarTitle: "Claude Agent SDK"
+description: Trace Anthropic's Claude Agent SDK applications in Python with Phoenix
+---
+
+<Note>Looking for TypeScript? See the [TypeScript guide](/docs/phoenix/integrations/typescript/claude-agent-sdk).</Note>
+
+[![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-claude-agent-sdk.svg)](https://pypi.python.org/pypi/openinference-instrumentation-claude-agent-sdk)
+
+This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for [Anthropic's Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview), automatically capturing **AGENT** and **TOOL** spans that follow OpenInference semantic conventions.
+
+## Install
+
+```bash
+pip install openinference-instrumentation-claude-agent-sdk claude-agent-sdk arize-phoenix-otel
+```
+
+## Setup
+
+Use the `register` function to connect your application to Phoenix:
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="claude-agent-sdk",
+  auto_instrument=True,
+)
+```
+
+## Run Claude Agent SDK
+
+A simple Claude Agent SDK application that is now instrumented:
+
+```python expandable
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, TextBlock
+
+
+async def main():
+    async for message in query(
+        prompt="What files are in the current directory?",
+        options=ClaudeAgentOptions(allowed_tools=["Bash", "Glob"]),
+    ):
+        if isinstance(message, AssistantMessage):
+            for block in message.content:
+                if isinstance(block, TextBlock):
+                    print(block.text)
+
+
+asyncio.run(main())
+```
+
+## Observe
+
+With instrumentation enabled, you will see the following in Phoenix:
+
+- **AGENT spans** wrapping the full `query()` call, capturing the prompt and final response
+- **TOOL spans** for each tool invocation made by the agent during execution (e.g., Bash commands, file reads)
+
+These spans follow [OpenInference semantic conventions](https://github.com/Arize-ai/openinference), making them fully compatible with Phoenix's trace visualization and evaluation features.
+
+## Privacy Configuration
+
+If you need to hide sensitive data, use the instrumentor directly instead of `auto_instrument`:
+
+```python
+from phoenix.otel import register
+from openinference.instrumentation.claude_agent_sdk import ClaudeAgentSDKInstrumentor
+
+tracer_provider = register(project_name="claude-agent-sdk")
+
+ClaudeAgentSDKInstrumentor().instrument(
+    tracer_provider=tracer_provider,
+    hide_inputs=True,
+    hide_outputs=True,
+)
+```
+
+## Resources
+
+* [PyPI Package](https://pypi.python.org/pypi/openinference-instrumentation-claude-agent-sdk)
+
+* [OpenInference package for Claude Agent SDK](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-claude-agent-sdk)
+
+* [Claude Agent SDK Documentation](https://platform.claude.com/docs/en/agent-sdk/overview)

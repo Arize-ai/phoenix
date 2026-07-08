@@ -1,0 +1,388 @@
+import json
+from functools import cached_property
+from typing import Any, Literal, Optional, cast
+
+import strawberry
+from strawberry import UNSET
+from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
+from typing_extensions import assert_never
+
+from phoenix.db import models
+from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    ContentPart,
+    PromptAnthropicInvocationParameters,
+    PromptAwsInvocationParameters,
+    PromptChatTemplate,
+    PromptGoogleInvocationParameters,
+    PromptMessage,
+    PromptMessageRole,
+    PromptOpenAIInvocationParameters,
+    PromptResponseFormatJSONSchema,
+    PromptResponseFormatJSONSchemaDefinition,
+    PromptTemplateFormat,
+    PromptTemplateType,
+    PromptToolChoice,
+    PromptToolChoiceNone,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptToolRaw,
+    PromptTools,
+    RoleConversion,
+    TextContentPart,
+    ToolCallContentPart,
+    ToolCallFunction,
+    ToolResultContentPart,
+)
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.PromptInvocationParametersInput import (
+    PromptInvocationParametersInput,
+)
+from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+InvocationFamily = Literal["openai", "anthropic", "google", "aws"]
+
+
+def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
+    if provider is ModelProvider.ANTHROPIC:
+        return "anthropic"
+    if provider is ModelProvider.GOOGLE:
+        return "google"
+    if provider is ModelProvider.AWS:
+        return "aws"
+    if (
+        provider is ModelProvider.OPENAI
+        or provider is ModelProvider.AZURE_OPENAI
+        or provider is ModelProvider.DEEPSEEK
+        or provider is ModelProvider.XAI
+        or provider is ModelProvider.OLLAMA
+        or provider is ModelProvider.CEREBRAS
+        or provider is ModelProvider.FIREWORKS
+        or provider is ModelProvider.GROQ
+        or provider is ModelProvider.MOONSHOT
+        or provider is ModelProvider.PERPLEXITY
+        or provider is ModelProvider.TOGETHER
+    ):
+        return "openai"
+    assert_never(provider)
+
+
+def _orm_invocation_family(
+    invocation_parameters: PromptOpenAIInvocationParameters
+    | PromptAnthropicInvocationParameters
+    | PromptGoogleInvocationParameters
+    | PromptAwsInvocationParameters,
+) -> InvocationFamily:
+    if isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return "anthropic"
+    if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
+        return "google"
+    if isinstance(invocation_parameters, PromptAwsInvocationParameters):
+        return "aws"
+    if isinstance(invocation_parameters, PromptOpenAIInvocationParameters):
+        return "openai"
+    assert_never(invocation_parameters)
+
+
+def validate_invocation_parameters_match_provider(
+    model_provider: ModelProvider,
+    invocation_parameters: PromptOpenAIInvocationParameters
+    | PromptAnthropicInvocationParameters
+    | PromptGoogleInvocationParameters
+    | PromptAwsInvocationParameters,
+) -> None:
+    """Reject prompt versions whose invocation-parameters family doesn't match the provider."""
+    expected = _expected_invocation_family(model_provider)
+    actual = _orm_invocation_family(invocation_parameters)
+    if expected != actual:
+        raise BadRequest(
+            f"Invocation parameters variant '{actual}' does not match "
+            f"model provider '{model_provider.value}' (expected '{expected}')."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Canonical tool input types  (isomorphic to DB PromptTools / PromptTool*)
+# ---------------------------------------------------------------------------
+
+
+@strawberry.input
+class PromptToolFunctionDefinitionInput:
+    name: str
+    description: Optional[str] = None
+    parameters: Optional[JSON] = None
+    strict: Optional[bool] = None
+
+    def to_orm(self) -> PromptToolFunctionDefinition:
+        return PromptToolFunctionDefinition(
+            name=self.name,
+            description=self.description if self.description is not None else UNDEFINED,
+            parameters=self.parameters if self.parameters is not None else UNDEFINED,
+            strict=self.strict if isinstance(self.strict, bool) else UNDEFINED,
+        )
+
+
+@strawberry.input(
+    one_of=True,
+    description=(
+        "A single tool on a prompt — set exactly one of `function` or `raw`. "
+        "`function` is a normalized JSON-Schema-typed function tool that Phoenix "
+        "converts to each provider's native format. `raw` is a vendor passthrough "
+        "tool: an opaque JSON object forwarded to the provider SDK as-is (e.g. "
+        "OpenAI Responses `web_search`, Anthropic `computer_use`)."
+    ),
+)
+class PromptToolInput:
+    function: Optional[PromptToolFunctionDefinitionInput] = strawberry.field(
+        default=UNSET,
+        description="Normalized function tool — provider-agnostic, converted at request time.",
+    )
+    raw: Optional[JSON] = strawberry.field(
+        default=UNSET,
+        description="Vendor passthrough tool — opaque JSON forwarded to the provider SDK.",
+    )
+
+    def to_orm(self) -> PromptToolFunction | PromptToolRaw:
+        if self.function:
+            return PromptToolFunction(type="function", function=self.function.to_orm())
+        if self.raw:
+            if not isinstance(self.raw, dict):
+                raise BadRequest("PromptToolInput.raw must be a JSON object")
+            return PromptToolRaw(type="raw", raw=self.raw)
+        raise BadRequest("PromptToolInput: no field is set")
+
+
+@strawberry.input(one_of=True)
+class PromptToolChoiceInput:
+    """
+    Canonical tool-choice using OneOf — set exactly one field:
+      none: true          → no tool use
+      zero_or_more: true  → model may call zero or more tools
+      one_or_more: true   → model must call at least one tool
+      function_name: str  → model must call the named function
+    """
+
+    none: Optional[bool] = UNSET
+    zero_or_more: Optional[bool] = UNSET
+    one_or_more: Optional[bool] = UNSET
+    function_name: Optional[str] = UNSET
+
+    def to_orm(self) -> PromptToolChoice:
+        if self.none is not UNSET:
+            return PromptToolChoiceNone(type="none")
+        if self.zero_or_more is not UNSET:
+            return PromptToolChoiceZeroOrMore(type="zero_or_more")
+        if self.one_or_more is not UNSET:
+            return PromptToolChoiceOneOrMore(type="one_or_more")
+        if self.function_name is not UNSET:
+            return PromptToolChoiceSpecificFunctionTool(
+                type="specific_function",
+                function_name=self.function_name or "",
+            )
+        raise ValueError("PromptToolChoiceInput: no field is set")
+
+
+@strawberry.input
+class PromptToolsInput:
+    tools: list[PromptToolInput]
+    tool_choice: Optional[PromptToolChoiceInput] = None
+    disable_parallel_tool_calls: Optional[bool] = None
+
+    def to_orm(self) -> PromptTools:
+        pt = PromptTools(type="tools", tools=[t.to_orm() for t in self.tools])
+        if self.tool_choice is not None:
+            pt.tool_choice = self.tool_choice.to_orm()
+        if self.disable_parallel_tool_calls is not None:
+            pt.disable_parallel_tool_calls = self.disable_parallel_tool_calls
+        return pt
+
+
+# ---------------------------------------------------------------------------
+# Canonical response-format input types  (isomorphic to DB PromptResponseFormatJSONSchema)
+# ---------------------------------------------------------------------------
+
+
+@strawberry.input
+class PromptResponseFormatJSONSchemaDefinitionInput:
+    name: str
+    description: Optional[str] = None
+    schema: Optional[JSON] = None
+    strict: Optional[bool] = None
+
+    def to_orm(self) -> PromptResponseFormatJSONSchemaDefinition:
+        return PromptResponseFormatJSONSchemaDefinition(
+            name=self.name,
+            description=self.description if self.description is not None else UNDEFINED,
+            schema=self.schema if self.schema is not None else UNDEFINED,
+            strict=self.strict if isinstance(self.strict, bool) else UNDEFINED,
+        )
+
+
+@strawberry.input
+class PromptResponseFormatJSONSchemaInput:
+    type: str  # always "json_schema"
+    json_schema: PromptResponseFormatJSONSchemaDefinitionInput
+
+    def to_orm(self) -> PromptResponseFormatJSONSchema:
+        return PromptResponseFormatJSONSchema(
+            type="json_schema", json_schema=self.json_schema.to_orm()
+        )
+
+
+# ---------------------------------------------------------------------------
+# Message input types (unchanged)
+# ---------------------------------------------------------------------------
+
+
+@strawberry.input
+class TextContentValueInput:
+    text: str
+
+
+@strawberry.input
+class ToolResultContentValueInput:
+    tool_call_id: str
+    result: JSON
+
+
+@strawberry.input
+class ToolCallFunctionInput:
+    type: Optional[str] = strawberry.field(default="function")
+    name: str
+    arguments: str
+
+
+@strawberry.input
+class ToolCallContentValueInput:
+    tool_call_id: str
+    tool_call: ToolCallFunctionInput
+
+
+@strawberry.input(one_of=True)
+class ContentPartInput:
+    text: Optional[TextContentValueInput] = strawberry.UNSET
+    tool_call: Optional[ToolCallContentValueInput] = strawberry.UNSET
+    tool_result: Optional[ToolResultContentValueInput] = strawberry.UNSET
+
+    def to_orm(self) -> ContentPart:
+        if self.text:
+            return TextContentPart(
+                type="text",
+                text=self.text.text,
+            )
+        if self.tool_call:
+            return ToolCallContentPart(
+                type="tool_call",
+                tool_call_id=self.tool_call.tool_call_id,
+                tool_call=ToolCallFunction(
+                    type="function",
+                    name=self.tool_call.tool_call.name,
+                    arguments=self.tool_call.tool_call.arguments,
+                ),
+            )
+        if self.tool_result:
+            result_str = cast(str, self.tool_result.result)
+            try:
+                tool_result_value: Any = json.loads(result_str)
+            except json.JSONDecodeError:
+                tool_result_value = result_str
+            return ToolResultContentPart(
+                type="tool_result",
+                tool_call_id=self.tool_result.tool_call_id,
+                tool_result=tool_result_value,
+            )
+        raise BadRequest("ContentPartInput: no field is set")
+
+
+@strawberry.input
+class PromptMessageInput:
+    role: PromptMessageRole
+    content: list[ContentPartInput]
+
+    def to_orm(self) -> PromptMessage:
+        return PromptMessage(
+            role=RoleConversion.from_gql(self.role),
+            content=[content_part.to_orm() for content_part in self.content],
+        )
+
+
+@strawberry.input
+class PromptChatTemplateInput:
+    messages: list[PromptMessageInput]
+
+    def to_orm(self) -> PromptChatTemplate:
+        return PromptChatTemplate(
+            type="chat",
+            messages=[message.to_orm() for message in self.messages],
+        )
+
+
+# ---------------------------------------------------------------------------
+# Main input type
+# ---------------------------------------------------------------------------
+
+
+@strawberry.input
+class ChatPromptVersionInput:
+    description: Optional[str] = None
+    template_format: PromptTemplateFormat
+    template: PromptChatTemplateInput
+    invocation_parameters: PromptInvocationParametersInput
+    tools: Optional[PromptToolsInput] = None
+    response_format: Optional[PromptResponseFormatJSONSchemaInput] = None
+    model_provider: GenerativeProviderKey
+    model_name: str
+    custom_provider_id: Optional[GlobalID] = None
+
+    @cached_property
+    def resolved_custom_provider_id(self) -> int | None:
+        """Convert the GraphQL GlobalID to a raw DB primary key."""
+        if self.custom_provider_id is None:
+            return None
+        return from_global_id_with_expected_type(
+            global_id=self.custom_provider_id,
+            expected_type_name=GenerativeModelCustomProvider.__name__,
+        )
+
+    def to_orm_prompt_version(
+        self,
+        user_id: int | None = None,
+    ) -> models.PromptVersion:
+        model_provider = self.model_provider.to_model_provider()
+        tools = self.tools.to_orm() if self.tools else None
+        response_format = self.response_format.to_orm() if self.response_format else None
+        invocation_parameters = self.invocation_parameters.to_orm()
+        validate_invocation_parameters_match_provider(
+            model_provider=model_provider,
+            invocation_parameters=invocation_parameters,
+        )
+        custom_provider_id: Optional[int] = None
+        if self.custom_provider_id is not None:
+            custom_provider_id = from_global_id_with_expected_type(
+                global_id=self.custom_provider_id,
+                expected_type_name=GenerativeModelCustomProvider.__name__,
+            )
+        return models.PromptVersion(
+            description=self.description,
+            user_id=user_id,
+            template_type=PromptTemplateType.CHAT,
+            template_format=self.template_format,
+            template=self.template.to_orm(),
+            invocation_parameters=invocation_parameters,
+            tools=tools,
+            response_format=response_format,
+            model_provider=self.model_provider.to_model_provider(),
+            model_name=self.model_name,
+            custom_provider_id=custom_provider_id,
+            # metadata_ will default to {} in the DB if not provided due to the NOT NULL constraint,
+            # so setting it here allows us to more accurately check prompt version equality
+            # between prompts that have been saved to the DB and those that haven't.
+            metadata_={},
+        )

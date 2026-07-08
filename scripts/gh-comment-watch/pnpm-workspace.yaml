@@ -1,0 +1,10 @@
+# This tool is a small 2-package pnpm workspace: the API server (root) and the
+# React UI (web/). `pnpm install` from here installs both.
+packages:
+  - web
+
+# better-sqlite3 ships a prebuilt native binary; allow its install script to
+# run so `pnpm install` works without manual approval steps.
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true

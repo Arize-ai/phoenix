@@ -1,0 +1,91 @@
+---
+title: "Production Guide"
+description: "Moving your application to production: steps for reliability and scale"
+---
+
+Moving to production involves two distinct concerns, and this guide is organized around them:
+
+- **[Tracing pipeline](#tracing-pipeline)** — how your instrumented application delivers telemetry to Phoenix reliably and efficiently. Configured in your application's OpenTelemetry exporters and collectors.
+- **[Phoenix server](#phoenix-server)** — how you deploy, scale, and secure the self-hosted Phoenix instance that receives, stores, and serves that telemetry.
+
+The two are configured and operated independently. Tune the **tracing pipeline** where your application runs; tune the **Phoenix server** where your deployment runs. A change to one does not affect the other.
+
+<Info>
+  For a managed deployment where Arize handles installation, maintenance, and ongoing operations, see [Arize AX](https://arize.com/docs/ax/selfhosting).
+</Info>
+
+## Tracing Pipeline
+
+These settings live in your **instrumented application** — the OpenTelemetry exporters and collectors that carry spans, metrics, and logs to Phoenix. They control the reliability and efficiency of data delivery and have no effect on the Phoenix server itself.
+
+### Enable Batch Processing
+
+Turn on the [batch processor](https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/batchprocessor/README.md) for spans, metrics, and logs. Batching improves data compression and reduces the number of outgoing connections required to transmit data efficiently. This is critical for stable ingestion at higher volumes.
+
+The batch processor supports:
+
+* **Size-based batching** (batch emits when a max number of items is reached)
+
+* **Time-based batching** (batch emits after a configurable timeout)
+
+### Use gRPC Transport
+
+Switch your exporters to use gRPC wherever possible to maximize payload compression and reduce network overhead in production environments.
+
+## Phoenix Server
+
+These settings apply to the **self-hosted Phoenix deployment** that receives, stores, and serves your telemetry. They are independent of how your application is instrumented — they govern the reliability, scale, and security of the server itself.
+
+### Scaling
+
+Plan for scaling resources to match your workload, including:
+
+* **Memory scaling** for high-cardinality workloads or long retention windows.
+
+* **Disk scaling** for log and trace ingestion, especially if retaining high volumes.
+
+* **Horizontal scaling** if your deployment needs to handle increased concurrency.
+
+### Memory Sizing
+
+Memory requirements depend on several factors:
+
+* **Ingestion volume:** Higher volumes of traces and logs increase memory needs for processing and indexing.
+
+* **Variety of labels and attributes:** Workloads with many unique labels and attributes require additional memory for tracking and querying.
+
+* **Retention settings:** Longer retention windows increase memory requirements for in-memory caching and indexing.
+
+Monitor memory usage under expected production load and adjust resources to maintain your application performance.
+
+### Database Sizing
+
+For production and scalable deployments, Phoenix supports PostgreSQL. The database size will depend on:
+
+* **Ingestion rate:** Higher data ingestion will increase storage usage.
+
+* **Retention periods:** Longer data retention requires additional storage capacity.
+
+* **Variety of labels and attributes:** Workloads with many unique values consume more database space for indexing and storage.
+
+Regularly monitor disk utilization to plan for scaling and ensure stable, reliable operation.
+
+### Database Backups
+
+Ensure automated backups are enabled for your Postgres instance — they protect your data and support recovery from failures or data corruption. A solid backup plan considers:
+
+* **Backup frequency:** How often backups occur.
+
+* **Backup methods:** Such as point-in-time recovery (PITR) and full backups.
+
+* **Test restores:** Regularly verify backups by restoring data.
+
+### Network Hardening
+
+The Phoenix server accepts OpenTelemetry traces from arbitrary clients and makes outbound HTTPS calls to LLM provider APIs for evals, the Playground, and annotations. That combination makes a Phoenix pod an attractive pivot point if the process is ever compromised. If you want to genuinely lock down the network traffic and network access available to your Phoenix instance, restrict it at the infrastructure level rather than relying on application-level controls alone.
+
+On Kubernetes, the strongest control is a **network policy** enforced by a CNI such as [Cilium](https://cilium.io/). A well-scoped policy puts the Phoenix pod into allow-list mode: it can reach its database, the cluster DNS resolver, and an explicit allowlist of LLM provider domains — and nothing else. Critically, it blocks egress to private IP ranges and the cloud provider metadata endpoint (`169.254.169.254`), which is the first thing an attacker reaches for after compromising a workload.
+
+<Info>
+  See [Network Security](/docs/phoenix/self-hosting/security/network-security) for application-level controls — provider allowlists, HTTP proxies, and CSRF protection — and the [Network Policies (Kubernetes)](/docs/phoenix/self-hosting/security/network-security#network-policies-kubernetes) section for copy-ready Cilium policies and the hardening principles behind them.
+</Info>

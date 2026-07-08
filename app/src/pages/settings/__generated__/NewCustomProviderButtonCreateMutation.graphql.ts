@@ -1,0 +1,324 @@
+/**
+ * @generated SignedSource<<c2455fb2cacfb8455bdde3fe73506179>>
+ * @lightSyntaxTransform
+ * @nogrep
+ */
+
+/* tslint:disable */
+/* eslint-disable */
+// @ts-nocheck
+
+import { ConcreteRequest } from 'relay-runtime';
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
+export type CreateGenerativeModelCustomProviderMutationInput = {
+  clientConfig: GenerativeModelCustomerProviderConfigInput;
+  description?: string | null;
+  name: string;
+  provider: string;
+};
+export type GenerativeModelCustomerProviderConfigInput = {
+  anthropic?: AnthropicCustomProviderConfigInput | null;
+  awsBedrock?: AWSBedrockCustomProviderConfigInput | null;
+  azureOpenai?: AzureOpenAICustomProviderConfigInput | null;
+  googleGenai?: GoogleGenAICustomProviderConfigInput | null;
+  openai?: OpenAICustomProviderConfigInput | null;
+};
+export type OpenAICustomProviderConfigInput = {
+  openaiApiType?: OpenAIApiType | null;
+  openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
+  openaiClientKwargs?: OpenAIClientKwargsInput | null;
+};
+export type OpenAIAuthenticationMethodInput = {
+  apiKey: string;
+};
+export type OpenAIClientKwargsInput = {
+  baseUrl?: string | null;
+  defaultHeaders?: any | null;
+  organization?: string | null;
+  project?: string | null;
+};
+export type AzureOpenAICustomProviderConfigInput = {
+  azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
+  azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
+  openaiApiType?: OpenAIApiType | null;
+};
+export type AzureOpenAIAuthenticationMethodInput = {
+  apiKey?: string | null;
+  azureAdTokenProvider?: AzureOpenAIADTokenProviderInput | null;
+  defaultCredentials?: boolean | null;
+};
+export type AzureOpenAIADTokenProviderInput = {
+  azureClientId: string;
+  azureClientSecret: string;
+  azureTenantId: string;
+  scope?: string | null;
+};
+export type AzureOpenAIClientKwargsInput = {
+  azureEndpoint: string;
+  defaultHeaders?: any | null;
+};
+export type AnthropicCustomProviderConfigInput = {
+  anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput;
+  anthropicClientKwargs?: AnthropicClientKwargsInput | null;
+};
+export type AnthropicAuthenticationMethodInput = {
+  apiKey: string;
+};
+export type AnthropicClientKwargsInput = {
+  baseUrl?: string | null;
+  defaultHeaders?: any | null;
+};
+export type AWSBedrockCustomProviderConfigInput = {
+  awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput;
+  awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
+};
+export type AWSBedrockAuthenticationMethodInput = {
+  accessKeys?: AWSBedrockAccessKeysInput | null;
+  defaultCredentials?: boolean | null;
+};
+export type AWSBedrockAccessKeysInput = {
+  awsAccessKeyId: string;
+  awsSecretAccessKey: string;
+  awsSessionToken?: string | null;
+};
+export type AWSBedrockClientKwargsInput = {
+  endpointUrl?: string | null;
+  regionName: string;
+};
+export type GoogleGenAICustomProviderConfigInput = {
+  googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput;
+  googleGenaiClientKwargs?: GoogleGenAIClientKwargsInput | null;
+};
+export type GoogleGenAIAuthenticationMethodInput = {
+  apiKey: string;
+};
+export type GoogleGenAIClientKwargsInput = {
+  httpOptions?: GoogleGenAIHttpOptionsInput | null;
+};
+export type GoogleGenAIHttpOptionsInput = {
+  baseUrl?: string | null;
+  headers?: any | null;
+};
+export type NewCustomProviderButtonCreateMutation$variables = {
+  connectionId: string;
+  input: CreateGenerativeModelCustomProviderMutationInput;
+};
+export type NewCustomProviderButtonCreateMutation$data = {
+  readonly createGenerativeModelCustomProvider: {
+    readonly provider: {
+      readonly createdAt: string;
+      readonly description: string | null;
+      readonly id: string;
+      readonly name: string;
+      readonly provider: string;
+      readonly sdk: GenerativeModelSDK;
+      readonly updatedAt: string;
+      readonly user: {
+        readonly id: string;
+        readonly profilePictureUrl: string | null;
+        readonly username: string;
+      } | null;
+    };
+  };
+};
+export type NewCustomProviderButtonCreateMutation = {
+  response: NewCustomProviderButtonCreateMutation$data;
+  variables: NewCustomProviderButtonCreateMutation$variables;
+};
+
+const node: ConcreteRequest = (function(){
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connectionId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
+  {
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
+  }
+],
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "GenerativeModelCustomProvider",
+  "kind": "LinkedField",
+  "name": "provider",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "description",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "sdk",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "provider",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "createdAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "updatedAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "User",
+      "kind": "LinkedField",
+      "name": "user",
+      "plural": false,
+      "selections": [
+        (v3/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "username",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "profilePictureUrl",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+};
+return {
+  "fragment": {
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "NewCustomProviderButtonCreateMutation",
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "CreateGenerativeModelCustomProviderMutationPayload",
+        "kind": "LinkedField",
+        "name": "createGenerativeModelCustomProvider",
+        "plural": false,
+        "selections": [
+          (v4/*: any*/)
+        ],
+        "storageKey": null
+      }
+    ],
+    "type": "Mutation",
+    "abstractKey": null
+  },
+  "kind": "Request",
+  "operation": {
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
+    "kind": "Operation",
+    "name": "NewCustomProviderButtonCreateMutation",
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "CreateGenerativeModelCustomProviderMutationPayload",
+        "kind": "LinkedField",
+        "name": "createGenerativeModelCustomProvider",
+        "plural": false,
+        "selections": [
+          (v4/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "filters": null,
+            "handle": "prependNode",
+            "key": "",
+            "kind": "LinkedHandle",
+            "name": "provider",
+            "handleArgs": [
+              {
+                "items": [
+                  {
+                    "kind": "Variable",
+                    "name": "connections.0",
+                    "variableName": "connectionId"
+                  }
+                ],
+                "kind": "ListValue",
+                "name": "connections"
+              },
+              {
+                "kind": "Literal",
+                "name": "edgeTypeName",
+                "value": "GenerativeModelCustomProviderEdge"
+              }
+            ]
+          }
+        ],
+        "storageKey": null
+      }
+    ]
+  },
+  "params": {
+    "cacheID": "a18674a60a03adce0656973e249761bb",
+    "id": null,
+    "metadata": {},
+    "name": "NewCustomProviderButtonCreateMutation",
+    "operationKind": "mutation",
+    "text": "mutation NewCustomProviderButtonCreateMutation(\n  $input: CreateGenerativeModelCustomProviderMutationInput!\n) {\n  createGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n  }\n}\n"
+  }
+};
+})();
+
+(node as any).hash = "b66de5d56b0d8b2241083125c42c7b32";
+
+export default node;

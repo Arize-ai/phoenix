@@ -1,0 +1,127 @@
+import { randomUUID } from "crypto";
+import { expect, test } from "@playwright/test";
+
+/**
+ * Helper to extract URLSearchParams from the current page URL.
+ */
+function searchParamsFromURL(url: string): URLSearchParams {
+  return new URL(url).searchParams;
+}
+
+test.describe("Prompt Management", () => {
+  test("can create a prompt", async ({ page }) => {
+    await page.goto("/prompts");
+    await page.waitForURL("**/prompts");
+    await page.getByRole("link", { name: "New Prompt" }).click();
+    await page.waitForURL("**/playground");
+    await page
+      .getByText("You are a chatbot")
+      .fill("You are a helpful assistant");
+    await page.getByRole("button", { name: "Save Prompt" }).click();
+    await page.getByPlaceholder("Select or enter new prompt").click();
+    const promptName = `chatbot-${randomUUID()}`;
+    await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
+    await page.getByLabel("Prompt Description").click();
+    await page.getByLabel("Prompt Description").fill("very kind chatbot");
+    await page.getByRole("button", { name: "Create Prompt" }).click();
+
+    // After saving, the URL should contain the promptId
+    await expect(page).toHaveURL(/promptId=/);
+    const params = searchParamsFromURL(page.url());
+    expect(params.get("promptId")).toBeTruthy();
+
+    await page.getByRole("button", { name: "View Prompt" }).click();
+
+    // Check if the prompt
+    await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+    await expect(
+      page.getByText("You are a helpful assistant").first()
+    ).toBeVisible();
+  });
+
+  test("can edit a prompt", async ({ page }) => {
+    await page.goto("/playground");
+    await page.waitForURL("**/playground");
+    await page.getByRole("button", { name: "Save Prompt" }).click();
+    await page.getByPlaceholder("Select or enter new prompt").click();
+    const promptName = `chatbot-${randomUUID()}`;
+    await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
+    await page.getByLabel("Prompt Description").click();
+    await page.getByLabel("Prompt Description").fill("very kind chatbot");
+    await page.getByRole("button", { name: "Create Prompt" }).click();
+
+    // Capture the promptId from the URL after creation
+    await expect(page).toHaveURL(/promptId=/);
+    const createdPromptId = searchParamsFromURL(page.url()).get("promptId");
+    expect(createdPromptId).toBeTruthy();
+
+    await page.getByRole("button", { name: "View Prompt" }).click();
+
+    // Go to the prompt listing
+    await page.getByRole("link", { name: "Prompts", exact: true }).click();
+    await page.waitForURL("**/prompts");
+    await page.getByRole("link", { name: promptName }).click();
+    await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+    await page.getByRole("tab", { name: "versions" }).click();
+    await expect(page.getByRole("heading", { name: "Version" })).toBeVisible();
+    await page
+      .getByLabel("Versions")
+      .getByRole("link", { name: "Playground" })
+      .click();
+
+    // Ensure the playground loads with the correct prompt params
+    await expect(page).toHaveURL(/promptId=/);
+    const playgroundParams = searchParamsFromURL(page.url());
+    expect(playgroundParams.get("promptId")).toBe(createdPromptId);
+    expect(playgroundParams.get("promptVersionId")).toBeTruthy();
+
+    // Edit the prompt
+    // Editing is a bit hard to do due to codemirror. TODO: figure out a way to type
+    await page.getByRole("button", { name: "Save" }).click();
+
+    // Save the prompt
+    await page.getByLabel("Change Description").fill("very angry chatbot");
+    await page.getByRole("button", { name: "Update Prompt" }).click();
+
+    // After updating, verify the URL still tracks the same prompt
+    await expect(page).toHaveURL(/promptId=/);
+    expect(searchParamsFromURL(page.url()).get("promptId")).toBe(
+      createdPromptId
+    );
+
+    await page.getByRole("button", { name: "View Prompt" }).click();
+
+    // Check if the prompt was updated
+    await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+    // Simply check the description is visible
+    await expect(
+      page.getByRole("tabpanel").getByText("very angry chatbot")
+    ).toBeVisible();
+  });
+
+  test("prompts table shows created prompt rows and navigates from row links", async ({
+    page,
+  }) => {
+    const promptName = `compiler-table-prompt-${randomUUID().slice(0, 8)}`;
+
+    await page.goto("/playground");
+    await page.waitForURL("**/playground");
+    await page.getByRole("button", { name: "Save Prompt" }).click();
+    await page.getByPlaceholder("Select or enter new prompt").click();
+    await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
+    await page.getByLabel("Prompt Description").fill("table row test prompt");
+    await page.getByRole("button", { name: "Create Prompt" }).click();
+    await expect(page).toHaveURL(/promptId=/);
+
+    await page.goto("/prompts");
+    await page.waitForURL("**/prompts");
+
+    const row = page.getByRole("row").filter({
+      has: page.getByRole("link", { name: promptName }),
+    });
+    await expect(row).toBeVisible();
+    await row.getByRole("link", { name: promptName }).click();
+
+    await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+  });
+});

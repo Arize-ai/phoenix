@@ -1,0 +1,72 @@
+{
+  "name": "@arizeai/phoenix-otel",
+  "version": "1.0.2",
+  "description": "Phoenix OpenTelemetry tracing SDK for Node.js — register tracing, manual span helpers, and context attributes for LLM observability",
+  "keywords": [
+    "OpenInference",
+    "agents",
+    "arize",
+    "llm",
+    "observability",
+    "openTelemetry",
+    "otel",
+    "phoenix",
+    "tracing"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "directories": {
+    "doc": "./docs"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "src",
+    "package.json"
+  ],
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "clean": "rimraf dist",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpublish": "node ../../scripts/sync-package-docs.mjs clean phoenix-otel",
+    "prebuild": "pnpm run clean",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-otel",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
+  },
+  "dependencies": {
+    "@arizeai/openinference-core": "^2.4.0",
+    "@arizeai/openinference-semantic-conventions": "^2.5.0",
+    "@arizeai/openinference-vercel": "^2.8.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/context-async-hooks": "^2.9.0",
+    "@opentelemetry/core": "^2.9.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.218.0",
+    "@opentelemetry/instrumentation": "^0.218.0",
+    "@opentelemetry/resources": "^2.9.0",
+    "@opentelemetry/sdk-trace-base": "^2.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.4",
+    "vitest": "^4.1.9"
+  }
+}

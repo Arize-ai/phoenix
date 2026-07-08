@@ -1,0 +1,14 @@
+---
+title: "OpenAI Responses API Type Support"
+description: "Choose between Chat Completions and Responses API for OpenAI and Azure OpenAI."
+---
+
+Phoenix now supports selecting the **OpenAI API type** for OpenAI and Azure OpenAI calls in the Playground and custom providers.
+
+**Key capabilities:**
+
+- **API type selection:** Choose **Chat Completions** (`chat.completions.create`) or **Responses** (`responses.create`) per model configuration.
+- **Custom provider support:** OpenAI and Azure OpenAI custom providers can be configured with an API type for consistent routing.
+- **Parameter compatibility:** Phoenix maps shared invocation parameters to the chosen API type and filters unsupported fields automatically.
+
+To get started, open the model configuration panel in the Playground and select an **OpenAI API type**. For server-managed setups, configure the API type in **Settings → AI Providers → Custom Providers**.

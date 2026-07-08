@@ -1,0 +1,185 @@
+name: Playwright Tests
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+      - version-*
+  pull_request:
+    branches:
+      - main
+      - version-*
+  schedule:
+    - cron: "0 16 * * 1-5"
+  workflow_dispatch:
+
+env:
+  ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  changes:
+    name: Filter Changes
+    if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    outputs:
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            e2e:
+              - "src/**"
+              - "app/**"
+              - ".github/workflows/playwright.yaml"
+
+
+  e2e-test:
+    timeout-minutes: 60
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.e2e == 'true') }}
+    defaults:
+      run:
+        working-directory: ./app
+    env:
+      # We're skipping WebKit because of recurring issues with caching,
+      # despite always installing it on cache-hit.
+      CI_PLAYWRIGHT_SKIP_WEBKIT: true
+    strategy:
+      fail-fast: true
+      matrix:
+        py: [3.14]
+        # large runners have more disk space, which we need for our in-runner phoenix db
+        os: [oss-4-core-runner] # re-add macos-latest-large once billing is set
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: app/package.json
+      - name: Use Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          cache-dependency-path: ./app/pnpm-lock.yaml
+          node-version: lts/*
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Get installed Playwright version
+        id: playwright-version
+        run: echo "PLAYWRIGHT_VERSION=$(pnpm list --json | jq -r '.[0].devDependencies["@playwright/test"].version')" >> $GITHUB_ENV
+      - name: Cache Playwright binaries
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ hashFiles('app/playwright.config.ts') }}
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps
+      - name: Install system dependencies for WebKit
+        # WebKit dependencies can't be cached and must always be installed.
+        if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps webkit
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Install dependencies
+        if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
+        run: uv sync --extra container
+      - name: Install dependencies (with upgrade)
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo ${{ matrix.py }} > ../.python-version
+          uv sync --upgrade --extra container
+      # Sandbox providers used by the Playwright suite (Deno for TypeScript
+      # code evaluators, CPython WASM for Python). The Phoenix container image
+      # bundles these (see Dockerfile); the e2e runner is bare so we pin the
+      # same versions and surface them via the same env-var contract that
+      # ensure_wasm_binary() / DenoAdapter consume.
+      - name: Install Deno (TypeScript sandbox provider)
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.1.4
+      - name: Pre-download CPython WASM binary
+        working-directory: ${{ github.workspace }}
+        # URL/filename/sha256 MUST stay in sync with
+        # src/phoenix/server/sandbox/_download.py (_WASM_URL /
+        # _WASM_FILENAME / _WASM_SHA256). The sha256 assertion guards
+        # against upstream release-asset tampering.
+        run: |
+          mkdir -p .cache/wasm
+          python -c "import hashlib, sys, urllib.request; \
+          url = 'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm'; \
+          dest = '.cache/wasm/python-3.12.0.wasm'; \
+          expected = 'e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763'; \
+          urllib.request.urlretrieve(url, dest); \
+          actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
+          (actual == expected) or sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}')"
+          echo "PHOENIX_WASM_BINARY_PATH=${{ github.workspace }}/.cache/wasm/python-3.12.0.wasm" >> "$GITHUB_ENV"
+      - name: Run Playwright tests
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        if: always()
+        with:
+          name: playwright-report-py${{ matrix.py }}-${{ matrix.os }}
+          path: app/playwright-report/
+          retention-days: 30
+
+  ci-required:
+    name: Playwright CI Required
+    needs:
+      - changes
+      - e2e-test
+    if: ${{ always() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"
+
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [e2e-test]
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    steps:
+      - name: Notify success
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Daily Playwright tests passed\n${{ env.ACTIONS_RUN_URL }}"
+            }
+      - name: Notify failure
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "🚨🚨🚨 DAILY PLAYWRIGHT TESTS FAILED 🚨🚨🚨\n${{ env.ACTIONS_RUN_URL }}"
+            }

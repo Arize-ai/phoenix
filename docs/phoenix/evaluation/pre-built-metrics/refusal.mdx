@@ -1,0 +1,251 @@
+---
+title: "Refusal"
+description: "Detect when an LLM refuses or declines to answer a user query."
+---
+
+## Overview
+
+The **Refusal** evaluator detects when an LLM refuses, declines, or avoids answering a user query. It captures explicit refusals, scope disclaimers, lack-of-information responses, safety refusals, redirections, and apologetic non-answers.
+
+### When to Use
+
+Use the Refusal evaluator when you need to:
+
+- **Detect explicit refusals** - Identify responses like "I can't help with that" or "I'm unable to answer"
+- **Flag scope disclaimers** - Catch responses claiming the question is outside the LLM's responsibilities
+- **Identify lack-of-information responses** - Detect responses like "I don't have that information"
+- **Spot redirections** - Find responses that deflect to other resources without answering
+- **Monitor refusal rates** - Track how often your LLM declines to engage with user queries
+
+<Info>
+The Refusal evaluator is use-case agnostic. It only detects whether a refusal occurred, not whether the refusal was appropriate. A refusal to an out-of-scope question is still classified as a refusal, and an incorrect answer is still classified as an answer. Use it alongside other evaluators like [Correctness](/docs/phoenix/evaluation/pre-built-metrics/correctness) to get a complete picture.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply to LLM spans to detect refusals in individual responses. |
+
+**Relevant span kinds:** LLM spans, particularly in conversational or retrieval-augmented systems.
+
+## Input Requirements
+
+The Refusal evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The user's query or question |
+| `output` | `string` | The LLM's response to evaluate |
+
+### Formatting Tips
+
+For best results:
+
+- **Use human-readable strings** rather than raw JSON for all inputs
+- **For multi-turn conversations**, format input as a readable conversation:
+  ```
+  User: What is the capital of France?
+  Assistant: Paris is the capital of France.
+  User: What is its population?
+  ```
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"refused"` or `"answered"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = refused, 0.0 = answered) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"neutral"` | Neither higher nor lower scores are inherently better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **Refused (1.0)**: The LLM declined, deflected, or avoided answering the query
+- **Answered (0.0)**: The LLM provided a substantive response, regardless of correctness or quality
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import RefusalEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    refusal_eval = RefusalEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(refusal_eval.describe())
+
+    # Evaluate a single example
+    eval_input = {
+        "input": "What is the capital of France?",
+        "output": "I'm sorry, I can only help with technical questions."
+    }
+
+    scores = refusal_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='refusal', score=1.0, label='refused', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createRefusalEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const refusalEvaluator = createRefusalEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate an example
+    const result = await refusalEvaluator.evaluate({
+      input: "What is the capital of France?",
+      output: "I'm sorry, I can only help with technical questions.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "refused", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names or requires transformation, use input mapping.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import RefusalEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    refusal_eval = RefusalEvaluator(llm=llm)
+
+    # Example with different field names
+    eval_input = {
+        "question": "How do I reset my password?",
+        "answer": "I'm not authorized to help with account management."
+    }
+
+    # Use input mapping to match expected field names
+    input_mapping = {
+        "input": "question",
+        "output": "answer"
+    }
+
+    scores = refusal_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createRefusalEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const refusalEvaluator = createRefusalEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Bind with input mapping for different field names
+    const boundEvaluator = bindEvaluator(refusalEvaluator, {
+      inputMapping: {
+        input: "question",
+        output: "answer",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      question: "How do I reset my password?",
+      answer: "I'm not authorized to help with account management.",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import RefusalEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = RefusalEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="refusal",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"refused": 1.0, "answered": 0.0},
+        direction="neutral",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG, createRefusalEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createRefusalEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Refusal evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [RefusalEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createRefusalEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating factual accuracy of responses
+- [Conciseness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/conciseness) - For evaluating response brevity

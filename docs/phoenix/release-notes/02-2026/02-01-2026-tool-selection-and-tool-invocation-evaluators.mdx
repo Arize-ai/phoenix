@@ -1,0 +1,129 @@
+---
+title: "Release Notes"
+---
+
+# Tool Selection and Tool Invocation Evaluators
+
+January 31, 2026
+
+**Available in arize-phoenix-evals 0.16.0+ (Python) and @arizeai/phoenix-evals 1.3.0+ (TypeScript)**
+
+Phoenix now provides two specialized evaluators for assessing AI agent tool usage. The **Tool Selection Evaluator** judges whether an agent correctly chose the most appropriate tool from its available toolkit to answer a user's question, without evaluating the parameters passed. The **Tool Invocation Evaluator** assesses whether the agent correctly invoked a tool with proper parameters, JSON formatting, and safe values.
+
+These evaluators help developers:
+- **Identify tool selection errors** where agents choose suboptimal or incorrect tools
+- **Debug parameter issues** including hallucinated fields, malformed JSON, and incorrect values
+- **Improve tool descriptions** and agent prompts based on systematic evaluation
+- **Validate multi-tool and multi-turn interactions** across complex agent workflows
+
+Both evaluators are available as `ToolSelectionEvaluator` and `ToolInvocationEvaluator` in Python's `phoenix.evals.metrics` module, and as `createToolSelectionEvaluator` and `createToolInvocationEvaluator` in TypeScript.
+
+# Configurable Email Extraction for OAuth2 Providers
+
+January 28, 2026
+
+**Available in Phoenix 12.33.1+**
+
+Phoenix now supports custom email extraction from OAuth2 identity providers through the `PHOENIX_OAUTH2_{IDP}_EMAIL_ATTRIBUTE_PATH` environment variable. This solves authentication issues with providers like Azure AD/Entra ID where the standard `email` claim may be null but alternative claims like `preferred_username` contain the user's identity.
+
+Configure email extraction using JMESPath expressions:
+
+```bash
+# Extract from Azure AD preferred_username claim
+PHOENIX_OAUTH2_AZURE_AD_EMAIL_ATTRIBUTE_PATH=preferred_username
+
+# Extract from nested claims
+PHOENIX_OAUTH2_CUSTOM_IDP_EMAIL_ATTRIBUTE_PATH=user.contact.email
+```
+
+The default behavior remains unchanged, using the standard OIDC `email` claim when no custom path is specified. JMESPath expressions are validated at startup for immediate feedback on configuration errors.
+
+# CLI Commands for Prompts, Datasets, and Experiments
+
+January 22, 2026
+
+**Available in @arizeai/phoenix-cli 0.4.0+**
+
+The Phoenix CLI now provides comprehensive commands for managing prompts, datasets, and experiments directly from your terminal. Access version-controlled prompts, create evaluation datasets, and run experiments—all without leaving your development environment.
+
+**Prompt Management:**
+- **List and view prompts** with `px prompts` and `px prompt <name>`
+- **Pipe prompts to AI assistants** for optimization and analysis
+- **Text format output** with XML-style role tags for LLM consumption
+
+**Dataset Operations:**
+- **Create and manage datasets** with `px datasets` and `px dataset <name>`
+- **Add examples** and query dataset contents
+- **Export datasets** for offline analysis
+
+**Experiment Workflows:**
+- **Run experiments** and compare results across configurations
+- **View experiment details** and performance metrics
+- **Track changes** across prompt and model variations
+
+These commands integrate seamlessly with AI coding assistants and enable systematic testing of LLM applications through terminal-based workflows.
+
+# CLI Authentication Configuration
+
+January 23, 2026
+
+**Available in @arizeai/phoenix-cli 0.4.0+**
+
+The Phoenix CLI now includes enhanced authentication configuration commands, resolving database race conditions and improving connection reliability. Users can configure authentication settings directly through the CLI for more predictable and stable connections to Phoenix servers.
+
+# Create Datasets from Traces with Span Associations
+
+January 21, 2026
+
+**Available in arize-phoenix-client 1.28.0+ (Python) and @arizeai/phoenix-client 2.0.0+ (TypeScript)**
+
+Phoenix now enables converting production traces into curated datasets while preserving bidirectional links back to source spans. Use the new `span_id_key` parameter to maintain traceability from evaluation examples to their original production executions.
+
+**Python Example:**
+```python
+from phoenix.client import Client
+
+client = Client()
+dataset = client.datasets.create_dataset(
+    name="production-queries",
+    dataframe=spans_df,
+    input_keys=["input"],
+    output_keys=["output"],
+    span_id_key="context.span_id"  # Links examples to spans
+)
+```
+
+**TypeScript Example:**
+```typescript
+import { createClient } from '@arizeai/phoenix-client';
+
+const client = createClient();
+await client.createDataset({
+    name: "production-queries",
+    examples: examples.map(ex => ({
+        input: ex.input,
+        output: ex.output,
+        spanId: ex.spanId  // Preserves trace links
+    }))
+});
+```
+
+Key capabilities:
+- **Batch resolution** of span IDs for optimal performance
+- **Graceful fallback** when span IDs are missing or invalid
+- **Backwards compatible** with existing dataset creation workflows
+- **Bidirectional navigation** between evaluation results and production traces
+
+# Export Annotations with Traces
+
+January 19, 2026
+
+**Available in @arizeai/phoenix-cli 0.3.0+**
+
+The Phoenix CLI now supports exporting annotations alongside traces using the `--include-annotations` flag. Annotations—including manual labels, LLM evaluation scores, and programmatic feedback—are now preserved when exporting traces for offline analysis, backup, or migration workflows.
+
+```bash
+px traces export --include-annotations > traces_with_feedback.jsonl
+```
+
+This enables teams to maintain complete evaluation history when moving data between environments or conducting retrospective analysis of model performance.

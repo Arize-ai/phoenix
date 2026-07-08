@@ -1,0 +1,38 @@
+import { css } from "@emotion/react";
+import type { Ref } from "react";
+import type { TagProps } from "react-aria-components";
+import { Tag as AriaTag } from "react-aria-components";
+
+const tagCSS = css`
+  border: 1px solid var(--global-border-color-default);
+  forced-color-adjust: none;
+  border-radius: var(--global-rounding-small);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+  font-size: var(--global-font-size-s);
+  color: var(--global-text-color-900);
+  outline: none;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  transition: all 200ms;
+
+  &[data-hovered] {
+    border-color: var(--global-color-primary);
+  }
+
+  &[data-focus-visible] {
+    outline: 1px solid var(--global-color-primary);
+    outline-offset: 1px;
+  }
+
+  &[data-selected] {
+    border-color: var(--global-color-primary);
+    background: var(--global-color-primary-700);
+  }
+`;
+function Tag({ ref, ...props }: TagProps & { ref?: Ref<HTMLDivElement> }) {
+  return <AriaTag {...props} ref={ref} css={tagCSS} />;
+}
+
+export { Tag };
+export type { TagProps };

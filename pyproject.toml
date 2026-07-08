@@ -1,0 +1,432 @@
+[project]
+name = "arize-phoenix"
+description = "AI Observability and Evaluation"
+readme = "README.md"
+requires-python = ">=3.10, <3.15"
+license = {text="Elastic-2.0"}
+license-files = { paths = ["LICENSE", "IP_NOTICE"] }
+keywords = [
+  "Observability",
+  "Monitoring",
+  "Explainability",
+]
+authors = [
+  { name = "Arize AI", email = "phoenix-devs@arize.com" },
+]
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "scikit-learn",
+  "numpy",
+  "pandas>=1.0",
+  "jinja2",
+  "jsonpath-ng",
+  "jsonschema",
+  "pystache",
+  "PyYAML",
+  "starlette>=0.37.0",
+  "uvicorn",
+  "psutil",
+  "strawberry-graphql==0.319.0",
+  "pyarrow",
+  "typing-extensions>=4.6",
+  "scipy",
+  "wrapt>=1.17.2,<3",
+  "grpcio",
+  "grpc-interceptor",
+  "tqdm",
+  "httpx",
+  "opentelemetry-sdk",
+  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
+  "opentelemetry-exporter-otlp",
+  "openinference-semantic-conventions>=0.1.26",
+  "openinference-instrumentation>=0.1.44",
+  "openinference-instrumentation-openai>=0.1.41",
+  "sqlalchemy[asyncio]>=2.0.46, <3",
+  "alembic>=1.3.0, <2",
+  "aiosqlite>=0.22.1",
+  "aioitertools",
+  "sqlean.py>=3.45.1; platform_system != 'Windows' and python_version < '3.14'",
+  "sqlean.py>=3.50; platform_system != 'Windows' and python_version >= '3.14'",  # 3.49.1 has no cp314 wheels
+  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
+  "cachetools",
+  "python-multipart",  # see https://www.starlette.io/#dependencies
+  "arize-phoenix-evals>=3.1.0",
+  "arize-phoenix-otel>=0.16.1",
+  "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
+  "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.0.0,<3",
+  "bashkit>=0.10.0",
+  "authlib>=1.7.0",
+  "joserfc",
+  "arize-phoenix-client>=2.11.0",
+  "email-validator",
+  "python-dateutil",
+  "prometheus_client",
+  "orjson",
+  "jmespath",
+  "ldap3",
+]
+dynamic = ["version"]
+
+[project.scripts]
+arize-phoenix = "phoenix.server.main:main"
+phoenix = "phoenix.server.main:main"
+
+[dependency-groups]
+dev = [
+  "check-wheel-contents",
+  "twine",
+  "aiobotocore>=3.1.1",
+  "aioboto3",
+  "aiosqlite>=0.22.1",
+  "anthropic>=0.79.0",
+  "arize>=8.1.0",
+  "asgi-lifespan",
+  "asyncpg",
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
+  "beautifulsoup4",
+  "boto3",
+  "daytona-sdk>=0.140.0",  # type-checking only; runtime is gated by the [daytona] extra
+  "debugpy",
+  "deepdiff==8.6.2",
+  "e2b-code-interpreter>=0.0.12",  # type-checking only; runtime is gated by the [e2b] extra
+  "Faker>=30.1.0",
+  "freezegun",
+  "google-genai>=1.0.0",
+  "grpc-interceptor[testing]",
+  "grpcio",
+  "httpx",
+  "jsonpath-ng",
+  "ldap3",
+  "litellm>=1.83.14",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise. Minor cap dropped: dev/test-only dep guarded by exclude-newer (fresh-release supply-chain) + override-dependencies (transitive pins)
+  "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
+  "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
+  "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
+  "mypy==2.1.0",
+  "mypy-boto3-bedrock-runtime",
+  "nest-asyncio",  # for executor testing
+  "numpy",
+  "openai",
+  "openinference-semantic-conventions>=0.1.26",
+  "openinference-instrumentation>=0.1.44",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-instrumentation-fastapi",
+  "opentelemetry-instrumentation-grpc",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-httpx",
+  "opentelemetry-instrumentation-aiohttp-client",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-sdk>=1.35.0",
+  "opentelemetry-semantic-conventions",
+  "pandas>=1.0",
+  "pandas-stubs==2.0.3.230814",
+  "prometheus_client",
+  "psutil",
+  "psycopg[binary]",
+  "py-grpc-prometheus",
+  "pyarrow-stubs",
+  "pydantic>=1.0,!=2.0.*,<3",
+  "mcp>=1.26.0",
+  "pyjwt",
+  "pypistats",  # this is needed to type-check third-party packages
+  "pyright[nodejs]==1.1.394",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-postgresql",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-smtpd",
+  "pytest-xdist",
+  "requests",  # this is needed to type-check third-party packages
+  "responses",
+  "respx>=0.22.0",
+  "strawberry-graphql[opentelemetry,cli]==0.319.0",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
+  "syrupy",
+  "tenacity",
+  "tiktoken",
+  "ty",
+  "types-aiobotocore-bedrock-runtime>=3.4.0",
+  "types-aiobotocore-rds>=3.4.0",
+  "types-beautifulsoup4",
+  "types-cachetools",
+  "types-jmespath",
+  "types-jsonschema",
+  "types-ldap3",
+  "types-protobuf",
+  "types-psutil",
+  "types-python-dateutil",
+  "types-PyYAML",
+  "types-requests",
+  "types-setuptools",
+  "types-tabulate",
+  "types-tqdm",
+  "typing-extensions",
+  "uvloop; platform_system != 'Windows'",
+  "vcrpy",
+  "jupyter>=1.1.1",
+  "ruff>=0.15.2",
+  "libcst>=1.8.6",
+  "datamodel-code-generator==0.32.0",
+  "grpcio-tools>=1.78.0",
+  "mypy-protobuf>=5.0.0",
+  "jinja2>=3.1.6",
+]
+
+[project.optional-dependencies]
+evals = []
+experimental = []
+wasm = [
+  "wasmtime>=15.0",
+]
+e2b = [
+  "e2b-code-interpreter>=0.0.12",
+]
+daytona = [
+  "daytona-sdk>=0.140.0",
+]
+vercel = [
+  "vercel>=0.5.8",  # 0.5.8 exposes `network_policy` on AsyncSandbox.create
+  "websockets>=14.0",
+]
+modal = [
+  "modal>=1.2.0",
+]
+pg = [
+  "asyncpg",
+]
+aws = [
+  "aioboto3",
+  "types-aiobotocore-bedrock-runtime>=3.6.0",
+]
+azure = [
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
+  "aiohttp",  # required async HTTP transport for azure.identity.aio
+]
+container = [
+  "anthropic>=0.78.0",
+  "google-genai>=1.50.0 ; python_version >= '3.10'",
+  "google-genai ; python_version < '3.10'",
+  "prometheus-client",
+  "openai>=2.14.0",
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
+  "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
+  # Note: when updating opentelemetry dependencies, all packages must use versions
+  # released on the same date (e.g., 1.41.1/0.62b1) to ensure compatibility.
+  "opentelemetry-sdk==1.41.1",
+  "opentelemetry-proto==1.41.1",
+  "opentelemetry-exporter-otlp==1.41.1",
+  "opentelemetry-semantic-conventions==0.62b1",
+  "opentelemetry-instrumentation-fastapi==0.62b1",
+  "opentelemetry-instrumentation-sqlalchemy==0.62b1",
+  "opentelemetry-instrumentation-grpc==0.62b1",
+  "py-grpc-prometheus",
+  "strawberry-graphql[opentelemetry]==0.319.0",
+  "uvloop; platform_system != 'Windows'",
+  "aioboto3",
+  "types-aiobotocore-bedrock-runtime>=3.6.0",
+  # Sandbox provider SDKs — bundled so the shipped container can use any
+  # configured provider without a rebuild. Each pin matches the matching
+  # single-provider extra above ([wasm], [e2b], [daytona], [vercel], [modal]).
+  "wasmtime>=15.0",
+  "e2b-code-interpreter>=0.0.12",
+  "daytona-sdk>=0.140.0",
+  "vercel>=0.5.8",
+  "websockets>=14.0",
+  "modal>=1.2.0",
+]
+
+[project.urls]
+Documentation = "https://arize.com/docs/phoenix/"
+Issues = "https://github.com/Arize-ai/phoenix/issues"
+Source = "https://github.com/Arize-ai/phoenix"
+
+[tool.hatch.version]
+path = "src/phoenix/version.py"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/phoenix"]
+exclude = [
+  "src/phoenix/client/",
+  "src/phoenix/evals/",
+  "src/phoenix/otel/",
+]
+artifacts = [
+  "src/phoenix/server/static",
+  "src/phoenix/server/generative_ui",
+  "src/phoenix/server/agents/prompts",
+  "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/substitutions/server.yaml",
+]
+
+[tool.hatch.build]
+only-packages = true
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "packages/",
+  "src/phoenix/client/",
+  "src/phoenix/evals/",
+  "src/phoenix/otel/",
+  "tests/",
+  "scripts/",
+  "examples/",
+  "js/",
+]
+artifacts = [
+  "src/phoenix/server/static",
+  "src/phoenix/server/generative_ui",
+  "src/phoenix/server/agents/prompts",
+  "src/phoenix/db/migrations",
+  "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/substitutions/server.yaml",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope="function"
+addopts = [
+  "-rA",
+  "--import-mode=importlib",
+  "--doctest-modules",
+  # Alembic's env.py runs migration context at import time and isn't importable
+  # standalone, which breaks --doctest-modules collection.
+  "--ignore=src/phoenix/db/migrations/env.py",
+  "--new-first",
+  "--showlocals",
+]
+doctest_optionflags = ["NORMALIZE_WHITESPACE"]
+testpaths = [
+  "tests",
+]
+
+[tool.mypy]
+plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
+strict = true
+files = [
+  "evals/",
+  "src/",
+  "tests/",
+]
+exclude = [
+  "api_reference",
+  "dist/",
+  "examples/",
+  "packages/",
+  "scripts/",
+  "sdist/",
+  "src/phoenix/vendor/json_canonicalization_scheme/",
+  "tutorials/",
+  "js/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+  "scipy.*",
+  "sklearn.*",
+  "arize.*",
+  "wrapt",
+  "langchain.*",
+  "litellm",
+  "litellm.*",
+  "nest_asyncio",
+  "opentelemetry.*",
+  "pyarrow",
+  "sqlean",
+  "grpc.*",
+  "py_grpc_prometheus.*",
+  "orjson",  # suppress fastapi internal type errors
+  "pypistats",
+  "pystache",
+  "authlib.*",
+  "google.*",
+  "mistralai.*",
+  "jsonpath_ng",
+  "wasmtime",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# e2b_code_interpreter and its e2b base ship without a top-level py.typed marker,
+# so opt mypy into following the untyped sources directly — preserves real
+# type-checking of SDK call sites in src/phoenix/server/sandbox/e2b_backend.py.
+module = [
+  "e2b_code_interpreter.*",
+  "e2b.*",
+]
+follow_untyped_imports = true
+
+[tool.basedpyright]
+# Resolve imports against the uv-managed environment and src-layout package root.
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src"]
+pythonVersion = "3.10"
+
+[tool.ruff]
+exclude = [
+  "api_reference",
+  "dist/",
+  ".git",
+  "__pycache__",
+  "*_pb2.py*",
+  "*.pyi",
+  "docs/",
+  "src/phoenix/trace/v1/evaluation_pb2.py*",
+  "src/phoenix/vendor/json_canonicalization_scheme",
+]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402", "E501"]
+"examples/**/*.py" = ["E501"]
+"evals/**/*.py" = ["E501"]
+"tests/**/*.py" = ["E501"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "NPY201"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
+
+[tool.ruff.format]
+line-ending = "native"
+
+[tool.alembic]
+script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
+
+[tool.uv]
+required-version = "==0.11.8"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+exclude-newer = "3 days"
+# Exempt our own workspace packages from the `exclude-newer` window so freshly
+# published versions are immediately resolvable.
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z" }
+# litellm 1.83.x hard-pins `openai==2.24.0` and `python-dotenv==1.0.1`, which
+# conflict with pydantic-ai (needs openai>=2.29.0) and fastmcp (needs
+# python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
+# succeeds; phoenix uses litellm purely as a client library and does not
+# exercise the pinned-version code paths.
+override-dependencies = [
+  "openai>=2.30.0",
+  "python-dotenv>=1.1.0",
+]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+arize-phoenix-client = { workspace = true }
+arize-phoenix-evals = { workspace = true }
+arize-phoenix-otel = { workspace = true }

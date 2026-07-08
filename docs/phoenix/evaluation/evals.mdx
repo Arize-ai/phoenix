@@ -1,0 +1,105 @@
+---
+title: "Quickstart: Evals"
+description: "Evaluate data from your LLM application using arize-phoenix-evals 3.0."
+---
+
+## Install Phoenix Evals
+
+```bash
+pip install -q "arize-phoenix-evals>=3"
+pip install -q openai
+```
+
+## Prepare your dataset
+
+The first thing you'll need is a dataset to evaluate. This could be your own collected or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
+
+For this guide, we'll create a small dataset inline. Feel free to substitute with your own data — just be sure it includes the columns expected by the evaluators you choose.
+
+```python expandable
+import pandas as pd
+
+df = pd.DataFrame(
+    [
+        {
+            "input": "Where is the Eiffel Tower located?",
+            "output": "The Eiffel Tower is located in Paris, France.",
+            "context": "The Eiffel Tower is located in Paris, France. It was constructed in 1889 as the entrance arch to the 1889 World's Fair.",
+            "reference": "The Eiffel Tower is in Paris, France.",
+        },
+        {
+            "input": "How long is the Great Wall of China?",
+            "output": "The Great Wall of China is approximately 13,171 miles (21,196 kilometers) long.",
+            "context": "The Great Wall of China is over 13,000 miles long. It was built over many centuries by various Chinese dynasties to protect against nomadic invasions.",
+            "reference": "Over 13,000 miles long.",
+        },
+        {
+            "input": "What is the largest tropical rainforest?",
+            "output": "The Amazon rainforest is the largest tropical rainforest in the world. It is home to the largest number of plant and animal species in the world.",
+            "context": "The Amazon rainforest is the largest tropical rainforest in the world. It covers much of northwestern Brazil and extends into Colombia, Peru and other South American countries.",
+            "reference": "The Amazon rainforest.",
+        },
+    ]
+)
+df.head()
+```
+
+## Evaluate and Log Results
+
+Set up evaluators (in this case for faithfulness and correctness), run the evaluations, and log the results to visualize them in Phoenix. We'll use OpenAI as our evaluation model, but Phoenix supports [many providers](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm). First, add your OpenAI API key to the environment.
+
+```python
+import os
+from getpass import getpass
+
+if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
+    openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
+
+os.environ["OPENAI_API_KEY"] = openai_api_key
+```
+
+```python expandable
+from phoenix.evals import LLM, async_evaluate_dataframe
+from phoenix.evals.metrics import FaithfulnessEvaluator, CorrectnessEvaluator
+
+# Create an LLM instance
+llm = LLM(provider="openai", model="gpt-4o")
+
+# Define your evaluators
+# FaithfulnessEvaluator checks if the output is grounded in the context
+# CorrectnessEvaluator checks if the output is factually correct
+faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
+correctness_evaluator = CorrectnessEvaluator(llm=llm)
+
+# Run the evaluators over the dataframe
+# Each evaluator expects specific columns:
+#   FaithfulnessEvaluator: 'input', 'output', 'context'
+#   CorrectnessEvaluator: 'input', 'output'
+results_df = await async_evaluate_dataframe(
+    dataframe=df,
+    evaluators=[faithfulness_evaluator, correctness_evaluator],
+    concurrency=10,
+)
+```
+
+### Key concepts
+
+* **`LLM`** — A unified wrapper over LLM providers (OpenAI, Anthropic, Google, LiteLLM, etc.). Use `LLM(provider="openai", model="gpt-4o")` to create an evaluation model.
+
+* **`evaluate_dataframe` / `async_evaluate_dataframe`** — Runs a list of evaluators over every row of a DataFrame and returns a new DataFrame with score columns. Use the async variant for concurrent evaluation with a configurable `concurrency` parameter.
+
+* **Built-in evaluators** — `phoenix.evals.metrics` provides ready-to-use evaluators like `FaithfulnessEvaluator`, `CorrectnessEvaluator`, `DocumentRelevanceEvaluator`, `ConcisenessEvaluator`, and more. Each takes an `LLM` instance and returns `Score` objects with a label, numeric score, and explanation.
+
+## Analyze Your Evaluations
+
+The results DataFrame includes score columns for each evaluator:
+
+```python
+# Score columns are named {evaluator_name}_score
+# Execution details are in {evaluator_name}_execution_details
+print(results_df.columns.tolist())
+```
+
+## (Optional) Log Results to Phoenix
+
+If you started from a trace or span dataset exported from Phoenix, you can log your evaluation results back using [these instructions](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations).

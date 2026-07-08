@@ -1,0 +1,86 @@
+from itertools import chain
+from typing import Any, Callable, Iterable, Iterator, Optional, Union
+
+import strawberry
+from pydantic import SecretStr
+from strawberry.extensions import SchemaExtension
+from strawberry.schema.config import StrawberryConfig
+from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
+
+from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.exceptions import get_mask_errors_extension
+from phoenix.server.api.mutations import Mutation
+from phoenix.server.api.queries import Query
+from phoenix.server.api.subscriptions import Subscription
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
+    ChatCompletionSubscriptionPayload,
+)
+from phoenix.server.api.types.CronExpression import (
+    CronExpression,
+    cron_expression_scalar_definition,
+)
+from phoenix.server.api.types.Evaluator import (
+    Evaluator,
+)
+from phoenix.server.api.types.Identifier import identifier_scalar_definition
+from phoenix.server.api.types.RedactedString import (
+    RedactedString,
+    redacted_string_scalar_definition,
+)
+from phoenix.server.api.types.SecretString import secret_string_scalar_definition
+
+
+def build_graphql_schema(
+    extensions: Optional[
+        Iterable[Union[type[SchemaExtension], Callable[[], SchemaExtension]]]
+    ] = None,
+) -> strawberry.Schema:
+    """
+    Builds a strawberry schema.
+    """
+    return strawberry.Schema(
+        query=Query,
+        mutation=Mutation,
+        extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
+        subscription=Subscription,
+        config=StrawberryConfig(
+            scalar_map={
+                Identifier: identifier_scalar_definition,
+                CronExpression: cron_expression_scalar_definition,
+                SecretStr: secret_string_scalar_definition,
+                RedactedString: redacted_string_scalar_definition,
+            },
+        ),
+        types=list(
+            chain(
+                _implementing_types(ChatCompletionSubscriptionPayload),
+                _implementing_types(Evaluator),
+            )
+        ),
+    )
+
+
+def _implementing_types(interface: Any) -> Iterator[StrawberryType]:
+    """
+    Iterates over strawberry types implementing the given strawberry interface.
+    Recursively includes all subclasses, not just direct subclasses.
+    """
+    strawberry_definition = getattr(interface, "__strawberry_definition__", None)
+    assert isinstance(strawberry_definition, StrawberryObjectDefinition)
+    assert strawberry_definition.is_interface
+
+    def _get_all_subclasses(cls: Any) -> Iterator[StrawberryType]:
+        """Recursively yields all subclasses of the given class."""
+        for subcls in cls.__subclasses__():
+            if isinstance(
+                getattr(subcls, "__strawberry_definition__", None),
+                StrawberryObjectDefinition,
+            ):
+                yield subcls
+                # Recursively yield subclasses of this subclass
+                yield from _get_all_subclasses(subcls)
+
+    yield from _get_all_subclasses(interface)
+
+
+_EXPORTED_GRAPHQL_SCHEMA = build_graphql_schema()  # used to export the GraphQL schema to file

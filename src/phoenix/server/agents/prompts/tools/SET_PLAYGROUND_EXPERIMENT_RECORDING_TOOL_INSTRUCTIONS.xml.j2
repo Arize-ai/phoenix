@@ -1,0 +1,19 @@
+<tool name="set_playground_experiment_recording">
+  <description>Set whether future dataset-backed playground runs are recorded as persistent experiments, and optionally stage a name, description, and metadata for the experiments the next run produces.</description>
+  <when_to_use>
+    - The user asks to record, persist, keep, or save the next playground run as an experiment.
+    - The user asks to name, describe, or attach notes (such as a hypothesis or the variable being changed) to the next recorded experiment.
+    - Before `run_playground` when the user is running over a dataset and wants experiment results to remain available for comparison.
+    - The user asks for a temporary, throwaway, unrecorded, or ephemeral dataset-backed run.
+  </when_to_use>
+  <guidelines>
+    - Use the current playground context's `recordExperiments` value and `nextExperimentScaffold` before calling this tool. If the requested recording mode and scaffold fields already match the advertised values, do not call this tool; call `run_playground` directly when the user asked to run.
+    - Set `recordExperiments` to true before `run_playground` only when the current value is false and the user wants the run recorded as an experiment.
+    - Set `recordExperiments` to false before `run_playground` only when the current value is true and the user explicitly asks for a temporary or unrecorded run.
+    - `experimentName`, `experimentDescription`, and `experimentMetadata` are optional. Set them only when the user asks to name, describe, or attach notes to the next experiment, and only for fields whose requested value differs from the advertised `nextExperimentScaffold`. Omit a field to leave it at its default.
+    - The staged scaffold applies to every comparison instance of the next dataset-backed run and is consumed once that run starts. It does not carry over to later runs; re-stage it if a subsequent run should reuse the same notes.
+    - `experimentMetadata` replaces the staged metadata object as a whole; include every key the next experiment should carry, not just the changed ones.
+    - Changing experiment recording after a run starts is not allowed; wait for the run to finish or ask whether to stop it with `cancel_playground_run`.
+    - This only controls dataset-backed playground run persistence and naming. It does not save prompt versions; use `save_prompt` only when the user asks to save the prompt itself.
+  </guidelines>
+</tool>

@@ -1,0 +1,122 @@
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, Optional
+
+import grpc
+from grpc.aio import RpcContext, Server, ServerInterceptor
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+    ExportTraceServiceRequest,
+    ExportTraceServiceResponse,
+)
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
+    TraceServiceServicer,
+    add_TraceServiceServicer_to_server,
+)
+from starlette.concurrency import run_in_threadpool
+from typing_extensions import TypeAlias
+
+from phoenix.auth import CanReadToken
+from phoenix.config import (
+    TLSConfigVerifyClient,
+    get_env_tls_config,
+    get_env_tls_enabled_for_grpc,
+)
+from phoenix.server.bearer_auth import ApiKeyInterceptor
+from phoenix.trace.otel import decode_otlp_span
+from phoenix.trace.schemas import Span
+from phoenix.utilities.project import get_project_name
+
+if TYPE_CHECKING:
+    from opentelemetry.trace import TracerProvider
+
+ProjectName: TypeAlias = str
+
+
+class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
+    def __init__(
+        self,
+        enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
+    ) -> None:
+        super().__init__()
+        self._enqueue_span = enqueue_span
+
+    async def Export(
+        self,
+        request: ExportTraceServiceRequest,
+        context: RpcContext,
+    ) -> ExportTraceServiceResponse:
+        for resource_spans in request.resource_spans:
+            project_name = get_project_name(resource_spans.resource.attributes)
+            for scope_span in resource_spans.scope_spans:
+                for otlp_span in scope_span.spans:
+                    span = await run_in_threadpool(decode_otlp_span, otlp_span)
+                    await self._enqueue_span(span, project_name)
+        return ExportTraceServiceResponse()
+
+
+class GrpcServer:
+    def __init__(
+        self,
+        enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
+        port: int,
+        tracer_provider: Optional["TracerProvider"] = None,
+        enable_prometheus: bool = False,
+        disabled: bool = False,
+        token_store: Optional[CanReadToken] = None,
+        interceptors: Iterable[ServerInterceptor] = (),
+    ) -> None:
+        self._enqueue_span = enqueue_span
+        self._server: Optional[Server] = None
+        self._tracer_provider = tracer_provider
+        self._enable_prometheus = enable_prometheus
+        self._disabled = disabled
+        self._port = port
+        self._token_store = token_store
+        self._interceptors = list(interceptors)
+
+    async def __aenter__(self) -> None:
+        interceptors = self._interceptors
+        if self._disabled:
+            return
+        if self._token_store:
+            interceptors.append(ApiKeyInterceptor(self._token_store))
+        if self._enable_prometheus:
+            ...
+            # TODO: convert to async interceptor
+            # from py_grpc_prometheus.prometheus_server_interceptor import PromServerInterceptor
+            #
+            # interceptors.append(PromServerInterceptor())
+        if self._tracer_provider is not None:
+            from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
+
+            GrpcAioInstrumentorServer().instrument(tracer_provider=self._tracer_provider)  # type: ignore
+        server = grpc.aio.server(
+            options=(("grpc.so_reuseport", 0),),
+            interceptors=interceptors,
+        )
+        if get_env_tls_enabled_for_grpc():
+            assert (tls_config := get_env_tls_config())
+            private_key_certificate_chain_pairs = [(tls_config.key_data, tls_config.cert_data)]
+            server_credentials = (
+                grpc.ssl_server_credentials(
+                    private_key_certificate_chain_pairs,
+                    root_certificates=tls_config.ca_data,
+                    require_client_auth=True,
+                )
+                if isinstance(tls_config, TLSConfigVerifyClient)
+                else grpc.ssl_server_credentials(private_key_certificate_chain_pairs)
+            )
+            server.add_secure_port(f"[::]:{self._port}", server_credentials)
+        else:
+            server.add_insecure_port(f"[::]:{self._port}")
+        add_TraceServiceServicer_to_server(Servicer(self._enqueue_span), server)  # type: ignore[no-untyped-call,unused-ignore]
+        await server.start()
+        self._server = server
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
+        if self._server is None:
+            return
+        await self._server.stop(5)
+        self._server = None
+        if self._tracer_provider is not None:
+            from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
+
+            GrpcAioInstrumentorServer().uninstrument()  # type: ignore

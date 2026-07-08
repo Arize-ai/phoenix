@@ -1,0 +1,162 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Agent-only Fargate task that sends traces to an existing Phoenix deployment (phoenix-auth stack).
+
+###############################################################################
+# Parameters
+###############################################################################
+Parameters:
+
+  AgentImageUri:
+    Type: String
+    Description: ECR image URI for the agent container
+
+  PhoenixHost:
+    Type: String
+    Description: DNS name (or https://host:port) of the running Phoenix UI, e.g. phoenix-auth-ALB-abc123.us-west-2.elb.amazonaws.com
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+
+  # ‑‑‑ Secrets stored in AWS Secrets Manager ‑‑‑
+  OpenAIArn:
+    Type: String
+    Description: ARN of secret holding {"OPENAI_API_KEY" "..."}
+  PhoenixArn:
+    Type: String
+    Description: ARN of **system** key secret holding {"PHOENIX_API_KEY" "..."}
+  
+  #### ---------- ADD OTHER ARNS FOR OTHER SECRETS HERE ----------
+
+###############################################################################
+# Networking
+###############################################################################
+Resources:
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: Allow outbound Internet for Agent
+      SecurityGroupEgress:
+        - IpProtocol: -1   # all
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0        # NAT‑GW / IGW handles actual routing
+
+###############################################################################
+# Logs
+###############################################################################
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+
+###############################################################################
+# IAM
+###############################################################################
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadSecrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowAgentToReadSecrets
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref OpenAIArn
+                  - !Ref PhoenixArn
+                  #### ---------- ADD OTHER ARNs FOR OTHER SECRETS HERE ----------
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+
+###############################################################################
+# ECS cluster & task
+###############################################################################
+  Cluster:
+    Type: AWS::ECS::Cluster
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: app
+      RequiresCompatibilities: [ FARGATE ]
+      RuntimePlatform:
+        CpuArchitecture: ARM64
+        OperatingSystemFamily: LINUX
+      Cpu: "512"
+      Memory: "1024"
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn:      !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: agent
+          Image: !Ref AgentImageUri
+          Essential: true
+          MemoryReservation: 256
+          Memory: 512
+          Environment:
+            - Name: PHOENIX_COLLECTOR_ENDPOINT
+              Value: !Sub "http://${PhoenixHost}"
+          Secrets:
+            - Name: PHOENIX_API_KEY
+              ValueFrom: !Sub "${PhoenixArn}:PHOENIX_API_KEY::"
+
+            - Name: OPENAI_API_KEY
+              ValueFrom: !Sub "${OpenAIArn}:OPENAI_API_KEY::"
+
+          #### ---------- ADD OTHER SECRETS HERE ----------
+
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:  !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: agent
+
+###############################################################################
+# Service
+###############################################################################
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:         !Ref Cluster
+      DesiredCount:    1
+      LaunchType:      FARGATE
+      TaskDefinition:  !Ref TaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups: [ !Ref TaskSecurityGroup ]
+          Subnets: !Ref PrivateSubnetIds
+
+###############################################################################
+# Outputs
+###############################################################################
+Outputs:
+  AgentTaskDefinition:
+    Description: Task definition ARN for the Agent-only task
+    Value: !Ref TaskDefinition

@@ -1,0 +1,18 @@
+import { format } from "d3-format";
+import { useEffect, useState } from "react";
+
+import { Counter } from "@phoenix/components";
+
+export function GitHubStarCount() {
+  const [starCount, setStarCountText] = useState<string>("--");
+
+  useEffect(() => {
+    fetch("https://api.github.com/repos/Arize-ai/phoenix")
+      .then((response) => response.json())
+      .then((data) => {
+        setStarCountText(format(".3s")(data.stargazers_count));
+      });
+  }, []);
+
+  return <Counter>{starCount}</Counter>;
+}

@@ -1,0 +1,733 @@
+---
+title: "Sessions"
+description: "Track multi-turn conversations as cohesive units in Phoenix"
+---
+
+Your support agent handles single queries well. Classification works. Tool calls execute. RAG retrieves relevant documents. But real customer support isn't just single queries, it's full conversations.
+
+"What's my order status?" → "When will it arrive?" → "Can I change the address?"
+
+Each of these is a separate trace. Without sessions, they're disconnected points in your data. You can't see that the customer asked about the same order three times, or that the agent forgot the order ID between turns and asked for it again.
+
+Sessions change that. By grouping traces with a shared session ID, you transform isolated data points into conversation threads. In Phoenix, you can see the full back-and-forth, track metrics across the conversation (total tokens, turns to resolution), and debug issues like "the bot forgot what I said."
+
+In this chapter, you'll add session tracking to your support agent, run multi-turn conversations, and evaluate conversations as complete units - not just individual turns.
+
+**Follow along with code**
+
+Throughout the tutorial we will include key code snippets, but to see the full implementation, check out the companion projects below.
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/tracing-tutorial">
+    Companion TypeScript project with runnable examples
+  </Card>
+
+  <Card title="Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb">
+    Companion Python project with runnable examples
+  </Card>
+</Columns>
+
+# 3.1 Setting Up Sessions
+
+<Info>
+  See the full session-enabled agent code [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/tracing-tutorial/support-agent.ts).
+</Info>
+
+Adding session tracking to your agent is surprisingly simple. You need two things:
+
+1. **A session ID**: A unique identifier for each conversation (usually a UUID)
+2. **Context propagation**: Making sure child spans inherit the session ID
+
+The key insight is that session IDs are just span attributes. Set them on your parent span, and Phoenix automatically groups all related traces together.
+
+## Install Dependencies
+
+You'll need Phoenix OTEL to register tracing and set session context:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```bash
+    npm install @arizeai/phoenix-otel
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```bash
+    pip install "arize-phoenix-otel>=0.16.0"
+    ```
+
+    <Note>
+    `arize-phoenix-otel` **0.16.0+** is required to import `using_session` and `SpanAttributes` from `phoenix.otel`. On older versions, install `openinference-instrumentation` and `openinference-semantic-conventions` and import from those packages instead.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Add Session Tracking to Your Agent
+
+Here's how to modify your support agent to support sessions:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { context, setSession, trace } from "@arizeai/phoenix-otel";
+
+    const tracer = trace.getTracer("support-agent");
+
+    async function handleSupportQuery(
+      userQuery: string,
+      sessionId?: string,
+      conversationHistory: Message[] = []
+    ): Promise<AgentResponse> {
+      const runAgent = async (): Promise<AgentResponse> => {
+        return tracer.startActiveSpan(
+          "support-agent",
+          {
+            attributes: {
+              "openinference.span.kind": "AGENT",
+              "input.value": userQuery,
+              // Add session ID to the span
+              ...(sessionId && { "session.id": sessionId }),
+            },
+          },
+          async (agentSpan) => {
+            // ... agent logic ...
+          }
+        );
+      };
+
+      // Propagate session context to all child spans
+      if (sessionId) {
+        return context.with(
+          setSession(context.active(), { sessionId }),
+          runAgent
+        );
+      }
+      
+      return runAgent();
+    }
+    ```
+
+    The key additions:
+
+    1. **`"session.id"`**: The standard attribute name for session IDs
+    2. **`setSession()`**: Propagates the session ID to all child spans
+    3. **`context.with()`**: Ensures the session context is active during execution
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from opentelemetry import trace
+    from phoenix.otel import SpanAttributes, using_session
+
+    tracer = trace.get_tracer("support-agent")
+
+    def handle_support_query(
+        user_query: str,
+        session_id: Optional[str] = None,
+        conversation_history: List[Message] = None,
+        session_context: SessionContext = None,
+    ) -> AgentResponse:
+        if conversation_history is None:
+            conversation_history = []
+        if session_context is None:
+            session_context = {"lastMentionedOrderId": None, "turnCount": 0}
+
+        def run_agent() -> AgentResponse:
+            with tracer.start_as_current_span(
+                "support-agent",
+                attributes={
+                    SpanAttributes.OPENINFERENCE_SPAN_KIND: "AGENT",
+                    SpanAttributes.INPUT_VALUE: user_query,
+                    **({SpanAttributes.SESSION_ID: session_id} if session_id else {}),
+                    "conversation.turn": session_context["turnCount"] + 1,
+                },
+            ) as agent_span:
+                # ... agent logic ...
+
+        # If we have a session ID, propagate it to all child spans
+        if session_id:
+            with using_session(session_id):
+                return run_agent()
+            
+        return run_agent()
+    ```
+
+    The key additions:
+
+    1. **`SpanAttributes.SESSION_ID`**: The standard attribute name for session IDs
+    2. **`using_session()`**: Context manager that propagates the session ID to all child spans
+  </Tab>
+</Tabs>
+
+## Track Conversation History
+
+For multi-turn conversations, you also need to track what's been said. Here's a simple message type:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    interface Message {
+      role: "user" | "assistant";
+      content: string;
+    }
+
+    interface SessionContext {
+      lastMentionedOrderId?: string;
+      turnCount: number;
+    }
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from typing import Literal, List, TypedDict
+
+    class Message(TypedDict):
+        role: Literal["user", "assistant"]
+        content: str
+
+    class SessionContext(TypedDict):
+        lastMentionedOrderId: Optional[str]
+        turnCount: int  
+    ```
+  </Tab>
+</Tabs>
+
+Between turns, append messages to the history and update any context the agent should remember (like order IDs the customer mentioned).
+
+# 3.2 Running Multi-Turn Conversations
+
+
+Now let's see sessions in action. Here's a conversation scenario that tests the agent's ability to maintain context:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    const sessionId = crypto.randomUUID();
+    const conversationHistory: Message[] = [];
+    const sessionContext: SessionContext = { turnCount: 0 };
+
+    // Turn 1: Ask about an order
+    const turn1 = await handleSupportQuery(
+      "What's the status of order ORD-12345?",
+      sessionId,
+      conversationHistory,
+      sessionContext
+    );
+
+    // Update history
+    conversationHistory.push(
+      { role: "user", content: "What's the status of order ORD-12345?" },
+      { role: "assistant", content: turn1.response }
+    );
+    sessionContext.lastMentionedOrderId = "ORD-12345";
+    sessionContext.turnCount++;
+
+    // Turn 2: Follow-up question (no order ID)
+    const turn2 = await handleSupportQuery(
+      "When will it arrive?",
+      sessionId,
+      conversationHistory,
+      sessionContext
+    );
+
+    // The agent should remember ORD-12345 from the previous turn
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    import uuid
+
+    session_id = str(uuid.uuid4())
+    conversation_history: List[Message] = []
+    session_context: SessionContext = {"lastMentionedOrderId": None, "turnCount": 0}
+
+    # Turn 1: Ask about an order
+    turn1 = handle_support_query(
+        "What's the status of order ORD-12345?",
+        session_id,
+        conversation_history,
+        session_context
+    )
+
+    # Update history
+    conversation_history.append({"role": "user", "content": "What's the status of order ORD-12345?"})
+    conversation_history.append({"role": "assistant", "content": turn1["response"]})
+    session_context["lastMentionedOrderId"] = "ORD-12345"
+    session_context["turnCount"] += 1
+
+    # Turn 2: Follow-up question (no order ID)
+    turn2 = handle_support_query(
+        "When will it arrive?",
+        session_id,
+        conversation_history,
+        session_context
+    )
+
+    # The agent should remember ORD-12345 from the previous turn
+    ```
+  </Tab>
+</Tabs>
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/tracing-tutorial/support-agent.ts">
+    Run the sessions demo: `pnpm sessions`
+  </Card>
+
+  <Card title="Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb" description="End-to-end Python tutorial">
+  </Card>
+</Columns>
+
+This runs three conversation scenarios:
+
+1. **Order Inquiry**: Customer asks about order, then asks follow-up questions
+2. **FAQ Conversation**: Multiple FAQ questions in one session
+3. **Mixed Conversation**: Switching between order and FAQ topics
+
+## What You'll See in Phoenix
+
+<video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/sessions.mp4" />
+
+**Now you can view and analyze your traces, grouped by user session!**
+
+# 3.3 Session-Level Evaluations
+
+<Info>
+  See the session evaluation code [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/tracing-tutorial/evaluate-traces.ts).
+</Info>
+
+You can now see full conversations in Phoenix, but manually reviewing every session doesn't scale. With hundreds of conversations happening daily, you need automated insights.
+
+This is where LLM-as-Judge evaluation shines. Instead of clicking through sessions one by one, you can automatically evaluate entire conversations and answer questions like:
+
+- **Is memory being preserved?** Does the agent remember order IDs, customer preferences, and context from earlier in the conversation?
+- **Are issues getting resolved?** Do conversations end with the customer's problem solved, or do they trail off unresolved?
+- **Where do conversations break down?** Which sessions show signs of confusion, repetition, or context loss?
+
+By running evaluators across all your sessions, you get aggregate metrics ("85% of conversations maintain coherence") and can quickly filter to the problematic ones.
+
+The evaluator also generates **explanations**, so you understand _why_ a session was marked as incoherent or unresolved.
+
+## Conversation Coherence Evaluator
+
+This evaluator checks if the agent maintained context throughout the conversation:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
+    const conversationCoherenceEvaluator = createClassificationEvaluator({
+      name: "conversation_coherence",
+      model: openai("gpt-5"),
+      choices: {
+        coherent: 1,
+        incoherent: 0,
+      },
+      // Explanations are automatically generated by the evaluator
+      promptTemplate: `You are evaluating whether a customer support agent maintained context throughout a multi-turn conversation.
+
+    A conversation is COHERENT if:
+    - The agent remembers information from earlier turns
+    - The agent doesn't ask for information already provided
+    - Responses build on previous context appropriately
+
+    A conversation is INCOHERENT if:
+    - The agent "forgets" things the customer said earlier
+    - The agent asks for the same information multiple times
+    - Responses seem disconnected from previous turns
+
+    [Full Conversation]:
+    {{input}}
+
+    Did the agent maintain context throughout this conversation?
+    `,
+    });
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-5")
+
+    conversation_coherence_evaluator = ClassificationEvaluator(
+        name="conversation_coherence",
+        prompt_template="""You are evaluating whether a customer support agent maintained context throughout a multi-turn conversation.
+
+    A conversation is COHERENT if:
+    - The agent remembers information from earlier turns
+    - The agent doesn't ask for information already provided
+    - Responses build on previous context appropriately
+    - The conversation flows naturally
+
+    A conversation is INCOHERENT if:
+    - The agent "forgets" things the customer said earlier
+    - The agent asks for the same information multiple times
+    - Responses seem disconnected from previous turns
+    - The customer has to repeat themselves
+
+    [Full Conversation]:
+    {input}
+
+    Did the agent maintain context throughout this conversation?""",
+        llm=llm,
+        choices={"coherent": 1, "incoherent": 0},
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Resolution Evaluator
+
+This evaluator determines if the customer's issue was actually resolved:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    const resolutionEvaluator = createClassificationEvaluator({
+      name: "resolution_status",
+      model: openai("gpt-5"),
+      choices: {
+        resolved: 1,
+        unresolved: 0,
+      },
+      // Explanations are automatically generated by the evaluator
+      promptTemplate: `You are evaluating whether a customer's issue was resolved in a support conversation.
+
+    The issue is RESOLVED if:
+    - The customer got the information they needed
+    - Their question was answered
+    - The conversation ended with the customer's needs met
+
+    The issue is UNRESOLVED if:
+    - The customer didn't get what they needed
+    - Questions went unanswered
+    - The agent couldn't help with the request
+
+    [Full Conversation]:
+    {{input}}
+
+    Was the customer's issue resolved?
+    `,
+    });
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import ClassificationEvaluator
+
+    resolution_evaluator = ClassificationEvaluator(
+        name="resolution_status",
+        prompt_template="""You are evaluating whether a customer's issue was resolved in a support conversation.
+
+    The issue is RESOLVED if:
+    - The customer got the information they needed
+    - Their question was answered
+    - The conversation ended with the customer's needs met
+
+    The issue is UNRESOLVED if:
+    - The customer didn't get what they needed
+    - Questions went unanswered
+    - The agent couldn't help with the request
+
+    [Full Conversation]:
+    {input}
+
+    Was the customer's issue resolved?""",
+        llm=llm,
+        choices={"resolved": 1, "unresolved": 0},
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Running Session Evaluations
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/tracing-tutorial/evaluate-traces.ts">
+    Run session evaluations: `pnpm evaluate:sessions`
+  </Card>
+
+  <Card title="Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb" description="End-to-end Python tutorial">
+  </Card>
+</Columns>
+
+Here's the full evaluation flow. First, fetch spans from Phoenix and group them by session ID:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { getSpans } from "@arizeai/phoenix-client/spans";
+    import { logSessionAnnotations } from "@arizeai/phoenix-client/sessions";
+
+    // Fetch all agent spans
+    const { spans } = await getSpans({
+      project: { projectName: "support-bot" },
+      limit: 200,
+    });
+
+    // Filter to agent spans and group by session ID
+    const agentSpans = spans.filter((span) => span.name === "support-agent");
+
+    const sessionGroups = new Map<string, typeof agentSpans>();
+    for (const span of agentSpans) {
+      const sessionId = span.attributes["session.id"] as string;
+      if (sessionId) {
+        if (!sessionGroups.has(sessionId)) {
+          sessionGroups.set(sessionId, []);
+        }
+        sessionGroups.get(sessionId)!.push(span);
+      }
+    }
+
+    console.log(`Found ${sessionGroups.size} sessions`);
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    import json
+    from typing import Dict, List, Any
+    from phoenix.client.resources.spans import SpanAnnotationData
+    from phoenix.otel import SpanAttributes
+
+    # Fetch all agent spans
+    spans = phoenix_client.spans.get_spans(
+        project_identifier="support-bot",
+        limit=200,
+    )
+
+    # Filter to agent spans and group by session ID
+    agent_spans = [span for span in spans if span.get("name") == "support-agent"]
+
+    session_groups: Dict[str, List[Any]] = {}
+    for span in agent_spans:
+        # Access attributes (may be a dict or JSON string)
+        attributes = span.get("attributes", {})
+        if isinstance(attributes, str):
+            attributes = json.loads(attributes)
+        
+        session_id = attributes.get("session.id") or attributes.get(SpanAttributes.SESSION_ID)
+        if session_id:
+            if session_id not in session_groups:
+                session_groups[session_id] = []
+            session_groups[session_id].append(span)
+
+    print(f"Found {len(session_groups)} sessions")
+    ```
+  </Tab>
+</Tabs>
+
+For each session, build a transcript and run the evaluators:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    const sessionAnnotations = [];
+
+    for (const [sessionId, sessionSpans] of sessionGroups) {
+      // Sort by turn number
+      sessionSpans.sort((a, b) => {
+        const turnA = (a.attributes["conversation.turn"] as number) || 0;
+        const turnB = (b.attributes["conversation.turn"] as number) || 0;
+        return turnA - turnB;
+      });
+
+      // Build conversation transcript
+      const transcript = sessionSpans.map((span, i) => {
+        const input = span.attributes["input.value"] as string || "";
+        const output = span.attributes["output.value"] as string || "";
+        return `Turn ${i + 1}:\nUser: ${input}\nAgent: ${output}`;
+      }).join("\n\n");
+
+      // Run coherence evaluator
+      const coherenceResult = await conversationCoherenceEvaluator.evaluate({
+        input: transcript,
+      });
+
+      // Run resolution evaluator  
+      const resolutionResult = await resolutionEvaluator.evaluate({
+        input: transcript,
+      });
+
+      // Collect annotations
+      sessionAnnotations.push({
+        sessionId,
+        name: "conversation_coherence",
+        label: coherenceResult.label ?? "unknown",
+        score: coherenceResult.score ?? 0,
+        explanation: coherenceResult.explanation,
+        annotatorKind: "LLM" as const,
+        metadata: { model: "gpt-5", turnCount: sessionSpans.length },
+      });
+
+      sessionAnnotations.push({
+        sessionId,
+        name: "resolution_status",
+        label: resolutionResult.label ?? "unknown",
+        score: resolutionResult.score ?? 0,
+        explanation: resolutionResult.explanation,
+        annotatorKind: "LLM" as const,
+        metadata: { model: "gpt-5", turnCount: sessionSpans.length },
+      });
+    }
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.client.resources.sessions import SessionAnnotationData
+
+    session_annotations = []
+
+    for session_id, session_spans in session_groups.items():
+        # Sort by turn number
+        session_spans.sort(key=lambda s: (
+            json.loads(s.get("attributes", "{}")) if isinstance(s.get("attributes"), str) else s.get("attributes", {})
+        ).get("conversation.turn", 0))
+        
+        # Build conversation transcript
+        transcript_parts = []
+        for i, span in enumerate(session_spans):
+            # Access attributes
+            attributes = span.get("attributes", {})
+            if isinstance(attributes, str):
+                attributes = json.loads(attributes)
+            
+            input_value = attributes.get("input.value", "")
+            output_value = attributes.get("output.value", "")
+            turn_num = attributes.get("conversation.turn", i + 1)
+            
+            transcript_parts.append(f"Turn {turn_num}:\nUser: {input_value}\nAgent: {output_value}")
+        
+        transcript = "\n\n".join(transcript_parts)
+        
+        if not transcript.strip():
+            continue
+        
+        # Run coherence evaluator
+        coherence_result = conversation_coherence_evaluator.evaluate({"input": transcript})
+        coherence_score = coherence_result[0] if isinstance(coherence_result, list) else coherence_result
+        
+        # Run resolution evaluator
+        resolution_result = resolution_evaluator.evaluate({"input": transcript})
+        resolution_score = resolution_result[0] if isinstance(resolution_result, list) else resolution_result
+        
+        # Collect annotations
+        session_annotations.append(
+            SessionAnnotationData(
+                session_id=session_id,
+                name="conversation_coherence",
+                annotator_kind="LLM",
+                result={
+                    "label": coherence_score.label,
+                    "score": coherence_score.score if hasattr(coherence_score, "score") else (1.0 if coherence_score.label == "coherent" else 0.0),
+                },
+                metadata={"model": "gpt-4o-mini", "turnCount": len(session_spans)},
+            )
+        )
+        
+        session_annotations.append(
+            SessionAnnotationData(
+                session_id=session_id,
+                name="resolution_status",
+                annotator_kind="LLM",
+                result={
+                    "label": resolution_score.label,
+                    "score": resolution_score.score if hasattr(resolution_score, "score") else (1.0 if resolution_score.label == "resolved" else 0.0),
+                },
+                metadata={"model": "gpt-4o-mini", "turnCount": len(session_spans)},
+            )
+        )
+    ```
+  </Tab>
+</Tabs>
+
+Finally, log all session annotations to Phoenix:
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    await logSessionAnnotations({
+      sessionAnnotations,
+      sync: false,
+    });
+
+    console.log(`Logged ${sessionAnnotations.length} session-level annotations`);
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    phoenix_client.sessions.log_session_annotations(
+        session_annotations=session_annotations,
+        sync=False,  
+    )
+    print(f"✅ Logged {len(session_annotations)} session annotations")
+    ```
+  </Tab>
+</Tabs>
+
+# Viewing and Analyzing Session Level Evals
+
+Now that we've ran our session level evaluators, let's see how our support bot performs across user sessions.
+
+<video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/session-evals.mp4" />
+
+**Turn 1**: The user asks about order ORD-67890. The agent correctly looks up the order and reports it's processing with a December 15 ETA.
+
+**Turn 2**: The user switches topics entirely - "How do I cancel my subscription?" This is a FAQ question, not an order question. The agent handles it via RAG, providing the correct cancellation instructions.
+
+**Turn 3**: Here's the real test. The user says "Back to my order - what's the carrier?" They don't repeat the order ID. They just say "my order."
+
+Did the agent remember? Yes. It correctly referenced ORD-67890 and provided the carrier status (pending) without asking the user to repeat themselves.
+
+The session-level annotations confirm what we see:
+
+- **conversation_coherence: coherent (score: 1.0)** - The explanation notes that "the agent correctly referenced the order ID and consistent details across turns... and also handled the separate subscription question without losing track."
+- **resolution_status: resolved (score: 1.0)** - The explanation confirms "the agent answered the user's questions: provided order status and ETA, explained cancellation steps, and clarified that the carrier is currently pending."
+
+This is exactly what session evaluation gives you. Instead of manually reviewing each turn, you can scan the coherence and resolution scores across all sessions. When you find one marked "incoherent" or "unresolved," click in to see the explanation and understand what went wrong.
+
+# Summary
+
+You've used sessions transform your tracing data from isolated queries into conversation threads. Here are the benefits you've realized by using sessions:
+
+| Without Sessions                | With Sessions                       |
+| ------------------------------- | ----------------------------------- |
+| Individual traces, disconnected | Full conversation history           |
+| Can't see context loss          | "Bot forgot what I said" is visible |
+| Per-turn metrics only           | Total tokens, turns to resolution   |
+| Evaluate single responses       | Evaluate entire conversations       |
+
+The workflow:
+
+1. **Add session IDs** to your agent (one-time setup)
+2. **Track conversation history** between turns
+3. **View sessions** in the Phoenix Sessions tab
+4. **Evaluate conversations** with coherence and resolution evaluators
+5. **Debug patterns** by clicking into problematic sessions
+
+# **Congratulations!**
+
+**This marks the end of the tracing tutorial.**
+
+You've now learned how to gain observability into your LLM applications. You've learned how to:
+
+- **Chapter 1**: Tracing every LLM call, tool execution, and retrieval
+- **Chapter 2**: Annotating traces with human feedback and LLM-as-Judge
+- **Chapter 3**: Tracking multi-turn conversations as sessions
+
+# Next Steps
+
+From here, you might want to explore:
+
+- [**Exporting Data**](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans): Export annotated traces for fine-tuning
+- [**Multimodal Tracing**](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Tracing for multimodal applications
+- [**Cost Tracking**](/docs/phoenix/tracing/how-to-tracing/cost-tracking): Track LLM/Agent costs smartly
+
+The patterns you've learned - tracing, annotation, evaluation, and sessions - apply to any LLM application. The specific evaluators and metrics will change, but the approach stays the same: observe everything, measure what matters, and use the data to improve.

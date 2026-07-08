@@ -1,0 +1,36 @@
+---
+title: "VertexAI Evals"
+description: Configure and run VertexAI for evals
+---
+
+### Using Google Vertex AI with Phoenix Evals
+
+<Info>
+Requires `google-generativeai`
+
+```sh
+pip install "arize-phoenix-evals>=3" google-generativeai
+```
+</Info>
+
+Create an `LLM` instance with the Google provider:
+
+```python
+from phoenix.evals import LLM
+
+llm = LLM(provider="google", model="gemini-2.0-flash")
+```
+
+The `LLM` wrapper reads your API key from the `GOOGLE_API_KEY` environment variable, or you can authenticate via Application Default Credentials for Vertex AI.
+
+### Using with evaluators
+
+```python
+from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals.metrics import FaithfulnessEvaluator
+
+llm = LLM(provider="google", model="gemini-2.0-flash")
+evaluator = FaithfulnessEvaluator(llm=llm)
+
+results_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
+```

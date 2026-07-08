@@ -1,0 +1,79 @@
+name: Auto-label external issues for triage
+
+on:
+  issues:
+    types: [opened]
+  # `pull_request_target` runs in the context of the base repo so the
+  # default token has write permissions even for fork PRs. We only react
+  # to the `opened` event and do not check out the PR head, so the
+  # elevated token is not exposed to untrusted code.
+  # zizmor: ignore[dangerous-triggers]
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  label:
+    name: Label external issues and PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      # Required to label PRs from forks. Although the labels endpoint
+      # is under /issues, GitHub's permission check for fork-PR tokens
+      # (via pull_request_target) rejects the call without
+      # pull-requests: write even when issues: write is granted.
+      pull-requests: write
+    steps:
+      - name: Add triage label for non-team contributors
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const payload = context.payload.issue || context.payload.pull_request;
+            if (!payload) {
+              core.info("No issue or pull_request payload — nothing to label");
+              return;
+            }
+
+            // Skip bot authors (Dependabot, github-actions[bot], etc.)
+            if (payload.user?.type === "Bot") {
+              core.info(`Skipping bot author: ${payload.user.login}`);
+              return;
+            }
+
+            // Hardcoded list of active internal contributors. Avoids the
+            // GITHUB_TOKEN/PAT scope issues with `checkCollaborator` and
+            // `author_association`, both of which misclassify org members
+            // depending on private membership and team-mediated repo access.
+            // New joiners get one false-positive triage label on their first
+            // PR — add them here and the next PR is correctly skipped.
+            const internalContributors = new Set([
+              "anticorrelator",
+              "axiomofjoy",
+              "cephalization",
+              "ehutt",
+              "jimbobbennett",
+              "mikeldking",
+              "Nancy-Chauhan",
+              "PatriciaArnedo",
+              "rickarize",
+              "RogerHYang",
+              "seldo",
+              "yfrigui2",
+            ]);
+
+            const username = payload.user.login;
+            if (internalContributors.has(username)) {
+              core.info(`Skipping internal contributor: ${username}`);
+              return;
+            }
+
+            core.info(`External contributor (${username}); applying triage label`);
+
+            const label = "triage";
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: payload.number,
+              labels: [label],
+            });
+            core.info(`Added "${label}" to #${payload.number}`);

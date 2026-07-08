@@ -1,0 +1,9 @@
+{
+  "codeConnect": {
+    "parser": "react",
+    "include": ["stories/**/*.stories.tsx", "src/**/*.tsx"],
+    "paths": {
+      "@phoenix/*": ["src/*"]
+    }
+  }
+}

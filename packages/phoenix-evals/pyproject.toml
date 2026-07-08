@@ -1,0 +1,129 @@
+[project]
+name = "arize-phoenix-evals"
+description = "LLM Evaluations"
+readme = "README.md"
+requires-python = ">=3.10, <3.15"
+license = {text="Elastic-2.0"}
+license-files = { paths = ["LICENSE", "IP_NOTICE"] }
+keywords = [
+  "Observability",
+  "Monitoring",
+  "Explainability",
+]
+authors = [
+  { name = "Arize AI", email = "phoenix-devs@arize.com" },
+]
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+version = "3.1.0"
+dependencies = [
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
+  "pystache",
+  "pydantic>=2.0.0",
+  "jsonpath_ng",
+  "openinference-semantic-conventions>=0.1.19",
+  "openinference-instrumentation>=0.1.20",
+  "opentelemetry-api",
+]
+
+[project.optional-dependencies]
+dev = [
+  "anthropic>0.18.0",
+  "boto3",
+  "litellm>=1.83.14",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise. Minor cap dropped: dev/test-only dep guarded by exclude-newer (fresh-release supply-chain) + override-dependencies (transitive pins)
+  "openai>=1.0.0",
+  # TODO: un-comment this when mistralai is un-quarantined on PyPI
+  # "mistralai>=1.0.0",
+]
+test = [
+  "openinference-semantic-conventions",
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
+  "anthropic>=0.18.0",
+  "boto3",
+  "litellm>=1.83.14",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise. Minor cap dropped: dev/test-only dep guarded by exclude-newer (fresh-release supply-chain) + override-dependencies (transitive pins)
+  "openai>=1.0.0",
+  # TODO: un-comment this when mistralai is un-quarantined on PyPI
+  # "mistralai>=1.0.0",
+  "respx",
+  "nest_asyncio",
+  "pandas-stubs==2.0.3.230814",
+  "types-tqdm",
+]
+
+[project.urls]
+Documentation = "https://arize.com/docs/phoenix/"
+Issues = "https://github.com/Arize-ai/phoenix/issues"
+Source = "https://github.com/Arize-ai/phoenix"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/phoenix"]
+
+[tool.hatch.build]
+only-packages = true
+
+[tool.ruff]
+exclude = [".git", "__pycache__", ".tox", "dist"]
+extend-include = ["*.ipynb"]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402", "E501"]
+"tests/**/*.py" = ["E501"]
+
+[tool.ruff.format]
+line-ending = "native"
+
+[tool.mypy]
+explicit_package_bases = true
+strict = true
+namespace_packages = true
+exclude = [
+  "dist/",
+  "tests/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+  "litellm",
+  "langchain_openai",
+  "langchain_anthropic",
+  "langchain_core.*",
+  "langchain_community.*",
+  "mistralai",
+  "mistralai.*",
+  "opentelemetry",
+  "opentelemetry.trace",
+  "openinference.*",
+  "opentelemetry.*",
+  "google.api_core",
+  "google.api_core.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = [
+  "tests",
+]

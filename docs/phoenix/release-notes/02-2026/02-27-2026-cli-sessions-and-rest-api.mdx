@@ -1,0 +1,87 @@
+---
+title: "02.27.2026 Sessions API and CLI Support"
+---
+
+## Why Sessions Matter
+
+LLM applications are increasingly multi-turn. Chatbots carry context across dozens of messages, coding agents iterate through plan-execute-debug loops, and RAG pipelines chain retrieval with follow-up queries. Observing individual traces tells you what happened in a single step — but to understand _why_ a conversation went wrong, you need to see the full session.
+
+A **session** groups related traces from a multi-turn conversation into a single timeline. Each trace becomes a "turn" with its own start time, end time, and span tree. Session-level annotations let you attach quality scores, labels, and human feedback to the conversation as a whole rather than to isolated requests.
+
+## Sessions REST API
+
+Four endpoints provide programmatic access to session data:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/projects/{project_identifier}/sessions` | List sessions for a project |
+| `GET` | `/v1/sessions/{session_identifier}` | Get a session with its traces |
+| `POST` | `/v1/session_annotations` | Create session annotations |
+| `GET` | `/v1/projects/{project_identifier}/session_annotations` | List session annotations |
+
+The list endpoints support cursor-based pagination and return sessions ordered by recency. The get endpoint returns the full session including every trace (turn) with timestamps.
+
+## CLI Commands
+
+The Phoenix CLI (`@arizeai/phoenix-cli@0.7.0`) wraps these endpoints so you can explore sessions from your terminal.
+
+### List sessions
+
+```bash
+# Most recent sessions (default: 10)
+px sessions
+
+# Filter by project, limit results
+px sessions --project my-chatbot --limit 5
+
+# Machine-readable output
+px sessions --format json --no-progress
+```
+
+### Inspect a session
+
+```bash
+# View a session's conversation timeline
+px session <session-id>
+
+# Include quality scores and labels
+px session <session-id> --include-annotations
+
+# Export for offline analysis
+px session <session-id> --file session-data.json
+```
+
+The pretty format renders a timeline showing each turn's sequence number, timestamps, duration, and trace ID — useful for spotting slow turns or gaps in a conversation. JSON and raw formats return structured data suitable for piping into other tools.
+
+## Debugging with AI Coding Agents
+
+Sessions are especially useful when paired with AI coding agents like Claude Code or Cursor. Instead of manually clicking through the Phoenix UI, you can pull session data directly into your agent's context and ask it to diagnose issues.
+
+```bash
+# Find the slow session, then ask your agent to analyze it
+px sessions --project my-chatbot --limit 5 --format raw --no-progress
+
+# Drill into a specific session with annotations
+px session <session-id> --include-annotations --format raw --no-progress
+```
+
+To make this available by default, add session commands to your `CLAUDE.md`:
+
+```markdown
+## Observability
+
+When debugging multi-turn conversations, use the Phoenix CLI to pull session data:
+- `px sessions --project <name>` to find recent sessions
+- `px session <id> --include-annotations` to inspect a session's
+  full conversation flow, turn-by-turn timing, and quality scores
+- `px session <id> --file debug.json` to save a session for deeper analysis
+```
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Full command documentation
+  </Card>
+  <Card title="npm" icon="npm" href="https://www.npmjs.com/package/@arizeai/phoenix-cli">
+    Install from npm
+  </Card>
+</CardGroup>

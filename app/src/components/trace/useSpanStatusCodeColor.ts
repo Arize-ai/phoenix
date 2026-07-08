@@ -1,0 +1,20 @@
+import type { ColorValue } from "@phoenix/components/core/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
+
+import type { SpanStatusCodeType } from "./types";
+
+export function useSpanStatusCodeColor(
+  statusCode: SpanStatusCodeType
+): ColorValue {
+  switch (statusCode) {
+    case "OK":
+      return "success";
+
+    case "ERROR":
+      return "danger";
+    case "UNSET":
+      return "gray-500";
+    default:
+      assertUnreachable(statusCode);
+  }
+}

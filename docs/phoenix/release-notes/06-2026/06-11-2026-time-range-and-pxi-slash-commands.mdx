@@ -1,0 +1,43 @@
+---
+title: "06.11.2026: Time Range Selector and PXI Slash Commands"
+description: "Search presets and type free-form durations in the time range selector; PXI adds local slash commands and dataset evaluator editing."
+---
+
+# Time Range Selector — Search and Free-Form Durations
+
+June 11, 2026
+
+**Available in arize-phoenix 17.4.0+**
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/time_range.mp4" type="video/mp4" />
+</video>
+
+The time range selector across projects, dashboards, and evaluators is now searchable and accepts free-form durations — no more hunting through a fixed preset list.
+
+- **Search presets** — a search field at the top of the selector filters the preset list as you type
+- **Free-form durations** — type `25m`, `2h`, `3d`, or phrases like `last 2 hours` to create exactly the window you want; a bare number like `25` suggests minutes, hours, and days variants
+- **Inline editing** — the selector shows the active range directly in the navbar; focus it to type start and end dates, which forks the preset into a custom range (introduced in arize-phoenix 17.3.0)
+
+# PXI Slash Commands and Dataset Evaluator Editing
+
+June 11, 2026
+
+**Available in arize-phoenix 17.4.0+ (PXI beta)**
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/pxi/slash_commands.mp4" type="video/mp4" />
+</video>
+
+The `/` menu in PXI chat now includes local commands alongside skills, and PXI can manage the evaluators attached to a dataset.
+
+- **`/clear`** — reset the conversation into a fresh session without leaving the chat input; commands show their keyboard shortcut in the menu
+- **Read evaluator definitions** — ask PXI what evaluators a dataset has and inspect their full source code or judge prompts
+- **Select evaluators for a run** — PXI can change which evaluators apply to the next playground experiment
+- **Edit existing evaluators** — PXI opens an existing code or LLM evaluator for editing, then proposes changes as accept/reject diffs
+
+<CardGroup cols={2}>
+  <Card title="PXI Agent" icon="robot" href="/docs/phoenix/pxi">
+    Learn how to enable and use PXI in your Phoenix deployment.
+  </Card>
+</CardGroup>

@@ -1,0 +1,822 @@
+# Phoenix Helm Chart Values
+# This file contains configuration values for deploying Phoenix via Helm.
+# Each value corresponds to an environment variable described in https://arize.com/docs/phoenix/self-hosting/configuration.
+
+# Replica count
+# -- Number of Phoenix pod replicas
+replicaCount: 1
+
+# Deployment strategy
+deployment:
+  # -- Deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: "25%"
+      maxSurge: "25%"
+
+  # -- Tolerations, nodeSelector and affinity
+  # For Pod scheduling strategy on the nodes
+  tolerations: []
+  nodeSelector: {}
+  affinity: {}
+
+# -- Additional environment variables to add to the deployments pod spec
+# For supported environment variables see https://arize.com/docs/phoenix/self-hosting/configuration#environment-variables
+# Should only be used for capabilities not exposed via the helm chart directly
+additionalEnv: []
+  # - name: EXAMPLE_ADDITIONAL_ENV
+  #   value: example
+  # - name: EXAMPLE_FROM_SECRET
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: mysecret
+  #       key: somekey
+
+# ADDONS
+# - Ingress
+# - Postgres
+
+ingress:
+  # -- Annotations to add to the ingress resource
+  annotations: {}
+
+  # -- Path prefix for the Phoenix API
+  apiPath: "/"
+
+  # -- Enable ingress controller for external access
+  enabled: true
+
+  # -- Hostname for ingress
+  host: ""
+
+  # -- Labels to add to the ingress resource
+  labels: {}
+
+  # -- Ingress path type (Prefix, Exact, or ImplementationSpecific)
+  pathType: "Prefix"
+
+  tls:
+    # -- Enable TLS/HTTPS for ingress
+    enabled: false
+
+# PostgreSQL Configuration (using groundhog2k/postgres chart)
+# groundhog2k provides a simple, StatefulSet-based PostgreSQL deployment
+# without operators or complex RBAC requirements
+
+postgresql:
+  # -- Enable PostgreSQL deployment. Set to false if you have your own postgres instance (e.g., RDS, CloudSQL)
+  # When disabled, you must configure database.url or database.postgres settings to point to your external database
+  # IMPORTANT: Cannot be enabled simultaneously with persistence.enabled=true (for SQLite)
+  # Choose one persistence strategy:
+  #   - groundhog2k PostgreSQL: postgresql.enabled=true, persistence.enabled=false
+  #   - SQLite: postgresql.enabled=false, persistence.enabled=true
+  #   - External DB: postgresql.enabled=false, persistence.enabled=false, database.url configured
+  enabled: true
+
+  # PostgreSQL configuration (groundhog2k/postgres chart values)
+  image:
+    registry: "docker.io"
+    repository: "postgres"
+    tag: "16"
+
+  # -- Security context for PostgreSQL container
+  podSecurityContext:
+    fsGroup: 999
+    supplementalGroups:
+      - 999
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    privileged: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsGroup: 999
+    runAsUser: 999
+
+  # -- Database settings
+  settings:
+    superuserPassword:
+      value: "postgres"
+
+  # -- User database configuration
+  userDatabase:
+    name:
+      value: "phoenix"
+    user:
+      value: "phoenix"
+    password:
+      value: "phoenix"
+
+  # -- Storage configuration
+  storage:
+    requestedSize: "20Gi"
+    accessModes:
+      - ReadWriteOnce
+
+  # -- Service configuration
+  service:
+    type: ClusterIP
+    port: 5432
+
+  # -- Resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+server:
+  # -- Annotations to add to the Phoenix service
+  annotations: {}
+
+  # -- Enable Prometheus metrics endpoint on port 9090
+  enablePrometheus: false
+
+  # -- Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT)
+  grpcPort: 4317
+
+  # -- Host IP to bind Phoenix server (PHOENIX_HOST)
+  host: "::"
+
+  # -- Root path prefix for Phoenix UI and API (PHOENIX_HOST_ROOT_PATH)
+  hostRootPath: ""
+
+  # -- Labels to add to the Phoenix service
+  labels: {}
+
+  # -- Port for Phoenix web UI and HTTP API (PHOENIX_PORT)
+  port: 6006
+
+  # -- External root URL for Phoenix (PHOENIX_ROOT_URL)
+  rootUrl: ""
+
+  # -- The working directory for saving, loading, and exporting data (PHOENIX_WORKING_DIR)
+  # Set to empty string to use container's $HOME directory (not recommended for persistence)
+  # Use `/data` as a default for volume mount - enables proper permissions in both strict and normal security contexts
+  # IMPORTANT: When persistence.enabled=true, this directory must be writable by the Phoenix container (UID 65532)
+  # The fsGroup setting in securityContext.pod ensures proper permissions when enabled
+  workingDir: "/data"
+
+  # -- Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES)
+  # Set to false in air-gapped environments to prevent external requests that can cause UI loading delays
+  allowExternalResources: true
+
+  # -- Enable telemetry for analytics tracking (PHOENIX_TELEMETRY_ENABLED)
+  # When set to false, disables all analytics tracking in the Phoenix
+  telemetryEnabled: true
+
+  # -- Maximum number of spans to hold in the processing queue before rejecting new requests (PHOENIX_MAX_SPANS_QUEUE_SIZE)
+  # This is a heuristic to prevent memory issues when spans accumulate faster than they can be written to the database.
+  # Memory usage: ~50KiB per span means 20,000 spans = ~1GiB. Adjust based on available memory and database throughput.
+  maxSpansQueueSize: 20000
+
+  # -- Comma-separated list of model provider names to display in the playground UI (PHOENIX_ALLOWED_PROVIDERS)
+  # When unset, all providers are shown. Set to "NONE" to hide all providers.
+  # Supported values: OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA, AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER
+  # Example: "OPENAI,ANTHROPIC"
+  allowedProviders: ""
+
+# Service configuration
+service:
+  # -- Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName)
+  # Use ClusterIP for service mesh deployments (Istio, Linkerd, etc.)
+  # Use NodePort for direct external access without ingress
+  type: "NodePort"
+
+  # -- Annotations to add to the Phoenix service (useful for service mesh configurations)
+  annotations:
+    {}
+    # For Istio service mesh, you might want:
+    # service.istio.io/canonical-name: phoenix
+    # service.istio.io/canonical-revision: stable
+
+  # -- Labels to add to the Phoenix service
+  labels:
+    {}
+    # For service mesh deployments, you might want:
+    # app: phoenix
+    # version: stable
+
+# Persistence configuration for Phoenix home directory
+persistence:
+  # -- Enable persistent storage for Phoenix home directory
+  # When enabled, Phoenix uses SQLite for local storage stored in the persistent volume
+  # IMPORTANT: Cannot be enabled simultaneously with postgresql.enabled=true
+  # NOTE: This setting is ignored when database.url="sqlite:///:memory:" (in-memory database)
+  # Choose one persistence strategy:
+  #   - SQLite: persistence.enabled=true, postgresql.enabled=false
+  #   - SQLite In-memory: persistence.inMemory=true , postgresql.enabled=false
+  #   - groundhog2k PostgreSQL: persistence.enabled=false, postgresql.enabled=true
+  #   - External DB: persistence.enabled=false, postgresql.enabled=false, database.url configured
+  enabled: false
+
+  # -- Enable in-memory configuration of sqlite strategy
+  inMemory: false
+
+  # -- Kubernetes storage class for Phoenix home volume
+  storageClass: ""
+
+  # -- Access modes for the persistent volume
+  accessModes:
+    - ReadWriteOnce
+
+  # -- Size of the persistent volume for Phoenix home directory
+  size: "20Gi"
+
+  # -- Annotations to add to the PVC
+  annotations: {}
+
+  # -- Labels to add to the PVC
+  labels: {}
+
+# Database configuration
+# IMPORTANT: Choose ONE persistence strategy to avoid conflicts:
+#
+# Strategy 1 - SQLite with persistent storage (for development/single-node):
+# 1. Set persistence.enabled=true to enable persistent storage
+# 2. Set postgresql.enabled=false to disable PostgreSQL
+# 3. Leave database.url empty (Phoenix will automatically use SQLite in the persistent volume)
+# NOTE: SQLite database will be created at: ${PHOENIX_WORKING_DIR}/phoenix.db
+#
+# Strategy 2 - groundhog2k PostgreSQL (for production with managed state):
+# 1. Set persistence.enabled=false
+# 2. Set postgresql.enabled=true (default)
+# 3. PostgreSQL data will be stored in StatefulSet managed persistent volumes
+#
+# Strategy 3 - External database (for production with external managed database):
+# 1. Set persistence.enabled=false
+# 2. Set postgresql.enabled=false to disable the built-in PostgreSQL
+# 3. Set database.url with full connection string, OR configure database.postgres settings
+# 4. Ensure the external database is accessible from the cluster
+#
+# Strategy 4 - SQLite In-memory (for demos/testing only - DATA WILL BE LOST ON RESTART):
+# Set persistence.inMemory=true, postgresql.enabled=false
+#
+database:
+  # -- Storage allocation in GiB for the database persistent volume
+  allocatedStorageGiB: 20
+
+  # -- Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS)
+  # Set to 0 to disable automatic trace cleanup. When set to a positive value,
+  # traces older than this many days will be automatically removed from the database.
+  defaultRetentionPolicyDays: 0
+
+  postgres:
+    # -- Name of the PostgreSQL database (PHOENIX_POSTGRES_DB)
+    db: "phoenix"
+
+    # -- Postgres Host (PHOENIX_POSTGRES_HOST)
+    # Default points to the groundhog2k PostgreSQL service when postgresql.enabled=true
+    # IMPORTANT: Only change this when using external PostgreSQL (postgresql.enabled=false, database.url empty)
+    # Examples: "localhost", "postgres.example.com", "your-rds-endpoint.region.rds.amazonaws.com"
+    host: ""
+
+    # -- PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD)
+    password: "postgres"
+
+    # -- Port number for PostgreSQL connections (PHOENIX_POSTGRES_PORT)
+    port: 5432
+
+    # -- PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA). When empty, the chart
+    # omits the env var and Phoenix uses the default schema (typically public).
+    schema: ""
+
+    # -- PostgreSQL username (PHOENIX_POSTGRES_USER)
+    user: "postgres"
+
+    # -- Enable AWS RDS IAM authentication for PostgreSQL (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH)
+    # When enabled, Phoenix will use AWS IAM credentials to generate short-lived authentication tokens
+    # instead of using a static password. Requires aioboto3 to be installed: pip install 'arize-phoenix[aws]'
+    # IMPORTANT: When enabled, do not set database.postgres.password
+    useAwsIamAuth: false
+
+    # -- Enable Azure managed identity authentication for PostgreSQL (PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY)
+    # When enabled, Phoenix will use Azure DefaultAzureCredential to obtain short-lived authentication
+    # tokens instead of using a static password. Requires azure-identity to be installed:
+    # pip install 'arize-phoenix[azure]'. Cannot be used with useAwsIamAuth.
+    # IMPORTANT: When enabled, do not set database.postgres.password
+    useAzureManagedIdentity: false
+
+    # -- Azure scope URL for PostgreSQL access token requests (PHOENIX_POSTGRES_AZURE_SCOPE)
+    # When empty, Phoenix uses the default Azure Database for PostgreSQL - Flexible Server scope
+    # (https://ossrdbms-aad.database.windows.net/.default). Override for sovereign clouds such as
+    # Azure Government (https://ossrdbms-aad.database.usgovcloudapi.net/.default).
+    # Only used when useAzureManagedIdentity is true.
+    azureScope: ""
+
+  # -- Full database connection URL (overrides postgres settings if provided)
+  # IMPORTANT: Only set this for external databases (Strategy 3)
+  # - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume
+  # - When using built-in PostgreSQL (Strategy 2): MUST be empty - auto-configured
+  # - When using external database (Strategy 3): MUST be configured with full connection string
+  #
+  # Examples for external databases:
+  # PostgreSQL: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix"
+  # SQLite: "sqlite:///path/to/database.db" (only for external SQLite files, not recommended)
+  #
+  # WARNING: Setting this will override all database.postgres.* settings and disable built-in PostgreSQL validation
+  url: ""
+
+  # -- Optional PostgreSQL read replica URL for read-only query routing (PHOENIX_SQL_DATABASE_READ_REPLICA_URL)
+  # When set, Phoenix routes read-only queries to this replica while keeping writes on the primary.
+  # Ignored for SQLite deployments.
+  readReplicaUrl: ""
+
+# Authentication and security
+auth:
+  # -- Duration in minutes before access tokens expire and require renewal (PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES)
+  accessTokenExpiryMinutes: 60
+
+  # -- List of allowed CORS origins for cross-origin requests to the Phoenix API (PHOENIX_ALLOWED_ORIGINS)
+  allowedOrigins: []
+
+  # -- List of trusted origins for CSRF protection to prevent cross-site request forgery attacks (PHOENIX_CSRF_TRUSTED_ORIGINS)
+  csrfTrustedOrigins: []
+
+  # -- Default password for the admin user on initial setup (PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD)
+  defaultAdminPassword: "admin"
+
+  # -- Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH)
+  enableAuth: true
+
+  # -- Disable password-based authentication (PHOENIX_DISABLE_BASIC_AUTH)
+  # When true, users can only authenticate via OAuth2/OIDC. Useful for SSO-only deployments.
+  disableBasicAuth: false
+
+  # -- Enable strong password policy requiring 12+ characters with uppercase, lowercase, digit, and special character (PHOENIX_ENABLE_STRONG_PASSWORD_POLICY)
+  enableStrongPasswordPolicy: false
+
+  # -- Disable brute force login protection (PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION)
+  # When false (default), repeated failed logins will temporarily lock the account
+  disableBruteForceLoginProtection: false
+
+  # -- Maximum failed login attempts before temporary lockout (PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS)
+  # Only applies when brute force protection is enabled. Lockout duration is 5 minutes.
+  bruteForceLoginProtectionMaxAttempts: 5
+
+  # -- Cookie path for authentication cookies (PHOENIX_COOKIES_PATH)
+  # Set this when Phoenix is hosted under a sub-path
+  cookiesPath: "/"
+
+  # -- Semicolon-separated list of username and email pairs to create as admin users on startup (PHOENIX_ADMINS)
+  # Format: "username=email;username2=email2" (e.g., "John Doe=john@example.com;Jane Doe=jane@example.com")
+  # These users will be created with random passwords that must be reset on first login
+  admins: ""
+
+  # -- Name of the Kubernetes secret containing authentication credentials
+  name: "phoenix-secret"
+
+  # -- Duration in minutes before password reset tokens expire (PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES)
+  passwordResetTokenExpiryMinutes: 60
+
+  # -- Duration in minutes before refresh tokens expire (PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES)
+  refreshTokenExpiryMinutes: 43200
+
+  # -- Create Secret Boolean - Should the secret be created. If False and auth is enabled, this must preexist
+  createSecret: true
+
+  secret:
+    # -- Environment variable name for the main Phoenix secret key used for encryption
+    - key: "PHOENIX_SECRET"
+      # -- Autogenerated if empty
+      value: ""
+      # -- Use this for existing Secrets / Configmaps, takes precedence over auth.secret[].value
+      # valueFrom:
+      #   secretKeyRef:
+      #     name: my-secret
+      #     key: phoenix-secret-key
+
+    # -- Environment variable name for the admin secret key
+    - key: "PHOENIX_ADMIN_SECRET"
+      # -- Autogenerated if empty
+      value: ""
+
+    # -- Environment variable name for the PostgreSQL password
+    - key: "PHOENIX_POSTGRES_PASSWORD"
+      # -- If using postgres in this chart, password must match with database.postgres.password
+      value: "postgres"
+
+    # -- Environment variable name for the SMTP password
+    - key: "PHOENIX_SMTP_PASSWORD"
+      # -- Autogenerated if empty
+      value: ""
+
+    # -- Environment variable name for the default admin password
+    - key: "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
+      # -- Default password for the admin user on initial setup, uses defaultAdminPassword if empty
+      value: ""
+
+  # -- Enable secure cookies (should be true when using HTTPS)
+  useSecureCookies: false
+
+  # LDAP Authentication Configuration
+  # Configure LDAP for authentication against corporate directories (Active Directory, OpenLDAP, 389 DS)
+  ldap:
+    # -- Enable LDAP authentication
+    enabled: false
+
+    # Server connection settings
+    # -- LDAP server hostname (required when enabled). Comma-separated for multiple servers with failover.
+    # Examples: "ldap.corp.com" or "dc1.corp.com,dc2.corp.com,dc3.corp.com"
+    host: ""
+
+    # -- LDAP server port. Defaults to 389 for StartTLS, 636 for LDAPS.
+    port: ""
+
+    # TLS settings
+    # -- TLS connection mode: "starttls", "ldaps", or "none"
+    # - starttls: Upgrade from plaintext to TLS on port 389 (recommended)
+    # - ldaps: TLS from connection start on port 636
+    # - none: No encryption (testing only, credentials sent in plaintext)
+    tlsMode: "starttls"
+
+    # -- Verify TLS certificates. Should always be true in production.
+    tlsVerify: true
+
+    # -- Path to custom CA certificate file (PEM format) for TLS verification.
+    # Use when LDAP server uses a private/internal CA not in the system trust store.
+    tlsCaCertFile: ""
+
+    # -- Path to client certificate file (PEM format) for mutual TLS authentication.
+    # Requires tlsClientKeyFile to also be set.
+    tlsClientCertFile: ""
+
+    # -- Path to client private key file (PEM format) for mutual TLS authentication.
+    # Requires tlsClientCertFile to also be set.
+    tlsClientKeyFile: ""
+
+    # Bind credentials
+    # -- Service account DN for binding to LDAP server.
+    # Example: "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com"
+    bindDn: ""
+
+    # -- Service account password for binding to LDAP server.
+    # Can be set directly here or via auth.secret with key PHOENIX_LDAP_BIND_PASSWORD
+    bindPassword: ""
+
+    # User search settings
+    # -- List of base DNs for user searches (required when enabled). Searched in order.
+    # Example: ["OU=Users,DC=corp,DC=com"]
+    # Multiple: ["OU=Employees,DC=corp,DC=com", "OU=Contractors,DC=corp,DC=com"]
+    userSearchBaseDns: []
+
+    # -- LDAP filter for finding users. Use %s as placeholder for username.
+    # Default for Active Directory: "(&(objectClass=user)(sAMAccountName=%s))"
+    # OpenLDAP example: "(&(objectClass=inetOrgPerson)(uid=%s))"
+    userSearchFilter: "(&(objectClass=user)(sAMAccountName=%s))"
+
+    # Attribute mapping
+    # -- LDAP attribute containing user's email address.
+    # Valid values:
+    #   - "mail" (or other attribute name): Use that LDAP attribute for email
+    #   - "null": No-email mode for directories without email
+    # When using no-email mode ("null"):
+    #   - attrUniqueId is REQUIRED (users identified by unique ID instead of email)
+    #   - allowSignUp must be true (users auto-provisioned on first login)
+    #   - auth.admins cannot be used (use groupRoleMappings for admin assignment)
+    attrEmail: "mail"
+
+    # -- LDAP attribute containing user's display name.
+    attrDisplayName: "displayName"
+
+    # -- LDAP attribute containing group memberships (default: "memberOf").
+    # Used when groupSearchFilter is not set (Active Directory mode).
+    # Typical values: "memberOf" (AD, OpenLDAP with memberOf overlay)
+    attrMemberOf: "memberOf"
+
+    # -- LDAP attribute containing an immutable unique identifier.
+    # REQUIRED when attrEmail is "null" (no-email mode).
+    # Also recommended if you expect user emails to change frequently.
+    # Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId"
+    attrUniqueId: ""
+
+    # Group search settings (for POSIX/OpenLDAP without memberOf overlay)
+    # -- List of base DNs for group searches. Required when groupSearchFilter is set.
+    # Example: ["ou=groups,dc=example,dc=com"]
+    # Multiple: ["ou=groups,dc=corp,dc=com", "ou=teams,dc=corp,dc=com"]
+    groupSearchBaseDns: []
+
+    # -- LDAP filter for finding groups. Use %s as placeholder for user identifier.
+    # Two modes:
+    #   - AD Mode (not set, recommended for Active Directory): Reads memberOf from user entry
+    #   - Search Mode (set): Searches for groups containing the user
+    # Example for POSIX: "(&(objectClass=posixGroup)(memberUid=%s))"
+    groupSearchFilter: ""
+
+    # -- LDAP attribute from the user entry to substitute for %s in groupSearchFilter.
+    # When set: Reads the specified attribute from the user's LDAP entry
+    # When not set (default): Uses the login username directly
+    # Understanding group types:
+    #   - POSIX (memberUid): Contains usernames like "jdoe" → use default or "uid"
+    #   - groupOfNames (member): Contains full DNs → use "distinguishedName" (AD only)
+    # Note: OpenLDAP does not expose DN as an attribute. For groupOfNames with
+    # OpenLDAP, use memberOf overlay instead (AD mode).
+    groupSearchFilterUserAttr: ""
+
+    # Role mappings
+    # -- JSON array mapping LDAP groups to Phoenix roles.
+    # Format: [{"group_dn": "CN=Phoenix Admins,OU=Groups,DC=corp,DC=com", "role": "ADMIN"}]
+    # Supported roles: "ADMIN", "MEMBER", "VIEWER" (case-insensitive)
+    # Special group_dn value "*" matches all users (wildcard for default role)
+    groupRoleMappings: "[]"
+
+    # Sign-up control
+    # -- Allow automatic user creation on first LDAP login.
+    # Set to false to require pre-provisioned users.
+    allowSignUp: true
+
+  # OAuth2/OIDC Identity Provider Configuration
+  # Configure OAuth2 identity providers for authentication
+  oauth2:
+    # -- Enable OAuth2/OIDC authentication
+    enabled: false
+
+    # -- List of OAuth2 identity providers to configure
+    # Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none"), and oidc_config_url
+    # You can also define corresponding ENVs via auth.secrets[].valueFrom to use existing secrets
+    # ENVs: PHOENIX_OAUTH2_{{ $provider_upper }}_{{ setting }}, e.g. PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET
+    providers:
+      # Example Google configuration with basic settings:
+      # google:
+      #   client_id: "your-google-client-id"
+      #   client_secret: "your-google-client-secret"
+      #   oidc_config_url: "https://accounts.google.com/.well-known/openid-configuration"
+      #   display_name: "Google"  # Optional, defaults to provider name
+      #   allow_sign_up: true     # Optional, defaults to true
+      #   auto_login: false       # Optional, defaults to false
+
+      # Example AWS Cognito with group-based access control:
+      # aws_cognito:
+      #   client_id: "your-aws-cognito-client-id"
+      #   client_secret: "your-aws-cognito-client-secret"
+      #   oidc_config_url: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_xxxxx/.well-known/openid-configuration"
+      #   display_name: "AWS Cognito"
+      #   allow_sign_up: true
+      #   auto_login: false
+      #   # Advanced: Group-based access control (requires cognito:groups in ID token)
+      #   groups_attribute_path: "cognito:groups"  # JMESPath to extract groups (use quotes for special chars)
+      #   allowed_groups: ["Admins", "PowerUsers"]  # Only these groups can sign in
+
+      # Example Microsoft Entra ID with custom scopes:
+      # microsoft_entra_id:
+      #   client_id: "your-microsoft-entra-id-client-id"
+      #   client_secret: "your-microsoft-entra-id-client-secret"
+      #   oidc_config_url: "https://login.microsoftonline.com/your-tenant-id/v2.0/.well-known/openid-configuration"
+      #   display_name: "Microsoft Entra ID"
+      #   allow_sign_up: true
+      #   auto_login: false
+      #   # Advanced: Request additional scopes beyond "openid email profile"
+      #   scopes: "offline_access User.Read"  # Space-separated additional scopes
+      #   # Advanced: Extract email from alternative claim when 'email' is not available
+      #   # Use "preferred_username" for Azure AD when users don't have the mail attribute populated
+      #   email_attribute_path: "preferred_username"  # JMESPath expression to extract email from ID token
+
+      # Example Keycloak with nested group path:
+      # keycloak:
+      #   client_id: "phoenix"
+      #   client_secret: "your-keycloak-client-secret"
+      #   oidc_config_url: "https://your-keycloak-server/realms/your-realm/.well-known/openid-configuration"
+      #   display_name: "Keycloak"
+      #   allow_sign_up: true
+      #   auto_login: false
+      #   # Advanced: Extract roles from nested Keycloak structure
+      #   groups_attribute_path: "resource_access.phoenix.roles"
+      #   allowed_groups: ["admin", "developer", "viewer"]
+      #   # Advanced: Role mapping - map IDP roles to Phoenix roles (ADMIN, MEMBER, VIEWER)
+      #   role_attribute_path: "resource_access.phoenix.role"  # JMESPath to extract role
+      #   role_mapping: "admin:ADMIN,user:MEMBER"  # Map IDP roles to Phoenix roles
+      #   role_attribute_strict: false  # If true, deny access when role cannot be determined
+
+      # Example public client with PKCE (no client secret):
+      # mobile_app:
+      #   client_id: "mobile-app-client-id"
+      #   # No client_secret for public clients
+      #   oidc_config_url: "https://auth.example.com/.well-known/openid-configuration"
+      #   display_name: "Mobile App"
+      #   allow_sign_up: true
+      #   auto_login: false
+      #   # Advanced: Public client configuration
+      #   use_pkce: true  # Enable PKCE for enhanced security (RFC 7636)
+      #   token_endpoint_auth_method: "none"  # No client authentication for public clients
+
+      # Example with client_secret_post authentication:
+      # custom_idp:
+      #   client_id: "custom-client-id"
+      #   client_secret: "custom-client-secret"
+      #   oidc_config_url: "https://auth.example.com/.well-known/openid-configuration"
+      #   # Advanced: Some IDPs require credentials in POST body instead of Basic Auth
+      #   token_endpoint_auth_method: "client_secret_post"
+
+# SMTP (email) settings
+smtp:
+  # -- SMTP server hostname for sending emails (PHOENIX_SMTP_HOSTNAME)
+  hostname: ""
+
+  # -- Email address to use as sender for system emails (PHOENIX_SMTP_MAIL_FROM)
+  mailFrom: "noreply@arize.com"
+
+  # -- SMTP authentication password (PHOENIX_SMTP_PASSWORD)
+  password: ""
+
+  # -- SMTP server port (typically 587 for TLS, PHOENIX_SMTP_PORT)
+  port: 587
+
+  # -- SMTP authentication username (PHOENIX_SMTP_USERNAME)
+  username: ""
+
+  # -- Validate SMTP server TLS certificates (PHOENIX_SMTP_VALIDATE_CERTS)
+  validateCerts: true
+
+# TLS/SSL settings
+# To enable TLS, set enabled to true and provide cert/key files
+# For mTLS, also provide caFile and set verifyClient to true
+tls:
+  # -- Path to CA certificate file for TLS (PHOENIX_TLS_CA_FILE)
+  caFile: ""
+
+  # -- Path to TLS certificate file (PHOENIX_TLS_CERT_FILE)
+  certFile: ""
+
+  # -- Enable TLS for Phoenix server (PHOENIX_TLS_ENABLED)
+  enabled: false
+
+  # -- Enable TLS for gRPC endpoints (PHOENIX_TLS_ENABLED_FOR_GRPC)
+  enabledForGrpc: false
+
+  # -- Enable TLS for HTTP endpoints (PHOENIX_TLS_ENABLED_FOR_HTTP)
+  enabledForHttp: false
+
+  # -- Path to TLS private key file (PHOENIX_TLS_KEY_FILE)
+  keyFile: ""
+
+  # -- Password for encrypted TLS private key (PHOENIX_TLS_KEY_FILE_PASSWORD)
+  keyFilePassword: ""
+
+  # -- Enable client certificate verification for mutual TLS (PHOENIX_TLS_VERIFY_CLIENT)
+  verifyClient: false
+
+# Logging
+logging:
+  # -- Database logging level (debug, info, warning, error) PHOENIX_DB_LOGGING_LEVEL
+  dbLevel: "warning"
+
+  # -- Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL
+  level: "info"
+
+  # -- Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS)
+  logMigrations: true
+
+  # -- Log all SQL statements to stdout for debugging (PHOENIX_LOG_SQL)
+  logSql: false
+
+  # -- Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured)
+  mode: "default"
+
+# Instrumentation
+instrumentation:
+  # -- OpenTelemetry collector gRPC endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT)
+  otlpTraceCollectorGrpcEndpoint: ""
+
+  # -- OpenTelemetry collector HTTP endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
+  otlpTraceCollectorHttpEndpoint: ""
+
+# Code evaluator sandboxing
+sandbox:
+  # -- Comma-separated allowlist of sandbox providers (PHOENIX_ALLOWED_SANDBOX_PROVIDERS)
+  # Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL (case-insensitive)
+  # When empty, the chart omits the env var and all providers are allowed.
+  # Set to "NONE" to disable all sandbox providers.
+  # Example: "WASM,DENO"
+  allowedProviders: ""
+
+image:
+  # -- Image pull policy for Phoenix container (Always, IfNotPresent, or Never)
+  pullPolicy: "IfNotPresent"
+
+  # -- Docker image registry for Phoenix
+  registry: "docker.io"
+
+  # -- Docker image repository for Phoenix
+  repository: "arizephoenix/phoenix"
+
+  # -- Docker image tag/version to deploy
+  tag: version-17.20.0-nonroot
+
+# -- Resource configuration
+resources:
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+
+# -- Security context configuration
+securityContext:
+  # -- Pod-level security context settings
+  pod:
+    enabled: false
+    fsGroup: 65532
+    fsGroupChangePolicy: "OnRootMismatch"
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seLinuxOptions: {}
+    seccompProfile:
+      type: RuntimeDefault
+    supplementalGroups: []
+    sysctls: []
+    windowsOptions: {}
+
+  # -- Container-level security context settings
+  container:
+    enabled: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      add: []
+      drop:
+        - ALL
+    privileged: false
+    procMount: "Default"
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seLinuxOptions: {}
+    seccompProfile:
+      type: RuntimeDefault
+    windowsOptions: {}
+
+# -- Extra Volumes configuration
+extraVolumes: []
+# -- example
+#- name: config-volume
+#  configMap:
+#    name: my-app-config
+#- name: cache-volume
+#  emptyDir: {}
+
+# -- Extra Volume Mounts
+extraVolumeMounts: []
+# -- example
+#- name: config-volume
+#  mountPath: /etc/config
+#  readOnly: true
+#- name: cache-volume
+#  mountPath: /app/cache
+
+# -- ServiceAccount configuration
+serviceAccount:
+  # -- Create a ServiceAccount for Phoenix
+  create: false
+  # -- Name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name. If not set and create is false, uses default ServiceAccount
+  name: ""
+  # -- Annotations to add to the ServiceAccount
+  annotations: {}
+  # -- Image pull secrets for private container registries
+  # -- List of Kubernetes secrets to use for pulling images from private registries
+  imagePullSecrets: []
+
+# -- Health check configuration
+healthChecks:
+  # -- Liveness probe configuration
+  livenessProbe:
+    # -- Initial delay before liveness probe starts
+    initialDelaySeconds: 0
+    # -- How often to perform the liveness probe
+    periodSeconds: 10
+    # -- Timeout for liveness probe
+    timeoutSeconds: 5
+    # -- Number of failures before container is restarted
+    failureThreshold: 3
+    # -- Number of consecutive successes for the probe to be considered successful
+    successThreshold: 1
+  # -- Readiness probe configuration
+  readinessProbe:
+    # -- Initial delay before readiness probe starts
+    initialDelaySeconds: 0
+    # -- How often to perform the readiness probe
+    periodSeconds: 5
+    # -- Timeout for readiness probe
+    timeoutSeconds: 3
+    # -- Number of failures before pod is marked unready
+    failureThreshold: 3
+    # -- Number of consecutive successes for the probe to be considered successful
+    successThreshold: 1
+  # -- Startup probe configuration
+  startupProbe:
+    # -- Enable startup probe
+    enabled: true
+    # -- Initial delay before startup probe starts
+    initialDelaySeconds: 1
+    # -- How often to perform the startup probe
+    periodSeconds: 1
+    # -- Timeout for startup probe
+    timeoutSeconds: 1
+    # -- Number of failures before container is considered failed to start
+    failureThreshold: 30
+    # -- Number of consecutive successes for the probe to be considered successful
+    successThreshold: 1

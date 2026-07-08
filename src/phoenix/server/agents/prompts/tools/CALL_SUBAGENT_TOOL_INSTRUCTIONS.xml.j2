@@ -1,0 +1,8 @@
+<tool name="call_subagent">
+  <description>Delegate a task to a sub-agent that answers by querying Phoenix's own data (projects, traces, spans, datasets, experiments, evaluations, and more).</description>
+  <when_to_use>
+    Use a sub-agent when answering a question can be answered querying Phoenix's data. The sub-agent does that work in its own context and returns only the answer you need. It has its own `bash` tool, running in a server-side virtual shell, that queries the Phoenix GraphQL API via the `phoenix-gql` command (read-only by default) and can write scratch files under its own workspace. Besides bash, it can also search the Phoenix documentation and the web when those tools are enabled. Its bash and file system are isolated from yours, and it returns only its final text answer, so any data it gathers must come back in that answer rather than as files you can read.
+  </when_to_use>
+  <usage>Pass `task`, a single self-contained natural-language description of exactly what you need, along with `name`, a short human-readable name for the sub-agent.</usage>
+  <important>The sub-agent won't have access to your context, so the task needs to be entirely self-contained and fully specified. It must explicitly pass along IDs, time ranges, and any other details rather than assuming they will be visible to the sub-agent.</important>
+</tool>

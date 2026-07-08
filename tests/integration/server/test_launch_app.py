@@ -1,0 +1,222 @@
+import json
+import os
+import subprocess
+import sys
+from collections.abc import AsyncIterator
+from datetime import datetime, timezone
+from itertools import chain
+from secrets import token_hex
+from typing import Any, Iterator, Mapping, Optional
+
+import pandas as pd
+import pytest
+from _pytest.tmpdir import TempPathFactory
+from faker import Faker
+from opentelemetry.trace import format_span_id, format_trace_id
+from pandas.core.dtypes.common import is_datetime64_any_dtype
+from phoenix.client import Client as _PhoenixClient
+from phoenix.client.types.spans import SpanQuery
+from sqlalchemy import URL
+
+from .._helpers import (
+    _ADMIN_ONLY_ENDPOINTS,
+    _COMMON_RESOURCE_ENDPOINTS,
+    _VIEWER_BLOCKED_WRITE_OPERATIONS,
+    _AppInfo,
+    _get,
+    _get_gql_spans,
+    _grpc_span_exporter,
+    _http_span_exporter,
+    _httpx_client,
+    _random_schema,
+    _server,
+    _start_span,
+)
+
+
+@pytest.fixture
+async def _env_sql_database(
+    _sql_database_url: URL,
+    tmp_path_factory: TempPathFactory,
+) -> AsyncIterator[dict[str, str]]:
+    if _sql_database_url.get_backend_name() == "sqlite":
+        tmp = tmp_path_factory.mktemp(token_hex(8))
+        database = str(tmp / "phoenix.db")
+        _sql_database_url = URL.create("sqlite", database=database)
+    env = {"PHOENIX_SQL_DATABASE_URL": _sql_database_url.render_as_string()}
+    if not _sql_database_url.get_backend_name().startswith("postgresql"):
+        yield env
+    else:
+        async with _random_schema(_sql_database_url) as schema:
+            yield {**env, "PHOENIX_SQL_DATABASE_SCHEMA": schema}
+
+
+@pytest.fixture
+def _env(
+    _ports: Iterator[int],
+    _env_sql_database: dict[str, str],
+) -> dict[str, str]:
+    return {
+        **_env_sql_database,
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+    }
+
+
+@pytest.fixture
+def _no_auth_app(
+    _env: Mapping[str, str],
+) -> Iterator[_AppInfo]:
+    with _server(_AppInfo(_env)) as app:
+        yield app
+
+
+class TestDbMigrate:
+    async def test_db_migrate(self, _env_sql_database: dict[str, str]) -> None:
+        from pathlib import Path
+
+        import sqlalchemy
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import NullPool
+
+        import phoenix.db as _phoenix_db
+        from phoenix.db.engines import get_async_db_url
+
+        raw_url = _env_sql_database["PHOENIX_SQL_DATABASE_URL"]
+        schema = _env_sql_database.get("PHOENIX_SQL_DATABASE_SCHEMA") or None
+        url = sqlalchemy.make_url(raw_url)
+        if url.get_backend_name() == "postgresql":
+            async_url = get_async_db_url(url.render_as_string(hide_password=False))
+            async_engine = create_async_engine(async_url, poolclass=NullPool)
+        else:
+            async_engine = create_async_engine(
+                url.set(drivername="sqlite+aiosqlite"), poolclass=NullPool
+            )
+
+        # Verify the database is fresh: alembic_version must not exist yet.
+        def _check_fresh(conn: sqlalchemy.Connection) -> None:
+            inspector = sqlalchemy.inspect(conn)
+            assert "alembic_version" not in inspector.get_table_names(schema=schema), (
+                "alembic_version already exists before migration ran"
+            )
+
+        async with async_engine.connect() as conn:
+            await conn.run_sync(_check_fresh)
+        await async_engine.dispose()
+
+        command = [sys.executable, "-m", "phoenix.server.main", "db", "migrate"]
+        env = (
+            {**os.environ, **_env_sql_database}
+            if sys.platform == "win32"
+            else dict(_env_sql_database)
+        )
+        result = subprocess.run(command, env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+
+        # Confirm alembic_version now matches the current head revision.
+        if url.get_backend_name() == "postgresql":
+            async_engine = create_async_engine(
+                get_async_db_url(url.render_as_string(hide_password=False)), poolclass=NullPool
+            )
+        else:
+            async_engine = create_async_engine(
+                url.set(drivername="sqlite+aiosqlite"), poolclass=NullPool
+            )
+
+        def _get_version(conn: sqlalchemy.Connection) -> Any:
+            if schema:
+                conn.execute(sqlalchemy.text(f'SET search_path TO "{schema}"'))
+            return conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
+
+        async with async_engine.connect() as conn:
+            actual = await conn.run_sync(_get_version)
+        await async_engine.dispose()
+
+        scripts_dir = str(Path(_phoenix_db.__file__).parent / "migrations")
+        cfg = Config()
+        cfg.set_main_option("script_location", scripts_dir)
+        expected = ScriptDirectory.from_config(cfg).get_current_head()
+
+        assert actual == expected, f"DB is at {actual!r}, expected head {expected!r}"
+
+
+class TestLaunchApp:
+    async def test_send_spans(self, _env: Mapping[str, str], _fake: Faker) -> None:
+        project_name = _fake.unique.pystr()
+        span_names: set[str] = set()
+        spans = []
+        start_time = int(datetime.now(timezone.utc).timestamp() * 1e9)
+        for i in range(2):
+            with _server(_AppInfo(_env)) as app:
+                for j, exporter in enumerate([_http_span_exporter, _grpc_span_exporter]):
+                    span_name = f"{i}_{j}_{token_hex(8)}"
+                    span_names.add(span_name)
+                    start_time += 10_000_000
+                    spans.append(
+                        _start_span(
+                            project_name=project_name,
+                            span_name=span_name,
+                            exporter=exporter(app),
+                            start_time=start_time,
+                            attributes={
+                                "j": j if j % 2 else f"{j}",
+                                "metadata": json.dumps({"j": j if j % 2 else {f"{j}": [j]}}),
+                            },
+                        )
+                    )
+                    spans[-1].end(start_time + 10_000_000)
+
+                def query_fn() -> Optional[list[dict[str, Any]]]:
+                    ans = _get_gql_spans(app, None, "name").get(project_name)
+                    if not ans or len(spans) != len(ans):
+                        return None
+                    return ans
+
+                project = await _get(query_fn)
+                gql_span_names = set(span["name"] for span in project)
+                assert gql_span_names == span_names
+
+                q = SpanQuery()
+                _client = _PhoenixClient(base_url=app.base_url)
+                results = [
+                    _client.spans.get_spans_dataframe(query=q, project_name=project_name),
+                    _client.spans.get_spans_dataframe(query=q, project_name=project_name),
+                ]
+                assert isinstance(results, list)
+                assert len(results) == 2
+                for df in results:
+                    assert isinstance(df, pd.DataFrame)
+                    assert df.size
+                    assert sorted(df.name) == sorted(span_names)
+                    assert is_datetime64_any_dtype(df.start_time)
+                    assert df.index.names == ["context.span_id"]
+                    assert set(df.index) == {
+                        format_span_id(span.get_span_context().span_id) for span in spans
+                    }
+                    assert set(df.loc[:, "context.trace_id"]) == {
+                        format_trace_id(span.get_span_context().trace_id) for span in spans
+                    }
+                    assert set(df.parent_id) == {None}
+                    assert set(df.loc[:, "attributes.j"]) == {"0", 1}
+                    assert df.reset_index(drop=True).sort_values("start_time").loc[
+                        :, "attributes.metadata"
+                    ].to_list() == [
+                        {"j": {"0": [0]}},
+                        {"j": 1},
+                    ] * (i + 1)
+
+    def test_api_access(self, _no_auth_app: _AppInfo) -> None:
+        """Test that all endpoints in our test constants return expected status codes."""
+        client = _httpx_client(_no_auth_app)
+        for expected_status_code, method, endpoint in chain(
+            _COMMON_RESOURCE_ENDPOINTS,
+            _ADMIN_ONLY_ENDPOINTS,
+            _VIEWER_BLOCKED_WRITE_OPERATIONS,
+        ):
+            response = client.request(method, endpoint.format(token_hex(4)))
+            assert response.status_code == expected_status_code, (
+                f"Expected {expected_status_code} but "
+                f"got {response.status_code} for {method} {endpoint}"
+            )

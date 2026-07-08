@@ -1,0 +1,98 @@
+name: Typescript Packages CI
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: test-typescript-packages-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Filter Changes
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.filter.outputs.packages }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            packages:
+              - "js/**"
+              - "schemas/**"
+              - ".oxlintrc.json"
+              - ".oxfmtrc.jsonc"
+              - ".nvmrc"
+
+  ci:
+    name: CI Typescript
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.packages == 'true' }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Nodejs
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: lts/*
+      - name: Setup PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+      - name: Install Dependencies
+        working-directory: ./js
+        run: pnpm install --frozen-lockfile -r
+      - name: Build
+        working-directory: ./js
+        run: |
+          pnpm run -r build
+          git diff --exit-code
+      - name: Test
+        working-directory: ./js
+        run: pnpm run -r test
+      - name: Formatting
+        working-directory: ./js
+        run: |
+          pnpm run fmt:check
+      - name: Type Checking
+        working-directory: ./js
+        run: |
+          pnpm run typecheck
+      - name: Linting
+        working-directory: ./js
+        run: |
+          pnpm run lint
+
+  ci-required:
+    name: TypeScript Packages CI Required
+    needs:
+      - changes
+      - ci
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"

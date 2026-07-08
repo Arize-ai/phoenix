@@ -1,0 +1,70 @@
+import { css } from "@emotion/react";
+import { schemeSet2 } from "d3-scale-chromatic";
+import { transparentize } from "polished";
+import { useMemo } from "react";
+
+import type { Size } from "@phoenix/components/core/types/sizing";
+function indexToChar(index: number) {
+  // Wrap around using modulo if index exceeds 'C'
+  const charCode = 65 + index; // 'A' has ASCII code 65, 'B' is 66, 'C' is 67
+  return String.fromCharCode(charCode);
+}
+
+export type AlphabeticIndexIconProps = {
+  size?: Extract<Size, "XS" | "S" | "M">;
+  index: number;
+};
+
+const iconBaseCSS = css`
+  border-radius: var(--global-rounding-small);
+  border: 1px solid
+    var(--alphabetic-index-icon-border-color, var(--global-color-gray-300));
+  background-color: var(
+    --alphabetic-index-icon-background-color,
+    var(--global-color-gray-100)
+  );
+  color: var(--alphabetic-index-icon-color, var(--global-text-color-900));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  &[data-size="XS"] {
+    width: var(--global-dimension-static-size-250);
+    height: var(--global-dimension-static-size-250);
+    font-size: var(--global-font-size-xs);
+  }
+  &[data-size="S"] {
+    width: var(--global-button-height-s);
+    height: var(--global-button-height-s);
+    font-size: var(--global-font-size-s);
+  }
+  &[data-size="M"] {
+    width: var(--global-button-height-m);
+    height: var(--global-button-height-m);
+    font-size: var(--global-font-size-m);
+  }
+`;
+export function AlphabeticIndexIcon({
+  index,
+  size = "S",
+}: AlphabeticIndexIconProps) {
+  const char = useMemo(() => indexToChar(index), [index]);
+  const color = useMemo(() => schemeSet2[index % 8], [index]);
+  const backgroundColor = useMemo(() => transparentize(0.88, color), [color]);
+  const borderColor = useMemo(() => transparentize(0.5, color), [color]);
+  return (
+    <div
+      data-size={size}
+      css={css(
+        iconBaseCSS,
+        css`
+          --alphabetic-index-icon-color: ${color};
+          --alphabetic-index-icon-background-color: ${backgroundColor};
+          --alphabetic-index-icon-border-color: ${borderColor};
+        `
+      )}
+    >
+      {char}
+    </div>
+  );
+}

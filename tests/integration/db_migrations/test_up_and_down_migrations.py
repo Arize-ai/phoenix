@@ -1,0 +1,80 @@
+"""
+Database migration up/down test module.
+
+Tests that all database migrations can be safely applied and rolled back.
+Validates linear migration history, bidirectional capability, and repeatability
+across SQLite and PostgreSQL backends using Alembic.
+"""
+
+import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from . import _down, _up, _verify_clean_state
+
+
+@pytest.mark.parametrize(
+    "migrate_index_concurrently",
+    [
+        pytest.param(False, id="default"),
+        pytest.param(
+            True,
+            id="concurrently",
+            marks=pytest.mark.skipif(
+                "os.environ.get('CI_TEST_DB_BACKEND', 'sqlite').lower() != 'postgresql'",
+                reason="CONCURRENTLY only applies to PostgreSQL",
+            ),
+        ),
+    ],
+)
+async def test_up_and_down_migrations(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+    migrate_index_concurrently: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Test complete migration lifecycle - all migrations can be applied and rolled back.
+
+    Validates:
+    1. Clean database state before migrations
+    2. Full migration cycle: base -> head -> base
+    3. Individual migration steps with bidirectional testing
+    4. Linear migration history (no branches)
+    5. Migration repeatability (up/down cycles work reliably)
+
+    Args:
+        _engine: Database engine fixture
+        _alembic_config: Alembic configuration fixture
+        _schema: Database schema name fixture
+
+    Raises:
+        AssertionError: If migrations fail or history is non-linear
+        sqlalchemy.exc.SQLAlchemyError: If database operations fail
+    """
+    if migrate_index_concurrently:
+        monkeypatch.setenv("PHOENIX_MIGRATE_INDEX_CONCURRENTLY", "true")
+    else:
+        monkeypatch.delenv("PHOENIX_MIGRATE_INDEX_CONCURRENTLY", raising=False)
+
+    # Verify clean state and test full migration cycle
+    await _verify_clean_state(_engine, _schema)
+    await _up(_engine, _alembic_config, "head", _schema)
+    await _down(_engine, _alembic_config, "base", _schema)
+
+    # Get migration history and test each step individually
+    script = ScriptDirectory.from_config(_alembic_config)
+    revisions = list(reversed(list(script.walk_revisions())))
+
+    for a, b in zip(revisions, revisions[1:]):
+        # Ensure linear history
+        assert b.down_revision == a.revision, (
+            f"Non-linear migration history: {b.revision} -> {b.down_revision}, expected {a.revision}"
+        )
+
+        # Test each migration step twice for reliability
+        for _ in range(2):
+            await _up(_engine, _alembic_config, b.revision, _schema)
+            await _down(_engine, _alembic_config, a.revision, _schema)

@@ -1,0 +1,48 @@
+{
+  "name": "@arizeai/phoenix-mcp",
+  "version": "4.0.19",
+  "description": "A MCP server for Arize Phoenix",
+  "keywords": [
+    "arize-phoenix",
+    "mcp"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bin": {
+    "@arizeai/phoenix-mcp": "./build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc && chmod 755 build/index.js",
+    "dev": "source ./.env && tsx src/index.ts -- --apiKey $PHOENIX_API_KEY --baseUrl $PHOENIX_BASE_URL",
+    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-config": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "glob": "^13.0.6",
+    "minimist": "^1.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/glob": "^9.0.0",
+    "@types/minimist": "^1.2.5",
+    "@types/node": "^25.9.4",
+    "tsx": "^4.22.5",
+    "vitest": "^4.1.9"
+  }
+}

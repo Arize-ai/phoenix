@@ -1,0 +1,61 @@
+import type { Meta } from "@storybook/react";
+import { useState } from "react";
+
+import {
+  Button,
+  Dialog,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Popover,
+  PopoverArrow,
+  TimeRangeForm,
+  View,
+} from "@phoenix/components";
+import { createTimeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
+
+const meta: Meta = {
+  title: "Core/Forms/Time Range Form",
+  component: TimeRangeForm,
+  parameters: {
+    layout: "centered",
+  },
+};
+
+export default meta;
+
+export const Default = {
+  args: {},
+};
+
+const timeRangeFormatter = createTimeRangeFormatter({
+  locale: "en-US",
+  timeZone: "UTC",
+});
+
+export const InAPopOver = () => {
+  const [timeRange, setTimeRange] = useState<OpenTimeRange>({
+    start: new Date("2024-01-15T10:00:00Z"),
+  });
+  const timeRangeString = timeRangeFormatter(timeRange);
+  return (
+    <DialogTrigger isOpen>
+      <Button size="S" leadingVisual={<Icon svg={<Icons.Calendar />} />}>
+        {timeRangeString}
+      </Button>
+      <Popover placement="bottom end">
+        <Dialog>
+          <PopoverArrow />
+          <View padding="size-100">
+            <TimeRangeForm
+              initialValue={timeRange}
+              onSubmit={(timeRange) => {
+                setTimeRange(timeRange);
+              }}
+            />
+          </View>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  );
+};

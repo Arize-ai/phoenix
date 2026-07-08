@@ -1,0 +1,153 @@
+name: Publish Docker images
+permissions:
+  contents: read
+on:
+  push:
+    tags:
+      - "arize-phoenix-v*"
+
+jobs:
+  push_to_registry:
+    name: Push Docker images to Docker Hub
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.VERSION }}
+    strategy:
+      matrix:
+        variant: [root, nonroot, debug]
+    permissions:
+      packages: write
+      contents: read
+    env:
+      REGISTRY: arizephoenix
+      IMAGE_NAME: phoenix
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_ENV
+          echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_OUTPUT
+          echo "MAJOR_VERSION=$(echo ${GITHUB_REF#refs/tags/arize-phoenix-v} | cut -d. -f1)" >> $GITHUB_ENV
+          echo "MINOR_VERSION=$(echo ${GITHUB_REF#refs/tags/arize-phoenix-v} | cut -d. -f2)" >> $GITHUB_ENV
+
+      - name: Set BASE_IMAGE environment variable
+        id: set-base-image
+        run: |
+          if [ "${{ matrix.variant }}" == "root" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "debug" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13:debug" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "nonroot" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot" >> $GITHUB_ENV
+          else
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            version-${{ env.VERSION }}-${{ matrix.variant }}
+            ${{ matrix.variant == 'root' && 'version-${{ env.VERSION }} latest' || '' }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: ./Dockerfile
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: |
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}.{3}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, env.MINOR_VERSION) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:{2}.{3}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, env.MINOR_VERSION) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}.{3}-{4}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, env.MINOR_VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:latest-{2}', env.REGISTRY, env.IMAGE_NAME, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:{2}.{3}-{4}', env.REGISTRY, env.IMAGE_NAME, env.MAJOR_VERSION, env.MINOR_VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant != 'root' && format('{0}/{1}:{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
+
+  update-self-deployment:
+    name: Update Kustomize Template
+    runs-on: ubuntu-latest
+    needs: push_to_registry
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+      - name: Update Kustomize image version
+        env:
+          PHOENIX_VERSION: ${{ needs.push_to_registry.outputs.version }}
+        run: python scripts/update_kustomize.py "$PHOENIX_VERSION"
+      - name: Update Helm chart version
+        env:
+          PHOENIX_VERSION: ${{ needs.push_to_registry.outputs.version }}
+        run: python scripts/update_helm.py "$PHOENIX_VERSION"
+      - name: Setup helm-docs
+        uses: gabe565/setup-helm-docs-action@d5c35bdc9133cfbea3b671acadf50a29029e87c2 # v1.0.4
+      - name: Run helm-docs
+        run: helm-docs --chart-search-root=helm
+      - name: Create PR
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        with:
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          commit-message: "chore: update phoenix version to ${{ needs.push_to_registry.outputs.version }} in kustomize and helm"
+          title: "chore: update phoenix version to ${{ needs.push_to_registry.outputs.version }} in kustomize and helm"
+          body: |
+            This PR updates the phoenix version in the kustomize template to version ${{ needs.push_to_registry.outputs.version }}.
+
+            This change was automatically generated by the docker-build-release workflow.
+          branch: update-phoenix-version-${{ needs.push_to_registry.outputs.version }}
+          base: main
+
+  slack:
+    name: Slack notification
+    needs: [push_to_registry, update-self-deployment]
+    if: always() && (needs.push_to_registry.result == 'failure' || needs.update-self-deployment.result == 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send message to Slack
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "type": "mrkdwn",
+              "text": ":x: Docker Release Publication Failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }

@@ -1,0 +1,169 @@
+name: Weekly Skills Audit
+
+on:
+  schedule:
+    # Every Wednesday at 17:00 UTC (after docs-gap-audit at 16:00)
+    - cron: "0 17 * * 3"
+  workflow_dispatch:
+    inputs:
+      window:
+        description: "Audit window (e.g. '7 days ago', '14 days ago')"
+        required: false
+        default: "7 days ago"
+
+concurrency:
+  group: skills-audit
+  cancel-in-progress: true
+
+jobs:
+  skills-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # contents: read is all Claude can reach: the read-only workflow token is
+      # passed to the action below (so no write-scoped App token is minted via
+      # OIDC), and publishing is done by later steps with a PAT.
+      contents: read
+    env:
+      AUDIT_WINDOW: ${{ inputs.window || '7 days ago' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set summary path
+        id: summary
+        run: echo "path=${RUNNER_TEMP}/skills-audit-summary.md" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create audit branch
+        id: branch
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          # Suffix with run id so re-runs on the same day don't collide
+          BRANCH="skills-audit/${DATE}-${{ github.run_id }}"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+
+      - name: Install subprocess isolation deps
+        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
+        # needs both bubblewrap AND socat, and Ubuntu 24.04+ blocks the unprivileged
+        # user namespaces it relies on by default. Mirrors the upstream action's
+        # install step (which only runs when allowed_non_write_users is set).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Hand the action the read-only workflow token instead of letting it
+          # mint a write-scoped Claude App token via OIDC. Claude never writes
+          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
+          # in its environment stays read-only.
+          github_token: ${{ github.token }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
+          show_full_output: 'true'
+          prompt: |
+            /phoenix-skills-audit
+
+            Audit commits since "${{ env.AUDIT_WINDOW }}" on origin/main for changes to the
+            Python clients, TypeScript clients, CLI, and REST/GraphQL APIs that should be
+            reflected in the three external-facing skills:
+
+              - .agents/skills/phoenix-tracing/
+              - .agents/skills/phoenix-cli/
+              - .agents/skills/phoenix-evals/
+
+            Follow the skill's guidance strictly — fetch origin/main first, breadth-first
+            triage, ground every edit in real code, and only patch files inside those three
+            skill directories.
+
+            Apply the patches directly to the working tree. Do not commit, do not push, do
+            not open a PR — the workflow handles that.
+
+            After all edits are applied, write the run summary (the markdown the skill's
+            "Phase 6" describes) to this exact path using the Write tool:
+
+              ${{ steps.summary.outputs.path }}
+
+            That file is what the workflow uses to populate the PR body, so it must exist
+            even if there are no changes to apply. If there are no user-facing changes
+            (only deps, refactors, frontend, feature flags), still write the summary file
+            and have its first line be exactly: NO_CHANGES
+          claude_args: '--model claude-opus-4-8 --allowedTools Skill,Read,Glob,Grep,Edit,Write,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)"'
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if ! git diff --quiet -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          elif [[ -n "$(git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals)" ]]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No skill changes — exiting cleanly."
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          # Separate publishing token; the claude-code-action app token has
+          # already been revoked by this point.
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          AUDIT_DATE: ${{ steps.branch.outputs.date }}
+          AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          gh auth setup-git
+          # The Claude step rewrites origin to embed its app token in the URL
+          # and revokes that token when the step ends. URL-embedded credentials
+          # take precedence over gh's credential helper, so reset the remote to
+          # a clean URL to push with the PAT configured above.
+          git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git add .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          git commit -m "docs(skills): weekly audit — $AUDIT_DATE"
+          git push origin "$AUDIT_BRANCH"
+
+      - name: Open pull request
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          AUDIT_DATE: ${{ steps.branch.outputs.date }}
+          AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
+          SUMMARY_FILE: ${{ steps.summary.outputs.path }}
+        run: |
+          if [[ -s "$SUMMARY_FILE" ]]; then
+            BODY_FILE="$SUMMARY_FILE"
+          else
+            BODY_FILE=$(mktemp)
+            echo "Automated weekly audit of the three external-facing skills against recent changes on \`origin/main\`. (Run summary file was missing — see commit diff for details.)" > "$BODY_FILE"
+          fi
+
+          gh pr create \
+            --base main \
+            --head "$AUDIT_BRANCH" \
+            --title "docs(skills): weekly audit — $AUDIT_DATE" \
+            --body-file "$BODY_FILE" \
+            --label "documentation"
