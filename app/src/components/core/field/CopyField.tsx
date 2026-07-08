@@ -7,7 +7,6 @@ import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { SizingProps } from "@phoenix/components/core/types";
 
-import { selectReadOnlyInputOnFocus } from "./selectReadOnlyInputOnFocus";
 import { textFieldCSS } from "./styles";
 
 export interface CopyFieldProps
@@ -19,7 +18,7 @@ function CopyField({
   ref,
   ...props
 }: CopyFieldProps & { ref?: Ref<HTMLDivElement> }) {
-  const { size = "M", children, onFocus, ...otherProps } = props;
+  const { size = "M", children, ...otherProps } = props;
 
   return (
     <SizeProvider size={size}>
@@ -29,10 +28,6 @@ function CopyField({
         isReadOnly
         ref={ref}
         {...otherProps}
-        onFocus={(event) => {
-          onFocus?.(event);
-          selectReadOnlyInputOnFocus(event);
-        }}
         css={css(fieldBaseCSS, textFieldCSS)}
       >
         {children}

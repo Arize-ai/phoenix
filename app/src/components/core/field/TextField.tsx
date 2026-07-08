@@ -6,7 +6,6 @@ import { TextField as AriaTextField } from "react-aria-components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { SizingProps } from "@phoenix/components/core/types";
 
-import { selectReadOnlyInputOnFocus } from "./selectReadOnlyInputOnFocus";
 import { textFieldCSS } from "./styles";
 
 export interface TextFieldProps extends AriaTextFieldProps, SizingProps {}
@@ -15,17 +14,13 @@ function TextField({
   ref,
   ...props
 }: TextFieldProps & { ref?: Ref<HTMLDivElement> }) {
-  const { size = "M", onFocus, ...otherProps } = props;
+  const { size = "M", ...otherProps } = props;
   return (
     <AriaTextField
       data-size={size}
       className="text-field"
       ref={ref}
       {...otherProps}
-      onFocus={(event) => {
-        onFocus?.(event);
-        selectReadOnlyInputOnFocus(event);
-      }}
       css={css(fieldBaseCSS, textFieldCSS)}
     />
   );
