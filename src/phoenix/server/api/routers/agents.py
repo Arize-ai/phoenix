@@ -187,6 +187,15 @@ class AssistantMetadataUIMessage(UIMessage):
     )
 
 
+class GetAgentSessionMessagesResponse(BaseModel):
+    """Body for GET /agents/{agent_id}/sessions/{session_id}/messages.
+
+    Persisted transcripts round-trip through the chat request's message
+    schema (asserted at persist time), so reads reuse the same typed shape."""
+
+    data: list[AssistantMetadataUIMessage]
+
+
 class _ObservabilityMixin(BaseModel):
     """Per-request observability flags"""
 
@@ -1484,5 +1493,41 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             except Exception:
                 logger.exception("Failed to persist agent session title %r", session_id)
         return _SummarizeResponse(summary=summary)
+
+    @router.get(
+        "/agents/{agent_id}/sessions/{session_id}/messages",
+        response_model=GetAgentSessionMessagesResponse,
+        # Match the transcript's wire format everywhere else (persisted
+        # snapshots and streamed messages omit absent optional fields).
+        response_model_exclude_none=True,
+    )
+    async def get_agent_session_messages(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+    ) -> GetAgentSessionMessagesResponse:
+        """The transcript from the session's latest persisted snapshot."""
+        if agent_id != _ASSISTANT_AGENT_ID:
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
+            raise HTTPException(status_code=403, detail="Agents are disabled")
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        stmt = select(models.AgentSession.id).where(models.AgentSession.session_uuid == session_id)
+        if phoenix_user is not None:
+            stmt = stmt.where(models.AgentSession.user_id == int(phoenix_user.identity))
+        async with request.app.state.db() as session:
+            agent_session_rowid = await session.scalar(stmt)
+            if agent_session_rowid is None:
+                raise HTTPException(status_code=404, detail="Session not found")
+            messages = await session.scalar(
+                select(models.AgentSessionSnapshot.messages)
+                .where(models.AgentSessionSnapshot.agent_session_id == agent_session_rowid)
+                .order_by(models.AgentSessionSnapshot.id.desc())
+                .limit(1)
+            )
+        return GetAgentSessionMessagesResponse(
+            data=[AssistantMetadataUIMessage.model_validate(message) for message in messages or []]
+        )
 
     return router

@@ -1505,6 +1505,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/{agent_id}/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Agent Session Messages
+         * @description The transcript from the session's latest persisted snapshot.
+         */
+        get: operations["get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/arize_phoenix_version": {
         parameters: {
             query?: never;
@@ -2777,6 +2797,17 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+        };
+        /**
+         * GetAgentSessionMessagesResponse
+         * @description Body for GET /agents/{agent_id}/sessions/{session_id}/messages.
+         *
+         *     Persisted transcripts round-trip through the chat request's message
+         *     schema (asserted at persist time), so reads reuse the same typed shape.
+         */
+        GetAgentSessionMessagesResponse: {
+            /** Data */
+            data: components["schemas"]["AssistantMetadataUIMessage"][];
         };
         /** GetAnnotationConfigResponseBody */
         GetAnnotationConfigResponseBody: {
@@ -10347,6 +10378,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["_SummarizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAgentSessionMessagesResponse"];
                 };
             };
             /** @description Validation Error */

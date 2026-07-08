@@ -449,3 +449,42 @@ async def test_chat_turn_persists_session_and_snapshot(
     # request's message validation, so every stored message must round-trip.
     for message in messages:
         AssistantMetadataUIMessage.model_validate(message)
+
+
+async def test_get_agent_session_messages_returns_latest_snapshot(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    first_turn = [_user_message("first")]
+    second_turn: list[dict[str, Any]] = [
+        *first_turn,
+        {"id": "m2", "role": "assistant", "parts": [{"type": "text", "text": "reply"}]},
+    ]
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        agent_session = models.AgentSession(
+            session_uuid="with-snapshots",
+            user_id=None,
+            title="session title",
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(agent_session)
+        await session.flush()
+        for messages in (first_turn, second_turn):
+            session.add(
+                models.AgentSessionSnapshot(
+                    agent_session_id=agent_session.id,
+                    messages=messages,
+                )
+            )
+
+    response = await httpx_client.get("/agents/assistant/sessions/with-snapshots/messages")
+    assert response.status_code == 200
+    assert response.json()["data"] == second_turn
+
+    missing = await httpx_client.get("/agents/assistant/sessions/nonexistent/messages")
+    assert missing.status_code == 404
+
+    unknown_agent = await httpx_client.get("/agents/other/sessions/with-snapshots/messages")
+    assert unknown_agent.status_code == 404

@@ -100,12 +100,12 @@ export type PersistedAssistantMessage = {
   traceId: string | null;
 };
 
-const LATEST_SESSION_MESSAGES_QUERY = `
-  query LatestAgentSessionMessages {
+const LATEST_SESSION_QUERY = `
+  query LatestAgentSession {
     agentSessions(first: 1) {
       edges {
         node {
-          messages
+          sessionId
         }
       }
     }
@@ -153,11 +153,42 @@ function extractLatestAssistantMessage(
   };
 }
 
+async function fetchLatestPersistedAssistantMessage(
+  request: APIRequestContext
+): Promise<PersistedAssistantMessage | null> {
+  const listResponse = await request.post("/graphql", {
+    data: { query: LATEST_SESSION_QUERY },
+  });
+  if (!listResponse.ok()) {
+    return null;
+  }
+  const listBody = (await listResponse.json()) as {
+    data?: {
+      agentSessions?: {
+        edges?: Array<{ node?: { sessionId?: unknown } }>;
+      };
+    };
+  };
+  const sessionId = listBody.data?.agentSessions?.edges?.[0]?.node?.sessionId;
+  if (typeof sessionId !== "string") {
+    return null;
+  }
+  const messagesResponse = await request.get(
+    `/agents/assistant/sessions/${encodeURIComponent(sessionId)}/messages`
+  );
+  if (!messagesResponse.ok()) {
+    return null;
+  }
+  const messagesBody = (await messagesResponse.json()) as { data?: unknown };
+  return extractLatestAssistantMessage(messagesBody.data);
+}
+
 /**
- * Polls the GraphQL API for the most recent agent session's transcript until
- * its latest assistant message is available. Sessions persist only in the
- * server database (no localStorage copy), so this doubles as an end-to-end
- * assertion that turn persistence works.
+ * Polls the server-persisted sessions (GraphQL list, then the REST messages
+ * endpoint) until the most recent session's latest assistant message is
+ * available. Sessions persist only in the server database (no localStorage
+ * copy), so this doubles as an end-to-end assertion that turn persistence
+ * works.
  */
 export async function waitForPersistedAssistantTurn({
   request,
@@ -172,22 +203,9 @@ export async function waitForPersistedAssistantTurn({
 }): Promise<PersistedAssistantMessage> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const response = await request.post("/graphql", {
-      data: { query: LATEST_SESSION_MESSAGES_QUERY },
-    });
-    if (response.ok()) {
-      const body = (await response.json()) as {
-        data?: {
-          agentSessions?: {
-            edges?: Array<{ node?: { messages?: unknown } }>;
-          };
-        };
-      };
-      const messages = body.data?.agentSessions?.edges?.[0]?.node?.messages;
-      const message = extractLatestAssistantMessage(messages);
-      if (message && (!requireTraceId || message.traceId !== null)) {
-        return message;
-      }
+    const message = await fetchLatestPersistedAssistantMessage(request);
+    if (message && (!requireTraceId || message.traceId !== null)) {
+      return message;
     }
     if (Date.now() > deadline) {
       throw new Error(

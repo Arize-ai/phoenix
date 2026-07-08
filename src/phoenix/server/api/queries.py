@@ -1567,24 +1567,6 @@ class Query:
             has_next_page=has_next_page,
         )
 
-    @strawberry.field(
-        description=(
-            "One persisted assistant chat session, or null if no such session "
-            "exists or it belongs to another user."
-        ),
-    )  # type: ignore
-    async def agent_session(
-        self,
-        info: Info[Context, None],
-        session_id: str,
-    ) -> Optional[AgentSession]:
-        stmt = select(models.AgentSession).where(models.AgentSession.session_uuid == session_id)
-        if (viewer_id := info.context.user_id) is not None:
-            stmt = stmt.where(models.AgentSession.user_id == viewer_id)
-        async with info.context.db.read() as session:
-            agent_session = await session.scalar(stmt)
-        return to_gql_agent_session(agent_session) if agent_session is not None else None
-
     @strawberry.field
     def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
         agent_assistant_enabled = info.context.settings.agent_assistant_enabled

@@ -2,12 +2,13 @@ import { useCallback } from "react";
 import { commitMutation, fetchQuery, graphql } from "react-relay";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type { paths } from "@phoenix/api/__generated__/v1";
+import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { ServerAgentSessionStub } from "@phoenix/store/agentStore";
 
 import type { useAgentServerSessionsDeleteMutation } from "./__generated__/useAgentServerSessionsDeleteMutation.graphql";
-import type { useAgentServerSessionsDetailQuery } from "./__generated__/useAgentServerSessionsDetailQuery.graphql";
 import type { useAgentServerSessionsListQuery } from "./__generated__/useAgentServerSessionsListQuery.graphql";
 
 const listQuery = graphql`
@@ -25,14 +26,6 @@ const listQuery = graphql`
   }
 `;
 
-const detailQuery = graphql`
-  query useAgentServerSessionsDetailQuery($sessionId: String!) {
-    agentSession(sessionId: $sessionId) {
-      messages
-    }
-  }
-`;
-
 const deleteMutation = graphql`
   mutation useAgentServerSessionsDeleteMutation($sessionId: String!) {
     deleteAgentSession(input: { sessionId: $sessionId }) {
@@ -40,6 +33,11 @@ const deleteMutation = graphql`
     }
   }
 `;
+
+const SESSION_MESSAGES_PATH =
+  "/agents/{agent_id}/sessions/{session_id}/messages" satisfies keyof paths;
+
+const ASSISTANT_AGENT_ID = "assistant";
 
 /** How many recent sessions to hydrate into the session list. */
 const SESSION_LIST_PAGE_SIZE = 20;
@@ -91,16 +89,18 @@ export function useAgentServerSessions() {
         return;
       }
       try {
-        const data = await fetchQuery<useAgentServerSessionsDetailQuery>(
-          RelayEnvironment,
-          detailQuery,
-          { sessionId }
-        ).toPromise();
-        const messages = data?.agentSession?.messages;
-        if (Array.isArray(messages)) {
+        const { data, response } = await authApiFetch.GET(
+          SESSION_MESSAGES_PATH,
+          {
+            params: {
+              path: { agent_id: ASSISTANT_AGENT_ID, session_id: sessionId },
+            },
+          }
+        );
+        if (response.ok && data) {
           store
             .getState()
-            .setSessionMessages(sessionId, messages as AgentUIMessage[]);
+            .setSessionMessages(sessionId, data.data as AgentUIMessage[]);
         }
       } catch {
         // Activate anyway: the transcript stays empty for now and the session

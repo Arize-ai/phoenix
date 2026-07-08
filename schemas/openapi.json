@@ -7679,6 +7679,58 @@
         }
       }
     },
+    "/agents/{agent_id}/sessions/{session_id}/messages": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Get Agent Session Messages",
+        "description": "The transcript from the session's latest persisted snapshot.",
+        "operationId": "get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAgentSessionMessagesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/arize_phoenix_version": {
       "get": {
         "summary": "Version",
@@ -10752,6 +10804,23 @@
           "type"
         ],
         "title": "FreeformAnnotationConfigData"
+      },
+      "GetAgentSessionMessagesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetAgentSessionMessagesResponse",
+        "description": "Body for GET /agents/{agent_id}/sessions/{session_id}/messages.\n\nPersisted transcripts round-trip through the chat request's message\nschema (asserted at persist time), so reads reuse the same typed shape."
       },
       "GetAnnotationConfigResponseBody": {
         "properties": {

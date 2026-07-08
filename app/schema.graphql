@@ -85,20 +85,13 @@ type AgentSession implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
 
-  """The client-generated session UUID used in the chat endpoint path."""
+  """The client-generated session ID."""
   sessionId: String!
 
-  """
-  Display title: the LLM-generated summary when available, otherwise a truncation of the first user message.
-  """
+  """The title of the session."""
   title: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-
-  """
-  The transcript from the session's latest snapshot, as a list of Vercel AI UIMessage JSON objects.
-  """
-  messages: JSON!
 }
 
 """A connection to a list of items."""
@@ -3587,11 +3580,6 @@ type Query {
   The viewer's persisted assistant chat sessions, most recently active first. When authentication is disabled, all sessions are returned.
   """
   agentSessions(first: Int = 20, after: String): AgentSessionConnection!
-
-  """
-  One persisted assistant chat session, or null if no such session exists or it belongs to another user.
-  """
-  agentSession(sessionId: String!): AgentSession
   agentsConfig: AgentsConfig!
 
   """The assistant skills available given the supplied UI context."""
