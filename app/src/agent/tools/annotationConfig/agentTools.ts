@@ -1,10 +1,10 @@
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 
+import { toAnnotationConfigDraft } from "./buildAnnotationConfigInput";
 import {
   CREATE_ANNOTATION_CONFIG_TOOL_NAME,
   UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
 } from "./constants";
-import { toAnnotationConfigDraft } from "./buildAnnotationConfigInput";
 import { commitCreateAnnotationConfig } from "./createAnnotationConfig";
 import {
   parseCreateAnnotationConfigInput,

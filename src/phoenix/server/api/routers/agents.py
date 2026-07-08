@@ -807,6 +807,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         resolved_contexts = resolve_contexts(body.contexts)
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
+        user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
@@ -854,10 +855,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model=model,
             schema=request.app.state.graphql_schema,
             build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            db=request.app.state.db,
+            event_queue=request.state.event_queue,
             prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             allow_mutations=graphql_mutations_enabled,
+            read_only=request.app.state.read_only,
+            auth_enabled=request.app.state.authentication_enabled,
+            user_id=user_id,
+            is_viewer=is_viewer,
             tracer_provider=tracer_provider,
             enable_subagents=subagents_enabled,
         )

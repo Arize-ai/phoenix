@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-
 const optimizationDirectionSchema = z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]);
 
 const categoricalValueSchema = z.object({
