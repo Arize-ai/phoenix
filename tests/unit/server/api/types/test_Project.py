@@ -3739,9 +3739,72 @@ class TestProject:
     ) -> None:
         from phoenix.trace.dsl.session_filter import SESSION_BINDINGS
 
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
         async with db() as session:
             project = await _add_project(session)
-            project_session = await _add_project_session(session, project)
+            project_session = await _add_project_session(session, project, start_time=base_time)
+            trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            root_span = await _add_span(
+                session,
+                trace,
+                attributes={
+                    "custom": {"leaf": "alpha"},
+                    "duplicate": {"leaf": "first"},
+                    "input": {"value": "hello"},
+                    "metadata": {"tenant": "acme"},
+                    "user": {"id": "user-1"},
+                },
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            await _add_span(
+                session,
+                parent_span=root_span,
+                attributes={"child_only": "not cataloged"},
+                start_time=base_time + timedelta(seconds=1),
+                end_time=base_time + timedelta(seconds=2),
+            )
+            later_trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=base_time + timedelta(minutes=1),
+                end_time=base_time + timedelta(minutes=1, seconds=10),
+            )
+            await _add_span(
+                session,
+                later_trace,
+                attributes={"later_only": "not cataloged"},
+                start_time=base_time + timedelta(minutes=1),
+                end_time=base_time + timedelta(minutes=1, seconds=10),
+            )
+            second_project_session = await _add_project_session(
+                session, project, start_time=base_time + timedelta(minutes=2)
+            )
+            second_trace = await _add_trace(
+                session,
+                project,
+                second_project_session,
+                start_time=base_time + timedelta(minutes=2),
+                end_time=base_time + timedelta(minutes=2, seconds=10),
+            )
+            await _add_span(
+                session,
+                second_trace,
+                attributes={"duplicate": {"leaf": "second"}, "flat": "cataloged"},
+                start_time=base_time + timedelta(minutes=2),
+                end_time=base_time + timedelta(minutes=2, seconds=10),
+            )
+            other_project = await _add_project(session)
+            other_project_session = await _add_project_session(session, other_project)
+            other_trace = await _add_trace(session, other_project, other_project_session)
+            await _add_span(session, other_trace, attributes={"other_project": "not cataloged"})
             session.add(
                 models.ProjectSessionAnnotation(
                     project_session_id=project_session.id,
@@ -3773,13 +3836,37 @@ class TestProject:
         assert not response.errors
         assert (data := response.data) is not None
         terms = data["node"]["sessionFilterVocabulary"]
-        # Drift-proof: intrinsic + aggregate term names are exactly the compiler's name-map keys.
+        terms_by_name = {term["name"]: term for term in terms}
+        # Drift-proof: static session + aggregate terms are exactly the compiler's binding keys.
         static_names = {t["name"] for t in terms if t["category"] in ("session", "aggregate")}
         assert static_names == set(SESSION_BINDINGS.binding_names)
+        assert {"any_input", "any_output"}.issubset(static_names)
         # Every served term carries a non-empty gloss.
         assert all(t["description"] for t in terms)
         num_traces_term = next(t for t in terms if t["name"] == "num_traces")
-        assert "≈ turns" in num_traces_term["description"]
+        assert "conversation turns" in num_traces_term["description"]
+        assert "earliest root span" in terms_by_name["attributes[...]"]["description"]
+        assert 'attributes["user"]["id"]' in terms_by_name["user.id"]["description"]
+        assert 'attributes["metadata"]["key"]' in terms_by_name['metadata["key"]']["description"]
+        observed_attribute_terms = {
+            'attributes["custom"]["leaf"]',
+            'attributes["duplicate"]["leaf"]',
+            'attributes["flat"]',
+            'attributes["input"]["value"]',
+            'attributes["metadata"]["tenant"]',
+            'attributes["user"]["id"]',
+        }
+        for term_name in observed_attribute_terms:
+            assert terms_by_name[term_name]["type"] == "string"
+            assert terms_by_name[term_name]["category"] == "attribute"
+            assert "earliest root span" in terms_by_name[term_name]["description"]
+        assert [term["name"] for term in terms].count('attributes["duplicate"]["leaf"]') == 1
+        absent_attribute_terms = {
+            'attributes["child_only"]',
+            'attributes["later_only"]',
+            'attributes["other_project"]',
+        }
+        assert absent_attribute_terms.isdisjoint(terms_by_name)
         # Per-project session-annotation names are folded in as fully-typed terms.
         term_names = {t["name"] for t in terms}
         assert 'annotations["quality"].score' in term_names

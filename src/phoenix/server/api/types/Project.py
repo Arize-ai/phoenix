@@ -1,4 +1,5 @@
 import operator
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
 
@@ -18,6 +19,7 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
+from phoenix.db.session_aggregates import SESSION_ROWID, SPAN_ROWID, earliest_root_span_by_session
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
@@ -199,6 +201,20 @@ def _apply_project_session_filters(
             and_(~exact_match, fallback),
         )
     )
+
+
+def _attribute_leaf_paths(
+    attributes: Mapping[str, Any],
+    prefix: tuple[str, ...] = (),
+) -> Iterable[tuple[str, ...]]:
+    for key, value in attributes.items():
+        if not isinstance(key, str):
+            continue
+        path = (*prefix, key)
+        if isinstance(value, Mapping):
+            yield from _attribute_leaf_paths(value, path)
+        else:
+            yield path
 
 
 @strawberry.type
@@ -1161,16 +1177,30 @@ class Project(Node):
 
         Static terms derive from the ``SessionFilter`` compiler's own name maps, so they cannot
         drift from what compiles; per-project session-annotation names are folded in as typed
-        ``annotations[...]`` terms.
+        ``annotations[...]`` terms, and observed attributes are read from each session's earliest
+        root span.
         """
-        stmt = (
+        annotation_names_stmt = (
             select(distinct(models.ProjectSessionAnnotation.name))
             .join(models.ProjectSession)
             .where(models.ProjectSession.project_id == self.id)
         )
+        root_spans = earliest_root_span_by_session(project_rowids=[self.id]).subquery()
+        root_span_attributes_stmt = (
+            select(models.Span.attributes)
+            .select_from(models.Span)
+            .join(root_spans, models.Span.id == root_spans.c[SPAN_ROWID])
+            .join(models.ProjectSession, models.ProjectSession.id == root_spans.c[SESSION_ROWID])
+            .where(models.ProjectSession.project_id == self.id)
+        )
         async with info.context.db.read() as session:
-            annotation_names = list(await session.scalars(stmt))
-        return session_filter_vocabulary_terms(annotation_names)
+            annotation_names = list(await session.scalars(annotation_names_stmt))
+            root_span_attributes = list(await session.scalars(root_span_attributes_stmt))
+        root_span_attribute_paths: list[tuple[str, ...]] = []
+        for attributes in root_span_attributes:
+            if isinstance(attributes, Mapping):
+                root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
+        return session_filter_vocabulary_terms(annotation_names, root_span_attribute_paths)
 
     @strawberry.field
     async def annotation_configs(

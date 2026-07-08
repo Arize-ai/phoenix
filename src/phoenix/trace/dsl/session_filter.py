@@ -177,8 +177,19 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         ),
         "first_input": "Case-sensitive turn-1-only root span input.value string.",
         "last_output": "Case-sensitive final-turn-only root span output.value string.",
-        "user.id": "user.id attribute read from the session's earliest root span.",
-        'metadata["key"]': "A metadata value read from the session's earliest root span.",
+        "attributes[...]": (
+            "Open root-span attribute access. Use canonical bracket paths such as "
+            'attributes["input"]["value"]; values are read from the session\'s earliest root span '
+            "and are string-cast unless explicitly cast."
+        ),
+        "user.id": (
+            'Accepted proxy for attributes["user"]["id"]; reads from the session\'s earliest '
+            "root span."
+        ),
+        'metadata["key"]': (
+            'Accepted proxy for attributes["metadata"]["key"]; reads from the session\'s '
+            "earliest root span."
+        ),
         'annotations["name"].score': "Numeric score of a session annotation by name.",
         'annotations["name"].label': "Label of a session annotation by name.",
     }
