@@ -8,55 +8,101 @@ import {
 } from "../src/pxi/commands";
 
 describe("SLASH_COMMANDS", () => {
-  it("includes clear, exit, and help", () => {
+  it("includes session lifecycle commands", () => {
     const names = SLASH_COMMANDS.map((c) => c.name);
     expect(names).toContain("clear");
+    expect(names).toContain("compact");
+    expect(names).toContain("model");
+    expect(names).toContain("new");
+    expect(names).toContain("sessions");
+    expect(names).toContain("temporary");
     expect(names).toContain("exit");
     expect(names).toContain("help");
   });
 });
 
 describe("runSlashCommand", () => {
-  it("calls clearMessages for /clear", () => {
-    const clearMessages = vi.fn();
-    const result = runSlashCommand("/clear", { clearMessages, exit: vi.fn() });
-    expect(clearMessages).toHaveBeenCalledOnce();
+  function createContext() {
+    return {
+      startNewSession: vi.fn(),
+      openModelPicker: vi.fn(),
+      openSessionPicker: vi.fn(),
+      compactSession: vi.fn(),
+      exit: vi.fn(),
+    };
+  }
+
+  it("starts a persisted session for /clear", () => {
+    const context = createContext();
+    const result = runSlashCommand("/clear", context);
+    expect(context.startNewSession).toHaveBeenCalledWith({ temporary: false });
     expect(result).toEqual({ type: "handled" });
   });
 
+  it("starts a persisted session for /new", () => {
+    const context = createContext();
+    runSlashCommand("/new", context);
+    expect(context.startNewSession).toHaveBeenCalledWith({ temporary: false });
+  });
+
+  it("starts a temporary session for /temporary", () => {
+    const context = createContext();
+    runSlashCommand("/temporary", context);
+    expect(context.startNewSession).toHaveBeenCalledWith({ temporary: true });
+  });
+
+  it("opens the session picker for /sessions", () => {
+    const context = createContext();
+    runSlashCommand("/sessions", context);
+    expect(context.openSessionPicker).toHaveBeenCalledOnce();
+  });
+
+  it("opens the model picker for /model", () => {
+    const context = createContext();
+    runSlashCommand("/model", context);
+    expect(context.openModelPicker).toHaveBeenCalledOnce();
+  });
+
+  it("compacts the session for /compact", () => {
+    const context = createContext();
+    const result = runSlashCommand("/compact", context);
+    expect(context.compactSession).toHaveBeenCalledWith(undefined);
+    expect(result).toEqual({ type: "handled" });
+  });
+
+  it("passes trailing text to /compact as a pending message", () => {
+    const context = createContext();
+    runSlashCommand("/compact and then continue", context);
+    expect(context.compactSession).toHaveBeenCalledWith("and then continue");
+  });
+
   it("calls exit for /exit", () => {
-    const exit = vi.fn();
-    const result = runSlashCommand("/exit", { clearMessages: vi.fn(), exit });
-    expect(exit).toHaveBeenCalledOnce();
+    const context = createContext();
+    const result = runSlashCommand("/exit", context);
+    expect(context.exit).toHaveBeenCalledOnce();
     expect(result).toEqual({ type: "handled" });
   });
 
   it("returns help result for /help", () => {
-    const result = runSlashCommand("/help", {
-      clearMessages: vi.fn(),
-      exit: vi.fn(),
-    });
+    const result = runSlashCommand("/help", createContext());
     expect(result).toEqual({ type: "help" });
   });
 
   it("returns unknown result for unrecognized commands", () => {
-    const result = runSlashCommand("/foobar", {
-      clearMessages: vi.fn(),
-      exit: vi.fn(),
-    });
+    const result = runSlashCommand("/foobar", createContext());
     expect(result).toEqual({ type: "unknown", name: "foobar" });
   });
 
   it("is case-insensitive for command names", () => {
-    const clearMessages = vi.fn();
-    runSlashCommand("/CLEAR", { clearMessages, exit: vi.fn() });
-    expect(clearMessages).toHaveBeenCalledOnce();
+    const context = createContext();
+    runSlashCommand("/CLEAR", context);
+    expect(context.startNewSession).toHaveBeenCalledOnce();
   });
 
   it("ignores arguments after the command name", () => {
-    const clearMessages = vi.fn();
-    runSlashCommand("/clear extra args", { clearMessages, exit: vi.fn() });
-    expect(clearMessages).toHaveBeenCalledOnce();
+    const context = createContext();
+    runSlashCommand("/clear extra args", context);
+    expect(context.startNewSession).toHaveBeenCalledOnce();
   });
 });
 

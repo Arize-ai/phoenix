@@ -123,6 +123,7 @@ jobs:
           run gen-graphql         make graphql
           run gen-openapi         make openapi
           run gen-generative-ui   make schema-generative-ui
+          run gen-ui-reducer      make ui-message-stream-fixtures
           run python-format       make format-python
           run python-lint         make lint-python
           run python-typecheck    make typecheck-python
@@ -264,6 +265,7 @@ jobs:
               - `.scratch/verify/gen-graphql.log`
               - `.scratch/verify/gen-openapi.log`
               - `.scratch/verify/gen-generative-ui.log`
+              - `.scratch/verify/gen-ui-reducer.log`
               - `.scratch/verify/python-format.log`
               - `.scratch/verify/python-lint.log`
               - `.scratch/verify/python-typecheck.log`

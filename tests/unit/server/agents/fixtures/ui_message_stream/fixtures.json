@@ -1,0 +1,8355 @@
+[
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > text",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "Hello, "
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "world!"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > errors",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "error",
+          "errorText": "test error"
+        }
+      ]
+    },
+    "writes": []
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-delta is received without text-start",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "Hello"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "text-delta",
+      "chunkId": "text-1"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-delta is received without reasoning-start",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "Thinking..."
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "reasoning-delta",
+      "chunkId": "reasoning-1"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when tool-input-delta is received without tool-input-start",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-1",
+          "inputTextDelta": "{\"key\":"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "tool-input-delta",
+      "chunkId": "tool-1"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing text part ids",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-delta",
+          "id": "__proto__",
+          "delta": "Hello"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "text-delta",
+      "chunkId": "__proto__"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing reasoning part ids",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "__proto__",
+          "delta": "Thinking..."
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "reasoning-delta",
+      "chunkId": "__proto__"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing partial tool call ids",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "__proto__",
+          "inputTextDelta": "{\"key\":"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "tool-input-delta",
+      "chunkId": "__proto__"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-end is received without text-start",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "text-end",
+      "chunkId": "text-1"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-end is received without reasoning-start",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-1"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "reasoning-end",
+      "chunkId": "reasoning-1"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for text-delta without text-start",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-delta",
+          "id": "missing-id",
+          "delta": "Hello"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "text-delta",
+      "chunkId": "missing-id"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for tool-input-delta without tool-input-start",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "missing-tool-id",
+          "inputTextDelta": "{\"key\":"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ],
+    "throws": {
+      "type": "UIMessageStreamError",
+      "chunkType": "tool-input-delta",
+      "chunkId": "missing-tool-id"
+    }
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > server-side tool roundtrip",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "city": "London"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-id",
+          "output": {
+            "weather": "sunny"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "The weather in London is sunny."
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "city": "London"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > server-side tool roundtrip with existing assistant message",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "tool-tool-name-original",
+            "toolCallId": "tool-call-id-original",
+            "state": "output-available",
+            "input": {},
+            "output": {
+              "location": "Berlin"
+            }
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "city": "London"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-id",
+          "output": {
+            "weather": "sunny"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "The weather in London is sunny."
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-tool-name-original",
+            "toolCallId": "tool-call-id-original",
+            "state": "output-available",
+            "input": {},
+            "output": {
+              "location": "Berlin"
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-tool-name-original",
+            "toolCallId": "tool-call-id-original",
+            "state": "output-available",
+            "input": {},
+            "output": {
+              "location": "Berlin"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "city": "London"
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-tool-name-original",
+            "toolCallId": "tool-call-id-original",
+            "state": "output-available",
+            "input": {},
+            "output": {
+              "location": "Berlin"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-tool-name-original",
+            "toolCallId": "tool-call-id-original",
+            "state": "output-available",
+            "input": {},
+            "output": {
+              "location": "Berlin"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-tool-name-original",
+            "toolCallId": "tool-call-id-original",
+            "state": "output-available",
+            "input": {},
+            "output": {
+              "location": "Berlin"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-tool-name-original",
+            "toolCallId": "tool-call-id-original",
+            "state": "output-available",
+            "input": {},
+            "output": {
+              "location": "Berlin"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant texts",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "I will "
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "use a tool to get the weather in London."
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "city": "London"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-id",
+          "output": {
+            "weather": "sunny"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-2"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-2",
+          "delta": "The weather in London "
+        },
+        {
+          "type": "text-delta",
+          "id": "text-2",
+          "delta": "is sunny."
+        },
+        {
+          "type": "text-end",
+          "id": "text-2"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "city": "London"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I will use a tool to get the weather in London.",
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant reasoning",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "reasoning-start",
+          "id": "reasoning-1"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "I will ",
+          "providerMetadata": {
+            "testProvider": {
+              "signature": "1234567890"
+            }
+          }
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "use a tool to get the weather in London."
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-1"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "city": "London"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-id",
+          "output": {
+            "weather": "sunny"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "reasoning-start",
+          "id": "reasoning-2"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-2",
+          "delta": "I now know the weather in London.",
+          "providerMetadata": {
+            "testProvider": {
+              "signature": "abc123"
+            }
+          }
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-2"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "The weather in London is sunny."
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "city": "London"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I now know the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I now know the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I now know the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I now know the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will use a tool to get the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-available",
+            "input": {
+              "city": "London"
+            },
+            "output": {
+              "weather": "sunny"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I now know the weather in London.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > server-side tool roundtrip with output-error",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "city": "London"
+          }
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "tool-call-id",
+          "errorText": "error-text"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "The weather in London is sunny."
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "city": "London"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-error",
+            "input": {
+              "city": "London"
+            },
+            "errorText": "error-text"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-error",
+            "input": {
+              "city": "London"
+            },
+            "errorText": "error-text"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-error",
+            "input": {
+              "city": "London"
+            },
+            "errorText": "error-text"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "output-error",
+            "input": {
+              "city": "London"
+            },
+            "errorText": "error-text"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > message metadata",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123",
+          "messageMetadata": {
+            "start": "start-1",
+            "shared": {
+              "key1": "value-1a",
+              "key2": "value-2a"
+            }
+          }
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "t1"
+        },
+        {
+          "type": "message-metadata",
+          "messageMetadata": {
+            "metadata": "metadata-1"
+          }
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "t2"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish",
+          "messageMetadata": {
+            "finish": "finish-1",
+            "shared": {
+              "key1": "value-1e",
+              "key6": "value-6e"
+            }
+          }
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "metadata": {
+          "start": "start-1",
+          "shared": {
+            "key1": "value-1a",
+            "key2": "value-2a"
+          }
+        },
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "metadata": {
+          "start": "start-1",
+          "shared": {
+            "key1": "value-1a",
+            "key2": "value-2a"
+          }
+        },
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "metadata": {
+          "start": "start-1",
+          "shared": {
+            "key1": "value-1a",
+            "key2": "value-2a"
+          }
+        },
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "metadata": {
+          "start": "start-1",
+          "shared": {
+            "key1": "value-1a",
+            "key2": "value-2a"
+          },
+          "metadata": "metadata-1"
+        },
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "metadata": {
+          "start": "start-1",
+          "shared": {
+            "key1": "value-1a",
+            "key2": "value-2a"
+          },
+          "metadata": "metadata-1"
+        },
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1t2",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "metadata": {
+          "start": "start-1",
+          "shared": {
+            "key1": "value-1a",
+            "key2": "value-2a"
+          },
+          "metadata": "metadata-1"
+        },
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1t2",
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "metadata": {
+          "start": "start-1",
+          "shared": {
+            "key1": "value-1e",
+            "key2": "value-2a",
+            "key6": "value-6e"
+          },
+          "metadata": "metadata-1",
+          "finish": "finish-1"
+        },
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1t2",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > message metadata delayed after finish",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "t1"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        },
+        {
+          "type": "message-metadata",
+          "messageMetadata": {
+            "key1": "value-1"
+          }
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1",
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "metadata": {
+          "key1": "value-1"
+        },
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > message metadata with existing assistant lastMessage",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "original-id",
+        "metadata": {
+          "key1": "value-1a",
+          "key3": "value-3a"
+        },
+        "parts": []
+      },
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123",
+          "messageMetadata": {
+            "key1": "value-1b",
+            "key2": "value-2b"
+          }
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "t1"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "metadata": {
+          "key1": "value-1b",
+          "key3": "value-3a",
+          "key2": "value-2b"
+        },
+        "parts": []
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "metadata": {
+          "key1": "value-1b",
+          "key3": "value-3a",
+          "key2": "value-2b"
+        },
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "metadata": {
+          "key1": "value-1b",
+          "key3": "value-3a",
+          "key2": "value-2b"
+        },
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "metadata": {
+          "key1": "value-1b",
+          "key3": "value-3a",
+          "key2": "value-2b"
+        },
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "t1",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool call streaming",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-0",
+          "toolName": "test-tool"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-0",
+          "inputTextDelta": "{\"testArg\":\"t"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-0",
+          "inputTextDelta": "est-value\"}}"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-0",
+          "toolName": "test-tool",
+          "input": {
+            "testArg": "test-value"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-0",
+          "output": "test-result"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-test-tool",
+            "toolCallId": "tool-call-0",
+            "state": "input-streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-test-tool",
+            "toolCallId": "tool-call-0",
+            "state": "input-streaming",
+            "input": {
+              "testArg": "t"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-test-tool",
+            "toolCallId": "tool-call-0",
+            "state": "input-streaming",
+            "input": {
+              "testArg": "test-value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-test-tool",
+            "toolCallId": "tool-call-0",
+            "state": "input-available",
+            "input": {
+              "testArg": "test-value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-test-tool",
+            "toolCallId": "tool-call-0",
+            "state": "output-available",
+            "input": {
+              "testArg": "test-value"
+            },
+            "output": "test-result"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > start with message id",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "Hello, "
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "world!"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > reasoning",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "reasoning-start",
+          "id": "reasoning-1"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "I will open the conversation"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": " with witty banter. ",
+          "providerMetadata": {
+            "testProvider": {
+              "signature": "1234567890"
+            }
+          }
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-1"
+        },
+        {
+          "type": "reasoning-start",
+          "id": "reasoning-2"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-2",
+          "delta": "redacted-data",
+          "providerMetadata": {
+            "testProvider": {
+              "isRedacted": true
+            }
+          }
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-2"
+        },
+        {
+          "type": "reasoning-start",
+          "id": "reasoning-3"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-3",
+          "delta": "Once the user has relaxed,"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-3",
+          "delta": " I will pry for valuable information.",
+          "providerMetadata": {
+            "testProvider": {
+              "signature": "abc123"
+            }
+          }
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-3"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "Hi there!"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "Once the user has relaxed,",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "Once the user has relaxed, I will pry for valuable information.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "Once the user has relaxed, I will pry for valuable information.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "Once the user has relaxed, I will pry for valuable information.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "Once the user has relaxed, I will pry for valuable information.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "text",
+            "text": "Hi there!",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "reasoning",
+            "text": "I will open the conversation with witty banter. ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1234567890"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "redacted-data",
+            "providerMetadata": {
+              "testProvider": {
+                "isRedacted": true
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "text": "Once the user has relaxed, I will pry for valuable information.",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "abc123"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "text",
+            "text": "Hi there!",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > onToolCall is executed",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "city": "London"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "city": "London"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > sources",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "The weather in London is sunny."
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "source-url",
+          "sourceId": "source-id",
+          "url": "https://example.com",
+          "title": "Example"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "The weather in London is sunny.",
+            "state": "done"
+          },
+          {
+            "type": "source-url",
+            "sourceId": "source-id",
+            "url": "https://example.com",
+            "title": "Example"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > file parts",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "Here is a file:"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "file",
+          "url": "data:text/plain;base64,SGVsbG8gV29ybGQ=",
+          "mediaType": "text/plain"
+        },
+        {
+          "type": "text-start",
+          "id": "text-2"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-2",
+          "delta": "And another one:"
+        },
+        {
+          "type": "text-end",
+          "id": "text-2"
+        },
+        {
+          "type": "file",
+          "url": "data:application/json;base64,eyJrZXkiOiJ2YWx1ZSJ9",
+          "mediaType": "application/json"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Here is a file:",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Here is a file:",
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Here is a file:",
+            "state": "done"
+          },
+          {
+            "type": "file",
+            "mediaType": "text/plain",
+            "url": "data:text/plain;base64,SGVsbG8gV29ybGQ="
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Here is a file:",
+            "state": "done"
+          },
+          {
+            "type": "file",
+            "mediaType": "text/plain",
+            "url": "data:text/plain;base64,SGVsbG8gV29ybGQ="
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Here is a file:",
+            "state": "done"
+          },
+          {
+            "type": "file",
+            "mediaType": "text/plain",
+            "url": "data:text/plain;base64,SGVsbG8gV29ybGQ="
+          },
+          {
+            "type": "text",
+            "text": "And another one:",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Here is a file:",
+            "state": "done"
+          },
+          {
+            "type": "file",
+            "mediaType": "text/plain",
+            "url": "data:text/plain;base64,SGVsbG8gV29ybGQ="
+          },
+          {
+            "type": "text",
+            "text": "And another one:",
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Here is a file:",
+            "state": "done"
+          },
+          {
+            "type": "file",
+            "mediaType": "text/plain",
+            "url": "data:text/plain;base64,SGVsbG8gV29ybGQ="
+          },
+          {
+            "type": "text",
+            "text": "And another one:",
+            "state": "done"
+          },
+          {
+            "type": "file",
+            "mediaType": "application/json",
+            "url": "data:application/json;base64,eyJrZXkiOiJ2YWx1ZSJ9"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > file parts with providerMetadata",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "file",
+          "url": "data:text/plain;base64,SGVsbG8gV29ybGQ=",
+          "mediaType": "text/plain",
+          "providerMetadata": {
+            "testProvider": {
+              "signature": "sig-1"
+            }
+          }
+        },
+        {
+          "type": "file",
+          "url": "data:image/jpeg;base64,QkFVRw==",
+          "mediaType": "image/jpeg"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "file",
+            "mediaType": "text/plain",
+            "url": "data:text/plain;base64,SGVsbG8gV29ybGQ=",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "sig-1"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "file",
+            "mediaType": "text/plain",
+            "url": "data:text/plain;base64,SGVsbG8gV29ybGQ=",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "sig-1"
+              }
+            }
+          },
+          {
+            "type": "file",
+            "mediaType": "image/jpeg",
+            "url": "data:image/jpeg;base64,QkFVRw=="
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > data ui parts (single part)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "data-test",
+          "data": "example-data-can-be-anything"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "data-test",
+            "data": "example-data-can-be-anything"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > data ui parts (transient part)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "data-test",
+          "data": "example-data-can-be-anything",
+          "transient": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > data ui parts (single part with id and replacement update)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "data-test",
+          "id": "data-part-id",
+          "data": "example-data-can-be-anything"
+        },
+        {
+          "type": "data-test",
+          "id": "data-part-id",
+          "data": "or-something-else"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "data-test",
+            "id": "data-part-id",
+            "data": "example-data-can-be-anything"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "data-test",
+            "id": "data-part-id",
+            "data": "or-something-else"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > data ui parts (single part with id and merge update)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "data-test",
+          "id": "data-part-id",
+          "data": {
+            "a": "a1",
+            "b": "b1"
+          }
+        },
+        {
+          "type": "data-test",
+          "id": "data-part-id",
+          "data": {
+            "b": "b2",
+            "c": "c2"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "data-test",
+            "id": "data-part-id",
+            "data": {
+              "a": "a1",
+              "b": "b1"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "data-test",
+            "id": "data-part-id",
+            "data": {
+              "b": "b2",
+              "c": "c2"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > provider-executed static tools",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-1",
+          "toolName": "tool-name",
+          "providerExecuted": true
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-1",
+          "inputTextDelta": "{ \"query\": \"test\" }"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-1",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "providerExecuted": true
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-1",
+          "output": {
+            "result": "provider-result"
+          },
+          "providerExecuted": true
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-2",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "providerExecuted": true
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "tool-call-2",
+          "errorText": "error-text",
+          "providerExecuted": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming",
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "providerExecuted": true
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-2",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "providerExecuted": true
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-2",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "providerExecuted": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > provider-executed static tools > should preserve separate call and result provider metadata for static tools",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-1",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "providerExecuted": true,
+          "providerMetadata": {
+            "testProvider": {
+              "itemId": "call-item"
+            }
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-1",
+          "output": {
+            "result": "provider-result"
+          },
+          "providerExecuted": true,
+          "providerMetadata": {
+            "testProvider": {
+              "itemId": "result-item"
+            }
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true,
+            "callProviderMetadata": {
+              "testProvider": {
+                "itemId": "call-item"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "providerExecuted": true,
+            "callProviderMetadata": {
+              "testProvider": {
+                "itemId": "call-item"
+              }
+            },
+            "resultProviderMetadata": {
+              "testProvider": {
+                "itemId": "result-item"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > provider-executed dynamic tools",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-1",
+          "toolName": "tool-name",
+          "providerExecuted": true,
+          "dynamic": true
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-1",
+          "inputTextDelta": "{ \"query\": \"test\" }"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-1",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "providerExecuted": true,
+          "dynamic": true
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-1",
+          "output": {
+            "result": "provider-result"
+          },
+          "providerExecuted": true,
+          "dynamic": true
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-2",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "providerExecuted": true,
+          "dynamic": true
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "tool-call-2",
+          "errorText": "error-text",
+          "providerExecuted": true,
+          "dynamic": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming",
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "providerExecuted": true
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-2",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "providerExecuted": true
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-2",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "providerExecuted": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > provider-executed dynamic tools > should preserve separate call and result provider metadata for dynamic tools",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-1",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "providerExecuted": true,
+          "dynamic": true,
+          "providerMetadata": {
+            "testProvider": {
+              "itemId": "call-item"
+            }
+          }
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "tool-call-1",
+          "errorText": "error-text",
+          "providerExecuted": true,
+          "dynamic": true,
+          "providerMetadata": {
+            "testProvider": {
+              "itemId": "result-item"
+            }
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "providerExecuted": true,
+            "callProviderMetadata": {
+              "testProvider": {
+                "itemId": "call-item"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text",
+            "providerExecuted": true,
+            "callProviderMetadata": {
+              "testProvider": {
+                "itemId": "call-item"
+              }
+            },
+            "resultProviderMetadata": {
+              "testProvider": {
+                "itemId": "result-item"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > provider-executed dynamic tools > should preserve tool metadata on dynamic tool parts",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-1",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "dynamic": true,
+          "toolMetadata": {
+            "clientName": "MyMCPClient"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-1",
+          "output": {
+            "result": "provider-result"
+          },
+          "dynamic": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "toolMetadata": {
+              "clientName": "MyMCPClient"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool-name",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            },
+            "toolMetadata": {
+              "clientName": "MyMCPClient"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > should call onToolCall for client-executed tools",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > dynamic tools",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-1",
+          "toolName": "t1",
+          "dynamic": true
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-1",
+          "inputTextDelta": "{ \"query\": \"test\" }"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-1",
+          "toolName": "t1",
+          "input": {
+            "query": "test"
+          },
+          "dynamic": true
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-2",
+          "toolName": "t1",
+          "input": {
+            "query": "test"
+          },
+          "dynamic": true
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-1",
+          "output": {
+            "result": "provider-result"
+          },
+          "dynamic": true
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "tool-call-2",
+          "errorText": "error-text",
+          "dynamic": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming",
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-2",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-2",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "query": "test"
+            },
+            "output": {
+              "result": "provider-result"
+            }
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "t1",
+            "toolCallId": "tool-call-2",
+            "state": "output-error",
+            "input": {
+              "query": "test"
+            },
+            "errorText": "error-text"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > provider metadata",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "1",
+          "providerMetadata": {
+            "testProvider": {
+              "signature": "1"
+            }
+          }
+        },
+        {
+          "type": "text-delta",
+          "id": "1",
+          "delta": "Hello"
+        },
+        {
+          "type": "text-delta",
+          "id": "1",
+          "delta": ", "
+        },
+        {
+          "type": "text-delta",
+          "id": "1",
+          "delta": "world!"
+        },
+        {
+          "type": "text-end",
+          "id": "1"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          },
+          "providerMetadata": {
+            "testProvider": {
+              "signature": "2"
+            }
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, ",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1"
+              }
+            },
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1"
+              }
+            },
+            "state": "done"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "providerMetadata": {
+              "testProvider": {
+                "signature": "1"
+              }
+            },
+            "state": "done"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "callProviderMetadata": {
+              "testProvider": {
+                "signature": "2"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > provider metadata during input-streaming",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "providerMetadata": {
+            "testProvider": {
+              "someKey": "someValue"
+            }
+          }
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-id",
+          "inputTextDelta": "{\"query\":"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-id",
+          "inputTextDelta": "\"test\"}"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-id",
+          "toolName": "tool-name",
+          "input": {
+            "query": "test"
+          }
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-streaming",
+            "callProviderMetadata": {
+              "testProvider": {
+                "someKey": "someValue"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-streaming",
+            "input": {},
+            "callProviderMetadata": {
+              "testProvider": {
+                "someKey": "someValue"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-streaming",
+            "input": {
+              "query": "test"
+            },
+            "callProviderMetadata": {
+              "testProvider": {
+                "someKey": "someValue"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool-name",
+            "toolCallId": "tool-call-id",
+            "state": "input-available",
+            "input": {
+              "query": "test"
+            },
+            "callProviderMetadata": {
+              "testProvider": {
+                "someKey": "someValue"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool input error",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "toolCallId": "call-1",
+          "toolName": "cityAttractions",
+          "type": "tool-input-start"
+        },
+        {
+          "inputTextDelta": "{ \"cities\": \"San Francisco\" }",
+          "toolCallId": "call-1",
+          "type": "tool-input-delta"
+        },
+        {
+          "errorText": "Invalid input for tool cityAttractions",
+          "input": "{ \"cities\": \"San Francisco\" }",
+          "toolCallId": "call-1",
+          "toolName": "cityAttractions",
+          "type": "tool-input-error"
+        },
+        {
+          "errorText": "Invalid input for tool cityAttractions",
+          "toolCallId": "call-1",
+          "type": "tool-output-error"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "input-streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "input-streaming",
+            "input": {
+              "cities": "San Francisco"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "output-error",
+            "rawInput": "{ \"cities\": \"San Francisco\" }",
+            "errorText": "Invalid input for tool cityAttractions"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "output-error",
+            "rawInput": "{ \"cities\": \"San Francisco\" }",
+            "errorText": "Invalid input for tool cityAttractions"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool input error with dynamic flag mismatch",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "toolCallId": "call-1",
+          "toolName": "nonExistentTool",
+          "type": "tool-input-start"
+        },
+        {
+          "inputTextDelta": "{ \"foo\": \"bar\" }",
+          "toolCallId": "call-1",
+          "type": "tool-input-delta"
+        },
+        {
+          "errorText": "Model tried to call unavailable tool 'nonExistentTool'.",
+          "input": "{ \"foo\": \"bar\" }",
+          "toolCallId": "call-1",
+          "toolName": "nonExistentTool",
+          "type": "tool-input-error",
+          "dynamic": true
+        },
+        {
+          "errorText": "Model tried to call unavailable tool 'nonExistentTool'.",
+          "toolCallId": "call-1",
+          "type": "tool-output-error"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-nonExistentTool",
+            "toolCallId": "call-1",
+            "state": "input-streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-nonExistentTool",
+            "toolCallId": "call-1",
+            "state": "input-streaming",
+            "input": {
+              "foo": "bar"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-nonExistentTool",
+            "toolCallId": "call-1",
+            "state": "output-error",
+            "rawInput": "{ \"foo\": \"bar\" }",
+            "errorText": "Model tried to call unavailable tool 'nonExistentTool'."
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-nonExistentTool",
+            "toolCallId": "call-1",
+            "state": "output-error",
+            "rawInput": "{ \"foo\": \"bar\" }",
+            "errorText": "Model tried to call unavailable tool 'nonExistentTool'."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > preliminary tool results",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "input": {
+            "city": "San Francisco"
+          },
+          "toolCallId": "call-1",
+          "toolName": "cityAttractions",
+          "type": "tool-input-available"
+        },
+        {
+          "output": {
+            "status": "loading",
+            "text": "Getting weather for San Francisco"
+          },
+          "preliminary": true,
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "output": {
+            "status": "success",
+            "temperature": 72,
+            "text": "The weather in San Francisco is 72°F"
+          },
+          "preliminary": true,
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "output": {
+            "status": "success",
+            "temperature": 72,
+            "text": "The weather in San Francisco is 72°F"
+          },
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "city": "San Francisco"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "output-available",
+            "input": {
+              "city": "San Francisco"
+            },
+            "output": {
+              "status": "loading",
+              "text": "Getting weather for San Francisco"
+            },
+            "preliminary": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "output-available",
+            "input": {
+              "city": "San Francisco"
+            },
+            "output": {
+              "status": "success",
+              "temperature": 72,
+              "text": "The weather in San Francisco is 72°F"
+            },
+            "preliminary": true
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-cityAttractions",
+            "toolCallId": "call-1",
+            "state": "output-available",
+            "input": {
+              "city": "San Francisco"
+            },
+            "output": {
+              "status": "success",
+              "temperature": 72,
+              "text": "The weather in San Francisco is 72°F"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool title support > static tool with title",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-0",
+          "toolName": "weatherTool",
+          "title": "Weather Information"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-0",
+          "inputTextDelta": "{\"location\":\"Paris\"}"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-0",
+          "toolName": "weatherTool",
+          "input": {
+            "location": "Paris"
+          },
+          "title": "Weather Information"
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-0",
+          "output": "Sunny, 22°C"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-weatherTool",
+            "toolCallId": "tool-call-0",
+            "state": "input-streaming",
+            "title": "Weather Information"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-weatherTool",
+            "toolCallId": "tool-call-0",
+            "state": "input-streaming",
+            "title": "Weather Information",
+            "input": {
+              "location": "Paris"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-weatherTool",
+            "toolCallId": "tool-call-0",
+            "state": "input-available",
+            "title": "Weather Information",
+            "input": {
+              "location": "Paris"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-weatherTool",
+            "toolCallId": "tool-call-0",
+            "state": "output-available",
+            "title": "Weather Information",
+            "input": {
+              "location": "Paris"
+            },
+            "output": "Sunny, 22°C"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool title support > dynamic tool with title",
+    "input": {
+      "messageId": "msg-456",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-456"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-1",
+          "toolName": "calculate",
+          "dynamic": true,
+          "title": "Calculator"
+        },
+        {
+          "type": "tool-input-delta",
+          "toolCallId": "tool-call-1",
+          "inputTextDelta": "{\"a\":5,\"b\":3}"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-1",
+          "toolName": "calculate",
+          "input": {
+            "a": 5,
+            "b": 3
+          },
+          "dynamic": true,
+          "title": "Calculator"
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "tool-call-1",
+          "output": {
+            "result": 8
+          },
+          "dynamic": true
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-456",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-456",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "calculate",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming",
+            "title": "Calculator"
+          }
+        ]
+      },
+      {
+        "id": "msg-456",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "calculate",
+            "toolCallId": "tool-call-1",
+            "state": "input-streaming",
+            "input": {
+              "a": 5,
+              "b": 3
+            },
+            "title": "Calculator"
+          }
+        ]
+      },
+      {
+        "id": "msg-456",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "calculate",
+            "toolCallId": "tool-call-1",
+            "state": "input-available",
+            "input": {
+              "a": 5,
+              "b": 3
+            },
+            "title": "Calculator"
+          }
+        ]
+      },
+      {
+        "id": "msg-456",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "calculate",
+            "toolCallId": "tool-call-1",
+            "state": "output-available",
+            "input": {
+              "a": 5,
+              "b": 3
+            },
+            "output": {
+              "result": 8
+            },
+            "title": "Calculator"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool title support > tool with title in error state",
+    "input": {
+      "messageId": "msg-error",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-error"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-start",
+          "toolCallId": "tool-call-error",
+          "toolName": "errorTool",
+          "title": "Error Tool"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "tool-call-error",
+          "toolName": "errorTool",
+          "input": {
+            "invalid": "data"
+          },
+          "title": "Error Tool"
+        },
+        {
+          "type": "tool-output-error",
+          "toolCallId": "tool-call-error",
+          "errorText": "Tool execution failed"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-error",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-error",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-errorTool",
+            "toolCallId": "tool-call-error",
+            "state": "input-streaming",
+            "title": "Error Tool"
+          }
+        ]
+      },
+      {
+        "id": "msg-error",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-errorTool",
+            "toolCallId": "tool-call-error",
+            "state": "input-available",
+            "title": "Error Tool",
+            "input": {
+              "invalid": "data"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-error",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-errorTool",
+            "toolCallId": "tool-call-error",
+            "state": "output-error",
+            "title": "Error Tool",
+            "input": {
+              "invalid": "data"
+            },
+            "errorText": "Tool execution failed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool approval requests (static tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "input": {
+            "value": "value"
+          },
+          "toolCallId": "call-1",
+          "toolName": "tool1",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalId": "id-1",
+          "toolCallId": "call-1",
+          "type": "tool-approval-request"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "value": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool approval requests (dynamic tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "input": {
+            "value": "value"
+          },
+          "toolCallId": "call-1",
+          "toolName": "tool1",
+          "type": "tool-input-available",
+          "dynamic": true
+        },
+        {
+          "approvalId": "id-1",
+          "toolCallId": "call-1",
+          "type": "tool-approval-request"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "value": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool approval request with signature",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "input": {
+            "value": "value"
+          },
+          "toolCallId": "call-1",
+          "toolName": "tool1",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalId": "id-1",
+          "toolCallId": "call-1",
+          "type": "tool-approval-request",
+          "signature": "test-sig"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "value": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "signature": "test-sig"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool approval response with signature",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "input": {
+            "value": "value"
+          },
+          "toolCallId": "call-1",
+          "toolName": "tool1",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalId": "id-1",
+          "toolCallId": "call-1",
+          "type": "tool-approval-request",
+          "signature": "test-sig"
+        },
+        {
+          "approvalId": "id-1",
+          "approved": true,
+          "type": "tool-approval-response"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "value": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "signature": "test-sig"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "approved": true,
+              "signature": "test-sig"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool approval request without signature",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "input": {
+            "value": "value"
+          },
+          "toolCallId": "call-1",
+          "toolName": "tool1",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalId": "id-1",
+          "toolCallId": "call-1",
+          "type": "tool-approval-request"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "value": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > automatic tool approval denial (static tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "input": {
+            "value": "value"
+          },
+          "toolCallId": "call-1",
+          "toolName": "tool1",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalId": "id-1",
+          "isAutomatic": true,
+          "toolCallId": "call-1",
+          "type": "tool-approval-request"
+        },
+        {
+          "approvalId": "id-1",
+          "approved": false,
+          "reason": "Policy denied execution",
+          "type": "tool-approval-response"
+        },
+        {
+          "toolCallId": "call-1",
+          "type": "tool-output-denied"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "value": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "isAutomatic": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "approved": false,
+              "reason": "Policy denied execution",
+              "isAutomatic": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-tool1",
+            "toolCallId": "call-1",
+            "state": "output-denied",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "approved": false,
+              "reason": "Policy denied execution",
+              "isAutomatic": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > automatic tool approval with execution (dynamic tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "dynamic": true,
+          "input": {
+            "value": "value"
+          },
+          "toolCallId": "call-1",
+          "toolName": "tool1",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalId": "id-1",
+          "isAutomatic": true,
+          "toolCallId": "call-1",
+          "type": "tool-approval-request"
+        },
+        {
+          "approvalId": "id-1",
+          "approved": true,
+          "reason": "trusted internal tool",
+          "type": "tool-approval-response"
+        },
+        {
+          "output": "result1",
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "value": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "isAutomatic": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {
+              "value": "value"
+            },
+            "approval": {
+              "id": "id-1",
+              "approved": true,
+              "reason": "trusted internal tool",
+              "isAutomatic": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "toolCallId": "call-1",
+            "state": "output-available",
+            "input": {
+              "value": "value"
+            },
+            "output": "result1",
+            "approval": {
+              "id": "id-1",
+              "approved": true,
+              "reason": "trusted internal tool",
+              "isAutomatic": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > initial tool execution after approval (static tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "approval-responded",
+            "toolCallId": "call-1",
+            "type": "tool-tool1"
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "output": "result1",
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "id": "1",
+          "type": "text-start"
+        },
+        {
+          "delta": "Hello, world!",
+          "id": "1",
+          "type": "text-delta"
+        },
+        {
+          "id": "1",
+          "type": "text-end"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "result1"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "result1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "result1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "result1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > initial tool execution after approval (dynamic tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "approval-responded",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1"
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "output": "result1",
+          "toolCallId": "call-1",
+          "type": "tool-output-available",
+          "dynamic": true
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "id": "1",
+          "type": "text-start"
+        },
+        {
+          "delta": "Hello, world!",
+          "id": "1",
+          "type": "text-delta"
+        },
+        {
+          "id": "1",
+          "type": "text-end"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "output": "result1"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "output": "result1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "output": "result1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1",
+            "output": "result1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > initial tool execution with preliminary results after approval (static tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "approval-responded",
+            "toolCallId": "call-1",
+            "type": "tool-tool1"
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "output": "preliminary-result",
+          "preliminary": true,
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "output": "final-result",
+          "preliminary": true,
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "output": "final-result",
+          "toolCallId": "call-1",
+          "type": "tool-output-available"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "id": "1",
+          "type": "text-start"
+        },
+        {
+          "delta": "Hello, world!",
+          "id": "1",
+          "type": "text-delta"
+        },
+        {
+          "id": "1",
+          "type": "text-end"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "preliminary-result",
+            "preliminary": true
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "final-result",
+            "preliminary": true
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "final-result"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "final-result"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "final-result"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": true
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-available",
+            "toolCallId": "call-1",
+            "type": "tool-tool1",
+            "output": "final-result"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Hello, world!",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool execution denial (static tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "approval-responded",
+            "toolCallId": "call-1",
+            "type": "tool-tool1"
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "toolCallId": "call-1",
+          "type": "tool-output-denied"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "id": "1",
+          "type": "text-start"
+        },
+        {
+          "id": "1",
+          "type": "text-delta",
+          "delta": "I did not execute the tool."
+        },
+        {
+          "id": "1",
+          "type": "text-end"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "tool-tool1"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "tool-tool1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "tool-tool1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I did not execute the tool.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "tool-tool1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I did not execute the tool.",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > tool execution denial (dynamic tool)",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "approval-responded",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1"
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "type": "start"
+        },
+        {
+          "toolCallId": "call-1",
+          "type": "tool-output-denied"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "id": "1",
+          "type": "text-start"
+        },
+        {
+          "id": "1",
+          "type": "text-delta",
+          "delta": "I did not execute the tool."
+        },
+        {
+          "id": "1",
+          "type": "text-end"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I did not execute the tool.",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "id": "original-id",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "approval": {
+              "id": "id-1",
+              "approved": false
+            },
+            "input": {
+              "value": "value"
+            },
+            "state": "output-denied",
+            "toolCallId": "call-1",
+            "type": "dynamic-tool",
+            "toolName": "tool1"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "I did not execute the tool.",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "upstream",
+    "name": "processUIMessageStream > custom",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "msg-123"
+        },
+        {
+          "type": "custom",
+          "kind": "test-provider.compaction",
+          "providerMetadata": {
+            "openai": {
+              "itemId": "cmp_123"
+            }
+          }
+        },
+        {
+          "type": "finish"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "custom",
+            "kind": "test-provider.compaction",
+            "providerMetadata": {
+              "openai": {
+                "itemId": "cmp_123"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix custom chunks > durable error part and standard error",
+    "input": {
+      "messageId": "phoenix-error-message",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "phoenix-error-message"
+        },
+        {
+          "type": "data-error",
+          "data": {
+            "errorText": "model failed"
+          }
+        },
+        {
+          "type": "error",
+          "errorText": "model failed"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-error-message",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "phoenix-error-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "data-error",
+            "data": {
+              "errorText": "model failed"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix custom chunks > transient session and persistence events",
+    "input": {
+      "messageId": "phoenix-transient-message",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "phoenix-transient-message"
+        },
+        {
+          "type": "data-session-summary",
+          "data": "A generated title",
+          "transient": true
+        },
+        {
+          "type": "data-transcript-persisted",
+          "data": {
+            "messageId": "phoenix-transient-message"
+          },
+          "transient": true
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-transient-message",
+        "role": "assistant",
+        "parts": []
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix protocol passthrough > abort and done do not change the message",
+    "input": {
+      "messageId": "phoenix-passthrough-message",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "phoenix-passthrough-message"
+        },
+        {
+          "type": "abort",
+          "reason": "cancelled"
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-passthrough-message",
+        "role": "assistant",
+        "parts": []
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix protocol coverage > source document",
+    "input": {
+      "messageId": "phoenix-source-document-message",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "source-document",
+          "sourceId": "document-1",
+          "mediaType": "text/plain",
+          "title": "Document",
+          "filename": "document.txt"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-source-document-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "source-document",
+            "sourceId": "document-1",
+            "mediaType": "text/plain",
+            "title": "Document",
+            "filename": "document.txt"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix stream > interleaved preliminary subagent output",
+    "input": {
+      "messageId": "phoenix-subagent-message",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "phoenix-subagent-message"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "call-subagent-1",
+          "toolName": "call_subagent",
+          "input": {
+            "name": "Phoenix data",
+            "task": "Summarize latency"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "call-subagent-1",
+          "output": {
+            "summary": "Working",
+            "message": {
+              "id": "subagent-1",
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Working"
+                }
+              ]
+            }
+          },
+          "preliminary": true
+        },
+        {
+          "type": "text-start",
+          "id": "parent-text"
+        },
+        {
+          "type": "text-delta",
+          "id": "parent-text",
+          "delta": "Parent response"
+        },
+        {
+          "type": "text-end",
+          "id": "parent-text"
+        },
+        {
+          "type": "finish-step"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-subagent-message",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "phoenix-subagent-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-call_subagent",
+            "toolCallId": "call-subagent-1",
+            "state": "input-available",
+            "input": {
+              "name": "Phoenix data",
+              "task": "Summarize latency"
+            }
+          }
+        ]
+      },
+      {
+        "id": "phoenix-subagent-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-call_subagent",
+            "toolCallId": "call-subagent-1",
+            "state": "output-available",
+            "input": {
+              "name": "Phoenix data",
+              "task": "Summarize latency"
+            },
+            "output": {
+              "summary": "Working",
+              "message": {
+                "id": "subagent-1",
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "Working"
+                  }
+                ]
+              }
+            },
+            "preliminary": true
+          }
+        ]
+      },
+      {
+        "id": "phoenix-subagent-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-call_subagent",
+            "toolCallId": "call-subagent-1",
+            "state": "output-available",
+            "input": {
+              "name": "Phoenix data",
+              "task": "Summarize latency"
+            },
+            "output": {
+              "summary": "Working",
+              "message": {
+                "id": "subagent-1",
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "Working"
+                  }
+                ]
+              }
+            },
+            "preliminary": true
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "phoenix-subagent-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-call_subagent",
+            "toolCallId": "call-subagent-1",
+            "state": "output-available",
+            "input": {
+              "name": "Phoenix data",
+              "task": "Summarize latency"
+            },
+            "output": {
+              "summary": "Working",
+              "message": {
+                "id": "subagent-1",
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "Working"
+                  }
+                ]
+              }
+            },
+            "preliminary": true
+          },
+          {
+            "type": "text",
+            "text": "Parent response",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "phoenix-subagent-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-call_subagent",
+            "toolCallId": "call-subagent-1",
+            "state": "output-available",
+            "input": {
+              "name": "Phoenix data",
+              "task": "Summarize latency"
+            },
+            "output": {
+              "summary": "Working",
+              "message": {
+                "id": "subagent-1",
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "text": "Working"
+                  }
+                ]
+              }
+            },
+            "preliminary": true
+          },
+          {
+            "type": "text",
+            "text": "Parent response",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix stream > forced skill step before model output",
+    "input": {
+      "messageId": "phoenix-forced-skill-message",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "phoenix-forced-skill-message"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "tool-input-available",
+          "toolCallId": "load-skill-1",
+          "toolName": "load_skill",
+          "input": {
+            "name": "datasets"
+          }
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "load-skill-1",
+          "output": "Dataset skill instructions"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "model-text"
+        },
+        {
+          "type": "text-delta",
+          "id": "model-text",
+          "delta": "Done"
+        },
+        {
+          "type": "text-end",
+          "id": "model-text"
+        },
+        {
+          "type": "finish-step"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-forced-skill-message",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "phoenix-forced-skill-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-load_skill",
+            "toolCallId": "load-skill-1",
+            "state": "input-available",
+            "input": {
+              "name": "datasets"
+            }
+          }
+        ]
+      },
+      {
+        "id": "phoenix-forced-skill-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-load_skill",
+            "toolCallId": "load-skill-1",
+            "state": "output-available",
+            "input": {
+              "name": "datasets"
+            },
+            "output": "Dataset skill instructions"
+          }
+        ]
+      },
+      {
+        "id": "phoenix-forced-skill-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-load_skill",
+            "toolCallId": "load-skill-1",
+            "state": "output-available",
+            "input": {
+              "name": "datasets"
+            },
+            "output": "Dataset skill instructions"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "phoenix-forced-skill-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-load_skill",
+            "toolCallId": "load-skill-1",
+            "state": "output-available",
+            "input": {
+              "name": "datasets"
+            },
+            "output": "Dataset skill instructions"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Done",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "phoenix-forced-skill-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "tool-load_skill",
+            "toolCallId": "load-skill-1",
+            "state": "output-available",
+            "input": {
+              "name": "datasets"
+            },
+            "output": "Dataset skill instructions"
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Done",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix stream > typed assistant metadata",
+    "input": {
+      "messageId": "phoenix-metadata-message",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "phoenix-metadata-message"
+        },
+        {
+          "type": "message-metadata",
+          "messageMetadata": {
+            "type": "assistant",
+            "sessionId": "session-1",
+            "usage": {
+              "requests": 1
+            }
+          }
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-metadata-message",
+        "role": "assistant",
+        "parts": []
+      },
+      {
+        "id": "phoenix-metadata-message",
+        "metadata": {
+          "type": "assistant",
+          "sessionId": "session-1",
+          "usage": {
+            "requests": 1
+          }
+        },
+        "role": "assistant",
+        "parts": []
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.48",
+    "source": "phoenix",
+    "name": "Phoenix stream > client tool continuation",
+    "input": {
+      "messageId": "phoenix-continuation-message",
+      "lastMessage": {
+        "id": "phoenix-continuation-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-client_action",
+            "toolCallId": "client-tool-1",
+            "state": "input-available",
+            "input": {
+              "value": "before"
+            }
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "type": "start",
+          "messageId": "phoenix-continuation-message"
+        },
+        {
+          "type": "tool-output-available",
+          "toolCallId": "client-tool-1",
+          "output": {
+            "status": "accepted"
+          }
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "text-start",
+          "id": "continuation-text"
+        },
+        {
+          "type": "text-delta",
+          "id": "continuation-text",
+          "delta": "Continued"
+        },
+        {
+          "type": "text-end",
+          "id": "continuation-text"
+        },
+        {
+          "type": "finish-step"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "phoenix-continuation-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-client_action",
+            "toolCallId": "client-tool-1",
+            "state": "input-available",
+            "input": {
+              "value": "before"
+            }
+          }
+        ]
+      },
+      {
+        "id": "phoenix-continuation-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-client_action",
+            "toolCallId": "client-tool-1",
+            "state": "output-available",
+            "input": {
+              "value": "before"
+            },
+            "output": {
+              "status": "accepted"
+            }
+          }
+        ]
+      },
+      {
+        "id": "phoenix-continuation-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-client_action",
+            "toolCallId": "client-tool-1",
+            "state": "output-available",
+            "input": {
+              "value": "before"
+            },
+            "output": {
+              "status": "accepted"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "phoenix-continuation-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-client_action",
+            "toolCallId": "client-tool-1",
+            "state": "output-available",
+            "input": {
+              "value": "before"
+            },
+            "output": {
+              "status": "accepted"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Continued",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "phoenix-continuation-message",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-client_action",
+            "toolCallId": "client-tool-1",
+            "state": "output-available",
+            "input": {
+              "value": "before"
+            },
+            "output": {
+              "status": "accepted"
+            }
+          },
+          {
+            "type": "step-start"
+          },
+          {
+            "type": "text",
+            "text": "Continued",
+            "state": "done"
+          }
+        ]
+      }
+    ]
+  }
+]

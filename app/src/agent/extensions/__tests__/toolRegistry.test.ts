@@ -28,7 +28,7 @@ describe("toolRegistry", () => {
         toolName: "search_docs",
         input: { query: "phoenix" },
         providerMetadata: {
-          phoenix: { tool_execution_environment: "server" },
+          phoenix: { toolExecutionEnvironment: "server" },
         },
       },
       sessionId: "session-1",
@@ -51,7 +51,7 @@ describe("toolRegistry", () => {
           questions: [{ id: "q-1", prompt: "Prompt", type: "freeform" }],
         },
         providerMetadata: {
-          phoenix: { tool_execution_environment: "server" },
+          phoenix: { toolExecutionEnvironment: "server" },
         },
       },
       sessionId: "session-1",

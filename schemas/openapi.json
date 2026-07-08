@@ -8147,8 +8147,8 @@
           "chat"
         ],
         "summary": "Run Server Agent",
-        "description": "Stream a chat turn from the GraphQL server agent.\n\nThis is the endpoint the PXI CLI talks to directly (no pre-configured\nagent record): it builds a fresh server agent per request from the\ncaller-supplied model and contexts, then streams the reply back as\nVercel-AI chunks.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
-        "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
+        "operationId": "legacyServerAgentChat",
+        "deprecated": true,
         "parameters": [
           {
             "name": "session_id",
@@ -8165,7 +8165,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ChatRequest"
+                "$ref": "#/components/schemas/LegacyChatRequest"
               }
             }
           }
@@ -8178,6 +8178,56 @@
                 "schema": {}
               }
             }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
           },
           "422": {
             "description": "Validation Error",
@@ -8192,13 +8242,662 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/v1/agents/{agent_id}/sessions": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Create Session",
+        "description": "Create a persisted agent session owned by the requesting user.",
+        "operationId": "createAgentSession",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentSessionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentSessionResponseBody"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "List Sessions",
+        "description": "List the viewer's persisted sessions, most recently active first.",
+        "operationId": "listAgentSessions",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque pagination cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque pagination cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "exclusiveMinimum": 0,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAgentSessionsResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/sessions/{session_id}": {
+      "patch": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Patch Session",
+        "description": "Update a persisted session's mutable fields.",
+        "operationId": "patchAgentSession",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchAgentSessionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchAgentSessionResponseBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Get Session",
+        "description": "Retrieve an owned session's metadata.",
+        "operationId": "getAgentSession",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAgentSessionResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/sessions/{session_id}/messages": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "List Session Messages",
+        "description": "Page through an owned session's persisted transcript, oldest first.",
+        "operationId": "listAgentSessionMessages",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque pagination cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque pagination cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAgentSessionMessagesResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/sessions/{session_id}/compact": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Compact Agent Session",
+        "operationId": "compactAgentSession",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompactAgentSessionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompactAgentSessionResponseBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "502": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Chat",
-        "operationId": "chat_agents__agent_id__sessions__session_id__chat_post",
+        "operationId": "agentSessionChat",
         "parameters": [
           {
             "name": "agent_id",
@@ -8238,66 +8937,65 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
                 }
               }
-            }
-          }
-        }
-      }
-    },
-    "/agents/{agent_id}/sessions/{session_id}/summary": {
-      "post": {
-        "tags": [
-          "chat"
-        ],
-        "summary": "Summarize Endpoint",
-        "operationId": "summarize_endpoint_agents__agent_id__sessions__session_id__summary_post",
-        "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
             }
           },
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/_SummarizeRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
+          "400": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/_SummarizeResponse"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
           },
           "422": {
             "description": "Validation Error",
@@ -8374,6 +9072,150 @@
           "data"
         ],
         "title": "AddDatasetLabelToDatasetResponseBody"
+      },
+      "AgentModelSelection": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CustomProviderModelSelection"
+          },
+          {
+            "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "providerType",
+          "mapping": {
+            "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+            "custom": "#/components/schemas/CustomProviderModelSelection"
+          }
+        }
+      },
+      "AgentSessionConflictError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "agent_session_busy",
+              "agent_session_model_stale",
+              "agent_session_messages_stale",
+              "agent_session_tool_outputs_conflict",
+              "agent_session_already_compact",
+              "agent_session_compaction_conflict"
+            ],
+            "title": "Code",
+            "description": "Machine-readable reason the request conflicted."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Optional human-readable elaboration on the conflict."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "AgentSessionConflictError",
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
+      },
+      "AgentSessionData": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "is_ephemeral": {
+            "type": "boolean",
+            "title": "Is Ephemeral"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat."
+          },
+          "last_message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message Id",
+            "description": "The message ID of the most recently persisted transcript message, or null for an empty transcript."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "updated_at",
+          "is_ephemeral",
+          "model",
+          "is_active"
+        ],
+        "title": "AgentSessionData"
+      },
+      "AgentSessionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "is_ephemeral": {
+            "type": "boolean",
+            "title": "Is Ephemeral"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "updated_at",
+          "is_ephemeral"
+        ],
+        "title": "AgentSessionSummary"
       },
       "AgentSpanContext": {
         "properties": {
@@ -8785,22 +9627,11 @@
           "type": {
             "type": "string",
             "const": "assistant",
-            "title": "Type",
-            "default": "assistant"
+            "title": "Type"
           },
           "sessionId": {
             "type": "string",
             "title": "Sessionid"
-          },
-          "trace": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadataTraceIds"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "turnTraceContext": {
             "anyOf": [
@@ -8823,30 +9654,14 @@
             ]
           }
         },
+        "additionalProperties": true,
         "type": "object",
         "required": [
+          "type",
           "sessionId"
         ],
         "title": "AssistantMessageMetadata",
-        "description": "Wire schema for the chat stream's `message_metadata` payload."
-      },
-      "AssistantMessageMetadataTraceIds": {
-        "properties": {
-          "traceId": {
-            "type": "string",
-            "title": "Traceid"
-          },
-          "rootSpanId": {
-            "type": "string",
-            "title": "Rootspanid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "traceId",
-          "rootSpanId"
-        ],
-        "title": "AssistantMessageMetadataTraceIds"
+        "description": "Wire schema for the chat stream's ``message_metadata`` payload."
       },
       "AssistantMessageMetadataUsage": {
         "properties": {
@@ -8856,7 +9671,7 @@
           "promptDetails": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AssistantMessageMetadataUsageTokenDetails"
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsageCacheTokenDetails"
               },
               {
                 "type": "null"
@@ -8864,13 +9679,14 @@
             ]
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "tokens"
         ],
         "title": "AssistantMessageMetadataUsage"
       },
-      "AssistantMessageMetadataUsageTokenDetails": {
+      "AssistantMessageMetadataUsageCacheTokenDetails": {
         "properties": {
           "cacheRead": {
             "type": "integer",
@@ -8881,12 +9697,14 @@
             "title": "Cachewrite"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "cacheRead",
           "cacheWrite"
         ],
-        "title": "AssistantMessageMetadataUsageTokenDetails"
+        "title": "AssistantMessageMetadataUsageCacheTokenDetails",
+        "description": "Prompt-cache token counts, mounted as the usage payload's\n``prompt_details`` because cached tokens are a breakdown of the prompt."
       },
       "AssistantMessageMetadataUsageTokens": {
         "properties": {
@@ -8903,6 +9721,7 @@
             "title": "Total"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "prompt",
@@ -8924,15 +9743,6 @@
           "modelName": {
             "type": "string",
             "title": "Modelname"
-          },
-          "openaiApiType": {
-            "type": "string",
-            "enum": [
-              "chat_completions",
-              "responses"
-            ],
-            "title": "Openaiapitype",
-            "default": "responses"
           }
         },
         "type": "object",
@@ -8942,7 +9752,7 @@
           "modelName"
         ],
         "title": "BuiltInProviderModelSelection",
-        "description": "Chat against a Phoenix built-in provider.\n\nCredentials and connection details (base URL, Azure endpoint, AWS\nregion) are resolved from the secret store first and the process\nenvironment second. ``openai_api_type`` is honoured by the OpenAI and\nAzure OpenAI branches; other providers ignore it."
+        "description": "Chat against a Phoenix built-in provider.\n\nCredentials and connection details (base URL, Azure endpoint, AWS\nregion) are resolved from the secret store first and the process\nenvironment second."
       },
       "CategoricalAnnotationConfig": {
         "properties": {
@@ -9345,35 +10155,8 @@
           }
         }
       },
-      "ChatRegenerateMessage": {
+      "ChatRequest": {
         "properties": {
-          "trigger": {
-            "type": "string",
-            "const": "regenerate-message",
-            "title": "Trigger"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/PhoenixUIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "messageId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Messageid"
-          },
           "ingestTraces": {
             "type": "boolean",
             "title": "Ingesttraces",
@@ -9415,66 +10198,9 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
           },
           "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "$ref": "#/components/schemas/AgentModelSelection",
+            "description": "The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on \u2014 or switching to \u2014 an unexpected model. Change the session's model with ``PATCH .../sessions/{session_id}``."
           },
-          "turnTraceContext": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TurnTraceContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "trigger",
-          "id",
-          "messages",
-          "model"
-        ],
-        "title": "ChatRegenerateMessage",
-        "description": "Regenerate message extended with Phoenix-specific fields."
-      },
-      "ChatRequest": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/ChatSubmitMessage"
-          },
-          {
-            "$ref": "#/components/schemas/ChatRegenerateMessage"
-          }
-        ],
-        "title": "ChatRequest",
-        "description": "Discriminated union of chat request payloads.",
-        "discriminator": {
-          "propertyName": "trigger",
-          "mapping": {
-            "regenerate-message": "#/components/schemas/ChatRegenerateMessage",
-            "submit-message": "#/components/schemas/ChatSubmitMessage"
-          }
-        }
-      },
-      "ChatSubmitMessage": {
-        "properties": {
           "trigger": {
             "type": "string",
             "const": "submit-message",
@@ -9485,91 +10211,58 @@
             "type": "string",
             "title": "Id"
           },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/PhoenixUIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "ingestTraces": {
-            "type": "boolean",
-            "title": "Ingesttraces",
-            "default": false
-          },
-          "exportRemoteTraces": {
-            "type": "boolean",
-            "title": "Exportremotetraces",
-            "default": false
-          },
-          "attachUserId": {
-            "type": "boolean",
-            "title": "Attachuserid",
-            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
-            "default": false
-          },
-          "contexts": {
-            "items": {
-              "$ref": "#/components/schemas/ChatContext"
-            },
-            "type": "array",
-            "title": "Contexts"
-          },
-          "editPermission": {
-            "type": "string",
-            "enum": [
-              "manual",
-              "bypass"
-            ],
-            "title": "Editpermission",
-            "default": "manual"
-          },
-          "requestedSkills": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Requestedskills",
-            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
-          },
-          "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
-          },
-          "turnTraceContext": {
+          "message": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TurnTraceContext"
+                "$ref": "#/components/schemas/PhoenixUIMessage"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The turn's new user message to append. May be omitted for client-tool continuation, where ``toolOutputs`` resolve the trailing assistant message's pending tool calls instead."
+          },
+          "toolOutputs": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Tooloutputs",
+            "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs."
+          },
+          "lastMessageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastmessageid",
+            "description": "The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` \u2014 the client should refetch the session before retrying."
           }
         },
-        "additionalProperties": true,
         "type": "object",
         "required": [
-          "id",
-          "messages",
-          "model"
+          "model",
+          "id"
         ],
-        "title": "ChatSubmitMessage",
-        "description": "Submit message extended with Phoenix-specific fields."
+        "title": "ChatRequest",
+        "description": "Assistant chat submit request payload."
       },
       "CodeEvaluatorContext": {
         "properties": {
@@ -9596,6 +10289,33 @@
         ],
         "title": "CodeEvaluatorContext",
         "description": "Code-evaluator create/edit form mounted in the current browser route."
+      },
+      "CompactAgentSessionRequestBody": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection",
+            "description": "The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``."
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "CompactAgentSessionRequestBody",
+        "description": "Request a model-generated checkpoint for a persisted conversation."
+      },
+      "CompactAgentSessionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PhoenixUIMessage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CompactAgentSessionResponseBody",
+        "description": "The checkpoint message this request created. A 200 always means a new\ncheckpoint was persisted; every other outcome is an HTTP 409 whose body's\n``code`` says why (see ``AgentSessionConflictError``)."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
@@ -9713,6 +10433,44 @@
           "optimization_direction"
         ],
         "title": "ContinuousAnnotationConfigData"
+      },
+      "CreateAgentSessionRequestBody": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Title",
+            "description": "Optional initial title.",
+            "default": ""
+          },
+          "is_ephemeral": {
+            "type": "boolean",
+            "title": "Is Ephemeral",
+            "description": "Whether the session should expire after a period of inactivity.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "CreateAgentSessionRequestBody",
+        "description": "Request body for creating a persisted agent session."
+      },
+      "CreateAgentSessionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatedAgentSession"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateAgentSessionResponseBody"
       },
       "CreateAnnotationConfigData": {
         "oneOf": [
@@ -10446,6 +11204,20 @@
           "data"
         ],
         "title": "CreateUserResponseBody"
+      },
+      "CreatedAgentSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The session's GlobalID \u2014 the ``session_id`` the chat route expects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "CreatedAgentSession"
       },
       "CreatedApiKey": {
         "properties": {
@@ -11236,108 +12008,6 @@
         "title": "DynamicToolInputStreamingPart",
         "description": "Dynamic tool part in input-streaming state."
       },
-      "DynamicToolOutputAvailablePart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dynamic-tool",
-            "title": "Type",
-            "default": "dynamic-tool"
-          },
-          "toolName": {
-            "type": "string",
-            "title": "Toolname"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-available",
-            "title": "State",
-            "default": "output-available"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "output": {
-            "title": "Output"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "preliminary": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preliminary"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "toolName",
-          "toolCallId",
-          "input",
-          "output"
-        ],
-        "title": "DynamicToolOutputAvailablePart",
-        "description": "Dynamic tool part in output-available state."
-      },
       "DynamicToolOutputDeniedPart": {
         "properties": {
           "type": {
@@ -11424,98 +12094,6 @@
         ],
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
-      },
-      "DynamicToolOutputErrorPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dynamic-tool",
-            "title": "Type",
-            "default": "dynamic-tool"
-          },
-          "toolName": {
-            "type": "string",
-            "title": "Toolname"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-error",
-            "title": "State",
-            "default": "output-error"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "errorText": {
-            "type": "string",
-            "title": "Errortext"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "toolName",
-          "toolCallId",
-          "input",
-          "errorText"
-        ],
-        "title": "DynamicToolOutputErrorPart",
-        "description": "Dynamic tool part in output-error state."
       },
       "Experiment": {
         "properties": {
@@ -11947,6 +12525,18 @@
           "type"
         ],
         "title": "FreeformAnnotationConfigData"
+      },
+      "GetAgentSessionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentSessionData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetAgentSessionResponseBody"
       },
       "GetAllUserApiKeysResponseBody": {
         "properties": {
@@ -12751,6 +13341,386 @@
           "auth_method"
         ],
         "title": "LDAPUserData"
+      },
+      "LegacyAssistantMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Type",
+            "default": "assistant"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sessionId"
+        ],
+        "title": "LegacyAssistantMessageMetadata",
+        "description": "Legacy transcripts predate the ``type`` discriminator, so default it here."
+      },
+      "LegacyAssistantMetadataUIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LegacyAssistantMessageMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "LegacyAssistantMetadataUIMessage",
+        "description": "``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``."
+      },
+      "LegacyChatRegenerateMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "regenerate-message",
+            "title": "Trigger"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/LegacyAssistantMetadataUIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "ingestTraces": {
+            "type": "boolean",
+            "title": "Ingesttraces",
+            "default": false
+          },
+          "exportRemoteTraces": {
+            "type": "boolean",
+            "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
+            "default": false
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ChatContext"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
+          },
+          "requestedSkills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requestedskills",
+            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
+          },
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trigger",
+          "id",
+          "messages",
+          "model"
+        ],
+        "title": "LegacyChatRegenerateMessage",
+        "description": "Regenerate message extended with Phoenix-specific fields."
+      },
+      "LegacyChatRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/LegacyChatSubmitMessage"
+          },
+          {
+            "$ref": "#/components/schemas/LegacyChatRegenerateMessage"
+          }
+        ],
+        "title": "LegacyChatRequest",
+        "description": "Discriminated union of legacy chat request payloads.",
+        "discriminator": {
+          "propertyName": "trigger",
+          "mapping": {
+            "regenerate-message": "#/components/schemas/LegacyChatRegenerateMessage",
+            "submit-message": "#/components/schemas/LegacyChatSubmitMessage"
+          }
+        }
+      },
+      "LegacyChatSubmitMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "submit-message",
+            "title": "Trigger",
+            "default": "submit-message"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/LegacyAssistantMetadataUIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "ingestTraces": {
+            "type": "boolean",
+            "title": "Ingesttraces",
+            "default": false
+          },
+          "exportRemoteTraces": {
+            "type": "boolean",
+            "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
+            "default": false
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ChatContext"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
+          },
+          "requestedSkills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requestedskills",
+            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
+          },
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "messages",
+          "model"
+        ],
+        "title": "LegacyChatSubmitMessage",
+        "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "ListAgentSessionMessagesResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PhoenixUIMessage"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListAgentSessionMessagesResponseBody"
+      },
+      "ListAgentSessionsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSessionSummary"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListAgentSessionsResponseBody"
       },
       "ListDatasetExamplesData": {
         "properties": {
@@ -13700,6 +14670,35 @@
         "type": "object",
         "title": "OtlpStatus"
       },
+      "PatchAgentSessionRequestBody": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Title",
+            "description": "New title for the session"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection",
+            "description": "New model selection for the session"
+          }
+        },
+        "type": "object",
+        "title": "PatchAgentSessionRequestBody",
+        "description": "Fields to update on a persisted session. Omit a field to leave it unchanged."
+      },
+      "PatchAgentSessionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentSessionData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "PatchAgentSessionResponseBody"
+      },
       "PatchPromptRequestBody": {
         "properties": {
           "description": {
@@ -13793,10 +14792,10 @@
                   "$ref": "#/components/schemas/ToolInputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"
                 },
                 {
                   "$ref": "#/components/schemas/ToolApprovalRequestedPart"
@@ -13814,10 +14813,10 @@
                   "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"
                 },
                 {
                   "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
@@ -13857,7 +14856,7 @@
           "parts"
         ],
         "title": "PhoenixUIMessage",
-        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."
+        "description": "``UIMessage`` with metadata narrowed to the Phoenix wire shapes."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
@@ -17829,113 +18828,6 @@
         "title": "ToolInputStreamingPart",
         "description": "Tool part in input-streaming state."
       },
-      "ToolOutputAvailablePart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "pattern": "^tool-",
-            "title": "Type"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-available",
-            "title": "State",
-            "default": "output-available"
-          },
-          "input": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input"
-          },
-          "output": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "preliminary": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preliminary"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "toolCallId"
-        ],
-        "title": "ToolOutputAvailablePart",
-        "description": "Tool part in output-available state."
-      },
       "ToolOutputDeniedPart": {
         "properties": {
           "type": {
@@ -18022,107 +18914,6 @@
         ],
         "title": "ToolOutputDeniedPart",
         "description": "Tool part in output-denied state (tool was denied, terminal state)."
-      },
-      "ToolOutputErrorPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "pattern": "^tool-",
-            "title": "Type"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-error",
-            "title": "State",
-            "default": "output-error"
-          },
-          "input": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input"
-          },
-          "rawInput": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rawinput"
-          },
-          "errorText": {
-            "type": "string",
-            "title": "Errortext"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "toolCallId",
-          "errorText"
-        ],
-        "title": "ToolOutputErrorPart",
-        "description": "Tool part in output-error state."
       },
       "ToolResultContentPart": {
         "properties": {
@@ -18555,119 +19346,15 @@
             "title": "Startedat"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "traceId",
           "rootSpanId",
           "startedAt"
         ],
-        "title": "TurnTraceContext"
-      },
-      "UIMessage": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "system",
-              "user",
-              "assistant"
-            ],
-            "title": "Role"
-          },
-          "metadata": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metadata"
-          },
-          "parts": {
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/TextUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceUrlUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceDocumentUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/FileUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DataUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/StepStartUIPart"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Parts"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "role",
-          "parts"
-        ],
-        "title": "UIMessage",
-        "description": "A message as displayed in the UI by Vercel AI Elements."
+        "title": "TurnTraceContext",
+        "description": "The trace identity a turn's spans are parented to."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {
@@ -19105,8 +19792,7 @@
           "type": {
             "type": "string",
             "const": "user",
-            "title": "Type",
-            "default": "user"
+            "title": "Type"
           },
           "currentDateTime": {
             "type": "string",
@@ -19117,10 +19803,17 @@
             "type": "string",
             "maxLength": 128,
             "title": "Timezone"
+          },
+          "isCompactionMessage": {
+            "type": "boolean",
+            "title": "Iscompactionmessage",
+            "default": false
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
+          "type",
           "currentDateTime",
           "timeZone"
         ],
@@ -19187,84 +19880,981 @@
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
       },
-      "_SummarizeRequest": {
+      "phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart": {
         "properties": {
-          "ingestTraces": {
-            "type": "boolean",
-            "title": "Ingesttraces",
-            "default": false
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
           },
-          "exportRemoteTraces": {
-            "type": "boolean",
-            "title": "Exportremotetraces",
-            "default": false
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
           },
-          "attachUserId": {
-            "type": "boolean",
-            "title": "Attachuserid",
-            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
-            "default": false
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
           },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/UIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "model": {
-            "oneOf": [
+          "title": {
+            "anyOf": [
               {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
+                "type": "string"
               },
               {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+                "type": "null"
               }
             ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
-          }
-        },
-        "type": "object",
-        "required": [
-          "messages",
-          "model"
-        ],
-        "title": "_SummarizeRequest",
-        "description": "Body for POST /agents/{agent_id}/sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
-      },
-      "_SummarizeResponse": {
-        "properties": {
-          "summary": {
+            "title": "Title"
+          },
+          "state": {
             "type": "string",
-            "title": "Summary"
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
-          "summary"
+          "toolName",
+          "toolCallId",
+          "input",
+          "output"
         ],
-        "title": "_SummarizeResponse"
+        "title": "DynamicToolOutputAvailablePart",
+        "description": "Dynamic tool part in output-available state."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "errorText"
+        ],
+        "title": "DynamicToolOutputErrorPart",
+        "description": "Dynamic tool part in output-error state."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputAvailablePart",
+        "description": "Tool part in output-available state."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId",
+          "errorText"
+        ],
+        "title": "ToolOutputErrorPart",
+        "description": "Tool part in output-error state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "output"
+        ],
+        "title": "DynamicToolOutputAvailablePart",
+        "description": "Dynamic tool part in output-available state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "errorText"
+        ],
+        "title": "DynamicToolOutputErrorPart",
+        "description": "Dynamic tool part in output-error state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputAvailablePart",
+        "description": "Tool part in output-available state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId",
+          "errorText"
+        ],
+        "title": "ToolOutputErrorPart",
+        "description": "Tool part in output-error state."
+      },
+      "AgentErrorChunk": {
+        "additionalProperties": false,
+        "description": "Durable data part paired with a standard protocol ``error`` chunk.\n\nStandard ``error`` chunks are transient: the reducer routes them to error\ncallbacks without adding a message part, so they vanish from persisted\ntranscripts. Pairing each one with this ``data-error`` part records the\nerror durably in the message for persistence, reload, and subagents.",
+        "properties": {
+          "type": {
+            "const": "data-error",
+            "default": "data-error",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentErrorData"
+          },
+          "transient": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Transient"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "AgentErrorChunk",
+        "type": "object"
+      },
+      "AgentErrorData": {
+        "additionalProperties": false,
+        "description": "Payload of the durable ``data-error`` part persisted for protocol errors.",
+        "properties": {
+          "errorText": {
+            "title": "Errortext",
+            "type": "string"
+          }
+        },
+        "required": [
+          "errorText"
+        ],
+        "title": "AgentErrorData",
+        "type": "object"
+      },
+      "SessionSummaryChunk": {
+        "additionalProperties": false,
+        "description": "Transient ``data-session-summary`` stream chunk: the LLM-generated\nsession title, emitted on any turn that starts with the session still\nuntitled. Being transient, it reaches the client's ``onData`` callback\nbut is never appended to the message parts.\n\nSee the Vercel AI SDK data stream protocol:\n    - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts\n    - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral",
+        "properties": {
+          "type": {
+            "const": "data-session-summary",
+            "default": "data-session-summary",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "title": "Data",
+            "type": "string"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionSummaryChunk",
+        "type": "object"
       },
       "ToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -19274,9 +20864,9 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           },
-          "client_started_at": {
+          "clientStartedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -19286,9 +20876,9 @@
               }
             ],
             "default": null,
-            "title": "Client Started At"
+            "title": "Clientstartedat"
           },
-          "client_ended_at": {
+          "clientEndedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -19298,11 +20888,11 @@
               }
             ],
             "default": null,
-            "title": "Client Ended At"
+            "title": "Clientendedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallCallbackProviderMetadata",
         "type": "object"
@@ -19311,15 +20901,15 @@
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -19329,13 +20919,64 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallProviderMetadata",
+        "type": "object"
+      },
+      "TranscriptPersistedChunk": {
+        "additionalProperties": false,
+        "description": "Confirms that a streamed assistant message is durable.",
+        "properties": {
+          "type": {
+            "const": "data-transcript-persisted",
+            "default": "data-transcript-persisted",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TranscriptPersistedData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "TranscriptPersistedChunk",
+        "type": "object"
+      },
+      "TranscriptPersistedData": {
+        "properties": {
+          "messageId": {
+            "title": "Messageid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "messageId"
+        ],
+        "title": "TranscriptPersistedData",
         "type": "object"
       }
     }

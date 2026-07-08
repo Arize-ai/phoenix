@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import type { FetchPolicy } from "relay-runtime";
 
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 
@@ -81,7 +82,21 @@ export function getModelsByProvider(
   return grouped;
 }
 
-export function useModelMenuData() {
+/**
+ * Loads the model catalog (built-in providers, custom providers, playground
+ * models) shared by the model pickers and the agent session model readers.
+ *
+ * @param params - hook options
+ * @param params.fetchPolicy - Relay fetch policy for the catalog query.
+ *   Defaults to "store-and-network" so pickers stay fresh; consumers that
+ *   mount alongside a picker on the same surface can pass "store-or-network"
+ *   to reuse its response instead of issuing a duplicate network fetch.
+ */
+export function useModelMenuData({
+  fetchPolicy = "store-and-network",
+}: {
+  fetchPolicy?: FetchPolicy;
+} = {}) {
   const data = useLazyLoadQuery<useModelMenuDataQuery>(
     graphql`
       query useModelMenuDataQuery {
@@ -108,7 +123,7 @@ export function useModelMenuData() {
       }
     `,
     {},
-    { fetchPolicy: "store-and-network" }
+    { fetchPolicy }
   );
 
   const modelsByProvider = useMemo(

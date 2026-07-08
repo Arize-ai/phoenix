@@ -188,20 +188,21 @@ export function AssistantMessageActions({
   const messageText = getAssistantMessageText(message);
   const hasMessageText = messageText.trim().length > 0;
   const metadata = getAssistantMessageMetadata(message);
-  const canAnnotate = storeLocalTraces && metadata?.trace != null;
-  const canOpenTrace = storeLocalTraces && metadata?.trace != null;
+  const turnTraceContext = metadata?.turnTraceContext;
+  const canAnnotate = storeLocalTraces && turnTraceContext != null;
+  const canOpenTrace = storeLocalTraces && turnTraceContext != null;
 
   if (!hasMessageText && !canAnnotate && !canOpenTrace && !children) {
     return null;
   }
 
   const handleOpenTrace = () => {
-    if (!canOpenTrace || !metadata?.trace) {
+    if (!canOpenTrace || !turnTraceContext) {
       return;
     }
     window.open(
       prependBasename(
-        `/redirects/traces/${encodeURIComponent(metadata.trace.traceId)}`
+        `/redirects/traces/${encodeURIComponent(turnTraceContext.traceId)}`
       ),
       "_blank",
       "noopener,noreferrer"
@@ -209,10 +210,10 @@ export function AssistantMessageActions({
   };
 
   const handleFeedback = async (feedback: AssistantFeedback) => {
-    if (!canAnnotate || !metadata?.trace || isSubmittingFeedback) {
+    if (!canAnnotate || !turnTraceContext || isSubmittingFeedback) {
       return;
     }
-    const { traceId, rootSpanId } = metadata.trace;
+    const { traceId, rootSpanId } = turnTraceContext;
     const { sessionId } = metadata;
     // Combining username with message id scopes the identifier to one
     // user+message pair. Re-submitting upserts the existing record, and the
