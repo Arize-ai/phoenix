@@ -45,6 +45,7 @@ __all__ = [
     "cost_summary_by_session",
     "span_kind_count_by_session",
     "earliest_root_span_by_session",
+    "root_span_attribute_text_contains_by_session",
 ]
 
 
@@ -93,7 +94,7 @@ class SessionAggregate:
 
     def as_correlated_scalar(
         self,
-        session_col: ColumnElement[Any],
+        session_col: Any,
         value: Optional[str] = None,
         project_rowids: Optional[Collection[int]] = None,
         start_time: Optional[Any] = None,
@@ -191,6 +192,34 @@ def span_kind_count_by_session(span_kind: str) -> SessionAggregate:
         joins=(models.Trace,),
         where=(func.upper(models.Span.span_kind) == span_kind.upper(),),
     )
+
+
+def root_span_attribute_text_contains_by_session(
+    attribute_path: tuple[str, ...],
+    substring: Any,
+    session_col: Any,
+    keys: Optional[Collection[int]] = None,
+    project_rowids: Optional[Collection[int]] = None,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
+) -> ColumnElement[bool]:
+    """Whether any root span in a session contains ``substring`` at ``attribute_path``."""
+    stmt = (
+        select(models.Span.id)
+        .join_from(models.Span, models.Trace)
+        .where(_GROUP_KEY == session_col)
+        .where(models.Span.parent_id.is_(None))
+        .where(
+            models.TextContains(
+                models.Span.attributes[list(attribute_path)].as_string(),
+                substring,
+            )
+        )
+    )
+    if keys is not None:
+        stmt = stmt.where(_GROUP_KEY.in_(keys))
+    stmt = _apply_scope(stmt, project_rowids, start_time, end_time)
+    return stmt.exists()
 
 
 def _apply_scope(

@@ -1,14 +1,25 @@
 from ast import unparse
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional, cast
 
 import pytest
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import select
+from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.engine.interfaces import Dialect
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl.session_filter import SESSION_BINDINGS, SessionFilter
+from phoenix.trace.dsl.session_filter import (
+    SESSION_BINDINGS,
+    SESSION_FILTER_DESCRIPTIONS,
+    SessionFilter,
+)
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
+
+_SQLITE_DIALECT = cast(Dialect, sqlite.dialect())
+_POSTGRESQL_DIALECT = cast(Dialect, postgresql.dialect())  # type: ignore[no-untyped-call]
 
 
 @pytest.mark.parametrize(
@@ -36,6 +47,14 @@ from tests.unit._helpers import _add_project, _add_project_session, _add_span, _
             "metadata['tier'] == 'gold'",
             "attributes[['metadata', 'tier']].as_string() == 'gold'",
         ),
+        (
+            "'refund' in any_input",
+            "any_input('refund')",
+        ),
+        (
+            "'refund' not in any_output",
+            "not_(any_output('refund'))",
+        ),
     ],
 )
 def test_session_filter_translated(condition: str, expected: str) -> None:
@@ -62,15 +81,44 @@ def test_session_bindings_flavor_audit() -> None:
     assert not any(name.endswith("_seconds") for name in SESSION_BINDINGS.binding_names)
     # Function calls other than casts are rejected; the quantifier whitelist is empty for both grains.
     assert SESSION_BINDINGS.quantifiers == frozenset()
+    assert SESSION_BINDINGS.exists_names == frozenset({"any_input", "any_output"})
+    assert "any_input" not in SESSION_BINDINGS.names
+    assert "any_output" not in SESSION_BINDINGS.names
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "any_input == 'x'",
+        "any_input in 'x'",
+        "str(any_input) == 'x'",
+        "not any_input",
+        "any_input + 'x' == 'y'",
+        "any_input",
+    ],
+)
+def test_session_filter_rejects_any_input_misuse(condition: str) -> None:
+    with pytest.raises(SyntaxError) as exc_info:
+        SessionFilter(condition)
+    assert "`any_input` can only be used as the right-hand side of `in` or `not in`" in str(
+        exc_info.value
+    )
+
+
+def test_session_filter_any_io_glosses_are_instrumentation_shaped() -> None:
+    assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_input"]
+    assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_output"]
+    assert "user said" not in SESSION_FILTER_DESCRIPTIONS["any_input"].lower()
+    assert "agent said" not in SESSION_FILTER_DESCRIPTIONS["any_output"].lower()
 
 
 async def _add_span_cost(
-    session: object,
+    session: AsyncSession,
     span: models.Span,
     trace: models.Trace,
     total_cost: float,
 ) -> None:
-    session.add(  # type: ignore[attr-defined]
+    session.add(
         models.SpanCost(
             span_rowid=span.id,
             trace_rowid=trace.id,
@@ -80,18 +128,18 @@ async def _add_span_cost(
             completion_cost=0.0,
         )
     )
-    await session.flush()  # type: ignore[attr-defined]
+    await session.flush()
 
 
 async def _seed_session(
-    session: object,
+    session: AsyncSession,
     project: models.Project,
     *,
     num_traces: int,
     total_cost: float,
     start_time: datetime,
     session_id: Optional[str] = None,
-    root_attributes: Optional[dict] = None,
+    root_attributes: Optional[dict[str, Any]] = None,
 ) -> models.ProjectSession:
     """Create a session with ``num_traces`` traces (each a root LLM span) totalling ``total_cost``.
 
@@ -114,6 +162,36 @@ async def _seed_session(
         )
         if i == 0 and total_cost:
             await _add_span_cost(session, root_span, trace, total_cost)
+    return project_session
+
+
+async def _seed_io_session(
+    session: AsyncSession,
+    project: models.Project,
+    *,
+    turns: list[tuple[str, str]],
+    start_time: datetime,
+    session_id: Optional[str] = None,
+) -> models.ProjectSession:
+    project_session = await _add_project_session(
+        session, project, session_id=session_id, start_time=start_time
+    )
+    for index, (input_value, output_value) in enumerate(turns):
+        trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=start_time + timedelta(seconds=index),
+        )
+        await _add_span(
+            session,
+            trace,
+            attributes={
+                "input": {"value": input_value},
+                "output": {"value": output_value},
+            },
+            start_time=start_time + timedelta(seconds=index),
+        )
     return project_session
 
 
@@ -259,6 +337,76 @@ def test_session_filter_root_span_derivation_pushes_project_time_scope() -> None
     assert "session_scope.id = traces.project_session_rowid" in compiled
     assert "traces.project_rowid in" in compiled
     assert "session_scope.start_time" in compiled
+
+
+@pytest.mark.parametrize("dialect", [_SQLITE_DIALECT, _POSTGRESQL_DIALECT])
+def test_session_filter_any_io_compiles_to_exists_on_supported_dialects(dialect: Dialect) -> None:
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    subquery = SessionFilter(
+        "'refund' in any_input and 'done' not in any_output"
+    ).as_session_rowids_subquery(
+        project_rowids=[1],
+        start_time=start,
+        end_time=start + timedelta(days=1),
+        candidate_session_rowids=[2, 3],
+    )
+    compiled = str(
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(subquery))
+        .compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert "exists" in compiled
+    assert "not (exists" in compiled
+    assert "spans.parent_id is null" in compiled
+    assert "traces.project_session_rowid = project_sessions.id" in compiled
+    assert "traces.project_rowid in (1)" in compiled
+    assert "traces.project_session_rowid in (2, 3)" in compiled
+    assert "session_scope.start_time" in compiled
+    assert SpanAttributes.INPUT_VALUE not in compiled
+    assert SpanAttributes.OUTPUT_VALUE not in compiled
+
+
+async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFactory) -> None:
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        input_match = await _seed_io_session(
+            session,
+            project,
+            turns=[("hello", "first"), ("please refund order", "done")],
+            start_time=start,
+        )
+        output_match = await _seed_io_session(
+            session,
+            project,
+            turns=[("hello", "first"), ("question", "refund issued")],
+            start_time=start,
+        )
+        no_match = await _seed_io_session(
+            session,
+            project,
+            turns=[("hello", "first"), ("question", "done")],
+            start_time=start,
+        )
+        case_mismatch = await _seed_io_session(
+            session,
+            project,
+            turns=[("REFUND request", "first")],
+            start_time=start,
+        )
+
+        by_input = await _matched_rowids(session, SessionFilter("'refund' in any_input"), project)
+        assert by_input == {input_match.id}
+        assert case_mismatch.id not in by_input
+
+        by_output = await _matched_rowids(session, SessionFilter("'refund' in any_output"), project)
+        assert by_output == {output_match.id}
+
+        not_in_output = await _matched_rowids(
+            session, SessionFilter("'refund' not in any_output"), project
+        )
+        assert not_in_output == {input_match.id, no_match.id, case_mismatch.id}
 
 
 async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> None:
