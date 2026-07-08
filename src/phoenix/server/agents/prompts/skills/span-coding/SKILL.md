@@ -9,14 +9,14 @@ summary: Use PXI span notes for span-level open coding, then recover and group t
 
 # Span Coding
 
-This skill adapts the Phoenix CLI's open-coding and axial-coding workflow for PXI agents.
-The unit of analysis is always the span.
+Open coding is the exploratory pass: inspect individual spans and write short,
+evidence-close notes about concrete behaviors before deciding what the categories are.
+Axial coding is the synthesis pass: recover those notes, group recurring patterns, name
+actionable categories, and promote stable categories into structured annotations.
 
-Use the CLI open-coding skill as the reference point: inspect spans first, write short
-free-form observations close to the evidence, and avoid taxonomy labels while collecting
-notes. Use the CLI axial-coding skill as the reference point once notes exist: recover the
-open notes, group recurring patterns, name actionable categories, and only then write
-structured annotations.
+The unit of analysis is always the span. Inspect spans first, avoid taxonomy labels while
+collecting open notes, and only write structured annotations after the categories have
+stabilized.
 
 ## Source of Truth
 
