@@ -92,7 +92,12 @@ function TraceInfoTip({ children }: { children: ReactNode }) {
   );
 }
 
-export function AgentObservabilitySettings() {
+export function AgentObservabilitySettings({
+  systemSettingsHint,
+}: {
+  /** See {@link SystemSettingsWarning}. */
+  systemSettingsHint?: "link" | "above";
+} = {}) {
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const setObservability = useAgentContext((state) => state.setObservability);
@@ -149,7 +154,10 @@ export function AgentObservabilitySettings() {
             </span>
           </Switch>
           {localTracesOffInSystemSettings ? (
-            <SystemSettingsWarning isAdmin={isAdmin} />
+            <SystemSettingsWarning
+              isAdmin={isAdmin}
+              systemSettingsHint={systemSettingsHint}
+            />
           ) : null}
         </li>
         {isRemoteCollectorConfigured ? (
@@ -186,7 +194,10 @@ export function AgentObservabilitySettings() {
               </span>
             </Switch>
             {remoteExportOffInSystemSettings ? (
-              <SystemSettingsWarning isAdmin={isAdmin} />
+              <SystemSettingsWarning
+                isAdmin={isAdmin}
+                systemSettingsHint={systemSettingsHint}
+              />
             ) : null}
           </li>
         ) : null}

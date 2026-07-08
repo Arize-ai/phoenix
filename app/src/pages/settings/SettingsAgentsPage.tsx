@@ -82,6 +82,7 @@ function useIsAdmin() {
 }
 
 function AssistantAgentEnabledSetting() {
+  const isAdmin = useIsAdmin();
   const adminAssistantEnabled = useAgentContext(
     (state) => state.agentsConfig.assistantEnabled
   );
@@ -108,7 +109,9 @@ function AssistantAgentEnabledSetting() {
             </Text>
           </span>
         </Switch>
-        {!adminAssistantEnabled ? <SystemSettingsWarning /> : null}
+        {!adminAssistantEnabled ? (
+          <SystemSettingsWarning isAdmin={isAdmin} systemSettingsHint="above" />
+        ) : null}
       </li>
     </ul>
   );
@@ -146,7 +149,7 @@ function PersonalSettingsSection() {
         {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
           <AgentSubagentsSettings />
         ) : null}
-        <AgentObservabilitySettings />
+        <AgentObservabilitySettings systemSettingsHint="above" />
       </AgentSettingsForm>
     </Flex>
   );
