@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-// Must agree with the server-owned PARAMETERS (create_annotation_config.py /
-// update_annotation_config.py). The flat, `type`-discriminated shape is friendlier
-// for the model than a nested one-of; the commit layer maps it onto the GraphQL
-// `AnnotationConfigInput` one-of.
 
 const optimizationDirectionSchema = z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]);
 
