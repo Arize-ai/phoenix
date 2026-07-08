@@ -75,9 +75,10 @@ def upgrade() -> None:
         ),
         sqlite_autoincrement=True,
     )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_agent_sessions_user_id_updated_at "
-        "ON agent_sessions (user_id, updated_at DESC)"
+    op.create_index(
+        "ix_agent_sessions_user_id_updated_at",
+        "agent_sessions",
+        ["user_id", sa.column("updated_at").desc()],
     )
 
     op.create_table(
