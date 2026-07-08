@@ -39,6 +39,10 @@ px dataset get <name>
 px project list
 px project get <name>
 px annotation-config list
+px annotation-config get <identifier>
+px annotation-config create
+px annotation-config update <identifier>
+px annotation-config delete <id>
 px auth status
 px profile list
 px profile show [name]
