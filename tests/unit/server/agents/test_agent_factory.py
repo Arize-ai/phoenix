@@ -55,7 +55,6 @@ _DEFAULT_PROMPTS = AgentPrompts()
 
 STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
-        _DEFAULT_PROMPTS.bash_tool.render(),
         _DEFAULT_PROMPTS.ask_user_tool.render(),
         _DEFAULT_PROMPTS.set_time_range_tool.render(),
         _DEFAULT_PROMPTS.get_route_info_tool.render(),
@@ -1625,15 +1624,15 @@ class TestCapabilityInstructionsOverride:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentPrompts(bash_tool=Template("CUSTOM_BASH_SENTINEL"))
+        custom = AgentPrompts(ask_user_tool=Template("CUSTOM_ASK_USER_SENTINEL"))
         agent = build_agent(model=anthropic_model, prompts=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
         joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert "CUSTOM_BASH_SENTINEL" in joined_system
-        assert _DEFAULT_PROMPTS.bash_tool.render() not in joined_system
+        assert "CUSTOM_ASK_USER_SENTINEL" in joined_system
+        assert _DEFAULT_PROMPTS.ask_user_tool.render() not in joined_system
 
 
 class TestWebAccessCapabilities:

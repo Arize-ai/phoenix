@@ -221,7 +221,9 @@ function getBashPresentation({
   };
   const outputRecord = state === "output-available" ? asRecord(output) : null;
   if (outputRecord) {
-    const exitCode = outputRecord.exit_code;
+    // The assistant's bash tool emits camelCase (exitCode); older transcripts
+    // from the pre-unification server agent used snake_case (exit_code).
+    const exitCode = outputRecord.exitCode ?? outputRecord.exit_code;
     if (typeof exitCode === "number" && exitCode !== 0) {
       presentation.statusSuffix = `exit ${exitCode}`;
       const stderr = getStringField({ record: outputRecord, field: "stderr" });

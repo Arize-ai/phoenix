@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import posixpath
+import time
+from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Optional
+from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable, Generic, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
@@ -13,12 +17,15 @@ from graphql import parse as parse_graphql
 from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
 from pydantic_ai import Tool
+from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
+
+logger = logging.getLogger(__name__)
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
@@ -43,7 +50,7 @@ Args:
         collapsed preview in the UI.
     command: The shell command to execute.
 
-Returns a dict with the command's `stdout`, `stderr`, and `exit_code`.
+Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.
 """,
 )
 
@@ -316,16 +323,99 @@ def create_phoenix_gql_builtin(
 
 
 class BashToolResult(TypedDict):
-    """Result returned by the ``bash`` tool."""
+    """Result returned by the ``bash`` tool.
 
+    The camelCase keys mirror the frontend's ``BashToolCommandResult`` shape
+    (app/src/agent/tools/bash/bashToolTypes.ts) so the chat UI renders rich
+    output for server-executed commands exactly as it did for the retired
+    browser runtime.
+    """
+
+    command: str
     stdout: str
     stderr: str
-    exit_code: int
-    stdout_truncated: bool
-    stderr_truncated: bool
+    exitCode: int
+    durationMs: int
+    startedAt: str
+    completedAt: str
+    stdoutBytes: int
+    stderrBytes: int
+    stdoutTruncated: bool
+    stderrTruncated: bool
 
 
-class BashToolset(FunctionToolset[None]):
+class BashSnapshotStore:
+    """In-memory, TTL-bounded LRU of bashkit snapshots keyed by chat session id.
+
+    Gives server-side bash the same cross-turn continuity the browser runtime
+    had (files written in one turn are readable in the next) with the same
+    durability: state survives only as long as the process, and idle sessions
+    are evicted. Concurrent turns on one session are last-writer-wins.
+    """
+
+    def __init__(self, *, max_sessions: int = 256, ttl_seconds: float = 3600.0) -> None:
+        self._max_sessions = max_sessions
+        self._ttl_seconds = ttl_seconds
+        self._snapshots: OrderedDict[str, tuple[float, bytes]] = OrderedDict()
+
+    def _evict(self, now: float) -> None:
+        expired = [
+            session_id
+            for session_id, (stored_at, _) in self._snapshots.items()
+            if now - stored_at > self._ttl_seconds
+        ]
+        for session_id in expired:
+            del self._snapshots[session_id]
+        while len(self._snapshots) > self._max_sessions:
+            self._snapshots.popitem(last=False)
+
+    def get(self, session_id: str) -> Optional[bytes]:
+        now = time.monotonic()
+        self._evict(now)
+        entry = self._snapshots.get(session_id)
+        if entry is None:
+            return None
+        self._snapshots.move_to_end(session_id)
+        return entry[1]
+
+    def set(self, session_id: str, snapshot: bytes) -> None:
+        now = time.monotonic()
+        self._snapshots[session_id] = (now, snapshot)
+        self._snapshots.move_to_end(session_id)
+        self._evict(now)
+
+
+def _build_shell(
+    *,
+    custom_builtins: dict[str, Callable[[BuiltinContext], Awaitable[BuiltinResult]]],
+    initial_snapshot: Optional[bytes],
+) -> Bash:
+    """Build the virtual shell, restoring prior session state when available.
+
+    Live configuration (the phoenix-gql builtin and its permissions, network
+    policy) is never part of the snapshot; it is re-supplied here so restored
+    shells always run with the current request's credentials.
+    """
+    if initial_snapshot is not None:
+        try:
+            return Bash.from_snapshot(
+                initial_snapshot,
+                python=False,
+                network=None,
+                custom_builtins=custom_builtins,
+            )
+        except Exception:
+            logger.warning("Failed to restore bash snapshot; starting a fresh shell")
+    shell = Bash(
+        python=False,
+        network=None,  # network is disabled so curl/wget/http cannot reach the internet
+        custom_builtins=custom_builtins,
+    )
+    shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
+    return shell
+
+
+class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
     """Toolset exposing a ``bash`` tool backed by a virtual shell."""
 
     def __init__(
@@ -334,10 +424,10 @@ class BashToolset(FunctionToolset[None]):
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
         allow_mutations: bool,
+        initial_snapshot: Optional[bytes] = None,
+        on_snapshot: Optional[Callable[[bytes], None]] = None,
     ) -> None:
-        shell = Bash(
-            python=False,
-            network=None,  # network is disabled so curl/wget/http cannot reach the internet
+        shell = _build_shell(
             custom_builtins={
                 "phoenix-gql": create_phoenix_gql_builtin(
                     schema=schema,
@@ -345,18 +435,30 @@ class BashToolset(FunctionToolset[None]):
                     allow_mutations=allow_mutations,
                 ),
             },
+            initial_snapshot=initial_snapshot,
         )
-        shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
 
         async def bash(summary: str, command: str) -> BashToolResult:
+            started_at = datetime.now(timezone.utc)
+            start = time.monotonic()
             result = await shell.execute(command)
+            completed_at = datetime.now(timezone.utc)
+            duration_ms = round((time.monotonic() - start) * 1000)
+            if on_snapshot is not None:
+                on_snapshot(shell.snapshot())
             result_dict = result.to_dict()
             return {
+                "command": command,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                "exit_code": result.exit_code,
-                "stdout_truncated": result_dict["stdout_truncated"],
-                "stderr_truncated": result_dict["stderr_truncated"],
+                "exitCode": result.exit_code,
+                "durationMs": duration_ms,
+                "startedAt": started_at.isoformat(),
+                "completedAt": completed_at.isoformat(),
+                "stdoutBytes": len(result.stdout.encode("utf-8")),
+                "stderrBytes": len(result.stderr.encode("utf-8")),
+                "stdoutTruncated": result_dict["stdout_truncated"],
+                "stderrTruncated": result_dict["stderr_truncated"],
             }
 
         super().__init__(
@@ -371,19 +473,23 @@ class BashToolset(FunctionToolset[None]):
 
 
 @dataclass
-class BashCapability(AbstractStaticCapability[None]):
+class BashCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
     """Capability that adds a ``bash`` toolset."""
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
     instructions: str
     allow_mutations: bool = False
+    initial_snapshot: Optional[bytes] = None
+    on_snapshot: Optional[Callable[[bytes], None]] = None
 
-    def get_toolset(self) -> AgentToolset[None] | None:
-        return BashToolset(
+    def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
+        return BashToolset[AgentDepsT](
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
+            initial_snapshot=self.initial_snapshot,
+            on_snapshot=self.on_snapshot,
         )
 
     def get_static_instructions(self) -> str:

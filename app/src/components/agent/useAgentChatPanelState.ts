@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 
-import { garbageCollectBashToolRuntimes } from "@phoenix/agent/tools/bash";
 import type { paths } from "@phoenix/api/__generated__/v1";
-import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
@@ -19,14 +18,9 @@ const ASSISTANT_AGENT_ID = "assistant";
  *
  * Responsibilities:
  * - Creates a session automatically when the panel opens
- * - Garbage-collects bash runtimes for sessions that are no longer active
  * - Derives the chat API URL and model menu value from the store
- *
- * All bash-tool-specific side effects are co-located here so that
- * {@link AgentContext} and the rest of the app remain tool-agnostic.
  */
 export function useAgentChatPanelState() {
-  const store = useAgentStore();
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const position = useAgentContext((state) => state.position);
@@ -61,25 +55,6 @@ export function useAgentChatPanelState() {
       createSession();
     }
   }, [isOpen, activeSessionId, createSession]);
-
-  // Garbage-collect bash runtimes for sessions that are no longer active.
-  // Eagerly evicts inactive runtimes so stale runtimes don't survive session
-  // churn. Capability state keeps this runtime policy distinct from
-  // session/chat state and leaves room for future UI surfaces.
-  useEffect(() => {
-    const syncBashRuntimeRegistry = () => {
-      const state = store.getState();
-      garbageCollectBashToolRuntimes({
-        activeSessionId: state.activeSessionId,
-        sessionIds: state.sessions,
-        retainInactiveSessions:
-          state.capabilities["bash.retainInactiveSessions"],
-      });
-    };
-
-    syncBashRuntimeRegistry();
-    return store.subscribe(syncBashRuntimeRegistry);
-  }, [store]);
 
   const menuValue: ModelMenuValue = useMemo(
     () => ({

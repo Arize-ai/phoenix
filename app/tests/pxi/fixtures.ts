@@ -79,7 +79,6 @@ async function installAgentDefaults({ page }: { page: Page }) {
               hasAcknowledgedConsent: false,
             },
             capabilities: {
-              "bash.retainInactiveSessions": false,
               "graphql.mutations": false,
               "session.storeSessions": false,
               "web.access": false,

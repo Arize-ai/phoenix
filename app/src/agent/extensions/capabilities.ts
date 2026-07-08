@@ -7,7 +7,6 @@
  * in `./toolRegistry`.
  */
 export type AgentCapabilityKey =
-  | "bash.retainInactiveSessions"
   | "graphql.mutations"
   | "session.storeSessions"
   | "subagents.enabled"
@@ -27,7 +26,6 @@ export type AgentCapabilityDefinition = {
 export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
-  "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
   "session.storeSessions": false,
   "subagents.enabled": false,
@@ -36,15 +34,6 @@ const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
 
 /** Ordered capability catalog used by the UI and runtime. */
 export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
-  {
-    key: "bash.retainInactiveSessions",
-    label: "Retain inactive bash sessions",
-    description:
-      "Keeps browser bash runtimes alive when switching sessions instead of eagerly garbage-collecting them.",
-    defaultValue: false,
-    scope: "global",
-    controlSurface: "experimental-settings",
-  },
   {
     key: "graphql.mutations",
     label: "Dangerously enable mutations",

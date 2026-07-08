@@ -56,6 +56,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
+from phoenix.server.agents.capabilities.tools.internal.bash import BashSnapshotStore
 from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
@@ -292,6 +293,12 @@ class _SummarizeResponse(BaseModel):
 logger = logging.getLogger(__name__)
 
 _ASSISTANT_AGENT_ID = "assistant"
+
+# Cross-turn bash continuity for assistant chat sessions: files the agent wrote
+# in one turn stay readable in the next. In-memory by design (parity with the
+# retired browser runtime, which kept shell state per session until reload);
+# see BashSnapshotStore for the TTL/LRU bounds.
+_bash_snapshot_store = BashSnapshotStore()
 
 
 def _log_run_complete(result: AgentRunResult[Any]) -> None:
@@ -985,6 +992,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
+        if graphql_mutations_enabled and is_viewer:
+            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
         server_agent = (
             build_server_agent(
                 model=model,
@@ -1025,6 +1034,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             publish_subagent_message_chunk = _publish_subagent_message_chunk
             set_subagent_final_tool_output = _set_subagent_final_tool_output
 
+        bash_enabled = not get_env_phoenix_agents_disable_bash()
         agent = build_agent(
             model=model,
             docs_mcp_server=request.app.state.docs_mcp_server,
@@ -1033,6 +1043,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             server_agent=server_agent,
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,
+            schema=request.app.state.graphql_schema if bash_enabled else None,
+            build_graphql_context=(
+                (lambda: request.app.state.build_graphql_context(phoenix_user))
+                if bash_enabled
+                else None
+            ),
+            allow_mutations=graphql_mutations_enabled,
+            initial_bash_snapshot=_bash_snapshot_store.get(session_id),
+            on_bash_snapshot=lambda snapshot: _bash_snapshot_store.set(session_id, snapshot),
         )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []

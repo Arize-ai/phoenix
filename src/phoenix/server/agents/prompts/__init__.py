@@ -9,7 +9,6 @@ from phoenix.server.agents.prompts.templating import get_template
 _BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
 _BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
 _DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
-_BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
 _ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2")
 _SET_TIME_RANGE_TOOL_INSTRUCTIONS = get_template("tools/SET_TIME_RANGE_TOOL_INSTRUCTIONS.xml.j2")
 _GET_ROUTE_INFO_TOOL_INSTRUCTIONS = get_template("tools/GET_ROUTE_INFO_TOOL_INSTRUCTIONS.xml.j2")
@@ -184,7 +183,7 @@ _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
 _LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
 _READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
 _CALL_SUBAGENT_TOOL_INSTRUCTIONS = get_template("tools/CALL_SUBAGENT_TOOL_INSTRUCTIONS.xml.j2")
-_SERVER_BASH_TOOL_INSTRUCTIONS = get_template("tools/SERVER_BASH_TOOL_INSTRUCTIONS.xml.j2")
+_BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -289,7 +288,7 @@ class ServerAgentPrompts:
     """Every prompt template the server agent uses."""
 
     base: Template = _BASE_SUBAGENT_INSTRUCTIONS
-    bash_tool: Template = _SERVER_BASH_TOOL_INSTRUCTIONS
+    bash_tool: Template = _BASH_TOOL_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE

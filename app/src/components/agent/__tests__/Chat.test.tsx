@@ -123,7 +123,6 @@ function renderChatView(
             },
           }}
           capabilities={{
-            "bash.retainInactiveSessions": false,
             "graphql.mutations": false,
             "session.storeSessions": true,
             "subagents.enabled": false,
