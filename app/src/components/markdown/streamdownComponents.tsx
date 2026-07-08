@@ -199,7 +199,7 @@ const inlineCodeCSS = css`
   border-radius: var(--global-rounding-small);
   background: var(--global-inline-code-background-color);
   color: var(--global-inline-code-text-color);
-  font-family: var(--ac-global-font-family-code);
+  font-family: "Geist Mono", monospace;
   font-size: 0.9em;
   line-height: 1.4;
 `;

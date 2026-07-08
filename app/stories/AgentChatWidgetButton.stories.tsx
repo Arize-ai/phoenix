@@ -55,8 +55,8 @@ const interactiveCanvasCSS = css`
     ),
     linear-gradient(
       180deg,
-      var(--ac-global-background-color-dark-300),
-      var(--ac-global-background-color-dark-200)
+      var(--global-color-gray-300),
+      var(--global-color-gray-200)
     );
   overflow: hidden;
 `;
