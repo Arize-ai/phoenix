@@ -16,14 +16,14 @@ export interface PxiLabConfig {
   speed: number;
   /** ring/stroke width in px */
   ringWidth: number;
-  /** glow intensity 0..1 */
-  glow: number;
-  /** glow blur radius in px */
-  spread: number;
+  /** glow intensity 0..1, tuned per theme */
+  glowLight: number;
+  glowDark: number;
+  /** glow blur radius in px, tuned per theme */
+  spreadLight: number;
+  spreadDark: number;
   /** corner radius of ring decorators in px */
   radius: number;
-  /** pill-shaped buttons instead of token rounding */
-  pill: boolean;
   /** state applied to the ring decorators in the scenarios */
   ringState: PxiRingState;
   /** false freezes all treatment animation (reduced-motion preview) */
@@ -81,10 +81,11 @@ export const DEFAULT_PXI_LAB_CONFIG: PxiLabConfig = {
   c3: PXI_PALETTES[0].c3,
   speed: 3,
   ringWidth: 1.5,
-  glow: 0.5,
-  spread: 16,
+  glowLight: 0.8,
+  glowDark: 0.2,
+  spreadLight: 10,
+  spreadDark: 8,
   radius: 8,
-  pill: false,
   ringState: "active",
   motion: true,
 };
@@ -125,10 +126,21 @@ export function parsePxiLabConfig(searchParams: URLSearchParams): PxiLabConfig {
     c3: parseHex(searchParams.get("c3"), defaults.c3),
     speed: parseNumber(searchParams.get("sp"), defaults.speed, 0.5, 12),
     ringWidth: parseNumber(searchParams.get("rw"), defaults.ringWidth, 0.5, 4),
-    glow: parseNumber(searchParams.get("gl"), defaults.glow, 0, 1),
-    spread: parseNumber(searchParams.get("gs"), defaults.spread, 2, 48),
+    glowLight: parseNumber(searchParams.get("gll"), defaults.glowLight, 0, 1),
+    glowDark: parseNumber(searchParams.get("gld"), defaults.glowDark, 0, 1),
+    spreadLight: parseNumber(
+      searchParams.get("gsl"),
+      defaults.spreadLight,
+      2,
+      48
+    ),
+    spreadDark: parseNumber(
+      searchParams.get("gsd"),
+      defaults.spreadDark,
+      2,
+      48
+    ),
     radius: parseNumber(searchParams.get("rad"), defaults.radius, 0, 24),
-    pill: searchParams.get("pill") === "1",
     ringState: isRingState(ringState) ? ringState : defaults.ringState,
     motion: searchParams.get("m") !== "0",
   };
@@ -142,10 +154,11 @@ export function serializePxiLabConfig(config: PxiLabConfig): URLSearchParams {
     c3: config.c3.replace("#", ""),
     sp: String(config.speed),
     rw: String(config.ringWidth),
-    gl: String(config.glow),
-    gs: String(config.spread),
+    gll: String(config.glowLight),
+    gld: String(config.glowDark),
+    gsl: String(config.spreadLight),
+    gsd: String(config.spreadDark),
     rad: String(config.radius),
-    pill: config.pill ? "1" : "0",
     st: config.ringState,
     m: config.motion ? "1" : "0",
   });

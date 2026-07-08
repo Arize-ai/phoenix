@@ -148,17 +148,17 @@ export function PxiLabPage() {
 
   const treatment = PXI_TREATMENTS.find((t) => t.id === config.treatment);
 
-  const scopeVars = {
-    "--pxi-c1": config.c1,
-    "--pxi-c2": config.c2,
-    "--pxi-c3": config.c3,
-    "--pxi-speed": `${config.speed}s`,
-    "--pxi-ring-width": `${config.ringWidth}px`,
-    "--pxi-glow": config.glow,
-    "--pxi-spread": `${config.spread}px`,
-    "--pxi-radius": `${config.radius}px`,
-    ...(config.pill ? { "--pxi-button-radius": "9999px" } : {}),
-  } as CSSProperties;
+  const scopeVars = (theme: "light" | "dark") =>
+    ({
+      "--pxi-c1": config.c1,
+      "--pxi-c2": config.c2,
+      "--pxi-c3": config.c3,
+      "--pxi-speed": `${config.speed}s`,
+      "--pxi-ring-width": `${config.ringWidth}px`,
+      "--pxi-glow": theme === "light" ? config.glowLight : config.glowDark,
+      "--pxi-spread": `${theme === "light" ? config.spreadLight : config.spreadDark}px`,
+      "--pxi-radius": `${config.radius}px`,
+    }) as CSSProperties;
 
   return (
     <main css={pageCSS}>
@@ -174,7 +174,7 @@ export function PxiLabPage() {
               data-theme={theme}
               data-pxi-treatment={config.treatment}
               data-pxi-motion={config.motion ? "on" : "off"}
-              style={scopeVars}
+              style={scopeVars(theme)}
               css={[paneCSS, pxiScopeCSS]}
             >
               <Flex direction="column" gap="size-300">
@@ -274,22 +274,42 @@ export function PxiLabPage() {
               <SliderNumberField />
             </Slider>
             <Slider
-              label="Glow intensity"
+              label="Glow intensity (light)"
               minValue={0}
               maxValue={1}
               step={0.05}
-              value={config.glow}
-              onChange={sliderChange("glow")}
+              value={config.glowLight}
+              onChange={sliderChange("glowLight")}
             >
               <SliderNumberField />
             </Slider>
             <Slider
-              label="Glow spread"
+              label="Glow intensity (dark)"
+              minValue={0}
+              maxValue={1}
+              step={0.05}
+              value={config.glowDark}
+              onChange={sliderChange("glowDark")}
+            >
+              <SliderNumberField />
+            </Slider>
+            <Slider
+              label="Glow spread (light)"
               minValue={2}
               maxValue={48}
               step={1}
-              value={config.spread}
-              onChange={sliderChange("spread")}
+              value={config.spreadLight}
+              onChange={sliderChange("spreadLight")}
+            >
+              <SliderNumberField />
+            </Slider>
+            <Slider
+              label="Glow spread (dark)"
+              minValue={2}
+              maxValue={48}
+              step={1}
+              value={config.spreadDark}
+              onChange={sliderChange("spreadDark")}
             >
               <SliderNumberField />
             </Slider>
@@ -311,12 +331,6 @@ export function PxiLabPage() {
               onChange={(isSelected) => update({ motion: isSelected })}
             >
               <Text size="S">Animate (off previews reduced motion)</Text>
-            </Switch>
-            <Switch
-              isSelected={config.pill}
-              onChange={(isSelected) => update({ pill: isSelected })}
-            >
-              <Text size="S">Pill-shaped buttons</Text>
             </Switch>
           </ControlGroup>
 

@@ -10,7 +10,7 @@ import { css, keyframes } from "@emotion/react";
  *   - data-theme="light|dark"                       (theme-tuned overrides)
  *   - data-pxi-motion="on|off"                      (freeze all animation)
  *   - CSS custom props (--pxi-c1..c3, --pxi-speed, --pxi-ring-width,
- *     --pxi-glow, --pxi-spread, --pxi-radius, --pxi-button-radius)
+ *     --pxi-glow, --pxi-spread, --pxi-radius)
  *
  * Every affordance shares the same two-layer anatomy:
  *   ::before = stroke layer (the ring band, cut out via mask-composite)
@@ -134,7 +134,7 @@ export const pxiScopeCSS = css`
        heavier than the dark-on-light primary under macOS subpixel smoothing */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    border-radius: var(--pxi-button-radius, var(--global-rounding-small));
+    border-radius: var(--global-rounding-small);
     transition:
       color 0.15s ease,
       background-color 0.15s ease,
@@ -348,6 +348,12 @@ export const pxiScopeCSS = css`
     border-radius: calc(var(--pxi-radius) + var(--pxi-glow-band));
     opacity: var(--pxi-glow-alpha);
     filter: blur(var(--pxi-spread));
+    /* clip-path applies AFTER filter, so it cuts the blurred halo down to the
+       ring outline's outer perimeter (this box sits at --pxi-ring-inset, the
+       same rect as the stroke ::before). overflow can't do this — it clips
+       children, not the element's own blur. Trades the soft outward halo for a
+       glow bounded hard at the outline; drop this line to restore the bleed. */
+    clip-path: inset(0 round calc(var(--pxi-radius) + 3px));
 
     &::before {
       content: "";
