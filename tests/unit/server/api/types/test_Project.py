@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -2609,6 +2610,70 @@ class TestProject:
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
 
+    async def test_sessions_and_session_count_compose_substring_with_session_filter_condition(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        io_substring = "\"'f"
+        condition = (
+            f"session_id == '{_data.project_sessions[1].session_id}' "
+            f"or session_id == '{_data.project_sessions[2].session_id}'"
+        )
+        io_arg = json.dumps(io_substring)
+        condition_arg = json.dumps(condition)
+
+        sessions_result = await self._node(
+            "sessions("
+            f"filterIoSubstring:{io_arg},"
+            f"sessionFilterCondition:{condition_arg}"
+            "){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
+        assert [e["node"]["id"] for e in sessions_result["edges"]] == [
+            _gid(_data.project_sessions[1])
+        ]
+
+        session_count = await self._node(
+            f"sessionCount(filterIoSubstring:{io_arg},sessionFilterCondition:{condition_arg})",
+            project,
+            httpx_client,
+        )
+        assert session_count == 1
+
+    async def test_session_count_accepts_substring_without_session_filter_condition(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        io_arg = json.dumps("\"'f")
+        session_count = await self._node(
+            f"sessionCount(filterIoSubstring:{io_arg})",
+            project,
+            httpx_client,
+        )
+        assert session_count == 2
+
+    async def test_sessions_exact_session_id_match_precedes_composed_filters(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        session = _data.project_sessions[0]
+        condition = f"session_id == '{_data.project_sessions[2].session_id}'"
+        field = (
+            f"sessions(sessionId:{json.dumps(session.session_id)},"
+            f"filterIoSubstring:{json.dumps('does-not-match')},"
+            f"sessionFilterCondition:{json.dumps(condition)})"
+            "{edges{node{id}}}"
+        )
+        res = await self._node(field, project, httpx_client)
+        assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
+
     @pytest.fixture
     async def _case_insensitive_data(
         self,
@@ -2691,6 +2756,33 @@ class TestProject:
                 f"Expected sessions {expected_session_indices} for filter '{filter_substring}', "
                 f"but got {actual_session_ids}"
             )
+
+    async def test_search_box_is_case_insensitive_but_session_dsl_in_is_case_sensitive(
+        self,
+        _case_insensitive_data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _case_insensitive_data.projects[0]
+        filter_arg = json.dumps("hello")
+
+        search_result = await self._node(
+            f"sessions(filterIoSubstring:{filter_arg}){{edges{{node{{id}}}}}}",
+            project,
+            httpx_client,
+        )
+        assert {e["node"]["id"] for e in search_result["edges"]} == {
+            _gid(_case_insensitive_data.project_sessions[0]),
+            _gid(_case_insensitive_data.project_sessions[1]),
+            _gid(_case_insensitive_data.project_sessions[4]),
+        }
+
+        condition_arg = json.dumps("'hello' in any_input")
+        dsl_result = await self._node(
+            f"sessions(sessionFilterCondition:{condition_arg}){{edges{{node{{id}}}}}}",
+            project,
+            httpx_client,
+        )
+        assert [e["node"]["id"] for e in dsl_result["edges"]] == []
 
     @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
     async def test_root_spans_only_with_orphan_spans(

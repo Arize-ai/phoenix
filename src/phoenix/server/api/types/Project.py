@@ -619,11 +619,6 @@ class Project(Node):
         session_filter_condition: Optional[str] = UNSET,
         session_id: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
-        if filter_io_substring and session_filter_condition:
-            raise BadRequest(
-                "Both a session filter condition and an IO substring filter "
-                "cannot be applied at the same time"
-            )
         table = models.ProjectSession
         if session_id:
             async with info.context.db.read() as session:
