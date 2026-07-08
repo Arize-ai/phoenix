@@ -64,6 +64,14 @@ const commandPaletteCSS = css`
     transition: opacity 0.15s ease;
   }
 
+  .command-palette__menu[data-empty] {
+    /* When the menu is empty React Aria collapses it around the empty state;
+       stretch it so the empty state can fill the available width instead of
+       centering a collapsed box that gets clipped at the top and bottom. */
+    align-items: stretch;
+    padding: 0;
+  }
+
   &[data-pending="true"] .command-palette__menu {
     /* While a search transition is in flight React keeps the prior results
        mounted (see startTransition in GlobalSearchPalette); dim them slightly
@@ -106,6 +114,9 @@ const commandPaletteCSS = css`
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    min-height: var(--global-dimension-size-1600);
+    box-sizing: border-box;
     padding: var(--global-dimension-static-size-300);
   }
 `;
@@ -215,21 +226,21 @@ export function CommandPalette({
               className="command-palette__menu"
               aria-label={ariaLabel}
               onAction={onAction}
-              renderEmptyState={() =>
-                renderEmptyState ? (
-                  <div className="command-palette__empty-state">
-                    {renderEmptyState()}
-                  </div>
-                ) : (
-                  // CompactEmptyState reads the Autocomplete's live query from
-                  // context, so a non-empty search renders the search icon +
-                  // "No results" automatically.
-                  <CompactEmptyState
-                    icon={<Icon svg={<Icons.Search />} />}
-                    description="No results"
-                  />
-                )
-              }
+              renderEmptyState={() => (
+                <div className="command-palette__empty-state">
+                  {renderEmptyState ? (
+                    renderEmptyState()
+                  ) : (
+                    // CompactEmptyState reads the Autocomplete's live query
+                    // from context, so a non-empty search renders the search
+                    // icon + "No results" automatically.
+                    <CompactEmptyState
+                      icon={<Icon svg={<Icons.Search />} />}
+                      description="No results"
+                    />
+                  )}
+                </div>
+              )}
             >
               {children}
             </Menu>

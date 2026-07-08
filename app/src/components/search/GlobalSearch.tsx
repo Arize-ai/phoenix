@@ -19,7 +19,6 @@ import { GlobalSearchPalette } from "./GlobalSearchPalette";
 import { RecentlyViewedTracker } from "./RecentlyViewedTracker";
 
 const SEARCH_HOTKEY = "mod+k";
-const SEARCH_SHORTHAND_HOTKEY = "f";
 
 const searchButtonCSS = css`
   border: none;
@@ -38,7 +37,7 @@ const searchButtonCSS = css`
 
 /**
  * The global search affordance: a search entry in the side navigation plus
- * the ⌘K / F keyboard shortcuts, opening a command palette that searches
+ * the ⌘K keyboard shortcut, opening a command palette that searches
  * projects, datasets, experiments, prompts, pages, and recently viewed
  * resources.
  */
@@ -54,14 +53,6 @@ export function GlobalSearch({ isExpanded }: { isExpanded: boolean }) {
       setOpen((isCurrentlyOpen) => !isCurrentlyOpen);
     },
     { preventDefault: true, enableOnFormTags: true },
-    [setOpen]
-  );
-  useHotkeys(
-    SEARCH_SHORTHAND_HOTKEY,
-    (event) => {
-      event.preventDefault();
-      setOpen(true);
-    },
     [setOpen]
   );
 
