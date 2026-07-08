@@ -65,6 +65,11 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     OutputConfig as OutputConfigModel,
 )
+from phoenix.db.types.data_stream_protocol import (
+    PhoenixUIMessage,
+    PhoenixUIMessageAdapter,
+    UserMessageMetadata,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
@@ -190,6 +195,7 @@ ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
     "agent.assistant.trace_recording",
     "agent.assistant.enabled",
+    "agent.assistant.session_retention",
 ]
 
 
@@ -244,6 +250,25 @@ class JsonList(TypeDecorator[list[Any]]):
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
+
+
+class _UIMessage(TypeDecorator[PhoenixUIMessage]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PhoenixUIMessage], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return (
+            value.model_dump(mode="json", by_alias=True, exclude_none=True)
+            if value is not None
+            else None
+        )
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PhoenixUIMessage]:
+        return PhoenixUIMessageAdapter.validate_python(value) if value is not None else None
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
@@ -3312,3 +3337,115 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
     """
     if not is_encrypted(target.config):
         raise ValueError("Config is not encrypted")
+
+
+class AgentSession(HasId):
+    __tablename__ = "agent_sessions"
+    project_session_id: Mapped[str] = mapped_column(String, nullable=False)
+    project_name: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # sessions may be created while auth is disabled
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    user: Mapped[Optional["User"]] = relationship("User")
+    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
+        "AgentSessionSnapshot",
+        back_populates="agent_session",
+        uselist=False,
+    )
+    messages: Mapped[list["AgentSessionMessage"]] = relationship(
+        "AgentSessionMessage",
+        order_by="AgentSessionMessage.position",
+        cascade="all, delete-orphan",
+        back_populates="agent_session",
+    )
+    __table_args__ = (
+        UniqueConstraint("project_session_id", "project_name"),
+        Index(
+            "ix_agent_sessions_user_id_updated_at",
+            "user_id",
+            updated_at.desc(),
+        ),
+        Index(
+            "ix_agent_sessions_expires_at",
+            "expires_at",
+            postgresql_where=text("expires_at IS NOT NULL"),
+            sqlite_where=text("expires_at IS NOT NULL"),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class AgentSessionMessage(HasId):
+    __tablename__ = "agent_session_messages"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    message: Mapped[PhoenixUIMessage] = mapped_column(_UIMessage, nullable=False)
+    message_id: Mapped[str] = mapped_column(
+        String,
+        sa.Computed(message["id"].as_string(), persisted=True),
+        nullable=False,
+        unique=True,
+    )
+    is_compaction_message: Mapped[bool] = mapped_column(
+        Boolean,
+        sa.Computed(
+            func.coalesce(
+                message[["metadata", "isCompactionMessage"]].as_boolean(),
+                sa.false(),
+            ),
+            persisted=True,
+        ),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    @property
+    def is_compaction_point(self) -> bool:
+        metadata = self.message.metadata
+        return isinstance(metadata, UserMessageMetadata) and metadata.is_compaction_message
+
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="messages",
+    )
+    __table_args__ = (
+        UniqueConstraint("agent_session_id", "position"),
+        Index(
+            "ix_agent_session_messages_compaction",
+            "agent_session_id",
+            position.desc(),
+            postgresql_where=text("is_compaction_message"),
+            sqlite_where=text("is_compaction_message"),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class AgentSessionSnapshot(HasId):
+    __tablename__ = "agent_session_snapshots"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="snapshot",
+    )
+    __table_args__ = (dict(sqlite_autoincrement=True),)

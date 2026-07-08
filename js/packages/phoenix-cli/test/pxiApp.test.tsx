@@ -4,7 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PxiApp, ThinkingIndicator } from "../src/pxi/App";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
-import type { PxiChatClient, PxiMessage } from "../src/pxi/types";
+import type {
+  ModelSelection,
+  PxiChatClient,
+  PxiMessage,
+  PxiRuntimeOptions,
+  PxiSessionClient,
+} from "../src/pxi/types";
 
 const ESCAPE_CHARACTER = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
@@ -981,7 +987,20 @@ describe("PXI app", () => {
 
     const frame = stripAnsi(lastFrame() ?? "");
     expect(frame).toContain("/clear");
-    expect(frame).toContain("Clear the conversation history");
+    expect(frame).toContain("Start a new persisted session");
+    unmount();
+  });
+
+  it("completes the suggested slash command with Tab", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/cl" });
+    await writeInput({ stdin, input: "\t" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain("❯ /clear█");
     unmount();
   });
 
@@ -1056,6 +1075,266 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("creates a temporary server session on the first message after /temporary", async () => {
+    const createSession = vi.fn(
+      async ({ temporary }: { temporary: boolean }) => ({
+        id: "temporary-session",
+        title: "",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: temporary,
+        messages: [],
+      })
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession,
+      listSessions: async () => [],
+      getSession: async () => {
+        throw new Error("not used");
+      },
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "/temporary" });
+    await writeInput({ stdin, input: "\r" });
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "session: new temporary session"
+    );
+    await writeInput({ stdin, input: "hello" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(createSession).toHaveBeenCalledWith({ temporary: true });
+    unmount();
+  });
+
+  it("updates a new session title from the streamed session summary", async () => {
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => ({
+        id: "session-1",
+        title: "",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        messages: [],
+      }),
+      listSessions: async () => [],
+      getSession: async () => {
+        throw new Error("not used");
+      },
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = {
+      sendMessage: async ({ onSessionTitle }) => {
+        onSessionTitle?.("Investigate missing spans");
+        return null;
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "why are spans missing?" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "session: Investigate missing spans"
+    );
+    unmount();
+  });
+
+  it("browses and restores a persisted session", async () => {
+    const restoredMessage: PxiMessage = {
+      id: "restored-user",
+      role: "user",
+      parts: [{ type: "text", text: "restored conversation" }],
+    };
+    const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) => ({
+      id: sessionId,
+      title: "Second session",
+      updatedAt: "2026-07-24T12:00:00Z",
+      isTemporary: false,
+      messages: [restoredMessage],
+    }));
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "First session",
+          updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
+        },
+        {
+          id: "session-2",
+          title: "Second session",
+          updatedAt: "2026-07-24T12:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Recent sessions");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("First session");
+
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(getSession).toHaveBeenCalledWith({ sessionId: "session-2" });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("restored conversation");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("session: Second session");
+    unmount();
+  });
+
+  it("switches the active session model for the next request", async () => {
+    const existingMessage: PxiMessage = {
+      id: "existing-user",
+      role: "user",
+      parts: [{ type: "text", text: "keep this conversation" }],
+    };
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => ({
+        id: "session-1",
+        title: "Existing session",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        messages: [],
+      }),
+      listSessions: async () => [],
+      getSession: async () => {
+        throw new Error("not used");
+      },
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const modelLoader = vi.fn(
+      async (): Promise<ModelSelection[]> => [
+        {
+          providerType: "builtin",
+          provider: "OPENAI",
+          modelName: "gpt-5.4",
+        },
+        {
+          providerType: "builtin",
+          provider: "GOOGLE",
+          modelName: "gemini-3.5-flash",
+        },
+      ]
+    );
+    const clientFactory = vi.fn(
+      ({
+        options,
+      }: {
+        options: PxiRuntimeOptions;
+        agentSessionId: string;
+      }): PxiChatClient => ({
+        sendMessage: async () => {
+          expect(options.modelSelection).toEqual({
+            providerType: "builtin",
+            provider: "GOOGLE",
+            modelName: "gemini-3.5-flash",
+          });
+          return null;
+        },
+      })
+    );
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        clientFactory={clientFactory}
+        modelLoader={modelLoader}
+        sessionClient={sessionClient}
+        initialMessages={[existingMessage]}
+      />
+    );
+
+    await writeInput({ stdin, input: "/model" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Recommended models");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("GOOGLE/gemini-3.5-flash");
+
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "\r" });
+
+    const selectedFrame = stripAnsi(lastFrame() ?? "");
+    expect(selectedFrame).toContain("model: GOOGLE/gemini-3.5-flash");
+    expect(selectedFrame).toContain("keep this conversation");
+
+    await writeInput({ stdin, input: "continue" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(clientFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          modelSelection: {
+            providerType: "builtin",
+            provider: "GOOGLE",
+            modelName: "gemini-3.5-flash",
+          },
+        }),
+        agentSessionId: "session-1",
+      })
+    );
+    unmount();
+  });
+
+  it("keeps model loading errors visible until the picker is retried", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        modelLoader={async () => {
+          throw new Error("Could not load models");
+        }}
+      />
+    );
+
+    await writeInput({ stdin, input: "/model" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "ignored filter" });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("Could not load models");
+    expect(frame).toContain("esc close and retry");
+    unmount();
+  });
+
   it("shows an error for unknown slash commands", async () => {
     const client: PxiChatClient = { sendMessage: async () => null };
     const { lastFrame, stdin, unmount } = render(
@@ -1080,6 +1359,7 @@ describe("PXI app", () => {
       role: "assistant",
       parts: [{ type: "text", text: "Done.", state: "done" }],
       metadata: {
+        type: "assistant",
         sessionId: "session-1",
         usage: {
           tokens: { prompt: 12000, completion: 345, total: 12345 },
@@ -1130,6 +1410,246 @@ describe("PXI app", () => {
     expect(frame).toContain("data retention");
     expect(frame).toContain("https://example.com/phoenix/settings/data");
     expect(frame).not.toContain("](/settings/data)");
+    unmount();
+  });
+});
+
+describe("PXI /compact command", () => {
+  const persistedTranscript: PxiMessage[] = [
+    {
+      id: "user-1",
+      role: "user",
+      parts: [{ type: "text", text: "first question" }],
+    },
+    {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "first answer" }],
+    },
+  ];
+  const checkpointMessage: PxiMessage = {
+    id: "checkpoint-1",
+    role: "user",
+    metadata: {
+      isCompactionMessage: true,
+    } as unknown as PxiMessage["metadata"],
+    parts: [{ type: "text", text: "Summary of the conversation so far." }],
+  };
+
+  function createSessionClientWithPersistedSession({
+    compactSession,
+    isActive = false,
+  }: {
+    compactSession: PxiSessionClient["compactSession"];
+    isActive?: boolean;
+  }): PxiSessionClient {
+    return {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "First session",
+          updatedAt: "2026-07-24T12:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession: async ({ sessionId }: { sessionId: string }) => ({
+        id: sessionId,
+        title: "First session",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        isActive,
+        messages: persistedTranscript,
+      }),
+      compactSession,
+    };
+  }
+
+  /** Activate the persisted session through the session picker. */
+  async function restoreFirstSession({
+    stdin,
+  }: {
+    stdin: { write: (input: string) => unknown };
+  }) {
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+  }
+
+  it("compacts the session and renders the checkpoint divider", async () => {
+    const compactSession = vi.fn(async () => ({
+      compacted: true,
+      compactionMessage: checkpointMessage,
+    }));
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={createSessionClientWithPersistedSession({
+          compactSession,
+        })}
+      />
+    );
+    await restoreFirstSession({ stdin });
+
+    await writeInput({ stdin, input: "/compact" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(compactSession).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("Conversation compacted");
+    expect(frame).toContain("Summary of the conversation so far.");
+    unmount();
+  });
+
+  it("shows a notice when there is nothing to compact", async () => {
+    const compactSession = vi.fn(async () => ({
+      compacted: false,
+      compactionMessage: null,
+    }));
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={createSessionClientWithPersistedSession({
+          compactSession,
+        })}
+      />
+    );
+    await restoreFirstSession({ stdin });
+
+    await writeInput({ stdin, input: "/compact" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "Conversation is already compact"
+    );
+    unmount();
+  });
+
+  it("rejects /compact before any conversation is persisted", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/compact" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "There is no persisted conversation to compact."
+    );
+    unmount();
+  });
+
+  it("enters the busy state when the server rejects compaction as busy", async () => {
+    const compactSession = vi.fn(async () => {
+      throw new Error("agent_session_busy");
+    });
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={createSessionClientWithPersistedSession({
+          compactSession,
+        })}
+      />
+    );
+    await restoreFirstSession({ stdin });
+
+    await writeInput({ stdin, input: "/compact" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain(
+      "Session is being used elsewhere, the chat will refresh when complete"
+    );
+    expect(frame).not.toContain("Error:");
+    unmount();
+  });
+
+  it("rejects /compact while the session is busy elsewhere", async () => {
+    const compactSession = vi.fn(async () => {
+      throw new Error("not used");
+    });
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={createSessionClientWithPersistedSession({
+          compactSession,
+          isActive: true,
+        })}
+      />
+    );
+    await restoreFirstSession({ stdin });
+
+    await writeInput({ stdin, input: "/compact" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(compactSession).not.toHaveBeenCalled();
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "Try again when the other turn completes."
+    );
+    unmount();
+  });
+
+  it("sends trailing /compact text as a follow-up after the checkpoint", async () => {
+    const compactSession = vi.fn(async () => ({
+      compacted: true,
+      compactionMessage: checkpointMessage,
+    }));
+    let capturedMessages: PxiMessage[] = [];
+    const client: PxiChatClient = {
+      sendMessage: async ({ messages }) => {
+        capturedMessages = messages;
+        return null;
+      },
+    };
+    const { stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={createSessionClientWithPersistedSession({
+          compactSession,
+        })}
+      />
+    );
+    await restoreFirstSession({ stdin });
+
+    await writeInput({ stdin, input: "/compact continue from here" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await act(async () => Promise.resolve());
+
+    expect(capturedMessages.map((message) => message.id).slice(0, 3)).toEqual([
+      "user-1",
+      "assistant-1",
+      "checkpoint-1",
+    ]);
+    const followUp = capturedMessages.at(-1);
+    expect(followUp?.role).toBe("user");
+    expect(followUp?.parts.find((part) => part.type === "text")?.text).toBe(
+      "continue from here"
+    );
     unmount();
   });
 });

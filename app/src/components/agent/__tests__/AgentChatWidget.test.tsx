@@ -165,6 +165,8 @@ describe("AgentChatWidget", () => {
                 assistantEnabled: true,
                 allowLocalTraces: true,
                 allowRemoteExport: false,
+                sessionRetentionMaxIdleDays: 30,
+                sessionRetentionMaxCountPerUser: null,
               }}
             >
               <AgentStoreCapture />
@@ -384,10 +386,8 @@ describe("AgentChatWidget", () => {
     renderWidget();
 
     act(() => {
-      const sessionId = agentStore?.getState().createSession();
-      if (sessionId) {
-        agentStore?.getState().setSessionResponsePending(sessionId, true);
-      }
+      agentStore?.getState().setActiveSession("session-node-id");
+      agentStore?.getState().setSessionResponsePending("session-node-id", true);
     });
 
     expect(
@@ -445,6 +445,8 @@ describe("AgentChatWidget", () => {
                 assistantEnabled: true,
                 allowLocalTraces: true,
                 allowRemoteExport: false,
+                sessionRetentionMaxIdleDays: 30,
+                sessionRetentionMaxCountPerUser: null,
               }}
             >
               <AgentWidgetWithBoundary />

@@ -32,9 +32,19 @@ class AgentAssistantEnabledSetting(BaseModel):
     enabled: bool = Field(default=True)
 
 
+class AgentSessionRetentionSetting(BaseModel):
+    """Workspace-wide retention for non-temporary agent sessions."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
+
+    max_idle_days: int = Field(default=0, ge=0)
+    max_count_per_user: int = Field(default=0, ge=0)
+
+
 SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType(
     {
         "agent.assistant.trace_recording": AgentTraceRecordingSetting,
         "agent.assistant.enabled": AgentAssistantEnabledSetting,
+        "agent.assistant.session_retention": AgentSessionRetentionSetting,
     }
 )
