@@ -659,6 +659,7 @@ class Project(Node):
                 project_rowids=[self.id],
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
+                aggregate_shape="correlated",
             )
             stmt = stmt.where(table.id.in_(filtered_session_rowids))
         sort_config: Optional[ProjectSessionSortConfig] = None
@@ -756,6 +757,7 @@ class Project(Node):
                 project_rowids=[self.id],
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
+                aggregate_shape="grouped",
             )
             stmt = stmt.where(models.ProjectSession.id.in_(filtered_session_rowids))
         async with info.context.db.read() as session:

@@ -37,10 +37,6 @@ from sqlalchemy import Engine, create_engine, select, text
 from sqlalchemy.sql.expression import Select
 
 from phoenix.db import models
-from phoenix.db.session_aggregates import (
-    cost_summary_by_session,
-    num_traces_by_session,
-)
 from phoenix.trace.dsl.session_filter import SessionFilter
 
 _EPOCH = datetime(2024, 1, 1, tzinfo=timezone.utc)
@@ -208,23 +204,28 @@ def option_a(
     base = select(models.ProjectSession.id).where(models.ProjectSession.project_id == project_id)
     if candidates is not None:
         base = base.where(models.ProjectSession.id.in_(candidates))
-    return SessionFilter(condition)(base, candidate_session_rowids=candidates)
+    return SessionFilter(condition)(
+        base,
+        candidate_session_rowids=candidates,
+        project_rowids=[project_id],
+        aggregate_shape="grouped",
+    )
 
 
 def option_b(
     condition: str, project_id: int, candidates: Optional[list[int]] = None
 ) -> Select[Any]:
-    """The same predicate expressed with per-session correlated scalar subqueries."""
+    """The same predicate expressed with the production correlated aggregate shape."""
     session_col = models.ProjectSession.id
     base = select(session_col).where(models.ProjectSession.project_id == project_id)
     if candidates is not None:
         base = base.where(session_col.in_(candidates))
-    num_traces = num_traces_by_session().as_correlated_scalar(session_col)
-    base = base.where(num_traces >= 5)
-    if "total_cost" in condition:
-        total_cost = cost_summary_by_session().as_correlated_scalar(session_col, value="total_cost")
-        base = base.where(total_cost > 0.1)
-    return base
+    return SessionFilter(condition)(
+        base,
+        candidate_session_rowids=candidates,
+        project_rowids=[project_id],
+        aggregate_shape="correlated",
+    )
 
 
 # --- measurement -----------------------------------------------------------------------------
@@ -310,10 +311,12 @@ def run_tier(engine: Engine, dialect: str, n_sessions: int, runs: int, rng: rand
         "B single (num_traces>=5)": lambda: view(option_b, _SINGLE),
         "A combined": lambda: view(option_a, _COMBINED),
         "B combined": lambda: view(option_b, _COMBINED),
-        "unfiltered page": lambda: select(models.ProjectSession.id)
-        .where(models.ProjectSession.project_id == project_id)
-        .order_by(models.ProjectSession.start_time.desc())
-        .limit(50),
+        "unfiltered page": lambda: (
+            select(models.ProjectSession.id)
+            .where(models.ProjectSession.project_id == project_id)
+            .order_by(models.ProjectSession.start_time.desc())
+            .limit(50)
+        ),
     }
     view_results = measure(engine, view_tasks, runs)
     lines.append("**View-shaped** (median / p95 ms, {} runs):\n".format(runs))
