@@ -32,9 +32,24 @@ class AgentAssistantEnabledSetting(BaseModel):
     enabled: bool = Field(default=True)
 
 
+class AccessControlEnabledSetting(BaseModel):
+    """The DB-latched activation state for per-resource access control.
+
+    Distinct from ``PHOENIX_ACCESS_CONTROL_ENABLED`` (the env-var availability /
+    kill-switch). Fail-closed: defaults to ``False``, so an absent or unset latch
+    leaves the deployment unenforced. The running app does not expose a runtime
+    enable/disable path; operators change the latch out of band before startup.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
+
+    enabled: bool = Field(default=False)
+
+
 SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType(
     {
         "agent.assistant.trace_recording": AgentTraceRecordingSetting,
         "agent.assistant.enabled": AgentAssistantEnabledSetting,
+        "access_control.enabled": AccessControlEnabledSetting,
     }
 )

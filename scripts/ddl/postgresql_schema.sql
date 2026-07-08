@@ -49,6 +49,72 @@ CREATE TABLE public.languages (
 );
 
 
+-- Table: permission_sets
+-- ----------------------
+CREATE TABLE public.permission_sets (
+    id serial NOT NULL,
+    name VARCHAR NOT NULL,
+    is_built_in BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT pk_permission_sets PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX ix_permission_sets_name ON public.permission_sets
+    USING btree (name);
+
+
+-- Table: acls
+-- -----------
+CREATE TABLE public.acls (
+    id serial NOT NULL,
+    subject_kind VARCHAR NOT NULL,
+    subject_id INTEGER,
+    role_id INTEGER,
+    object_type VARCHAR NOT NULL,
+    object_id INTEGER,
+    selector_kind VARCHAR NOT NULL DEFAULT 'ids'::character varying,
+    tag_key VARCHAR,
+    tag_value VARCHAR,
+    effect VARCHAR NOT NULL DEFAULT 'allow'::character varying,
+    CONSTRAINT pk_acls PRIMARY KEY (id),
+    CHECK ((((object_type)::text <> '*'::text) OR ((selector_kind)::text = 'all'::text))),
+    CONSTRAINT fk_acls_role_id_permission_sets FOREIGN KEY
+        (role_id)
+        REFERENCES public.permission_sets (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_acls_object_access_lookup ON public.acls
+    USING btree (effect, object_type, object_id, selector_kind);
+CREATE INDEX ix_acls_object_type_object_id ON public.acls
+    USING btree (object_type, object_id);
+CREATE INDEX ix_acls_subject_access_lookup ON public.acls
+    USING btree (effect, subject_kind, subject_id, object_type, selector_kind, object_id);
+CREATE INDEX ix_acls_subject_kind_subject_id ON public.acls
+    USING btree (subject_kind, subject_id);
+
+
+-- Table: permission_set_items
+-- ---------------------------
+CREATE TABLE public.permission_set_items (
+    id serial NOT NULL,
+    permission_set_id INTEGER NOT NULL,
+    permission VARCHAR NOT NULL,
+    CONSTRAINT pk_permission_set_items PRIMARY KEY (id),
+    CONSTRAINT uq_permission_set_items_permission_set_id_permission
+        UNIQUE (permission_set_id, permission),
+    CONSTRAINT fk_permission_set_items_permission_set_id_permission_sets
+        FOREIGN KEY
+        (permission_set_id)
+        REFERENCES public.permission_sets (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_permission_set_items_permission_permission_set_id ON public.permission_set_items
+    USING btree (permission, permission_set_id);
+CREATE INDEX ix_permission_set_items_permission_set_id ON public.permission_set_items
+    USING btree (permission_set_id);
+
+
 -- Table: project_trace_retention_policies
 -- ---------------------------------------
 CREATE TABLE public.project_trace_retention_policies (
@@ -71,6 +137,7 @@ CREATE TABLE public.projects (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     trace_retention_policy_id INTEGER,
+    kind VARCHAR NOT NULL DEFAULT 'TELEMETRY'::character varying,
     CONSTRAINT pk_projects PRIMARY KEY (id),
     CONSTRAINT uq_projects_name
         UNIQUE (name),
@@ -81,6 +148,8 @@ CREATE TABLE public.projects (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_projects_kind ON public.projects
+    USING btree (kind);
 CREATE INDEX ix_projects_trace_retention_policy_id ON public.projects
     USING btree (trace_retention_policy_id);
 
@@ -121,8 +190,8 @@ CREATE TABLE public.project_sessions (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
-    CONSTRAINT uq_project_sessions_session_id
-        UNIQUE (session_id),
+    CONSTRAINT uq_project_sessions_project_id_session_id
+        UNIQUE (project_id, session_id),
     CONSTRAINT fk_project_sessions_project_id_projects FOREIGN KEY
         (project_id)
         REFERENCES public.projects (id)
@@ -353,16 +422,49 @@ CREATE INDEX ix_span_cost_details_token_type ON public.span_cost_details
     USING btree (token_type);
 
 
+-- Table: user_groups
+-- ------------------
+CREATE TABLE public.user_groups (
+    id serial NOT NULL,
+    provider VARCHAR NOT NULL,
+    group_key VARCHAR NOT NULL,
+    display_name VARCHAR,
+    CONSTRAINT pk_user_groups PRIMARY KEY (id),
+    CONSTRAINT uq_user_groups_provider_group_key
+        UNIQUE (provider, group_key)
+);
+
+
 -- Table: user_roles
 -- -----------------
 CREATE TABLE public.user_roles (
     id serial NOT NULL,
     name VARCHAR NOT NULL,
+    is_built_in BOOLEAN NOT NULL DEFAULT true,
     CONSTRAINT pk_user_roles PRIMARY KEY (id)
 );
 
 CREATE UNIQUE INDEX ix_user_roles_name ON public.user_roles
     USING btree (name);
+
+
+-- Table: role_permissions
+-- -----------------------
+CREATE TABLE public.role_permissions (
+    id serial NOT NULL,
+    user_role_id INTEGER NOT NULL,
+    permission VARCHAR NOT NULL,
+    CONSTRAINT pk_role_permissions PRIMARY KEY (id),
+    CONSTRAINT uq_role_permissions_user_role_id_permission
+        UNIQUE (user_role_id, permission),
+    CONSTRAINT fk_role_permissions_user_role_id_user_roles FOREIGN KEY
+        (user_role_id)
+        REFERENCES public.user_roles (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_role_permissions_user_role_id ON public.role_permissions
+    USING btree (user_role_id);
 
 
 -- Table: users
@@ -420,6 +522,7 @@ CREATE TABLE public.api_keys (
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE,
+    scope VARCHAR,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users FOREIGN KEY
         (user_id)
@@ -778,11 +881,11 @@ CREATE TABLE public.experiments (
     description VARCHAR,
     repetitions INTEGER NOT NULL,
     metadata JSONB NOT NULL,
-    project_name VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     user_id BIGINT,
     is_ephemeral BOOLEAN NOT NULL DEFAULT false,
+    project_id INTEGER,
     CONSTRAINT pk_experiments PRIMARY KEY (id),
     CONSTRAINT fk_experiments_dataset_id_datasets FOREIGN KEY
         (dataset_id)
@@ -793,6 +896,10 @@ CREATE TABLE public.experiments (
         (dataset_version_id)
         REFERENCES public.dataset_versions (id)
         ON DELETE CASCADE,
+    CONSTRAINT fk_experiments_project_id_projects FOREIGN KEY
+        (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE SET NULL,
     CONSTRAINT fk_experiments_user_id_users FOREIGN KEY
         (user_id)
         REFERENCES public.users (id)
@@ -805,8 +912,8 @@ CREATE INDEX ix_experiments_dataset_version_id ON public.experiments
     USING btree (dataset_version_id);
 CREATE INDEX ix_experiments_ephemeral_updated_at ON public.experiments
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
-CREATE INDEX ix_experiments_project_name ON public.experiments
-    USING btree (project_name);
+CREATE INDEX ix_experiments_project_id ON public.experiments
+    USING btree (project_id);
 
 
 -- Table: experiment_jobs
@@ -1382,6 +1489,31 @@ CREATE INDEX ix_access_tokens_user_id ON public.access_tokens
     USING btree (user_id);
 
 
+-- Table: resource_tags
+-- --------------------
+CREATE TABLE public.resource_tags (
+    id serial NOT NULL,
+    object_type VARCHAR NOT NULL,
+    object_id INTEGER NOT NULL,
+    key VARCHAR NOT NULL,
+    value VARCHAR NOT NULL,
+    created_by INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    CONSTRAINT pk_resource_tags PRIMARY KEY (id),
+    CONSTRAINT uq_resource_tags_object_type_object_id_key
+        UNIQUE (object_type, object_id, key),
+    CONSTRAINT fk_resource_tags_created_by_users FOREIGN KEY
+        (created_by)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_resource_tags_object_type_key_value ON public.resource_tags
+    USING btree (object_type, key, value);
+CREATE INDEX ix_resource_tags_object_type_object_id ON public.resource_tags
+    USING btree (object_type, object_id);
+
+
 -- Table: sandbox_providers
 -- ------------------------
 CREATE TABLE public.sandbox_providers (
@@ -1616,3 +1748,24 @@ CREATE TABLE public.trace_annotations (
 
 CREATE INDEX ix_trace_annotations_trace_rowid ON public.trace_annotations
     USING btree (trace_rowid);
+
+
+-- Table: user_group_memberships
+-- -----------------------------
+CREATE TABLE public.user_group_memberships (
+    user_group_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    CONSTRAINT pk_user_group_memberships PRIMARY KEY (user_group_id, user_id),
+    CONSTRAINT fk_user_group_memberships_user_group_id_user_groups
+        FOREIGN KEY
+        (user_group_id)
+        REFERENCES public.user_groups (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_user_group_memberships_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_user_group_memberships_user_id ON public.user_group_memberships
+    USING btree (user_id);

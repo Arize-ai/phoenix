@@ -95,6 +95,121 @@ class TestTraceTransferMutationMixin:
             ).all()
             assert len(span_costs) == 2
 
+    async def test_transfer_merges_into_destination_session_of_the_same_id(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        db: DbSessionFactory,
+    ) -> None:
+        """When the destination already has a session with the moved trace's session_id, the
+        trace joins *that* session (not the source's, and not a duplicate), widening its
+        window. Sessions are unique per (project, session_id), so a merge is the only option."""
+        dest_project_id = trace_transfer_fixture["dest_project_id"]
+        trace1_id = trace_transfer_fixture["trace1_id"]
+        trace2_id = trace_transfer_fixture["trace2_id"]
+
+        async with db() as session:
+            src_session_rowid = await session.scalar(
+                select(models.Trace.project_session_rowid).where(models.Trace.id == trace1_id)
+            )
+            # The destination already has a session of the same id (a later window).
+            dest_session_rowid = await session.scalar(
+                insert(models.ProjectSession)
+                .values(
+                    session_id="test-session-1",
+                    project_id=dest_project_id,
+                    start_time=datetime.fromisoformat("2021-01-01T00:05:00.000+00:00"),
+                    end_time=datetime.fromisoformat("2021-01-01T00:06:00.000+00:00"),
+                )
+                .returning(models.ProjectSession.id)
+            )
+
+        # Transfer only trace1 (trace2 stays, keeping the source session alive).
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [str(GlobalID("Trace", str(trace1_id)))],
+                "projectId": str(GlobalID("Project", str(dest_project_id))),
+            },
+        )
+        assert not result.errors
+
+        async with db() as session:
+            trace1 = await session.get(models.Trace, trace1_id)
+            assert trace1 is not None
+            # Joined the destination's existing session — not the source's, not a new one.
+            assert trace1.project_rowid == dest_project_id
+            assert trace1.project_session_rowid == dest_session_rowid
+            # Still exactly one "test-session-1" in the destination project.
+            dest_sessions = (
+                await session.scalars(
+                    select(models.ProjectSession.id).where(
+                        models.ProjectSession.project_id == dest_project_id,
+                        models.ProjectSession.session_id == "test-session-1",
+                    )
+                )
+            ).all()
+            assert list(dest_sessions) == [dest_session_rowid]
+            # Its window widened to cover the moved trace (trace1 starts at 00:00).
+            dest_session = await session.get(models.ProjectSession, dest_session_rowid)
+            assert dest_session is not None
+            assert dest_session.start_time == datetime.fromisoformat(
+                "2021-01-01T00:00:00.000+00:00"
+            )
+            # The source session survives — trace2 still references it.
+            trace2 = await session.get(models.Trace, trace2_id)
+            assert trace2 is not None
+            assert trace2.project_session_rowid == src_session_rowid
+            assert await session.get(models.ProjectSession, src_session_rowid) is not None
+
+    async def test_transfer_moves_session_and_sweeps_emptied_source(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        db: DbSessionFactory,
+    ) -> None:
+        """With no collision, moving every trace of a session re-creates it in the destination
+        and sweeps the now-empty source session."""
+        dest_project_id = trace_transfer_fixture["dest_project_id"]
+        trace1_id = trace_transfer_fixture["trace1_id"]
+        trace2_id = trace_transfer_fixture["trace2_id"]
+
+        async with db() as session:
+            src_session_rowid = await session.scalar(
+                select(models.Trace.project_session_rowid).where(models.Trace.id == trace1_id)
+            )
+
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [
+                    str(GlobalID("Trace", str(trace1_id))),
+                    str(GlobalID("Trace", str(trace2_id))),
+                ],
+                "projectId": str(GlobalID("Project", str(dest_project_id))),
+            },
+        )
+        assert not result.errors
+
+        async with db() as session:
+            # Source session swept (no traces remain).
+            assert await session.get(models.ProjectSession, src_session_rowid) is None
+            # Destination has a session of the same id, holding both moved traces.
+            dest_session = await session.scalar(
+                select(models.ProjectSession).where(
+                    models.ProjectSession.project_id == dest_project_id,
+                    models.ProjectSession.session_id == "test-session-1",
+                )
+            )
+            assert dest_session is not None
+            traces = (
+                await session.scalars(
+                    select(models.Trace).where(models.Trace.id.in_([trace1_id, trace2_id]))
+                )
+            ).all()
+            assert all(t.project_rowid == dest_project_id for t in traces)
+            assert all(t.project_session_rowid == dest_session.id for t in traces)
+
     async def test_transfer_traces_fails_with_non_existent_trace_id(
         self,
         gql_client: AsyncGraphQLClient,

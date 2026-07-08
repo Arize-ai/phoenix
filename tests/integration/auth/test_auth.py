@@ -46,6 +46,7 @@ from .._helpers import (
     _AccessToken,
     _AdminSecret,
     _ApiKey,
+    _ApiKeyKind,
     _AppInfo,
     _create_api_key,
     _create_user,
@@ -54,6 +55,7 @@ from .._helpers import (
     _ExistingSpan,
     _Expectation,
     _extract_html,
+    _format_test_endpoint,
     _GetUser,
     _GqlId,
     _Headers,
@@ -1482,6 +1484,74 @@ class TestSpanExporters:
         assert export(_spans) is expected
 
 
+class TestApiKeyScopes:
+    """
+    An ingest-scoped API key may only write trace data. The scope rides as a
+    signed claim in the key's JWT (there is no scope column), so these tests
+    exercise the full path: GraphQL mint -> signed token -> middleware/gRPC
+    interceptor enforcement -> instant revocation via the jti lookup.
+    """
+
+    def test_ingest_key_can_export_spans_and_dies_on_revocation(
+        self,
+        _span_exporter: _SpanExporterFactory,
+        _spans: Sequence[ReadableSpan],
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System", scope="INGEST")
+        # Must use all lower case for `authorization` because
+        # otherwise it would crash the gRPC receiver.
+        headers = dict(authorization=f"Bearer {api_key}")
+        export = _span_exporter(_app, headers=headers).export
+        for _ in range(2):
+            assert export(_spans) is SpanExportResult.SUCCESS
+        # revocation must take effect immediately, scope claim and all
+        _DEFAULT_ADMIN.delete_api_key(_app, api_key)
+        assert export(_spans) is SpanExportResult.FAILURE
+
+    @pytest.mark.parametrize("kind", ["System", "User"])
+    def test_ingest_key_is_denied_everywhere_else(
+        self,
+        kind: _ApiKeyKind,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        if kind == "System":
+            api_key = _DEFAULT_ADMIN.create_api_key(_app, "System", scope="INGEST")
+        else:
+            logged_in_user = _get_user(_app, _MEMBER).log_in(_app)
+            api_key = logged_in_user.create_api_key(_app, scope="INGEST")
+        client = _httpx_client(_app, api_key)
+        # REST reads and writes outside the ingest surface are denied
+        assert client.get("v1/projects").status_code == 403
+        assert client.post("v1/datasets/upload").status_code == 403
+        assert client.delete("v1/traces").status_code == 403
+        # GraphQL is denied entirely for scoped keys
+        resp = client.post("graphql", json={"query": "{projects{edges{node{name}}}}"})
+        assert resp.status_code == 403
+
+    def test_unscoped_key_retains_full_legacy_access(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System")
+        client = _httpx_client(_app, api_key)
+        assert client.get("v1/projects").status_code == 200
+        resp = client.post("graphql", json={"query": "{projects{edges{node{name}}}}"})
+        assert resp.status_code == 200
+        assert "errors" not in resp.json()
+
+    def test_scope_is_echoed_into_description(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System", scope="INGEST")
+        query = "query{systemApiKeys{id description}}"
+        resp_dict, _ = _DEFAULT_ADMIN.gql(_app, query)
+        descriptions = {k["id"]: k["description"] for k in resp_dict["data"]["systemApiKeys"]}
+        assert descriptions[api_key.gid] == "[scope:ingest]"
+
+
 class TestPrompts:
     def test_authenticated_users_are_recorded_in_prompts(
         self,
@@ -2145,7 +2215,7 @@ class TestApiAccessViaCookiesOrApiKeys:
                     f"Test misconfiguration: expected_status_code should not be "
                     f"401 or 403 (got {expected_status_code} for {method} {endpoint})"
                 )
-                endpoint = endpoint.format(token_hex(4))
+                endpoint = _format_test_endpoint(endpoint)
                 response = client.request(method, endpoint)
                 assert response.status_code == expected_status_code, (
                     f"Expected {expected_status_code} but got {response.status_code} for {endpoint}"
@@ -2153,7 +2223,7 @@ class TestApiAccessViaCookiesOrApiKeys:
 
             # Test 2: Admin-only endpoints - only admins should have access
             for expected_status_code, method, endpoint in _ADMIN_ONLY_ENDPOINTS:
-                endpoint = endpoint.format(token_hex(4))
+                endpoint = _format_test_endpoint(endpoint)
                 response = client.request(method, endpoint)
                 if is_admin:
                     assert response.status_code == expected_status_code, (
@@ -2168,7 +2238,7 @@ class TestApiAccessViaCookiesOrApiKeys:
 
             # Test 3: Write operations - viewers blocked, admins/members have access
             for expected_status_code, method, endpoint in _VIEWER_BLOCKED_WRITE_OPERATIONS:
-                endpoint = endpoint.format(token_hex(4))
+                endpoint = _format_test_endpoint(endpoint)
                 response = client.request(method, endpoint)
                 if is_viewer:
                     assert response.status_code == 403, (

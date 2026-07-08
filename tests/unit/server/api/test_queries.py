@@ -670,12 +670,13 @@ async def projects_with_and_without_experiments(
                 description="non-experiment-project-description",
             )
         )
-        await session.scalar(
+        experiment_project_id = await session.scalar(
             insert(models.Project)
             .returning(models.Project.id)
             .values(
                 name="experiment-project-name",
                 description="experiment-project-description",
+                kind="EXPERIMENT",
             )
         )
         dataset_id = await session.scalar(
@@ -697,7 +698,7 @@ async def projects_with_and_without_experiments(
                 name="experiment-name",
                 repetitions=1,
                 metadata_={},
-                project_name="experiment-project-name",
+                project_id=experiment_project_id,
             )
         )
 
@@ -718,6 +719,7 @@ async def projects_with_and_without_dataset_evaluators(
         dataset_evaluator_project = models.Project(
             name="dataset-evaluator-project-name",
             description="dataset-evaluator-project-description",
+            kind="EVALUATOR",
         )
         session.add(non_dataset_evaluator_project)
         session.add(dataset_evaluator_project)
@@ -2879,3 +2881,33 @@ async def test_node_with_noninteger_payload_returns_bad_request(
     assert response.data is None
     assert response.errors
     assert f"Invalid node id: {bad_id}" in response.errors[0].message
+
+
+async def test_node_project_requires_existence_not_only_access(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    # node() resolving a Project must confirm the row exists, not merely that the caller is
+    # authorized: access control answers "yes" for an administrator or a type-wide grant
+    # holder even for an id that names no project, so a bare authorization check would resolve
+    # a nonexistent node to a stub. (Access control is off in this harness, which is itself a
+    # "sees everything" caller — the existence check is what makes the missing case 404.)
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project).returning(models.Project.id).values(name="real-project")
+        )
+    assert project_id is not None
+    query = "query ($id: ID!) { node(id: $id) { __typename ... on Project { id } } }"
+
+    ok = await gql_client.execute(
+        query=query, variables={"id": str(GlobalID("Project", str(project_id)))}
+    )
+    assert not ok.errors
+    assert ok.data is not None
+    assert ok.data["node"]["__typename"] == "Project"
+
+    missing_id = str(GlobalID("Project", str(project_id + 10_000)))
+    missing = await gql_client.execute(query=query, variables={"id": missing_id})
+    assert missing.data is None
+    assert missing.errors
+    assert f"Unknown node: {missing_id}" in missing.errors[0].message

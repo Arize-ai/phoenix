@@ -15,54 +15,88 @@ export class DatabaseClient {
   private static readonly FAST_POLL_MS = 500; // 500ms when waiting for migrations
   private static readonly NORMAL_POLL_MS = 5000; // 5 seconds once tables are ready
 
-  private client: Client;
+  private client: Client | null = null;
   private connected = false;
   private tablesReady = false;
   private users: User[] = [];
   private pollingInterval: NodeJS.Timeout | null = null;
 
   constructor() {
-    this.client = new Client({
+    this.client = this.createClient();
+    this.users = [DatabaseClient.DEFAULT_USER];
+  }
+
+  private createClient(): Client {
+    return new Client({
       host: process.env.DB_HOST || "db",
       port: parseInt(process.env.DB_PORT || "5432"),
       database: process.env.DB_NAME || "postgres",
       user: process.env.DB_USER || "postgres",
       password: process.env.DB_PASSWORD || "postgres",
     });
-    this.users = [DatabaseClient.DEFAULT_USER];
   }
 
   async connect(): Promise<void> {
     try {
-      await this.client.connect();
-      this.connected = true;
-      const dbConnected = {
-        timestamp: new Date().toISOString(),
-        event: "database_connected",
-        host: process.env.DB_HOST || "db",
-        port: parseInt(process.env.DB_PORT || "5432"),
-        database: process.env.DB_NAME || "postgres",
-      };
-      console.log(JSON.stringify(dbConnected));
-
+      await this.connectClient({ event: "database_connected" });
       await this.fetchUsers();
       this.startPolling();
     } catch (error) {
-      const dbConnectionFailed = {
-        timestamp: new Date().toISOString(),
+      this.logConnectionFailure({
         event: "database_connection_failed",
-        error: error instanceof Error ? error.message : String(error),
-        host: process.env.DB_HOST || "db",
-        port: parseInt(process.env.DB_PORT || "5432"),
-      };
-      console.log(JSON.stringify(dbConnectionFailed));
-
+        error,
+        action: "falling_back_to_default_user",
+      });
+      this.disposeClient();
       this.fallbackToNoUsers();
     }
   }
 
+  private async connectClient({ event }: { event: string }): Promise<void> {
+    if (!this.client) {
+      this.client = this.createClient();
+    }
+
+    await this.client.connect();
+    this.connected = true;
+
+    const dbConnected = {
+      timestamp: new Date().toISOString(),
+      event,
+      host: process.env.DB_HOST || "db",
+      port: parseInt(process.env.DB_PORT || "5432"),
+      database: process.env.DB_NAME || "postgres",
+    };
+    console.log(JSON.stringify(dbConnected));
+  }
+
+  private disposeClient(): void {
+    this.connected = false;
+    this.client = null;
+  }
+
+  private logConnectionFailure({
+    event,
+    error,
+    action,
+  }: {
+    event: string;
+    error: unknown;
+    action: string;
+  }): void {
+    const dbConnectionFailed = {
+      timestamp: new Date().toISOString(),
+      event,
+      error: error instanceof Error ? error.message : String(error),
+      host: process.env.DB_HOST || "db",
+      port: parseInt(process.env.DB_PORT || "5432"),
+      action,
+    };
+    console.log(JSON.stringify(dbConnectionFailed));
+  }
+
   private async fetchUsers(): Promise<void> {
-    if (!this.connected) {
+    if (!this.connected || !this.client) {
       const dbNotConnected = {
         timestamp: new Date().toISOString(),
         event: "database_fetch_skipped",
@@ -197,7 +231,24 @@ export class DatabaseClient {
           action: "keeping_existing_users",
         };
         console.log(JSON.stringify(dbQueryFailed));
+        this.disposeClient();
       }
+    }
+  }
+
+  private async pollUsers(): Promise<void> {
+    try {
+      if (!this.connected) {
+        await this.connectClient({ event: "database_reconnected" });
+      }
+      await this.fetchUsers();
+    } catch (error) {
+      this.logConnectionFailure({
+        event: "database_reconnect_failed",
+        error,
+        action: "retrying_on_next_poll",
+      });
+      this.disposeClient();
     }
   }
 
@@ -207,9 +258,7 @@ export class DatabaseClient {
       ? DatabaseClient.NORMAL_POLL_MS
       : DatabaseClient.FAST_POLL_MS;
 
-    this.pollingInterval = setInterval(async () => {
-      await this.fetchUsers();
-    }, intervalMs);
+    this.pollingInterval = setInterval(() => void this.pollUsers(), intervalMs);
 
     const pollingStarted = {
       timestamp: new Date().toISOString(),
@@ -227,9 +276,7 @@ export class DatabaseClient {
       clearInterval(this.pollingInterval);
     }
 
-    this.pollingInterval = setInterval(async () => {
-      await this.fetchUsers();
-    }, intervalMs);
+    this.pollingInterval = setInterval(() => void this.pollUsers(), intervalMs);
 
     const pollingRestarted = {
       timestamp: new Date().toISOString(),
@@ -253,27 +300,10 @@ export class DatabaseClient {
     };
     console.log(JSON.stringify(fallbackMode));
 
-    setInterval(async () => {
-      if (!this.connected) {
-        try {
-          await this.client.connect();
-          this.connected = true;
-
-          const dbReconnected = {
-            timestamp: new Date().toISOString(),
-            event: "database_reconnected",
-            action: "resuming_user_fetch",
-          };
-          console.log(JSON.stringify(dbReconnected));
-
-          await this.fetchUsers();
-        } catch {
-          // Reconnection will be retried on next poll
-        }
-      } else {
-        await this.fetchUsers();
-      }
-    }, DatabaseClient.FAST_POLL_MS);
+    this.pollingInterval = setInterval(
+      () => void this.pollUsers(),
+      DatabaseClient.FAST_POLL_MS
+    );
   }
 
   private getGroupsForUser(row: { role_name?: string }): string[] {
@@ -312,7 +342,7 @@ export class DatabaseClient {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
     }
-    if (this.connected) {
+    if (this.connected && this.client) {
       await this.client.end();
       this.connected = false;
 

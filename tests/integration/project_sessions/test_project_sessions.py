@@ -40,10 +40,12 @@ class TestProjectSessions:
         str_session_id = str(session_id).strip()
         num_traces, num_spans_per_trace = 2, 3
         assert num_traces > 1 and num_spans_per_trace > 2
-        project_names = []
+        # Sessions are scoped per project: the same session_id in two projects yields two
+        # separate sessions. To exercise a session that groups multiple traces, ingest all
+        # traces into one project.
+        project_name = token_hex(8)
         spans: List[Span] = []
         for _ in range(num_traces):
-            project_names.append(token_hex(8))
             with ExitStack() as stack:
                 for i in range(num_spans_per_trace):
                     if i == 0:
@@ -52,7 +54,7 @@ class TestProjectSessions:
                     else:
                         attributes = {SpanAttributes.SESSION_ID: session_id}
                     span = _start_span(
-                        project_name=project_names[-1],
+                        project_name=project_name,
                         exporter=_grpc_span_exporter(_app),
                         attributes=attributes,
                     )
@@ -60,7 +62,6 @@ class TestProjectSessions:
                     stack.enter_context(use_span(span, end_on_exit=True))
                     sleep(0.001)
         assert len(spans) == num_traces * num_spans_per_trace
-        project_name = project_names[0]
 
         def query_fn() -> Optional[dict[str, Any]]:
             res, *_ = _gql(
@@ -72,7 +73,7 @@ class TestProjectSessions:
                 "traces(first: 1000){edges{node{"
                 "spans(first: 1000){edges{node{context{spanId}}}}}}}}}}}}}}",
             )
-            if num_spans_per_trace != sum(
+            if len(spans) != sum(
                 len(project["node"]["spans"]["edges"])
                 for project in res["data"]["projects"]["edges"]
                 if project["node"]["name"] == project_name

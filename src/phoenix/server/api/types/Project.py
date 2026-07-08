@@ -1,3 +1,4 @@
+import enum
 import operator
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
@@ -18,6 +19,12 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
+from phoenix.server.access import (
+    DEFAULT_PERMISSION_SET,
+    OBJECT_TYPE_PROJECT,
+    SubjectKind,
+)
+from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
@@ -28,6 +35,8 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
 from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.AccessGrant import AccessGrant
+from phoenix.server.api.types.AccessSubjectKind import AccessSubjectKind
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
@@ -189,6 +198,16 @@ def _apply_project_session_filters(
     )
 
 
+@strawberry.enum
+class ProjectAccessPosture(enum.Enum):
+    """How a project is shared, for an at-a-glance badge. Derived from its grants,
+    independent of whether enforcement is currently on."""
+
+    ADMINS_ONLY = "admins_only"
+    SHARED = "shared"
+    ALL_USERS = "all_users"
+
+
 @strawberry.type
 class Project(Node):
     id: NodeID[int]
@@ -210,6 +229,125 @@ class Project(Node):
                 (self.id, models.Project.name),
             )
         return name
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore[untyped-decorator]
+    async def access_grants(
+        self,
+        info: Info[Context, None],
+    ) -> list[AccessGrant]:
+        """The user/group grants on this project, with display names — drives the
+        Access tab's "who can see this project" view."""
+        async with info.context.db.read() as session:
+            rows = (
+                await session.execute(
+                    select(
+                        models.AccessGrant.subject_kind,
+                        models.AccessGrant.subject_id,
+                        models.AccessGrant.role_id,
+                    ).where(
+                        models.AccessGrant.object_type == OBJECT_TYPE_PROJECT,
+                        models.AccessGrant.object_id == self.id,
+                        models.AccessGrant.selector_kind == "ids",
+                        models.AccessGrant.effect == "allow",
+                    )
+                )
+            ).all()
+            user_ids = [
+                sid for kind, sid, _ in rows if kind == SubjectKind.USER.value and sid is not None
+            ]
+            group_ids = [
+                sid for kind, sid, _ in rows if kind == SubjectKind.GROUP.value and sid is not None
+            ]
+            user_names: dict[int, str] = {}
+            if user_ids:
+                for uid, username, email in (
+                    await session.execute(
+                        select(models.User.id, models.User.username, models.User.email).where(
+                            models.User.id.in_(user_ids)
+                        )
+                    )
+                ).all():
+                    user_names[uid] = email or username
+            group_names: dict[int, str] = {}
+            if group_ids:
+                for gid, display_name in (
+                    await session.execute(
+                        select(models.UserGroup.id, models.UserGroup.display_name).where(
+                            models.UserGroup.id.in_(group_ids)
+                        )
+                    )
+                ).all():
+                    group_names[gid] = display_name or f"group:{gid}"
+            role_names: dict[int, str] = {
+                rid: name
+                for rid, name in (
+                    await session.execute(
+                        select(models.PermissionSet.id, models.PermissionSet.name)
+                    )
+                ).all()
+            }
+        grants: list[AccessGrant] = []
+        for kind, sid, role_id in rows:
+            # A grant with no role confers view; show the default role's name.
+            role_name = (
+                role_names.get(role_id, DEFAULT_PERMISSION_SET)
+                if role_id
+                else DEFAULT_PERMISSION_SET
+            )
+            if kind == SubjectKind.EVERYONE.value:
+                # The everyone baseline carries no subject id; 0 is a UI sentinel (revoke keys
+                # on the kind, not the id).
+                grants.append(
+                    AccessGrant(
+                        subject_kind=AccessSubjectKind.EVERYONE,
+                        subject_id=None,
+                        subject_name="All users",
+                        role_id=GlobalID("PermissionSet", str(role_id)) if role_id else None,
+                        role_name=role_name,
+                    )
+                )
+            elif kind == SubjectKind.USER.value and sid is not None:
+                grants.append(
+                    AccessGrant(
+                        subject_kind=AccessSubjectKind.USER,
+                        subject_id=GlobalID("User", str(sid)),
+                        subject_name=user_names.get(sid, f"user:{sid}"),
+                        role_id=GlobalID("PermissionSet", str(role_id)) if role_id else None,
+                        role_name=role_name,
+                    )
+                )
+            elif kind == SubjectKind.GROUP.value and sid is not None:
+                grants.append(
+                    AccessGrant(
+                        subject_kind=AccessSubjectKind.GROUP,
+                        subject_id=GlobalID("UserGroup", str(sid)),
+                        subject_name=group_names.get(sid, f"group:{sid}"),
+                        role_id=GlobalID("PermissionSet", str(role_id)) if role_id else None,
+                        role_name=role_name,
+                    )
+                )
+        return grants
+
+    @strawberry.field
+    async def access_posture(self, info: Info[Context, None]) -> ProjectAccessPosture:
+        """How this project is shared, for the projects-list badge: ADMINS_ONLY (no grants),
+        SHARED (granted to specific users/groups), or ALL_USERS (an everyone grant). Derived
+        from grants; orthogonal to whether enforcement is currently on."""
+        async with info.context.db.read() as session:
+            kinds = set(
+                await session.scalars(
+                    select(models.AccessGrant.subject_kind).where(
+                        models.AccessGrant.object_type == OBJECT_TYPE_PROJECT,
+                        models.AccessGrant.object_id == self.id,
+                        models.AccessGrant.effect == "allow",
+                    )
+                )
+            )
+        if SubjectKind.EVERYONE.value in kinds:
+            return ProjectAccessPosture.ALL_USERS
+        if kinds:
+            return ProjectAccessPosture.SHARED
+        return ProjectAccessPosture.ADMINS_ONLY
 
     @strawberry.field
     async def description(

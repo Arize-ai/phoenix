@@ -196,6 +196,7 @@ def _get_project_for_dataset_evaluator(
         description=(
             f"Traces for dataset evaluator: {dataset_evaluator_name} on dataset: {dataset_name}"
         ),
+        kind="EVALUATOR",
     )
 
 

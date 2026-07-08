@@ -1,22 +1,34 @@
 from __future__ import annotations
 
 from asyncio import get_running_loop
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property, partial
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from pydantic import SecretStr
+from sqlalchemy import true
+from sqlalchemy.orm import InstrumentedAttribute
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
 from phoenix.auth import compute_password_hash
 from phoenix.db import models
+from phoenix.server.access import (
+    AccessScope,
+    Permission,
+    accessible_scope,
+    can_access,
+    permissions_for_user_id,
+)
 from phoenix.server.api.dataloaders import CacheForDataLoaders, DataLoaders, build_data_loaders
-from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.bearer_auth import PhoenixSystemUser, PhoenixUser
 from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.sql.elements import ColumnElement
+
     from phoenix.server.daemons.experiment_runner import ExperimentRunner
     from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
     from phoenix.server.daemons.system_settings import SystemSettings
@@ -53,9 +65,16 @@ class Context(BaseContext):
     read_only: bool = False
     locked: bool = False
     auth_enabled: bool = False
+    access_control_enabled: bool = False
     secret: Optional[SecretStr] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
+    _permissions_cache: Optional[frozenset[Permission]] = field(
+        default=None, init=False, repr=False, compare=False
+    )
+    _access_scope_cache: dict[str, AccessScope] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
     def get_secret(self) -> SecretStr:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
@@ -113,6 +132,80 @@ class Context(BaseContext):
         except Exception:
             return None
 
+    async def actor_permissions(self) -> frozenset[Permission]:
+        """The current actor's permissions, resolved live from the database and
+        cached for this request. Reading from the database (rather than the role
+        carried in the token) is what makes a role-permission edit take effect on
+        the next request, and makes a deleted user's API keys go dead."""
+        if self._permissions_cache is None:
+            self._permissions_cache = await self._resolve_permissions()
+        return self._permissions_cache
+
+    async def _resolve_permissions(self) -> frozenset[Permission]:
+        user = self.user
+        # The admin-secret system actor always holds every permission, independent
+        # of any database row.
+        if isinstance(user, PhoenixSystemUser):
+            return frozenset(Permission)
+        if (user_id := self.user_id) is None:
+            return frozenset()
+        async with self.db() as session:
+            return await permissions_for_user_id(session, user_id)
+
+    async def access_scope(self, session: "AsyncSession", object_type: str) -> AccessScope:
+        """Which objects of ``object_type`` the current actor may access, for use
+        as a list filter (``scope.apply(column)``) or a point check
+        (``scope.allows(id)``). When access control is disabled, the scope is
+        everything — so resolvers can apply it unconditionally with no behavior
+        change. Cached per object type for the request."""
+        if object_type not in self._access_scope_cache:
+            user_id = self.user_id
+            if not self.access_control_enabled or user_id is None:
+                self._access_scope_cache[object_type] = AccessScope(True, True, frozenset())
+            else:
+                self._access_scope_cache[object_type] = await accessible_scope(
+                    session, user_id=user_id, object_type=object_type, enabled=True
+                )
+        return self._access_scope_cache[object_type]
+
+    async def access_filter(
+        self,
+        session: "AsyncSession",
+        object_type: str,
+        id_column: Union["ColumnElement[int]", InstrumentedAttribute[int]],
+    ) -> "ColumnElement[bool]":
+        """A WHERE predicate restricting a *list/count* query to the rows the actor may
+        read. Compiles the accessible scope to ``id_column IN (...)`` from the (per-request
+        cached) materialized set — a single hashed lookup. This deliberately does NOT use a
+        correlated per-row grant subquery: on a full-table list that subquery re-runs for
+        every candidate row and is orders of magnitude slower. Point checks should use
+        :meth:`can_access` (a single-id predicate), not this filter.
+        """
+        user_id = self.user_id
+        if not self.access_control_enabled or user_id is None:
+            return true()
+        return (await self.access_scope(session, object_type)).apply(id_column)
+
+    async def can_access(
+        self,
+        session: "AsyncSession",
+        object_type: str,
+        object_id: int,
+    ) -> bool:
+        """Whether the current actor may view one object — a point check. Evaluates the
+        grant predicate pinned to this id (no table scan, no whole-scope materialization).
+        Everything is accessible when access control is disabled or auth is off."""
+        user_id = self.user_id
+        if not self.access_control_enabled or user_id is None:
+            return True
+        return await can_access(
+            session,
+            user_id=user_id,
+            object_type=object_type,
+            object_id=object_id,
+            enabled=True,
+        )
+
 
 def build_context(
     *,
@@ -129,6 +222,7 @@ def build_context(
     allowed_provider_names: Optional[frozenset[str]] = None,
     read_only: bool = False,
     auth_enabled: bool = False,
+    access_control_enabled: bool = False,
     secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
@@ -151,6 +245,7 @@ def build_context(
         allowed_provider_names=allowed_provider_names,
         read_only=read_only,
         auth_enabled=auth_enabled,
+        access_control_enabled=access_control_enabled,
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,

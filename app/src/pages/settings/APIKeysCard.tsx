@@ -71,12 +71,14 @@ export function APIKeysCard() {
         $name: String!
         $description: String = null
         $expiresAt: DateTime = null
+        $scope: ApiKeyScope = null
       ) {
         createSystemApiKey(
           input: {
             name: $name
             description: $description
             expiresAt: $expiresAt
+            scope: $scope
           }
         ) {
           jwt
@@ -94,9 +96,11 @@ export function APIKeysCard() {
     (data: APIKeyFormParams) => {
       commit({
         variables: {
-          ...data,
+          name: data.name,
+          description: data.description,
           expiresAt:
             data.expiresAt?.toDate(getLocalTimeZone()).toISOString() || null,
+          scope: data.scope === "INGEST" ? "INGEST" : null,
         },
         onCompleted: (response) => {
           setFetchKey((prev) => prev + 1);

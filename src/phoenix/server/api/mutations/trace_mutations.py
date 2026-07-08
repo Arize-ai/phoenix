@@ -1,5 +1,5 @@
 import strawberry
-from sqlalchemy import and_, delete, not_, select, update
+from sqlalchemy import and_, delete, not_, select
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import literal
 from strawberry.relay import GlobalID
@@ -109,10 +109,74 @@ class TraceMutationMixin:
             if len(source_project_ids) > 1:
                 raise BadRequest("Cannot transfer traces from multiple projects")
 
-            await session.execute(
-                update(models.Trace)
-                .where(models.Trace.id.in_(trace_rowids))
-                .values(project_rowid=dest_project_rowid)
-            )
+            # The source sessions the moved traces belong to — remembered so any left without
+            # traces can be swept after the move.
+            source_session_rowids = {
+                trace.project_session_rowid
+                for trace in traces
+                if trace.project_session_rowid is not None
+            }
+            # A session_id is unique only within a project, so a moved trace cannot keep its
+            # link to the source project's session. Resolve each trace's session_id in the
+            # destination: join the destination's session of that id (creating it if absent),
+            # never the source's.
+            session_id_by_rowid: dict[int, str] = {}
+            if source_session_rowids:
+                session_id_by_rowid = {
+                    rowid: session_id
+                    for rowid, session_id in await session.execute(
+                        select(models.ProjectSession.id, models.ProjectSession.session_id).where(
+                            models.ProjectSession.id.in_(source_session_rowids)
+                        )
+                    )
+                }
+            dest_session_by_session_id: dict[str, models.ProjectSession] = {}
+            for trace in traces:
+                trace.project_rowid = dest_project_rowid
+                if trace.project_session_rowid is None:
+                    continue
+                session_id = session_id_by_rowid.get(trace.project_session_rowid)
+                if session_id is None:
+                    trace.project_session_rowid = None
+                    continue
+                dest_session = dest_session_by_session_id.get(session_id)
+                if dest_session is None:
+                    dest_session = await session.scalar(
+                        select(models.ProjectSession).filter_by(
+                            project_id=dest_project_rowid, session_id=session_id
+                        )
+                    )
+                    if dest_session is None:
+                        dest_session = models.ProjectSession(
+                            project_id=dest_project_rowid,
+                            session_id=session_id,
+                            start_time=trace.start_time,
+                            end_time=trace.end_time,
+                        )
+                        session.add(dest_session)
+                        await session.flush()
+                    dest_session_by_session_id[session_id] = dest_session
+                # Widen the destination session's window to cover the moved trace.
+                if trace.start_time < dest_session.start_time:
+                    dest_session.start_time = trace.start_time
+                if dest_session.end_time < trace.end_time:
+                    dest_session.end_time = trace.end_time
+                trace.project_session_rowid = dest_session.id
+            await session.flush()
+
+            # Sweep source sessions left with no traces — including the just-vacated ones, and
+            # before their (project_id, session_id) could be reused.
+            if source_session_rowids:
+                still_referenced = set(
+                    await session.scalars(
+                        select(models.Trace.project_session_rowid)
+                        .where(models.Trace.project_session_rowid.in_(source_session_rowids))
+                        .distinct()
+                    )
+                )
+                if orphaned := source_session_rowids - still_referenced:
+                    await session.execute(
+                        delete(models.ProjectSession).where(models.ProjectSession.id.in_(orphaned))
+                    )
 
         return Query()

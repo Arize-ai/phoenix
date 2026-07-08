@@ -399,7 +399,7 @@ async def _persist_db_traces(
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
-    persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
+    persistent_by_project_session = await _upsert_project_sessions(session, project_sessions)
 
     existing_traces_by_trace_id = {
         trace.trace_id: trace
@@ -425,7 +425,9 @@ async def _persist_db_traces(
         # Only inserted traces should point at the persistent ProjectSession;
         # associating skipped transient traces causes autoflush warnings.
         persistent_project_session = (
-            persistent_by_session_id[db_trace.project_session.session_id]
+            persistent_by_project_session[
+                (db_trace.project_rowid, db_trace.project_session.session_id)
+            ]
             if db_trace.project_session is not None
             else None
         )
@@ -679,25 +681,26 @@ async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int
 async def _upsert_project_sessions(
     session: AsyncSession,
     project_sessions: Iterable[models.ProjectSession],
-) -> dict[str, models.ProjectSession]:
+) -> dict[tuple[int, str], models.ProjectSession]:
     """
-    Upsert ProjectSession rows keyed by session_id, returning a
-    {session_id: ProjectSession} map of persistent ORM objects (loaded into the
-    session's identity map). Duplicates in the input are merged by session_id,
-    widening the start/end time range across duplicates.
+    Upsert ProjectSession rows keyed by (project_id, session_id), returning a
+    {(project_id, session_id): ProjectSession} map of persistent ORM objects
+    (loaded into the session's identity map). Duplicates in the input are merged
+    by that composite key, widening the start/end time range across duplicates.
     """
-    project_sessions_by_session_id: dict[str, models.ProjectSession] = {}
+    project_sessions_by_key: dict[tuple[int, str], models.ProjectSession] = {}
     for project_session in project_sessions:
-        existing = project_sessions_by_session_id.get(project_session.session_id)
+        key = (project_session.project_id, project_session.session_id)
+        existing = project_sessions_by_key.get(key)
         if existing is None:
-            project_sessions_by_session_id[project_session.session_id] = project_session
+            project_sessions_by_key[key] = project_session
         else:
             if project_session.start_time < existing.start_time:
                 existing.start_time = project_session.start_time
             if existing.end_time < project_session.end_time:
                 existing.end_time = project_session.end_time
 
-    if not project_sessions_by_session_id:
+    if not project_sessions_by_key:
         return {}
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -708,13 +711,13 @@ async def _upsert_project_sessions(
             "start_time": project_session.start_time,
             "end_time": project_session.end_time,
         }
-        for project_session in project_sessions_by_session_id.values()
+        for project_session in project_sessions_by_key.values()
     ]
     upsert: Insert
     if dialect is SupportedSQLDialect.POSTGRESQL:
         pg_insert = insert_postgresql(models.ProjectSession).values(records)
         upsert = pg_insert.on_conflict_do_update(
-            index_elements=["session_id"],
+            index_elements=["project_id", "session_id"],
             set_={
                 "start_time": func.least(
                     models.ProjectSession.start_time, pg_insert.excluded.start_time
@@ -729,7 +732,7 @@ async def _upsert_project_sessions(
         # functions (i.e. with >1 argument) are the equivalent.
         sqlite_insert = insert_sqlite(models.ProjectSession).values(records)
         upsert = sqlite_insert.on_conflict_do_update(
-            index_elements=["session_id"],
+            index_elements=["project_id", "session_id"],
             set_={
                 "start_time": func.min(
                     models.ProjectSession.start_time, sqlite_insert.excluded.start_time
@@ -742,7 +745,7 @@ async def _upsert_project_sessions(
     else:
         assert_never(dialect)
     returned_rows = await session.scalars(upsert.returning(models.ProjectSession))
-    return {row.session_id: row for row in returned_rows}
+    return {(row.project_id, row.session_id): row for row in returned_rows}
 
 
 def _maybe_using_user(

@@ -9,10 +9,13 @@ from asyncio import gather
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
-from typing import NamedTuple, Optional, Union
+from typing import Any, Mapping, NamedTuple, Optional, Sequence, Union
 
 import sqlalchemy as sa
-from sqlalchemy import select
+from sqlalchemy import Executable, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute, joinedload
 from sqlalchemy.sql.dml import ReturningDelete
 
@@ -26,11 +29,14 @@ from phoenix.auth import (
     compute_password_hash,
 )
 from phoenix.config import (
+    ENV_PHOENIX_ENABLE_AUTH,
     LDAPConfig,
+    get_env_access_control_enabled,
     get_env_admins,
     get_env_default_admin_initial_password,
     get_env_default_retention_policy_days,
     get_env_disable_basic_auth,
+    get_env_enable_auth,
     get_env_oauth2_settings,
 )
 from phoenix.db import models
@@ -47,12 +53,42 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.access import (
+    ACCESS_CONTROL_ENABLED_KEY,
+    BUILTIN_PERMISSION_SETS,
+    BUILTIN_ROLE_PERMISSIONS,
+)
 from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
 USER_FEEDBACK_ANNOTATION_NAME = "user_feedback"
+
+
+def _insert_on_conflict_do_nothing(
+    session: AsyncSession,
+    table: type[models.Base],
+    values: Sequence[Mapping[str, Any]],
+    unique_columns: Sequence[str],
+) -> Executable:
+    bind = session.bind
+    if bind is None:
+        raise RuntimeError("Session has no bound engine; cannot determine SQL dialect.")
+    dialect_name = bind.dialect.name
+    if dialect_name == "postgresql":
+        return (
+            pg_insert(table)
+            .values(list(values))
+            .on_conflict_do_nothing(index_elements=list(unique_columns))
+        )
+    if dialect_name == "sqlite":
+        return (
+            sqlite_insert(table)
+            .values(list(values))
+            .on_conflict_do_nothing(index_elements=list(unique_columns))
+        )
+    raise ValueError(f"Unsupported SQL dialect for facilitator sync: {dialect_name}")
 
 
 class Facilitator:
@@ -76,6 +112,9 @@ class Facilitator:
         for fn in (
             _ensure_enums,
             _ensure_user_roles,
+            _ensure_role_permissions,
+            _ensure_permission_sets,
+            _ensure_access_control_latch,
             _get_system_user_id,
             partial(_ensure_admins, email_sender=self._email_sender),
             _ensure_default_project_trace_retention_policy,
@@ -157,6 +196,170 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
         await session.flush()
 
 
+async def _ensure_role_permissions(db: DbSessionFactory) -> None:
+    """
+    Ensure every built-in role's permission rows match its bundle in
+    phoenix.server.access. Idempotent: missing rows are inserted and stray rows
+    on built-in roles are removed, so the database is the persisted form of the
+    constant. Runs on every boot, so an upgraded database gains the rows without
+    a data migration and every user keeps exactly the access they had.
+    """
+    async with db() as session:
+        role_ids: dict[str, int] = {
+            name: id_
+            async for name, id_ in await session.stream(
+                sa.select(models.UserRole.name, models.UserRole.id)
+            )
+        }
+        existing: set[tuple[int, str]] = {
+            (role_id, permission)
+            async for role_id, permission in await session.stream(
+                sa.select(
+                    models.RolePermission.user_role_id,
+                    models.RolePermission.permission,
+                )
+            )
+        }
+        to_insert: list[dict[str, Union[int, str]]] = []
+        for role_name, permissions in BUILTIN_ROLE_PERMISSIONS.items():
+            if (role_id := role_ids.get(role_name)) is None:
+                continue
+            desired = {permission.value for permission in permissions}
+            current = {permission for rid, permission in existing if rid == role_id}
+            for permission in desired - current:
+                to_insert.append({"user_role_id": role_id, "permission": permission})
+            if stray := current - desired:
+                await session.execute(
+                    sa.delete(models.RolePermission).where(
+                        models.RolePermission.user_role_id == role_id,
+                        models.RolePermission.permission.in_(stray),
+                    )
+                )
+        if to_insert:
+            await session.execute(
+                _insert_on_conflict_do_nothing(
+                    session,
+                    models.RolePermission,
+                    to_insert,
+                    unique_columns=["user_role_id", "permission"],
+                )
+            )
+
+
+async def _ensure_permission_sets(db: DbSessionFactory) -> None:
+    """
+    Ensure the built-in permission sets (Resource Viewer/Editor/Manager) and their
+    permissions exist and match their bundles. Idempotent and drift-repairing,
+    like the global role seeding. Custom permission sets live alongside and are left
+    untouched.
+    """
+    async with db() as session:
+        await session.execute(
+            _insert_on_conflict_do_nothing(
+                session,
+                models.PermissionSet,
+                [{"name": role_name, "is_built_in": True} for role_name in BUILTIN_PERMISSION_SETS],
+                unique_columns=["name"],
+            )
+        )
+        role_ids: dict[str, int] = {
+            name: id_
+            async for name, id_ in await session.stream(
+                sa.select(models.PermissionSet.name, models.PermissionSet.id)
+            )
+        }
+        existing: set[tuple[int, str]] = {
+            (role_id, permission)
+            async for role_id, permission in await session.stream(
+                sa.select(
+                    models.PermissionSetItem.permission_set_id,
+                    models.PermissionSetItem.permission,
+                )
+            )
+        }
+        to_insert: list[dict[str, Union[int, str]]] = []
+        for role_name, permissions in BUILTIN_PERMISSION_SETS.items():
+            if (role_id := role_ids.get(role_name)) is None:
+                raise RuntimeError(f"Missing built-in permission set: {role_name}")
+            desired = {permission.value for permission in permissions}
+            current = {permission for rid, permission in existing if rid == role_id}
+            for permission in desired - current:
+                to_insert.append({"permission_set_id": role_id, "permission": permission})
+            if stray := current - desired:
+                await session.execute(
+                    sa.delete(models.PermissionSetItem).where(
+                        models.PermissionSetItem.permission_set_id == role_id,
+                        models.PermissionSetItem.permission.in_(stray),
+                    )
+                )
+        if to_insert:
+            await session.execute(
+                _insert_on_conflict_do_nothing(
+                    session,
+                    models.PermissionSetItem,
+                    to_insert,
+                    unique_columns=["permission_set_id", "permission"],
+                )
+            )
+
+
+async def _ensure_access_control_latch(db: DbSessionFactory) -> None:
+    """Bootstrap and guard the access-control activation latch at startup.
+
+    ``PHOENIX_ACCESS_CONTROL_ENABLED`` is a *one-way switch*. When set, it turns
+    the DB-latched ``access_control.enabled`` setting on — but only if the latch
+    has never been set, so it can only ever *enable*, never disable, and once the
+    latch row exists the env var stops bootstrapping. The running app exposes no
+    runtime enable/disable path; changing the latch is an operator action that
+    takes effect on a subsequent startup.
+
+    Drift guard: if the env switch is *falsey* while access control is **on**, the
+    deployment has lost its declared switch (config drift, a dropped var). Rather
+    than run in that inconsistent state, refuse to start and make the operator
+    re-assert the switch. Disabling access control is not an in-process operation;
+    the latch must be changed out of band before startup.
+
+    Authentication guard: access control presupposes authentication. Every access
+    decision is keyed on an authenticated user identity; with auth off there is no
+    such identity, so enforcement degrades to allow-all — a silent no-op that looks
+    like it is enforcing but is not. Refuse to start with access control on and auth
+    off rather than offer that false assurance. Idempotent.
+    """
+    env_enabled = get_env_access_control_enabled()
+    auth_enabled = get_env_enable_auth()
+    async with db() as session:
+        value = await session.scalar(
+            sa.select(models.SystemSetting.value).where(
+                models.SystemSetting.key == ACCESS_CONTROL_ENABLED_KEY
+            )
+        )
+        latched_on = isinstance(value, dict) and bool(value.get("enabled", False))
+        bootstrapping_on = value is None and env_enabled
+        if (latched_on or bootstrapping_on) and not auth_enabled:
+            raise RuntimeError(
+                "Access control is enabled but authentication is not "
+                f"({ENV_PHOENIX_ENABLE_AUTH} is falsey). Access decisions require an "
+                "authenticated user; with authentication off, enforcement silently allows "
+                "everything. Enable authentication, or disable access control."
+            )
+        if env_enabled and value is None:
+            await session.execute(
+                _insert_on_conflict_do_nothing(
+                    session,
+                    models.SystemSetting,
+                    [{"key": ACCESS_CONTROL_ENABLED_KEY, "value": {"enabled": True}}],
+                    unique_columns=["key"],
+                )
+            )
+        elif latched_on and not env_enabled:
+            raise RuntimeError(
+                "PHOENIX_ACCESS_CONTROL_ENABLED is falsey but access control is enabled "
+                "(the access_control.enabled latch is on). Refusing to start in this "
+                "inconsistent state. Set PHOENIX_ACCESS_CONTROL_ENABLED to re-assert the "
+                "switch, or change the latch out of band before startup."
+            )
+
+
 async def _get_system_user_id(db: DbSessionFactory) -> None:
     """
     Set the system user ID in the config. This is used to identify the system user in the database.
@@ -182,25 +385,25 @@ async def _ensure_user_feedback_annotation_config(db: DbSessionFactory) -> None:
     does not overwrite user data if a deployment already has a config with that name.
     """
     async with db() as session:
-        existing_config_id = await session.scalar(
-            sa.select(models.AnnotationConfig.id).where(
-                models.AnnotationConfig.name == USER_FEEDBACK_ANNOTATION_NAME
-            )
-        )
-        if existing_config_id is not None:
-            return
-        session.add(
-            models.AnnotationConfig(
-                name=USER_FEEDBACK_ANNOTATION_NAME,
-                config=CategoricalAnnotationConfig(
-                    type=AnnotationType.CATEGORICAL.value,
-                    description="User feedback labels for traces.",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    values=[
-                        CategoricalAnnotationValue(label="positive", score=1.0),
-                        CategoricalAnnotationValue(label="negative", score=0.0),
-                    ],
-                ),
+        await session.execute(
+            _insert_on_conflict_do_nothing(
+                session,
+                models.AnnotationConfig,
+                [
+                    {
+                        "name": USER_FEEDBACK_ANNOTATION_NAME,
+                        "config": CategoricalAnnotationConfig(
+                            type=AnnotationType.CATEGORICAL.value,
+                            description="User feedback labels for traces.",
+                            optimization_direction=OptimizationDirection.MAXIMIZE,
+                            values=[
+                                CategoricalAnnotationValue(label="positive", score=1.0),
+                                CategoricalAnnotationValue(label="negative", score=0.0),
+                            ],
+                        ),
+                    }
+                ],
+                unique_columns=["name"],
             )
         )
 
@@ -388,29 +591,24 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
     """
     assert DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID == 0
     async with db() as session:
-        if await session.scalar(
-            sa.select(
-                sa.exists().where(
-                    models.ProjectTraceRetentionPolicy.id
-                    == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-                )
-            )
-        ):
-            return
         cron_expression = TraceRetentionCronExpression(root="0 0 * * 0")
         rule = TraceRetentionRule(
             root=MaxDaysRule(max_days=get_env_default_retention_policy_days())
         )
         await session.execute(
-            sa.insert(models.ProjectTraceRetentionPolicy),
-            [
-                {
-                    "id": DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,
-                    "name": "Default",
-                    "cron_expression": cron_expression,
-                    "rule": rule,
-                }
-            ],
+            _insert_on_conflict_do_nothing(
+                session,
+                models.ProjectTraceRetentionPolicy,
+                [
+                    {
+                        "id": DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,
+                        "name": "Default",
+                        "cron_expression": cron_expression,
+                        "rule": rule,
+                    }
+                ],
+                unique_columns=["id"],
+            )
         )
 
 

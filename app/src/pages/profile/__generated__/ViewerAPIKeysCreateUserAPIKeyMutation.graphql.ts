@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a3a67add4969785c6f11680dbba4c644>>
+ * @generated SignedSource<<982a4ec2c0694338f2e7e8352f96ddc2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,12 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type ApiKeyScope = "INGEST";
 export type CreateUserApiKeyInput = {
   description?: string | null;
   expiresAt?: string | null;
   name: string;
+  scope?: ApiKeyScope | null;
 };
 export type ViewerAPIKeysCreateUserAPIKeyMutation$variables = {
   input: CreateUserApiKeyInput;

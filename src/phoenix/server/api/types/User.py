@@ -3,17 +3,50 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import select
-from strawberry.relay import Node, NodeID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.types import Info
 
-from phoenix.config import get_env_admins
+from phoenix.config import get_env_access_control_enabled, get_env_admins
 from phoenix.db import models
+from phoenix.server.access import (
+    OBJECT_TYPE_DATASET,
+    OBJECT_TYPE_PROJECT,
+    OBJECT_TYPE_PROMPT,
+    Permission,
+    accessible_scope,
+    permissions_for_user_id,
+)
+from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.UserApiKey import UserApiKey
 
 from .UserRole import UserRole, to_gql_user_role
+
+
+@strawberry.type
+class AccessibleObjectRef:
+    """One object a user can access, for the admin "what can this person see" view."""
+
+    kind: str
+    id: GlobalID
+    name: str
+
+
+@strawberry.type
+class UserAccessSummary:
+    """Everything a user can currently view across the access roots (projects, datasets,
+    prompts). A type is reported as "all" when the user can see every object of that type —
+    because they are an administrator, because enforcement is off, or because of a type-wide
+    or everyone grant — in which case its per-object list is omitted."""
+
+    enforced: bool
+    is_admin: bool
+    all_projects: bool
+    all_datasets: bool
+    all_prompts: bool
+    objects: list[AccessibleObjectRef]
 
 
 @strawberry.type
@@ -138,3 +171,52 @@ class User(Node):
         if email in initial_admins or email == "admin@localhost":
             return True
         return False
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    async def access_summary(self, info: Info[Context, None]) -> UserAccessSummary:
+        """The objects this user can currently view, for the admin People view. Mirrors the
+        oracle's visibility decision per access root; a type marked "all" lists no individual
+        objects (the user can see every object of that type)."""
+        kinds = (
+            ("project", OBJECT_TYPE_PROJECT, models.Project, "Project"),
+            ("dataset", OBJECT_TYPE_DATASET, models.Dataset, "Dataset"),
+            ("prompt", OBJECT_TYPE_PROMPT, models.Prompt, "Prompt"),
+        )
+        all_flags: dict[str, bool] = {}
+        objects: list[AccessibleObjectRef] = []
+        async with info.context.db.read() as session:
+            enforced = get_env_access_control_enabled()
+            is_admin = Permission.ADMINISTER in await permissions_for_user_id(session, self.id)
+            for label, object_type, model, type_name in kinds:
+                scope = await accessible_scope(
+                    session,
+                    user_id=self.id,
+                    object_type=object_type,
+                    enabled=enforced,
+                    permission=Permission.OBJ_VIEW,
+                )
+                is_all = scope.everything or scope.type_allows
+                all_flags[label] = is_all
+                if is_all or not scope.allowed_ids:
+                    continue
+                rows = (
+                    await session.execute(
+                        select(model.id, model.name)
+                        .where(model.id.in_(scope.allowed_ids))
+                        .order_by(model.name)
+                    )
+                ).all()
+                objects.extend(
+                    AccessibleObjectRef(
+                        kind=label, id=GlobalID(type_name, str(oid)), name=str(name)
+                    )
+                    for oid, name in rows
+                )
+        return UserAccessSummary(
+            enforced=enforced,
+            is_admin=is_admin,
+            all_projects=all_flags["project"],
+            all_datasets=all_flags["dataset"],
+            all_prompts=all_flags["prompt"],
+            objects=objects,
+        )

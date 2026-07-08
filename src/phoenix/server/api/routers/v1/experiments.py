@@ -22,6 +22,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.access import OBJECT_TYPE_DATASET, Permission
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
@@ -36,6 +37,10 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     add_text_csv_content_to_responses,
+    assert_can_access,
+    assert_can_access_experiment,
+    assert_can_read,
+    assert_can_read_experiment,
 )
 
 router = APIRouter(tags=["experiments"], include_in_schema=True)
@@ -142,6 +147,8 @@ async def create_experiment(
         )
 
     dataset_version_globalid_str = request_body.version_id
+    dataset_version_globalid: Optional[GlobalID] = None
+    dataset_version_id: Optional[int] = None
     if dataset_version_globalid_str is not None:
         try:
             dataset_version_globalid = GlobalID.from_id(dataset_version_globalid_str)
@@ -169,6 +176,14 @@ async def create_experiment(
                 detail=f"Dataset with ID {dataset_globalid} does not exist",
                 status_code=404,
             )
+        await assert_can_access(
+            session,
+            request,
+            object_type=OBJECT_TYPE_DATASET,
+            object_id=dataset_rowid,
+            permission=Permission.OBJ_EDIT,
+            not_found_detail=f"Dataset with ID {dataset_globalid} does not exist",
+        )
         dataset_name = result.name
         if dataset_version_globalid_str is None:
             dataset_version_result = await session.execute(
@@ -186,7 +201,10 @@ async def create_experiment(
             dataset_version_globalid = GlobalID("DatasetVersion", str(dataset_version_id))
         else:
             dataset_version = await session.execute(
-                select(models.DatasetVersion).where(models.DatasetVersion.id == dataset_version_id)
+                select(models.DatasetVersion).where(
+                    models.DatasetVersion.id == dataset_version_id,
+                    models.DatasetVersion.dataset_id == dataset_rowid,
+                )
             )
             dataset_version = dataset_version.scalar()
             if not dataset_version:
@@ -194,6 +212,10 @@ async def create_experiment(
                     detail=f"DatasetVersion with ID {dataset_version_globalid} does not exist",
                     status_code=404,
                 )
+            dataset_version_id = dataset_version.id
+            dataset_version_globalid = GlobalID("DatasetVersion", str(dataset_version_id))
+        assert dataset_version_id is not None
+        assert dataset_version_globalid is not None
         user_id: Optional[int] = None
         if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
             user_id = int(request.user.identity)
@@ -211,7 +233,6 @@ async def create_experiment(
             description=request_body.description,
             repetitions=request_body.repetitions,
             metadata_=request_body.metadata or {},
-            project_name=project_name,
             user_id=user_id,
         )
 
@@ -236,6 +257,7 @@ async def create_experiment(
                 dict(
                     name=project_name,
                     description=project_description,
+                    kind="EXPERIMENT",
                     created_at=experiment.created_at,
                     updated_at=experiment.updated_at,
                 ),
@@ -245,6 +267,13 @@ async def create_experiment(
             ).returning(models.Project.id)
         )
         assert project_rowid is not None
+        # Durable link for access-by-parent: this kind=EXPERIMENT project inherits
+        # access from the experiment's dataset. Flush + refresh so the instance's
+        # server-side `updated_at` (bumped by this UPDATE's onupdate) is reloaded
+        # while still session-bound — the response reads it after the session closes.
+        experiment.project_id = project_rowid
+        await session.flush()
+        await session.refresh(experiment)
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
         if dataset_version_globalid_str is None:
@@ -324,6 +353,13 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
                 detail=f"Experiment with ID {experiment_globalid} does not exist",
                 status_code=404,
             )
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_DATASET,
+            object_id=experiment.dataset_id,
+            not_found_detail=f"Experiment with ID {experiment_globalid} does not exist",
+        )
 
         dataset_globalid = GlobalID("Dataset", str(experiment.dataset_id))
         dataset_version_globalid = GlobalID("DatasetVersion", str(experiment.dataset_version_id))
@@ -476,6 +512,13 @@ async def update_experiment(
         )
 
     async with request.app.state.db() as session:
+        await assert_can_access_experiment(
+            session,
+            request,
+            experiment_rowid,
+            permission=Permission.OBJ_EDIT,
+            not_found_detail=f"Experiment with ID {experiment_globalid} does not exist",
+        )
         experiment = await session.scalar(
             update(models.Experiment)
             .where(models.Experiment.id == experiment_rowid)
@@ -487,6 +530,10 @@ async def update_experiment(
                 detail=f"Experiment with ID {experiment_globalid} does not exist",
                 status_code=404,
             )
+        # project_name is derived from project_id (a correlated subquery), so it is not
+        # populated by UPDATE...RETURNING; load it before the session closes and the
+        # instance detaches.
+        await session.refresh(experiment, ["project_name"])
 
         dataset_globalid = GlobalID("Dataset", str(experiment.dataset_id))
         dataset_version_globalid = GlobalID("DatasetVersion", str(experiment.dataset_version_id))
@@ -581,29 +628,45 @@ async def delete_experiment(
             status_code=404,
         )
 
-    # Stop any running experiment and wait for in-flight shielded DB writes
-    # to drain, avoiding FK constraint violations from concurrent writes.
-    # Note: only drains experiments owned by this replica. In multi-replica
-    # deployments, another replica's shielded writes may still race with
-    # the DELETE (possible FK errors or orphaned rows), but these are
-    # harmless since the experiment is being deleted anyway.
-    await request.state.experiment_runner.stop_experiment(experiment_rowid)
-
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
-        .returning(models.Experiment.project_name)
+        .returning(models.Experiment.project_id)
     )
     async with request.app.state.db() as session:
+        await assert_can_access_experiment(
+            session,
+            request,
+            experiment_rowid,
+            permission=Permission.OBJ_EDIT,
+            not_found_detail=f"Experiment with ID {experiment_globalid} does not exist",
+        )
+        # Stop any running experiment and wait for in-flight shielded DB writes
+        # to drain, avoiding FK constraint violations from concurrent writes.
+        # Note: only drains experiments owned by this replica. In multi-replica
+        # deployments, another replica's shielded writes may still race with
+        # the DELETE (possible FK errors or orphaned rows), but these are
+        # harmless since the experiment is being deleted anyway.
+        await request.state.experiment_runner.stop_experiment(experiment_rowid)
         result = (await session.execute(stmt)).first()
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
-        project_name = result.project_name
-        if delete_project and project_name:
-            delete_project_stmt = sa.delete(models.Project).where(
-                models.Project.name == project_name
-            )
-            await session.execute(delete_project_stmt)
+        project_id = result.project_id
+        if project_id is not None:
+            if delete_project:
+                await session.execute(
+                    sa.delete(models.Project).where(models.Project.id == project_id)
+                )
+            else:
+                # The experiment is gone but its trace project is kept — it is no longer an
+                # experiment's hidden store, so surface it as a normal (TELEMETRY) project.
+                # (Before the kind discriminator, deleting the experiment un-hid its project,
+                # because the experiment-project exclusion keyed on a *live* experiment.)
+                await session.execute(
+                    sa.update(models.Project)
+                    .where(models.Project.id == project_id, models.Project.kind == "EXPERIMENT")
+                    .values(kind="TELEMETRY")
+                )
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):
@@ -691,6 +754,14 @@ async def get_incomplete_runs(
     async with request.app.state.db() as session:
         experiment_result = await session.execute(select(models.Experiment).filter_by(id=id_))
         experiment = experiment_result.scalar()
+        if experiment is not None:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_DATASET,
+                object_id=experiment.dataset_id,
+                not_found_detail=f"Experiment with ID {experiment_globalid} does not exist",
+            )
         if not experiment:
             raise HTTPException(
                 detail=f"Experiment with ID {experiment_globalid} does not exist",
@@ -802,6 +873,13 @@ async def list_experiments(
             status_code=404,
         )
     async with request.app.state.db() as session:
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_DATASET,
+            object_id=dataset_rowid,
+            not_found_detail=f"Dataset with ID {dataset_gid} does not exist",
+        )
         query = (
             select(models.Experiment)
             .where(models.Experiment.dataset_id == dataset_rowid)
@@ -1016,6 +1094,12 @@ async def get_experiment_json(
         )
 
     async with request.app.state.db() as session:
+        await assert_can_read_experiment(
+            session,
+            request,
+            experiment_rowid,
+            not_found_detail=f"Experiment with ID {experiment_globalid} does not exist",
+        )
         experiment, runs, revisions = await _get_experiment_runs_and_revisions(
             session, experiment_rowid
         )
@@ -1089,6 +1173,12 @@ async def get_experiment_csv(
         )
 
     async with request.app.state.db() as session:
+        await assert_can_read_experiment(
+            session,
+            request,
+            experiment_rowid,
+            not_found_detail=f"Experiment with ID {experiment_globalid} does not exist",
+        )
         experiment, runs, revisions = await _get_experiment_runs_and_revisions(
             session, experiment_rowid
         )

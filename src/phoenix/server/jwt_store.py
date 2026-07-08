@@ -86,7 +86,19 @@ class JwtStore:
             return None
         if (token_id := TokenId.parse(jti)) is None:
             return None
-        return await self._get(token_id)
+        claims = await self._get(token_id)
+        # An API key's scope lives only in the signed token payload — the DB
+        # row doesn't store it, so the rebuilt claims can't know it. Merge it
+        # here, at the single entry point every request passes through. The
+        # claim is covered by the signature, so a holder can neither alter
+        # nor strip it.
+        if (
+            isinstance(claims, ApiKeyClaims)
+            and claims.attributes is not None
+            and isinstance(scope := decoded.claims.get("scope"), str)
+        ):
+            claims = replace(claims, attributes=replace(claims.attributes, scope=scope))
+        return claims
 
     @singledispatchmethod
     async def _get(self, _: TokenId) -> Optional[ClaimSet]:
@@ -466,6 +478,20 @@ class _ApiKeyStore(
     _token_id = ApiKeyId
     _token = ApiKey
 
+    def _encode(self, claim: ClaimSet) -> str:
+        payload: dict[str, Any] = dict(jti=claim.token_id)
+        # The scope is attenuation and must be tamper-proof, so it travels in
+        # the signed payload rather than the database (which has no column
+        # for it). JwtStore.read() merges it back into the claims.
+        if (
+            isinstance(claim, ApiKeyClaims)
+            and claim.attributes is not None
+            and claim.attributes.scope
+        ):
+            payload["scope"] = claim.attributes.scope
+        header = {"alg": self._algorithm}
+        return jwt.encode(header, payload, OctKey.import_key(self._secret.get_secret_value()))
+
     def _from_db(
         self,
         record: models.ApiKey,
@@ -481,6 +507,7 @@ class _ApiKeyStore(
                 user_role=user_role,
                 name=record.name,
                 description=record.description,
+                scope=record.scope,
             ),
         )
 
@@ -493,6 +520,7 @@ class _ApiKeyStore(
             user_id=user_id,
             name=claims.attributes.name,
             description=claims.attributes.description or None,
+            scope=claims.attributes.scope,
             created_at=claims.issued_at,
             expires_at=claims.expiration_time or None,
         )

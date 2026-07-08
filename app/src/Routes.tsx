@@ -24,6 +24,7 @@ import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
+import { SettingsAccessPage } from "@phoenix/pages/settings/SettingsAccessPage";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -97,6 +98,7 @@ import { GraphQLPage } from "./pages/apis/GraphQLPage";
 import { RestAPIPage } from "./pages/apis/RestAPIPage";
 import { Layout } from "./pages/Layout";
 import { layoutLoader } from "./pages/layoutLoader";
+import { ProjectAccessPage } from "./pages/project/ProjectAccessPage";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
@@ -305,6 +307,17 @@ export const appRouteObjects = createRoutesFromElements(
                     label: "Project Metrics",
                     description:
                       "View project time-series metrics, token usage breakdowns, cache read/write token charts, and observability panels.",
+                  },
+                }}
+              />
+              <Route
+                path="access"
+                element={<ProjectAccessPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Project Access",
+                    description:
+                      "Manage which users and groups can access this project.",
                   },
                 }}
               />
@@ -730,6 +743,30 @@ export const appRouteObjects = createRoutesFromElements(
                   "Configure general Phoenix instance settings including hostname, platform version, database usage, users, system API keys, and the default project retention policy.",
               },
             }}
+          />
+          <Route
+            path="access"
+            element={<SettingsAccessPage />}
+            handle={{
+              crumb: () => "Access",
+              agentRoute: {
+                label: "Access Settings",
+                description:
+                  "Manage access-control groups and resource roles used to grant access to projects, datasets, and prompts.",
+              },
+            }}
+          />
+          <Route
+            path="groups"
+            element={<Navigate to="/settings/access" replace />}
+          />
+          <Route
+            path="people"
+            element={<Navigate to="/settings/access" replace />}
+          />
+          <Route
+            path="roles"
+            element={<Navigate to="/settings/access" replace />}
           />
           <Route
             path="secrets"

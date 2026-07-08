@@ -161,6 +161,15 @@ class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
 
 
+class Enforcement(TypedDict):
+    enabled: bool
+    source: str
+
+
+class EnforcementResponseBody(TypedDict):
+    data: Enforcement
+
+
 class Experiment(TypedDict):
     id: str
     dataset_id: str
@@ -224,6 +233,24 @@ class GetExperimentResponseBody(TypedDict):
 class GraphQLContext(TypedDict):
     type: Literal["graphql"]
     mutationsEnabled: bool
+
+
+class GroupCreate(TypedDict):
+    name: str
+
+
+class GroupData(TypedDict):
+    id: str
+    name: str
+    member_user_ids: Sequence[str]
+
+
+class GroupResponseBody(TypedDict):
+    data: GroupData
+
+
+class GroupsResponseBody(TypedDict):
+    data: Sequence[GroupData]
 
 
 class IncompleteExperimentEvaluation(TypedDict):
@@ -325,6 +352,10 @@ class LocalUser(LocalUserData):
     password_needs_reset: bool
 
 
+class MemberCreate(TypedDict):
+    user_id: str
+
+
 class OAuth2UserData(TypedDict):
     email: str
     username: str
@@ -344,6 +375,17 @@ class OAuth2User(OAuth2UserData):
 class OtlpStatus(TypedDict):
     code: NotRequired[int]
     message: NotRequired[str]
+
+
+class PermissionSetData(TypedDict):
+    id: str
+    name: str
+    is_built_in: bool
+    permissions: Sequence[str]
+
+
+class PermissionSetsResponseBody(TypedDict):
+    data: Sequence[PermissionSetData]
 
 
 class PlaygroundBuiltinModelContext(TypedDict):
@@ -649,6 +691,25 @@ class ReasoningUIPart(TypedDict):
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
 
+class ResourceTagBody(TypedDict):
+    value: str
+
+
+class ResourceTagData(TypedDict):
+    object_type: Literal["project", "dataset", "prompt"]
+    object_id: str
+    key: str
+    value: str
+
+
+class ResourceTagResponseBody(TypedDict):
+    data: ResourceTagData
+
+
+class ResourceTagsResponseBody(TypedDict):
+    data: Sequence[ResourceTagData]
+
+
 class SecretKeyValue(TypedDict):
     key: str
     value: Optional[str]
@@ -786,6 +847,40 @@ class StepStartUIPart(TypedDict):
 class SubagentsContext(TypedDict):
     type: Literal["subagents"]
     enabled: bool
+
+
+class Subject(TypedDict):
+    kind: Literal["user", "group", "role", "service_account", "everyone"]
+    id: NotRequired[str]
+
+
+class SubjectsResponseBody(TypedDict):
+    data: Sequence[Subject]
+
+
+class TagGrant(TypedDict):
+    id: str
+    subject: Subject
+    object_type: Literal["project", "dataset", "prompt"]
+    tag_key: str
+    tag_value: str
+    role: Optional[str]
+
+
+class TagGrantCreate(TypedDict):
+    subject: Subject
+    object_type: Literal["project", "dataset", "prompt"]
+    tag_key: str
+    tag_value: str
+    role: NotRequired[str]
+
+
+class TagGrantResponseBody(TypedDict):
+    data: TagGrant
+
+
+class TagGrantsResponseBody(TypedDict):
+    data: Sequence[TagGrant]
 
 
 class TextContentPart(TypedDict):
@@ -1339,6 +1434,29 @@ class GetUsersResponseBody(TypedDict):
 
 class GetViewerResponseBody(TypedDict):
     data: Union[LocalUser, OAuth2User, LDAPUser, AnonymousUser]
+
+
+class Grant(TypedDict):
+    id: str
+    subject: Subject
+    object_type: Literal["project", "dataset", "prompt"]
+    object_id: Optional[str]
+    role: Optional[str]
+
+
+class GrantCreate(TypedDict):
+    subject: Subject
+    object_type: Literal["project", "dataset", "prompt"]
+    object_id: NotRequired[str]
+    role: NotRequired[str]
+
+
+class GrantResponseBody(TypedDict):
+    data: Grant
+
+
+class GrantsResponseBody(TypedDict):
+    data: Sequence[Grant]
 
 
 class HTTPValidationError(TypedDict):

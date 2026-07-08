@@ -1,15 +1,17 @@
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, field_validator, model_validator
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
+from phoenix.config import get_env_access_control_enabled
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -24,11 +26,22 @@ from phoenix.db.types.prompts import (
     PromptTools,
     normalize_invocation_parameters_for_write,
 )
+from phoenix.server.access import (
+    OBJECT_TYPE_PROMPT,
+    Permission,
+    can_access,
+    delete_object_grants,
+    delete_object_tags,
+)
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
+    assert_can_access,
+    assert_can_read,
+    request_user_id,
+    scope_predicate,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
@@ -119,6 +132,8 @@ router = APIRouter(tags=["prompts"])
     response_description="A list of prompts with pagination information",
     responses=add_errors_to_responses(
         [
+            404,
+            409,
             422,
         ]
     ),
@@ -154,7 +169,15 @@ async def get_prompts(
             if not prompt_exists:
                 return GetPromptsResponseBody(next_cursor=None, data=[])
 
-        query = select(models.Prompt).order_by(models.Prompt.id.desc())
+        query = (
+            select(models.Prompt)
+            .where(
+                await scope_predicate(
+                    session, request, object_type=OBJECT_TYPE_PROMPT, id_column=models.Prompt.id
+                )
+            )
+            .order_by(models.Prompt.id.desc())
+        )
 
         if cursor:
             try:
@@ -228,6 +251,15 @@ async def list_prompt_versions(
     query = query.order_by(models.PromptVersion.id.desc())
 
     async with request.app.state.db() as session:
+        prompt_rowid = await _resolve_prompt_rowid(session, prompt_identifier)
+        if prompt_rowid is not None:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_PROMPT,
+                object_id=prompt_rowid,
+                not_found_detail=f"Prompt {prompt_identifier} not found",
+            )
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id
@@ -305,6 +337,13 @@ async def get_prompt_version_by_prompt_version_id(
         prompt_version = await session.scalar(stmt)
         if prompt_version is None:
             raise HTTPException(404)
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROMPT,
+            object_id=prompt_version.prompt_id,
+            not_found_detail="Prompt version not found",
+        )
     data = _prompt_version_from_orm_version(prompt_version)
     return GetPromptResponseBody(data=data)
 
@@ -357,6 +396,15 @@ async def get_prompt_version_by_tag_name(
     )
     stmt = _filter_by_prompt_identifier(stmt.join(models.Prompt), prompt_identifier)
     async with request.app.state.db() as session:
+        prompt_rowid = await _resolve_prompt_rowid(session, prompt_identifier)
+        if prompt_rowid is not None:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_PROMPT,
+                object_id=prompt_rowid,
+                not_found_detail=f"Prompt {prompt_identifier} not found",
+            )
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
             raise HTTPException(404)
@@ -405,6 +453,15 @@ async def get_prompt_version_by_latest(
     )
     stmt = _filter_by_prompt_identifier(stmt.join(models.Prompt), prompt_identifier)
     async with request.app.state.db() as session:
+        prompt_rowid = await _resolve_prompt_rowid(session, prompt_identifier)
+        if prompt_rowid is not None:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_PROMPT,
+                object_id=prompt_rowid,
+                not_found_detail=f"Prompt {prompt_identifier} not found",
+            )
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
             raise HTTPException(404)
@@ -468,11 +525,34 @@ async def create_prompt(
         assert isinstance(user := request.user, PhoenixUser)
         user_id = int(user.identity)
     async with request.app.state.db() as session:
-        if not (prompt_orm := await session.scalar(select(models.Prompt).filter_by(name=name))):
+        prompt_orm = await session.scalar(select(models.Prompt).filter_by(name=name))
+        if prompt_orm is None:
             prompt_orm = models.Prompt(
                 name=name,
                 description=prompt.description,
                 metadata_=prompt.metadata or {},
+            )
+        else:
+            # Appending a version mutates an existing prompt root, so it needs edit access.
+            # Creating a brand-new prompt needs no gate — the author becomes its owner.
+            if get_env_access_control_enabled():
+                existing_user_id = request_user_id(request)
+                if existing_user_id is not None and not await can_access(
+                    session,
+                    user_id=existing_user_id,
+                    object_type=OBJECT_TYPE_PROMPT,
+                    object_id=prompt_orm.id,
+                    enabled=True,
+                    permission=Permission.OBJ_VIEW,
+                ):
+                    raise HTTPException(detail="Prompt name is unavailable", status_code=409)
+            await assert_can_access(
+                session,
+                request,
+                object_type=OBJECT_TYPE_PROMPT,
+                object_id=prompt_orm.id,
+                permission=Permission.OBJ_EDIT,
+                not_found_detail=f"Prompt {name} not found or not accessible",
             )
         version_orm = models.PromptVersion(
             user_id=user_id,
@@ -585,6 +665,17 @@ async def list_prompt_version_tags(
     stmt = stmt.limit(limit + 1)
 
     async with request.app.state.db() as session:
+        prompt_rowid = await session.scalar(
+            select(models.PromptVersion.prompt_id).where(models.PromptVersion.id == id_)
+        )
+        if prompt_rowid is not None:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_PROMPT,
+                object_id=prompt_rowid,
+                not_found_detail="Prompt version not found",
+            )
         result = (await session.execute(stmt)).all()
 
     # Check if prompt version exists
@@ -674,6 +765,15 @@ async def create_prompt_version_tag(
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
             raise HTTPException(404)
+        # Tagging mutates the prompt root, so it needs edit access.
+        await assert_can_access(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROMPT,
+            object_id=prompt_id,
+            permission=Permission.OBJ_EDIT,
+            not_found_detail="Prompt version not found",
+        )
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         values = dict(
             name=request_body.name,
@@ -746,6 +846,15 @@ async def delete_prompt_version_tag(
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
             raise HTTPException(404)
+        # Removing a tag mutates the prompt root, so it needs edit access.
+        await assert_can_access(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROMPT,
+            object_id=prompt_id,
+            permission=Permission.OBJ_EDIT,
+            not_found_detail="Prompt version not found",
+        )
         tag = await session.scalar(
             select(models.PromptVersionTag).where(
                 models.PromptVersionTag.prompt_id == prompt_id,
@@ -779,11 +888,21 @@ async def delete_prompt(
     else:
         assert_never(identifier)
     async with request.app.state.db() as session:
-        prompt_id = await session.scalar(
-            delete(models.Prompt).where(where_clause).returning(models.Prompt.id)
+        prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
+        if prompt_id is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        # Deleting mutates the prompt root, so it needs edit access before removing it.
+        await assert_can_access(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROMPT,
+            object_id=prompt_id,
+            permission=Permission.OBJ_EDIT,
+            not_found_detail="Prompt not found",
         )
-    if prompt_id is None:
-        raise HTTPException(status_code=404, detail="Prompt not found")
+        await delete_object_grants(session, OBJECT_TYPE_PROMPT, prompt_id)
+        await delete_object_tags(session, OBJECT_TYPE_PROMPT, prompt_id)
+        await session.execute(delete(models.Prompt).where(models.Prompt.id == prompt_id))
 
 
 class _PromptId(int): ...
@@ -820,6 +939,17 @@ def _filter_by_prompt_identifier(
     if isinstance(identifier, Identifier):
         return stmt.where(models.Prompt.name == identifier)
     assert_never(identifier)
+
+
+async def _resolve_prompt_rowid(session: AsyncSession, prompt_identifier: str) -> Optional[int]:
+    """The prompt's row id from a name-or-GlobalID identifier, or None if absent."""
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        return int(identifier)
+    return cast(
+        Optional[int],
+        await session.scalar(select(models.Prompt.id).where(models.Prompt.name == identifier)),
+    )
 
 
 def _prompt_version_from_orm_version(

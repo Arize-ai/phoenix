@@ -79,6 +79,19 @@ export function useViewerCanDeleteProjectAnnotations() {
   return useIsAdmin();
 }
 
+/**
+ * Returns true if the viewer can manage access control — user groups, object roles, and
+ * project sharing. These are administrator surfaces.
+ * Note: when the app is not configured with auth, we assume the user is an admin.
+ */
+export function useViewerCanManageAccessControl() {
+  const { viewer } = useViewer();
+  if (viewer && viewer?.role?.name !== "ADMIN") {
+    return false;
+  }
+  return true;
+}
+
 export function ViewerProvider({
   query,
   children,

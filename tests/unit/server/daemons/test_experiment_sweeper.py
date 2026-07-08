@@ -71,9 +71,13 @@ class TestExperimentSweeper:
                 is_ephemeral=is_ephemeral,
                 repetitions=1,
                 metadata_={},
-                project_name=project_name,
                 created_at=created_at,
             )
+            if project_name is not None:
+                # Link by FK: the project (created by the test) is resolved by name to its id.
+                experiment_kwargs["project_id"] = await session.scalar(
+                    sa.select(models.Project.id).where(models.Project.name == project_name)
+                )
             if updated_at is not None:
                 experiment_kwargs["updated_at"] = updated_at
             experiment = models.Experiment(**experiment_kwargs)

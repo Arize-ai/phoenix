@@ -192,6 +192,14 @@ class AccessTokenAttributes(UserTokenAttributes):
 class ApiKeyAttributes(UserTokenAttributes):
     name: str
     description: Optional[str] = None
+    scope: Optional[str] = None
+    """Attenuation carried as a signed claim in the API-key JWT. An absent scope
+    means full legacy access (the key acts with its owner's role). A present
+    scope can only ever narrow what the owner's role allows; it can never widen
+    it. The value is kept as ``str`` rather than a Literal so that a token
+    minted by a newer server with an unrecognized scope is carried through and
+    denied (fail closed) instead of crashing. Known values are enumerated in
+    ``phoenix.server.api_key_scope``."""
 
 
 class _DbId(str, ABC):

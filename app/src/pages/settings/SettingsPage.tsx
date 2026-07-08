@@ -5,7 +5,11 @@ import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
-import { useViewerCanManageSandboxes } from "@phoenix/contexts";
+import {
+  useViewerCanManageAccessControl,
+  useViewerCanManageSandboxes,
+} from "@phoenix/contexts";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -24,6 +28,7 @@ const settingsPageInnerCSS = css`
 
 const TABS: { id: string; label: string }[] = [
   { id: "general", label: "General" },
+  { id: "access", label: "Access" },
   { id: "providers", label: "AI Providers" },
   { id: "sandboxes", label: "Sandboxes" },
   { id: "models", label: "Models" },
@@ -50,6 +55,8 @@ export function SettingsPage() {
   const isAgentAssistantEnabled = !window.Config.agentAssistantDisabled;
   const canManageSecrets = useViewerCanManageSandboxes();
   const canManageSandboxes = useViewerCanManageSandboxes();
+  const canManageAccessControl = useViewerCanManageAccessControl();
+  const { accessControlEnabled } = useFunctionality();
   const tabs = TABS.filter((tab) => {
     if (tab.id === "agents" && !isAgentAssistantEnabled) {
       return false;
@@ -60,10 +67,25 @@ export function SettingsPage() {
     if (tab.id === "sandboxes" && !canManageSandboxes) {
       return false;
     }
+    // Hide access-control configuration unless enforcement is enabled.
+    if (
+      tab.id === "access" &&
+      (!accessControlEnabled || !canManageAccessControl)
+    ) {
+      return false;
+    }
     return true;
   });
   if (!tab) {
     return <Navigate to="/settings/general" replace />;
+  }
+  if (tab === "groups" || tab === "people" || tab === "roles") {
+    return (
+      <Navigate
+        to={accessControlEnabled ? "/settings/access" : "/settings/general"}
+        replace
+      />
+    );
   }
   if (!tabs.some((item) => item.id === tab)) {
     return <Navigate to="/settings/general" replace />;

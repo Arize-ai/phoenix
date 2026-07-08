@@ -1,9 +1,10 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useState } from "react";
 import { SubmenuTrigger } from "react-aria-components";
 
 import {
   Button,
+  Dialog,
   DialogTrigger,
   Flex,
   Icon,
@@ -13,16 +14,28 @@ import {
   MenuItem,
   MenuTrigger,
   Modal,
+  ModalOverlay,
   Popover,
   PopoverArrow,
   Text,
 } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { useViewerCanManageAccessControl } from "@phoenix/contexts";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { PromptLabelSelectionContent } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 
 import { DeletePromptDialog } from "./DeletePromptDialog";
+import { PromptAccessPageContent } from "./PromptAccessPage";
 
 enum PromptAction {
+  MANAGE_ACCESS = "MANAGE_ACCESS",
   DELETE = "DELETE",
   LABELS = "LABELS",
 }
@@ -34,11 +47,11 @@ export function PromptActionMenu({
   promptId: string;
   onDeleted: () => void;
 }) {
+  const canManageAccessControl = useViewerCanManageAccessControl();
+  const { accessControlEnabled } = useFunctionality();
+  const canShowManageAccess = accessControlEnabled && canManageAccessControl;
+  const [showManageAccessDialog, setShowManageAccessDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-  const onDelete = useCallback(() => {
-    setShowDeleteDialog(true);
-  }, []);
 
   return (
     <StopPropagation>
@@ -53,8 +66,11 @@ export function PromptActionMenu({
             aria-label="Prompt action menu"
             onAction={(action) => {
               switch (action) {
+                case PromptAction.MANAGE_ACCESS:
+                  setShowManageAccessDialog(true);
+                  break;
                 case PromptAction.DELETE:
-                  onDelete();
+                  setShowDeleteDialog(true);
                   break;
               }
             }}
@@ -93,6 +109,22 @@ export function PromptActionMenu({
                 </Suspense>
               </Popover>
             </SubmenuTrigger>
+            {canShowManageAccess ? (
+              <MenuItem
+                id={PromptAction.MANAGE_ACCESS}
+                textValue="Manage access"
+              >
+                <Flex
+                  direction={"row"}
+                  gap="size-75"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.Shield />} />
+                  <Text>Manage Access</Text>
+                </Flex>
+              </MenuItem>
+            ) : null}
             <MenuItem id={PromptAction.DELETE}>
               <Flex
                 direction={"row"}
@@ -107,6 +139,26 @@ export function PromptActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
+      <ModalOverlay
+        isOpen={showManageAccessDialog}
+        onOpenChange={setShowManageAccessDialog}
+      >
+        <Modal variant="slideover" size="L">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Manage Access</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <Suspense fallback={<Loading />}>
+                <PromptAccessPageContent promptId={promptId} />
+              </Suspense>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
       <DialogTrigger
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}

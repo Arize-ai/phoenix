@@ -11,8 +11,11 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.access import DEFAULT_PERMISSION_SET, OBJECT_TYPE_PROMPT, SubjectKind
+from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.types.AccessSubjectKind import AccessSubjectKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -20,6 +23,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 
+from .AccessGrant import AccessGrant
 from .PromptLabel import PromptLabel
 from .PromptVersion import (
     PromptVersion,
@@ -36,6 +40,100 @@ class Prompt(Node):
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("Prompt ID mismatch")
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore[untyped-decorator]
+    async def access_grants(
+        self,
+        info: Info[Context, None],
+    ) -> list[AccessGrant]:
+        """The user/group grants on this prompt, with display names."""
+        async with info.context.db.read() as session:
+            rows = (
+                await session.execute(
+                    select(
+                        models.AccessGrant.subject_kind,
+                        models.AccessGrant.subject_id,
+                        models.AccessGrant.role_id,
+                    ).where(
+                        models.AccessGrant.object_type == OBJECT_TYPE_PROMPT,
+                        models.AccessGrant.object_id == self.id,
+                        models.AccessGrant.selector_kind == "ids",
+                        models.AccessGrant.effect == "allow",
+                    )
+                )
+            ).all()
+            user_ids = [
+                sid for kind, sid, _ in rows if kind == SubjectKind.USER.value and sid is not None
+            ]
+            group_ids = [
+                sid for kind, sid, _ in rows if kind == SubjectKind.GROUP.value and sid is not None
+            ]
+            user_names: dict[int, str] = {}
+            if user_ids:
+                for uid, username, email in (
+                    await session.execute(
+                        select(models.User.id, models.User.username, models.User.email).where(
+                            models.User.id.in_(user_ids)
+                        )
+                    )
+                ).all():
+                    user_names[uid] = email or username
+            group_names: dict[int, str] = {}
+            if group_ids:
+                for gid, display_name in (
+                    await session.execute(
+                        select(models.UserGroup.id, models.UserGroup.display_name).where(
+                            models.UserGroup.id.in_(group_ids)
+                        )
+                    )
+                ).all():
+                    group_names[gid] = display_name or f"group:{gid}"
+            role_names: dict[int, str] = {
+                rid: name
+                for rid, name in (
+                    await session.execute(
+                        select(models.PermissionSet.id, models.PermissionSet.name)
+                    )
+                ).all()
+            }
+        grants: list[AccessGrant] = []
+        for kind, sid, role_id in rows:
+            role_name = (
+                role_names.get(role_id, DEFAULT_PERMISSION_SET)
+                if role_id
+                else DEFAULT_PERMISSION_SET
+            )
+            if kind == SubjectKind.EVERYONE.value:
+                grants.append(
+                    AccessGrant(
+                        subject_kind=AccessSubjectKind.EVERYONE,
+                        subject_id=None,
+                        subject_name="All users",
+                        role_id=GlobalID("PermissionSet", str(role_id)) if role_id else None,
+                        role_name=role_name,
+                    )
+                )
+            elif kind == SubjectKind.USER.value and sid is not None:
+                grants.append(
+                    AccessGrant(
+                        subject_kind=AccessSubjectKind.USER,
+                        subject_id=GlobalID("User", str(sid)),
+                        subject_name=user_names.get(sid, f"user:{sid}"),
+                        role_id=GlobalID("PermissionSet", str(role_id)) if role_id else None,
+                        role_name=role_name,
+                    )
+                )
+            elif kind == SubjectKind.GROUP.value and sid is not None:
+                grants.append(
+                    AccessGrant(
+                        subject_kind=AccessSubjectKind.GROUP,
+                        subject_id=GlobalID("UserGroup", str(sid)),
+                        subject_name=group_names.get(sid, f"group:{sid}"),
+                        role_id=GlobalID("PermissionSet", str(role_id)) if role_id else None,
+                        role_name=role_name,
+                    )
+                )
+        return grants
 
     @strawberry.field
     async def source_prompt_id(

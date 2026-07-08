@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useState } from "react";
+import { startTransition, Suspense, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -7,6 +7,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Loading,
   Menu,
   MenuItem,
   MenuTrigger,
@@ -24,7 +25,12 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotifySuccess } from "@phoenix/contexts";
+import {
+  useNotifySuccess,
+  useViewerCanManageAccessControl,
+} from "@phoenix/contexts";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
+import { ProjectAccessPageContent } from "@phoenix/pages/project/ProjectAccessPage";
 
 import type { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import type { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
@@ -32,6 +38,7 @@ import { RemoveProjectDataForm } from "./RemoveProjectDataForm";
 
 enum ProjectAction {
   COPY_NAME = "copyName",
+  MANAGE_ACCESS = "manageAccess",
   DELETE = "deleteProject",
   CLEAR = "clearProject",
   REMOVE_DATA = "removeProjectData",
@@ -51,6 +58,10 @@ export function ProjectActionMenu({
   onProjectDelete: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
+  const canManageAccessControl = useViewerCanManageAccessControl();
+  const { accessControlEnabled } = useFunctionality();
+  const canShowManageAccess = accessControlEnabled && canManageAccessControl;
+  const [showManageAccessDialog, setShowManageAccessDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showRemoveDataDialog, setShowRemoveDataDialog] = useState(false);
@@ -134,6 +145,10 @@ export function ProjectActionMenu({
                 case ProjectAction.DELETE: {
                   return onDelete();
                 }
+                case ProjectAction.MANAGE_ACCESS: {
+                  setShowManageAccessDialog(true);
+                  return;
+                }
                 case ProjectAction.CLEAR: {
                   return onClear();
                 }
@@ -155,6 +170,22 @@ export function ProjectActionMenu({
                 <Text>Copy Name</Text>
               </Flex>
             </MenuItem>
+            {canShowManageAccess ? (
+              <MenuItem
+                id={ProjectAction.MANAGE_ACCESS}
+                textValue="Manage access"
+              >
+                <Flex
+                  direction={"row"}
+                  gap="size-75"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.Shield />} />
+                  <Text>Manage Access</Text>
+                </Flex>
+              </MenuItem>
+            ) : null}
             <MenuItem id={ProjectAction.CLEAR} textValue="Clear All Traces">
               <Flex
                 direction={"row"}
@@ -193,6 +224,26 @@ export function ProjectActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
+      <ModalOverlay
+        isOpen={showManageAccessDialog}
+        onOpenChange={setShowManageAccessDialog}
+      >
+        <Modal variant="slideover" size="L">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Manage Access</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <Suspense fallback={<Loading />}>
+                <ProjectAccessPageContent projectId={projectId} isModal />
+              </Suspense>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
       <ModalOverlay
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}

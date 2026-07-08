@@ -661,7 +661,9 @@ async def test_post_dataset_upload_create_conflicts_on_existing_name_while_updat
         json=body,
     )
     assert conflict_response.status_code == 409
-    assert name in conflict_response.text
+    # The create-conflict message is deliberately generic — it does not echo the name back,
+    # so it never reveals whether a name is taken by a dataset the caller cannot see.
+    assert "Dataset name is unavailable" in conflict_response.text
 
     # action=update converges instead of conflicting on the existing name.
     update_body = {**body, "action": "update"}

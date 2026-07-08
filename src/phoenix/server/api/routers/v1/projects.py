@@ -12,12 +12,19 @@ from phoenix.db.helpers import (
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
 )
+from phoenix.server.access import (
+    OBJECT_TYPE_PROJECT,
+    delete_object_grants,
+    delete_object_tags,
+)
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
+    assert_can_read,
     get_project_by_identifier,
+    scope_predicate,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.authorization import is_not_locked, require_admin
@@ -119,6 +126,12 @@ async def get_projects(
     if name_contains:
         stmt = stmt.where(models.CaseInsensitiveContains(models.Project.name, name_contains))
     async with request.app.state.db() as session:
+        # Restrict to the projects this caller may read (no-op when not enforcing).
+        stmt = stmt.where(
+            await scope_predicate(
+                session, request, object_type=OBJECT_TYPE_PROJECT, id_column=models.Project.id
+            )
+        )
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id
@@ -180,6 +193,13 @@ async def get_project(
     """  # noqa: E501
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROJECT,
+            object_id=project.id,
+            not_found_detail=f"Project with identifier {project_identifier} not found",
+        )
     data = _to_project_response(project)
     return GetProjectResponseBody(data=data)
 
@@ -319,6 +339,8 @@ async def delete_project(
                 detail="The default project cannot be deleted",
             )
 
+        await delete_object_grants(session, OBJECT_TYPE_PROJECT, project.id)
+        await delete_object_tags(session, OBJECT_TYPE_PROJECT, project.id)
         await session.delete(project)
     return None
 

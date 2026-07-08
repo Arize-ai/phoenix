@@ -45,6 +45,7 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
+from phoenix.server.access import sync_user_groups
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client, search_claim_path
@@ -260,6 +261,15 @@ async def create_tokens(
                 allow_sign_up=oauth2_client.allow_sign_up,
                 role_name=role_name,
                 role_resync=oauth2_client.role_resync,
+            )
+            # Materialize the IdP groups so access can be granted to them. The
+            # groups were already extracted for access validation above; persist
+            # them now, namespaced by this IdP, in the same transaction.
+            await sync_user_groups(
+                session,
+                user_id=user.id,
+                provider=f"oauth2:{idp_name}",
+                group_keys=oauth2_client.extract_groups(user_info.claims),
             )
     except EmailAlreadyInUse as e:
         logger.error("Email already in use for IDP %s: %s", idp_name, e)

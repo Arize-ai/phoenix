@@ -14,12 +14,14 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_session
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.access import OBJECT_TYPE_PROJECT
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
+    assert_can_read,
     get_project_by_identifier,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -209,6 +211,13 @@ async def get_session(
 ) -> GetSessionResponseBody:
     async with request.app.state.db.read() as db_session:
         project_session = await _get_session_by_identifier(db_session, session_identifier)
+        await assert_can_read(
+            db_session,
+            request,
+            object_type=OBJECT_TYPE_PROJECT,
+            object_id=project_session.project_id,
+            not_found_detail=f"Session with identifier {session_identifier} not found",
+        )
         traces_stmt = (
             select(models.Trace)
             .filter_by(project_session_rowid=project_session.id)
@@ -359,6 +368,13 @@ async def list_project_sessions(
 ) -> GetSessionsResponseBody:
     async with request.app.state.db.read() as db_session:
         project = await get_project_by_identifier(db_session, project_identifier)
+        await assert_can_read(
+            db_session,
+            request,
+            object_type=OBJECT_TYPE_PROJECT,
+            object_id=project.id,
+            not_found_detail=f"Project with identifier {project_identifier} not found",
+        )
 
         if order == "desc":
             order_clause = models.ProjectSession.id.desc()

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import type { DataID } from "relay-runtime";
 
 import {
@@ -7,6 +7,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Loading,
   Menu,
   MenuItem,
   MenuTrigger,
@@ -15,18 +16,22 @@ import {
   Popover,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 import type { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
+import { UserAccessDialog } from "./UserAccessDialog";
 
 type UserActionMenuProps = {
   userId: string;
+  userLabel: string;
   authMethod: AuthMethod;
   connectionIds: DataID[];
 };
 
 enum UserAction {
+  VIEW_ACCESS = "viewAccess",
   DELETE = "deleteUser",
   RESET_PASSWORD = "resetPassword",
 }
@@ -36,11 +41,27 @@ function isLocalAuth(authMethod: AuthMethod): authMethod is "LOCAL" {
 }
 
 export function UserActionMenu(props: UserActionMenuProps) {
-  const { userId, authMethod, connectionIds } = props;
+  const { userId, userLabel, authMethod, connectionIds } = props;
+  const { accessControlEnabled } = useFunctionality();
+  const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
 
   const actionMenuItems = useMemo(() => {
+    const viewAccessItemEl = (
+      <MenuItem key={UserAction.VIEW_ACCESS} id={UserAction.VIEW_ACCESS}>
+        <Flex
+          direction={"row"}
+          gap="size-75"
+          justifyContent={"start"}
+          alignItems={"center"}
+        >
+          <Icon svg={<Icons.Eye />} />
+          <>View access</>
+        </Flex>
+      </MenuItem>
+    );
+
     const deleteUserItemEl = (
       <MenuItem key={UserAction.DELETE} id={UserAction.DELETE}>
         <Flex
@@ -69,12 +90,14 @@ export function UserActionMenu(props: UserActionMenuProps) {
       </MenuItem>
     );
 
-    const actionMenuItems = [deleteUserItemEl];
+    const actionMenuItems = accessControlEnabled
+      ? [viewAccessItemEl, deleteUserItemEl]
+      : [deleteUserItemEl];
     if (isLocalAuth(authMethod)) {
       actionMenuItems.push(resetPasswordItemEl);
     }
     return actionMenuItems;
-  }, [authMethod]);
+  }, [accessControlEnabled, authMethod]);
 
   return (
     <StopPropagation>
@@ -88,6 +111,9 @@ export function UserActionMenu(props: UserActionMenuProps) {
             aria-label="User Actions"
             onAction={(action) => {
               switch (action) {
+                case UserAction.VIEW_ACCESS:
+                  setShowAccessDialog(true);
+                  break;
                 case UserAction.DELETE:
                   setShowDeleteDialog(true);
                   break;
@@ -101,6 +127,22 @@ export function UserActionMenu(props: UserActionMenuProps) {
           </Menu>
         </Popover>
       </MenuTrigger>
+      <DialogTrigger
+        isOpen={showAccessDialog}
+        onOpenChange={setShowAccessDialog}
+      >
+        <ModalOverlay>
+          <Modal>
+            <Suspense fallback={<Loading />}>
+              <UserAccessDialog
+                userId={userId}
+                userLabel={userLabel}
+                onClose={() => setShowAccessDialog(false)}
+              />
+            </Suspense>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
       <DialogTrigger
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}

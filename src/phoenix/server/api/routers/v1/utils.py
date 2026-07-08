@@ -2,17 +2,169 @@ from typing import Annotated, Any, Generic, Optional, TypedDict, TypeVar, Union
 
 from fastapi import HTTPException
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
+from starlette.requests import Request
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import get_env_access_control_enabled
 from phoenix.db import models
+from phoenix.server.access import (
+    OBJECT_TYPE_DATASET,
+    Permission,
+    accessible_scope,
+    can_access,
+)
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.bearer_auth import PhoenixUser
 
 from .models import V1RoutesBaseModel
+
+
+def request_user_id(request: Request) -> Optional[int]:
+    """The caller's user id, or None when auth is disabled or the caller is not a
+    PhoenixUser. (Admins are PhoenixUsers too — the oracle's ADMINISTER rule, not
+    a None here, is what grants them universal access.)"""
+    if not request.app.state.authentication_enabled:
+        return None
+    user = request.user
+    return int(user.identity) if isinstance(user, PhoenixUser) else None
+
+
+async def assert_can_access(
+    session: AsyncSession,
+    request: Request,
+    *,
+    object_type: str,
+    object_id: int,
+    permission: Permission,
+    not_found_detail: str,
+) -> None:
+    """Gate an action on ``(object_type, object_id)`` by the caller's ``permission`` on it
+    (``OBJ_VIEW`` for reads, ``OBJ_EDIT`` for mutations). Unauthorized is surfaced as **404**
+    — indistinguishable from not-found. A no-op when access control is not enforcing or auth
+    is disabled (access control presupposes auth). Containment children pass their *parent's*
+    (object_type, object_id); roots pass their own."""
+    if not get_env_access_control_enabled():
+        return
+    user_id = request_user_id(request)
+    if user_id is None:
+        return
+    if not await can_access(
+        session,
+        user_id=user_id,
+        object_type=object_type,
+        object_id=object_id,
+        enabled=True,
+        permission=permission,
+    ):
+        raise HTTPException(status_code=404, detail=not_found_detail)
+
+
+async def assert_can_read(
+    session: AsyncSession,
+    request: Request,
+    *,
+    object_type: str,
+    object_id: int,
+    not_found_detail: str,
+) -> None:
+    """Gate a *read* by the caller's visibility (``OBJ_VIEW``) of ``(object_type,
+    object_id)``. Thin wrapper over :func:`assert_can_access`."""
+    await assert_can_access(
+        session,
+        request,
+        object_type=object_type,
+        object_id=object_id,
+        permission=Permission.OBJ_VIEW,
+        not_found_detail=not_found_detail,
+    )
+
+
+async def scope_predicate(
+    session: AsyncSession,
+    request: Request,
+    *,
+    object_type: str,
+    id_column: "InstrumentedAttribute[int]",
+) -> "ColumnElement[bool]":
+    """A WHERE predicate restricting a *list* query to the rows the caller may
+    read. ``true()`` when access control is not enforcing or auth is disabled, so
+    callers can ``.where(...)`` it unconditionally with no behavior change.
+
+    Compiles the actor's accessible scope to ``id_column IN (...)`` — a single hashed
+    lookup. Not a correlated per-row grant subquery, which on a full-table list re-runs
+    for every candidate row and is orders of magnitude slower."""
+    if not get_env_access_control_enabled():
+        return true()
+    user_id = request_user_id(request)
+    if user_id is None:
+        return true()
+    scope = await accessible_scope(
+        session,
+        user_id=user_id,
+        object_type=object_type,
+        enabled=True,
+    )
+    return scope.apply(id_column)
+
+
+async def assert_can_read_experiment(
+    session: AsyncSession,
+    request: Request,
+    experiment_rowid: int,
+    *,
+    not_found_detail: str,
+) -> None:
+    """Access-by-parent for experiments: an experiment (and its runs, evaluations, and
+    exports) derives its access from the dataset it runs on. Resolves the parent dataset and
+    gates on it. A no-op if the experiment is absent (the endpoint surfaces its own
+    not-found)."""
+    await assert_can_access_experiment(
+        session,
+        request,
+        experiment_rowid,
+        permission=Permission.OBJ_VIEW,
+        not_found_detail=not_found_detail,
+    )
+
+
+async def assert_can_access_experiment(
+    session: AsyncSession,
+    request: Request,
+    experiment_rowid: int,
+    *,
+    permission: Permission,
+    not_found_detail: str,
+) -> None:
+    """Gate an experiment action through the parent dataset's access policy."""
+    dataset_id = await session.scalar(
+        select(models.Experiment.dataset_id).where(models.Experiment.id == experiment_rowid)
+    )
+    if dataset_id is None:
+        return
+    await assert_can_read(
+        session,
+        request,
+        object_type=OBJECT_TYPE_DATASET,
+        object_id=dataset_id,
+        not_found_detail=not_found_detail,
+    )
+    if permission is Permission.OBJ_VIEW:
+        return
+    await assert_can_access(
+        session,
+        request,
+        object_type=OBJECT_TYPE_DATASET,
+        object_id=dataset_id,
+        permission=permission,
+        not_found_detail=not_found_detail,
+    )
+
 
 StatusCode: TypeAlias = int
 DataType = TypeVar("DataType")

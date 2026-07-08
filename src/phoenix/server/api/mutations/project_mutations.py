@@ -9,7 +9,12 @@ from strawberry.types import Info
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
+from phoenix.server.access import (
+    OBJECT_TYPE_PROJECT,
+    delete_object_grants,
+    delete_object_tags,
+)
+from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict
 from phoenix.server.api.input_types.ClearProjectInput import ClearProjectInput
@@ -54,7 +59,7 @@ class ProjectMutationMixin:
         info.context.event_queue.put(ProjectInsertEvent((project.id,)))
         return ProjectMutationPayload(project=to_gql_project(project), query=Query())
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled])  # type: ignore
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         async with info.context.db() as session:
@@ -67,11 +72,13 @@ class ProjectMutationMixin:
                 raise ValueError(f"Unknown project: {id}")
             if project.name == DEFAULT_PROJECT_NAME:
                 raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
+            await delete_object_grants(session, OBJECT_TYPE_PROJECT, project_id)
+            await delete_object_tags(session, OBJECT_TYPE_PROJECT, project_id)
             await session.delete(project)
         info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
         return Query()
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled])  # type: ignore
     async def clear_project(self, info: Info[Context, None], input: ClearProjectInput) -> Query:
         project_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name="Project"
@@ -97,7 +104,7 @@ class ProjectMutationMixin:
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled])  # type: ignore
     async def patch_project(
         self,
         info: Info[Context, None],

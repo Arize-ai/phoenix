@@ -35,6 +35,7 @@ from phoenix.config import (
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
+from phoenix.server.access import sync_user_groups
 from phoenix.server.api.routers.ldap import get_or_create_ldap_user
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
@@ -365,6 +366,13 @@ async def _ldap_login(request: Request) -> Response:
     # Get or create user in Phoenix database
     async with request.app.state.db() as session:
         user = await get_or_create_ldap_user(session, user_info, authenticator.config)
+        # Materialize the LDAP groups so access can be granted to them.
+        await sync_user_groups(
+            session,
+            user_id=user.id,
+            provider="ldap",
+            group_keys=user_info.groups,
+        )
 
     _record_brute_force_success(lockout_key)
     return await _create_auth_response(request, user)

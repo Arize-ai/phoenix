@@ -44,6 +44,12 @@ from phoenix.db.insertion.dataset import (
     add_dataset_examples,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.access import (
+    OBJECT_TYPE_DATASET,
+    Permission,
+    delete_object_grants,
+    delete_object_tags,
+)
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
 from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
@@ -61,6 +67,9 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     add_text_csv_content_to_responses,
+    assert_can_access,
+    assert_can_read,
+    scope_predicate,
 )
 
 csv.field_size_limit(
@@ -118,6 +127,14 @@ async def list_datasets(
             .add_columns(func.coalesce(func.sum(value), 0).label("example_count"))
             .outerjoin_from(models.Dataset, models.DatasetExample)
             .outerjoin_from(models.DatasetExample, models.DatasetExampleRevision)
+            .where(
+                await scope_predicate(
+                    session,
+                    request,
+                    object_type=OBJECT_TYPE_DATASET,
+                    id_column=models.Dataset.id,
+                )
+            )
             .group_by(models.Dataset.id)
             .order_by(models.Dataset.id.desc())
         )
@@ -195,10 +212,22 @@ async def delete_dataset(
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
     )
     async with request.app.state.db() as session:
+        # Deleting mutates the dataset root, so it needs edit (not just view) access to it.
+        # Unauthorized is surfaced as the same 404 as a missing dataset.
+        await assert_can_access(
+            session,
+            request,
+            object_type=OBJECT_TYPE_DATASET,
+            object_id=dataset_id,
+            permission=Permission.OBJ_EDIT,
+            not_found_detail="Dataset does not exist",
+        )
         project_names = await session.scalars(project_names_stmt)
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-        if (await session.scalar(stmt)) is None:
+        if (deleted_dataset_id := await session.scalar(stmt)) is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
+        await delete_object_grants(session, OBJECT_TYPE_DATASET, deleted_dataset_id)
+        await delete_object_tags(session, OBJECT_TYPE_DATASET, deleted_dataset_id)
     tasks = BackgroundTasks()
     tasks.add_task(delete_projects, request.app.state.db, *project_names)
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
@@ -232,6 +261,13 @@ async def get_dataset(
     if (type_name := dataset_id.type_name) != DATASET_NODE_NAME:
         raise HTTPException(detail=f"ID {dataset_id} refers to a f{type_name}", status_code=404)
     async with request.app.state.db() as session:
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_DATASET,
+            object_id=int(dataset_id.node_id),
+            not_found_detail=f"Dataset with ID {dataset_id} not found",
+        )
         result = await session.execute(
             select(models.Dataset, models.Dataset.example_count).filter(
                 models.Dataset.id == int(dataset_id.node_id)
@@ -322,6 +358,13 @@ async def list_dataset_versions(
         ).scalar_subquery()
         stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
     async with request.app.state.db() as session:
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_DATASET,
+            object_id=dataset_id,
+            not_found_detail=f"Dataset with ID {id} not found",
+        )
         data = [
             DatasetVersion(
                 version_id=str(GlobalID(DATASET_VERSION_NODE_NAME, str(version.id))),
@@ -624,6 +667,20 @@ async def upload_dataset(
             splits_provided=splits_provided,
         ),
     )
+    async with request.app.state.db() as session:
+        dataset_id = await session.scalar(
+            select(models.Dataset.id).where(models.Dataset.name == name)
+        )
+        if dataset_id is not None:
+            if action is DatasetAction.CREATE:
+                raise HTTPException(detail="Dataset name is unavailable", status_code=409)
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_DATASET,
+                object_id=dataset_id,
+                not_found_detail=f'Dataset "{name}" not found or not accessible',
+            )
     if sync:
         try:
             async with request.app.state.db() as session:
@@ -1367,6 +1424,13 @@ async def get_dataset_examples(
                 detail=f"No dataset with id {dataset_gid} can be found.",
                 status_code=404,
             )
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_DATASET,
+            object_id=resolved_dataset_id,
+            not_found_detail=f"No dataset with id {dataset_gid} can be found.",
+        )
 
         # Subquery to find the maximum created_at for each dataset_example_id
         # timestamp tiebreaks are resolved by the largest id
@@ -1509,6 +1573,13 @@ async def get_dataset_csv(
             ) from e
     try:
         async with request.app.state.db() as session:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_DATASET,
+                object_id=dataset_id,
+                not_found_detail=f"Dataset with ID {id} not found",
+            )
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
@@ -1569,6 +1640,13 @@ async def get_dataset_jsonl(
             ) from e
     try:
         async with request.app.state.db() as session:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_DATASET,
+                object_id=dataset_id,
+                not_found_detail=f"Dataset with ID {id} not found",
+            )
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
@@ -1626,6 +1704,13 @@ async def get_dataset_jsonl_openai_ft(
             ) from e
     try:
         async with request.app.state.db() as session:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_DATASET,
+                object_id=dataset_id,
+                not_found_detail=f"Dataset with ID {id} not found",
+            )
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
@@ -1681,6 +1766,13 @@ async def get_dataset_jsonl_openai_evals(
             ) from e
     try:
         async with request.app.state.db() as session:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_DATASET,
+                object_id=dataset_id,
+                not_found_detail=f"Dataset with ID {id} not found",
+            )
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
