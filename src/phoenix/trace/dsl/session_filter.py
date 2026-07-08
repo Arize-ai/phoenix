@@ -31,12 +31,14 @@ from phoenix.db.models import LatencyMs
 from phoenix.db.session_aggregates import (
     SESSION_ROWID,
     SPAN_ROWID,
+    VALUE,
     SessionAggregate,
     cost_summary_by_session,
     earliest_root_span_by_session,
     num_traces_by_session,
     num_traces_with_error_by_session,
     root_span_attribute_text_contains_by_session,
+    root_span_io_value_by_session,
     span_kind_count_by_session,
     token_counts_by_session,
 )
@@ -101,10 +103,20 @@ _EXISTS_ATTRIBUTE_PATHS: typing.Mapping[str, tuple[str, ...]] = MappingProxyType
         "any_output": _ROOT_SPAN_OUTPUT_VALUE,
     }
 )
+_ROOT_SPAN_IO_NAMES: typing.Mapping[str, typing.Literal["first_input", "last_output"]] = (
+    MappingProxyType(
+        {
+            "first_input": "first_input",
+            "last_output": "last_output",
+        }
+    )
+)
 
 _SESSION_STRING_NAMES: NameMap = MappingProxyType(
     {
         "session_id": models.ProjectSession.session_id,
+        "first_input": models.ProjectSession.session_id,
+        "last_output": models.ProjectSession.session_id,
     }
 )
 _SESSION_FLOAT_NAMES: NameMap = MappingProxyType(
@@ -163,6 +175,8 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "Case-sensitive containment in some root span's output payload; "
             "instrumentation-shaped, not an agent-role message."
         ),
+        "first_input": "Case-sensitive turn-1-only root span input.value string.",
+        "last_output": "Case-sensitive final-turn-only root span output.value string.",
         "user.id": "user.id attribute read from the session's earliest root span.",
         'metadata["key"]': "A metadata value read from the session's earliest root span.",
         'annotations["name"].score': "Numeric score of a session annotation by name.",
@@ -225,6 +239,7 @@ class SessionFilter:
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
     _referenced_aggregates: frozenset[str] = field(init=False, repr=False)
     _referenced_exists_names: frozenset[str] = field(init=False, repr=False)
+    _referenced_root_span_io_names: frozenset[str] = field(init=False, repr=False)
     _references_root_span: bool = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
@@ -250,6 +265,11 @@ class SessionFilter:
         )
         object.__setattr__(
             self, "_referenced_exists_names", frozenset(referenced & set(_EXISTS_ATTRIBUTE_PATHS))
+        )
+        object.__setattr__(
+            self,
+            "_referenced_root_span_io_names",
+            frozenset(referenced & set(_ROOT_SPAN_IO_NAMES)),
         )
         object.__setattr__(self, "_references_root_span", _ROOT_SPAN_ATTRIBUTES in referenced)
 
@@ -290,6 +310,15 @@ class SessionFilter:
                 end_time=end_time,
             )
         )
+        stmt, root_span_io_bindings = _join_root_span_io_values(
+            stmt,
+            self._referenced_root_span_io_names,
+            candidate_session_rowids=candidate_session_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        extra_bindings.update(root_span_io_bindings)
         if self._references_root_span:
             stmt, root_span_attributes = _join_root_span(
                 stmt,
@@ -385,6 +414,28 @@ def _join_aggregates(
                 )
         else:
             raise ValueError(f"Unknown aggregate shape: {aggregate_shape}")
+    return stmt, bindings_map
+
+
+def _join_root_span_io_values(
+    stmt: Select[typing.Any],
+    referenced_io_names: typing.Iterable[str],
+    candidate_session_rowids: CandidateRowids,
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
+) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
+    bindings_map: dict[str, typing.Any] = {}
+    for name in referenced_io_names:
+        subquery = root_span_io_value_by_session(
+            _ROOT_SPAN_IO_NAMES[name],
+            keys=candidate_session_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+        ).subquery()
+        stmt = stmt.outerjoin(subquery, models.ProjectSession.id == subquery.c[SESSION_ROWID])
+        bindings_map[name] = subquery.c[VALUE]
     return stmt, bindings_map
 
 
