@@ -25,7 +25,7 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 import {
-  getExperimentXAxisProps,
+  experimentXAxisProps,
   useExperimentMetricsData,
 } from "./ExperimentMetrics";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
@@ -67,7 +67,7 @@ export function ExperimentTokensChart({
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...getExperimentXAxisProps(experiments)} />
+          <XAxis {...experimentXAxisProps} />
           <YAxis
             {...compactYAxisProps}
             allowDecimals={false}

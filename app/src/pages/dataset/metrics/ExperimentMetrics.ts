@@ -1,10 +1,7 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import type { XAxisProps } from "recharts";
 
-import {
-  compactCategoryXAxisProps,
-  truncateText,
-} from "@phoenix/components/chart";
+import { compactCategoryXAxisProps } from "@phoenix/components/chart";
 import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
 
 import type { ExperimentMetricsQuery } from "./__generated__/ExperimentMetricsQuery.graphql";
@@ -96,25 +93,14 @@ export function useExperimentMetricsData(datasetId: string): {
   return { experiments };
 }
 
-const MAX_TICK_NAME_LENGTH = 12;
-
 /**
  * X axis props shared by every experiment metric chart: one category tick per
- * experiment labeled with its (truncated) name.
+ * experiment labeled with its iteration (sequence) number, which stays
+ * compact no matter how long the experiment name is. The tooltip carries the
+ * full name.
  */
-export function getExperimentXAxisProps(
-  experiments: ExperimentMetricsDatum[]
-): XAxisProps {
-  const namesBySequenceNumber = new Map(
-    experiments.map((experiment) => [
-      experiment.sequenceNumber,
-      truncateText(experiment.name, MAX_TICK_NAME_LENGTH),
-    ])
-  );
-  return {
-    ...compactCategoryXAxisProps,
-    dataKey: "sequenceNumber",
-    tickFormatter: (sequenceNumber: number) =>
-      namesBySequenceNumber.get(sequenceNumber) ?? `#${sequenceNumber}`,
-  };
-}
+export const experimentXAxisProps: XAxisProps = {
+  ...compactCategoryXAxisProps,
+  dataKey: "sequenceNumber",
+  tickFormatter: (sequenceNumber: number) => `#${sequenceNumber}`,
+};

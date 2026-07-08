@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
-import { EXPERIMENT_METRIC_CHART_KEYS } from "@phoenix/pages/dataset/constants";
+import {
+  EXPERIMENT_METRIC_CHART_KEYS,
+  EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+} from "@phoenix/pages/dataset/constants";
 
 import { ExperimentCostChart } from "./ExperimentCostChart";
 import { ExperimentErrorRateChart } from "./ExperimentErrorRateChart";
@@ -32,22 +35,22 @@ const CHART_DEFINITIONS: Record<
 > = {
   latency: {
     name: "Run latency",
-    description: "Average run latency by experiment",
+    description: `Average run latency across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
     Component: ExperimentLatencyChart,
   },
   cost: {
     name: "Cost",
-    description: "Estimated cost in USD by prompt and completion",
+    description: `Estimated cost in USD across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
     Component: ExperimentCostChart,
   },
   tokens: {
     name: "Token usage",
-    description: "Tokens by prompt and completion",
+    description: `Prompt and completion tokens across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
     Component: ExperimentTokensChart,
   },
   error_rate: {
     name: "Error rate",
-    description: "Share of runs that errored",
+    description: `Share of runs that errored across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
     Component: ExperimentErrorRateChart,
   },
 };

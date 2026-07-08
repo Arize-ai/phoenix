@@ -19,7 +19,7 @@ import {
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
-  getExperimentXAxisProps,
+  experimentXAxisProps,
   useExperimentMetricsData,
 } from "./ExperimentMetrics";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
@@ -42,7 +42,7 @@ export function ExperimentLatencyChart({
   }));
   const hasData = chartData.some((datum) => typeof datum.latency === "number");
 
-  const { blue500 } = useSequentialChartColors();
+  const { orange500 } = useSequentialChartColors();
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
@@ -57,7 +57,7 @@ export function ExperimentLatencyChart({
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...getExperimentXAxisProps(experiments)} />
+          <XAxis {...experimentXAxisProps} />
           <YAxis
             {...compactYAxisProps}
             tickFormatter={(x) => latencyMsFormatter(x)}
@@ -66,7 +66,7 @@ export function ExperimentLatencyChart({
           <Bar
             dataKey="latency"
             name="average latency"
-            fill={blue500}
+            fill={orange500}
             radius={[2, 2, 0, 0]}
           />
         </BarChart>
