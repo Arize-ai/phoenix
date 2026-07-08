@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { Alert, Icon, Icons, LinkButton } from "@phoenix/components";
 
@@ -9,6 +10,7 @@ const warningCSS = css`
 export function SystemSettingsWarning({
   isAdmin = false,
   isOnSettingsPage = false,
+  adminMessage,
 }: {
   isAdmin?: boolean;
   /**
@@ -16,12 +18,19 @@ export function SystemSettingsWarning({
    * at the system settings section above instead of a link to the page.
    */
   isOnSettingsPage?: boolean;
+  /**
+   * Admin-facing message (shown without the settings link) for settings the
+   * system settings page does not control, e.g. env-only server configuration.
+   */
+  adminMessage?: ReactNode;
 }) {
-  let message: string;
+  let message: ReactNode;
   let showSettingsLink = false;
   if (!isAdmin) {
     message =
       "Disabled by system settings. An administrator needs to turn this on.";
+  } else if (adminMessage) {
+    message = adminMessage;
   } else if (isOnSettingsPage) {
     message =
       "Disabled by system settings. You can enable it for all users in the system settings above.";
