@@ -193,6 +193,74 @@ async def test_session_filter_candidate_scoping(db: DbSessionFactory) -> None:
         assert second.id not in scoped
 
 
+def test_session_filter_grouped_aggregate_shape_pushes_project_time_scope() -> None:
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+
+    subquery = SessionFilter("num_traces >= 5").as_session_rowids_subquery(
+        project_rowids=[1],
+        start_time=start,
+        end_time=end,
+        aggregate_shape="grouped",
+    )
+    compiled = str(
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(subquery))
+        .compile(compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert "left outer join (select" in compiled
+    assert "group by traces.project_session_rowid" in compiled
+    assert "traces.project_rowid in (1)" in compiled
+    assert "join project_sessions as session_scope" in compiled
+    assert "session_scope.start_time" in compiled
+    assert "traces.project_session_rowid = project_sessions.id" not in compiled
+
+
+def test_session_filter_correlated_aggregate_shape_pushes_project_time_scope() -> None:
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+
+    subquery = SessionFilter("num_traces >= 5").as_session_rowids_subquery(
+        project_rowids=[1],
+        start_time=start,
+        end_time=end,
+        aggregate_shape="correlated",
+    )
+    compiled = str(
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(subquery))
+        .compile(compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert "left outer join (select" not in compiled
+    assert "group by traces.project_session_rowid" not in compiled
+    assert "select count(traces.id)" in compiled
+    assert "traces.project_session_rowid = project_sessions.id" in compiled
+    assert "traces.project_rowid in (1)" in compiled
+    assert "join project_sessions as session_scope" in compiled
+    assert "session_scope.start_time" in compiled
+
+
+def test_session_filter_root_span_derivation_pushes_project_time_scope() -> None:
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+
+    subquery = SessionFilter("user.id == 'u1'").as_session_rowids_subquery(
+        project_rowids=[1],
+        start_time=start,
+        end_time=end,
+    )
+    compiled = str(
+        select(models.ProjectSession.id).where(models.ProjectSession.id.in_(subquery)).compile()
+    ).lower()
+
+    assert "join project_sessions as session_scope" in compiled
+    assert "session_scope.id = traces.project_session_rowid" in compiled
+    assert "traces.project_rowid in" in compiled
+    assert "session_scope.start_time" in compiled
+
+
 async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> None:
     """user.id / metadata read the earliest root span, and annotations["Name"] joins the
     ProjectSessionAnnotation peer."""

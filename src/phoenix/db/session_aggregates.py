@@ -11,8 +11,8 @@ and the session filter DSL. Each aggregate exposes two SQL shapes:
 - :meth:`SessionAggregate.as_correlated_scalar` — the same value as a per-session correlated
   subquery.
 
-Both accept an optional ``keys`` / ``session_col`` restriction so the aggregate can be scoped
-to a candidate session set rather than every session in the project.
+Both accept an optional ``keys`` / ``session_col`` restriction plus project/time scope so the
+aggregate can be narrowed to the resolver's session universe rather than every session.
 
 :func:`earliest_root_span_by_session` derives the earliest root span per session, the anchor
 for session-level ``user.id`` / ``metadata`` reads.
@@ -72,21 +72,32 @@ class SessionAggregate:
             stmt = stmt.where(*self.where)
         return stmt
 
-    def as_grouped_subquery(self, keys: Optional[Collection[int]] = None) -> Select[Any]:
+    def as_grouped_subquery(
+        self,
+        keys: Optional[Collection[int]] = None,
+        project_rowids: Optional[Collection[int]] = None,
+        start_time: Optional[Any] = None,
+        end_time: Optional[Any] = None,
+    ) -> Select[Any]:
         """One GROUP BY scan yielding a row per session: ``(project_session_rowid, *values)``.
 
         Callers stream this directly or ``.subquery()`` it to join by session rowid. When
-        ``keys`` is given the aggregate is scoped to that candidate session set.
+        ``keys`` is given the aggregate is scoped to that candidate session set. ``project_rowids``
+        and time bounds scope resolver-driven filters without changing the returned shape.
         """
         stmt = self._base((_GROUP_KEY.label(SESSION_ROWID), *self.values))
         if keys is not None:
             stmt = stmt.where(_GROUP_KEY.in_(keys))
+        stmt = _apply_scope(stmt, project_rowids, start_time, end_time)
         return stmt.group_by(_GROUP_KEY)
 
     def as_correlated_scalar(
         self,
         session_col: ColumnElement[Any],
         value: Optional[str] = None,
+        project_rowids: Optional[Collection[int]] = None,
+        start_time: Optional[Any] = None,
+        end_time: Optional[Any] = None,
     ) -> ScalarSelect[Any]:
         """The aggregate for a single session as a correlated scalar subquery.
 
@@ -95,7 +106,9 @@ class SessionAggregate:
         metric produces more than one; it defaults to the first.
         """
         column = self.values[0] if value is None else self._value(value)
-        return self._base((column,)).where(_GROUP_KEY == session_col).scalar_subquery()
+        stmt = self._base((column,)).where(_GROUP_KEY == session_col)
+        stmt = _apply_scope(stmt, project_rowids, start_time, end_time)
+        return stmt.scalar_subquery()
 
     def _value(self, name: str) -> KeyedColumnElement[Any]:
         for column in self.values:
@@ -180,13 +193,38 @@ def span_kind_count_by_session(span_kind: str) -> SessionAggregate:
     )
 
 
-def earliest_root_span_by_session(keys: Optional[Collection[int]] = None) -> Select[Any]:
+def _apply_scope(
+    stmt: Select[Any],
+    project_rowids: Optional[Collection[int]],
+    start_time: Optional[Any],
+    end_time: Optional[Any],
+) -> Select[Any]:
+    if project_rowids is not None:
+        stmt = stmt.where(models.Trace.project_rowid.in_(project_rowids))
+    if start_time is None and end_time is None:
+        return stmt
+    session_scope = models.ProjectSession.__table__.alias("session_scope")
+    stmt = stmt.join(session_scope, session_scope.c.id == _GROUP_KEY)
+    if start_time is not None:
+        stmt = stmt.where(start_time <= session_scope.c.start_time)
+    if end_time is not None:
+        stmt = stmt.where(session_scope.c.start_time < end_time)
+    return stmt
+
+
+def earliest_root_span_by_session(
+    keys: Optional[Collection[int]] = None,
+    project_rowids: Optional[Collection[int]] = None,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
+) -> Select[Any]:
     """Select ``(project_session_rowid, span_rowid)`` of each session's earliest root span.
 
     A root span has ``parent_id IS NULL``; "earliest" is the lowest ``(start_time, id)`` within
     the session — the ordering that also picks a session's first input. Callers join ``Span`` on
-    ``span_rowid`` to read attributes (``user.id``, ``metadata``, ...) from that span. When
-    ``keys`` is given the derivation is scoped to that candidate session set.
+    ``span_rowid`` to read attributes (``user.id``, ``metadata``, ...) from that span. ``keys``,
+    ``project_rowids``, and time bounds scope the derivation to the same candidate universe as the
+    session filter.
     """
     ranked = (
         select(
@@ -204,6 +242,7 @@ def earliest_root_span_by_session(keys: Optional[Collection[int]] = None) -> Sel
     )
     if keys is not None:
         ranked = ranked.where(_GROUP_KEY.in_(keys))
+    ranked = _apply_scope(ranked, project_rowids, start_time, end_time)
     subquery = ranked.subquery()
     return select(subquery.c[SESSION_ROWID], subquery.c[SPAN_ROWID]).where(
         subquery.c[_ROOT_SPAN_RANK] == 1

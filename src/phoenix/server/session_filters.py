@@ -6,7 +6,7 @@ from sqlalchemy import distinct, or_, select
 from sqlalchemy.sql.selectable import ScalarSelect
 
 from phoenix.db import models
-from phoenix.trace.dsl.session_filter import SessionFilter
+from phoenix.trace.dsl.session_filter import AggregateShape, SessionFilter
 
 
 def get_filtered_session_rowids_subquery(
@@ -14,6 +14,7 @@ def get_filtered_session_rowids_subquery(
     project_rowids: Sequence[int],
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
+    aggregate_shape: AggregateShape = "grouped",
 ) -> ScalarSelect[int]:
     """Compile the session filter DSL into a subquery of matching project-session rowids.
 
@@ -26,6 +27,7 @@ def get_filtered_session_rowids_subquery(
         project_rowids=list(project_rowids),
         start_time=start_time,
         end_time=end_time,
+        aggregate_shape=aggregate_shape,
     )
 
 
