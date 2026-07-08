@@ -54,6 +54,7 @@ import {
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
+import { SET_SESSIONS_FILTER_TOOL_NAME } from "@phoenix/agent/tools/sessionsFilter";
 import { SET_SPANS_FILTER_TOOL_NAME } from "@phoenix/agent/tools/spansFilter";
 import { SET_TIME_RANGE_TOOL_NAME } from "@phoenix/agent/tools/timeRange";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
@@ -75,6 +76,7 @@ const EXPECTED_TOOL_NAMES = [
   SET_TIME_RANGE_TOOL_NAME,
   GENERATIVE_UI_TOOL_NAME,
   SET_SPANS_FILTER_TOOL_NAME,
+  SET_SESSIONS_FILTER_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   ADD_PROMPT_INSTANCE_TOOL_NAME,
