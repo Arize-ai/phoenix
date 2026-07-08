@@ -186,16 +186,23 @@ def cost_summary_by_session() -> SessionAggregate:
     )
 
 
-def span_kind_count_by_session(span_kind: str) -> SessionAggregate:
+def span_kind_count_by_session(
+    span_kind: str,
+    span_name: Optional[str] = None,
+) -> SessionAggregate:
     """Number of spans of a given kind per session — value column ``span_kind_count``.
 
-    ``span_kind`` is matched case-insensitively (e.g. ``"TOOL"``, ``"LLM"``).
+    ``span_kind`` is matched case-insensitively (e.g. ``"TOOL"``, ``"LLM"``). When
+    ``span_name`` is given, only spans with that exact name are counted.
     """
+    where = [func.upper(models.Span.span_kind) == span_kind.upper()]
+    if span_name is not None:
+        where.append(models.Span.name == span_name)
     return SessionAggregate(
         values=(func.count(models.Span.id).label("span_kind_count"),),
         source=models.Span,
         joins=(models.Trace,),
-        where=(func.upper(models.Span.span_kind) == span_kind.upper(),),
+        where=tuple(where),
     )
 
 
