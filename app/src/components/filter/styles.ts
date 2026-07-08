@@ -43,7 +43,7 @@ export const dslFilterCodeMirrorCSS = css`
       transform: translateY(calc(-1 * var(--global-dimension-static-size-200)));
     }
     & > ul {
-      font-family: "Geist", sans-serif;
+      font-family: var(--global-font-family-sans);
       font-size: var(--global-font-size-s);
       line-height: var(--global-line-height-s);
       max-height: 400px;
@@ -81,7 +81,7 @@ export const dslFilterCodeMirrorCSS = css`
       }
     }
     .cm-completionLabel {
-      font-family: "Geist Mono", monospace;
+      font-family: var(--global-font-family-mono);
       /* An option label can be an arbitrarily long expression (e.g. a
          recent search) — truncate rather than wrap or overflow so every
          row stays one line */
@@ -91,7 +91,7 @@ export const dslFilterCodeMirrorCSS = css`
       white-space: nowrap;
     }
     li.dsl-filter-suggestion .cm-completionLabel {
-      font-family: "Geist", sans-serif;
+      font-family: var(--global-font-family-sans);
     }
     .cm-completionMatchedText {
       text-decoration: none;
@@ -101,7 +101,7 @@ export const dslFilterCodeMirrorCSS = css`
     .cm-completionDetail {
       margin-left: auto;
       font-style: normal;
-      font-family: "Geist Mono", monospace;
+      font-family: var(--global-font-family-mono);
       font-size: var(--global-font-size-xs);
       color: var(--global-text-color-500);
       overflow: hidden;
@@ -114,7 +114,7 @@ export const dslFilterCodeMirrorCSS = css`
   /* The info panel shown beside the highlighted completion */
   .cm-tooltip.cm-completionInfo {
     ${popoverSurfaceCSS}
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-size: var(--global-font-size-s);
     padding: var(--global-dimension-static-size-100);
     color: var(--global-text-color-700);

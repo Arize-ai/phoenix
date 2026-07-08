@@ -1299,7 +1299,7 @@ const appGlobalStylesCSS = css`
   button,
   .theme // We scope it to the theme so we can mount two at the same time
   {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
@@ -1374,6 +1374,9 @@ const appGlobalStylesCSS = css`
     --global-opacity-disabled: 0.4;
 
     /* Text */
+    --global-font-family-sans: "Geist", sans-serif;
+    --global-font-family-mono: "Geist Mono", monospace;
+
     --global-font-size-xxs: 10px;
     --global-font-size-xs: 12px;
     --global-font-size-s: 14px;
@@ -1468,12 +1471,12 @@ const chartCSS = css`
 
 const fontFamilyCSS = css`
   .font-default {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-optical-sizing: auto;
   }
   .font-mono,
   pre {
-    font-family: "Geist Mono", monospace;
+    font-family: var(--global-font-family-mono);
     font-optical-sizing: auto;
   }
 `;
