@@ -188,10 +188,7 @@ class AssistantMetadataUIMessage(UIMessage):
 
 
 class GetAgentSessionMessagesResponse(BaseModel):
-    """Body for GET /agents/{agent_id}/sessions/{session_id}/messages.
-
-    Persisted transcripts round-trip through the chat request's message
-    schema (asserted at persist time), so reads reuse the same typed shape."""
+    """Body for GET /agents/{agent_id}/sessions/{session_id}/messages"""
 
     data: list[AssistantMetadataUIMessage]
 
