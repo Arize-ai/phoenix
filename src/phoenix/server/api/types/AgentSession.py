@@ -1,12 +1,3 @@
-"""GraphQL type for persisted assistant chat sessions.
-
-Sessions are stored only in the database (``agent_sessions`` plus
-point-in-time ``agent_session_snapshots``); the browser hydrates its
-in-memory session list through these fields. Transcripts are served by the
-REST endpoint ``GET /agents/{agent_id}/sessions/{session_id}/messages``,
-which reuses the chat endpoint's typed message schema.
-"""
-
 from datetime import datetime
 
 import strawberry
