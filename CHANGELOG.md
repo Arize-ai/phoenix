@@ -1,5 +1,24 @@
 # Changelog
 
+## [17.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.20.0...arize-phoenix-v17.21.0) (2026-07-08)
+
+
+### Features
+
+* **agents:** end-to-end PXI turn tracing from browser to backend ([#14080](https://github.com/Arize-ai/phoenix/issues/14080)) ([80dda23](https://github.com/Arize-ai/phoenix/commit/80dda2385e6b382d6e50d081866e6f719235fd38))
+* **app:** global search command palette (⌘K) ([#14114](https://github.com/Arize-ai/phoenix/issues/14114)) ([3a8061b](https://github.com/Arize-ai/phoenix/commit/3a8061b4ab37bc2cdf31f944481ec2c107e59c72))
+* read only styles ([#14111](https://github.com/Arize-ai/phoenix/issues/14111)) ([63fcad2](https://github.com/Arize-ai/phoenix/commit/63fcad2657e791b293a8c12bc4303274114e02d2))
+* session stats side panel for the sessions table ([#14007](https://github.com/Arize-ai/phoenix/issues/14007)) ([84d18bd](https://github.com/Arize-ai/phoenix/commit/84d18bd3bcca7c2186265e9b2beb0d3e159f0f22))
+* session turn divider with copy ([#14117](https://github.com/Arize-ai/phoenix/issues/14117)) ([546534a](https://github.com/Arize-ai/phoenix/commit/546534a1249c83438676d52534058c02c7da3d22))
+* **sessions:** sweep orphaned sessions after a one-hour grace period ([#14098](https://github.com/Arize-ai/phoenix/issues/14098)) ([8d699e7](https://github.com/Arize-ai/phoenix/commit/8d699e7ade1813ab8ecd777a2029e76fe174694b))
+* **ui:** show total session count on project card ([#14064](https://github.com/Arize-ai/phoenix/issues/14064)) ([c4aa293](https://github.com/Arize-ai/phoenix/commit/c4aa293239ff2ac62da8082c5179d5187d08711a))
+
+
+### Documentation
+
+* **integrations:** add OrcaRouter LLM provider integration ([#14155](https://github.com/Arize-ai/phoenix/issues/14155)) ([bb7009c](https://github.com/Arize-ai/phoenix/commit/bb7009ca29dc8b40f3eaea5867a2adfe1bb0ffc1)), closes [#14102](https://github.com/Arize-ai/phoenix/issues/14102)
+* **skills:** weekly audit — 2026-07-08 ([#14150](https://github.com/Arize-ai/phoenix/issues/14150)) ([15b3069](https://github.com/Arize-ai/phoenix/commit/15b3069ad19983934f45fc9610676adce7d747c9))
+
 ## [17.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.19.0...arize-phoenix-v17.20.0) (2026-07-07)
 
 
