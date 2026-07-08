@@ -179,6 +179,7 @@ export function GlobalSearchPalette({
                   id={`recent:${resource.id}`}
                   textValue={resource.name}
                   icon={RESOURCE_ICONS[resource.type]}
+                  description={resource.description}
                   onAction={() => onSelectResource(resource)}
                 >
                   <MatchText text={resource.name} match={inputValue} />
@@ -212,15 +213,18 @@ export function GlobalSearchPalette({
             }
             return (
               <CommandPaletteSection key={section.type} title={section.title}>
-                {entries.map(({ resource, description }) => (
+                {entries.map((resource) => (
                   <CommandPaletteItem
                     key={`result:${resource.id}`}
                     id={`result:${resource.id}`}
                     textValue={resource.name}
                     icon={RESOURCE_ICONS[resource.type]}
                     description={
-                      description ? (
-                        <MatchText text={description} match={inputValue} />
+                      resource.description ? (
+                        <MatchText
+                          text={resource.description}
+                          match={inputValue}
+                        />
                       ) : undefined
                     }
                     onAction={() => onSelectResource(resource)}
@@ -237,16 +241,16 @@ export function GlobalSearchPalette({
   );
 }
 
-type ResultEntry = {
-  resource: RecentlyViewedResource;
-  description?: string;
-};
-
 /**
  * Search results grouped by resource type. Consumers flatten this against
- * {@link RESULT_SECTIONS} to render sections in a stable order.
+ * {@link RESULT_SECTIONS} to render sections in a stable order. Entries are
+ * full {@link RecentlyViewedResource}s (description included) so selecting one
+ * records it into the recently viewed store losslessly.
  */
-type SearchResultsByType = Map<RecentlyViewedResourceType, ResultEntry[]>;
+type SearchResultsByType = Map<
+  RecentlyViewedResourceType,
+  RecentlyViewedResource[]
+>;
 
 type SearchResultsChildren = (results: SearchResultsByType) => ReactNode;
 
@@ -318,58 +322,50 @@ function SearchResultsLoader({
   if (!hasQuery) {
     return children(resultsByType);
   }
-  const addEntry = (entry: ResultEntry) => {
-    const entries = resultsByType.get(entry.resource.type);
+  const addEntry = (resource: RecentlyViewedResource) => {
+    const entries = resultsByType.get(resource.type);
     if (entries) {
-      entries.push(entry);
+      entries.push(resource);
     } else {
-      resultsByType.set(entry.resource.type, [entry]);
+      resultsByType.set(resource.type, [resource]);
     }
   };
   for (const result of data.searchResources) {
     switch (result.__typename) {
       case "Project":
         addEntry({
-          resource: {
-            id: result.id,
-            type: "project",
-            name: result.name,
-            path: `/projects/${result.id}`,
-          },
+          id: result.id,
+          type: "project",
+          name: result.name,
           description: result.description ?? undefined,
+          path: `/projects/${result.id}`,
         });
         break;
       case "Dataset":
         addEntry({
-          resource: {
-            id: result.id,
-            type: "dataset",
-            name: result.name,
-            path: `/datasets/${result.id}`,
-          },
+          id: result.id,
+          type: "dataset",
+          name: result.name,
           description: result.description ?? undefined,
+          path: `/datasets/${result.id}`,
         });
         break;
       case "Experiment":
         addEntry({
-          resource: {
-            id: result.id,
-            type: "experiment",
-            name: result.name,
-            path: `/datasets/${result.dataset.id}/compare?experimentId=${result.id}`,
-          },
+          id: result.id,
+          type: "experiment",
+          name: result.name,
           description: result.description ?? undefined,
+          path: `/datasets/${result.dataset.id}/compare?experimentId=${result.id}`,
         });
         break;
       case "Prompt":
         addEntry({
-          resource: {
-            id: result.id,
-            type: "prompt",
-            name: result.promptName as string,
-            path: `/prompts/${result.id}`,
-          },
+          id: result.id,
+          type: "prompt",
+          name: result.promptName as string,
           description: result.description ?? undefined,
+          path: `/prompts/${result.id}`,
         });
         break;
     }

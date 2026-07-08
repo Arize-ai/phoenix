@@ -15,6 +15,11 @@ export interface RecentlyViewedResource {
   type: RecentlyViewedResourceType;
   name: string;
   /**
+   * The resource's user-authored description, when it has one. Persisted so
+   * the search palette can show what a recently viewed resource is.
+   */
+  description?: string;
+  /**
    * The app path that shows the resource
    */
   path: string;
@@ -41,7 +46,8 @@ export const useRecentlyViewedStore = create<RecentlyViewedState>()(
               const mostRecent = state.resources[0];
               if (
                 mostRecent?.id === resource.id &&
-                mostRecent.name === resource.name
+                mostRecent.name === resource.name &&
+                mostRecent.description === resource.description
               ) {
                 return state;
               }

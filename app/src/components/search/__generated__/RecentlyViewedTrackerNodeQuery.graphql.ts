@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<423a3c17f3b7eda625d8a732b4f5b6b9>>
+ * @generated SignedSource<<eeaab7cab687d23e307c65ed3c0bde8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type RecentlyViewedTrackerNodeQuery$variables = {
 export type RecentlyViewedTrackerNodeQuery$data = {
   readonly node: {
     readonly __typename: string;
+    readonly description?: string | null;
     readonly id: string;
     readonly name?: string;
     readonly promptName?: string;
@@ -33,16 +34,24 @@ var v0 = [
     "name": "id"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": null,
     "kind": "ScalarField",
     "name": "name",
     "storageKey": null
-  }
+  },
+  (v1/*: any*/)
 ],
-v2 = [
+v3 = [
   {
     "alias": null,
     "args": [
@@ -73,19 +82,19 @@ v2 = [
       },
       {
         "kind": "InlineFragment",
-        "selections": (v1/*: any*/),
+        "selections": (v2/*: any*/),
         "type": "Project",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v1/*: any*/),
+        "selections": (v2/*: any*/),
         "type": "Dataset",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v1/*: any*/),
+        "selections": (v2/*: any*/),
         "type": "Experiment",
         "abstractKey": null
       },
@@ -98,7 +107,8 @@ v2 = [
             "kind": "ScalarField",
             "name": "name",
             "storageKey": null
-          }
+          },
+          (v1/*: any*/)
         ],
         "type": "Prompt",
         "abstractKey": null
@@ -113,7 +123,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "RecentlyViewedTrackerNodeQuery",
-    "selections": (v2/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -122,19 +132,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "RecentlyViewedTrackerNodeQuery",
-    "selections": (v2/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "cd6df96fb9f51e7036fae0fcc51d1988",
+    "cacheID": "ba52f1cdbfb96c516dadf1e2710d1d90",
     "id": null,
     "metadata": {},
     "name": "RecentlyViewedTrackerNodeQuery",
     "operationKind": "query",
-    "text": "query RecentlyViewedTrackerNodeQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n    ... on Dataset {\n      name\n    }\n    ... on Experiment {\n      name\n    }\n    ... on Prompt {\n      promptName: name\n    }\n  }\n}\n"
+    "text": "query RecentlyViewedTrackerNodeQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n      description\n    }\n    ... on Dataset {\n      name\n      description\n    }\n    ... on Experiment {\n      name\n      description\n    }\n    ... on Prompt {\n      promptName: name\n      description\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6f303d77a3726864c26bfe9f8a981d7b";
+(node as any).hash = "0467eab28982d171751e239c16de6ef6";
 
 export default node;

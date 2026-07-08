@@ -14,23 +14,32 @@ const nodeQuery = graphql`
       id
       ... on Project {
         name
+        description
       }
       ... on Dataset {
         name
+        description
       }
       ... on Experiment {
         name
+        description
       }
       ... on Prompt {
         promptName: name
+        description
       }
     }
   }
 `;
 
+type EntityNodeFields = {
+  name: string;
+  description?: string;
+};
+
 type EntityRouteMatch = {
   id: string;
-  toResource: (node: { name: string }) => RecentlyViewedResource;
+  toResource: (node: EntityNodeFields) => RecentlyViewedResource;
 };
 
 function experimentResource(
@@ -39,10 +48,11 @@ function experimentResource(
 ): EntityRouteMatch {
   return {
     id: experimentId,
-    toResource: ({ name }) => ({
+    toResource: ({ name, description }) => ({
       id: experimentId,
       type: "experiment",
       name,
+      description,
       path: `/datasets/${datasetId}/compare?experimentId=${experimentId}`,
     }),
   };
@@ -86,10 +96,11 @@ function matchEntityRoute(
     const { datasetId } = datasetMatch.params;
     return {
       id: datasetId,
-      toResource: ({ name }) => ({
+      toResource: ({ name, description }) => ({
         id: datasetId,
         type: "dataset",
         name,
+        description,
         path: `/datasets/${datasetId}`,
       }),
     };
@@ -102,10 +113,11 @@ function matchEntityRoute(
     const { projectId } = projectMatch.params;
     return {
       id: projectId,
-      toResource: ({ name }) => ({
+      toResource: ({ name, description }) => ({
         id: projectId,
         type: "project",
         name,
+        description,
         path: `/projects/${projectId}`,
       }),
     };
@@ -118,10 +130,11 @@ function matchEntityRoute(
     const { promptId } = promptMatch.params;
     return {
       id: promptId,
-      toResource: ({ name }) => ({
+      toResource: ({ name, description }) => ({
         id: promptId,
         type: "prompt",
         name,
+        description,
         path: `/prompts/${promptId}`,
       }),
     };
@@ -160,8 +173,12 @@ export function RecentlyViewedTracker() {
             : "promptName" in node && typeof node.promptName === "string"
               ? node.promptName
               : null;
+        const description =
+          "description" in node && typeof node.description === "string"
+            ? node.description
+            : undefined;
         if (name) {
-          recordResourceView(match.toResource({ name }));
+          recordResourceView(match.toResource({ name, description }));
         }
       },
       // A dangling URL (e.g. a deleted entity) is not worth surfacing
