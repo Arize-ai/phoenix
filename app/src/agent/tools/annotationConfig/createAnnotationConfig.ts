@@ -4,10 +4,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { createAnnotationConfigAssociateMutation } from "./__generated__/createAnnotationConfigAssociateMutation.graphql";
 import type { createAnnotationConfigToolMutation } from "./__generated__/createAnnotationConfigToolMutation.graphql";
-import {
-  buildAnnotationConfigInput,
-  toAnnotationConfigDraft,
-} from "./buildAnnotationConfigInput";
+import { buildAnnotationConfigInput } from "./buildAnnotationConfigInput";
 import type {
   AnnotationConfigDraft,
   AnnotationConfigWriteApplyResult,
@@ -15,7 +12,9 @@ import type {
 
 type CreatedConfig = { configId: string; name: string } | { error: string };
 
-function commitCreate(draft: AnnotationConfigDraft): Promise<CreatedConfig> {
+function commitCreateAnnotationConfigMutation(
+  draft: AnnotationConfigDraft
+): Promise<CreatedConfig> {
   return new Promise((resolve) => {
     commitMutation<createAnnotationConfigToolMutation>(RelayEnvironment, {
       mutation: graphql`
@@ -62,7 +61,7 @@ function commitCreate(draft: AnnotationConfigDraft): Promise<CreatedConfig> {
   });
 }
 
-function commitAssociate(
+function commitAssociateAnnotationConfigToProjectMutation(
   projectId: string,
   annotationConfigId: string
 ): Promise<{ ok: true } | { error: string }> {
@@ -107,12 +106,15 @@ export async function commitCreateAnnotationConfig(
         "A categorical annotation config requires at least one label in `values`.",
     };
   }
-  const created = await commitCreate(draft);
+  const created = await commitCreateAnnotationConfigMutation(draft);
   if ("error" in created) {
     return { ok: false, error: created.error };
   }
   if (projectId) {
-    const associated = await commitAssociate(projectId, created.configId);
+    const associated = await commitAssociateAnnotationConfigToProjectMutation(
+      projectId,
+      created.configId
+    );
     if ("error" in associated) {
       return {
         ok: true,
@@ -129,5 +131,3 @@ export async function commitCreateAnnotationConfig(
     output: `Created annotation config "${created.name}".`,
   };
 }
-
-export { toAnnotationConfigDraft };

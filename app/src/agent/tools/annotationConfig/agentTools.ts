@@ -4,10 +4,8 @@ import {
   CREATE_ANNOTATION_CONFIG_TOOL_NAME,
   UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
 } from "./constants";
-import {
-  commitCreateAnnotationConfig,
-  toAnnotationConfigDraft,
-} from "./createAnnotationConfig";
+import { toAnnotationConfigDraft } from "./buildAnnotationConfigInput";
+import { commitCreateAnnotationConfig } from "./createAnnotationConfig";
 import {
   parseCreateAnnotationConfigInput,
   parseUpdateAnnotationConfigInput,
