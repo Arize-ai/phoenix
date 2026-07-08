@@ -963,6 +963,37 @@ const inputFieldCSS = (theme: Theme) => css`
     --global-input-field-background-color: var(--global-color-gray-100);
     --global-input-field-background-color-hover: var(--global-color-gray-200);
     --global-input-field-background-color-active: var(--global-color-gray-300);
+
+    /* ── Field component semantic tokens ──────────────────────────────
+       The Field styles (components/core/field) reference only these
+       tokens, never raw palette or --global-* values. Retheme fields by
+       remapping here — component CSS stays untouched. */
+
+    /* Default state */
+    --field-background-color: var(--global-input-field-background-color);
+    --field-text-color: var(--global-text-color-900);
+    --field-border-color: var(--global-input-field-border-color);
+    --field-border-color-active: var(--global-input-field-border-color-active);
+    --field-placeholder-color: var(--text-color-placeholder);
+
+    /* Validation & help text */
+    --field-invalid-border-color: var(--global-color-danger);
+    --field-error-text-color: var(--global-color-danger);
+    --field-description-text-color: var(--global-text-color-500);
+
+    /* Read-only state */
+    --field-readonly-background-color: rgba(
+      var(--global-color-gray-900-rgb),
+      0.03
+    );
+    --field-readonly-background-color-hover: var(--global-color-primary-50);
+    --field-readonly-text-color: var(--global-text-color-700);
+    --field-readonly-border-color-focus: var(--global-color-gray-400);
+
+    /* Popover overlay (combobox / select) */
+    --field-popover-background-color: var(--global-menu-background-color);
+    --field-popover-border-color: var(--global-menu-border-color);
+    --field-popover-shadow-color: var(--global-overlay-shadow-color);
   }
 `;
 
