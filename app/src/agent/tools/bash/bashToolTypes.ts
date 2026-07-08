@@ -1,5 +1,3 @@
-import type { BashCustomCommandPolicy } from "./customCommandPolicy";
-
 export interface BashToolCommandResult {
   command: string;
   stdout: string;
@@ -74,15 +72,4 @@ export function getBashToolCommandDisplayResult(
     stdoutBytesText: formatBytes(value.stdoutBytes),
     stderrBytesText: formatBytes(value.stderrBytes),
   };
-}
-
-export interface BashToolRuntime {
-  executeCommand: (
-    command: string,
-    options?: {
-      signal?: AbortSignal;
-      env?: Record<string, string>;
-      customCommandPolicy?: BashCustomCommandPolicy;
-    }
-  ) => Promise<BashToolCommandResult>;
 }

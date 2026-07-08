@@ -1,18 +1,46 @@
+import { useMemo } from "react";
+
 import {
   getAssistantMessageMetadata,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
 import { ChatTokenUsage } from "@phoenix/components/ai/token-usage";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import type { AgentSessionUsage } from "@phoenix/store";
 
-type ChatSessionUsage = {
-  sessionId: string;
+type ChatSessionUsageProps = {
+  /** The session's current transcript; usage comes from the latest assistant turn. */
+  messages: AgentUIMessage[];
 };
 
-function getLatestAssistantMessageUsage(
-  messages: AgentUIMessage[]
-): AgentSessionUsage | null {
+/**
+ * Usage metrics like token usage.
+ *
+ * May be extended to costs, tool call count, etc
+ */
+export type AgentSessionUsage = {
+  tokenCount: {
+    prompt: number;
+    completion: number;
+    total: number;
+    promptDetails?: {
+      cacheRead: number;
+      cacheWrite: number;
+    };
+  };
+  // this can be extended with cost in the future
+};
+
+/**
+ * Return the usage from the most recent assistant turn that reported any.
+ *
+ * The server attaches the usage of the turn's final model request to each
+ * assistant message, so the latest report reflects the tokens currently held
+ * in context — i.e. what will be carried into the next turn.
+ */
+export function getConversationUsage({
+  messages,
+}: {
+  messages: AgentUIMessage[];
+}): AgentSessionUsage | null {
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
     if (message?.role !== "assistant") {
@@ -24,7 +52,9 @@ function getLatestAssistantMessageUsage(
     }
     return {
       tokenCount: {
-        ...usage.tokens,
+        prompt: usage.tokens.prompt,
+        completion: usage.tokens.completion,
+        total: usage.tokens.total,
         ...(usage.promptDetails ? { promptDetails: usage.promptDetails } : {}),
       },
     } satisfies AgentSessionUsage;
@@ -32,12 +62,14 @@ function getLatestAssistantMessageUsage(
   return null;
 }
 
-export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
-  const usage = useAgentContext((state) => {
-    const session = state.sessionMap[sessionId];
-    if (!session) return null;
-    return getLatestAssistantMessageUsage(session.messages) ?? session.usage;
-  });
+export const ChatSessionUsage = ({ messages }: ChatSessionUsageProps) => {
+  const usage = useMemo(
+    () =>
+      getConversationUsage({
+        messages,
+      }),
+    [messages]
+  );
   if (!usage) return null;
   return (
     <ChatTokenUsage

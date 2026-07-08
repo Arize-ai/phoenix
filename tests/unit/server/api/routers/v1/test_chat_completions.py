@@ -142,7 +142,6 @@ class TestCreateChatCompletion:
         assert isinstance(selection, BuiltInProviderModelSelection)
         assert selection.provider is ModelProvider.ANTHROPIC
         assert selection.model_name == "claude-sonnet-4-5"
-        assert selection.openai_api_type == "chat_completions"
 
         system, user, assistant, followup = build_model_spy.messages
         assert isinstance(system, ModelRequest)

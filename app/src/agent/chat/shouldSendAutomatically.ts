@@ -1,49 +1,58 @@
 import {
-  getToolName,
   isToolUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
   type UIMessage,
 } from "ai";
 
-import {
-  EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
-import {
-  EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/llmEvaluatorDraft";
-import {
-  EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
+import { isRecord } from "@phoenix/utils/typeUtils";
 
+import {
+  isResolvedClientToolOutputPart,
+  type ResolvedToolOutputPart,
+} from "./chatUtils";
 import { getUnresolvedToolCalls } from "./interruptToolCalls";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
-export const SYSTEM_INTERRUPT_ERROR =
-  "This tool call has been interrupted by unexpected system conditions.";
+
+export type LocallyInterruptedToolCallIds = Partial<Record<string, true>>;
 
 // The AI SDK auto-continues after completed tool calls; suppress that when the last result is a local lifecycle cleanup, not model input.
 export function shouldSendAutomaticallyAfterToolOutput({
   messages,
+  locallyInterruptedToolCallIds,
 }: {
   messages: UIMessage[];
+  locallyInterruptedToolCallIds: LocallyInterruptedToolCallIds;
 }): boolean {
-  // If tool calls were marked interrupted on message send or stream stop, do not
-  // trigger another message send event.
-  if (hasInterruptedToolCall({ messages, errorText: USER_INTERRUPT_ERROR })) {
-    return false;
-  }
-  if (hasInterruptedToolCall({ messages, errorText: SYSTEM_INTERRUPT_ERROR })) {
-    return false;
-  }
-  if (hasApprovalNavigationCancel(messages)) {
+  if (hasInterruptedToolCall({ messages, locallyInterruptedToolCallIds })) {
     return false;
   }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
+}
+
+/**
+ * Resolved client tool outputs on a message whose sibling tool calls are
+ * still pending. May include outputs the server already persisted.
+ */
+export function getFlushableClientToolOutputs({
+  message,
+  locallyInterruptedToolCallIds,
+}: {
+  /** The transcript's trailing assistant message. */
+  message: UIMessage;
+  locallyInterruptedToolCallIds: LocallyInterruptedToolCallIds;
+}): ResolvedToolOutputPart[] {
+  if (message.role !== "assistant") {
+    return [];
+  }
+  const messages = [message];
+  if (hasInterruptedToolCall({ messages, locallyInterruptedToolCallIds })) {
+    return [];
+  }
+  if (getUnresolvedToolCalls(messages).length === 0) {
+    return [];
+  }
+  return message.parts.filter((part) => isResolvedClientToolOutputPart(part));
 }
 
 export function shouldKeepTurnOpenForPendingToolOutput({
@@ -58,47 +67,52 @@ export function shouldKeepTurnOpenForPendingToolOutput({
   );
 }
 
+/**
+ * Whether a resolved tool part was closed out by a lifecycle cleanup rather
+ * than a real result: marked in {@link LocallyInterruptedToolCallIds} by this
+ * client, or persisted with `phoenix.outcome = "interrupted"`.
+ */
+export function isInterruptedToolCallPart({
+  part,
+  locallyInterruptedToolCallIds,
+}: {
+  part: UIMessage["parts"][number];
+  locallyInterruptedToolCallIds: LocallyInterruptedToolCallIds;
+}): boolean {
+  if (!isToolUIPart(part)) {
+    return false;
+  }
+  if (part.state !== "output-error" && part.state !== "output-available") {
+    return false;
+  }
+  return (
+    locallyInterruptedToolCallIds[part.toolCallId] === true ||
+    hasPersistedInterruptedOutcome(part)
+  );
+}
+
+/** The durable form of an interrupted mark: the outcome stamped on the part. */
+function hasPersistedInterruptedOutcome(part: {
+  callProviderMetadata?: unknown;
+}): boolean {
+  const phoenixMetadata: unknown = isRecord(part.callProviderMetadata)
+    ? part.callProviderMetadata.phoenix
+    : null;
+  return isRecord(phoenixMetadata) && phoenixMetadata.outcome === "interrupted";
+}
+
 function hasInterruptedToolCall({
   messages,
-  errorText,
+  locallyInterruptedToolCallIds,
 }: {
   messages: UIMessage[];
-  errorText: string;
+  locallyInterruptedToolCallIds: LocallyInterruptedToolCallIds;
 }): boolean {
   const message = messages[messages.length - 1];
   if (!message || message.role !== "assistant") {
     return false;
   }
-  return message.parts.some((part) => {
-    if (!isToolUIPart(part)) {
-      return false;
-    }
-    return part.state === "output-error" && part.errorText === errorText;
-  });
-}
-
-function hasApprovalNavigationCancel(messages: UIMessage[]): boolean {
-  const message = messages[messages.length - 1];
-  if (!message || message.role !== "assistant") {
-    return false;
-  }
-  return message.parts.some((part) => {
-    if (!isToolUIPart(part)) {
-      return false;
-    }
-    if (part.state !== "output-error") {
-      return false;
-    }
-    const toolName = getToolName(part);
-    return (
-      (toolName === EDIT_PROMPT_TOOL_NAME &&
-        part.errorText === EDIT_PROMPT_NAVIGATION_CANCEL_ERROR) ||
-      (toolName === REMOVE_PROMPT_INSTANCE_TOOL_NAME &&
-        part.errorText === REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR) ||
-      (toolName === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME &&
-        part.errorText === EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR) ||
-      (toolName === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME &&
-        part.errorText === EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR)
-    );
-  });
+  return message.parts.some((part) =>
+    isInterruptedToolCallPart({ part, locallyInterruptedToolCallIds })
+  );
 }

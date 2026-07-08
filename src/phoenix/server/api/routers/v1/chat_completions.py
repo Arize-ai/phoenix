@@ -31,7 +31,9 @@ from pydantic_ai.settings import ModelSettings, merge_model_settings
 from pydantic_ai.usage import RequestUsage
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_502_BAD_GATEWAY
+from strawberry.relay import GlobalID
 
+from phoenix.db import models
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
@@ -41,6 +43,7 @@ from phoenix.server.agents.model_selection import (
     CustomProviderModelSelection,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +251,13 @@ def _parse_model_id(model_id: str) -> AgentModelSelection:
         provider_id, sep, model_name = remainder.partition(":")
         if not sep or not provider_id or not model_name:
             raise _unknown_model_error(model_id)
+        try:
+            from_global_id_with_expected_type(
+                GlobalID.from_id(provider_id),
+                models.GenerativeModelCustomProvider.__name__,
+            )
+        except ValueError:
+            raise _unknown_model_error(model_id) from None
         return CustomProviderModelSelection(
             provider_type="custom",
             provider_id=provider_id,
@@ -391,12 +401,11 @@ async def create_chat_completion(
     selection = _parse_model_id(body.model)
     _reject_unsupported_parameters(body)
     try:
-        async with request.app.state.db() as session:
-            model = await build_model(
-                selection,
-                session=session,
-                decrypt=request.app.state.decrypt,
-            )
+        model = await build_model(
+            selection,
+            db=request.app.state.db,
+            decrypt=request.app.state.decrypt,
+        )
     except AgentError as exc:
         return _error_response(str(exc), status_code=exc.status_code)
     except ValueError:

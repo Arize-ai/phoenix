@@ -95,6 +95,7 @@ export function bindPendingSavePromptActions({
         tool: SAVE_PROMPT_TOOL_NAME,
         toolCallId: pendingSave.toolCallId,
         errorText: SAVE_PROMPT_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

@@ -25,6 +25,7 @@ import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/setti
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
+import { settingsAgentsPageLoader } from "@phoenix/pages/settings/settingsAgentsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -1078,12 +1079,13 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path="agents"
             element={<SettingsAgentsPage />}
+            loader={settingsAgentsPageLoader}
             handle={{
               crumb: () => "Agents",
               agentRoute: {
                 label: "Agent Settings",
                 description:
-                  "Configure the assistant, PXI enablement, agent model, edit approvals, experiment flags, and assistant trace collection.",
+                  "Configure the assistant, PXI enablement, agent model, edit approvals, experiment flags, trace collection, and manage saved assistant sessions.",
               },
             }}
           />

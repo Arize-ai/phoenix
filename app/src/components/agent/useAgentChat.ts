@@ -1,247 +1,183 @@
-import { Chat, useChat } from "@ai-sdk/react";
+import { type Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
-import { useCallback, useEffect, useRef } from "react";
+import { isToolUIPart } from "ai";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useRelayEnvironment } from "react-relay";
 
 import {
-  buildAgentChatRequestBody,
-  type AgentChatRequestBodyPatch,
-} from "@phoenix/agent/chat/buildAgentChatRequestBody";
+  SESSION_ALREADY_COMPACT_ERROR_CODE,
+  SESSION_BUSY_ERROR_CODE,
+  SESSION_MODEL_STALE_ERROR_CODE,
+  buildAgentChatApiUrl,
+  buildAgentCompactApiUrl,
+} from "@phoenix/agent/chat/agentChatApi";
+import type { AgentChatRequestBodyPatch } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import {
-  createClientToolTimingRecorder,
-  type ClientToolTimingRecorder,
-} from "@phoenix/agent/chat/clientToolTimings";
-import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+  createAgentSessionChat,
+  getTurnClientState,
+} from "@phoenix/agent/chat/createAgentSessionChat";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
-import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
-import {
-  SYSTEM_INTERRUPT_ERROR,
-  USER_INTERRUPT_ERROR,
-} from "@phoenix/agent/chat/shouldSendAutomatically";
-import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import {
-  createTurnTraceContextManager,
-  type TurnTraceContextManager,
-} from "@phoenix/agent/chat/turnTraceContext";
-import {
-  getAssistantMessageMetadata,
-  type AgentUIMessage,
-} from "@phoenix/agent/chat/types";
+import { cleanupPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
+import { USER_INTERRUPT_ERROR } from "@phoenix/agent/chat/shouldSendAutomatically";
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { buildUserMessageMetadata } from "@phoenix/agent/chat/userMessageMetadata";
-import { selectActiveContexts } from "@phoenix/agent/context/selectors";
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
-import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import {
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import {
+  DRAFT_SESSION_ID,
+  type PendingAgentMessage,
+} from "@phoenix/store/agentStore";
+import { isRecord } from "@phoenix/utils/typeUtils";
 
 import {
-  useGenerateSessionSummary,
-  type AgentModelSelection,
-} from "./useGenerateSessionSummary";
+  readAgentSessionModelSelection,
+  readAgentSessionModelSelectionFromFragment,
+  shouldNotifyModelChangedElsewhere,
+  toAgentModelSelection,
+} from "./agentSessionModel";
+import { refetchAgentSession } from "./agentSessionRelay";
+import type { AgentChatOperationError } from "./types";
+import { useAgentSessionHistory } from "./useAgentSessionHistory";
+import {
+  useAgentSessionSync,
+  type LastSyncedSessionState,
+} from "./useAgentSessionSync";
+import { useDraftSessionCreation } from "./useDraftSessionCreation";
 
-type TurnClientState = {
-  turnTraceContext: TurnTraceContextManager;
-  toolTimings: ClientToolTimingRecorder;
-};
-
-const turnClientStateByChat = new WeakMap<
-  Chat<AgentUIMessage>,
-  TurnClientState
->();
+export type { AgentChatOperationError } from "./types";
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
- * for a single agent session/model pair.
+ * for a single agent session.
  *
  * `useChat` alone is tied to the current mounted component, which is too short-
  * lived for this agent UX: the visible chat surface can move between the docked
- * panel and the trace slideover, and model changes intentionally replace the
- * underlying transport. This hook keeps the imperative AI SDK `Chat` instance
- * in the app-level runtime registry, then binds the current React surface to
- * whichever runtime instance should own the session right now.
+ * panel and the trace slideover. This hook keeps the imperative AI SDK `Chat`
+ * instance in the app-level runtime registry, then binds the current React
+ * surface to whichever runtime instance should own the session right now. The
+ * transport reads per-send state (model selection, capabilities, contexts)
+ * from the store at request time, so those settings apply to the next send
+ * without rebuilding the cached chat.
  *
- * Durable state still lives in the agent store:
- * - messages are mirrored into Zustand so an idle chat can be reconstructed
- * - pending elicitation is store-backed and survives remounts
- * - summaries are generated from finalized message history, not transient UI
- *   component state
+ * Session lifecycle: sessions are created imperatively on the server. When
+ * `sessionId` is the draft sentinel ({@link DRAFT_SESSION_ID}) no server
+ * session exists yet; the first send runs the `createAgentSession` mutation
+ * ({@link useDraftSessionCreation}), seeds a runtime chat under the returned
+ * Relay ID, and activates it. Relay is the durable source of truth for
+ * session identity, titles, and transcripts — each completed turn refetches
+ * the session node so the store stays canonical, and
+ * {@link useAgentSessionSync} keeps idle sessions synchronized with turns
+ * completed by other clients.
  */
 export function useAgentChat({
   sessionId,
-  chatApiUrl,
-  modelSelection,
+  initialMessages,
+  isActive = false,
+  shouldSyncOnMount = false,
 }: {
+  /**
+   * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
+   * not-yet-persisted new-chat draft.
+   */
   sessionId: string | null;
-  chatApiUrl: string;
-  modelSelection: AgentModelSelection;
+  /** Server transcript used to seed the runtime chat on its first bind. */
+  initialMessages?: AgentUIMessage[];
+  /**
+   * Relay-derived turn-lock state from the session's canonical record:
+   * another client's turn currently holds the session's server lock. Drives
+   * entry into busy-elsewhere mode; the hook then polls until the lock clears.
+   */
+  isActive?: boolean;
+  /** Immediately synchronize runtimes that mounted without a fresh session query. */
+  shouldSyncOnMount?: boolean;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary();
+  const relayEnvironment = useRelayEnvironment();
+  const [operationError, setOperationError] =
+    useState<AgentChatOperationError | null>(null);
+  /**
+   * Shared between the session-sync poll (which reads and writes it) and the
+   * chat factory's turn-completion refetch (which records this client's own
+   * turns); see {@link useAgentSessionSync}.
+   */
+  const lastSyncedSessionStateRef = useRef<LastSyncedSessionState | null>(null);
+  const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
+  const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
+  const isCompacting = useAgentContext((state) =>
+    sessionId
+      ? (state.isCompactionPendingBySessionId[sessionId] ?? false)
+      : false
+  );
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
+  const isBusyElsewhere = useAgentContext((state) =>
+    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+  );
 
-  // The Chat is cached per-session in the runtime registry, so its transport
-  // and onFinish closures are captured once and reused across model changes.
-  // Read through the ref so the latest model selection takes effect on the
-  // next send/summary without rebuilding the Chat.
-  const modelSelectionRef = useRef(modelSelection);
-  modelSelectionRef.current = modelSelection;
+  /**
+   * Builds the imperative AI SDK chat runtime for a persisted session. The
+   * factory captures the session's canonical Relay ID, so a draft surface only
+   * builds a chat after the create-session mutation returns one.
+   */
+  const createChatForSession = useCallback(
+    (
+      targetSessionId: string,
+      seedMessages: AgentUIMessage[]
+    ): Chat<AgentUIMessage> =>
+      createAgentSessionChat({
+        sessionId: targetSessionId,
+        seedMessages,
+        store,
+        relayEnvironment,
+        onTranscriptSynced: (tail) => {
+          // Record the refetched tail so the next poll's sync probe can
+          // recognize this client's own turn and skip the full fetch.
+          lastSyncedSessionStateRef.current = {
+            sessionId: targetSessionId,
+            ...tail,
+          };
+        },
+      }),
+    [relayEnvironment, store]
+  );
 
   // Resolve the imperative runtime instance for this session/model pair. The
   // runtime owns replacement semantics when the transport changes, while the
   // hook simply binds the current render surface to the selected instance.
+  // Draft surfaces have no runtime until the first send creates a session.
+  const persistedSessionId = isDraft ? null : sessionId;
+  const chatApiUrl = persistedSessionId
+    ? buildAgentChatApiUrl(persistedSessionId)
+    : null;
   const chatInstance =
-    sessionId === null
-      ? null
-      : runtime.getOrCreateChat({
-          sessionId,
+    chatApiUrl && persistedSessionId
+      ? runtime.getOrCreateChat({
+          sessionId: persistedSessionId,
           chatApiUrl,
-          createChat: () => {
-            // Rehydrate from store-backed messages so evicted idle runtimes can
-            // be recreated without losing visible conversation history.
-            const initialMessages =
-              store.getState().sessionMap[sessionId]?.messages ?? [];
-            const turnTraceContext = createTurnTraceContextManager();
-            const toolTimings = createClientToolTimingRecorder();
-            const turnCompletionGate = createTurnCompletionGate({
-              endTurn: async () => {
-                store.getState().setSessionResponsePending(sessionId, false);
-                turnTraceContext.clear();
-                toolTimings.clear();
-              },
-              finalize: ({ finalMessages, message }) => {
-                const usage = getAssistantMessageMetadata(message)?.usage;
-                if (usage != null) {
-                  store.getState().setSessionUsage(sessionId, {
-                    ...usage.tokens,
-                    ...(usage.promptDetails
-                      ? { promptDetails: usage.promptDetails }
-                      : {}),
-                  });
-                }
-                // Finalized history is mirrored into the durable store so idle
-                // runtimes can be reclaimed and later reconstructed from state.
-                if (finalMessages) {
-                  store.getState().setSessionMessages(sessionId, finalMessages);
-                  generateSummary({
-                    sessionId,
-                    modelSelection: modelSelectionRef.current,
-                  });
-                }
-              },
-            });
-            const chat = new Chat<AgentUIMessage>({
-              id: sessionId,
-              messages: initialMessages,
-              transport: new DefaultChatTransport({
-                api: chatApiUrl,
-                fetch: authFetch,
-                prepareSendMessagesRequest: ({
-                  body,
-                  id,
-                  messages,
-                  trigger,
-                  messageId,
-                }) => {
-                  // The gate may clear state for a stale completed turn before
-                  // this request reads the active turn trace context.
-                  turnCompletionGate.beginTurn();
-                  store.getState().setSessionResponsePending(sessionId, true);
-                  return {
-                    body: buildAgentChatRequestBody({
-                      body,
-                      id,
-                      messages,
-                      trigger,
-                      messageId,
-                      capabilities: store.getState().capabilities,
-                      observability: store.getState().observability,
-                      agentsConfig: store.getState().agentsConfig,
-                      permissions: store.getState().permissions,
-                      contexts: selectActiveContexts(store.getState()),
-                      modelSelection: modelSelectionRef.current,
-                      turnTraceContext: turnTraceContext.getActive(),
-                      toolTimings,
-                    }),
-                  };
-                },
-              }),
-              // Tool execution must target the runtime-owned chat instance so
-              // tool outputs continue to attach to the correct conversation
-              // even if the visible React surface remounts during the request.
-              onToolCall: ({ toolCall }) => {
-                const providerMetadata =
-                  "providerMetadata" in toolCall
-                    ? toolCall.providerMetadata
-                    : null;
-                const phoenixMetadata = isRecord(providerMetadata)
-                  ? providerMetadata.phoenix
-                  : null;
-                const isServerExecuted =
-                  isRecord(phoenixMetadata) &&
-                  phoenixMetadata.tool_execution_environment === "server";
-                if (!isServerExecuted) {
-                  toolTimings.recordStart(toolCall.toolCallId);
-                }
-                void handleAgentToolCall({
-                  toolCall,
-                  sessionId,
-                  addToolOutput: async (toolOutput) => {
-                    toolTimings.recordEnd(toolCall.toolCallId);
-                    await chat.addToolOutput(toolOutput);
-                  },
-                  appendMessagePart: (part) => {
-                    chat.messages = appendPartToToolMessage({
-                      messages: chat.messages,
-                      toolCallId: toolCall.toolCallId,
-                      part,
-                    });
-                  },
-                  agentStore: store,
-                });
-              },
-              sendAutomaticallyWhen: ({ messages }) =>
-                turnCompletionGate.handleSendAutomaticallyWhen({ messages }),
-              onError: (error) => {
-                turnCompletionGate.fail(error);
-              },
-              onFinish: ({ messages: finalMessages, message }) => {
-                turnTraceContext.captureFromMetadata(
-                  getAssistantMessageMetadata(message)?.turnTraceContext
-                );
-                turnCompletionGate.handleFinish({ finalMessages, message });
-              },
-            });
-            turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
-            return chat;
-          },
-        });
+          createChat: (previousMessages) =>
+            createChatForSession(
+              persistedSessionId,
+              previousMessages ?? initialMessages ?? []
+            ),
+        })
+      : null;
 
   // `useChat` subscribes the current React tree to the already-created runtime
-  // instance. When `sessionId` is null we intentionally expose an inert chat
-  // shape rather than creating a shared fallback runtime through this hook.
+  // instance. Draft surfaces expose an inert chat shape until the first send.
   const chat = useChat<AgentUIMessage>(
     chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
   );
   const {
     messages,
     sendMessage,
-    regenerate,
     status,
     error,
     addToolOutput,
@@ -250,8 +186,39 @@ export function useAgentChat({
     clearError,
   } = chat;
 
-  // Anthropic doesn't accept unresolved tool calls, so we resolve them by
-  // marking them as error before the next request goes out.
+  useAgentSessionSync({
+    persistedSessionId,
+    chatInstance,
+    chatStatus: status,
+    isActive,
+    isCompacting,
+    isBusyElsewhere,
+    shouldSyncOnMount,
+    lastSyncedSessionStateRef,
+  });
+
+  const { pendingDraftUserMessage, createSessionAndSendMessage } =
+    useDraftSessionCreation({
+      createChatForSession,
+      setOperationError,
+    });
+
+  const { rewindToMessage, forkFromMessage } = useAgentSessionHistory({
+    sessionId,
+    isDraft,
+    chatInstance,
+    isBusyElsewhere,
+    pendingElicitation,
+    createChatForSession,
+    setMessages,
+    clearError,
+  });
+
+  // Local lifecycle cleanup for interrupted client tools: pending calls are
+  // resolved as output-error so the UI settles, pending dialogs are cleared,
+  // and the next send carries the errors to the server as toolOutputs so the
+  // persisted transcript resolves them too. Anything the client can't report
+  // (e.g. a killed tab) is repaired authoritatively server-side at merge time.
   const addInterruptedToolOutputs = async ({
     messages,
     errorText,
@@ -262,36 +229,16 @@ export function useAgentChat({
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
     unresolvedToolCalls.forEach((toolCall) => {
-      if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
-        store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
-        store
-          .getState()
-          .setPendingPromptInstanceRemoval(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
-        store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === WRITE_PROMPT_TOOLS_TOOL_NAME) {
-        store.getState().setPendingPromptToolWrite(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === SAVE_PROMPT_TOOL_NAME) {
-        store.getState().setPendingSavePrompt(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
-        store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME) {
-        store.getState().setPendingLlmEvaluatorEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === LOAD_DATASET_TOOL_NAME) {
-        store.getState().setPendingLoadDataset(toolCall.toolCallId, null);
-      }
+      store.getState().markToolCallInterrupted(toolCall.toolCallId);
+      cleanupPendingToolState(
+        store.getState(),
+        toolCall.tool,
+        toolCall.toolCallId
+      );
     });
 
     const turnClientState = chatInstance
-      ? turnClientStateByChat.get(chatInstance)
+      ? getTurnClientState(chatInstance)
       : undefined;
     await Promise.all(
       unresolvedToolCalls.map((toolCall) => {
@@ -318,14 +265,22 @@ export function useAgentChat({
       errorText: USER_INTERRUPT_ERROR,
     });
     if (chatInstance) {
-      const turnClientState = turnClientStateByChat.get(chatInstance);
-      turnClientState?.turnTraceContext.clear();
-      turnClientState?.toolTimings.clear();
+      getTurnClientState(chatInstance)?.toolTimings.clear();
     }
-    setMessages(removeInterruptedToolInputParts);
+    setMessages((current) =>
+      markTrailingAssistantMessageInterrupted(
+        removeInterruptedToolInputParts(current),
+        sessionId ?? ""
+      )
+    );
   };
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
+    setCompactionStatus(null);
+    if (isDraft) {
+      createSessionAndSendMessage(...args);
+      return;
+    }
     if (chatInstance && isRequestActive(chatInstance.status)) {
       return;
     }
@@ -333,7 +288,7 @@ export function useAgentChat({
     const latestMessages = chatInstance?.messages ?? messages;
     await addInterruptedToolOutputs({
       messages: latestMessages,
-      errorText: SYSTEM_INTERRUPT_ERROR,
+      errorText: USER_INTERRUPT_ERROR,
     });
     setMessages(removeInterruptedToolInputParts);
 
@@ -346,19 +301,151 @@ export function useAgentChat({
     );
   };
 
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-
-  // Persist the latest in-memory transcript when this binding unmounts because
-  // the visible surface moved, the active session changed, or the model swap
-  // caused the runtime instance to be replaced.
-  useEffect(() => {
-    return () => {
-      if (sessionId && messagesRef.current.length > 0) {
-        store.getState().setSessionMessages(sessionId, messagesRef.current);
+  const compactSession = (pendingMessage?: PendingAgentMessage): void => {
+    setOperationError(null);
+    setCompactionStatus(null);
+    const restorePendingMessage = () => {
+      if (pendingMessage && sessionId) {
+        store.getState().setDraftInput(sessionId, pendingMessage.text);
       }
     };
-  }, [sessionId, store]);
+    // Shared failure effect for every blocked precondition: hand the user's
+    // queued message back to the composer and surface why.
+    const failCompaction = (message: string) => {
+      restorePendingMessage();
+      setOperationError({
+        title: "Conversation could not be compacted",
+        message,
+      });
+    };
+    if (isDraft || !sessionId || !chatInstance) {
+      failCompaction("There is no persisted conversation to compact.");
+      return;
+    }
+    const blockedReason = getCompactionBlockedReason({
+      isResponseInProgress: isRequestActive(chatInstance.status),
+      isCompactionPending:
+        store.getState().isCompactionPendingBySessionId[sessionId] ?? false,
+      isBusyElsewhere:
+        store.getState().isBusyElsewhereBySessionId[sessionId] ?? false,
+    });
+    if (blockedReason) {
+      failCompaction(blockedReason);
+      return;
+    }
+
+    store.getState().setSessionCompactionPending(sessionId, true);
+    void (async () => {
+      const assertedModel =
+        readAgentSessionModelSelection({
+          environment: relayEnvironment,
+          sessionId,
+        }) ?? toAgentModelSelection(store.getState().defaultModelConfig);
+      const sendPendingMessage = async () => {
+        if (!pendingMessage) {
+          return;
+        }
+        store.getState().setSessionCompactionPending(sessionId, false);
+        await handleSendMessage(
+          { text: pendingMessage.text },
+          pendingMessage.requestedSkills.length > 0
+            ? { body: { requestedSkills: pendingMessage.requestedSkills } }
+            : undefined
+        );
+      };
+      try {
+        const response = await authFetch(buildAgentCompactApiUrl(sessionId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: assertedModel }),
+        });
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => "");
+          if (
+            response.status === 409 &&
+            isSessionAlreadyCompactConflict(errorBody)
+          ) {
+            setCompactionStatus(
+              "Conversation is already compact. There are no older complete turns to compact."
+            );
+            void refetchAgentSession({
+              environment: relayEnvironment,
+              sessionId,
+            });
+            await sendPendingMessage();
+            return;
+          }
+          if (response.status === 409 && isSessionBusyConflict(errorBody)) {
+            // Another client's turn holds the session lock: enter
+            // busy-elsewhere mode (the poll swaps in the fresh transcript
+            // when the turn completes) instead of raising a red error.
+            restorePendingMessage();
+            store.getState().setSessionBusyElsewhere(sessionId, true);
+            return;
+          }
+          if (
+            response.status === 409 &&
+            isSessionModelStaleConflict(errorBody)
+          ) {
+            restorePendingMessage();
+            void refetchAgentSession({
+              environment: relayEnvironment,
+              sessionId,
+            }).then((data) => {
+              const agentSession =
+                data?.agentSession.__typename === "AgentSession"
+                  ? data.agentSession
+                  : null;
+              if (!agentSession) {
+                return;
+              }
+              const shouldNotify = shouldNotifyModelChangedElsewhere({
+                assertedModel,
+                refetchedModel:
+                  readAgentSessionModelSelectionFromFragment(agentSession),
+                currentModel: readAgentSessionModelSelection({
+                  environment: relayEnvironment,
+                  sessionId,
+                }),
+              });
+              if (shouldNotify) {
+                store
+                  .getState()
+                  .setSessionNotice(sessionId, "modelChangedElsewhere");
+              }
+            });
+            return;
+          }
+          throw new Error(
+            getAgentCompactErrorMessage(errorBody, response.status)
+          );
+        }
+        const result: unknown = await response.json();
+        const compactionMessage = getCompactionMessageFromResponse(result);
+        if (
+          compactionMessage &&
+          !chatInstance.messages.some(
+            (message) => message.id === compactionMessage.id
+          )
+        ) {
+          chatInstance.messages = [...chatInstance.messages, compactionMessage];
+        }
+        void refetchAgentSession({
+          environment: relayEnvironment,
+          sessionId,
+        });
+        await sendPendingMessage();
+      } catch (error) {
+        failCompaction(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred."
+        );
+      } finally {
+        store.getState().setSessionCompactionPending(sessionId, false);
+      }
+    })();
+  };
 
   // Elicitation responses are written back through the runtime-owned chat so
   // the pending tool call resolves against the correct assistant turn.
@@ -367,9 +454,9 @@ export function useAgentChat({
       return;
     }
     if (chatInstance) {
-      turnClientStateByChat
-        .get(chatInstance)
-        ?.toolTimings.recordEnd(pendingElicitation.toolCallId);
+      getTurnClientState(chatInstance)?.toolTimings.recordEnd(
+        pendingElicitation.toolCallId
+      );
     }
     void addToolOutput({
       tool: "ask_user",
@@ -384,9 +471,9 @@ export function useAgentChat({
       return;
     }
     if (chatInstance) {
-      turnClientStateByChat
-        .get(chatInstance)
-        ?.toolTimings.recordEnd(pendingElicitation.toolCallId);
+      getTurnClientState(chatInstance)?.toolTimings.recordEnd(
+        pendingElicitation.toolCallId
+      );
     }
     void addToolOutput({
       state: "output-error",
@@ -397,127 +484,28 @@ export function useAgentChat({
     store.getState().setPendingElicitation(sessionId, null);
   };
 
-  // Releases approval/elicitation state owned by tool calls dropped by a rewind
-  // or branch, so stale Accept/Reject affordances don't dangle against tool calls
-  // the transcript no longer contains.
-  const clearDroppedToolState = useCallback(
-    ({
-      previous,
-      next,
-    }: {
-      previous: AgentUIMessage[];
-      next: AgentUIMessage[];
-    }) => {
-      if (!sessionId) {
-        return;
-      }
-      const retained = new Set(
-        next.flatMap((message) =>
-          message.parts.filter(isToolUIPart).map((part) => part.toolCallId)
-        )
-      );
-      const state = store.getState();
-      for (const message of previous) {
-        for (const part of message.parts) {
-          if (!isToolUIPart(part) || retained.has(part.toolCallId)) {
-            continue;
-          }
-          const toolName = getToolName(part);
-          if (toolName === EDIT_PROMPT_TOOL_NAME) {
-            state.setPendingPromptEdit(part.toolCallId, null);
-          } else if (toolName === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
-            state.setPendingPromptInstanceRemoval(part.toolCallId, null);
-          } else if (toolName === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
-            state.setPendingBatchSpanAnnotate(part.toolCallId, null);
-          } else if (toolName === WRITE_PROMPT_TOOLS_TOOL_NAME) {
-            state.setPendingPromptToolWrite(part.toolCallId, null);
-          } else if (pendingElicitation?.toolCallId === part.toolCallId) {
-            state.setPendingElicitation(sessionId, null);
-          }
-        }
-      }
-    },
-    [pendingElicitation, sessionId, store]
-  );
-
-  // Rewinds the active session in place to the chosen message, truncating the
-  // transcript and releasing stale tool state. Returns the user message text to
-  // restore into the input (user target) or null (assistant target / no-op).
-  const rewindToMessage = useCallback(
-    (messageId: string): string | null => {
-      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
-        return null;
-      }
-      const result = rewindMessages({
-        messages: chatInstance.messages,
-        messageId,
-      });
-      if (!result) {
-        return null;
-      }
-      clearDroppedToolState({
-        previous: chatInstance.messages,
-        next: result.messages,
-      });
-      setMessages(result.messages);
-      clearError();
-      store.getState().setSessionMessages(sessionId, result.messages);
-      return result.restoredInput;
-    },
-    [
-      chatInstance,
-      clearDroppedToolState,
-      clearError,
-      sessionId,
-      setMessages,
-      store,
-    ]
-  );
-
-  // Branches the active session into a new session truncated to the chosen
-  // message, leaving the current session untouched. Returns the new session id.
-  const forkFromMessage = useCallback(
-    (messageId: string): string | null => {
-      if (!sessionId || !chatInstance) {
-        return null;
-      }
-      const result = rewindMessages({
-        messages: chatInstance.messages,
-        messageId,
-      });
-      if (!result) {
-        return null;
-      }
-      clearError();
-      return store.getState().forkSession({
-        sourceSessionId: sessionId,
-        messages: result.messages,
-        restoredInput: result.restoredInput,
-      });
-    },
-    [chatInstance, clearError, sessionId, store]
-  );
-
-  const retryMessage = useCallback(
-    (messageId?: string) => {
-      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
-        return;
-      }
-      void regenerate(messageId ? { messageId } : undefined);
-    },
-    [chatInstance, regenerate, sessionId]
+  const displayedMessages = useMemo(
+    () =>
+      pendingDraftUserMessage
+        ? [...messages, pendingDraftUserMessage]
+        : messages,
+    [messages, pendingDraftUserMessage]
   );
 
   return {
-    messages,
+    messages: displayedMessages,
     sendMessage: handleSendMessage,
     stop: handleStopWithToolCleanup,
-    status,
+    status: pendingDraftUserMessage ? "submitted" : status,
     error,
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
-    retryMessage,
+    compactSession,
+    isCompacting,
+    compactionStatus,
+    operationError,
+    clearOperationError: () => setOperationError(null),
     rewindToMessage,
     forkFromMessage,
   } as {
@@ -532,10 +520,36 @@ export function useAgentChat({
     pendingElicitation: PendingElicitation | null;
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
-    retryMessage: (messageId?: string) => void;
-    rewindToMessage: (messageId: string) => string | null;
-    forkFromMessage: (messageId: string) => string | null;
+    compactSession: (message?: PendingAgentMessage) => void;
+    isCompacting: boolean;
+    compactionStatus: string | null;
+    operationError: AgentChatOperationError | null;
+    clearOperationError: () => void;
+    rewindToMessage: (messageId: string) => Promise<string | null>;
+    forkFromMessage: (messageId: string) => Promise<void>;
   };
+}
+
+/**
+ * Stamps the trailing assistant message's metadata as interrupted so the live
+ * transcript renders the same cut-off indicator it will show after a reload,
+ * when the server-persisted metadata takes over. Local-only: assistant
+ * metadata is never submitted back to the server.
+ */
+function markTrailingAssistantMessageInterrupted(
+  messages: AgentUIMessage[],
+  sessionId: string
+): AgentUIMessage[] {
+  const trailing = messages.at(-1);
+  if (!trailing || trailing.role !== "assistant") {
+    return messages;
+  }
+  const phoenixMetadata =
+    trailing.metadata?.phoenix?.type === "assistant"
+      ? { ...trailing.metadata.phoenix, interrupted: true }
+      : { type: "assistant" as const, sessionId, interrupted: true };
+  const metadata = { ...trailing.metadata, phoenix: phoenixMetadata };
+  return [...messages.slice(0, -1), { ...trailing, metadata }];
 }
 
 // Pydantic will error if given tool calls without inputs, so we filter them out
@@ -555,39 +569,84 @@ function removeInterruptedToolInputParts(
   });
 }
 
-function isRequestActive(status: ChatStatus): boolean {
-  return status === "submitted" || status === "streaming";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function appendPartToToolMessage({
-  messages,
-  toolCallId,
-  part,
+/**
+ * Why compaction cannot start right now for a persisted session, or null when
+ * it may proceed. Preconditions are checked in priority order.
+ */
+export function getCompactionBlockedReason({
+  isResponseInProgress,
+  isCompactionPending,
+  isBusyElsewhere,
 }: {
-  messages: AgentUIMessage[];
-  toolCallId: string;
-  part: AgentUIMessage["parts"][number];
-}): AgentUIMessage[] {
-  const messageIndex = messages.findIndex((message) =>
-    message.parts.some(
-      (messagePart) =>
-        isToolUIPart(messagePart) && messagePart.toolCallId === toolCallId
-    )
-  );
-  if (messageIndex === -1) {
-    return messages;
+  /** This client has a chat request in flight for the session. */
+  isResponseInProgress: boolean;
+  /** A compaction request is already running for the session. */
+  isCompactionPending: boolean;
+  /** Another client's turn holds the session's server lock. */
+  isBusyElsewhere: boolean;
+}): string | null {
+  if (isResponseInProgress) {
+    return "Wait for the current response to finish and try again.";
   }
-  return messages.map((message, index) => {
-    if (index !== messageIndex) {
-      return message;
-    }
-    return {
-      ...message,
-      parts: [...message.parts, part],
-    };
-  });
+  if (isCompactionPending) {
+    return "Conversation compaction is already in progress.";
+  }
+  if (isBusyElsewhere) {
+    return "Session is being used elsewhere. Try again when the other turn completes.";
+  }
+  return null;
+}
+
+/**
+ * Conflicts are the failures the route answers with a structured JSON body;
+ * every other failure is an `HTTPException` detail, which the server renders
+ * as plain text.
+ */
+function isConflictWithCode(body: string, code: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return isRecord(parsed) && parsed.code === code;
+  } catch {
+    return false;
+  }
+}
+
+/** Another client's turn holds the session's lock. */
+function isSessionBusyConflict(body: string): boolean {
+  return isConflictWithCode(body, SESSION_BUSY_ERROR_CODE);
+}
+
+/** The asserted model is out of date. */
+function isSessionModelStaleConflict(body: string): boolean {
+  return isConflictWithCode(body, SESSION_MODEL_STALE_ERROR_CODE);
+}
+
+/** There are no complete turns to compact — a benign no-op, not a failure. */
+function isSessionAlreadyCompactConflict(body: string): boolean {
+  return isConflictWithCode(body, SESSION_ALREADY_COMPACT_ERROR_CODE);
+}
+
+function getAgentCompactErrorMessage(body: string, status: number): string {
+  return body.trim() || `Compaction failed with status ${status}.`;
+}
+
+function getCompactionMessageFromResponse(
+  result: unknown
+): AgentUIMessage | null {
+  if (!isRecord(result) || !isRecord(result.data)) {
+    return null;
+  }
+  const message = result.data;
+  if (
+    typeof message.id !== "string" ||
+    message.role !== "user" ||
+    !Array.isArray(message.parts) ||
+    !isRecord(message.metadata) ||
+    !isRecord(message.metadata.phoenix) ||
+    message.metadata.phoenix.type !== "user" ||
+    message.metadata.phoenix.isCompactionMessage !== true
+  ) {
+    return null;
+  }
+  return message as unknown as AgentUIMessage;
 }

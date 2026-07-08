@@ -9,7 +9,6 @@ import {
   MenuItem,
   MenuTrigger,
 } from "@phoenix/components/core/menu";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import type {
   MessageRewindMode,
@@ -17,8 +16,8 @@ import type {
 } from "./MessageRewindDialog";
 
 /**
- * Rewind (and, when session storage is enabled, branch) controls rendered under a
- * user or assistant message. These are uncommon, mostly-destructive actions, so
+ * Rewind and branch controls rendered under a user or assistant message. These
+ * are uncommon, mostly-destructive actions, so
  * they are tucked behind a single "more actions" overflow button rather than
  * sitting inline next to the everyday copy/feedback controls.
  *
@@ -53,14 +52,7 @@ export function MessageRewindActions({
   showRewind?: boolean;
   traceId?: string;
 }) {
-  const canFork = useAgentContext(
-    (state) => state.capabilities["session.storeSessions"]
-  );
   const canCopyTraceId = traceId != null;
-
-  if (!showRewind && !canFork && !canCopyTraceId) {
-    return null;
-  }
 
   const handleAction = (key: Key) => {
     if (key === "copy-trace-id" && traceId != null) {
@@ -89,14 +81,12 @@ export function MessageRewindActions({
                 : "Rewind to this response"}
             </MenuItem>
           ) : null}
-          {canFork ? (
-            <MenuItem
-              id="fork"
-              leadingContent={<Icon svg={<Icons.GitBranch />} />}
-            >
-              Branch from this message
-            </MenuItem>
-          ) : null}
+          <MenuItem
+            id="fork"
+            leadingContent={<Icon svg={<Icons.GitBranch />} />}
+          >
+            Branch from this message
+          </MenuItem>
           {canCopyTraceId ? (
             <MenuItem
               id="copy-trace-id"

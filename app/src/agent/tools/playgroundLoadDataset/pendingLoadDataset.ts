@@ -97,6 +97,7 @@ export function bindPendingLoadDatasetActions({
         tool: LOAD_DATASET_TOOL_NAME,
         toolCallId: pendingLoad.toolCallId,
         errorText: LOAD_DATASET_NAVIGATION_CANCEL_ERROR,
+        outcome: "interrupted",
       });
     },
   };

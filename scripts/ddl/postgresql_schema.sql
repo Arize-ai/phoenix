@@ -302,8 +302,6 @@ CREATE TABLE public.spans (
 
 CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
     USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
-CREATE INDEX ix_latency ON public.spans
-    USING btree (((end_time - start_time)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_session_id ON public.spans
@@ -794,6 +792,8 @@ CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
     USING btree (project_id);
+CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
+    USING btree (user_id);
 
 
 -- Table: experiments
@@ -1154,6 +1154,91 @@ CREATE TABLE public.generative_model_custom_providers (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_generative_model_custom_providers_user_id ON public.generative_model_custom_providers
+    USING btree (user_id);
+
+
+-- Table: agent_sessions
+-- ---------------------
+CREATE TABLE public.agent_sessions (
+    id bigserial NOT NULL,
+    project_name VARCHAR NOT NULL,
+    user_id BIGINT,
+    title VARCHAR NOT NULL,
+    model_provider VARCHAR NOT NULL,
+    model_name VARCHAR NOT NULL,
+    custom_provider_id BIGINT,
+    is_ephemeral BOOLEAN NOT NULL,
+    heartbeat_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
+    CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_c_af13
+        FOREIGN KEY
+        (custom_provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_agent_sessions_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_agent_sessions_custom_provider_id ON public.agent_sessions
+    USING btree (custom_provider_id);
+CREATE INDEX ix_agent_sessions_ephemeral_updated_at ON public.agent_sessions
+    USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
+CREATE INDEX ix_agent_sessions_updated_at_id ON public.agent_sessions
+    USING btree (updated_at, id);
+CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
+    USING btree (user_id, updated_at DESC);
+
+
+-- Table: agent_session_messages
+-- -----------------------------
+CREATE TABLE public.agent_session_messages (
+    id bigserial NOT NULL,
+    agent_session_id BIGINT NOT NULL,
+    message JSONB NOT NULL,
+    message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
+    is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,phoenix,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_messages_message_id
+        UNIQUE (message_id),
+    CHECK (((message_id)::text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'::text)),
+    CONSTRAINT fk_agent_session_messages_agent_session_id_agent_sessions
+        FOREIGN KEY
+        (agent_session_id)
+        REFERENCES public.agent_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_agent_session_messages_agent_session_id_id ON public.agent_session_messages
+    USING btree (agent_session_id, id);
+CREATE INDEX ix_agent_session_messages_compaction ON public.agent_session_messages
+    USING btree (agent_session_id, id DESC) WHERE is_compaction_message;
+
+
+-- Table: agent_session_snapshots
+-- ------------------------------
+CREATE TABLE public.agent_session_snapshots (
+    id bigserial NOT NULL,
+    agent_session_id BIGINT NOT NULL,
+    bashkit_snapshot BYTEA,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_session_snapshots PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_snapshots_agent_session_id
+        UNIQUE (agent_session_id),
+    CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
+        FOREIGN KEY
+        (agent_session_id)
+        REFERENCES public.agent_sessions (id)
+        ON DELETE CASCADE
+);
+
 
 -- Table: oauth2_authorization_codes
 -- ---------------------------------
@@ -1370,6 +1455,11 @@ CREATE TABLE public.experiment_prompt_tasks (
         REFERENCES public.experiment_jobs (type, id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiment_prompt_tasks_custom_provider_id ON public.experiment_prompt_tasks
+    USING btree (custom_provider_id);
+CREATE INDEX ix_experiment_prompt_tasks_prompt_version_id ON public.experiment_prompt_tasks
+    USING btree (prompt_version_id);
 
 
 -- Table: prompt_version_tags
@@ -1631,6 +1721,9 @@ CREATE TABLE public.secrets (
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
+
+CREATE INDEX ix_secrets_user_id ON public.secrets
+    USING btree (user_id);
 
 
 -- Table: span_annotations
