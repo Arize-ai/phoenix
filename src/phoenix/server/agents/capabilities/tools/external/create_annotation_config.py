@@ -114,6 +114,4 @@ class CreateAnnotationConfigCapability(AbstractDynamicCapability[AgentDependenci
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
-        # Creating a config has no context to gate on, but the write is blocked
-        # server-side for viewers, so don't advertise it to them.
         return not ctx.deps.is_viewer
