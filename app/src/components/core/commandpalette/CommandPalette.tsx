@@ -59,6 +59,16 @@ const commandPaletteCSS = css`
   .command-palette__menu {
     max-height: 50vh;
     overflow-y: auto;
+    /* Fade results in/out as they settle so a new search transition reads as a
+       smooth update rather than a hard swap. */
+    transition: opacity 0.15s ease;
+  }
+
+  &[data-pending="true"] .command-palette__menu {
+    /* While a search transition is in flight React keeps the prior results
+       mounted (see startTransition in GlobalSearchPalette); dim them slightly
+       to signal the refresh without unmounting anything. */
+    opacity: 0.5;
   }
 
   .command-palette__section:not(:first-child) {
@@ -149,6 +159,11 @@ export interface CommandPaletteProps {
    * Footer content. Defaults to keyboard navigation hints.
    */
   footer?: ReactNode;
+  /**
+   * Whether a search/results refresh is in flight. When true the results are
+   * dimmed to signal the pending update while the prior results stay mounted.
+   */
+  isPending?: boolean;
 }
 
 /**
@@ -169,6 +184,7 @@ export function CommandPalette({
   children,
   renderEmptyState,
   footer,
+  isPending,
 }: CommandPaletteProps) {
   return (
     <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable>
@@ -177,6 +193,7 @@ export function CommandPalette({
           aria-label={ariaLabel}
           className="command-palette"
           css={commandPaletteCSS}
+          data-pending={isPending ? "true" : undefined}
         >
           <Autocomplete
             inputValue={inputValue}
