@@ -90,7 +90,7 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("agent_sessions.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
+            unique=True,
         ),
         sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
         sa.Column(

@@ -3086,10 +3086,10 @@ class AgentSession(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     user: Mapped[Optional["User"]] = relationship("User")
-    snapshots: Mapped[list["AgentSessionSnapshot"]] = relationship(
+    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
         "AgentSessionSnapshot",
         back_populates="agent_session",
-        uselist=True,
+        uselist=False,
     )
     __table_args__ = (
         Index(
@@ -3106,7 +3106,7 @@ class AgentSessionSnapshot(HasId):
     agent_session_id: Mapped[int] = mapped_column(
         ForeignKey("agent_sessions.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
+        unique=True,
     )
     bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -3115,6 +3115,6 @@ class AgentSessionSnapshot(HasId):
     )
     agent_session: Mapped[AgentSession] = relationship(
         "AgentSession",
-        back_populates="snapshots",
+        back_populates="snapshot",
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)

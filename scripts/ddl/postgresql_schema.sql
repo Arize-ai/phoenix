@@ -443,15 +443,14 @@ CREATE TABLE public.agent_session_snapshots (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_snapshots PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_snapshots_agent_session_id
+        UNIQUE (agent_session_id),
     CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
         FOREIGN KEY
         (agent_session_id)
         REFERENCES public.agent_sessions (id)
         ON DELETE CASCADE
 );
-
-CREATE INDEX ix_agent_session_snapshots_agent_session_id ON public.agent_session_snapshots
-    USING btree (agent_session_id);
 
 
 -- Table: api_keys
