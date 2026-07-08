@@ -52,7 +52,7 @@ def upgrade() -> None:
     op.create_table(
         "agent_sessions",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column("session_uuid", sa.String, unique=True, nullable=False),
+        sa.Column("session_id", sa.String, unique=True, nullable=False),
         sa.Column(
             "user_id",
             _Integer,
@@ -60,6 +60,7 @@ def upgrade() -> None:
             nullable=True,  # sessions may be created while auth is disabled
         ),
         sa.Column("title", sa.String, nullable=False),
+        sa.Column("messages", JSON_, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -91,13 +92,19 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("messages", JSON_, nullable=False),
         sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
         ),
         sqlite_autoincrement=True,
     )
