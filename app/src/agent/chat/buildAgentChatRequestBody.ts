@@ -3,7 +3,6 @@ import { isToolUIPart } from "ai";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
-import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
 import {
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
@@ -17,17 +16,20 @@ import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
 
+export type AgentModelSelection = components["schemas"]["ChatRequest"]["model"];
+
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
   body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
-  /** Full UI message history sent with the request. */
+  /**
+   * Full UI message history from the transport. The server owns the session
+   * transcript, so only the trailing message is sent: the turn's new user
+   * message, or the trailing assistant message updated with client-executed
+   * tool results.
+   */
   messages: AgentUIMessage[];
-  /** Reason the transport is sending this request. */
-  trigger: "submit-message" | "regenerate-message";
-  /** Optional message identifier for regenerate flows. */
-  messageId: string | undefined;
   /** Runtime capability snapshot to expose to the model for this turn. */
   capabilities: AgentCapabilities;
   /** Per-user PXI observability settings for this request. */
@@ -54,7 +56,7 @@ type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
  */
 type ClientToolTimingMetadata = Pick<
   components["schemas"]["ToolCallCallbackProviderMetadata"],
-  "client_started_at" | "client_ended_at"
+  "clientStartedAt" | "clientEndedAt"
 >;
 
 export type AgentChatRequestBodyPatch = Pick<
@@ -99,14 +101,14 @@ function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
 
 /**
  * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
- * are intentionally omitted because the server is the model-facing authority.
+ * are intentionally omitted because the server is the model-facing authority,
+ * and the message history is reduced to the turn's trailing message because
+ * the server is authoritative for the session transcript.
  */
 export function buildAgentChatRequestBody({
   body,
   id,
   messages,
-  trigger,
-  messageId,
   capabilities,
   observability,
   agentsConfig,
@@ -126,14 +128,9 @@ export function buildAgentChatRequestBody({
     buildSubagentsContext(capabilities),
     ...contexts,
   ];
-  return {
+  const base = {
     ...body,
     id,
-    messages: toServerSafeUIMessages(
-      enrichMessagesWithClientToolTimings({ messages, toolTimings })
-    ),
-    trigger,
-    messageId,
     ingestTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     attachUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
@@ -142,6 +139,41 @@ export function buildAgentChatRequestBody({
     model: modelSelection,
     turnTraceContext: turnTraceContext ?? undefined,
   };
+  const [message] = toServerSafeUIMessages(
+    enrichMessagesWithClientToolTimings({
+      messages: messages.slice(-1),
+      toolTimings,
+    })
+  );
+  if (!message) {
+    throw new Error("A chat submit request requires a message to send");
+  }
+  return {
+    ...base,
+    trigger: "submit-message",
+    message,
+    lastMessageId: getLastPersistedMessageId(messages),
+  };
+}
+
+/**
+ * The id of the last transcript message this client believes is persisted —
+ * the send's optimistic-concurrency check. A new user message at the tail is
+ * the turn being submitted, so the message before it is the last persisted
+ * one; a trailing assistant message (the client-tool continuation path) is
+ * itself the transcript's persisted tail. Undefined (omitted on the wire)
+ * when the transcript is empty.
+ */
+function getLastPersistedMessageId(
+  messages: AgentUIMessage[]
+): string | undefined {
+  const lastMessage = messages.at(-1);
+  if (!lastMessage) {
+    return undefined;
+  }
+  return lastMessage.role === "assistant"
+    ? lastMessage.id
+    : messages.at(-2)?.id;
 }
 
 /** Return a copy of resolved tool parts annotated with complete client timings. */
@@ -170,8 +202,8 @@ export function enrichMessagesWithClientToolTimings({
       }
       hasChangedPart = true;
       const timingMetadata: ClientToolTimingMetadata = {
-        client_started_at: timing.startedAt,
-        client_ended_at: timing.endedAt,
+        clientStartedAt: timing.startedAt,
+        clientEndedAt: timing.endedAt,
       };
       return {
         ...part,

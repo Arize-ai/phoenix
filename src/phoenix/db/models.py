@@ -54,6 +54,7 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -64,6 +65,11 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.annotation_configs import (
     OutputConfig as OutputConfigModel,
+)
+from phoenix.db.types.data_stream_protocol import (
+    PhoenixUIMessage,
+    PhoenixUIMessageAdapter,
+    UserMessageMetadata,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
@@ -190,6 +196,7 @@ ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
     "agent.assistant.trace_recording",
     "agent.assistant.enabled",
+    "agent.assistant.session_retention",
 ]
 
 
@@ -246,6 +253,25 @@ class JsonList(TypeDecorator[list[Any]]):
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
 
 
+class _UIMessage(TypeDecorator[PhoenixUIMessage]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PhoenixUIMessage], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return (
+            value.model_dump(mode="json", by_alias=True, exclude_none=True)
+            if value is not None
+            else None
+        )
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PhoenixUIMessage]:
+        return PhoenixUIMessageAdapter.validate_python(value) if value is not None else None
+
+
 class UtcTimeStamp(TypeDecorator[datetime]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -283,6 +309,29 @@ class _ModelProvider(TypeDecorator[ModelProvider]):
 
     def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[ModelProvider]:
         return None if value is None else ModelProvider(value)
+
+
+class _AgentBuiltinProviderConfig(TypeDecorator[AgentBuiltinProviderConfig]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self,
+        value: Optional[AgentBuiltinProviderConfig],
+        _: Dialect,
+    ) -> dict[str, Any]:
+        if value is None:
+            return {}
+        return value.model_dump()
+
+    def process_result_value(
+        self,
+        value: Optional[dict[str, Any]],
+        _: Dialect,
+    ) -> Optional[AgentBuiltinProviderConfig]:
+        if not value:
+            return None
+        return AgentBuiltinProviderConfig.model_validate(value)
 
 
 class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
@@ -3312,3 +3361,170 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
     """
     if not is_encrypted(target.config):
         raise ValueError("Config is not encrypted")
+
+
+_UUID_GLOB = "-".join("[0-9a-fA-F]" * length for length in (8, 4, 4, 4, 12))  # SQLite GLOB pattern
+_UUID_REGEX = "^{}$".format(
+    "-".join(f"[0-9a-fA-F]{{{length}}}" for length in (8, 4, 4, 4, 12))
+)  # PostgreSQL POSIX pattern
+
+
+class matches_uuid_format(ColumnElement[bool]):  # noqa: N801  -- a SQL construct
+    """A ``CHECK``-able predicate: does a column hold a UUID in 8-4-4-4-12 hex form?
+
+    SQLite has ``GLOB`` but no regex operator; PostgreSQL has ``~`` but no
+    ``GLOB``. Neither spelling is portable, so the predicate renders per
+    dialect and callers get one expression that works on both.
+    """
+
+    inherit_cache = True
+    type = Boolean()
+
+    def __init__(self, column_name: str) -> None:
+        self.column_name = column_name
+
+
+@compiles(matches_uuid_format, "sqlite")
+def _compile_matches_uuid_format_sqlite(
+    element: matches_uuid_format,
+    compiler: SQLCompiler,
+    **kw: Any,
+) -> str:
+    return f"{compiler.preparer.quote(element.column_name)} GLOB '{_UUID_GLOB}'"
+
+
+@compiles(matches_uuid_format, "postgresql")
+def _compile_matches_uuid_format_postgresql(
+    element: matches_uuid_format,
+    compiler: SQLCompiler,
+    **kw: Any,
+) -> str:
+    return f"{compiler.preparer.quote(element.column_name)} ~ '{_UUID_REGEX}'"
+
+
+class AgentSession(HasId):
+    __tablename__ = "agent_sessions"
+    project_name: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # sessions may be created while auth is disabled
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider, nullable=False)
+    model_name: Mapped[str] = mapped_column(String, nullable=False)
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    builtin_provider: Mapped[Optional[AgentBuiltinProviderConfig]] = mapped_column(
+        _AgentBuiltinProviderConfig,
+        nullable=False,
+        default=None,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    is_ephemeral: Mapped[bool] = mapped_column(default=False)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    user: Mapped[Optional["User"]] = relationship("User")
+    custom_provider: Mapped[Optional["GenerativeModelCustomProvider"]] = relationship(
+        "GenerativeModelCustomProvider"
+    )
+    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
+        "AgentSessionSnapshot",
+        back_populates="agent_session",
+        uselist=False,
+    )
+    messages: Mapped[list["AgentSessionMessage"]] = relationship(
+        "AgentSessionMessage",
+        order_by="AgentSessionMessage.id",
+        cascade="all, delete-orphan",
+        back_populates="agent_session",
+    )
+    __table_args__ = (
+        CheckConstraint(
+            "custom_provider_id IS NULL OR builtin_provider = '{}'",
+            name="at_most_one_provider_set",
+        ),
+        Index(
+            "ix_agent_sessions_user_id_updated_at",
+            "user_id",
+            updated_at.desc(),
+        ),
+        Index(
+            "ix_agent_sessions_ephemeral_updated_at",
+            "updated_at",
+            postgresql_where=text("is_ephemeral IS TRUE"),
+            sqlite_where=text("is_ephemeral IS TRUE"),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class AgentSessionMessage(HasId):
+    __tablename__ = "agent_session_messages"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    message: Mapped[PhoenixUIMessage] = mapped_column(_UIMessage, nullable=False)
+    message_id: Mapped[str] = mapped_column(
+        String,
+        sa.Computed(message["id"].as_string(), persisted=True),
+        nullable=False,
+        unique=True,
+    )
+    is_compaction_message: Mapped[bool] = mapped_column(
+        Boolean,
+        sa.Computed(
+            func.coalesce(
+                message[["metadata", "isCompactionMessage"]].as_boolean(),
+                sa.false(),
+            ),
+            persisted=True,
+        ),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    @property
+    def is_compaction_point(self) -> bool:
+        metadata = self.message.metadata
+        return isinstance(metadata, UserMessageMetadata) and metadata.is_compaction_message
+
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="messages",
+    )
+    __table_args__ = (
+        CheckConstraint(matches_uuid_format("message_id"), name="valid_message_id"),
+        Index(
+            "ix_agent_session_messages_compaction",
+            "agent_session_id",
+            sa.desc("id"),
+            postgresql_where=text("is_compaction_message"),
+            sqlite_where=text("is_compaction_message"),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class AgentSessionSnapshot(HasId):
+    __tablename__ = "agent_session_snapshots"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="snapshot",
+    )
+    __table_args__ = (dict(sqlite_autoincrement=True),)

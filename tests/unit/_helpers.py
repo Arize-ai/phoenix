@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from functools import singledispatch
 from secrets import token_hex
 from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
+from uuid import UUID, uuid5
 
 import httpx
 from sqlalchemy import select
@@ -10,9 +11,32 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.db.types.agent_session_config import AgentBuiltinProviderConfig
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Span import Span
+
+_MESSAGE_ID_NAMESPACE = UUID("6f1a7f5e-3f4d-4a5b-8c9d-0e1f2a3b4c5d")
+
+
+def _message_uuid(label: str) -> str:
+    """A stable UUID standing in for a readable transcript-message label.
+
+    ``agent_session_messages.message_id`` is CHECK-constrained to UUID form at
+    the database level, so a bare label like ``"user-1"`` cannot be used as a
+    message id. This keeps the label readable at the call site and returns the
+    same id every time, so a test can still refer to a message by its label.
+    """
+    return str(uuid5(_MESSAGE_ID_NAMESPACE, label))
+
+
+def _agent_session_model_kwargs() -> dict[str, Any]:
+    return {
+        "model_provider": ModelProvider.OPENAI,
+        "model_name": "gpt-test",
+        "builtin_provider": AgentBuiltinProviderConfig(),
+    }
 
 
 @singledispatch

@@ -97,6 +97,7 @@ from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.api.routers import (
     create_agents_router,
     create_auth_router,
+    create_legacy_agents_router,
     create_v1_router,
     oauth2_as_router,
     oauth2_as_well_known_router,
@@ -113,7 +114,9 @@ from phoenix.server.api.routers.oauth2_authorization_server import (
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
+from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
@@ -624,6 +627,7 @@ def _lifespan(
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
+    agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
@@ -679,6 +683,7 @@ def _lifespan(
                 await enqueue_annotations(precursor)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
+            await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
@@ -898,13 +903,10 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
             method_name.endswith("trace.v1.TraceService/Export")
             and self._db.should_not_insert_or_update
         ):
-            details = (
-                "Database operations are disabled due to insufficient storage. "
-                "Please delete old data or increase storage."
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                insufficient_storage_message(),
             )
-            if support_email := get_env_support_email():
-                details += f" Need help? Contact us at {support_email}"
-            await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, details)
         return await method(request_or_iterator, context)
 
 
@@ -1009,9 +1011,10 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
+    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
-    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
@@ -1098,6 +1101,7 @@ def create_app(
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
+            agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
@@ -1127,7 +1131,14 @@ def create_app(
     )
     app.include_router(create_v1_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
-        app.include_router(create_agents_router(authentication_enabled))
+        # Starlette matches routes in registration order: the deprecated
+        # /agents/server/... route must precede the agents router, or the
+        # /agents/{agent_id}/... route captures it with agent_id="server".
+        agents_router, session_chat = create_agents_router(authentication_enabled)
+        app.include_router(
+            create_legacy_agents_router(authentication_enabled, session_chat=session_chat)
+        )
+        app.include_router(agents_router)
     app.include_router(router)
     app.include_router(graphql_router)
     app.include_router(auth_md_router)

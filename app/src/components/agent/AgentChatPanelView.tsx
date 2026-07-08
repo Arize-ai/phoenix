@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode, RefObject } from "react";
+import { useState } from "react";
 import { Pressable } from "react-aria";
 import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
@@ -18,18 +19,23 @@ import {
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
+import { useViewerCanModify } from "@phoenix/contexts/ViewerContext";
 import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import type {
   AgentFabPlacement,
   AgentPosition,
-  AgentSession,
 } from "@phoenix/store/agentStore";
+import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import type { Size } from "@phoenix/types/geometry";
 
+import type { EditAgentSessionTitleDialog_session$key } from "./__generated__/EditAgentSessionTitleDialog_session.graphql";
+import { InlineEditAgentSessionTitle } from "./EditAgentSessionTitleDialog";
 import { PxiAnimatedGlyph } from "./PxiAnimatedGlyph";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
-import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionSummaryUtils";
+import type { AgentSessionListItem } from "./SessionListMenu";
+import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
+import { TemporarySessionIcon } from "./TemporarySessionIcon";
 
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 520;
@@ -61,6 +67,7 @@ const panelHeaderCSS = css`
   /* Inherit the panel surface so the header blends with whichever frame hosts
      it: the darker docked panel or the lighter floating panel. */
   background: transparent;
+  position: relative;
 `;
 
 const panelHeaderActionsCSS = css`
@@ -69,11 +76,45 @@ const panelHeaderActionsCSS = css`
 `;
 
 const sessionHeadingCSS = css`
+  display: block;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex-shrink: 1;
+`;
+
+const sessionHeadingWrapCSS = css`
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex-shrink: 1;
+
+  .agent-chat-panel__edit-title-button {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease-in-out;
+  }
+
+  &:hover .agent-chat-panel__edit-title-button,
+  &:focus-within .agent-chat-panel__edit-title-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const inlineTitleEditorCSS = css`
+  position: absolute;
+  top: calc(100% + var(--global-dimension-size-50));
+  left: var(--global-dimension-size-150);
+  right: var(--global-dimension-size-150);
+  z-index: 1;
 `;
 
 const panelContentCSS = css`
@@ -101,43 +142,76 @@ export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
-  showSessionHistory,
+  activeSessionTitleFragment,
+  isActiveSessionTemporary = false,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
+  hasNextSessionPage,
+  isLoadingNextSessionPage,
+  onLoadNextSessionPage,
+  onSessionMenuOpenChange,
   onPositionChange,
   onClose,
 }: {
   sessionDisplayName: string;
-  orderedSessions: AgentSession[];
+  orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
-  showSessionHistory: boolean;
+  activeSessionTitleFragment?: EditAgentSessionTitleDialog_session$key | null;
+  isActiveSessionTemporary?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
+  hasNextSessionPage?: boolean;
+  isLoadingNextSessionPage?: boolean;
+  onLoadNextSessionPage?: () => void;
+  onSessionMenuOpenChange?: (isOpen: boolean) => void;
   onPositionChange?: (position: AgentPosition) => void;
   onClose: () => void;
 }) {
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const canModifySessions = useViewerCanModify();
   const nextPosition = position === "pinned" ? "detached" : "pinned";
   const positionToggleLabel =
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
-  // Only surface the beta badge on the empty/new session, where there is no
-  // summary yet competing for space in the header.
   const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
+  const canEditTitle =
+    canModifySessions &&
+    activeSessionId != null &&
+    activeSessionId !== DRAFT_SESSION_ID &&
+    activeSessionTitleFragment != null;
 
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiAnimatedGlyph isIconSized />
-        <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
-          {sessionDisplayName}
-        </Text>
+        <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
+          <div css={sessionHeadingWrapCSS}>
+            <Text
+              weight="heavy"
+              css={sessionHeadingCSS}
+              title={sessionDisplayName}
+            >
+              {sessionDisplayName}
+            </Text>
+            {canEditTitle ? (
+              <Button
+                className="agent-chat-panel__edit-title-button"
+                size="S"
+                aria-label="Edit session title"
+                onPress={() => setEditingSessionId(activeSessionId)}
+                leadingVisual={<Icon svg={<Icons.Edit />} />}
+              />
+            ) : null}
+          </div>
+          {isActiveSessionTemporary ? <TemporarySessionIcon /> : null}
+        </Flex>
         {showBetaBadge ? (
           <TooltipTrigger delay={0}>
             <Pressable>
@@ -162,20 +236,30 @@ export function AgentChatHeader({
           </TooltipTrigger>
         ) : null}
       </Flex>
+      {editingSessionId === activeSessionId && activeSessionTitleFragment ? (
+        <div css={inlineTitleEditorCSS}>
+          <InlineEditAgentSessionTitle
+            session={activeSessionTitleFragment}
+            onClose={() => setEditingSessionId(null)}
+          />
+        </div>
+      ) : null}
       <Flex
         direction="row"
         alignItems="center"
         gap="size-50"
         css={panelHeaderActionsCSS}
       >
-        {showSessionHistory ? (
-          <SessionListMenu
-            sessions={orderedSessions}
-            activeSessionId={activeSessionId}
-            onSelectSession={onSelectSession}
-            onDeleteSession={onDeleteSession}
-          />
-        ) : null}
+        <SessionListMenu
+          sessions={orderedSessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={onSelectSession}
+          onDeleteSession={onDeleteSession}
+          hasNextPage={hasNextSessionPage}
+          isLoadingNextPage={isLoadingNextSessionPage}
+          onLoadNextPage={onLoadNextSessionPage}
+          onOpenChange={onSessionMenuOpenChange}
+        />
         <Button
           variant="quiet"
           size="S"
