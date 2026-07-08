@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
 
 import { Token } from "@phoenix/components";
 
@@ -12,6 +11,7 @@ type AnnotationTooltipFilterActionsProps = {
     label?: string | null;
     score?: number | null;
   };
+  onAppendFilterCondition: (condition: string) => void;
 };
 
 type FilterDefinition = {
@@ -28,37 +28,33 @@ type FilterDefinition = {
 export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
 ) {
-  const { appendFilterCondition } = useSpanFilters();
-  const { annotation, className } = props;
+  const { annotation, className, onAppendFilterCondition } = props;
   const { name, label, score } = annotation;
 
-  const filters = useMemo(() => {
-    const filters: FilterDefinition[] = [];
-    if (typeof score === "number") {
-      filters.push({
-        filterName: "greater than",
-        filterCondition: `annotations['${name}'].score > ${score}`,
-      });
-      filters.push({
-        filterName: "less than",
-        filterCondition: `annotations['${name}'].score < ${score}`,
-      });
-      filters.push({
-        filterName: "equals",
-        filterCondition: `annotations['${name}'].score == ${score}`,
-      });
-    } else if (label != null) {
-      filters.push({
-        filterName: "match",
-        filterCondition: `annotations['${name}'].label == "${label}"`,
-      });
-      filters.push({
-        filterName: "exclude",
-        filterCondition: `annotations['${name}'].label != "${label}"`,
-      });
-    }
-    return filters;
-  }, [name, label, score]);
+  const filters: FilterDefinition[] = [];
+  if (typeof score === "number") {
+    filters.push({
+      filterName: "greater than",
+      filterCondition: `annotations['${name}'].score > ${score}`,
+    });
+    filters.push({
+      filterName: "less than",
+      filterCondition: `annotations['${name}'].score < ${score}`,
+    });
+    filters.push({
+      filterName: "equals",
+      filterCondition: `annotations['${name}'].score == ${score}`,
+    });
+  } else if (label != null) {
+    filters.push({
+      filterName: "match",
+      filterCondition: `annotations['${name}'].label == "${label}"`,
+    });
+    filters.push({
+      filterName: "exclude",
+      filterCondition: `annotations['${name}'].label != "${label}"`,
+    });
+  }
 
   if (filters.length === 0) {
     return null;
@@ -80,7 +76,7 @@ export function AnnotationTooltipFilterActions(
         <li key={filter.filterName}>
           <Token
             onPress={() => {
-              appendFilterCondition(filter.filterCondition);
+              onAppendFilterCondition(filter.filterCondition);
             }}
           >
             {filter.filterName}
@@ -88,5 +84,17 @@ export function AnnotationTooltipFilterActions(
         </li>
       ))}
     </ul>
+  );
+}
+
+export function SpanAnnotationTooltipFilterActions(
+  props: Omit<AnnotationTooltipFilterActionsProps, "onAppendFilterCondition">
+) {
+  const { appendFilterCondition } = useSpanFilters();
+  return (
+    <AnnotationTooltipFilterActions
+      {...props}
+      onAppendFilterCondition={appendFilterCondition}
+    />
   );
 }

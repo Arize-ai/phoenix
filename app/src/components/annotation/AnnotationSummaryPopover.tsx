@@ -22,7 +22,7 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
+import { SpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import type { Annotation } from "./types";
@@ -39,6 +39,7 @@ export function AnnotationSummaryPopover({
   width,
   meanScore,
   showFilterActions,
+  renderFilterActions,
 }: {
   /** Annotations of the same name */
   annotations: Annotation[] | readonly Annotation[];
@@ -46,6 +47,7 @@ export function AnnotationSummaryPopover({
   width?: CSSProperties["width"];
   meanScore?: number | null;
   showFilterActions?: boolean;
+  renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   const filteredAnnotations = useMemo(
     () =>
@@ -177,9 +179,13 @@ export function AnnotationSummaryPopover({
                             {showFilterActions ? (
                               <td>
                                 <Flex justifyContent="end" flexGrow={1}>
-                                  <AnnotationTooltipFilterActions
-                                    annotation={annotation}
-                                  />
+                                  {renderFilterActions ? (
+                                    renderFilterActions(annotation)
+                                  ) : (
+                                    <SpanAnnotationTooltipFilterActions
+                                      annotation={annotation}
+                                    />
+                                  )}
                                 </Flex>
                               </td>
                             ) : null}
