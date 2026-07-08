@@ -49,6 +49,8 @@ from phoenix.trace.dsl.filter import (
 
 __all__ = ["SessionFilter", "SESSION_BINDINGS", "SESSION_FILTER_DESCRIPTIONS"]
 
+AggregateShape: typing.TypeAlias = typing.Literal["grouped", "correlated"]
+
 
 class _AggregateSpec(typing.NamedTuple):
     """How an aggregate name resolves to a grouped subquery and one of its value columns.
@@ -203,22 +205,38 @@ class SessionFilter:
         self,
         stmt: Select[typing.Any],
         candidate_session_rowids: CandidateRowids = None,
+        project_rowids: typing.Optional[typing.Sequence[int]] = None,
+        start_time: typing.Optional[typing.Any] = None,
+        end_time: typing.Optional[typing.Any] = None,
+        aggregate_shape: AggregateShape = "grouped",
     ) -> Select[typing.Any]:
         """Join the referenced aggregate / annotation / root-span relations and apply the predicate.
 
         ``stmt`` must select from ``ProjectSession`` (the joins key on ``ProjectSession.id``). When
-        ``candidate_session_rowids`` is given, the aggregate subqueries are scoped to that set so
-        the group-by scans only those sessions.
+        scoping parameters are given, aggregate/root-span subqueries are narrowed to the same
+        project/time/candidate universe as the base session scan.
         """
         if not self.condition:
             return stmt
         extra_bindings: dict[str, typing.Any] = {}
         stmt, aggregate_bindings = _join_aggregates(
-            stmt, self._referenced_aggregates, candidate_session_rowids
+            stmt,
+            self._referenced_aggregates,
+            candidate_session_rowids=candidate_session_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            aggregate_shape=aggregate_shape,
         )
         extra_bindings.update(aggregate_bindings)
         if self._references_root_span:
-            stmt, root_span_attributes = _join_root_span(stmt, candidate_session_rowids)
+            stmt, root_span_attributes = _join_root_span(
+                stmt,
+                candidate_session_rowids=candidate_session_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            )
             extra_bindings[_ROOT_SPAN_ATTRIBUTES] = root_span_attributes
         stmt = _join_annotations(stmt, SESSION_BINDINGS, self._aliased_annotation_relations)
         return stmt.where(
@@ -236,13 +254,13 @@ class SessionFilter:
         start_time: typing.Optional[typing.Any] = None,
         end_time: typing.Optional[typing.Any] = None,
         candidate_session_rowids: CandidateRowids = None,
+        aggregate_shape: AggregateShape = "grouped",
     ) -> ScalarSelect[int]:
         """Build a ``ScalarSelect[int]`` of the matching session rowids.
 
         Structurally identical to ``session_filters.get_filtered_session_rowids_subquery`` so the
         existing fan-out consumers absorb the DSL with no signature change.
-        ``candidate_session_rowids`` restricts both the base scan and the aggregate subqueries to a
-        candidate set.
+        Scoping parameters restrict both the base scan and aggregate/root-span subqueries.
         """
         stmt: Select[typing.Any] = select(distinct(models.ProjectSession.id))
         if project_rowids is not None:
@@ -253,7 +271,14 @@ class SessionFilter:
             stmt = stmt.where(start_time <= models.ProjectSession.start_time)
         if end_time is not None:
             stmt = stmt.where(models.ProjectSession.start_time < end_time)
-        stmt = self(stmt, candidate_session_rowids=candidate_session_rowids)
+        stmt = self(
+            stmt,
+            candidate_session_rowids=candidate_session_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            aggregate_shape=aggregate_shape,
+        )
         return stmt.scalar_subquery()
 
 
@@ -261,6 +286,10 @@ def _join_aggregates(
     stmt: Select[typing.Any],
     referenced_aggregates: typing.Iterable[str],
     candidate_session_rowids: CandidateRowids,
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
+    aggregate_shape: AggregateShape,
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
     grouped: dict[str, tuple[typing.Callable[[], SessionAggregate], list[tuple[str, str]]]] = {}
     for name in referenced_aggregates:
@@ -270,18 +299,47 @@ def _join_aggregates(
         )
     bindings_map: dict[str, typing.Any] = {}
     for builder, names in grouped.values():
-        subquery = builder().as_grouped_subquery(keys=candidate_session_rowids).subquery()
-        stmt = stmt.outerjoin(subquery, models.ProjectSession.id == subquery.c[SESSION_ROWID])
-        for name, value_column in names:
-            bindings_map[name] = func.coalesce(subquery.c[value_column], 0)
+        aggregate = builder()
+        if aggregate_shape == "grouped":
+            subquery = aggregate.as_grouped_subquery(
+                keys=candidate_session_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            ).subquery()
+            stmt = stmt.outerjoin(subquery, models.ProjectSession.id == subquery.c[SESSION_ROWID])
+            for name, value_column in names:
+                bindings_map[name] = func.coalesce(subquery.c[value_column], 0)
+        elif aggregate_shape == "correlated":
+            for name, value_column in names:
+                bindings_map[name] = func.coalesce(
+                    aggregate.as_correlated_scalar(
+                        models.ProjectSession.id,
+                        value=value_column,
+                        project_rowids=project_rowids,
+                        start_time=start_time,
+                        end_time=end_time,
+                    ),
+                    0,
+                )
+        else:
+            raise ValueError(f"Unknown aggregate shape: {aggregate_shape}")
     return stmt, bindings_map
 
 
 def _join_root_span(
     stmt: Select[typing.Any],
     candidate_session_rowids: CandidateRowids,
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
 ) -> tuple[Select[typing.Any], typing.Any]:
-    root_span = earliest_root_span_by_session(keys=candidate_session_rowids).subquery()
+    root_span = earliest_root_span_by_session(
+        keys=candidate_session_rowids,
+        project_rowids=project_rowids,
+        start_time=start_time,
+        end_time=end_time,
+    ).subquery()
     aliased_root_span = aliased(models.Span, name="session_root_span")
     stmt = stmt.outerjoin(root_span, models.ProjectSession.id == root_span.c[SESSION_ROWID])
     stmt = stmt.outerjoin(aliased_root_span, aliased_root_span.id == root_span.c[SPAN_ROWID])
