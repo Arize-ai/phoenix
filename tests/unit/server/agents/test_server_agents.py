@@ -55,11 +55,14 @@ async def test_skills_toolset_advertised(
 async def test_call_subagent_toolset_advertised_when_enabled(
     model: TestModel,
     schema: strawberry.Schema,
+    db: DbSessionFactory,
 ) -> None:
     agent = build_server_agent(
         model=model,
         schema=schema,
         build_graphql_context=lambda: Mock(spec=Context),
+        db=db,
+        event_queue=Mock(),
         enable_subagents=True,
     )
     await agent.run("hi")

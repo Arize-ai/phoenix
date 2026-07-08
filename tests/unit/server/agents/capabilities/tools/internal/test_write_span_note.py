@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 from pydantic_ai import ModelRetry
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
@@ -86,13 +87,41 @@ async def _call_tool(
     )
     run_context: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
     tools = await toolset.get_tools(run_context)
+    tool = tools[WRITE_SPAN_NOTE_TOOL_NAME]
+    validated_arguments: dict[str, Any] = tool.args_validator.validate_python(arguments)
     result: dict[str, str] = await toolset.call_tool(
         WRITE_SPAN_NOTE_TOOL_NAME,
-        arguments,
+        validated_arguments,
         run_context,
-        tools[WRITE_SPAN_NOTE_TOOL_NAME],
+        tool,
     )
     return result
+
+
+async def test_write_span_note_schema_uses_span_id_alias(db: DbSessionFactory) -> None:
+    toolset = WriteSpanNoteToolset(db=db, event_queue=_EventQueue())
+    run_context: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+    tools = await toolset.get_tools(run_context)
+
+    schema = tools[WRITE_SPAN_NOTE_TOOL_NAME].tool_def.parameters_json_schema
+
+    assert schema == {
+        "additionalProperties": False,
+        "properties": {
+            "spanId": {
+                "description": "16-character OpenTelemetry span id.",
+                "pattern": "^[0-9a-fA-F]{16}$",
+                "type": "string",
+            },
+            "note": {
+                "description": "Specific open-coding observation to store on the span.",
+                "minLength": 1,
+                "type": "string",
+            },
+        },
+        "required": ["spanId", "note"],
+        "type": "object",
+    }
 
 
 async def test_write_span_note_writes_pxi_note(db: DbSessionFactory) -> None:
@@ -102,7 +131,7 @@ async def test_write_span_note_writes_pxi_note(db: DbSessionFactory) -> None:
     result = await _call_tool(
         db,
         event_queue,
-        {"spanId": _SPAN_ID, "note": "Tool returned a 404 for a valid-looking id."},
+        {"spanId": f"  {_SPAN_ID}  ", "note": "  Tool returned a 404 for a valid-looking id.  "},
     )
 
     assert result["status"] == "written"
@@ -144,10 +173,13 @@ async def test_write_span_note_repeated_write_updates_existing_note(
 @pytest.mark.parametrize(
     ("arguments", "message"),
     [
-        ({"note": "missing span id"}, "spanId is required"),
-        ({"spanId": "not-a-span", "note": "bad span id"}, "16 hexadecimal"),
-        ({"spanId": _SPAN_ID, "note": ""}, "note is required"),
-        ({"spanId": _SPAN_ID, "note": "ok", "identifier": "other"}, "Unknown"),
+        ({"note": "missing span id"}, "Field required"),
+        ({"spanId": "not-a-span", "note": "bad span id"}, "String should match pattern"),
+        ({"spanId": _SPAN_ID, "note": ""}, "String should have at least 1 character"),
+        (
+            {"spanId": _SPAN_ID, "note": "ok", "identifier": "other"},
+            "Extra inputs are not permitted",
+        ),
     ],
 )
 async def test_write_span_note_validates_arguments(
@@ -157,7 +189,7 @@ async def test_write_span_note_validates_arguments(
 ) -> None:
     event_queue = _EventQueue()
 
-    with pytest.raises(ModelRetry, match=message):
+    with pytest.raises(ValidationError, match=message):
         await _call_tool(db, event_queue, arguments)
 
 
