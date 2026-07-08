@@ -38,6 +38,7 @@ class FilterVocabularyTerm:
 def session_filter_vocabulary_terms(
     annotation_names: Sequence[str] = (),
     root_span_attribute_paths: Sequence[Sequence[str]] = (),
+    tool_span_names: Sequence[str] = (),
 ) -> list[FilterVocabularyTerm]:
     """Build the session-filter vocabulary from compiler bindings and project-observed paths.
 
@@ -88,6 +89,15 @@ def session_filter_vocabulary_terms(
                 f"Observed root-span attribute {name}; reads from the session's earliest "
                 "root span and is string-cast unless explicitly cast."
             ),
+        )
+
+    for tool_span_name in sorted(set(tool_span_names)):
+        tool_name_subscript = _subscript_literal(tool_span_name)
+        add(
+            name=f"tool_call_count[{tool_name_subscript}]",
+            value_type=_NUMBER,
+            description=f"Number of TOOL spans named {tool_name_subscript} in the session.",
+            category=_AGGREGATE,
         )
 
     for annotation_name in sorted(set(annotation_names)):

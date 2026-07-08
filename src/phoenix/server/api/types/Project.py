@@ -1172,8 +1172,7 @@ class Project(Node):
 
         Static terms derive from the ``SessionFilter`` compiler's own name maps, so they cannot
         drift from what compiles; per-project session-annotation names are folded in as typed
-        ``annotations[...]`` terms, and observed attributes are read from each session's earliest
-        root span.
+        ``annotations[...]`` terms, observed root-span attributes, and observed TOOL span names.
         """
         annotation_names_stmt = (
             select(distinct(models.ProjectSessionAnnotation.name))
@@ -1188,14 +1187,25 @@ class Project(Node):
             .join(models.ProjectSession, models.ProjectSession.id == root_spans.c[SESSION_ROWID])
             .where(models.ProjectSession.project_id == self.id)
         )
+        tool_span_names_stmt = (
+            select(distinct(models.Span.name))
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == self.id)
+            .where(func.upper(models.Span.span_kind) == "TOOL")
+        )
         async with info.context.db.read() as session:
             annotation_names = list(await session.scalars(annotation_names_stmt))
             root_span_attributes = list(await session.scalars(root_span_attributes_stmt))
+            tool_span_names = list(await session.scalars(tool_span_names_stmt))
         root_span_attribute_paths: list[tuple[str, ...]] = []
         for attributes in root_span_attributes:
             if isinstance(attributes, Mapping):
                 root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
-        return session_filter_vocabulary_terms(annotation_names, root_span_attribute_paths)
+        return session_filter_vocabulary_terms(
+            annotation_names,
+            root_span_attribute_paths,
+            tool_span_names,
+        )
 
     @strawberry.field
     async def annotation_configs(

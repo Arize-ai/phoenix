@@ -69,6 +69,32 @@ def test_session_filter_translated(condition: str, expected: str) -> None:
     assert unparse(SessionFilter(condition).translated).strip() == expected
 
 
+def test_session_filter_tool_call_count_subscript_translates_to_flat_binding() -> None:
+    translated = unparse(
+        SessionFilter('tool_call_count["search"] >= 2 and tool_call_count >= 3').translated
+    ).strip()
+
+    assert "tool_call_count[" not in translated
+    assert "__session_tool_call_count_by_name_" in translated
+    assert "tool_call_count >= 3" in translated
+
+
+def test_session_filter_tool_call_count_subscript_groups_duplicate_name_join() -> None:
+    subquery = SessionFilter(
+        'tool_call_count["search"] > 0 and tool_call_count["search"] < 3 '
+        'and tool_call_count["lookup"] == 0'
+    ).as_session_rowids_subquery(project_rowids=[1], aggregate_shape="grouped")
+    compiled = str(
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(subquery))
+        .compile(compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert compiled.count("left outer join (select") == 2
+    assert "spans.name = 'search'" in compiled
+    assert "spans.name = 'lookup'" in compiled
+
+
 @pytest.mark.parametrize(
     "condition,suggestion",
     [
@@ -177,6 +203,28 @@ async def _seed_session(
     return project_session
 
 
+async def _seed_tool_session(
+    session: AsyncSession,
+    project: models.Project,
+    *,
+    tool_names: list[str],
+    start_time: datetime,
+) -> models.ProjectSession:
+    project_session = await _add_project_session(session, project, start_time=start_time)
+    trace = await _add_trace(session, project, project_session, start_time=start_time)
+    root_span = await _add_span(session, trace, span_kind="LLM", start_time=start_time)
+    for index, tool_name in enumerate(tool_names):
+        tool_span = await _add_span(
+            session,
+            parent_span=root_span,
+            span_kind="TOOL",
+            start_time=start_time + timedelta(milliseconds=index + 1),
+        )
+        tool_span.name = tool_name
+    await session.flush()
+    return project_session
+
+
 async def _seed_io_session(
     session: AsyncSession,
     project: models.Project,
@@ -281,6 +329,59 @@ async def test_session_filter_candidate_scoping(db: DbSessionFactory) -> None:
         # Both sessions match the predicate, but only the candidate is returned.
         assert scoped == {first.id}
         assert second.id not in scoped
+
+
+async def test_session_filter_tool_call_count_subscript_filters_by_tool_name(
+    db: DbSessionFactory,
+) -> None:
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        search_twice = await _seed_tool_session(
+            session,
+            project,
+            tool_names=["search", "search"],
+            start_time=start,
+        )
+        lookup_once = await _seed_tool_session(
+            session,
+            project,
+            tool_names=["lookup"],
+            start_time=start,
+        )
+        both_once = await _seed_tool_session(
+            session,
+            project,
+            tool_names=["search", "lookup"],
+            start_time=start,
+        )
+        no_tools = await _seed_tool_session(
+            session,
+            project,
+            tool_names=[],
+            start_time=start,
+        )
+
+        by_search_count = await _matched_rowids(
+            session,
+            SessionFilter('tool_call_count["search"] >= 2'),
+            project,
+        )
+        assert by_search_count == {search_twice.id}
+
+        by_two_names = await _matched_rowids(
+            session,
+            SessionFilter('tool_call_count["search"] >= 1 and tool_call_count["lookup"] >= 1'),
+            project,
+        )
+        assert by_two_names == {both_once.id}
+
+        by_plain_count = await _matched_rowids(
+            session, SessionFilter("tool_call_count >= 2"), project
+        )
+        assert by_plain_count == {search_twice.id, both_once.id}
+        assert lookup_once.id not in by_plain_count
+        assert no_tools.id not in by_plain_count
 
 
 def test_session_filter_grouped_aggregate_shape_pushes_project_time_scope() -> None:

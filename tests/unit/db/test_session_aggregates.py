@@ -31,7 +31,9 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
             llm_token_count_prompt=1,
             llm_token_count_completion=2,
         )
-        await _add_span(session, parent_span=earliest_root_span, span_kind="TOOL")
+        tool_span = await _add_span(session, parent_span=earliest_root_span, span_kind="TOOL")
+        tool_span.name = "search"
+        await session.flush()
 
         later_trace = await _add_trace(
             session, project, project_session, start_time=start + timedelta(seconds=1)
@@ -73,6 +75,26 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
             .all()
         )
         assert tool_count == [(rowid, 1)]
+        named_tool_count = (
+            (
+                await session.execute(
+                    span_kind_count_by_session("TOOL", "search").as_grouped_subquery([rowid])
+                )
+            )
+            .tuples()
+            .all()
+        )
+        assert named_tool_count == [(rowid, 1)]
+        missing_named_tool_count = (
+            (
+                await session.execute(
+                    span_kind_count_by_session("TOOL", "lookup").as_grouped_subquery([rowid])
+                )
+            )
+            .tuples()
+            .all()
+        )
+        assert missing_named_tool_count == []
         llm_count = (
             (await session.execute(span_kind_count_by_session("LLM").as_grouped_subquery([rowid])))
             .tuples()

@@ -3855,13 +3855,15 @@ class TestProject:
                 start_time=base_time,
                 end_time=base_time + timedelta(seconds=10),
             )
-            await _add_span(
+            child_tool_span = await _add_span(
                 session,
                 parent_span=root_span,
+                span_kind="TOOL",
                 attributes={"child_only": "not cataloged"},
                 start_time=base_time + timedelta(seconds=1),
                 end_time=base_time + timedelta(seconds=2),
             )
+            child_tool_span.name = "search"
             later_trace = await _add_trace(
                 session,
                 project,
@@ -3869,13 +3871,14 @@ class TestProject:
                 start_time=base_time + timedelta(minutes=1),
                 end_time=base_time + timedelta(minutes=1, seconds=10),
             )
-            await _add_span(
+            llm_span = await _add_span(
                 session,
                 later_trace,
                 attributes={"later_only": "not cataloged"},
                 start_time=base_time + timedelta(minutes=1),
                 end_time=base_time + timedelta(minutes=1, seconds=10),
             )
+            llm_span.name = "llm_not_cataloged"
             second_project_session = await _add_project_session(
                 session, project, start_time=base_time + timedelta(minutes=2)
             )
@@ -3886,17 +3889,25 @@ class TestProject:
                 start_time=base_time + timedelta(minutes=2),
                 end_time=base_time + timedelta(minutes=2, seconds=10),
             )
-            await _add_span(
+            second_tool_span = await _add_span(
                 session,
                 second_trace,
+                span_kind="TOOL",
                 attributes={"duplicate": {"leaf": "second"}, "flat": "cataloged"},
                 start_time=base_time + timedelta(minutes=2),
                 end_time=base_time + timedelta(minutes=2, seconds=10),
             )
+            second_tool_span.name = "lookup"
             other_project = await _add_project(session)
             other_project_session = await _add_project_session(session, other_project)
             other_trace = await _add_trace(session, other_project, other_project_session)
-            await _add_span(session, other_trace, attributes={"other_project": "not cataloged"})
+            other_tool_span = await _add_span(
+                session,
+                other_trace,
+                span_kind="TOOL",
+                attributes={"other_project": "not cataloged"},
+            )
+            other_tool_span.name = "other_tool"
             session.add(
                 models.ProjectSessionAnnotation(
                     project_session_id=project_session.id,
@@ -3909,6 +3920,7 @@ class TestProject:
                     source="APP",
                 )
             )
+            await session.flush()
         query = """
             query($id: ID!) {
               node(id: $id) {
@@ -3928,11 +3940,13 @@ class TestProject:
         assert not response.errors
         assert (data := response.data) is not None
         terms = data["node"]["sessionFilterVocabulary"]
+        term_names = {t["name"] for t in terms}
         terms_by_name = {term["name"]: term for term in terms}
         # Drift-proof: static session + aggregate terms are exactly the compiler's binding keys.
-        static_names = {t["name"] for t in terms if t["category"] in ("session", "aggregate")}
+        static_names = {t["name"] for t in terms if t["name"] in SESSION_BINDINGS.binding_names}
         assert static_names == set(SESSION_BINDINGS.binding_names)
         assert {"any_input", "any_output"}.issubset(static_names)
+        assert not any(name.startswith("__session_tool_call_count_by_name_") for name in term_names)
         # Every served term carries a non-empty gloss.
         assert all(t["description"] for t in terms)
         num_traces_term = next(t for t in terms if t["name"] == "num_traces")
@@ -3960,9 +3974,17 @@ class TestProject:
         }
         assert absent_attribute_terms.isdisjoint(terms_by_name)
         # Per-project session-annotation names are folded in as fully-typed terms.
-        term_names = {t["name"] for t in terms}
         assert 'annotations["quality"].score' in term_names
         assert 'annotations["quality"].label' in term_names
+        for term_name in {'tool_call_count["lookup"]', 'tool_call_count["search"]'}:
+            assert terms_by_name[term_name]["type"] == "number"
+            assert terms_by_name[term_name]["category"] == "aggregate"
+            assert "TOOL spans named" in terms_by_name[term_name]["description"]
+        absent_tool_terms = {
+            'tool_call_count["llm_not_cataloged"]',
+            'tool_call_count["other_tool"]',
+        }
+        assert absent_tool_terms.isdisjoint(terms_by_name)
 
     async def test_session_count_shares_dsl_path_with_sessions_and_record_count(
         self,
@@ -3995,6 +4017,34 @@ class TestProject:
             )
             == 2
         )
+
+    async def test_session_count_accepts_named_tool_call_count_session_filter(
+        self,
+        _data: _Data,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        async with db() as session:
+            named_tool_spans = [
+                (_data.spans[3].id, "search"),
+                (_data.spans[4].id, "lookup"),
+                (_data.spans[6].id, "lookup"),
+            ]
+            for span_rowid, tool_name in named_tool_spans:
+                span = await session.get(models.Span, span_rowid)
+                assert span is not None
+                span.span_kind = "TOOL"
+                span.name = tool_name
+            await session.flush()
+
+        condition = 'tool_call_count["search"] == 1 and tool_call_count["lookup"] == 1'
+        session_count = await self._node(
+            f"sessionCount(sessionFilterCondition:{json.dumps(condition)})",
+            project,
+            httpx_client,
+        )
+        assert session_count == 1
 
 
 @pytest.mark.parametrize(
