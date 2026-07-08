@@ -77,10 +77,12 @@ const fieldRowCSS = css`
 export function PxiLabScenarios({ ringState }: { ringState: PxiRingState }) {
   return (
     <Flex direction="column" gap="size-400">
-      <LabSection title="Triggers — primary & quiet">
+      <LabSection title="Triggers — primary, secondary & quiet">
         <Flex direction="row" gap="size-200" alignItems="center" wrap>
           <SolveWithPxiButton size="M" />
           <SolveWithPxiButton size="S" />
+          <SolveWithPxiButton variant="secondary" size="M" />
+          <SolveWithPxiButton variant="secondary" size="S" />
           <TooltipTrigger>
             <SolveWithPxiButton variant="quiet" size="M" />
             <Tooltip>Solve with PXI</Tooltip>

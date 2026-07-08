@@ -17,10 +17,14 @@ export interface SolveWithPxiButtonProps extends Omit<
   AriaButtonProps,
   "children" | "className"
 > {
-  /** primary = labeled call-to-action; quiet = icon-only toolbar form */
-  variant?: "primary" | "quiet";
+  /**
+   * primary = filled brand-gradient call-to-action;
+   * secondary = bordered, subtly-tinted normal action;
+   * quiet = icon-only toolbar form
+   */
+  variant?: "primary" | "secondary" | "quiet";
   size?: "S" | "M";
-  /** visible label (primary) / accessible name (quiet) */
+  /** visible label (primary/secondary) / accessible name (quiet) */
   label?: string;
   ref?: Ref<HTMLButtonElement>;
 }
@@ -44,7 +48,7 @@ export function SolveWithPxiButton({
       <span className="pxi-solve-button__glyph" aria-hidden="true">
         <PxiGlyph size={size === "S" ? 11 : 13} />
       </span>
-      {variant === "primary" && <span>{label}</span>}
+      {variant !== "quiet" && <span>{label}</span>}
     </AriaButton>
   );
 }

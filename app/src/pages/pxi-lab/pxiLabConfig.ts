@@ -1,4 +1,4 @@
-export type PxiTreatment = "conic" | "aurora" | "mono" | "glass";
+export type PxiTreatment = "conic" | "aurora" | "glass";
 export type PxiRingState = "idle" | "eligible" | "active";
 
 /**
@@ -8,10 +8,16 @@ export type PxiRingState = "idle" | "eligible" | "active";
  */
 export interface PxiLabConfig {
   treatment: PxiTreatment;
-  /** gradient stops, hex */
+  /** shared treatment gradient stops (rings, borders, glows), hex */
   c1: string;
   c2: string;
   c3: string;
+  /** filled primary button background — its own gradient, related but independent */
+  bc1: string;
+  bc2: string;
+  bc3: string;
+  /** filled button gradient angle in degrees */
+  btnAngle: number;
   /** seconds per animation cycle */
   speed: number;
   /** ring/stroke width in px */
@@ -48,12 +54,6 @@ export const PXI_TREATMENTS: {
       "Hairline stroke with a soft blurred multi-hue halo. Atmosphere over line; the Apple Intelligence direction.",
   },
   {
-    id: "mono",
-    label: "Mono",
-    description:
-      "Restrained: plain hairline at rest, color only in the glyph and a border shimmer on hover. The anti-AI-chrome-fatigue direction.",
-  },
-  {
     id: "glass",
     label: "Glass",
     description:
@@ -78,18 +78,6 @@ export const PXI_PALETTES: {
   },
   // Magenta-leaning cut of the same spectrum
   { id: "nova", label: "Nova", c1: "#c648ff", c2: "#9a66ff", c3: "#6bd7ff" },
-  // Poles of the PxiShaderGlyph heatmap palette
-  {
-    id: "heatmap",
-    label: "Heatmap",
-    c1: "#1f3ba2",
-    c2: "#2f63e7",
-    c3: "#ff991e",
-  },
-  // Warm tail of the heatmap palette
-  { id: "ember", label: "Ember", c1: "#ffe679", c2: "#ff991e", c3: "#ff4c00" },
-  // LiquidMetal tints — for gradient-skeptical monochrome exploration
-  { id: "steel", label: "Steel", c1: "#8d8d8d", c2: "#b5b5b5", c3: "#e8e8e8" },
 ];
 
 export const DEFAULT_PXI_LAB_CONFIG: PxiLabConfig = {
@@ -97,6 +85,10 @@ export const DEFAULT_PXI_LAB_CONFIG: PxiLabConfig = {
   c1: PXI_PALETTES[0].c1,
   c2: PXI_PALETTES[0].c2,
   c3: PXI_PALETTES[0].c3,
+  bc1: PXI_PALETTES[0].c1,
+  bc2: PXI_PALETTES[0].c2,
+  bc3: PXI_PALETTES[0].c3,
+  btnAngle: 135,
   speed: 3,
   ringWidth: 1.5,
   glow: 0.5,
@@ -141,6 +133,10 @@ export function parsePxiLabConfig(searchParams: URLSearchParams): PxiLabConfig {
     c1: parseHex(searchParams.get("c1"), defaults.c1),
     c2: parseHex(searchParams.get("c2"), defaults.c2),
     c3: parseHex(searchParams.get("c3"), defaults.c3),
+    bc1: parseHex(searchParams.get("bc1"), defaults.bc1),
+    bc2: parseHex(searchParams.get("bc2"), defaults.bc2),
+    bc3: parseHex(searchParams.get("bc3"), defaults.bc3),
+    btnAngle: parseNumber(searchParams.get("ba"), defaults.btnAngle, 0, 360),
     speed: parseNumber(searchParams.get("sp"), defaults.speed, 0.5, 12),
     ringWidth: parseNumber(searchParams.get("rw"), defaults.ringWidth, 0.5, 4),
     glow: parseNumber(searchParams.get("gl"), defaults.glow, 0, 1),
@@ -158,6 +154,10 @@ export function serializePxiLabConfig(config: PxiLabConfig): URLSearchParams {
     c1: config.c1.replace("#", ""),
     c2: config.c2.replace("#", ""),
     c3: config.c3.replace("#", ""),
+    bc1: config.bc1.replace("#", ""),
+    bc2: config.bc2.replace("#", ""),
+    bc3: config.bc3.replace("#", ""),
+    ba: String(config.btnAngle),
     sp: String(config.speed),
     rw: String(config.ringWidth),
     gl: String(config.glow),

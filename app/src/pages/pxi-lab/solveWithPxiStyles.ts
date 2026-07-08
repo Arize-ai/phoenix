@@ -6,7 +6,7 @@ import { css, keyframes } from "@emotion/react";
  * Architecture: components (SolveWithPxiButton, PxiRing, PxiTag, menu items)
  * only emit structure + data attributes. All paint lives here, keyed off a
  * scope element that carries:
- *   - data-pxi-treatment="conic|aurora|mono|glass"  (structural style switch)
+ *   - data-pxi-treatment="conic|aurora|glass"       (structural style switch)
  *   - data-theme="light|dark"                       (theme-tuned overrides)
  *   - data-pxi-motion="on|off"                      (freeze all animation)
  *   - CSS custom props (--pxi-c1..c3, --pxi-speed, --pxi-ring-width,
@@ -29,22 +29,22 @@ const pxiSpin = keyframes`
   }
 `;
 
-/** traveling highlight along a border band (background-position wipe) */
-const pxiWipe = keyframes`
-  0% {
-    background-position: 200% 0, 0 0;
-  }
-  100% {
-    background-position: -150% 0, 0 0;
-  }
-`;
-
 const pxiAuroraDrift = keyframes`
   0%, 100% {
     background-position: 0% 0%, 100% 100%, 60% 0%;
   }
   50% {
     background-position: 45% 30%, 55% 60%, 20% 40%;
+  }
+`;
+
+/** diagonal iridescent slide for the glass hairline + glow (ping-pong, seamless) */
+const pxiGlassShimmer = keyframes`
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
 `;
 
@@ -77,6 +77,14 @@ export const pxiScopeCSS = css`
   /* ====================================================================== */
   /* base anatomy                                                           */
   /* ====================================================================== */
+
+  /* theme-tuned shared tokens (consumed by the secondary button + glass) */
+  &[data-theme="light"] {
+    --pxi-inner-light: rgba(255, 255, 255, 0.62);
+  }
+  &[data-theme="dark"] {
+    --pxi-inner-light: rgba(255, 255, 255, 0.2);
+  }
 
   .pxi-solve-button,
   .pxi-ring,
@@ -112,7 +120,7 @@ export const pxiScopeCSS = css`
   .pxi-solve-button {
     display: inline-flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-75);
+    gap: var(--global-dimension-size-75);
     border: none;
     cursor: pointer;
     box-sizing: border-box;
@@ -123,7 +131,8 @@ export const pxiScopeCSS = css`
     border-radius: var(--pxi-button-radius, var(--global-rounding-small));
     transition:
       color 0.15s ease,
-      background-color 0.15s ease;
+      background-color 0.15s ease,
+      filter 0.15s ease;
 
     /* calm at rest, lively on hover — states only touch the shared vars */
     --pxi-stroke-alpha: 0.75;
@@ -160,9 +169,60 @@ export const pxiScopeCSS = css`
       font-size: var(--global-font-size-xs);
     }
 
+    /* primary = the brand gradient IS the button; filled, no border.
+       Uses its own gradient (--pxi-bc*, --pxi-btn-angle), independent from the
+       shared treatment gradient that paints rings/borders/glows. */
     &[data-pxi-variant="primary"] {
-      background-color: var(--global-button-primary-background-color);
-      color: var(--global-button-primary-foreground-color);
+      background: linear-gradient(
+        var(--pxi-btn-angle, 135deg),
+        var(--pxi-bc1),
+        var(--pxi-bc2),
+        var(--pxi-bc3)
+      );
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+      /* the fill carries the brand — drop the border band, keep a soft halo */
+      --pxi-stroke-alpha: 0;
+      --pxi-glow-alpha: calc(var(--pxi-glow) * 0.3);
+
+      .pxi-solve-button__glyph {
+        color: inherit;
+      }
+      &[data-hovered] {
+        --pxi-glow-alpha: var(--pxi-glow);
+        filter: brightness(1.06);
+      }
+      &[data-pressed] {
+        filter: brightness(0.95);
+      }
+    }
+
+    /* secondary = bordered normal action: gradient hairline + subtle tint */
+    &[data-pxi-variant="secondary"] {
+      background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--pxi-c1) 14%, transparent),
+        color-mix(in srgb, var(--pxi-c3) 9%, transparent)
+      );
+      backdrop-filter: blur(6px) saturate(1.4);
+      box-shadow: inset 0 1px 0 var(--pxi-inner-light, rgba(255, 255, 255, 0.5));
+      color: var(--global-text-color-900);
+      /* the animated hairline IS the border */
+      --pxi-stroke-alpha: 0.85;
+      --pxi-glow-alpha: 0;
+
+      &[data-hovered] {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--pxi-c1) 22%, transparent),
+          color-mix(in srgb, var(--pxi-c3) 15%, transparent)
+        );
+        --pxi-stroke-alpha: 1;
+        --pxi-glow-alpha: calc(var(--pxi-glow) * 0.4);
+      }
+      &[data-pressed] {
+        --pxi-glow-alpha: calc(var(--pxi-glow) * 0.25);
+      }
     }
 
     &[data-pxi-variant="quiet"] {
@@ -245,7 +305,7 @@ export const pxiScopeCSS = css`
     align-items: center;
     gap: var(--global-dimension-static-size-50);
     padding: 1px var(--global-dimension-static-size-100) 1px
-      var(--global-dimension-static-size-75);
+      var(--global-dimension-size-75);
     border-radius: var(--global-rounding-full);
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-700);
@@ -396,72 +456,10 @@ export const pxiScopeCSS = css`
   }
 
   /* ====================================================================== */
-  /* treatment: mono — hairline at rest, border shimmer + glyph tint on demand */
-  /* ====================================================================== */
-
-  &[data-pxi-treatment="mono"] {
-    .pxi-solve-button::before,
-    .pxi-ring::before,
-    .pxi-tag::before {
-      /* layer 1: traveling color band (transparent until animated states
-         raise its alpha); layer 2: constant hairline */
-      background-image:
-        linear-gradient(
-          90deg,
-          transparent 20%,
-          var(--pxi-c1) 40%,
-          var(--pxi-c2) 50%,
-          var(--pxi-c3) 60%,
-          transparent 80%
-        ),
-        linear-gradient(
-          var(--global-text-color-300),
-          var(--global-text-color-300)
-        );
-      background-size:
-        250% 100%,
-        100% 100%;
-      background-position:
-        200% 0,
-        0 0;
-      background-repeat: no-repeat, no-repeat;
-    }
-    /* the wipe runs only when the element is in a lively state */
-    .pxi-solve-button[data-hovered]::before,
-    .pxi-solve-button[data-pressed]::before,
-    .pxi-ring[data-pxi-state="active"]::before,
-    .pxi-ring[data-pxi-state="eligible"]::before {
-      animation: ${pxiWipe} calc(var(--pxi-speed) * var(--pxi-anim-mult, 1))
-        ease-in-out infinite;
-      animation-play-state: var(--pxi-anim-play, running);
-    }
-    /* restraint: no halo at all */
-    .pxi-solve-button::after,
-    .pxi-ring::after,
-    .pxi-tag::after {
-      display: none;
-    }
-    /* monochrome glyph until interaction earns the tint */
-    .pxi-solve-button__glyph,
-    .pxi-tag__glyph,
-    .pxi-menu-item__glyph {
-      color: currentColor;
-    }
-    .pxi-solve-button[data-hovered] .pxi-solve-button__glyph {
-      color: var(--pxi-c2);
-    }
-    .pxi-menu-item[data-hovered],
-    .pxi-menu-item[data-focused] {
-      background-color: var(--hover-background);
-    }
-  }
-
-  /* ====================================================================== */
-  /* treatment: glass — tinted translucency, static gradient hairline       */
+  /* treatment: glass — tinted translucency, animated iridescent hairline   */
   /* ====================================================================== */
 
   &[data-pxi-treatment="glass"] {
-    .pxi-solve-button,
     .pxi-tag {
       background: linear-gradient(
         135deg,
@@ -471,13 +469,6 @@ export const pxiScopeCSS = css`
       backdrop-filter: blur(8px) saturate(1.5);
       color: var(--global-text-color-900);
     }
-    .pxi-solve-button[data-hovered] {
-      background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--pxi-c1) 26%, transparent),
-        color-mix(in srgb, var(--pxi-c3) 18%, transparent)
-      );
-    }
     .pxi-solve-button::before,
     .pxi-ring::before,
     .pxi-tag::before {
@@ -485,28 +476,38 @@ export const pxiScopeCSS = css`
         135deg,
         var(--pxi-c1),
         var(--pxi-c2),
-        var(--pxi-c3)
+        var(--pxi-c3),
+        var(--pxi-c2),
+        var(--pxi-c1)
       );
+      background-size: 250% 100%;
       opacity: calc(var(--pxi-stroke-alpha) * 0.8);
+      animation: ${pxiGlassShimmer}
+        calc(var(--pxi-speed) * 2 * var(--pxi-anim-mult, 1)) ease-in-out
+        infinite;
+      animation-play-state: var(--pxi-anim-play, running);
     }
     .pxi-solve-button::after,
     .pxi-ring::after {
       background: radial-gradient(
-        100% 100% at 50% 120%,
+        60% 100% at 50% 120%,
         var(--pxi-c2),
         transparent 70%
       );
+      background-size: 200% 200%;
       filter: blur(var(--pxi-spread));
       opacity: calc(var(--pxi-glow-alpha) * 0.6);
+      animation: ${pxiGlassShimmer}
+        calc(var(--pxi-speed) * 2 * var(--pxi-anim-mult, 1)) ease-in-out
+        infinite;
+      animation-play-state: var(--pxi-anim-play, running);
     }
     &[data-theme="dark"] {
-      .pxi-solve-button,
       .pxi-tag {
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
       }
     }
     &[data-theme="light"] {
-      .pxi-solve-button,
       .pxi-tag {
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
       }
