@@ -1,6 +1,6 @@
 import debounce from "lodash/debounce";
 import type { ReactNode } from "react";
-import { startTransition, useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
@@ -121,6 +121,11 @@ export function GlobalSearchPalette({
   const { contains } = useFilter({ sensitivity: "base" });
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  // The results query suspends, so drive it through a transition: React keeps
+  // the prior results mounted while the next batch loads instead of throwing to
+  // the Suspense fallback (which would blank the palette). isPending dims the
+  // results while that refresh is in flight.
+  const [isPending, startTransition] = useTransition();
   const recentlyViewed = useRecentlyViewedStore((state) => state.resources);
   const recordResourceView = useRecentlyViewedStore(
     (state) => state.recordResourceView
@@ -135,7 +140,7 @@ export function GlobalSearchPalette({
           setSearchQuery(value);
         });
       }, SEARCH_DEBOUNCE_MS),
-    []
+    [startTransition]
   );
 
   const onSelectResource = (resource: RecentlyViewedResource) => {
@@ -160,6 +165,7 @@ export function GlobalSearchPalette({
           aria-label="Search Phoenix"
           placeholder="Search projects, datasets, experiments, prompts…"
           inputValue={inputValue}
+          isPending={isPending}
           onInputChange={(value) => {
             setInputValue(value);
             debouncedSetSearchQuery(value);
@@ -246,11 +252,19 @@ type SearchResultsChildren = (results: SearchResultsByType) => ReactNode;
 
 /**
  * Loads server search results and hands them to `children` as plain data.
- * When the query is empty it skips the network round-trip entirely. The query
- * (which suspends and throws on error) runs here — above CommandPalette rather
- * than inside its menu collection — so React Aria's detached collection render
- * cannot swallow a failure and the ErrorBoundary wrapping the palette catches
- * it, degrading gracefully instead of crashing the app.
+ *
+ * The query (which suspends and throws on error) runs here — above
+ * CommandPalette rather than inside its menu collection — so React Aria's
+ * detached collection render cannot swallow a failure and the ErrorBoundary
+ * wrapping the palette catches it, degrading gracefully instead of crashing.
+ *
+ * Crucially this component is rendered unconditionally regardless of whether
+ * there is a query: it always calls the same hook at the same tree position and
+ * always renders `children` at the same depth. That stability is what keeps the
+ * CommandPalette (and its modal overlay) mounted across the empty↔non-empty
+ * boundary — swapping element types there would remount the modal and flash the
+ * backdrop. When the query is empty we read `store-only` so no network request
+ * is made and the hook never suspends.
  */
 function SearchResultsLoader({
   searchQuery,
@@ -259,21 +273,7 @@ function SearchResultsLoader({
   searchQuery: string;
   children: SearchResultsChildren;
 }) {
-  if (!searchQuery) {
-    return children(new Map());
-  }
-  return (
-    <SearchResultsData searchQuery={searchQuery}>{children}</SearchResultsData>
-  );
-}
-
-function SearchResultsData({
-  searchQuery,
-  children,
-}: {
-  searchQuery: string;
-  children: SearchResultsChildren;
-}) {
+  const hasQuery = searchQuery.length > 0;
   const data = useLazyLoadQuery<GlobalSearchPaletteQuery>(
     graphql`
       query GlobalSearchPaletteQuery($searchQuery: String!) {
@@ -306,12 +306,18 @@ function SearchResultsData({
       }
     `,
     { searchQuery },
-    // Always revalidate: cached results render instantly while fresh results
-    // are fetched, so reopening the palette never shows stale entities
-    { fetchPolicy: "store-and-network" }
+    // With a query: always revalidate so cached results render instantly while
+    // fresh results are fetched, and reopening never shows stale entities.
+    // Without a query: `store-only` reads whatever is cached without a network
+    // request, so the hook resolves synchronously and never suspends — keeping
+    // the palette mounted and responsive before the user types anything.
+    { fetchPolicy: hasQuery ? "store-and-network" : "store-only" }
   );
 
   const resultsByType: SearchResultsByType = new Map();
+  if (!hasQuery) {
+    return children(resultsByType);
+  }
   const addEntry = (entry: ResultEntry) => {
     const entries = resultsByType.get(entry.resource.type);
     if (entries) {
