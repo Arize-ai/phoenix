@@ -52,12 +52,11 @@ async function installAgentDefaults({ page }: { page: Page }) {
         JSON.stringify({ agents: true, tracing_ux: false })
       );
       // Write the canonical v0 partialize shape directly so the fixture does
-      // not depend on the store's migrate path. Sessions are absent by
-      // design: they persist only in the server database. The store's
-      // version is tracked in app/src/store/agentStore.ts
-      // (`persist({ version })`); keep this fixture in sync when bumping the
-      // schema version, otherwise the migrate-forced field values silently
-      // override what the fixture intends to set.
+      // not depend on the store's migrate path. The store's version is
+      // tracked in app/src/store/agentStore.ts (`persist({ version })`); keep
+      // this fixture in sync when bumping the schema version, otherwise the
+      // migrate-forced field values silently override what the fixture
+      // intends to set.
       localStorage.setItem(
         "arize-phoenix-assistant",
         JSON.stringify({

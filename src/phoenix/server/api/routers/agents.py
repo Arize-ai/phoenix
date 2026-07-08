@@ -1244,12 +1244,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             set_subagent_final_tool_output = _set_subagent_final_tool_output
 
         bash_enabled = not get_env_phoenix_agents_disable_bash()
-        captured_bash_snapshot: list[bytes] = []
+        captured_bash_snapshot: bytes | None = None
 
         def _capture_bash_snapshot(snapshot: bytes) -> None:
             # Held until turn end, then persisted alongside the transcript
             # in the session's agent_session_snapshots row.
-            captured_bash_snapshot[:] = [snapshot]
+            nonlocal captured_bash_snapshot
+            captured_bash_snapshot = snapshot
 
         agent = build_agent(
             model=model,
@@ -1301,15 +1302,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         parent_context = extract_otel_context(dict(request.headers))
         request_parent_span_context = _get_span_context(parent_context)
-        completed_run: list[tuple[AgentRunResult[Any], SpanContext | None]] = []
+        completed_run: tuple[AgentRunResult[Any], SpanContext | None] | None = None
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
+            nonlocal completed_run
             span_context = (
                 agent_span_recorder.span_context
                 if agent_span_recorder and agent_span_recorder.span_context is not None
                 else request_parent_span_context
             )
-            completed_run[:] = [(result, span_context)]
+            completed_run = (result, span_context)
             yield _build_message_metadata_chunk(
                 span_context=span_context,
                 session_id=session_id,
@@ -1376,7 +1378,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     ):
                         yield message_chunk
             finally:
-                result, span_context = completed_run[0] if completed_run else (None, None)
+                result, span_context = completed_run if completed_run else (None, None)
                 try:
                     await _persist_agent_session_turn(
                         request.app.state.db,
@@ -1388,9 +1390,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             session_id=session_id,
                             span_context=span_context,
                         ),
-                        bashkit_snapshot=(
-                            captured_bash_snapshot[0] if captured_bash_snapshot else None
-                        ),
+                        bashkit_snapshot=captured_bash_snapshot,
                     )
                 except Exception:
                     logger.exception("Failed to persist agent session %r", session_id)
@@ -1508,8 +1508,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     @router.get(
         "/agents/{agent_id}/sessions/{session_id}/messages",
         response_model=GetAgentSessionMessagesResponse,
-        # Match the transcript's wire format everywhere else (persisted
-        # transcripts and streamed messages omit absent optional fields).
+        # Vercel AI SDK `UIMessage` JSON omits unset optional fields rather
+        # than emitting `null`, which is what FastAPI's response-model
+        # re-serialization would otherwise produce.
         response_model_exclude_none=True,
     )
     async def get_agent_session_messages(

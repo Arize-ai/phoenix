@@ -145,9 +145,7 @@ export type AgentSession = {
 };
 
 /**
- * A session entry from the server's persisted session list. Sessions are
- * stored only in the database; the store holds an in-memory mirror hydrated
- * through these stubs.
+ * A session entry from the list of persisted sessions.
  */
 export type ServerAgentSessionStub = {
   id: string;
