@@ -1350,6 +1350,17 @@ class MoonshotStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.MINIMAX,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "MiniMax-M3",
+    ],
+)
+class MiniMaxStreamingClient(OpenAIBaseStreamingClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.PERPLEXITY,
     model_names=[
         PROVIDER_DEFAULT,
