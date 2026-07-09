@@ -127,6 +127,7 @@ async def test_anthropic_accepts_converted_native_tool_history(
         capabilities=[NativeToolRetryCapability()],
     )
 
+    # Match the body so VCR cannot hide malformed Anthropic message history.
     with custom_vcr.use_cassette(
         match_on=["method", "scheme", "host", "port", "path", "query", "body"]
     ):
