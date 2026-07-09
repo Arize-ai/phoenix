@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo } from "react";
 
+import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import type { paths } from "@phoenix/api/__generated__/v1";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
 import { useAgentServerSessions } from "./useAgentServerSessions";
-import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 const CHAT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;

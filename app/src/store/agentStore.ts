@@ -125,8 +125,8 @@ export type PendingAgentMessage = {
  */
 export type AgentSession = {
   id: string;
-  /** Brief human-readable summary of the conversation so far. */
-  shortSummary: string;
+  /** Brief human-readable title for the conversation. */
+  title: string;
   /** Messages in AI SDK UIMessage format. */
   messages: AgentUIMessage[];
   /**
@@ -185,20 +185,20 @@ const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
   edits: "manual",
 };
 
-/** Prefix applied to a branched session's summary to denote its origin. */
-const FORK_SUMMARY_PREFIX = "(branch) ";
+/** Prefix applied to a branched session's title to denote its origin. */
+const FORK_TITLE_PREFIX = "(branch) ";
 
-/** Max length for a derived (non-LLM) fork summary before truncation. */
-const FORK_SUMMARY_MAX_LENGTH = 50;
+/** Max length for a derived (non-LLM) fork title before truncation. */
+const FORK_TITLE_MAX_LENGTH = 50;
 
 /**
- * Builds the summary for a session branched from `source`. Reuses the source's
- * LLM-generated summary when available, otherwise derives a short label from
+ * Builds the title for a session branched from `source`. Reuses the source's
+ * LLM-generated title when available, otherwise derives a short label from
  * its first user message, then prefixes it with `(branch)`. Seeding a non-empty
- * summary here also prevents the async summarizer from overwriting it.
+ * title here also prevents the async summarizer from overwriting it.
  */
-function buildForkSummary(source: AgentSession): string {
-  let base = source.shortSummary.trim();
+function buildForkTitle(source: AgentSession): string {
+  let base = source.title.trim();
   if (!base) {
     const firstUserMessage = source.messages.find(
       (message) => message.role === "user"
@@ -209,16 +209,16 @@ function buildForkSummary(source: AgentSession): string {
       .join(" ")
       .trim();
     base = text
-      ? text.length > FORK_SUMMARY_MAX_LENGTH
-        ? `${text.slice(0, FORK_SUMMARY_MAX_LENGTH)}...`
+      ? text.length > FORK_TITLE_MAX_LENGTH
+        ? `${text.slice(0, FORK_TITLE_MAX_LENGTH)}...`
         : text
       : "";
   }
   // Avoid stacking "(branch) (branch) ..." when branching from a branch.
-  if (base.startsWith(FORK_SUMMARY_PREFIX)) {
+  if (base.startsWith(FORK_TITLE_PREFIX)) {
     return base;
   }
-  return base ? `${FORK_SUMMARY_PREFIX}${base}` : FORK_SUMMARY_PREFIX.trim();
+  return base ? `${FORK_TITLE_PREFIX}${base}` : FORK_TITLE_PREFIX.trim();
 }
 
 export function getCurrentTraceConsentSettings(
@@ -313,7 +313,7 @@ export interface AgentState extends AgentProps {
     restoredInput?: string | null;
   }) => string | null;
   setActiveSession: (sessionId: string | null) => void;
-  updateSessionSummary: (sessionId: string, summary: string) => void;
+  updateSessionTitle: (sessionId: string, title: string) => void;
   updateSessionModelConfig: (
     sessionId: string,
     patch: Partial<ModelConfig>
@@ -668,7 +668,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         (state) => {
           const session: AgentSession = {
             id: sessionId,
-            shortSummary: "",
+            title: "",
             messages: [],
             messagesLoaded: true,
             context: [],
@@ -696,7 +696,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           created = true;
           const session: AgentSession = {
             id: sessionId,
-            shortSummary: buildForkSummary(source),
+            title: buildForkTitle(source),
             messages,
             messagesLoaded: true,
             // Carry over the source session's context and model so the fork
@@ -768,7 +768,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     setActiveSession: (sessionId) => {
       set({ activeSessionId: sessionId }, false, { type: "setActiveSession" });
     },
-    updateSessionSummary: (sessionId, summary) => {
+    updateSessionTitle: (sessionId, title) => {
       set(
         (state) => {
           const session = state.sessionMap[sessionId];
@@ -776,12 +776,12 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           return {
             sessionMap: {
               ...state.sessionMap,
-              [sessionId]: { ...session, shortSummary: summary },
+              [sessionId]: { ...session, title },
             },
           };
         },
         false,
-        { type: "updateSessionSummary" }
+        { type: "updateSessionTitle" }
       );
     },
     updateSessionModelConfig: (sessionId, patch) => {
@@ -873,13 +873,13 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
               // The local copy owns the transcript; only backfill the title.
               sessionMap[stub.id] = {
                 ...existing,
-                shortSummary: existing.shortSummary || stub.title,
+                title: existing.title || stub.title,
               };
               continue;
             }
             sessionMap[stub.id] = {
               id: stub.id,
-              shortSummary: stub.title,
+              title: stub.title,
               messages: [],
               messagesLoaded: false,
               context: [],

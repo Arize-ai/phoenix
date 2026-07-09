@@ -12,6 +12,7 @@ import { createAgentTurnTracer } from "@phoenix/agent/chat/agentTurnTracing";
 import {
   buildAgentChatRequestBody,
   type AgentChatRequestBodyPatch,
+  type AgentModelSelection,
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
@@ -41,11 +42,6 @@ import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-import {
-  useGenerateSessionSummary,
-  type AgentModelSelection,
-} from "./useGenerateSessionSummary";
-
 type AgentTurnTracer = ReturnType<typeof createAgentTurnTracer>;
 
 const turnTracersByChat = new WeakMap<Chat<AgentUIMessage>, AgentTurnTracer>();
@@ -64,8 +60,7 @@ const turnTracersByChat = new WeakMap<Chat<AgentUIMessage>, AgentTurnTracer>();
  * Durable state still lives in the agent store:
  * - messages are mirrored into Zustand so an idle chat can be reconstructed
  * - pending elicitation is store-backed and survives remounts
- * - summaries are generated from finalized message history, not transient UI
- *   component state
+ * - titles arrive in-band from the chat stream and are store-backed
  */
 export function useAgentChat({
   sessionId,
@@ -78,7 +73,6 @@ export function useAgentChat({
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary();
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -86,7 +80,7 @@ export function useAgentChat({
   // The Chat is cached per-session in the runtime registry, so its transport
   // and onFinish closures are captured once and reused across model changes.
   // Read through the ref so the latest model selection takes effect on the
-  // next send/summary without rebuilding the Chat.
+  // next send without rebuilding the Chat.
   const modelSelectionRef = useRef(modelSelection);
   modelSelectionRef.current = modelSelection;
 
@@ -126,10 +120,6 @@ export function useAgentChat({
                 // runtimes can be reclaimed and later reconstructed from state.
                 if (finalMessages) {
                   store.getState().setSessionMessages(sessionId, finalMessages);
-                  generateSummary({
-                    sessionId,
-                    modelSelection: modelSelectionRef.current,
-                  });
                 }
               },
             });
@@ -195,9 +185,7 @@ export function useAgentChat({
               },
               onData: (dataPart) => {
                 if (dataPart.type === "data-session-summary") {
-                  store
-                    .getState()
-                    .updateSessionSummary(sessionId, dataPart.data);
+                  store.getState().updateSessionTitle(sessionId, dataPart.data);
                 }
               },
               sendAutomaticallyWhen: ({ messages }) =>

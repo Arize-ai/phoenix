@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from typing import Any, Awaitable, Protocol
 from unittest.mock import Mock
 
@@ -8,7 +9,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
-from phoenix.server.agents.capabilities.tools.internal.bash import BashToolset
+from phoenix.server.agents.capabilities.tools.internal.bash import BashToolResult, BashToolset
 from phoenix.server.api.context import Context
 
 
@@ -42,6 +43,23 @@ class RunBash(Protocol):
     def __call__(self, command: str) -> Awaitable[dict[str, Any]]: ...
 
 
+def _assert_execution_metadata(result: dict[str, Any], command: str) -> None:
+    """Validate the invariants every bash tool result must satisfy."""
+    assert set(result) == set(BashToolResult.__annotations__)
+    assert result["command"] == command
+    started_at = datetime.fromisoformat(result["startedAt"])
+    completed_at = datetime.fromisoformat(result["completedAt"])
+    assert started_at.tzinfo == timezone.utc
+    assert completed_at.tzinfo == timezone.utc
+    assert started_at <= completed_at
+    assert isinstance(result["durationMs"], int)
+    assert result["durationMs"] >= 0
+    assert result["stdoutBytes"] == len(result["stdout"].encode("utf-8"))
+    assert result["stderrBytes"] == len(result["stderr"].encode("utf-8"))
+    assert isinstance(result["stdoutTruncated"], bool)
+    assert isinstance(result["stderrTruncated"], bool)
+
+
 def _build_run_bash(*, allow_mutations: bool) -> RunBash:
     toolset = BashToolset(
         schema=strawberry.Schema(query=Query, mutation=Mutation),
@@ -55,6 +73,7 @@ def _build_run_bash(*, allow_mutations: bool) -> RunBash:
         result: dict[str, Any] = await toolset.call_tool(
             "bash", {"summary": "Run shell command", "command": command}, ctx, tools["bash"]
         )
+        _assert_execution_metadata(result, command)
         return result
 
     return run
@@ -68,6 +87,27 @@ def run_bash() -> RunBash:
 @pytest.fixture
 def run_bash_with_mutations() -> RunBash:
     return _build_run_bash(allow_mutations=True)
+
+
+async def test_result_reports_execution_metadata(run_bash: RunBash) -> None:
+    command = "printf 'héllo'; printf 'wörld' >&2"
+    result = await run_bash(command)
+
+    assert result["command"] == command
+    assert result["exitCode"] == 0
+    assert result["stdout"] == "héllo"
+    assert result["stderr"] == "wörld"
+    # Byte counts measure encoded UTF-8, not characters: é and ö are two bytes each.
+    assert result["stdoutBytes"] == 6
+    assert result["stderrBytes"] == 6
+    assert result["stdoutTruncated"] is False
+    assert result["stderrTruncated"] is False
+    started_at = datetime.fromisoformat(result["startedAt"])
+    completed_at = datetime.fromisoformat(result["completedAt"])
+    assert started_at.tzinfo == timezone.utc
+    assert completed_at.tzinfo == timezone.utc
+    assert started_at <= completed_at
+    assert result["durationMs"] >= 0
 
 
 async def test_query_returns_data_payload(run_bash: RunBash) -> None:

@@ -29,7 +29,7 @@ import type { Size } from "@phoenix/types/geometry";
 import { PxiGlyph } from "./PxiGlyph";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
-import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionSummaryUtils";
+import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
 
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 520;

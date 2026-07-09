@@ -1,5 +1,6 @@
 import { Suspense, useState, type ReactNode, type RefObject } from "react";
 
+import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -15,11 +16,10 @@ import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
   getSessionDisplayName,
-} from "./sessionSummaryUtils";
+} from "./sessionTitleUtils";
 import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
-import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 type AgentChatPanelLayer = "content" | "modal";
 

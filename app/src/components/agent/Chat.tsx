@@ -14,6 +14,7 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
+import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
 import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
@@ -62,7 +63,6 @@ import {
 import { PxiGlyph } from "./PxiGlyph";
 import { isToolUIPart } from "./toolPartTypes";
 import { useAgentChat } from "./useAgentChat";
-import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 

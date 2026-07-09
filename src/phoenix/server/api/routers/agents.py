@@ -12,13 +12,13 @@ from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
-from openinference.instrumentation import using_metadata, using_session, using_user
+from openinference.instrumentation import using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.trace import SpanContext, format_span_id, format_trace_id, get_current_span
-from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
@@ -63,7 +63,7 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
     resolve_contexts,
 )
-from phoenix.server.agents.exceptions import AgentError, SummarizationError
+from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
@@ -272,45 +272,6 @@ class ChatRequest(
     ]
 ):
     """Discriminated union of chat request payloads."""
-
-
-class _SummarizeRequest(_ObservabilityMixin):
-    """Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
-
-    Carries the Vercel-style messages array; the backend owns the prompt and
-    the structured-output tool schema."""
-
-    model_config = ConfigDict(
-        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
-    )
-
-    messages: list[UIMessage]
-    model: AgentModelSelection
-
-    @field_validator("messages", mode="before")
-    @classmethod
-    def _sanitize_raw_inputs(cls, value: Any) -> Any:
-        # Workaround for https://github.com/pydantic/pydantic-ai/issues/5359:
-        # `DynamicTool*Part` in pydantic-ai's Vercel schema doesn't declare
-        # `providerExecuted`, so spec-compliant payloads from `useChat` fail
-        # `extra='forbid'` validation. Strip the field until the upstream fix lands.
-        if not isinstance(value, list):
-            return value
-        for msg in value:
-            if not isinstance(msg, dict):
-                continue
-            for part in msg.get("parts", []) or []:
-                if (
-                    isinstance(part, dict)
-                    and part.get("type") == "dynamic-tool"
-                    and "providerExecuted" in part
-                ):
-                    del part["providerExecuted"]
-        return value
-
-
-class _SummarizeResponse(BaseModel):
-    summary: str
 
 
 logger = logging.getLogger(__name__)
@@ -1484,77 +1445,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
-
-    @router.post(
-        "/agents/{agent_id}/sessions/{session_id}/summary",
-        response_model=_SummarizeResponse,
-    )
-    async def summarize_endpoint(
-        agent_id: str,
-        session_id: str,
-        request: Request,
-        body: _SummarizeRequest,
-    ) -> _SummarizeResponse:
-        if agent_id != _ASSISTANT_AGENT_ID:
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
-            raise HTTPException(status_code=403, detail="Agents are disabled")
-        recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
-        project_name = get_env_phoenix_agents_assistant_project_name()
-        tracer = (
-            Tracer(
-                span_cost_calculator=request.app.state.span_cost_calculator,
-                enable_remote_export=export_remote_traces,
-                project_name=project_name,
-            )
-            if (ingest_traces or export_remote_traces)
-            else None
-        )
-        tracer_provider = tracer.tracer_provider if tracer is not None else None
-
-        try:
-            async with request.app.state.db() as session:
-                model = await build_model(
-                    body.model,
-                    session=session,
-                    decrypt=request.app.state.decrypt,
-                    tracer_provider=tracer_provider,
-                )
-                user = request.user if "user" in request.scope else None
-                phoenix_user = user if isinstance(user, PhoenixUser) else None
-                phoenix_user_email = await _load_phoenix_user_email(
-                    session=session,
-                    phoenix_user=phoenix_user,
-                )
-        except AgentError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
-
-        history = VercelAIAdapter.load_messages(body.messages)
-        parent_context = extract_otel_context(dict(request.headers))
-        try:
-            with (
-                detached_otel_context(parent_context),
-                using_metadata({"session_id": session_id}),
-                _maybe_using_user(body.attach_user_id, phoenix_user_email),
-            ):
-                result = await summarize_messages(messages=history, model=model)
-        except SummarizationError as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
-        finally:
-            if tracer is not None:
-                tracer.tracer_provider.force_flush()
-                if ingest_traces:
-                    project_id = await _ensure_project_exists(request.app.state.db, project_name)
-                    db_traces = tracer.get_db_traces(project_id=project_id)
-                    await _persist_db_traces_and_emit_event(
-                        db=request.app.state.db,
-                        event_queue=request.state.event_queue,
-                        db_traces=db_traces,
-                    )
-                tracer.tracer_provider.shutdown()
-        return _SummarizeResponse(summary=result.summary.strip())
 
     @router.get(
         "/agents/{agent_id}/sessions/{session_id}/messages",

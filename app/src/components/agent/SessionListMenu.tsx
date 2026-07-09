@@ -19,7 +19,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { AgentSession } from "@phoenix/store/agentStore";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
-import { getSessionDisplayName } from "./sessionSummaryUtils";
+import { getSessionDisplayName } from "./sessionTitleUtils";
 
 /**
  * Props for the session list menu.

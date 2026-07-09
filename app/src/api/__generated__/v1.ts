@@ -1488,23 +1488,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Summarize Endpoint */
-        post: operations["summarize_endpoint_agents__agent_id__sessions__session_id__summary_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/agents/{agent_id}/sessions/{session_id}/messages": {
         parameters: {
             query?: never;
@@ -5492,23 +5475,6 @@ export interface components {
              */
             end_time: string;
         };
-        /**
-         * UIMessage
-         * @description A message as displayed in the UI by Vercel AI Elements.
-         */
-        UIMessage: {
-            /** Id */
-            id: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "system" | "user" | "assistant";
-            /** Metadata */
-            metadata?: unknown | null;
-            /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
-        };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
             /** Data */
@@ -5697,40 +5663,6 @@ export interface components {
             type: "web_access";
             /** Enabled */
             enabled: boolean;
-        };
-        /**
-         * _SummarizeRequest
-         * @description Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
-         *
-         *     Carries the Vercel-style messages array; the backend owns the prompt and
-         *     the structured-output tool schema.
-         */
-        _SummarizeRequest: {
-            /**
-             * Ingesttraces
-             * @default false
-             */
-            ingestTraces?: boolean;
-            /**
-             * Exportremotetraces
-             * @default false
-             */
-            exportRemoteTraces?: boolean;
-            /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
-             */
-            attachUserId?: boolean;
-            /** Messages */
-            messages: components["schemas"]["UIMessage"][];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-        };
-        /** _SummarizeResponse */
-        _SummarizeResponse: {
-            /** Summary */
-            summary: string;
         };
         /**
          * SessionSummaryChunk
@@ -10371,42 +10303,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                agent_id: string;
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["_SummarizeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["_SummarizeResponse"];
                 };
             };
             /** @description Validation Error */

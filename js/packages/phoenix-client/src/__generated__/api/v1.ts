@@ -1488,17 +1488,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/summary": {
+    "/agents/{agent_id}/sessions/{session_id}/messages": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Agent Session Messages
+         * @description The session's persisted transcript.
+         */
+        get: operations["get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get"];
         put?: never;
-        /** Summarize Endpoint */
-        post: operations["summarize_endpoint_agents__agent_id__sessions__session_id__summary_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2777,6 +2780,14 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+        };
+        /**
+         * GetAgentSessionMessagesResponse
+         * @description Body for GET /agents/{agent_id}/sessions/{session_id}/messages
+         */
+        GetAgentSessionMessagesResponse: {
+            /** Data */
+            data: components["schemas"]["AssistantMetadataUIMessage"][];
         };
         /** GetAnnotationConfigResponseBody */
         GetAnnotationConfigResponseBody: {
@@ -5464,23 +5475,6 @@ export interface components {
              */
             end_time: string;
         };
-        /**
-         * UIMessage
-         * @description A message as displayed in the UI by Vercel AI Elements.
-         */
-        UIMessage: {
-            /** Id */
-            id: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "system" | "user" | "assistant";
-            /** Metadata */
-            metadata?: unknown | null;
-            /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
-        };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
             /** Data */
@@ -5671,38 +5665,36 @@ export interface components {
             enabled: boolean;
         };
         /**
-         * _SummarizeRequest
-         * @description Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
+         * SessionSummaryChunk
+         * @description Transient ``data-session-summary`` stream chunk: the LLM-generated
+         *     session title, emitted on any turn that starts with the session still
+         *     untitled. Being transient, it reaches the client's ``onData`` callback
+         *     but is never appended to the message parts.
          *
-         *     Carries the Vercel-style messages array; the backend owns the prompt and
-         *     the structured-output tool schema.
+         *     See the Vercel AI SDK data stream protocol:
+         *         - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts
+         *         - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral
          */
-        _SummarizeRequest: {
+        SessionSummaryChunk: {
             /**
-             * Ingesttraces
-             * @default false
+             * Type
+             * @default data-session-summary
+             * @constant
              */
-            ingestTraces?: boolean;
+            type?: "data-session-summary";
             /**
-             * Exportremotetraces
-             * @default false
+             * Id
+             * @default null
              */
-            exportRemoteTraces?: boolean;
+            id?: string | null;
+            /** Data */
+            data: string;
             /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
+             * Transient
+             * @default true
+             * @constant
              */
-            attachUserId?: boolean;
-            /** Messages */
-            messages: components["schemas"]["UIMessage"][];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-        };
-        /** _SummarizeResponse */
-        _SummarizeResponse: {
-            /** Summary */
-            summary: string;
+            transient?: true;
         };
         /**
          * ToolCallProviderMetadata
@@ -10324,7 +10316,7 @@ export interface operations {
             };
         };
     };
-    summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
+    get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10334,11 +10326,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["_SummarizeRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -10346,7 +10334,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["_SummarizeResponse"];
+                    "application/json": components["schemas"]["GetAgentSessionMessagesResponse"];
                 };
             };
             /** @description Validation Error */
