@@ -317,6 +317,11 @@ ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS = "PHOENIX_ONLINE_EVAL_BACKSTO
 """
 How often the online-eval producer re-sweeps recent spans for work units missed by the
 frontier scan. Defaults to 3600.
+
+Configure this together with PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS: gap-free
+re-coverage requires the lookback span ids to be at least the instance-wide ingest rate
+multiplied by this interval. Spans share one id sequence, so the relevant rate is the sum
+across all projects and tenants.
 """
 ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS = (
     "PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS"
@@ -324,6 +329,12 @@ ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS = (
 """
 How far behind the producer watermark, measured in span ids, the backstop sweep looks.
 Defaults to 100000.
+
+With the default 3600-second interval, 100000 ids provides gap-free re-coverage only below
+about 28 spans per second instance-wide. Above that rate, rows can leave the lookback between
+sweeps, so the backstop no longer bounds exceptional loss from late-visible spans or skipped
+criteria. The reaper floor is aligned to this lookback; changes to the lookback and interval
+must preserve the coverage relationship and move the reaper floor with them.
 """
 ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS = "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS"
 """
