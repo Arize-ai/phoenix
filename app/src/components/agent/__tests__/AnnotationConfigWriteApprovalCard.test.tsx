@@ -110,6 +110,21 @@ describe("AnnotationConfigWriteApprovalCard", () => {
     expect(container.textContent).toContain("Replaces the entire config");
   });
 
+  it("disables the buttons and explains when the proposal is stale", () => {
+    renderCard(createPending({ accept: undefined, reject: undefined }));
+
+    const buttons = Array.from(container.querySelectorAll("button"));
+    const acceptButton = buttons.find(
+      (button) => button.textContent === "Accept"
+    );
+    const rejectButton = buttons.find(
+      (button) => button.textContent === "Reject"
+    );
+    expect(acceptButton?.disabled).toBe(true);
+    expect(rejectButton?.disabled).toBe(true);
+    expect(container.textContent).toContain("made in an earlier session");
+  });
+
   it("invokes accept and reject handlers from the card buttons", () => {
     const accept = vi.fn().mockResolvedValue(undefined);
     const reject = vi.fn().mockResolvedValue(undefined);
