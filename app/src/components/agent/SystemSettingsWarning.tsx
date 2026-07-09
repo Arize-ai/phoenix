@@ -7,6 +7,13 @@ const warningCSS = css`
   margin: 0 var(--global-dimension-size-150) var(--global-dimension-size-150);
 `;
 
+const wrapCtaCSS = css`
+  & > div {
+    flex-wrap: wrap;
+    gap: var(--global-dimension-size-100);
+  }
+`;
+
 export function SystemSettingsWarning({
   isAdmin = false,
   isOnSettingsPage = false,
@@ -39,7 +46,7 @@ export function SystemSettingsWarning({
     showSettingsLink = true;
   }
   return (
-    <div css={warningCSS}>
+    <div css={showSettingsLink ? [warningCSS, wrapCtaCSS] : warningCSS}>
       <Alert
         variant="warning"
         icon={<Icon svg={<Icons.Lock />} />}
