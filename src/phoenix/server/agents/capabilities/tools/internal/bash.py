@@ -322,13 +322,7 @@ def create_phoenix_gql_builtin(
 
 
 class BashToolResult(TypedDict):
-    """Result returned by the ``bash`` tool.
-
-    The camelCase keys mirror the frontend's ``BashToolCommandResult`` shape
-    (app/src/agent/tools/bash/bashToolTypes.ts) so the chat UI renders rich
-    output for server-executed commands exactly as it did for the retired
-    browser runtime.
-    """
+    """Result returned by the ``bash`` tool."""
 
     command: str
     stdout: str
