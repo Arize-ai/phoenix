@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import cast
-
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import (
     ModelMessage,
@@ -19,6 +17,7 @@ from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.native_tools import AbstractNativeTool, CodeExecutionTool
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.usage import RunUsage
 
 from phoenix.server.agents.capabilities import NativeToolRetryCapability
 from tests.unit.vcr import CustomVCR
@@ -55,7 +54,7 @@ async def test_converts_unconfigured_native_tool_call_without_result() -> None:
     )
 
     normalized = await NativeToolRetryCapability[None]().after_model_request(
-        cast(RunContext[None], None),
+        _run_context(),
         request_context=_request_context(),
         response=response,
     )
@@ -78,7 +77,7 @@ async def test_keeps_configured_native_tool_call_without_result() -> None:
     response = _code_execution_response_without_result()
 
     normalized = await NativeToolRetryCapability[None]().after_model_request(
-        cast(RunContext[None], None),
+        _run_context(),
         request_context=_request_context(native_tools=[CodeExecutionTool()]),
         response=response,
     )
@@ -101,7 +100,7 @@ async def test_keeps_unconfigured_native_tool_call_with_result() -> None:
     )
 
     normalized = await NativeToolRetryCapability[None]().after_model_request(
-        cast(RunContext[None], None),
+        _run_context(),
         request_context=_request_context(),
         response=response,
     )
@@ -186,6 +185,10 @@ def _request_context(
         model_settings=None,
         model_request_parameters=ModelRequestParameters(native_tools=native_tools or []),
     )
+
+
+def _run_context() -> RunContext[None]:
+    return RunContext(deps=None, model=TestModel(), usage=RunUsage())
 
 
 def _code_execution_response_without_result() -> ModelResponse:
