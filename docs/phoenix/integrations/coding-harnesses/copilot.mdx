@@ -1,0 +1,135 @@
+---
+title: "GitHub Copilot"
+description: "Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix using the Arize Coding Harness Tracing."
+keywords: ["github copilot", "copilot tracing", "phoenix", "vs code", "agent tracing"]
+---
+
+> Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix for full observability.
+
+[GitHub Copilot](https://github.com/features/copilot) is GitHub's AI pair programmer for VS Code and the command line. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments both Copilot surfaces and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. VS Code uses per-event hook files; the CLI uses a single `hooks.json`.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+Copilot hooks are installed at the **project level** under `.github/hooks/`. Run the installer from the root of each repository where you want tracing.
+
+### Curl installer
+
+**macOS / Linux:**
+
+```bash
+cd /path/to/your/project
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- copilot
+```
+
+**Windows (PowerShell):**
+
+```powershell
+cd C:\path\to\your\project
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat copilot
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd /path/to/your/project
+/path/to/coding-harness-tracing/install.sh copilot         # macOS / Linux
+\path\to\coding-harness-tracing\install.bat copilot        # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name, writes them to `~/.arize/harness/config.json`, and registers VS Code (`.github/hooks/*.json`) and Copilot CLI (`.github/hooks/hooks.json`) hooks in the current project.
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json` and apply across all projects. Per-project environment variables override `config.json` and can be set in your shell profile.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export ARIZE_PROJECT_NAME="copilot"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+`ARIZE_PROJECT_NAME` and `ARIZE_TRACE_ENABLED` are backend-agnostic harness settings and keep the `ARIZE_` prefix regardless of destination.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+## Observe
+
+Once tracing is enabled, Copilot activity from both VS Code and the CLI streams to Phoenix. You'll see:
+
+- **Turn traces** — each prompt → response cycle as a parent span
+- **Tool spans** — nested spans for each tool call with inputs, outputs, and duration
+- **Subagent spans** — activity from any subagents Copilot spawns (VS Code)
+- **Error spans** — `errorOccurred` events from the CLI
+- **Session grouping** — all turns from the same session grouped by `session_id`
+
+### Hooks Captured
+
+Copilot in VS Code and on the CLI use different event names. The harness handles both with one install command.
+
+| Surface | Hook File | Events |
+| :------ | :-------- | :----- |
+| VS Code | `.github/hooks/session-start.json` | `SessionStart` |
+| VS Code | `.github/hooks/user-prompt.json` | `UserPromptSubmit` |
+| VS Code | `.github/hooks/pre-tool.json` | `PreToolUse` |
+| VS Code | `.github/hooks/post-tool.json` | `PostToolUse` |
+| VS Code | `.github/hooks/stop.json` | `Stop` |
+| VS Code | `.github/hooks/subagent-stop.json` | `SubagentStop` |
+| CLI | `.github/hooks/hooks.json` | `sessionStart`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`, `sessionEnd` |
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [Copilot tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/copilot/README.md).
+
+## Uninstall
+
+Run from the project root where you installed the hooks:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall copilot
+```
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://github.com/features/copilot"
+    title="GitHub Copilot"
+    horizontal
+  />
+</CardGroup>

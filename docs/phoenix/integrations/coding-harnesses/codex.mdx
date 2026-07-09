@@ -1,0 +1,127 @@
+---
+title: "Codex"
+description: "Trace OpenAI Codex CLI agent turns, tool calls, and API requests in Phoenix using the Arize Coding Harness Tracing."
+keywords: ["codex", "codex tracing", "phoenix", "openai codex", "agent tracing"]
+---
+
+> Trace Codex CLI agent turns, tool calls, and API requests in Phoenix for full observability.
+
+[Codex](https://openai.com/index/codex-cli-open-source/) is OpenAI's open-source CLI coding agent. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments Codex `notify` hook events and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Each agent turn is captured as an LLM span with tool calls, token usage, and API request details.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+### Curl installer
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- codex
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat codex
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh codex         # macOS / Linux
+install.bat codex          # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name. Open a new shell after install so the update takes effect.
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json`. To override per category, set environment variables in `~/.codex/arize-env.sh` — the notify hook sources this file automatically. Env values take precedence over `config.json`.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export ARIZE_PROJECT_NAME="codex"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+`ARIZE_PROJECT_NAME` and `ARIZE_TRACE_ENABLED` are backend-agnostic harness settings and keep the `ARIZE_` prefix regardless of destination.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+## Observe
+
+Once tracing is enabled, Codex activity is streamed to Phoenix. You'll see:
+
+- **Turn traces** — each agent turn (user prompt to assistant response) as a parent LLM span
+- **Tool call spans** — one per tool decision and result pair
+- **API request spans** — one per API or WebSocket request
+- **Session grouping** — all turns from the same session grouped by `session.id`
+- **Token usage** — prompt, completion, and total token counts on every turn span
+
+### Hooks Captured
+
+Codex emits a single `notify` event with subtypes for each lifecycle stage. The hook fans them out into the spans listed above.
+
+| Notify subtype           | Span Kind | Description                                               |
+| :----------------------- | :-------- | :-------------------------------------------------------- |
+| `agent-turn-start`       | LLM       | Parent turn span starts; records the user prompt          |
+| `agent-tool-call`        | TOOL      | Tool invocation, records name + input + result            |
+| `agent-api-request`      | LLM       | One span per API / WebSocket request to the model         |
+| `agent-turn-complete`    | LLM       | Turn span ends; records output and token counts           |
+| `agent-session-complete` | CHAIN     | Session teardown, state file cleanup                      |
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [Codex tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/codex/README.md).
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall codex
+```
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://developers.openai.com/codex/cli"
+    title="Codex CLI"
+    horizontal
+  />
+</CardGroup>

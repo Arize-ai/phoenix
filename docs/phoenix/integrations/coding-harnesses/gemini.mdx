@@ -1,0 +1,128 @@
+---
+title: "Gemini CLI"
+description: "Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix using the Arize Coding Harness Tracing."
+keywords: ["gemini", "gemini cli", "gemini tracing", "phoenix", "agent tracing"]
+---
+
+> Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix for full observability.
+
+[Gemini CLI](https://github.com/google-gemini/gemini-cli) is Google's open-source command-line agent for Gemini. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments Gemini CLI sessions and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+### Curl installer
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- gemini
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat gemini
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh gemini        # macOS / Linux
+install.bat gemini         # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name, writes them to `~/.arize/harness/config.json`, and registers the hooks in `~/.gemini/settings.json`.
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json`. Environment variables override values in `config.json` and can be set in your shell profile.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export ARIZE_PROJECT_NAME="gemini"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+`ARIZE_PROJECT_NAME` and `ARIZE_TRACE_ENABLED` are backend-agnostic harness settings and keep the `ARIZE_` prefix regardless of destination.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+## Observe
+
+Once tracing is enabled, Gemini CLI activity is streamed to Phoenix. You'll see:
+
+- **Session traces** — each session bracketed by `SessionStart` and `SessionEnd`
+- **Agent spans** — paired `BeforeAgent` / `AfterAgent` events for each agent step
+- **LLM spans** — paired `BeforeModel` / `AfterModel` events with model info and tokens
+- **Tool spans** — paired `BeforeTool` / `AfterTool` events with input, output, and duration
+- **Session grouping** — all spans from the same session grouped by `session_id`
+
+### Hooks Captured
+
+| Hook            | Span Kind | Description                                  |
+| :-------------- | :-------- | :------------------------------------------- |
+| `SessionStart`  | CHAIN     | Session initialized                          |
+| `BeforeAgent`   | CHAIN     | Agent step started, records input            |
+| `AfterAgent`    | CHAIN     | Agent step completed, records output         |
+| `BeforeModel`   | LLM       | Model call started, records prompt and model |
+| `AfterModel`    | LLM       | Model call completed, records output and tokens |
+| `BeforeTool`    | TOOL      | Tool invocation started, records name and input |
+| `AfterTool`     | TOOL      | Tool invocation completed, records output and duration |
+| `SessionEnd`    | CHAIN     | Session teardown, state file cleanup         |
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [Gemini tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/gemini/README.md).
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall gemini
+```
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://github.com/google-gemini/gemini-cli"
+    title="Gemini CLI"
+    horizontal
+  />
+</CardGroup>

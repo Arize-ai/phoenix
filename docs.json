@@ -493,6 +493,20 @@
             ]
           },
           {
+            "group": "Coding Harness Tracing",
+            "icon": "terminal",
+            "pages": [
+              "docs/phoenix/integrations/coding-harnesses/claude-code",
+              "docs/phoenix/integrations/coding-harnesses/codex",
+              "docs/phoenix/integrations/coding-harnesses/copilot",
+              "docs/phoenix/integrations/coding-harnesses/cursor",
+              "docs/phoenix/integrations/coding-harnesses/gemini",
+              "docs/phoenix/integrations/coding-harnesses/kiro",
+              "docs/phoenix/integrations/coding-harnesses/oh-my-pi",
+              "docs/phoenix/integrations/coding-harnesses/opencode"
+            ]
+          },
+          {
             "group": "LLM Providers",
             "icon": "user-robot",
             "pages": [
