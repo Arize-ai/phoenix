@@ -40,16 +40,18 @@ def test_get_env_collector_endpoint(env: dict[str, str], expected: Optional[str]
         ({"PHOENIX_PROJECT_NAME": "same", "PHOENIX_PROJECT": "same"}, "same"),
     ],
 )
-def test_get_env_project_name(env: dict[str, str], expected: str) -> None:
-    config_module._warned_project_conflict = False
+def test_get_env_project_name(
+    env: dict[str, str], expected: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(config_module, "_warned_project_conflict", False)
     with patch.dict(os.environ, env, clear=True):
         assert get_env_project_name() == expected
 
 
 def test_get_env_project_name_warns_once_on_conflict(
-    caplog: pytest.LogCaptureFixture,
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    config_module._warned_project_conflict = False
+    monkeypatch.setattr(config_module, "_warned_project_conflict", False)
     env = {"PHOENIX_PROJECT_NAME": "canonical", "PHOENIX_PROJECT": "alias"}
     with patch.dict(os.environ, env, clear=True):
         with caplog.at_level("WARNING"):
