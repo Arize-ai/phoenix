@@ -45,12 +45,10 @@ class _NativeToolHallucinationModel(WrapperModel):
         )
 
 
-async def test_reclassifies_unavailable_unfulfilled_native_tool_call() -> None:
+async def test_converts_unavailable_unfulfilled_native_tool_call() -> None:
     before = TextPart(content="before")
     after = TextPart(content="after")
-    response = ModelResponse(
-        parts=[before, *_unfulfilled_code_execution_response().parts, after]
-    )
+    response = ModelResponse(parts=[before, *_unfulfilled_code_execution_response().parts, after])
 
     normalized = await NativeToolRetryCapability[None]().after_model_request(
         cast(RunContext[None], None),

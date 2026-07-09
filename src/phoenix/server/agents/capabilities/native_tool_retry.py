@@ -38,11 +38,9 @@ class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
         parts = []
         for part in response.parts:
             if isinstance(part, NativeToolCallPart):
-                should_convert_unconfigured_native_tool_call_without_result = (
-                    part.tool_name not in configured_native_tool_names
-                    and part.tool_call_id not in native_tool_call_ids_with_results
-                )
-                if should_convert_unconfigured_native_tool_call_without_result:
+                is_configured = part.tool_name in configured_native_tool_names
+                has_result = part.tool_call_id in native_tool_call_ids_with_results
+                if not is_configured and not has_result:
                     part = _as_function_tool_call(part)
             parts.append(part)
         return replace(response, parts=parts) if parts != response.parts else response
