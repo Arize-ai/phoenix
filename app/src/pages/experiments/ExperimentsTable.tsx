@@ -91,6 +91,7 @@ import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
+import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
 
 const PAGE_SIZE = 100;
 
@@ -727,6 +728,7 @@ export function ExperimentsTable({
               onChange={setSearchText}
             />
           </View>
+          <ExperimentsMetricsChartSelector />
           <ExperimentColumnSelector
             columns={selectorColumns}
             columnVisibility={columnVisibility}

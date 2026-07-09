@@ -15,6 +15,7 @@ import { useExperimentMetricsData } from "./useExperimentMetricsData";
  * This layout, not the catalog key order, determines the display order.
  */
 const METRIC_PAGE_ROWS: ExperimentMetricChartKey[][] = [
+  ["annotation_scores"],
   ["latency", "error_rate"],
   ["cost", "tokens"],
 ];

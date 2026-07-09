@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
+import type { ChartTypeIconType } from "@phoenix/components/chart";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import {
   EXPERIMENT_METRIC_CHART_KEYS,
   EXPERIMENT_METRICS_EXPERIMENT_COUNT,
 } from "@phoenix/pages/dataset/constants";
 
+import { ExperimentAnnotationScoresChart } from "./ExperimentAnnotationScoresChart";
 import { ExperimentCostChart } from "./ExperimentCostChart";
 import { ExperimentErrorRateChart } from "./ExperimentErrorRateChart";
 import { ExperimentLatencyChart } from "./ExperimentLatencyChart";
@@ -22,6 +24,10 @@ export type ExperimentMetricChart = {
    * Shown as the chart panel subtitle
    */
   description: string;
+  /**
+   * The chart's visual archetype, shown as a glyph in the chart selector
+   */
+  chartType: ChartTypeIconType;
   Component: (props: ExperimentMetricViewProps) => ReactNode;
 };
 
@@ -33,24 +39,34 @@ const CHART_DEFINITIONS: Record<
   ExperimentMetricChartKey,
   Omit<ExperimentMetricChart, "key">
 > = {
+  annotation_scores: {
+    name: "Annotation scores",
+    description: `Annotation scores and latency across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "line",
+    Component: ExperimentAnnotationScoresChart,
+  },
   latency: {
     name: "Run latency",
     description: `Average run latency across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
     Component: ExperimentLatencyChart,
   },
   cost: {
     name: "Cost",
     description: `Estimated cost in USD across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
     Component: ExperimentCostChart,
   },
   tokens: {
     name: "Token usage",
     description: `Prompt and completion tokens across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
     Component: ExperimentTokensChart,
   },
   error_rate: {
     name: "Error rate",
     description: `Share of runs that errored across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
     Component: ExperimentErrorRateChart,
   },
 };
@@ -69,3 +85,13 @@ const CHARTS_BY_KEY = Object.fromEntries(
 export const getExperimentMetricChart = (
   key: ExperimentMetricChartKey
 ): ExperimentMetricChart => CHARTS_BY_KEY[key];
+
+export const getExperimentMetricCharts = (
+  keys: readonly ExperimentMetricChartKey[]
+): ExperimentMetricChart[] => keys.map((key) => CHARTS_BY_KEY[key]);
+
+/**
+ * All the experiment metric charts, in chart selector display order.
+ */
+export const EXPERIMENT_METRIC_CHARTS: ExperimentMetricChart[] =
+  getExperimentMetricCharts(EXPERIMENT_METRIC_CHART_KEYS);

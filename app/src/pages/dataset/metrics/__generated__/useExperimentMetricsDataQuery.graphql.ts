@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6aa9892e44ef857d5ea91d6b50888881>>
+ * @generated SignedSource<<30f59d1a78cc4b84eaeb61a599c9e7dd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,10 @@ export type useExperimentMetricsDataQuery$data = {
     readonly metricsExperiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
+          readonly annotationSummaries: ReadonlyArray<{
+            readonly annotationName: string;
+            readonly meanScore: number | null;
+          }>;
           readonly averageRunLatencyMs: number | null;
           readonly costSummary: {
             readonly completion: {
@@ -161,6 +165,31 @@ v5 = {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "ExperimentAnnotationSummary",
+                  "kind": "LinkedField",
+                  "name": "annotationSummaries",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "annotationName",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "meanScore",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "SpanCostSummary",
                   "kind": "LinkedField",
                   "name": "costSummary",
@@ -270,16 +299,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6b360fb5c068162984440af6517c09c9",
+    "cacheID": "d802b67b33e83de71601ca30b81e3d4b",
     "id": null,
     "metadata": {},
     "name": "useExperimentMetricsDataQuery",
     "operationKind": "query",
-    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            averageRunLatencyMs\n            errorRate\n            runCount\n            costSummary {\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n              total {\n                tokens\n                cost\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            averageRunLatencyMs\n            errorRate\n            runCount\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n            costSummary {\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n              total {\n                tokens\n                cost\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6fa512ff5e0c76b004263cb8e8cd6149";
+(node as any).hash = "bd2c3d14d111bf9bc8e2625899f6d625";
 
 export default node;

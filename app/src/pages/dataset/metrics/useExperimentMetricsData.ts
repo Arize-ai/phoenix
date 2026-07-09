@@ -21,6 +21,10 @@ export const experimentMetricsQuery = graphql`
               averageRunLatencyMs
               errorRate
               runCount
+              annotationSummaries {
+                annotationName
+                meanScore
+              }
               costSummary {
                 prompt {
                   tokens
@@ -49,6 +53,10 @@ export type ExperimentMetricsDatum = {
   averageRunLatencyMs: number | null;
   errorRate: number | null;
   runCount: number;
+  annotationSummaries: readonly {
+    annotationName: string;
+    meanScore: number | null;
+  }[];
   promptCost: number | null;
   completionCost: number | null;
   totalCost: number | null;
@@ -78,6 +86,7 @@ export function useExperimentMetricsData(datasetId: string): {
         averageRunLatencyMs: experiment.averageRunLatencyMs,
         errorRate: experiment.errorRate,
         runCount: experiment.runCount,
+        annotationSummaries: experiment.annotationSummaries,
         promptCost: experiment.costSummary.prompt.cost,
         completionCost: experiment.costSummary.completion.cost,
         totalCost: experiment.costSummary.total.cost,
