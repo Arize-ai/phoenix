@@ -5,7 +5,9 @@ live-model PXI server-side evals as Phoenix experiments.
 
 ## Layout
 
-- `harness/` runs live PXI agent experiments against Phoenix datasets.
+- `harness/` runs live PXI agent experiments against Phoenix datasets. See
+  [`harness/README.md`](harness/README.md) for the integration guide (how it
+  wires into the production agent, and the invariants that keep a run honest).
 - `datasets/` stores YAML datasets shared by harness and CI workflows.
 - `evaluators/` stores code evaluators for PXI tool behavior.
 - `trace_ingest/` is reserved for future trace-to-dataset tooling.
