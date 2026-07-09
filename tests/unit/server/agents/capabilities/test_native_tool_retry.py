@@ -9,6 +9,7 @@ from pydantic_ai.messages import (
     NativeToolCallPart,
     NativeToolReturnPart,
     RetryPromptPart,
+    TextPart,
     ToolCallPart,
 )
 from pydantic_ai.models import ModelRequestContext, ModelRequestParameters
@@ -45,7 +46,11 @@ class _NativeToolHallucinationModel(WrapperModel):
 
 
 async def test_reclassifies_unavailable_unfulfilled_native_tool_call() -> None:
-    response = _unfulfilled_code_execution_response()
+    before = TextPart(content="before")
+    after = TextPart(content="after")
+    response = ModelResponse(
+        parts=[before, *_unfulfilled_code_execution_response().parts, after]
+    )
 
     normalized = await NativeToolRetryCapability[None]().after_model_request(
         cast(RunContext[None], None),
@@ -54,8 +59,10 @@ async def test_reclassifies_unavailable_unfulfilled_native_tool_call() -> None:
     )
 
     assert normalized is not response
-    assert len(normalized.parts) == 1
-    call = normalized.parts[0]
+    assert len(normalized.parts) == 3
+    assert normalized.parts[0] == before
+    assert normalized.parts[2] == after
+    call = normalized.parts[1]
     assert isinstance(call, ToolCallPart)
     assert not isinstance(call, NativeToolCallPart)
     assert call.tool_name == "code_execution"
@@ -118,7 +125,9 @@ async def test_anthropic_accepts_reclassified_native_tool_history(
         capabilities=[NativeToolRetryCapability()],
     )
 
-    with custom_vcr.use_cassette():
+    with custom_vcr.use_cassette(
+        match_on=["method", "scheme", "host", "port", "path", "query", "body"]
+    ):
         result = await agent.run(
             "Begin.",
             model_settings=ModelSettings(temperature=0.0, max_tokens=32),
