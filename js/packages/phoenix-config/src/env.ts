@@ -139,8 +139,8 @@ let hasWarnedProjectConflict = false;
  * // Returns "checkout"
  */
 export function getProjectFromEnvironment(): string | undefined {
-  const canonical = process.env[ENV_PHOENIX_PROJECT];
-  const alias = process.env[ENV_PHOENIX_PROJECT_NAME];
+  const canonical = getStrFromEnvironment(ENV_PHOENIX_PROJECT);
+  const alias = getStrFromEnvironment(ENV_PHOENIX_PROJECT_NAME);
 
   if (canonical && alias && canonical !== alias && !hasWarnedProjectConflict) {
     hasWarnedProjectConflict = true;
