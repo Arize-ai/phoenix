@@ -21,7 +21,7 @@ import {
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
 
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
 
@@ -75,13 +75,8 @@ const settingSwitchCSS = css`
   }
 `;
 
-function useIsAdmin() {
-  const { viewer } = useViewer();
-  // Match IsAdminIfAuthEnabled server-side: no viewer => auth disabled => treat as admin
-  return !viewer || viewer.role?.name === "ADMIN";
-}
-
 function AssistantAgentEnabledSetting() {
+  const isAdmin = useIsAdmin();
   const adminAssistantEnabled = useAgentContext(
     (state) => state.agentsConfig.assistantEnabled
   );
@@ -108,7 +103,9 @@ function AssistantAgentEnabledSetting() {
             </Text>
           </span>
         </Switch>
-        {!adminAssistantEnabled ? <SystemSettingsWarning /> : null}
+        {!adminAssistantEnabled ? (
+          <SystemSettingsWarning isAdmin={isAdmin} isOnSettingsPage />
+        ) : null}
       </li>
     </ul>
   );
@@ -146,7 +143,7 @@ function PersonalSettingsSection() {
         {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
           <AgentSubagentsSettings />
         ) : null}
-        <AgentObservabilitySettings />
+        <AgentObservabilitySettings isOnSettingsPage />
       </AgentSettingsForm>
     </Flex>
   );
