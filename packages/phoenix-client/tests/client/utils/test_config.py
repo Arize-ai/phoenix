@@ -7,6 +7,7 @@ import pytest
 
 import phoenix.client.utils.config as config_module
 from phoenix.client.utils.config import (
+    get_base_url,
     get_env_collector_endpoint,
     get_env_phoenix_api_key,
     get_env_project_name,
@@ -117,6 +118,16 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, env, clear=True):
             assert get_env_collector_endpoint() == "http://from-otel:4318"
 
+    def test_process_host_beats_file_collector_endpoint(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n")
+        with patch.dict(os.environ, {"PHOENIX_HOST": "process-host"}, clear=True):
+            assert get_base_url() == "http://process-host:6006"
+
+    def test_process_project_alias_beats_file_canonical(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_PROJECT=file-project\n")
+        with patch.dict(os.environ, {"PHOENIX_PROJECT_NAME": "process-project"}, clear=True):
+            assert get_env_project_name() == "process-project"
+
     def test_non_phoenix_keys_ignored(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text(
             "OTEL_EXPORTER_OTLP_ENDPOINT=http://from-file:4318\n"
@@ -188,6 +199,32 @@ class TestEnvFileDiscovery:
             with caplog.at_level("WARNING"):
                 assert get_env_phoenix_api_key() == "file-key"
         assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+    def test_invalid_utf8_file_is_ignored(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_bytes(b"PHOENIX_API_KEY=\xff\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_api_key() is None
+
+    def test_file_owned_by_another_user_is_ignored(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        if not hasattr(os, "getuid"):
+            pytest.skip("file ownership is not available on this platform")
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_API_KEY=untrusted\n")
+        real_stat = Path.stat
+
+        def stat_with_foreign_owner(path: Path, *args: object, **kwargs: object) -> os.stat_result:
+            stat = real_stat(path, *args, **kwargs)
+            if path == env_file:
+                values = list(stat)
+                values[4] = os.getuid() + 1
+                return os.stat_result(values)
+            return stat
+
+        monkeypatch.setattr(Path, "stat", stat_with_foreign_owner)
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_api_key() is None
 
 
 @pytest.mark.parametrize(

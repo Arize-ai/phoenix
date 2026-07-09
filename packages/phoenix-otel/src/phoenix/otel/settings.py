@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import stat as stat_module
 import urllib.parse
 from pathlib import Path
 from re import compile
@@ -9,6 +10,7 @@ from typing import Dict, List, Optional, Set
 logger = logging.getLogger(__name__)
 
 ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
+ENV_OTEL_EXPORTER_OTLP_HEADERS = "OTEL_EXPORTER_OTLP_HEADERS"
 
 # Phoenix environment variables
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -61,7 +63,9 @@ def _find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
     for candidate_dir in (directory, *directory.parents):
         candidate = candidate_dir / PHOENIX_ENV_FILE_NAME
         try:
-            if candidate.is_file():
+            stat = candidate.stat()
+            is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
+            if stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user:
                 return candidate
         except OSError:
             continue
@@ -137,7 +141,7 @@ def _load_env_file_values() -> Dict[str, str]:
         return {}
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, UnicodeError):
         return {}
     _warn_if_env_file_permissive(path)
     return _parse_env_file(text)
@@ -191,8 +195,13 @@ def get_env_project_name() -> str:
         str: The resolved project name, defaults to "default".
     """
     global _warned_project_conflict
-    canonical = _getenv(ENV_PHOENIX_PROJECT)
-    alias = _getenv(ENV_PHOENIX_PROJECT_NAME)
+    process_canonical = os.getenv(ENV_PHOENIX_PROJECT)
+    process_alias = os.getenv(ENV_PHOENIX_PROJECT_NAME)
+    file_values = (
+        _load_env_file_values() if process_canonical is None and process_alias is None else {}
+    )
+    canonical = process_canonical or file_values.get(ENV_PHOENIX_PROJECT)
+    alias = process_alias or file_values.get(ENV_PHOENIX_PROJECT_NAME)
     if canonical and alias and canonical != alias and not _warned_project_conflict:
         _warned_project_conflict = True
         logger.warning(
@@ -220,7 +229,11 @@ def get_env_client_headers() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Parsed headers dictionary or None if not set.
     """
-    if headers_str := _getenv(ENV_PHOENIX_CLIENT_HEADERS):
+    if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
+        return parse_env_headers(headers_str)
+    if os.getenv(ENV_OTEL_EXPORTER_OTLP_HEADERS) is not None:
+        return None
+    if headers_str := _load_env_file_values().get(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
 
@@ -235,7 +248,11 @@ def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Authorization header dictionary or None if API key not set.
     """
-    api_key = _getenv(ENV_PHOENIX_API_KEY)
+    api_key = os.getenv(ENV_PHOENIX_API_KEY)
+    if api_key is None and os.getenv(ENV_OTEL_EXPORTER_OTLP_HEADERS) is not None:
+        return None
+    if api_key is None:
+        api_key = _load_env_file_values().get(ENV_PHOENIX_API_KEY)
     if api_key:
         return dict(authorization=f"Bearer {api_key}")
     else:

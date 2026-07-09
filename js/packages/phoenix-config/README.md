@@ -51,6 +51,9 @@ for a `.env.phoenix` file in the current working directory — walking up toward
 the filesystem root and stopping at the first match — and read
 `PHOENIX_`-prefixed keys from it (dotenv format):
 
+Add `.env.phoenix` to your repository's ignore rules before storing credentials
+in this file (the Phoenix repository already ignores it).
+
 ```bash
 # .env.phoenix
 PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/your-space

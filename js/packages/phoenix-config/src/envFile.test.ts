@@ -7,6 +7,7 @@ import {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
   ENV_PHOENIX_PROJECT,
+  ENV_PHOENIX_PROJECT_NAME,
   getIntFromEnvironment,
   getProjectFromEnvironment,
   getStrFromEnvironment,
@@ -123,6 +124,19 @@ describe("envFile", () => {
       const nearestPath = writeEnvFile(nestedDir, "PHOENIX_API_KEY=nested\n");
       expect(findEnvFile({ startDir: nestedDir })).toBe(nearestPath);
     });
+
+    it("ignores files not owned by the current user", () => {
+      if (
+        process.platform === "win32" ||
+        typeof process.getuid !== "function"
+      ) {
+        return;
+      }
+      writeEnvFile(tempDir, "PHOENIX_API_KEY=untrusted\n");
+      const currentUid = process.getuid();
+      vi.spyOn(process, "getuid").mockReturnValue(currentUid + 1);
+      expect(findEnvFile({ startDir: tempDir })).toBeUndefined();
+    });
   });
 
   describe("readEnvFileValue", () => {
@@ -193,6 +207,12 @@ describe("envFile", () => {
     it("getProjectFromEnvironment falls back to the file", () => {
       writeEnvFile(tempDir, "PHOENIX_PROJECT=file-project\n");
       expect(getProjectFromEnvironment()).toBe("file-project");
+    });
+
+    it("resolves both process project aliases before file values", () => {
+      writeEnvFile(tempDir, "PHOENIX_PROJECT=file-project\n");
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "process-project";
+      expect(getProjectFromEnvironment()).toBe("process-project");
     });
   });
 });

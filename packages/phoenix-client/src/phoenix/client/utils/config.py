@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import stat as stat_module
 from pathlib import Path
 from typing import Optional, overload
 
@@ -54,7 +55,9 @@ def _find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
     for candidate_dir in (directory, *directory.parents):
         candidate = candidate_dir / PHOENIX_ENV_FILE_NAME
         try:
-            if candidate.is_file():
+            stat = candidate.stat()
+            is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
+            if stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user:
                 return candidate
         except OSError:
             continue
@@ -130,7 +133,7 @@ def _load_env_file_values() -> dict[str, str]:
         return {}
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, UnicodeError):
         return {}
     _warn_if_env_file_permissive(path)
     return _parse_env_file(text)
@@ -194,7 +197,18 @@ def get_base_url() -> httpx.URL:
     host: str = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    base_url: str = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+    process_endpoint = os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or os.getenv(
+        ENV_OTEL_EXPORTER_OTLP_ENDPOINT
+    )
+    has_process_host_config = any(
+        os.getenv(key) is not None for key in (ENV_PHOENIX_HOST, ENV_PHOENIX_PORT)
+    )
+    file_endpoint = (
+        None
+        if has_process_host_config
+        else _load_env_file_values().get(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    )
+    base_url: str = process_endpoint or file_endpoint or f"http://{host}:{get_env_port()}"
     return httpx.URL(base_url)
 
 
@@ -246,8 +260,13 @@ def get_env_project_name() -> str:
     warning naming both values is emitted.
     """
     global _warned_project_conflict
-    canonical = getenv(ENV_PHOENIX_PROJECT)
-    alias = getenv(ENV_PHOENIX_PROJECT_NAME)
+    process_canonical = os.getenv(ENV_PHOENIX_PROJECT)
+    process_alias = os.getenv(ENV_PHOENIX_PROJECT_NAME)
+    file_values = (
+        _load_env_file_values() if process_canonical is None and process_alias is None else {}
+    )
+    canonical = process_canonical or file_values.get(ENV_PHOENIX_PROJECT)
+    alias = process_alias or file_values.get(ENV_PHOENIX_PROJECT_NAME)
     if canonical and alias and canonical != alias and not _warned_project_conflict:
         _warned_project_conflict = True
         logger.warning(

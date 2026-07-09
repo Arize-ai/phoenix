@@ -16,6 +16,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { parseEnvFile } from "./envFileParser";
+
+export { parseEnvFile } from "./envFileParser";
+
 /**
  * Name of the credential hand-off file discovered at (or above) the working
  * directory.
@@ -32,7 +36,6 @@ export const PHOENIX_ENV_FILE_NAME = ".env.phoenix";
  */
 export const ENV_PHOENIX_DISCOVER_CONFIG = "PHOENIX_DISCOVER_CONFIG";
 
-const ENV_FILE_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const DISCOVERY_OPT_OUT_VALUES = new Set(["false", "0", "no", "off"]);
 
 /**
@@ -74,7 +77,12 @@ export function findEnvFile({
   for (;;) {
     const candidate = path.join(currentDir, PHOENIX_ENV_FILE_NAME);
     try {
-      if (fs.statSync(candidate).isFile()) {
+      const stats = fs.statSync(candidate);
+      const isOwnedByCurrentUser =
+        process.platform === "win32" ||
+        typeof process.getuid !== "function" ||
+        stats.uid === process.getuid();
+      if (stats.isFile() && isOwnedByCurrentUser) {
         return candidate;
       }
     } catch {
@@ -118,51 +126,6 @@ function warnIfEnvFilePermissive(filePath: string): void {
         `e.g. \`chmod 600 ${filePath}\`.`
     );
   }
-}
-
-/**
- * Parses dotenv-formatted text, keeping only `PHOENIX_`-prefixed keys.
- *
- * Supports comments (lines starting with `#`), an optional `export ` prefix,
- * and values wrapped in single or double quotes. Inline comments are not
- * stripped. Keys without a `PHOENIX_` prefix and empty values are ignored.
- *
- * @param contents - the raw text of a `.env.phoenix` file
- * @returns A map of the `PHOENIX_`-prefixed keys found in the file.
- */
-export function parseEnvFile(
-  contents: string
-): Partial<Record<string, string>> {
-  const values: Partial<Record<string, string>> = {};
-  for (const rawLine of contents.split(/\r?\n/)) {
-    let line = rawLine.trim();
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-    if (line.startsWith("export ")) {
-      line = line.slice("export ".length).trimStart();
-    }
-    const separatorIndex = line.indexOf("=");
-    if (separatorIndex === -1) {
-      continue;
-    }
-    const key = line.slice(0, separatorIndex).trim();
-    if (!key.startsWith("PHOENIX_") || !ENV_FILE_KEY_PATTERN.test(key)) {
-      continue;
-    }
-    let value = line.slice(separatorIndex + 1).trim();
-    const isQuoted =
-      value.length >= 2 &&
-      value[0] === value[value.length - 1] &&
-      (value[0] === '"' || value[0] === "'");
-    if (isQuoted) {
-      value = value.slice(1, -1);
-    }
-    if (value) {
-      values[key] = value;
-    }
-  }
-  return values;
 }
 
 /**

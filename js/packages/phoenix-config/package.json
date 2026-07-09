@@ -23,6 +23,10 @@
   ],
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
+  "browser": {
+    "./dist/esm/envFile.js": "./dist/esm/envFile.browser.js",
+    "./dist/src/envFile.js": "./dist/src/envFile.browser.js"
+  },
   "types": "dist/src/index.d.ts",
   "exports": {
     ".": {

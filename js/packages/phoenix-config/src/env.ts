@@ -155,8 +155,18 @@ let hasWarnedProjectConflict = false;
  * // Returns "checkout"
  */
 export function getProjectFromEnvironment(): string | undefined {
-  const canonical = getStrFromEnvironment(ENV_PHOENIX_PROJECT);
-  const alias = getStrFromEnvironment(ENV_PHOENIX_PROJECT_NAME);
+  const processCanonical = process.env[ENV_PHOENIX_PROJECT];
+  const processAlias = process.env[ENV_PHOENIX_PROJECT_NAME];
+  const canonical =
+    processCanonical ??
+    (processAlias === undefined
+      ? readEnvFileValue(ENV_PHOENIX_PROJECT)
+      : undefined);
+  const alias =
+    processAlias ??
+    (processCanonical === undefined
+      ? readEnvFileValue(ENV_PHOENIX_PROJECT_NAME)
+      : undefined);
 
   if (canonical && alias && canonical !== alias && !hasWarnedProjectConflict) {
     hasWarnedProjectConflict = true;
