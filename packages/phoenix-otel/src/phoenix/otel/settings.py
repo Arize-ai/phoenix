@@ -5,7 +5,7 @@ import stat as stat_module
 import urllib.parse
 from pathlib import Path
 from re import compile
-from typing import Dict, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +147,19 @@ def _load_env_file_values() -> Dict[str, str]:
     return _parse_env_file(text)
 
 
+def _load_process_env_values(keys: Iterable[str]) -> Dict[str, str]:
+    return {key: value.strip() for key in keys if (value := os.getenv(key)) is not None}
+
+
+def _resolve_env_tier(keys: Iterable[str]) -> Dict[str, str]:
+    """Resolve related settings from the process tier, then the file tier."""
+    keys = tuple(keys)
+    if process_values := _load_process_env_values(keys):
+        return process_values
+    file_values = _load_env_file_values()
+    return {key: file_values[key] for key in keys if key in file_values}
+
+
 def _getenv(key: str) -> Optional[str]:
     """
     Read a Phoenix setting from the process environment, falling back to the
@@ -155,9 +168,7 @@ def _getenv(key: str) -> Optional[str]:
     A value present in the process environment (even an empty string) always wins;
     the file never overrides anything already set.
     """
-    if (value := os.getenv(key)) is not None:
-        return value
-    return _load_env_file_values().get(key)
+    return _resolve_env_tier((key,)).get(key)
 
 
 def get_env_collector_endpoint() -> Optional[str]:
@@ -172,11 +183,8 @@ def get_env_collector_endpoint() -> Optional[str]:
     Returns:
         Optional[str]: The collector endpoint URL if found, None otherwise.
     """
-    return (
-        os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
-        or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
-        or _load_env_file_values().get(ENV_PHOENIX_COLLECTOR_ENDPOINT)
-    )
+    values = _resolve_env_tier((ENV_PHOENIX_COLLECTOR_ENDPOINT, ENV_OTEL_EXPORTER_OTLP_ENDPOINT))
+    return values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 _warned_project_conflict = False
@@ -195,13 +203,9 @@ def get_env_project_name() -> str:
         str: The resolved project name, defaults to "default".
     """
     global _warned_project_conflict
-    process_canonical = os.getenv(ENV_PHOENIX_PROJECT)
-    process_alias = os.getenv(ENV_PHOENIX_PROJECT_NAME)
-    file_values = (
-        _load_env_file_values() if process_canonical is None and process_alias is None else {}
-    )
-    canonical = process_canonical or file_values.get(ENV_PHOENIX_PROJECT)
-    alias = process_alias or file_values.get(ENV_PHOENIX_PROJECT_NAME)
+    values = _resolve_env_tier((ENV_PHOENIX_PROJECT, ENV_PHOENIX_PROJECT_NAME))
+    canonical = values.get(ENV_PHOENIX_PROJECT)
+    alias = values.get(ENV_PHOENIX_PROJECT_NAME)
     if canonical and alias and canonical != alias and not _warned_project_conflict:
         _warned_project_conflict = True
         logger.warning(
@@ -229,11 +233,8 @@ def get_env_client_headers() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Parsed headers dictionary or None if not set.
     """
-    if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
-        return parse_env_headers(headers_str)
-    if os.getenv(ENV_OTEL_EXPORTER_OTLP_HEADERS) is not None:
-        return None
-    if headers_str := _load_env_file_values().get(ENV_PHOENIX_CLIENT_HEADERS):
+    values = _resolve_env_tier((ENV_PHOENIX_CLIENT_HEADERS, ENV_OTEL_EXPORTER_OTLP_HEADERS))
+    if headers_str := values.get(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
 
@@ -248,11 +249,8 @@ def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Authorization header dictionary or None if API key not set.
     """
-    api_key = os.getenv(ENV_PHOENIX_API_KEY)
-    if api_key is None and os.getenv(ENV_OTEL_EXPORTER_OTLP_HEADERS) is not None:
-        return None
-    if api_key is None:
-        api_key = _load_env_file_values().get(ENV_PHOENIX_API_KEY)
+    values = _resolve_env_tier((ENV_PHOENIX_API_KEY, ENV_OTEL_EXPORTER_OTLP_HEADERS))
+    api_key = values.get(ENV_PHOENIX_API_KEY)
     if api_key:
         return dict(authorization=f"Bearer {api_key}")
     else:

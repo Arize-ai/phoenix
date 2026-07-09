@@ -3,7 +3,7 @@ import os
 import re
 import stat as stat_module
 from pathlib import Path
-from typing import Optional, overload
+from typing import Iterable, Optional, overload
 
 import httpx
 
@@ -139,6 +139,19 @@ def _load_env_file_values() -> dict[str, str]:
     return _parse_env_file(text)
 
 
+def _load_process_env_values(keys: Iterable[str]) -> dict[str, str]:
+    return {key: value.strip() for key in keys if (value := os.getenv(key)) is not None}
+
+
+def _resolve_env_tier(keys: Iterable[str]) -> dict[str, str]:
+    """Resolve related settings from the process tier, then the file tier."""
+    keys = tuple(keys)
+    if process_values := _load_process_env_values(keys):
+        return process_values
+    file_values = _load_env_file_values()
+    return {key: file_values[key] for key in keys if key in file_values}
+
+
 def get_env_phoenix_api_key() -> Optional[str]:
     return getenv(ENV_PHOENIX_API_KEY)
 
@@ -184,24 +197,27 @@ def get_env_client_headers() -> dict[str, str]:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    # Both process environment variables take precedence over the .env.phoenix
-    # file, so the standard OTLP variable is checked before the file fallback.
-    if endpoint := (os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or "").strip():
-        return endpoint
-    if endpoint := (os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT) or "").strip():
-        return endpoint
-    return _load_env_file_values().get(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    values = _resolve_env_tier((ENV_PHOENIX_COLLECTOR_ENDPOINT, ENV_OTEL_EXPORTER_OTLP_ENDPOINT))
+    return values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_base_url() -> httpx.URL:
     host: str = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    process_endpoint = os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or os.getenv(
+    process_values = _load_process_env_values(
+        (
+            ENV_PHOENIX_COLLECTOR_ENDPOINT,
+            ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+            ENV_PHOENIX_HOST,
+            ENV_PHOENIX_PORT,
+        )
+    )
+    process_endpoint = process_values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or process_values.get(
         ENV_OTEL_EXPORTER_OTLP_ENDPOINT
     )
     has_process_host_config = any(
-        os.getenv(key) is not None for key in (ENV_PHOENIX_HOST, ENV_PHOENIX_PORT)
+        key in process_values for key in (ENV_PHOENIX_HOST, ENV_PHOENIX_PORT)
     )
     file_endpoint = (
         None
@@ -240,11 +256,7 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
         Leading and trailing whitespaces are stripped from the value, assuming they were
         inadvertently added.
     """
-    if (value := os.getenv(key)) is not None:
-        return value.strip()
-    if key.startswith("PHOENIX_") and (file_value := _load_env_file_values().get(key)) is not None:
-        return file_value
-    return default
+    return _resolve_env_tier((key,)).get(key, default)
 
 
 _warned_project_conflict = False
@@ -260,13 +272,9 @@ def get_env_project_name() -> str:
     warning naming both values is emitted.
     """
     global _warned_project_conflict
-    process_canonical = os.getenv(ENV_PHOENIX_PROJECT)
-    process_alias = os.getenv(ENV_PHOENIX_PROJECT_NAME)
-    file_values = (
-        _load_env_file_values() if process_canonical is None and process_alias is None else {}
-    )
-    canonical = process_canonical or file_values.get(ENV_PHOENIX_PROJECT)
-    alias = process_alias or file_values.get(ENV_PHOENIX_PROJECT_NAME)
+    values = _resolve_env_tier((ENV_PHOENIX_PROJECT, ENV_PHOENIX_PROJECT_NAME))
+    canonical = values.get(ENV_PHOENIX_PROJECT)
+    alias = values.get(ENV_PHOENIX_PROJECT_NAME)
     if canonical and alias and canonical != alias and not _warned_project_conflict:
         _warned_project_conflict = True
         logger.warning(
