@@ -27,7 +27,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
-import { getEnvApiKey, getEnvCollectorURL } from "./config";
+import { getEnvApiKey, getEnvCollectorURL, getEnvProjectName } from "./config";
 
 /**
  * Type definition for HTTP headers used in OTLP communication
@@ -57,6 +57,10 @@ export type RegisterParams = {
   /**
    * The project name that spans will be associated with in Phoenix.
    * This helps organize and filter traces in the Phoenix UI.
+   *
+   * If not provided, the system will check the `PHOENIX_PROJECT_NAME`
+   * environment variable (canonical) and then the `PHOENIX_PROJECT` alias,
+   * falling back to `"default"` if neither is set.
    *
    * @default "default"
    * @example "my-web-app"
@@ -460,7 +464,7 @@ function bindGlobalTracerProviderRegistrationToShutdown({
  */
 export function register(params: RegisterParams): NodeTracerProvider {
   const {
-    projectName = "default",
+    projectName = getEnvProjectName() ?? "default",
     instrumentations,
     global = true,
     diagLogLevel,

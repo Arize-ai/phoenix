@@ -63,6 +63,23 @@ describe("resolveConfig", () => {
     });
   });
 
+  it("reads the project from PHOENIX_PROJECT_NAME", () => {
+    vi.stubEnv("PHOENIX_PROJECT_NAME", "canonical-project");
+
+    const config = loadConfigFromEnvironment();
+
+    expect(config.project).toBe("canonical-project");
+  });
+
+  it("prefers PHOENIX_PROJECT_NAME over PHOENIX_PROJECT", () => {
+    vi.stubEnv("PHOENIX_PROJECT_NAME", "canonical-project");
+    vi.stubEnv("PHOENIX_PROJECT", "alias-project");
+
+    const config = loadConfigFromEnvironment();
+
+    expect(config.project).toBe("canonical-project");
+  });
+
   it("loads headers from the shared phoenix config helpers", () => {
     vi.stubEnv("PHOENIX_CLIENT_HEADERS", '{"X-Test":"value"}');
 

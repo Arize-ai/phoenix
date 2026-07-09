@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ENV_PHOENIX_API_KEY,
@@ -8,11 +8,15 @@ import {
   ENV_PHOENIX_HOST,
   ENV_PHOENIX_LOG_LEVEL,
   ENV_PHOENIX_PORT,
+  ENV_PHOENIX_PROJECT,
+  ENV_PHOENIX_PROJECT_NAME,
   type EnvironmentConfig,
   getEnvironmentConfig,
   getHeadersFromEnvironment,
   getIntFromEnvironment,
+  getProjectFromEnvironment,
   getStrFromEnvironment,
+  resetProjectConflictWarningForTesting,
 } from "./env";
 import type { Headers } from "./types";
 
@@ -103,6 +107,9 @@ describe("env", () => {
     ENV_PHOENIX_CLIENT_HEADERS,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_API_KEY,
+    ENV_PHOENIX_LOG_LEVEL,
+    ENV_PHOENIX_PROJECT_NAME,
+    ENV_PHOENIX_PROJECT,
   ];
 
   beforeEach(() => {
@@ -132,6 +139,8 @@ describe("env", () => {
       expect(ENV_PHOENIX_CLIENT_HEADERS).toBe("PHOENIX_CLIENT_HEADERS");
       expect(ENV_PHOENIX_COLLECTOR_ENDPOINT).toBe("PHOENIX_COLLECTOR_ENDPOINT");
       expect(ENV_PHOENIX_API_KEY).toBe("PHOENIX_API_KEY");
+      expect(ENV_PHOENIX_PROJECT_NAME).toBe("PHOENIX_PROJECT_NAME");
+      expect(ENV_PHOENIX_PROJECT).toBe("PHOENIX_PROJECT");
     });
   });
 
@@ -291,6 +300,8 @@ describe("env", () => {
         PHOENIX_CLIENT_HEADERS: undefined,
         PHOENIX_COLLECTOR_ENDPOINT: undefined,
         PHOENIX_API_KEY: undefined,
+        PHOENIX_LOG_LEVEL: undefined,
+        PHOENIX_PROJECT_NAME: undefined,
       });
     });
 
@@ -340,7 +351,65 @@ describe("env", () => {
       expect(keys).toContain(ENV_PHOENIX_COLLECTOR_ENDPOINT);
       expect(keys).toContain(ENV_PHOENIX_API_KEY);
       expect(keys).toContain(ENV_PHOENIX_LOG_LEVEL);
-      expect(keys).toHaveLength(7);
+      expect(keys).toContain(ENV_PHOENIX_PROJECT_NAME);
+      expect(keys).toHaveLength(8);
+    });
+
+    it("should resolve the project name into the config", () => {
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical-project";
+
+      const config = getEnvironmentConfig();
+
+      expect(config[ENV_PHOENIX_PROJECT_NAME]).toBe("canonical-project");
+    });
+  });
+
+  describe("getProjectFromEnvironment", () => {
+    beforeEach(() => {
+      resetProjectConflictWarningForTesting();
+    });
+
+    it("should return undefined when neither variable is set", () => {
+      expect(getProjectFromEnvironment()).toBeUndefined();
+    });
+
+    it("should read PHOENIX_PROJECT_NAME when only it is set", () => {
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical";
+      expect(getProjectFromEnvironment()).toBe("canonical");
+    });
+
+    it("should read PHOENIX_PROJECT when only the alias is set", () => {
+      process.env[ENV_PHOENIX_PROJECT] = "alias";
+      expect(getProjectFromEnvironment()).toBe("alias");
+    });
+
+    it("should prefer PHOENIX_PROJECT_NAME over PHOENIX_PROJECT", () => {
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical";
+      process.env[ENV_PHOENIX_PROJECT] = "alias";
+      expect(getProjectFromEnvironment()).toBe("canonical");
+    });
+
+    it("should not warn when both are set to the same value", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "same";
+      process.env[ENV_PHOENIX_PROJECT] = "same";
+
+      expect(getProjectFromEnvironment()).toBe("same");
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it("should warn once when both are set to different values", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical";
+      process.env[ENV_PHOENIX_PROJECT] = "alias";
+
+      expect(getProjectFromEnvironment()).toBe("canonical");
+      expect(getProjectFromEnvironment()).toBe("canonical");
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT_NAME");
+      expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT");
+      warn.mockRestore();
     });
   });
 

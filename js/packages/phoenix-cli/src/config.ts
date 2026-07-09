@@ -3,6 +3,7 @@ import {
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
   getHeadersFromEnvironment,
+  getProjectFromEnvironment,
   getStrFromEnvironment,
 } from "@arizeai/phoenix-config";
 
@@ -77,8 +78,9 @@ export function loadConfigFromEnvironment(): PhoenixConfig {
     config.headers = headers;
   }
 
-  // Also check for PHOENIX_PROJECT env var
-  const project = getStrFromEnvironment("PHOENIX_PROJECT");
+  // Resolve the project from PHOENIX_PROJECT_NAME (canonical) or the
+  // PHOENIX_PROJECT alias.
+  const project = getProjectFromEnvironment();
   if (project) {
     config.project = project;
   }
@@ -217,7 +219,7 @@ export function validateConfig({
 
   if (projectRequired && !config.project) {
     errors.push(
-      "Project not configured. Set PHOENIX_PROJECT environment variable or use --project flag."
+      "Project not configured. Set PHOENIX_PROJECT_NAME environment variable or use --project flag."
     );
   }
 
@@ -253,7 +255,7 @@ export function getConfigErrorMessage({
     "     export PHOENIX_HOST=http://localhost:6006",
     "",
     "  2. Set your project name:",
-    "     export PHOENIX_PROJECT=my-project",
+    "     export PHOENIX_PROJECT_NAME=my-project",
     "",
     "Or use CLI flags:",
     "  px trace list --endpoint http://localhost:6006 --project my-project",
