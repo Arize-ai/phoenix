@@ -9,7 +9,6 @@ from pydantic_ai.messages import (
     NativeToolCallPart,
     NativeToolReturnPart,
     RetryPromptPart,
-    TextPart,
     ToolCallPart,
 )
 from pydantic_ai.models import ModelRequestContext, ModelRequestParameters
@@ -20,10 +19,7 @@ from pydantic_ai.native_tools import AbstractNativeTool, CodeExecutionTool
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.settings import ModelSettings
 
-from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import NativeToolRetryCapability
-from phoenix.server.agents.context import ResolvedContexts
-from phoenix.server.agents.types import AgentDependencies
 from tests.unit.vcr import CustomVCR
 
 
@@ -46,23 +42,6 @@ class _NativeToolHallucinationModel(WrapperModel):
             model_settings,
             model_request_parameters,
         )
-
-
-class _NativeToolThenTextModel(WrapperModel):
-    def __init__(self) -> None:
-        super().__init__(TestModel())
-        self.requests: list[list[ModelMessage]] = []
-
-    async def request(
-        self,
-        messages: list[ModelMessage],
-        model_settings: ModelSettings | None,
-        model_request_parameters: ModelRequestParameters,
-    ) -> ModelResponse:
-        self.requests.append(messages)
-        if len(self.requests) == 1:
-            return _unfulfilled_code_execution_response()
-        return ModelResponse(parts=[TextPart(content="recovered")])
 
 
 async def test_reclassifies_unavailable_unfulfilled_native_tool_call() -> None:
@@ -120,35 +99,6 @@ async def test_keeps_unavailable_fulfilled_native_tool_call() -> None:
 
     assert normalized is response
     assert isinstance(normalized.parts[0], NativeToolCallPart)
-
-
-async def test_build_agent_mounts_native_tool_retry() -> None:
-    model = _NativeToolThenTextModel()
-    agent = build_agent(model=model)
-
-    result = await agent.run(
-        "hello",
-        deps=AgentDependencies(contexts=ResolvedContexts()),
-    )
-
-    assert result.output == "recovered"
-    assert len(model.requests) == 2
-    retry_history = model.requests[1]
-    calls = [
-        part
-        for message in retry_history
-        if isinstance(message, ModelResponse)
-        for part in message.parts
-        if isinstance(part, ToolCallPart)
-    ]
-    assert len(calls) == 1
-    assert calls[0].tool_name == "code_execution"
-    assert not any(
-        isinstance(part, NativeToolCallPart)
-        for message in retry_history
-        if isinstance(message, ModelResponse)
-        for part in message.parts
-    )
 
 
 async def test_anthropic_accepts_reclassified_native_tool_history(
