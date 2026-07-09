@@ -108,13 +108,15 @@ async def test_keeps_unconfigured_native_tool_call_with_result() -> None:
     assert isinstance(normalized.parts[0], NativeToolCallPart)
 
 
-async def test_anthropic_accepts_reclassified_native_tool_history(
+async def test_anthropic_accepts_converted_native_tool_history(
     anthropic_api_key: str,
     custom_vcr: CustomVCR,
 ) -> None:
-    del anthropic_api_key
     expected_output = "Recovered from a native tool call that was not configured."
-    inner_model = AnthropicModel("claude-haiku-4-5", provider=AnthropicProvider())
+    inner_model = AnthropicModel(
+        "claude-haiku-4-5",
+        provider=AnthropicProvider(api_key=anthropic_api_key),
+    )
     model = _NativeToolHallucinationModel(inner_model)
     agent = Agent(
         model,
@@ -136,15 +138,15 @@ async def test_anthropic_accepts_reclassified_native_tool_history(
     assert result.output == expected_output
     assert model.request_count == 2
     messages = result.all_messages()
-    reclassified_calls = [
+    converted_calls = [
         part
         for message in messages
         if isinstance(message, ModelResponse)
         for part in message.parts
         if isinstance(part, ToolCallPart)
     ]
-    assert len(reclassified_calls) == 1
-    assert reclassified_calls[0].tool_name == "code_execution"
+    assert len(converted_calls) == 1
+    assert converted_calls[0].tool_name == "code_execution"
     assert not any(
         isinstance(part, NativeToolCallPart)
         for message in messages
