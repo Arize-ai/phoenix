@@ -1,5 +1,17 @@
 # Changelog
 
+## [17.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.22.0...arize-phoenix-v17.23.0) (2026-07-09)
+
+
+### Features
+
+* Add GPT 5.6 family ([#14180](https://github.com/Arize-ai/phoenix/issues/14180)) ([2128417](https://github.com/Arize-ai/phoenix/commit/2128417deabfcb8ac7047e3d8fdfcdcdf7b5a93e))
+
+
+### Bug Fixes
+
+* **app:** hide version upgrade notices on managed deployments ([#14176](https://github.com/Arize-ai/phoenix/issues/14176)) ([b07955f](https://github.com/Arize-ai/phoenix/commit/b07955f9db595a9ccb9b865c4b1011b5809b2a29))
+
 ## [17.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.21.0...arize-phoenix-v17.22.0) (2026-07-09)
 
 
