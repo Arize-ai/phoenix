@@ -149,19 +149,28 @@ jobs:
             echo "${gate_output}"
             echo '```'
             echo ""
-            if [[ -f "${results}" ]]; then
+            if [[ -f "${results}" ]] &&
+              pass_rates="$(
+                jq -r '
+                  .datasets[] | .dataset as $d
+                  | .evaluators[] | .evaluator as $e
+                  | .splits | to_entries[]
+                  | "| `\($d)` | `\($e)` | \(.key) | \(.value.passed)/\(.value.scored) | \((.value.pass_rate*1000|round)/1000) |"
+                ' "${results}"
+              )" &&
+              session_summary="$(
+                jq -r '.session | "status \(.status), collected \(.collected), completed \(.completed), errors \(.errors)"' "${results}"
+              )"; then
               echo "## Pass rates"
               echo ""
               echo "| Dataset | Evaluator | Split | Passed | Pass rate |"
               echo "| --- | --- | --- | --- | --- |"
-              jq -r '
-                .datasets[] | .dataset as $d
-                | .evaluators[] | .evaluator as $e
-                | .splits | to_entries[]
-                | "| `\($d)` | `\($e)` | \(.key) | \(.value.passed)/\(.value.scored) | \((.value.pass_rate*1000|round)/1000) |"
-              ' "${results}"
+              echo "${pass_rates}"
               echo ""
-              echo "Session: $(jq -r '.session | "status \(.status), collected \(.collected), completed \(.completed), errors \(.errors)"' "${results}")"
+              echo "Session: ${session_summary}"
+              echo ""
+            elif [[ -f "${results}" ]]; then
+              echo "Results artifact exists, but its pass-rate details could not be rendered."
               echo ""
             else
               echo "No results artifact was written — the run failed before recording any data."
