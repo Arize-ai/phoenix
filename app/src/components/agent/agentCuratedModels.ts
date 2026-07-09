@@ -17,6 +17,7 @@ export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentBuiltInModelSelection[
     { provider: "ANTHROPIC", modelName: "claude-opus-4-8" },
     { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
     { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
+    { provider: "OPENAI", modelName: "gpt-5.6-sol" },
     { provider: "OPENAI", modelName: "gpt-5.4" },
     { provider: "OPENAI", modelName: "gpt-5.4-mini" },
     { provider: "OPENAI", modelName: "gpt-5.5" },
