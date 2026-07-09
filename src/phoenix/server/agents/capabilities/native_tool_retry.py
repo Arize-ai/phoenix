@@ -28,21 +28,21 @@ class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
         request_context: ModelRequestContext,
         response: ModelResponse,
     ) -> ModelResponse:
-        available_native_tool_names = {
+        configured_native_tool_names = {
             tool.unique_id for tool in request_context.model_request_parameters.native_tools
         }
-        fulfilled_native_tool_call_ids = {
+        native_tool_call_ids_with_results = {
             part.tool_call_id for part in response.parts if isinstance(part, NativeToolReturnPart)
         }
 
         parts = []
         for part in response.parts:
             if isinstance(part, NativeToolCallPart):
-                should_retry_as_function_tool = (
-                    part.tool_name not in available_native_tool_names
-                    and part.tool_call_id not in fulfilled_native_tool_call_ids
+                should_convert_unconfigured_native_tool_call_without_result = (
+                    part.tool_name not in configured_native_tool_names
+                    and part.tool_call_id not in native_tool_call_ids_with_results
                 )
-                if should_retry_as_function_tool:
+                if should_convert_unconfigured_native_tool_call_without_result:
                     part = _as_function_tool_call(part)
             parts.append(part)
         return replace(response, parts=parts) if parts != response.parts else response
