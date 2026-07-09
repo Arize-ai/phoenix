@@ -81,7 +81,7 @@ def upgrade() -> None:
             sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("annotation_name", sa.String(), nullable=False),
         sa.Column("filter_condition", sa.String(), nullable=False, server_default=""),
         sa.Column(
             "sampling_rate",
@@ -105,7 +105,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("project_id", "name"),
+        sa.UniqueConstraint("project_id", "annotation_name"),
     )
     op.create_index(
         "ix_project_evaluator_criteria_project_id",
@@ -180,6 +180,20 @@ def upgrade() -> None:
         sqlite_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
     )
     op.create_index(
+        "ix_eval_work_units_terminal",
+        "eval_work_units",
+        ["updated_at"],
+        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+    )
+    op.create_index(
+        "ix_eval_work_units_error_attempts",
+        "eval_work_units",
+        ["attempts"],
+        postgresql_where=sa.text("status = 'ERROR'"),
+        sqlite_where=sa.text("status = 'ERROR'"),
+    )
+    op.create_index(
         "ix_eval_work_units_evaluator_id",
         "eval_work_units",
         ["evaluator_id"],
@@ -194,6 +208,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_error_attempts", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
     op.drop_index(

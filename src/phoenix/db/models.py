@@ -3085,7 +3085,7 @@ class ProjectEvaluatorCriteria(HasId):
         nullable=False,
         index=True,
     )
-    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    annotation_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     filter_condition: Mapped[str] = mapped_column(String, nullable=False, server_default="")
     sampling_rate: Mapped[float] = mapped_column(
         Float,
@@ -3104,12 +3104,13 @@ class ProjectEvaluatorCriteria(HasId):
     project: Mapped["Project"] = relationship("Project")
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
 
-    __table_args__ = (UniqueConstraint("project_id", "name"),)
+    __table_args__ = (UniqueConstraint("project_id", "annotation_name"),)
 
 
 class EvalWorkCursor(HasId):
-    """Producer watermark and single-active-producer lease for online-eval work
-    materialization, one row per (grain, consumer_group)."""
+    """Producer lease and position in the span arrival log, one row per
+    (grain, consumer_group). For every grain, produced_through_id is a Span.id
+    position in the shared arrival log rather than a grain-specific entity id."""
 
     __tablename__ = "eval_work_cursors"
     grain: Mapped[EvalWorkGrain] = mapped_column(
@@ -3187,5 +3188,17 @@ class EvalWorkUnit(HasId):
             "id",
             postgresql_where=text("status NOT IN ('DONE', 'EXPIRED')"),
             sqlite_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_work_units_terminal",
+            "updated_at",
+            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_work_units_error_attempts",
+            "attempts",
+            postgresql_where=text("status = 'ERROR'"),
+            sqlite_where=text("status = 'ERROR'"),
         ),
     )

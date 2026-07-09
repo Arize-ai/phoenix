@@ -45,7 +45,7 @@ async def _seed_criteria(
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition=filter_condition,
             sampling_rate=sampling_rate,
         )

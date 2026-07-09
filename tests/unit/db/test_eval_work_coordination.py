@@ -30,7 +30,7 @@ async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, 
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
         )
@@ -185,6 +185,7 @@ async def test_project_evaluator_criteria_defaults_and_relationships(
         )
         assert fetched is not None
         assert fetched.enabled is True
+        assert fetched.annotation_name.root.startswith("criteria-")
         assert fetched.filter_condition == ""
         assert fetched.sampling_rate == 1.0
         assert fetched.evaluator.id == evaluator_id
@@ -207,7 +208,7 @@ async def test_project_evaluator_criteria_rejects_out_of_range_sampling_rate(
                 models.ProjectEvaluatorCriteria(
                     project_id=project_id,
                     evaluator_id=evaluator_id,
-                    name=Identifier(root=f"criteria-{token_hex(4)}"),
+                    annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
                     filter_condition="",
                     sampling_rate=1.5,
                 )
@@ -215,7 +216,7 @@ async def test_project_evaluator_criteria_rejects_out_of_range_sampling_rate(
             await session.flush()
 
 
-async def test_project_evaluator_criteria_name_is_unique_per_project(
+async def test_project_evaluator_criteria_annotation_name_is_unique_per_project(
     db: DbSessionFactory,
 ) -> None:
     _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
@@ -224,7 +225,7 @@ async def test_project_evaluator_criteria_name_is_unique_per_project(
         existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert existing is not None
         project_id = existing.project_id
-        name = existing.name
+        annotation_name = existing.annotation_name
 
     with pytest.raises(Exception):
         async with db() as session:
@@ -232,7 +233,7 @@ async def test_project_evaluator_criteria_name_is_unique_per_project(
                 models.ProjectEvaluatorCriteria(
                     project_id=project_id,
                     evaluator_id=evaluator_id,
-                    name=name,
+                    annotation_name=annotation_name,
                     filter_condition="",
                     sampling_rate=0.5,
                 )

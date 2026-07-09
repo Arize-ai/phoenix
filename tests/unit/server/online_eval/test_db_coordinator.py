@@ -34,7 +34,7 @@ async def _seed_work_units(db: DbSessionFactory, n: int) -> list[int]:
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
         )

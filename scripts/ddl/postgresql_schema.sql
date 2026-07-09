@@ -1165,15 +1165,15 @@ CREATE TABLE public.project_evaluator_criteria (
     id bigserial NOT NULL,
     project_id BIGINT NOT NULL,
     evaluator_id BIGINT NOT NULL,
-    name VARCHAR NOT NULL,
+    annotation_name VARCHAR NOT NULL,
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
     sampling_rate DOUBLE PRECISION NOT NULL,
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_criteria_project_id_name
-        UNIQUE (project_id, name),
+    CONSTRAINT uq_project_evaluator_criteria_project_id_annotation_name
+        UNIQUE (project_id, annotation_name),
     CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
     CONSTRAINT fk_project_evaluator_criteria_evaluator_id_evaluators
         FOREIGN KEY
@@ -1238,8 +1238,12 @@ CREATE INDEX ix_eval_work_units_claimable ON public.eval_work_units
     USING btree (status, id) WHERE ((status)::text <> ALL ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_criteria_id ON public.eval_work_units
     USING btree (criteria_id);
+CREATE INDEX ix_eval_work_units_error_attempts ON public.eval_work_units
+    USING btree (attempts) WHERE ((status)::text = 'ERROR'::text);
 CREATE INDEX ix_eval_work_units_evaluator_id ON public.eval_work_units
     USING btree (evaluator_id);
+CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
 
 
 -- Table: project_session_annotations

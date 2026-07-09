@@ -90,7 +90,7 @@ async def resolve_criteria(
         return None
     return ResolvedCriteria(
         criteria_id=criteria.id,
-        annotation_name=criteria.name.root,
+        annotation_name=criteria.annotation_name.root,
         evaluator_id=evaluator.id,
         version_ref=version_ref,
         output_configs=[config.model_dump() for config in evaluator.output_configs],
