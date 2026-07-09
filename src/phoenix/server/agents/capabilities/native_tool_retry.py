@@ -34,16 +34,16 @@ class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
             part.tool_call_id for part in response.parts if isinstance(part, NativeToolReturnPart)
         }
 
-        parts = [
-            _as_function_tool_call(part)
-            if (
-                isinstance(part, NativeToolCallPart)
-                and part.tool_name not in available_native_tool_names
-                and part.tool_call_id not in fulfilled_native_tool_call_ids
-            )
-            else part
-            for part in response.parts
-        ]
+        parts = []
+        for part in response.parts:
+            if isinstance(part, NativeToolCallPart):
+                should_retry_as_function_tool = (
+                    part.tool_name not in available_native_tool_names
+                    and part.tool_call_id not in fulfilled_native_tool_call_ids
+                )
+                if should_retry_as_function_tool:
+                    part = _as_function_tool_call(part)
+            parts.append(part)
         return replace(response, parts=parts) if parts != response.parts else response
 
 
