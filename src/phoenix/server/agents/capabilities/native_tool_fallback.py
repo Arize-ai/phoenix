@@ -25,6 +25,8 @@ class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
         request_context: ModelRequestContext,
         response: ModelResponse,
     ) -> ModelResponse:
+        # Work around https://github.com/pydantic/pydantic-ai/issues/6401 until
+        # Pydantic AI handles hallucinated native tool calls upstream.
         available_native_tool_names = {
             tool.unique_id for tool in request_context.model_request_parameters.native_tools
         }
