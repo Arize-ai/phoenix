@@ -122,7 +122,7 @@ async def test_keeps_unavailable_fulfilled_native_tool_call() -> None:
     assert isinstance(normalized.parts[0], NativeToolCallPart)
 
 
-async def test_build_agent_mounts_native_tool_fallback() -> None:
+async def test_build_agent_mounts_native_tool_retry() -> None:
     model = _NativeToolThenTextModel()
     agent = build_agent(model=model)
 

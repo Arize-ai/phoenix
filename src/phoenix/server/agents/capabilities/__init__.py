@@ -7,7 +7,7 @@ from phoenix.server.agents.capabilities.docs_mcp import (
     MintlifyDocsMCPCapability,
     MintlifyDocsMCPServer,
 )
-from phoenix.server.agents.capabilities.native_tool_fallback import (
+from phoenix.server.agents.capabilities.native_tool_retry import (
     NativeToolRetryCapability,
 )
 from phoenix.server.agents.capabilities.skills import SkillsCapability
