@@ -702,13 +702,8 @@ async def _merge_session_summary_chunk(
     message_chunks: AsyncIterator[BaseChunk],
     summary_task: asyncio.Task[str | None],
 ) -> AsyncIterator[BaseChunk]:
-    """Yield message chunks as they arrive, inserting the session-summary data
-    chunk as soon as the summarization task completes — whichever source is
-    ready first is yielded first. A summary still pending when the stream's
-    ``finish`` chunk arrives is awaited so the chunk lands inside the protocol
-    envelope; a stream that ends without ``finish`` (client disconnect) leaves
-    the task to the caller.
-    """
+    """Merge the session-summary chunk into the stream as soon as it is ready."""
+
     summary_settled = False
 
     async def _next_message_chunk() -> BaseChunk:
@@ -716,15 +711,12 @@ async def _merge_session_summary_chunk(
 
     chunk_task: asyncio.Task[BaseChunk] | None = asyncio.create_task(_next_message_chunk())
     try:
-        while chunk_task is not None:
-            pending_tasks: set[asyncio.Task[Any]] = {chunk_task}
-            if not summary_settled:
-                pending_tasks.add(summary_task)
+        while chunk_task is not None and not summary_settled:
             done_tasks, _ = await asyncio.wait(
-                pending_tasks,
+                {chunk_task, summary_task},
                 return_when=asyncio.FIRST_COMPLETED,
             )
-            if summary_task in done_tasks and not summary_settled:
+            if summary_task in done_tasks:
                 summary_settled = True
                 if summary := summary_task.result():
                     yield SessionSummaryChunk(data=summary)
@@ -735,11 +727,27 @@ async def _merge_session_summary_chunk(
                     chunk_task = None
                 else:
                     if isinstance(message_chunk, FinishChunk) and not summary_settled:
+                        # Hold the stream's closing chunk until the summary
+                        # settles so the data chunk lands before `finish`.
                         summary_settled = True
                         if summary := await summary_task:
                             yield SessionSummaryChunk(data=summary)
                     yield message_chunk
-                    chunk_task = asyncio.create_task(_next_message_chunk())
+                    chunk_task = (
+                        asyncio.create_task(_next_message_chunk()) if not summary_settled else None
+                    )
+        if chunk_task is not None:
+            try:
+                message_chunk = await chunk_task
+            except StopAsyncIteration:
+                return
+            finally:
+                chunk_task = None
+            yield message_chunk
+        # The summary has settled or the stream is over: no more racing, so
+        # pass the remaining chunks straight through.
+        async for message_chunk in message_chunks:
+            yield message_chunk
     finally:
         if chunk_task is not None:
             chunk_task.cancel()
@@ -894,6 +902,27 @@ async def _upsert_agent_session(
     return rowid
 
 
+async def _upsert_agent_session_snapshot(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+    bashkit_snapshot: bytes,
+) -> None:
+    await session.execute(
+        insert_on_conflict(
+            {
+                "agent_session_id": agent_session_rowid,
+                "bashkit_snapshot": bashkit_snapshot,
+            },
+            table=models.AgentSessionSnapshot,
+            dialect=SupportedSQLDialect(session.bind.dialect.name),
+            unique_by=("agent_session_id",),
+            on_conflict=OnConflict.DO_UPDATE,
+            set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
+        )
+    )
+
+
 async def _persist_agent_session_turn(
     db: DbSessionFactory,
     *,
@@ -914,18 +943,10 @@ async def _persist_agent_session_turn(
             messages=messages,
         )
         if bashkit_snapshot is not None:
-            await session.execute(
-                insert_on_conflict(
-                    {
-                        "agent_session_id": agent_session_rowid,
-                        "bashkit_snapshot": bashkit_snapshot,
-                    },
-                    table=models.AgentSessionSnapshot,
-                    dialect=SupportedSQLDialect(session.bind.dialect.name),
-                    unique_by=("agent_session_id",),
-                    on_conflict=OnConflict.DO_UPDATE,
-                    set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
-                )
+            await _upsert_agent_session_snapshot(
+                session,
+                agent_session_rowid=agent_session_rowid,
+                bashkit_snapshot=bashkit_snapshot,
             )
 
 
@@ -934,8 +955,6 @@ async def _load_bash_snapshot(
     *,
     agent_session_rowid: int,
 ) -> bytes | None:
-    """Persisted shell state for the session; a session whose turns never
-    touched bash has no snapshot row."""
     return await session.scalar(
         select(models.AgentSessionSnapshot.bashkit_snapshot).where(
             models.AgentSessionSnapshot.agent_session_id == agent_session_rowid
@@ -943,33 +962,25 @@ async def _load_bash_snapshot(
     )
 
 
-def _build_post_turn_transcript(
+def _build_session_transcript(
     *,
     request_messages: list[AssistantMetadataUIMessage],
     result: AgentRunResult[Any] | None,
     session_id: str,
     span_context: SpanContext | None,
 ) -> list[dict[str, Any]]:
-    """Assemble the post-turn transcript as Vercel AI UIMessage JSON.
-
-    The incoming messages are the client-assembled history (authoritative up
-    to this turn, including client-executed tool outputs); the run result
-    contributes this turn's new assistant messages. When the run failed or
-    was interrupted, the incoming history alone is persisted.
-    """
-    transcript = [
+    """Assemble the post-turn session transcript as Vercel AI UIMessage JSON."""
+    incoming_history = [
         message.model_dump(mode="json", by_alias=True, exclude_none=True)
         for message in request_messages
     ]
     if result is None:
-        return transcript
+        return incoming_history
     try:
         new_ui_messages = VercelAIAdapter.dump_messages(result.new_messages())
-        # Replace dump_messages' internal metadata: a resumed session sends
-        # these messages back through AssistantMetadataUIMessage validation,
-        # which requires the Phoenix metadata shape or None. The turn's final
-        # assistant message carries the same payload the client received as a
-        # MessageMetadataChunk, so usage and trace ids survive a reload.
+        # Resumed sessions re-validate stored messages as
+        # AssistantMetadataUIMessage, so dump_messages' internal metadata is
+        # replaced with the Phoenix shape.
         for message in new_ui_messages:
             message.metadata = None
         metadata = _build_assistant_message_metadata(
@@ -991,8 +1002,8 @@ def _build_post_turn_transcript(
             "persisting the incoming history only",
             session_id,
         )
-        return transcript
-    return [*transcript, *new_messages]
+        return incoming_history
+    return [*incoming_history, *new_messages]
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -1447,7 +1458,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         request.app.state.db,
                         session_id=session_id,
                         user_id=request_user_id,
-                        messages=_build_post_turn_transcript(
+                        messages=_build_session_transcript(
                             request_messages=body.messages,
                             result=result,
                             session_id=session_id,
