@@ -3,8 +3,8 @@ import {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
-  ENV_PHOENIX_PROJECT,
   getHeadersFromEnvironment,
+  getProjectFromEnvironment,
   getStrFromEnvironment,
   type Headers,
 } from "@arizeai/phoenix-config";
@@ -33,7 +33,7 @@ export function loadConfigFromEnvironment(): PhoenixMcpConfig {
   const baseUrl = getStrFromEnvironment(ENV_PHOENIX_HOST);
   const apiKey = getStrFromEnvironment(ENV_PHOENIX_API_KEY);
   const headers = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
-  const project = getStrFromEnvironment(ENV_PHOENIX_PROJECT);
+  const project = getProjectFromEnvironment();
 
   return {
     baseUrl: baseUrl || DEFAULT_PHOENIX_ENDPOINT,

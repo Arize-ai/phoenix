@@ -3,6 +3,7 @@ import {
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
   getHeadersFromEnvironment,
+  getProjectFromEnvironment,
   getStrFromEnvironment,
 } from "@arizeai/phoenix-config";
 
@@ -77,8 +78,9 @@ export function loadConfigFromEnvironment(): PhoenixConfig {
     config.headers = headers;
   }
 
-  // Also check for PHOENIX_PROJECT env var
-  const project = getStrFromEnvironment("PHOENIX_PROJECT");
+  // Resolve the project from PHOENIX_PROJECT (canonical) or the
+  // PHOENIX_PROJECT_NAME alias.
+  const project = getProjectFromEnvironment();
   if (project) {
     config.project = project;
   }

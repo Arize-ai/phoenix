@@ -11,6 +11,10 @@ ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 # Phoenix environment variables
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
+# Canonical project-name variable, used in docs.
+ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT"
+# Supported alias for ``ENV_PHOENIX_PROJECT`` (the name the Python SDKs
+# historically read). ``ENV_PHOENIX_PROJECT`` takes precedence when both are set.
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
@@ -34,14 +38,39 @@ def get_env_collector_endpoint() -> Optional[str]:
     return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
+_warned_project_conflict = False
+
+
 def get_env_project_name() -> str:
     """
     Get the project name from environment variables.
 
+    Reads both ``PHOENIX_PROJECT`` (canonical) and ``PHOENIX_PROJECT_NAME``
+    (supported alias), with ``PHOENIX_PROJECT`` taking precedence. When both
+    are set to different values, the canonical value is used and a one-time
+    warning naming both values is emitted.
+
     Returns:
-        str: The project name from PHOENIX_PROJECT_NAME, defaults to "default".
+        str: The resolved project name, defaults to "default".
     """
-    return os.getenv(ENV_PHOENIX_PROJECT_NAME, "default")
+    global _warned_project_conflict
+    canonical = os.getenv(ENV_PHOENIX_PROJECT)
+    alias = os.getenv(ENV_PHOENIX_PROJECT_NAME)
+    if canonical and alias and canonical != alias and not _warned_project_conflict:
+        _warned_project_conflict = True
+        logger.warning(
+            "Both %s (%r) and %s (%r) are set to different values. Using %s (%r). "
+            "%s is a supported alias for %s.",
+            ENV_PHOENIX_PROJECT,
+            canonical,
+            ENV_PHOENIX_PROJECT_NAME,
+            alias,
+            ENV_PHOENIX_PROJECT,
+            canonical,
+            ENV_PHOENIX_PROJECT_NAME,
+            ENV_PHOENIX_PROJECT,
+        )
+    return canonical or alias or "default"
 
 
 def get_env_client_headers() -> Optional[Dict[str, str]]:

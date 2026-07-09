@@ -58,12 +58,22 @@ export const ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY";
 export const ENV_PHOENIX_LOG_LEVEL = "PHOENIX_LOG_LEVEL";
 
 /**
- * Environment variable name for the default Phoenix project.
+ * Environment variable name for the default Phoenix project (canonical name).
  * When set, project-scoped operations use this project unless overridden.
  * @example
  * process.env[ENV_PHOENIX_PROJECT] = "my-project";
  */
 export const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
+
+/**
+ * Environment variable name for the default Phoenix project (supported alias).
+ * Accepted so the Python SDKs' `PHOENIX_PROJECT_NAME` keeps working. When set,
+ * project-scoped operations use this project unless overridden. Prefer
+ * {@link ENV_PHOENIX_PROJECT}, which takes precedence when both are set.
+ * @example
+ * process.env[ENV_PHOENIX_PROJECT_NAME] = "my-project";
+ */
+export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
 
 /**
  * Retrieves an integer value from an environment variable.
@@ -99,6 +109,62 @@ export function getIntFromEnvironment(envKey: string) {
  */
 export function getStrFromEnvironment(envKey: string) {
   return process.env[envKey];
+}
+
+/**
+ * Tracks whether the one-time conflict warning has already been emitted so that
+ * repeated calls to {@link getProjectFromEnvironment} do not spam the console.
+ */
+let hasWarnedProjectConflict = false;
+
+/**
+ * Resolves the default Phoenix project name from the environment.
+ *
+ * Reads both {@link ENV_PHOENIX_PROJECT} (canonical) and
+ * {@link ENV_PHOENIX_PROJECT_NAME} (supported alias). Precedence is:
+ *
+ * 1. `PHOENIX_PROJECT`
+ * 2. `PHOENIX_PROJECT_NAME`
+ *
+ * Explicit arguments/flags supplied by callers still take precedence over both;
+ * this function only covers the environment fallback. When both variables are
+ * set to *different* values, the canonical value wins and a one-time warning is
+ * emitted naming both values.
+ *
+ * @returns The resolved project name, or `undefined` if neither variable is set.
+ *
+ * @example
+ * // With PHOENIX_PROJECT="checkout"
+ * const project = getProjectFromEnvironment();
+ * // Returns "checkout"
+ */
+export function getProjectFromEnvironment(): string | undefined {
+  const canonical = getStrFromEnvironment(ENV_PHOENIX_PROJECT);
+  const alias = getStrFromEnvironment(ENV_PHOENIX_PROJECT_NAME);
+
+  if (canonical && alias && canonical !== alias && !hasWarnedProjectConflict) {
+    hasWarnedProjectConflict = true;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Both ${ENV_PHOENIX_PROJECT} ("${canonical}") and ${ENV_PHOENIX_PROJECT_NAME} ("${alias}") ` +
+        `are set to different values. Using ${ENV_PHOENIX_PROJECT} ("${canonical}"). ` +
+        `${ENV_PHOENIX_PROJECT_NAME} is a supported alias for ${ENV_PHOENIX_PROJECT}.`
+    );
+  }
+
+  return canonical || alias || undefined;
+}
+
+/**
+ * Resets the one-time project-conflict warning latch.
+ *
+ * Intended for use in tests that need to exercise the warning path more than
+ * once within the same module instance.
+ *
+ * @internal
+ */
+export function resetProjectConflictWarningForTesting(): void {
+  hasWarnedProjectConflict = false;
 }
 
 /**
@@ -149,7 +215,8 @@ export function getHeadersFromEnvironment(envKey: string) {
  * //   PHOENIX_HOST: "http://localhost:6006",
  * //   PHOENIX_CLIENT_HEADERS: { "X-Custom": "header" },
  * //   PHOENIX_COLLECTOR_ENDPOINT: "http://localhost:6006",
- * //   PHOENIX_API_KEY: "api-key"
+ * //   PHOENIX_API_KEY: "api-key",
+ * //   PHOENIX_PROJECT: "my-project"
  * // }
  */
 export function getEnvironmentConfig() {
@@ -165,6 +232,8 @@ export function getEnvironmentConfig() {
     ),
     [ENV_PHOENIX_API_KEY]: getStrFromEnvironment(ENV_PHOENIX_API_KEY),
     [ENV_PHOENIX_LOG_LEVEL]: getStrFromEnvironment(ENV_PHOENIX_LOG_LEVEL),
+    // Resolves PHOENIX_PROJECT (canonical) then PHOENIX_PROJECT_NAME (alias).
+    [ENV_PHOENIX_PROJECT]: getProjectFromEnvironment(),
   };
 }
 

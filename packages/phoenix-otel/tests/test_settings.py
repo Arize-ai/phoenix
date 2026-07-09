@@ -5,8 +5,13 @@ from urllib.parse import urlparse
 
 import pytest
 
+import phoenix.otel.settings as settings_module
 from phoenix.otel.otel import _construct_http_endpoint
-from phoenix.otel.settings import get_env_collector_endpoint, parse_env_headers
+from phoenix.otel.settings import (
+    get_env_collector_endpoint,
+    get_env_project_name,
+    parse_env_headers,
+)
 
 
 @pytest.mark.parametrize(
@@ -55,3 +60,38 @@ def test_construct_http_endpoint(endpoint: str, expected: str) -> None:
 )
 def test_parse_env_headers_skips_malformed_segments(headers: str, expected: dict[str, str]) -> None:
     assert parse_env_headers(headers) == expected
+
+
+@pytest.mark.parametrize(
+    "env, expected",
+    [
+        ({}, "default"),
+        ({"PHOENIX_PROJECT": "canonical"}, "canonical"),
+        ({"PHOENIX_PROJECT_NAME": "alias"}, "alias"),
+        # PHOENIX_PROJECT takes precedence over the PHOENIX_PROJECT_NAME alias.
+        ({"PHOENIX_PROJECT": "canonical", "PHOENIX_PROJECT_NAME": "alias"}, "canonical"),
+        # Matching values are not a conflict.
+        ({"PHOENIX_PROJECT": "same", "PHOENIX_PROJECT_NAME": "same"}, "same"),
+    ],
+)
+def test_get_env_project_name(
+    env: dict[str, str], expected: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings_module, "_warned_project_conflict", False)
+    with patch.dict(os.environ, env, clear=True):
+        assert get_env_project_name() == expected
+
+
+def test_get_env_project_name_warns_once_on_conflict(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings_module, "_warned_project_conflict", False)
+    env = {"PHOENIX_PROJECT": "canonical", "PHOENIX_PROJECT_NAME": "alias"}
+    with patch.dict(os.environ, env, clear=True):
+        with caplog.at_level("WARNING"):
+            assert get_env_project_name() == "canonical"
+            assert get_env_project_name() == "canonical"
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "PHOENIX_PROJECT_NAME" in warnings[0].message
+    assert "PHOENIX_PROJECT" in warnings[0].message

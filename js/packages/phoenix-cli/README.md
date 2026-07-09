@@ -48,7 +48,8 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 | Variable                                 | Description                                   |
 | ---------------------------------------- | --------------------------------------------- |
 | `PHOENIX_HOST`                           | Phoenix API endpoint                          |
-| `PHOENIX_PROJECT`                        | Project name or ID                            |
+| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                |
+| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)          |
 | `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
 | `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
 | `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |

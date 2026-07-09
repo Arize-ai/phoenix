@@ -21,6 +21,7 @@ describe("Configuration", () => {
 
     delete process.env.PHOENIX_HOST;
     delete process.env.PHOENIX_PROJECT;
+    delete process.env.PHOENIX_PROJECT_NAME;
     delete process.env.PHOENIX_API_KEY;
     delete process.env.PHOENIX_CLIENT_HEADERS;
 
@@ -56,6 +57,19 @@ describe("Configuration", () => {
       expect(config.endpoint).toBeUndefined();
       expect(config.project).toBeUndefined();
       expect(config.apiKey).toBeUndefined();
+    });
+
+    it("should load project from PHOENIX_PROJECT_NAME alias", () => {
+      process.env.PHOENIX_PROJECT_NAME = "alias-project";
+      const config = loadConfigFromEnvironment();
+      expect(config.project).toBe("alias-project");
+    });
+
+    it("should prefer PHOENIX_PROJECT over PHOENIX_PROJECT_NAME", () => {
+      process.env.PHOENIX_PROJECT = "canonical-project";
+      process.env.PHOENIX_PROJECT_NAME = "alias-project";
+      const config = loadConfigFromEnvironment();
+      expect(config.project).toBe("canonical-project");
     });
 
     it("should load custom headers from environment", () => {

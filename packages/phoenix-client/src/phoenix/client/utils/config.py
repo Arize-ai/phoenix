@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Optional, overload
 
@@ -11,10 +12,14 @@ from phoenix.client.constants import (
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_HOST_ROOT_PATH,
     ENV_PHOENIX_PORT,
+    ENV_PHOENIX_PROJECT,
+    ENV_PHOENIX_PROJECT_NAME,
     HOST,
     PORT,
 )
 from phoenix.client.utils.parse_env_headers import parse_env_headers
+
+logger = logging.getLogger(__name__)
 
 
 def get_env_phoenix_api_key() -> Optional[str]:
@@ -100,5 +105,33 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     return value.strip()
 
 
+_warned_project_conflict = False
+
+
 def get_env_project_name() -> str:
-    return getenv("PHOENIX_PROJECT_NAME", "default")
+    """
+    Resolve the project name from environment variables.
+
+    Reads both ``PHOENIX_PROJECT`` (canonical) and ``PHOENIX_PROJECT_NAME``
+    (supported alias), with ``PHOENIX_PROJECT`` taking precedence. When both
+    are set to different values, the canonical value is used and a one-time
+    warning naming both values is emitted.
+    """
+    global _warned_project_conflict
+    canonical = getenv(ENV_PHOENIX_PROJECT)
+    alias = getenv(ENV_PHOENIX_PROJECT_NAME)
+    if canonical and alias and canonical != alias and not _warned_project_conflict:
+        _warned_project_conflict = True
+        logger.warning(
+            "Both %s (%r) and %s (%r) are set to different values. Using %s (%r). "
+            "%s is a supported alias for %s.",
+            ENV_PHOENIX_PROJECT,
+            canonical,
+            ENV_PHOENIX_PROJECT_NAME,
+            alias,
+            ENV_PHOENIX_PROJECT,
+            canonical,
+            ENV_PHOENIX_PROJECT_NAME,
+            ENV_PHOENIX_PROJECT,
+        )
+    return canonical or alias or "default"
