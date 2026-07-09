@@ -46,6 +46,8 @@ export function buildGraphqlRequest({
   };
   if (config.apiKey) {
     headers["Authorization"] = `Bearer ${config.apiKey}`;
+  } else if (config.oauthTokens) {
+    headers["Authorization"] = `Bearer ${config.oauthTokens.accessToken}`;
   }
 
   return {
@@ -119,9 +121,20 @@ async function apiGraphqlHandler(
     });
 
     if (!response.ok) {
+      if (response.status === 403 && config.credentialSource === "oauth") {
+        writeError({
+          message:
+            "This login is read-only. Mutations require an API key — see px profile --help.",
+        });
+        process.exit(ExitCode.AUTH_REQUIRED);
+      }
       writeError({
         message: `Error: HTTP ${response.status} ${response.statusText} from ${request.url}`,
       });
+      if (response.status === 401 && config.credentialSource === "oauth") {
+        writeError({ message: "Session expired. Run: px auth login" });
+        process.exit(ExitCode.AUTH_REQUIRED);
+      }
       if (response.status === 401 || response.status === 403) {
         process.exit(ExitCode.AUTH_REQUIRED);
       }

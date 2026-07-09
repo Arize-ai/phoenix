@@ -1,0 +1,470 @@
+import * as fs from "fs";
+import * as http from "http";
+import * as os from "os";
+import * as path from "path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { createOAuthRefreshingFetch } from "../src/client";
+import { AuthRequiredError } from "../src/exitCodes";
+import {
+  buildAuthorizationUrl,
+  exchangeAuthorizationCode,
+  generatePkcePair,
+  generateState,
+  isOAuthTokenExpiring,
+  parseOAuthCallbackUrl,
+  refreshOAuthTokensForProfile,
+  revokeOAuthToken,
+  tokenResponseToOAuthTokens,
+} from "../src/oauth";
+import { type SettingsFile, saveSettings } from "../src/settings";
+
+function readRequestBody(request: http.IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    request.on("error", reject);
+    request.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+  });
+}
+
+async function withServer(
+  handler: http.RequestListener
+): Promise<{ url: string; close: () => Promise<void> }> {
+  const server = http.createServer(handler);
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("Server did not bind to a TCP port.");
+  }
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("OAuth PKCE and callback helpers", () => {
+  it("generates a 64-byte base64url verifier and matching S256 challenge", () => {
+    const pair = generatePkcePair();
+    expect(pair.verifier).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(pair.verifier.length).toBeGreaterThanOrEqual(86);
+    expect(pair.challenge).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(pair.challenge).toHaveLength(43);
+  });
+
+  it("generates 32-byte state as base64url", () => {
+    const state = generateState();
+    expect(state).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(state).toHaveLength(43);
+  });
+
+  it("builds the fixed first-party authorization URL", () => {
+    const url = new URL(
+      buildAuthorizationUrl({
+        endpoint: "http://localhost:6006",
+        redirectUri: "http://127.0.0.1:1234/callback",
+        state: "state",
+        codeChallenge: "challenge",
+      })
+    );
+    expect(url.pathname).toBe("/oauth2/authorize");
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("client_id")).toBe("phoenix-cli");
+    expect(url.searchParams.get("scope")).toBe("read_only");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+  });
+
+  it("preserves an endpoint root path in every OAuth URL", async () => {
+    const endpoint = "http://localhost:18273/phoenix";
+    const authorizationUrl = new URL(
+      buildAuthorizationUrl({
+        endpoint,
+        redirectUri: "http://127.0.0.1:1234/callback",
+        state: "state",
+        codeChallenge: "challenge",
+      })
+    );
+    expect(authorizationUrl.pathname).toBe("/phoenix/oauth2/authorize");
+
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            access_token: "access",
+            refresh_token: "refresh",
+            expires_in: 120,
+            token_type: "Bearer",
+            scope: "read_only",
+          }),
+          { status: 200 }
+        )
+    ) as unknown as typeof fetch & { mock: { calls: [URL][] } };
+
+    await exchangeAuthorizationCode({
+      endpoint,
+      code: "code",
+      redirectUri: "http://127.0.0.1:1234/callback",
+      verifier: "verifier",
+      fetchImpl,
+    });
+    expect(String(fetchImpl.mock.calls[0][0])).toBe(
+      "http://localhost:18273/phoenix/oauth2/token"
+    );
+
+    await revokeOAuthToken({ endpoint, refreshToken: "refresh", fetchImpl });
+    expect(String(fetchImpl.mock.calls[1][0])).toBe(
+      "http://localhost:18273/phoenix/oauth2/revoke"
+    );
+  });
+
+  it("parses success, denial, and state mismatch callbacks", () => {
+    expect(
+      parseOAuthCallbackUrl({
+        redirectUrl: "http://127.0.0.1/callback?code=abc&state=expected",
+        expectedState: "expected",
+      })
+    ).toEqual({ status: "success", code: "abc" });
+    expect(
+      parseOAuthCallbackUrl({
+        redirectUrl:
+          "http://127.0.0.1/callback?error=access_denied&state=expected",
+        expectedState: "expected",
+      })
+    ).toEqual({ status: "access_denied" });
+    expect(
+      parseOAuthCallbackUrl({
+        redirectUrl: "http://127.0.0.1/callback?code=abc&state=wrong",
+        expectedState: "expected",
+      })
+    ).toMatchObject({ status: "invalid" });
+  });
+});
+
+describe("OAuth token parsing and refresh", () => {
+  it("converts token endpoint JSON into persisted OAuth tokens", () => {
+    const tokens = tokenResponseToOAuthTokens({
+      response: {
+        access_token: "access",
+        refresh_token: "refresh",
+        expires_in: 120,
+        token_type: "Bearer",
+        scope: "read_only",
+      },
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    expect(tokens).toEqual({
+      accessToken: "access",
+      refreshToken: "refresh",
+      expiresAt: "2026-01-01T00:02:00.000Z",
+      scope: "read_only",
+    });
+  });
+
+  it("uses the 60 second refresh buffer", () => {
+    expect(
+      isOAuthTokenExpiring({
+        tokens: {
+          accessToken: "a",
+          refreshToken: "r",
+          expiresAt: "2026-01-01T00:00:59.000Z",
+          scope: "read_only",
+        },
+        now: new Date("2026-01-01T00:00:00.000Z"),
+      })
+    ).toBe(true);
+    expect(
+      isOAuthTokenExpiring({
+        tokens: {
+          accessToken: "a",
+          refreshToken: "r",
+          expiresAt: "2026-01-01T00:01:01.000Z",
+          scope: "read_only",
+        },
+        now: new Date("2026-01-01T00:00:00.000Z"),
+      })
+    ).toBe(false);
+  });
+
+  it("re-reads settings under the lock and skips refresh when another process rotated", async () => {
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "phoenix-oauth-test-")
+    );
+    const settingsPath = path.join(tmpDir, "px", "settings.json");
+    try {
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "http://example.test",
+            oauthTokens: {
+              accessToken: "fresh-access",
+              refreshToken: "fresh-refresh",
+              expiresAt: "2999-01-01T00:00:00.000Z",
+              scope: "read_only",
+            },
+          },
+        },
+      };
+      saveSettings(settings, { settingsPath });
+      const fetchMock = vi.fn<typeof fetch>();
+      const tokens = await refreshOAuthTokensForProfile({
+        endpoint: "http://example.test",
+        profileName: "prod",
+        currentTokens: {
+          accessToken: "stale-access",
+          refreshToken: "stale-refresh",
+          expiresAt: "2000-01-01T00:00:00.000Z",
+          scope: "read_only",
+        },
+        settingsPath,
+        fetchImpl: fetchMock,
+      });
+      expect(tokens.accessToken).toBe("fresh-access");
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("persists rotated refresh tokens", async () => {
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "phoenix-oauth-test-")
+    );
+    const settingsPath = path.join(tmpDir, "px", "settings.json");
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    try {
+      saveSettings(
+        {
+          activeProfile: "prod",
+          profiles: {
+            prod: {
+              endpoint: "http://example.test",
+              oauthTokens: {
+                accessToken: "old-access",
+                refreshToken: "old-refresh",
+                expiresAt: "2000-01-01T00:00:00.000Z",
+                scope: "read_only",
+              },
+            },
+          },
+        },
+        { settingsPath }
+      );
+      server = await withServer(async (request, response) => {
+        expect(request.url).toBe("/oauth2/token");
+        const body = new URLSearchParams(await readRequestBody(request));
+        expect(body.get("grant_type")).toBe("refresh_token");
+        expect(body.get("refresh_token")).toBe("old-refresh");
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(
+          JSON.stringify({
+            access_token: "new-access",
+            refresh_token: "new-refresh",
+            expires_in: 600,
+            token_type: "Bearer",
+            scope: "read_only",
+          })
+        );
+      });
+      const tokens = await refreshOAuthTokensForProfile({
+        endpoint: server.url,
+        profileName: "prod",
+        currentTokens: {
+          accessToken: "old-access",
+          refreshToken: "old-refresh",
+          expiresAt: "2000-01-01T00:00:00.000Z",
+          scope: "read_only",
+        },
+        settingsPath,
+      });
+      expect(tokens.accessToken).toBe("new-access");
+      const saved = JSON.parse(
+        fs.readFileSync(settingsPath, "utf-8")
+      ) as SettingsFile;
+      expect(saved.profiles.prod.oauthTokens?.refreshToken).toBe("new-refresh");
+    } finally {
+      await server?.close();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("OAuth fetch wrapper", () => {
+  it("refreshes before requests inside the expiry buffer", async () => {
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "phoenix-oauth-test-")
+    );
+    const settingsPath = path.join(tmpDir, "px", "settings.json");
+    const oldXdgConfigHome = process.env.XDG_CONFIG_HOME;
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    try {
+      process.env.XDG_CONFIG_HOME = tmpDir;
+      saveSettings(
+        {
+          activeProfile: "prod",
+          profiles: {
+            prod: {
+              endpoint: "http://example.test",
+              oauthTokens: {
+                accessToken: "old-access",
+                refreshToken: "old-refresh",
+                expiresAt: "2000-01-01T00:00:00.000Z",
+                scope: "read_only",
+              },
+            },
+          },
+        },
+        { settingsPath }
+      );
+      server = await withServer(async (request, response) => {
+        if (request.url === "/oauth2/token") {
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(
+            JSON.stringify({
+              access_token: "new-access",
+              refresh_token: "new-refresh",
+              expires_in: 600,
+              token_type: "Bearer",
+              scope: "read_only",
+            })
+          );
+          return;
+        }
+        expect(request.headers.authorization).toBe("Bearer new-access");
+        response.writeHead(200);
+        response.end("ok");
+      });
+
+      const wrappedFetch = createOAuthRefreshingFetch({
+        endpoint: server.url,
+        headers: {},
+        profileName: "prod",
+        tokens: {
+          accessToken: "old-access",
+          refreshToken: "old-refresh",
+          expiresAt: "2000-01-01T00:00:00.000Z",
+          scope: "read_only",
+        },
+      });
+      const response = await wrappedFetch(`${server.url}/v1/user`);
+      expect(response.status).toBe(200);
+    } finally {
+      if (oldXdgConfigHome === undefined) {
+        delete process.env.XDG_CONFIG_HOME;
+      } else {
+        process.env.XDG_CONFIG_HOME = oldXdgConfigHome;
+      }
+      await server?.close();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("retries once after a 401 and reports expired sessions after retry failure", async () => {
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "phoenix-oauth-test-")
+    );
+    const settingsPath = path.join(tmpDir, "px", "settings.json");
+    const oldXdgConfigHome = process.env.XDG_CONFIG_HOME;
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    let protectedRequestCount = 0;
+    try {
+      process.env.XDG_CONFIG_HOME = tmpDir;
+      saveSettings(
+        {
+          activeProfile: "prod",
+          profiles: {
+            prod: {
+              endpoint: "http://example.test",
+              oauthTokens: {
+                accessToken: "access",
+                refreshToken: "refresh",
+                expiresAt: "2999-01-01T00:00:00.000Z",
+                scope: "read_only",
+              },
+            },
+          },
+        },
+        { settingsPath }
+      );
+      server = await withServer((request, response) => {
+        if (request.url === "/oauth2/token") {
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(
+            JSON.stringify({
+              access_token: "rotated-access",
+              refresh_token: "rotated-refresh",
+              expires_in: 600,
+              token_type: "Bearer",
+              scope: "read_only",
+            })
+          );
+          return;
+        }
+        protectedRequestCount += 1;
+        response.writeHead(401);
+        response.end();
+      });
+      const wrappedFetch = createOAuthRefreshingFetch({
+        endpoint: server.url,
+        headers: {},
+        profileName: "prod",
+        tokens: {
+          accessToken: "access",
+          refreshToken: "refresh",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          scope: "read_only",
+        },
+      });
+      await expect(wrappedFetch(`${server.url}/v1/user`)).rejects.toThrow(
+        "Session expired. Run: px auth login"
+      );
+      expect(protectedRequestCount).toBe(2);
+    } finally {
+      if (oldXdgConfigHome === undefined) {
+        delete process.env.XDG_CONFIG_HOME;
+      } else {
+        process.env.XDG_CONFIG_HOME = oldXdgConfigHome;
+      }
+      await server?.close();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the read-only mutation hint on 403", async () => {
+    const wrappedFetch = createOAuthRefreshingFetch({
+      endpoint: "http://example.test",
+      headers: {},
+      profileName: "prod",
+      tokens: {
+        accessToken: "access",
+        refreshToken: "refresh",
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        scope: "read_only",
+      },
+      fetchImpl: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(null, { status: 403 })),
+    });
+    await expect(
+      wrappedFetch("http://example.test/v1/projects")
+    ).rejects.toThrow(AuthRequiredError);
+    await expect(
+      wrappedFetch("http://example.test/v1/projects")
+    ).rejects.toThrow(
+      "This login is read-only. Mutations require an API key — see px profile --help."
+    );
+  });
+});

@@ -1,3 +1,5 @@
+"""OAuth2 relying party: Phoenix logs users in via an external IdP."""
+
 import logging
 import re
 from dataclasses import dataclass, field

@@ -3,14 +3,37 @@ import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { type PhoenixConfig, resolveConfig } from "../config";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import {
+  AuthRequiredError,
+  ExitCode,
+  NetworkError,
+  getExitCodeForError,
+} from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 import {
+  OAUTH_LOGIN_TIMEOUT_MS,
+  buildAuthorizationUrl,
+  exchangeAuthorizationCode,
+  generatePkcePair,
+  generateState,
+  openBrowser,
+  resolveTargetProfileName,
+  revokeOAuthToken,
+  startLoginCallbackServer,
+  tokenResponseToOAuthTokens,
+  waitForPastedRedirectUrl,
+  withTimeout,
+} from "../oauth";
+import {
+  type OAuthTokens,
+  type SettingsFile,
   ProfileResolutionError,
   getProfileByName,
   getStoredActiveProfile,
   loadSettings,
+  saveSettings,
 } from "../settings";
+import type { OutputFormat } from "./formatProfiles";
 
 type ViewerUser = componentsV1["schemas"]["GetViewerResponseBody"]["data"];
 
@@ -18,6 +41,24 @@ interface AuthStatusOptions {
   endpoint?: string;
   apiKey?: string;
   profile?: string;
+  format?: OutputFormat;
+}
+
+interface AuthLoginOptions extends AuthStatusOptions {
+  browser?: boolean;
+  input?: boolean;
+}
+
+type AuthLogoutOptions = AuthStatusOptions;
+
+interface AuthOutput {
+  endpoint: string;
+  profile?: string;
+  credentialSource: NonNullable<PhoenixConfig["credentialSource"]>;
+  accessLevel?: string;
+  expiresAt?: string;
+  user?: ViewerUser;
+  status: "authenticated" | "anonymous" | "unverified" | "logged_out";
 }
 
 /**
@@ -62,9 +103,11 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
     const response = await client.GET("/v1/user");
     return { status: "success", user: response.data!.data };
   } catch (error: unknown) {
-    // TypeError is thrown by the Fetch API for network-level failures
     if (error instanceof TypeError) {
       return { status: "network_error", message: error.message };
+    }
+    if (error instanceof AuthRequiredError) {
+      return { status: "auth_error", message: error.message };
     }
     if (error instanceof Error) {
       const statusCode = parseStatusCode(error);
@@ -87,8 +130,28 @@ export function formatAuthStatus(
   endpoint: string,
   result: FetchViewerResult,
   apiKey?: string,
-  profileName?: string
+  profileName?: string,
+  credentialSource: PhoenixConfig["credentialSource"] = apiKey
+    ? "profile-key"
+    : "none",
+  oauthTokens?: OAuthTokens,
+  format: OutputFormat = "pretty"
 ): string {
+  const source = credentialSource ?? "none";
+  const structured = buildAuthOutput({
+    endpoint,
+    result,
+    profileName,
+    credentialSource: source,
+    oauthTokens,
+  });
+  if (format === "raw") {
+    return JSON.stringify(structured);
+  }
+  if (format === "json") {
+    return JSON.stringify(structured, null, 2);
+  }
+
   const lines: string[] = [endpoint];
 
   if (profileName) {
@@ -100,7 +163,9 @@ export function formatAuthStatus(
     if (user.auth_method === "ANONYMOUS") {
       lines.push("  \u2713 Authentication not required (anonymous)");
     } else {
-      lines.push(`  \u2713 Logged in as ${user.username} (api key)`);
+      lines.push(
+        `  \u2713 Logged in as ${user.username} (${formatCredentialSource(source)})`
+      );
       lines.push(`  - Role: ${user.role}`);
     }
   } else if (result.status === "auth_error") {
@@ -109,21 +174,115 @@ export function formatAuthStatus(
     lines.push(
       "  - Could not verify token (server does not support user endpoint)"
     );
+  } else if (apiKey || oauthTokens) {
+    lines.push(
+      "  \u2717 Token configured but could not verify (server unreachable)"
+    );
   } else {
-    // network_error or unknown_error
-    if (apiKey) {
-      lines.push(
-        "  \u2717 Token configured but could not verify (server unreachable)"
-      );
-    } else {
-      lines.push("  \u2717 Could not connect to server");
-    }
+    lines.push("  \u2717 Could not connect to server");
   }
 
   if (apiKey) {
     lines.push(`  - Token: ${obscureApiKey(apiKey)}`);
   }
+  if (oauthTokens) {
+    lines.push(`  - Access: ${formatAccessLevel(oauthTokens.scope)}`);
+    lines.push(`  - Expires: ${oauthTokens.expiresAt}`);
+  }
 
+  return lines.join("\n");
+}
+
+function buildAuthOutput({
+  endpoint,
+  result,
+  profileName,
+  credentialSource,
+  oauthTokens,
+}: {
+  endpoint: string;
+  result: FetchViewerResult;
+  profileName?: string;
+  credentialSource: NonNullable<PhoenixConfig["credentialSource"]>;
+  oauthTokens?: OAuthTokens;
+}): AuthOutput {
+  const base = {
+    endpoint,
+    ...(profileName ? { profile: profileName } : {}),
+    credentialSource,
+    ...(oauthTokens
+      ? {
+          accessLevel: formatAccessLevel(oauthTokens.scope),
+          expiresAt: oauthTokens.expiresAt,
+        }
+      : {}),
+  };
+
+  if (result.status === "success") {
+    return {
+      ...base,
+      status:
+        result.user.auth_method === "ANONYMOUS" ? "anonymous" : "authenticated",
+      user: result.user,
+    };
+  }
+  return { ...base, status: "unverified" };
+}
+
+function formatCredentialSource(
+  source: NonNullable<PhoenixConfig["credentialSource"]>
+): string {
+  switch (source) {
+    case "flag":
+      return "flag";
+    case "env":
+      return "env";
+    case "profile-key":
+      return "profile api key";
+    case "oauth":
+      return "oauth";
+    case "none":
+      return "none";
+  }
+}
+
+function formatAccessLevel(scope: string): string {
+  return scope.split(/\s+/).includes("read_only") ? "read-only" : "unknown";
+}
+
+function formatAuthOutput(
+  output: AuthOutput,
+  format: OutputFormat = "pretty"
+): string {
+  if (format === "raw") {
+    return JSON.stringify(output);
+  }
+  if (format === "json") {
+    return JSON.stringify(output, null, 2);
+  }
+
+  const lines = [output.endpoint];
+  if (output.profile) {
+    lines.push(`  - Profile: ${output.profile}`);
+  }
+  if (output.status === "logged_out") {
+    lines.push("  \u2713 Logged out");
+  } else if (output.user?.auth_method === "ANONYMOUS") {
+    lines.push("  \u2713 Authentication not required (anonymous)");
+  } else if (output.user?.username) {
+    lines.push(
+      `  \u2713 Logged in as ${output.user.username} (${formatCredentialSource(output.credentialSource)})`
+    );
+    if ("role" in output.user && output.user.role) {
+      lines.push(`  - Role: ${output.user.role}`);
+    }
+  }
+  if (output.accessLevel) {
+    lines.push(`  - Access: ${output.accessLevel}`);
+  }
+  if (output.expiresAt) {
+    lines.push(`  - Expires: ${output.expiresAt}`);
+  }
   return lines.join("\n");
 }
 
@@ -141,6 +300,23 @@ function exitCodeForResult(result: FetchViewerResult): ExitCode {
     case "unknown_error":
       return ExitCode.FAILURE;
   }
+}
+
+async function verifyViewerOrExit(config: PhoenixConfig): Promise<ViewerUser> {
+  const result = await fetchViewer(config);
+  if (result.status === "success") {
+    return result.user;
+  }
+  if (result.status === "auth_error") {
+    writeError({ message: "Authentication failed." });
+    process.exit(ExitCode.AUTH_REQUIRED);
+  }
+  if (result.status === "network_error") {
+    writeError({ message: `Network error: ${result.message}` });
+    process.exit(ExitCode.NETWORK_ERROR);
+  }
+  writeError({ message: `Could not verify login: ${result.message}` });
+  process.exit(ExitCode.FAILURE);
 }
 
 /**
@@ -184,7 +360,10 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
     config.endpoint,
     result,
     config.apiKey,
-    activeProfileName
+    activeProfileName,
+    config.credentialSource,
+    config.oauthTokens,
+    options.format
   );
   writeOutput({ message: output });
 
@@ -192,6 +371,223 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
   if (code !== ExitCode.SUCCESS) {
     process.exit(code);
   }
+}
+
+async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+      profileName: options.profile,
+    });
+    const endpoint = config.endpoint;
+    if (!endpoint) {
+      writeError({
+        message: "Configuration Error:\n  - Phoenix endpoint not configured",
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const targetProfileName = resolveTargetProfileName(
+      loadSettings({ strict: true }),
+      options.profile
+    );
+    const pkce = generatePkcePair();
+    const state = generateState();
+    const callbackServer = await startLoginCallbackServer({
+      expectedState: state,
+    });
+    try {
+      const authorizationUrl = buildAuthorizationUrl({
+        endpoint,
+        redirectUri: callbackServer.redirectUri,
+        state,
+        codeChallenge: pkce.challenge,
+      });
+      writeError({ message: `Open this URL to log in:\n${authorizationUrl}` });
+
+      let browserOpened = false;
+      if (options.browser !== false) {
+        try {
+          await openBrowser(authorizationUrl);
+          browserOpened = true;
+        } catch (error) {
+          writeError({
+            message: `Could not open a browser automatically: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          });
+        }
+      }
+
+      const pastedRedirectPromise =
+        options.input !== false && (!browserOpened || options.browser === false)
+          ? waitForPastedRedirectUrl({ expectedState: state })
+          : undefined;
+      const callbackPromise =
+        pastedRedirectPromise === undefined
+          ? callbackServer.resultPromise
+          : Promise.race([callbackServer.resultPromise, pastedRedirectPromise]);
+      const callbackResult = await withTimeout({
+        promise: callbackPromise,
+        timeoutMs: OAUTH_LOGIN_TIMEOUT_MS,
+      });
+
+      if (callbackResult.status === "access_denied") {
+        writeError({ message: "OAuth login cancelled." });
+        process.exit(ExitCode.CANCELLED);
+      }
+      if (callbackResult.status === "invalid") {
+        writeError({ message: callbackResult.message });
+        process.exit(ExitCode.FAILURE);
+      }
+
+      const tokenResponse = await exchangeAuthorizationCode({
+        endpoint,
+        code: callbackResult.code,
+        redirectUri: callbackServer.redirectUri,
+        verifier: pkce.verifier,
+      });
+      const oauthTokens = tokenResponseToOAuthTokens({
+        response: tokenResponse,
+      });
+      saveSettings(
+        persistOAuthTokens({
+          settingsFile: loadSettings({ strict: true }),
+          profileName: targetProfileName,
+          endpoint,
+          oauthTokens,
+        })
+      );
+
+      const user = await verifyViewerOrExit({
+        ...config,
+        endpoint,
+        oauthTokens,
+        profileName: targetProfileName,
+        apiKey: undefined,
+        credentialSource: "oauth",
+      });
+      writeOutput({
+        message: formatAuthOutput(
+          {
+            endpoint,
+            profile: targetProfileName,
+            credentialSource: "oauth",
+            accessLevel: formatAccessLevel(oauthTokens.scope),
+            expiresAt: oauthTokens.expiresAt,
+            user,
+            status:
+              user.auth_method === "ANONYMOUS" ? "anonymous" : "authenticated",
+          },
+          options.format
+        ),
+      });
+    } finally {
+      await callbackServer.close();
+    }
+  } catch (error) {
+    if (
+      error instanceof AuthRequiredError ||
+      error instanceof NetworkError ||
+      error instanceof ProfileResolutionError
+    ) {
+      writeError({ message: error.message });
+      process.exit(getExitCodeForError(error));
+    }
+    throw error;
+  }
+}
+
+async function authLogoutHandler(options: AuthLogoutOptions): Promise<void> {
+  let config: PhoenixConfig;
+  try {
+    config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+      profileName: options.profile,
+    });
+  } catch (error) {
+    if (error instanceof ProfileResolutionError) {
+      writeError({ message: error.message });
+      process.exit(getExitCodeForError(error));
+    }
+    throw error;
+  }
+
+  const settingsFile = loadSettings({ strict: true });
+  const targetProfileName = resolveTargetProfileName(
+    settingsFile,
+    options.profile
+  );
+  const profile = getProfileByName(settingsFile, targetProfileName);
+  const refreshToken = profile?.entry.oauthTokens?.refreshToken;
+  if (refreshToken && config.endpoint) {
+    try {
+      await revokeOAuthToken({ endpoint: config.endpoint, refreshToken });
+    } catch (error) {
+      writeError({
+        message: `Warning: Could not revoke OAuth token: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      });
+    }
+  }
+
+  if (profile) {
+    const { oauthTokens: _oauthTokens, ...entryWithoutOAuth } = profile.entry;
+    saveSettings({
+      ...settingsFile,
+      profiles: {
+        ...settingsFile.profiles,
+        [targetProfileName]: entryWithoutOAuth,
+      },
+    });
+  }
+
+  writeOutput({
+    message: formatAuthOutput(
+      {
+        endpoint: config.endpoint ?? "",
+        profile: targetProfileName,
+        credentialSource: config.apiKey
+          ? (config.credentialSource ?? "profile-key")
+          : "none",
+        status: "logged_out",
+      },
+      options.format
+    ),
+  });
+}
+
+function persistOAuthTokens({
+  settingsFile,
+  profileName,
+  endpoint,
+  oauthTokens,
+}: {
+  settingsFile: SettingsFile;
+  profileName: string;
+  endpoint: string;
+  oauthTokens: OAuthTokens;
+}): SettingsFile {
+  const existingProfile = settingsFile.profiles[profileName] ?? {};
+  return {
+    ...settingsFile,
+    activeProfile: settingsFile.activeProfile ?? profileName,
+    profiles: {
+      ...settingsFile.profiles,
+      [profileName]: {
+        ...existingProfile,
+        endpoint: existingProfile.endpoint ?? endpoint,
+        oauthTokens,
+      },
+    },
+  };
 }
 
 /**
@@ -205,9 +601,70 @@ function createAuthStatusCommand(): Command {
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("--profile <name>", "Profile to use")
+    .option(
+      "--format <format>",
+      'Output format: pretty, json, or raw (default: "pretty")'
+    )
+    .addHelpText(
+      "after",
+      `
+Examples:
+  px auth status
+  px auth status --profile staging
+  px auth status --format raw
+`
+    )
     .action(authStatusHandler);
 
   return command;
+}
+
+function createAuthLoginCommand(): Command {
+  return new Command("login")
+    .description(
+      "Log in to Phoenix with browser-based OAuth.\n\nOAuth CLI sessions are read-only. Mutations require an API key; see `px profile --help`."
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--profile <name>", "Profile to store OAuth tokens in")
+    .option("--no-browser", "Print the login URL without opening a browser")
+    .option("--no-input", "Do not prompt for a pasted redirect URL")
+    .option(
+      "--format <format>",
+      'Output format: pretty, json, or raw (default: "pretty")'
+    )
+    .addHelpText(
+      "after",
+      `
+Examples:
+  px auth login
+  px auth login --no-browser
+  px auth login --profile staging --format raw
+`
+    )
+    .action(authLoginHandler);
+}
+
+function createAuthLogoutCommand(): Command {
+  return new Command("logout")
+    .description("Log out of the current Phoenix OAuth session")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--profile <name>", "Profile to clear OAuth tokens from")
+    .option(
+      "--format <format>",
+      'Output format: pretty, json, or raw (default: "pretty")'
+    )
+    .addHelpText(
+      "after",
+      `
+Examples:
+  px auth logout
+  px auth logout --profile staging
+  px auth logout --format raw
+`
+    )
+    .action(authLogoutHandler);
 }
 
 /**
@@ -219,6 +676,8 @@ export function createAuthCommand(): Command {
   command.description("Manage Phoenix authentication");
 
   // Add subcommands
+  command.addCommand(createAuthLoginCommand());
+  command.addCommand(createAuthLogoutCommand());
   command.addCommand(createAuthStatusCommand());
 
   return command;

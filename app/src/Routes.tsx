@@ -63,6 +63,7 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
+  OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
   ProfilePage,
@@ -140,6 +141,7 @@ export const appRouteObjects = createRoutesFromElements(
       */}
     <Route path="/v1/*" element={<Navigate to="/" replace />} />
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/oauth2/consent" element={<OAuth2ConsentPage />} />
     <Route path="/logout" element={<LoggedOutPage />} />
     <Route
       path="/reset-password"

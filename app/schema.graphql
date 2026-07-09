@@ -2434,6 +2434,7 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+  revokeOAuth2Grant(input: RevokeOAuth2GrantInput!): RevokeOAuth2GrantMutationPayload!
 
   """
   Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
@@ -2497,6 +2498,18 @@ type Mutation {
 interface Node {
   """The Globally Unique ID of this object"""
   id: ID!
+}
+
+type OAuth2Grant implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  clientName: String!
+  isFirstParty: Boolean!
+  clientId: String!
+  scopes: [String!]!
+  createdAt: DateTime!
+  expiresAt: DateTime
+  lastUsedAt: DateTime
 }
 
 enum OpenAIApiType {
@@ -3595,6 +3608,15 @@ enum RevisionKind {
   DELETE
 }
 
+input RevokeOAuth2GrantInput {
+  id: ID!
+}
+
+type RevokeOAuth2GrantMutationPayload {
+  grantId: ID!
+  query: Query!
+}
+
 type SandboxBackendInfo {
   backendType: SandboxBackendType!
   displayName: String!
@@ -4618,6 +4640,7 @@ type User implements Node {
   authMethod: AuthMethod!
   role: UserRole!
   apiKeys: [UserApiKey!]!
+  oauth2Grants: [OAuth2Grant!]!
   isManagementUser: Boolean!
 }
 

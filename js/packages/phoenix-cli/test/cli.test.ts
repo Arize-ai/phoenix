@@ -246,7 +246,7 @@ describe("Phoenix CLI", () => {
     );
   });
 
-  it("should register auth command with status subcommand only", () => {
+  it("should register auth command with login, logout, and status subcommands", () => {
     const program = createProgram();
     const authCommand = program.commands.find(
       (command) => command.name() === "auth"
@@ -254,6 +254,8 @@ describe("Phoenix CLI", () => {
 
     expect(authCommand).toBeDefined();
     const subcommandNames = authCommand?.commands.map((c) => c.name());
+    expect(subcommandNames).toContain("login");
+    expect(subcommandNames).toContain("logout");
     expect(subcommandNames).toContain("status");
     expect(subcommandNames).not.toContain("profile");
     expect(subcommandNames).not.toContain("switch");

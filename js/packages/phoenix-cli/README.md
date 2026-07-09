@@ -43,7 +43,7 @@ export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 ```
 
-CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
+CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables. For interactive local use, `px auth login` stores a read-only OAuth session in your active profile. API keys still take precedence and are required for mutations and ingest.
 
 | Variable                                 | Description                                   |
 | ---------------------------------------- | --------------------------------------------- |
@@ -70,7 +70,7 @@ px profile edit prod           # open in $EDITOR, validates on save
 px profile delete prod         # remove a profile (--yes to skip prompt)
 ```
 
-Pass `--profile <name>` to `auth status` to scope a single invocation to a profile other than the active one.
+Pass `--profile <name>` to `auth login`, `auth logout`, or `auth status` to scope a single invocation to a profile other than the active one.
 
 ### Editor autocompletion via `$schema`
 
@@ -661,19 +661,51 @@ px annotation-config get response-quality --format raw --no-progress | jq -r '.i
 
 ---
 
+### `px auth login`
+
+Log in with the browser-based OAuth flow and store read-only tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions are read-only; creating, modifying, deleting, and ingesting data require an API key configured with `px profile`.
+
+```bash
+px auth login
+px auth login --no-browser
+px auth login --profile staging --format raw
+```
+
+| Option              | Description                            | Default  |
+| ------------------- | -------------------------------------- | -------- |
+| `--endpoint <url>`  | Phoenix API endpoint                   | —        |
+| `--api-key <key>`   | Phoenix API key                        | —        |
+| `--profile <name>`  | Profile to store OAuth tokens in       | active   |
+| `--no-browser`      | Print URL without opening a browser    | —        |
+| `--no-input`        | Do not prompt for pasted redirect URLs | —        |
+| `--format <format>` | `pretty`, `json`, or `raw`             | `pretty` |
+
+### `px auth logout`
+
+Clear OAuth tokens from the selected profile. Logout best-effort revokes the refresh token on the server and leaves any configured API key untouched.
+
+```bash
+px auth logout
+px auth logout --profile staging
+px auth logout --format raw
+```
+
 ### `px auth status`
 
-Show current Phoenix authentication status, including the configured endpoint, whether you are authenticated or anonymous, and an obscured API key.
+Show current Phoenix authentication status, including the configured endpoint, credential source, identity, and OAuth access level/expiry when applicable.
 
 ```bash
 px auth status
 px auth status --endpoint http://localhost:6006
+px auth status --profile staging --format raw
 ```
 
-| Option             | Description          | Default |
-| ------------------ | -------------------- | ------- |
-| `--endpoint <url>` | Phoenix API endpoint | —       |
-| `--api-key <key>`  | Phoenix API key      | —       |
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--endpoint <url>`  | Phoenix API endpoint       | —        |
+| `--api-key <key>`   | Phoenix API key            | —        |
+| `--profile <name>`  | Profile to use             | active   |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 
 ---
 

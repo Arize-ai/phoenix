@@ -101,6 +101,7 @@ export function ViewerProvider({
           }
           authMethod
           ...APIKeysTableFragment
+          ...AuthorizedApplicationsCardFragment
         }
       }
     `,

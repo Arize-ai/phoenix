@@ -88,10 +88,13 @@ from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.api.extensions.oauth2_grant_mutation_guard import OAuth2GrantMutationGuard
 from phoenix.server.api.routers import (
     create_agents_router,
     create_auth_router,
     create_v1_router,
+    oauth2_as_router,
+    oauth2_as_well_known_router,
     oauth2_router,
 )
 from phoenix.server.api.routers.auth_md import router as auth_md_router
@@ -161,6 +164,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+_RESERVED_OAUTH2_IDP_NAMES = frozenset({"authorize", "token", "revoke", "register", "consent"})
 
 """
 Threshold (in minutes) to determine if database is booted up for the first time.
@@ -857,6 +861,7 @@ def create_app(
     welcome_message: str | None = None,
 ) -> FastAPI:
     verify_server_environment_variables()
+    _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
@@ -932,6 +937,11 @@ def create_app(
         lambda: QueryDepthLimiter(max_depth=20),
         lambda: MaxAliasesLimiter(max_alias_count=50),
     ]
+    if authentication_enabled:
+        # The guard inspects request.user, which exists only when the
+        # authentication middleware is installed; without authentication there
+        # are no bearer tokens to restrict.
+        graphql_schema_extensions.append(OAuth2GrantMutationGuard)
     graphql_schema_extensions.extend(user_gql_extensions())
 
     if server_instrumentation_is_enabled():
@@ -1035,8 +1045,10 @@ def create_app(
     app.include_router(graphql_router)
     app.include_router(auth_md_router)
     if authentication_enabled:
+        app.include_router(oauth2_as_well_known_router)
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
+        app.include_router(oauth2_as_router)
         app.include_router(oauth2_router)
 
     def _openapi() -> dict[str, Any]:
@@ -1173,6 +1185,21 @@ def create_app(
             allow_headers=["*"],
         )
     return app
+
+
+def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfig]) -> None:
+    collisions = sorted(
+        config.idp_name
+        for config in oauth2_client_configs
+        if config.idp_name.lower() in _RESERVED_OAUTH2_IDP_NAMES
+    )
+    if collisions:
+        names = ", ".join(collisions)
+        reserved = ", ".join(sorted(_RESERVED_OAUTH2_IDP_NAMES))
+        raise ValueError(
+            f"OAuth2 identity provider names cannot use reserved authorization server paths: "
+            f"{names}. Reserved names: {reserved}."
+        )
 
 
 def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:

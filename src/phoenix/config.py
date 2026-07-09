@@ -406,6 +406,45 @@ ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES = "PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES
 """
 The duration, in minutes, before refresh tokens expire.
 """
+ENV_PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS = "PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS"
+"""
+The duration, in days, before an OAuth2 grant expires. Refresh-token rotation never
+extends a token's life past its grant's expiry. Defaults to 90 days.
+"""
+ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK = "PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK"
+"""
+Controls Origin-header enforcement on OAuth2 consent decisions. Defaults to strict.
+"""
+ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION = "PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION"
+"""
+Controls public-client redirect URI mechanisms. Defaults to local_only.
+"""
+ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS = "PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS"
+"""
+A comma-separated list of HTTPS redirect hosts allowed for dynamic OAuth2 client registration.
+When unset, all HTTPS redirect hosts are accepted while dynamic client registration is enabled.
+"""
+ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR = "PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR"
+"""
+Maximum dynamic OAuth2 client registrations accepted per IP address each hour. Defaults to 10.
+"""
+ENV_PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY = (
+    "PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY"
+)
+"""
+Maximum unconsumed dynamic OAuth2 client registrations retained per IP address each day.
+Defaults to 50.
+"""
+ENV_PHOENIX_OAUTH2_DCR_ZERO_GRANT_TTL_DAYS = "PHOENIX_OAUTH2_DCR_ZERO_GRANT_TTL_DAYS"
+"""
+Number of days before abandoned dynamic OAuth2 clients with no grants are removed.
+Defaults to 7.
+"""
+ENV_PHOENIX_OAUTH2_DCR_DEAD_GRANT_TTL_DAYS = "PHOENIX_OAUTH2_DCR_DEAD_GRANT_TTL_DAYS"
+"""
+Number of days before dynamic OAuth2 clients whose grants are all inactive are removed.
+Defaults to 30.
+"""
 ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before password reset tokens expire.
@@ -1449,6 +1488,102 @@ def get_env_refresh_token_expiry() -> timedelta:
     )
     assert minutes > 0
     return timedelta(minutes=minutes)
+
+
+DEFAULT_OAUTH2_GRANT_EXPIRY_DAYS = 90
+
+
+def get_env_oauth2_grant_expiry() -> timedelta:
+    """
+    Gets the OAuth2 grant expiry ceiling applied to newly minted grants.
+    """
+    days = _float_val(
+        ENV_PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS,
+        DEFAULT_OAUTH2_GRANT_EXPIRY_DAYS,
+    )
+    assert days > 0
+    return timedelta(days=days)
+
+
+def get_env_oauth2_consent_origin_check() -> Literal["strict", "off"]:
+    """
+    Gets the OAuth2 consent Origin-header enforcement mode.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK, "strict").lower()
+    if value not in ("strict", "off"):
+        raise ValueError(
+            f"The environment variable `{ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK}` must be "
+            "one of: strict, off."
+        )
+    return cast(Literal["strict", "off"], value)
+
+
+def get_env_oauth2_dynamic_client_registration() -> Literal["disabled", "local_only", "enabled"]:
+    """
+    Gets which public-client redirect URI mechanisms are enabled.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION, "local_only").lower()
+    if value not in ("disabled", "local_only", "enabled"):
+        raise ValueError(
+            f"The environment variable `{ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION}` must be "
+            "one of: disabled, local_only, enabled."
+        )
+    return cast(Literal["disabled", "local_only", "enabled"], value)
+
+
+def get_env_oauth2_allowed_redirect_hosts() -> frozenset[str]:
+    """
+    Gets the HTTPS redirect host allowlist for dynamic OAuth2 client registration.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS)
+    if not value:
+        return frozenset()
+    hosts = frozenset(host.strip().lower() for host in value.split(",") if host.strip())
+    if not hosts:
+        return frozenset()
+    for host in hosts:
+        if urlparse(f"https://{host}").hostname != host:
+            raise ValueError(
+                f"The environment variable `{ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS}` "
+                f"contains an invalid host: {host}"
+            )
+    return hosts
+
+
+def get_env_oauth2_dcr_rate_limit_per_hour() -> int:
+    """
+    Gets the per-IP hourly dynamic OAuth2 client registration limit.
+    """
+    limit = _int_val(ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR, 10)
+    assert limit > 0
+    return limit
+
+
+def get_env_oauth2_dcr_max_unconsumed_per_ip_per_day() -> int:
+    """
+    Gets the per-IP daily cap for dynamic OAuth2 clients that have not created grants.
+    """
+    limit = _int_val(ENV_PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY, 50)
+    assert limit > 0
+    return limit
+
+
+def get_env_oauth2_dcr_zero_grant_ttl() -> timedelta:
+    """
+    Gets the retention period for abandoned dynamic OAuth2 clients with no grants.
+    """
+    days = _float_val(ENV_PHOENIX_OAUTH2_DCR_ZERO_GRANT_TTL_DAYS, 7)
+    assert days > 0
+    return timedelta(days=days)
+
+
+def get_env_oauth2_dcr_dead_grant_ttl() -> timedelta:
+    """
+    Gets the retention period for dynamic OAuth2 clients whose grants are all inactive.
+    """
+    days = _float_val(ENV_PHOENIX_OAUTH2_DCR_DEAD_GRANT_TTL_DAYS, 30)
+    assert days > 0
+    return timedelta(days=days)
 
 
 def get_env_csrf_trusted_origins() -> list[str]:

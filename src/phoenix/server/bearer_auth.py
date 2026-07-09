@@ -67,17 +67,39 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
         return AuthCredentials(), PhoenixUser(claims.subject, claims)
 
 
+def _has_read_only_grant_scope(claims: UserClaimSet) -> bool:
+    """True when the token was minted under a read-only OAuth grant."""
+    from phoenix.server.types import (
+        GRANT_SCOPE_READ_ONLY,
+        AccessTokenAttributes,
+        RefreshTokenAttributes,
+    )
+
+    attributes = claims.attributes
+    if not isinstance(attributes, (AccessTokenAttributes, RefreshTokenAttributes)):
+        return False
+    if attributes.scopes is None:
+        return False
+    return GRANT_SCOPE_READ_ONLY in attributes.scopes
+
+
 class PhoenixUser(BaseUser):
     def __init__(self, user_id: UserId, claims: UserClaimSet) -> None:
         self._user_id = user_id
         self.claims = claims
         assert claims.attributes
-        self._is_admin = (
-            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "ADMIN"
-        )
-        self._is_viewer = (
-            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "VIEWER"
-        )
+        # Read-only OAuth grants clamp role flags to VIEWER-equivalent reads with
+        # admin surfaces denied, even when the underlying account is ADMIN.
+        if _has_read_only_grant_scope(claims) and claims.status is ClaimSetStatus.VALID:
+            self._is_admin = False
+            self._is_viewer = True
+        else:
+            self._is_admin = (
+                claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "ADMIN"
+            )
+            self._is_viewer = (
+                claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "VIEWER"
+            )
 
     @cached_property
     def is_admin(self) -> bool:
@@ -138,6 +160,14 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                     or claims.status is not ClaimSetStatus.VALID
                 ):
                     break
+                # OTLP ingest is a write. Read-only OAuth grants and viewer-role
+                # tokens are authenticated but not authorized to write — reject
+                # with PERMISSION_DENIED (not UNAUTHENTICATED).
+                if _has_read_only_grant_scope(claims) or (
+                    claims.attributes is not None and claims.attributes.user_role == "VIEWER"
+                ):
+                    await context.abort(grpc.StatusCode.PERMISSION_DENIED)
+                    return
                 return await method(request_or_iterator, context)
         await context.abort(grpc.StatusCode.UNAUTHENTICATED)
 
@@ -170,7 +200,17 @@ async def create_access_and_refresh_tokens(
     user: models.User,
     access_token_expiry: timedelta,
     refresh_token_expiry: timedelta,
+    grant_id: Optional[int] = None,
+    scopes: Optional[tuple[str, ...]] = None,
 ) -> tuple[AccessToken, RefreshToken]:
+    """Mint a paired access/refresh token.
+
+    When ``grant_id`` is set the tokens are linked to an OAuth2 grant and carry a
+    denormalized ``scopes`` snapshot. Web-session callers leave both unset so
+    behavior is unchanged.
+    """
+    if grant_id is not None and scopes is None:
+        raise ValueError("scopes are required when minting tokens under an OAuth2 grant")
     issued_at = datetime.now(timezone.utc)
     user_id = UserId(user.id)
     user_role = user.role.name
@@ -180,6 +220,8 @@ async def create_access_and_refresh_tokens(
         expiration_time=issued_at + refresh_token_expiry,
         attributes=RefreshTokenAttributes(
             user_role=user_role,
+            grant_id=grant_id,
+            scopes=scopes,
         ),
     )
     refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
@@ -190,6 +232,8 @@ async def create_access_and_refresh_tokens(
         attributes=AccessTokenAttributes(
             user_role=user_role,
             refresh_token_id=refresh_token_id,
+            grant_id=grant_id,
+            scopes=scopes,
         ),
     )
     access_token, _ = await token_store.create_access_token(access_token_claims)

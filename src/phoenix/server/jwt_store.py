@@ -48,6 +48,28 @@ from phoenix.server.types import (
 logger = logging.getLogger(__name__)
 
 
+def _scopes_tuple(scopes: Optional[list[str]]) -> Optional[tuple[str, ...]]:
+    if scopes is None:
+        return None
+    return tuple(scopes)
+
+
+def _fail_closed_subject(
+    user_id: int,
+    *,
+    grant_id: Optional[int],
+    scopes: Optional[tuple[str, ...]],
+) -> Optional[UserId]:
+    """Return None (invalid claims) when a grant-linked row has NULL scopes.
+
+    Legacy tokens with no grant keep full-role access when scopes is NULL.
+    A grant-linked token without scopes is a bug or tampering — never escalate.
+    """
+    if grant_id is not None and scopes is None:
+        return None
+    return UserId(user_id)
+
+
 class JwtStore:
     def __init__(
         self,
@@ -376,21 +398,68 @@ class _AccessTokenStore(
     _token_id = AccessTokenId
     _token = AccessToken
 
+    @cached_property
+    def _update_stmt(self) -> Select[Any]:
+        # Join the paired refresh token so grant linkage (oauth2_grant_id) is
+        # available without a second query. Access-token rows do not store
+        # oauth2_grant_id themselves — only the denormalized scopes snapshot.
+        return (
+            select(
+                self._table,
+                models.UserRole.name,
+                models.RefreshToken.oauth2_grant_id,
+            )
+            .join_from(self._table, models.User)
+            .join_from(models.User, models.UserRole)
+            .join(
+                models.RefreshToken,
+                models.RefreshToken.id == self._table.refresh_token_id,
+            )
+        )
+
+    async def get(self, token_id: AccessTokenId) -> Optional[AccessTokenClaims]:
+        if claims := self._claims.get(token_id):
+            return claims
+        stmt = self._update_stmt.where(self._table.id == int(token_id))
+        async with self._db() as session:
+            record = (await session.execute(stmt)).first()
+        if not record:
+            return None
+        token, role, grant_id = record
+        _, claims = self._from_db(token, role, grant_id=grant_id)
+        self._claims[token_id] = claims
+        return claims
+
+    async def _update(self) -> None:
+        claims: _Claims[AccessTokenId, AccessTokenClaims] = _Claims()
+        async with self._db() as session:
+            async with session.begin_nested():
+                await self._delete_expired_tokens(session)
+            async with session.begin_nested():
+                async for record, role, grant_id in await session.stream(self._update_stmt):
+                    token_id, claim_set = self._from_db(record, role, grant_id=grant_id)
+                    claims[token_id] = claim_set
+        self._claims = claims
+
     def _from_db(
         self,
         record: models.AccessToken,
         user_role: UserRoleName,
+        grant_id: Optional[int] = None,
     ) -> tuple[AccessTokenId, AccessTokenClaims]:
         token_id = AccessTokenId(record.id)
         refresh_token_id = RefreshTokenId(record.refresh_token_id)
+        scopes = _scopes_tuple(record.scopes)
         return token_id, AccessTokenClaims(
             token_id=token_id,
-            subject=UserId(record.user_id),
+            subject=_fail_closed_subject(record.user_id, grant_id=grant_id, scopes=scopes),
             issued_at=record.created_at,
             expiration_time=record.expires_at,
             attributes=AccessTokenAttributes(
                 user_role=user_role,
                 refresh_token_id=refresh_token_id,
+                grant_id=grant_id,
+                scopes=scopes,
             ),
         )
 
@@ -405,6 +474,7 @@ class _AccessTokenStore(
             created_at=claim.issued_at,
             expires_at=claim.expiration_time,
             refresh_token_id=refresh_token_id,
+            scopes=list(claim.attributes.scopes) if claim.attributes.scopes is not None else None,
         )
 
 
@@ -426,13 +496,17 @@ class _RefreshTokenStore(
         user_role: UserRoleName,
     ) -> tuple[RefreshTokenId, RefreshTokenClaims]:
         token_id = RefreshTokenId(record.id)
+        scopes = _scopes_tuple(record.scopes)
+        grant_id = record.oauth2_grant_id
         return token_id, RefreshTokenClaims(
             token_id=token_id,
-            subject=UserId(record.user_id),
+            subject=_fail_closed_subject(record.user_id, grant_id=grant_id, scopes=scopes),
             issued_at=record.created_at,
             expiration_time=record.expires_at,
             attributes=RefreshTokenAttributes(
                 user_role=user_role,
+                grant_id=grant_id,
+                scopes=scopes,
             ),
         )
 
@@ -440,14 +514,25 @@ class _RefreshTokenStore(
         assert claims.expiration_time
         assert claims.subject
         user_id = int(claims.subject)
+        assert claims.attributes
         return models.RefreshToken(
             user_id=user_id,
             created_at=claims.issued_at,
             expires_at=claims.expiration_time,
+            oauth2_grant_id=claims.attributes.grant_id,
+            scopes=list(claims.attributes.scopes) if claims.attributes.scopes is not None else None,
         )
 
     async def _update(self) -> None:
         await super()._update()
+        # Sweep expired authorization codes alongside the refresh-token cache reload.
+        now = datetime.now(timezone.utc)
+        async with self._db() as session:
+            await session.execute(
+                delete(models.OAuth2AuthorizationCode).where(
+                    models.OAuth2AuthorizationCode.expires_at <= now
+                )
+            )
         if get_env_enable_prometheus():
             from phoenix.server.prometheus import JWT_STORE_TOKENS_ACTIVE
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7682165efeee36179feb871060b9b84f>>
+ * @generated SignedSource<<41003c9cc1580cbde725d06fc61abc8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,6 +32,20 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "expiresAt",
   "storageKey": null
 };
 return {
@@ -130,18 +144,55 @@ return {
                 "name": "description",
                 "storageKey": null
               },
+              (v2/*: any*/),
+              (v3/*: any*/)
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "OAuth2Grant",
+            "kind": "LinkedField",
+            "name": "oauth2Grants",
+            "plural": true,
+            "selections": [
+              (v0/*: any*/),
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "createdAt",
+                "name": "clientName",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "expiresAt",
+                "name": "clientId",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "isFirstParty",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "scopes",
+                "storageKey": null
+              },
+              (v2/*: any*/),
+              (v3/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "lastUsedAt",
                 "storageKey": null
               }
             ],
@@ -153,16 +204,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "79221da09cbb1334cb0c446af434f607",
+    "cacheID": "a9d822aa76e8f05ff9e961767a51a835",
     "id": null,
     "metadata": {},
     "name": "ViewerContextRefetchQuery",
     "operationKind": "query",
-    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment AuthorizedApplicationsCardFragment on User {\n  id\n  oauth2Grants {\n    id\n    clientName\n    clientId\n    isFirstParty\n    scopes\n    createdAt\n    expiresAt\n    lastUsedAt\n  }\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n    ...AuthorizedApplicationsCardFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d85505e5f9dffd2a1c791f8e0007ab61";
+(node as any).hash = "9491bd8a3906fd7087ac8e3a036fa724";
 
 export default node;

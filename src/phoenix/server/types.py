@@ -170,13 +170,24 @@ class RefreshToken(Token): ...
 class ApiKey(Token): ...
 
 
+# Wire value for the read-only OAuth grant scope. Distinct from the deployment
+# read-only mode enforced by IsNotReadOnly.
+GRANT_SCOPE_READ_ONLY = "read_only"
+
+
 @dataclass(frozen=True)
 class UserTokenAttributes(TokenAttributes):
     user_role: UserRoleName
 
 
 @dataclass(frozen=True)
-class RefreshTokenAttributes(UserTokenAttributes): ...
+class RefreshTokenAttributes(UserTokenAttributes):
+    # Present when the token was minted under an OAuth2 grant. None for web-session tokens.
+    grant_id: Optional[int] = None
+    # Snapshot of grant scopes at mint time. None means full role access (legacy
+    # web-session tokens). A grant-linked token MUST carry a non-None scopes
+    # tuple — NULL scopes on a grant-linked row is treated as invalid.
+    scopes: Optional[tuple[str, ...]] = None
 
 
 @dataclass(frozen=True)
@@ -186,6 +197,12 @@ class PasswordResetTokenAttributes(UserTokenAttributes): ...
 @dataclass(frozen=True)
 class AccessTokenAttributes(UserTokenAttributes):
     refresh_token_id: RefreshTokenId
+    # Present when the token was minted under an OAuth2 grant. None for web-session tokens.
+    grant_id: Optional[int] = None
+    # Snapshot of grant scopes at mint time. None means full role access (legacy
+    # web-session tokens). A grant-linked token MUST carry a non-None scopes
+    # tuple — NULL scopes on a grant-linked row is treated as invalid.
+    scopes: Optional[tuple[str, ...]] = None
 
 
 @dataclass(frozen=True)

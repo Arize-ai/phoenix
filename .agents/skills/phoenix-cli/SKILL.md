@@ -43,6 +43,8 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px auth login
+px auth logout
 px auth status
 px profile list
 px profile show [name]
@@ -59,6 +61,8 @@ export PHOENIX_HOST=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
+
+For interactive local use, `px auth login` stores a read-only OAuth session in the selected profile. API keys take precedence over OAuth tokens and are required for mutations, deletes, and ingest.
 
 Always use `--format raw --no-progress` when piping to `jq`.
 
@@ -88,10 +92,16 @@ Both stages tag every artifact with one shared **coding annotation identifier** 
 ## Auth
 
 ```bash
+px auth login                                 # browser-based read-only OAuth login
+px auth login --no-browser                    # print URL for SSH/headless use
+px auth logout                                # clear OAuth tokens; leaves API keys
 px auth status                                # check connection and authentication
 px auth status --endpoint http://other:6006   # check a specific endpoint
 px auth status --profile staging              # check a named profile's connection
+px auth status --format raw                   # machine-readable credential source
 ```
+
+`auth status` reports the credential source (`flag`, `env`, `profile-key`, `oauth`, or `none`). OAuth status includes expiry and access level; `read_only` displays as read-only.
 
 ## Profiles
 
