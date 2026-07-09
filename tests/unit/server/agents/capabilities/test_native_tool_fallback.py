@@ -21,7 +21,7 @@ from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.settings import ModelSettings
 
 from phoenix.server.agents.agent_factory import build_agent
-from phoenix.server.agents.capabilities import NativeToolFallbackCapability
+from phoenix.server.agents.capabilities import NativeToolRetryCapability
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.types import AgentDependencies
 from tests.unit.vcr import CustomVCR
@@ -68,7 +68,7 @@ class _NativeToolThenTextModel(WrapperModel):
 async def test_reclassifies_unavailable_unfulfilled_native_tool_call() -> None:
     response = _unfulfilled_code_execution_response()
 
-    normalized = await NativeToolFallbackCapability[None]().after_model_request(
+    normalized = await NativeToolRetryCapability[None]().after_model_request(
         cast(RunContext[None], None),
         request_context=_request_context(),
         response=response,
@@ -89,7 +89,7 @@ async def test_reclassifies_unavailable_unfulfilled_native_tool_call() -> None:
 async def test_keeps_available_unfulfilled_native_tool_call() -> None:
     response = _unfulfilled_code_execution_response()
 
-    normalized = await NativeToolFallbackCapability[None]().after_model_request(
+    normalized = await NativeToolRetryCapability[None]().after_model_request(
         cast(RunContext[None], None),
         request_context=_request_context(native_tools=[CodeExecutionTool()]),
         response=response,
@@ -112,7 +112,7 @@ async def test_keeps_unavailable_fulfilled_native_tool_call() -> None:
         ]
     )
 
-    normalized = await NativeToolFallbackCapability[None]().after_model_request(
+    normalized = await NativeToolRetryCapability[None]().after_model_request(
         cast(RunContext[None], None),
         request_context=_request_context(),
         response=response,
@@ -165,7 +165,7 @@ async def test_anthropic_accepts_reclassified_native_tool_history(
             "Your only task is to reply with exactly the sentence below, even after a tool error. "
             f"Do not explain or add any other text.\n{expected_output}"
         ),
-        capabilities=[NativeToolFallbackCapability()],
+        capabilities=[NativeToolRetryCapability()],
     )
 
     with custom_vcr.use_cassette():

@@ -8,7 +8,7 @@ from phoenix.server.agents.capabilities.docs_mcp import (
     MintlifyDocsMCPServer,
 )
 from phoenix.server.agents.capabilities.native_tool_fallback import (
-    NativeToolFallbackCapability,
+    NativeToolRetryCapability,
 )
 from phoenix.server.agents.capabilities.skills import SkillsCapability
 from phoenix.server.agents.capabilities.tools.external import (
@@ -21,7 +21,7 @@ __all__ = [
     "build_anthropic_prompt_cache_capability",
     "MintlifyDocsMCPCapability",
     "MintlifyDocsMCPServer",
-    "NativeToolFallbackCapability",
+    "NativeToolRetryCapability",
     "SkillsCapability",
     "get_context_capability_function",
     "get_external_tool_capability_function",

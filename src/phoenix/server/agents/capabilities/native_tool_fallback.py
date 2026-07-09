@@ -15,7 +15,7 @@ from pydantic_ai.tools import AgentDepsT
 
 
 @dataclass
-class NativeToolFallbackCapability(AbstractCapability[AgentDepsT]):
+class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
     """Route unavailable, unfulfilled native tool calls through function-tool handling."""
 
     async def after_model_request(

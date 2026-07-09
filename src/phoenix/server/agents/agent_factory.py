@@ -18,7 +18,7 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
-    NativeToolFallbackCapability,
+    NativeToolRetryCapability,
     SkillsCapability,
     build_anthropic_prompt_cache_capability,
     get_context_capability_function,
@@ -144,6 +144,6 @@ def build_agent(
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_prompts.base.render(),
-        capabilities=[traced_capability, NativeToolFallbackCapability()],
+        capabilities=[traced_capability, NativeToolRetryCapability()],
     )
     return agent
