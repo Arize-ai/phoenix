@@ -166,7 +166,7 @@
     "storybook": "^10.4.6",
     "ts-plugin-sort-import-suggestions": "^1.0.4",
     "tsx": "^4.22.5",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "^8.1.3",
     "vite-plugin-circular-dependency": "^0.6.0",
     "vite-plugin-react-fallback-throttle": "^0.1.3",
