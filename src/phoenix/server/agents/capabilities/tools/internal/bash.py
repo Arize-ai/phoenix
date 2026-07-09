@@ -339,15 +339,19 @@ class BashToolResult(TypedDict):
 
 def _build_shell(
     *,
-    custom_builtins: dict[str, Callable[[BuiltinContext], Awaitable[BuiltinResult]]],
+    schema: strawberry.Schema,
+    build_graphql_context: Callable[[], Context],
+    allow_mutations: bool,
     initial_snapshot: Optional[bytes],
 ) -> Bash:
-    """Build the virtual shell, restoring prior session state when available.
-
-    Live configuration (the phoenix-gql builtin and its permissions, network
-    policy) is never part of the snapshot; it is re-supplied here so restored
-    shells always run with the current request's credentials.
-    """
+    """Build the virtual shell, restoring prior session state when available."""
+    custom_builtins = {
+        "phoenix-gql": create_phoenix_gql_builtin(
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            allow_mutations=allow_mutations,
+        ),
+    }
     if initial_snapshot is not None:
         try:
             return Bash.from_snapshot(
@@ -380,13 +384,9 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         on_snapshot: Optional[Callable[[bytes], None]] = None,
     ) -> None:
         shell = _build_shell(
-            custom_builtins={
-                "phoenix-gql": create_phoenix_gql_builtin(
-                    schema=schema,
-                    build_graphql_context=build_graphql_context,
-                    allow_mutations=allow_mutations,
-                ),
-            },
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            allow_mutations=allow_mutations,
             initial_snapshot=initial_snapshot,
         )
 
