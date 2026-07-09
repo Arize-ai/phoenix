@@ -1,5 +1,25 @@
 # Changelog
 
+## [17.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.21.0...arize-phoenix-v17.22.0) (2026-07-09)
+
+
+### Features
+
+* **ui:** improve PXI onboarding gate UX ([#14110](https://github.com/Arize-ai/phoenix/issues/14110)) ([16e5638](https://github.com/Arize-ai/phoenix/commit/16e5638597624d3c0d77bbf37986c694750009d0))
+
+
+### Bug Fixes
+
+* **agent:** let Command+I close the assistant popover while chat input is focused ([#14127](https://github.com/Arize-ai/phoenix/issues/14127)) ([3977b36](https://github.com/Arize-ai/phoenix/commit/3977b36d3430ce10a8a193edd7611945db2d31cc))
+* **agents:** raise Anthropic output token cap ([#14165](https://github.com/Arize-ai/phoenix/issues/14165)) ([029b6f6](https://github.com/Arize-ai/phoenix/commit/029b6f6c20d18dc94484856f45b16a2eff8e6510))
+* **app:** scroll settings tab bar instead of wrapping on narrow widths ([#14164](https://github.com/Arize-ai/phoenix/issues/14164)) ([1faefa7](https://github.com/Arize-ai/phoenix/commit/1faefa795b5248cf1f64826e210b03becd4b9de4))
+* **ui:** remove permanent scrollbar on trace tree panel ([#14168](https://github.com/Arize-ai/phoenix/issues/14168)) ([8f76524](https://github.com/Arize-ai/phoenix/commit/8f76524f4e881edea879be6d0a094341321b61a9))
+
+
+### Documentation
+
+* add Phoenix release notes ([#14141](https://github.com/Arize-ai/phoenix/issues/14141)) ([377a5fa](https://github.com/Arize-ai/phoenix/commit/377a5fa151609314d4897c0789fb08ba2e64ec4d))
+
 ## [17.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.20.0...arize-phoenix-v17.21.0) (2026-07-08)
 
 
