@@ -16,12 +16,11 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     get_env_database_allocated_storage_capacity_gibibytes,
+    get_env_database_schema,
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_collector_endpoint,
     get_env_phoenix_agents_web_access_enabled,
-    getenv,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -1586,17 +1585,22 @@ class Query:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
             stmt = text("""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
                 FROM pg_class as c
                 INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
                 WHERE c.relkind = 'r'
                 AND n.nspname = :nspname;
-            """).bindparams(nspname=nspname)
+            """)
             try:
                 async with info.context.db.read() as session:
-                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                    nspname = get_env_database_schema() or await session.scalar(
+                        text("SELECT current_schema()")
+                    )
+                    stats = type_cast(
+                        Iterable[tuple[str, int]],
+                        await session.execute(stmt.bindparams(nspname=nspname)),
+                    )
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
                 return []
