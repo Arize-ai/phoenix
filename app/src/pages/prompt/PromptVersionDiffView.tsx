@@ -1,9 +1,7 @@
-import { parseDiffFromFile } from "@pierre/diffs";
-import { FileDiff } from "@pierre/diffs/react";
-import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { useTheme } from "@phoenix/contexts";
+import type { TextDiffStyle } from "@phoenix/components/diff";
+import { TextDiff } from "@phoenix/components/diff";
 
 import type {
   PromptVersionDiffView__template$data,
@@ -86,35 +84,28 @@ const templateFragment = graphql`
   }
 `;
 
+/**
+ * A git-like diff of the prompt template (chat messages) between two prompt
+ * versions.
+ */
 export function PromptVersionDiffView({
   current,
-  previous,
+  baseline,
+  diffStyle = "unified",
 }: {
   current: PromptVersionDiffView__template$key;
-  previous: PromptVersionDiffView__template$key;
+  baseline: PromptVersionDiffView__template$key;
+  diffStyle?: TextDiffStyle;
 }) {
-  const { theme } = useTheme();
   const currentData = useFragment(templateFragment, current);
-  const previousData = useFragment(templateFragment, previous);
-
-  const fileDiff = useMemo(() => {
-    const oldText = promptTemplateToText(previousData.template);
-    const newText = promptTemplateToText(currentData.template);
-    return parseDiffFromFile(
-      { name: "prompt.txt", contents: oldText },
-      { name: "prompt.txt", contents: newText }
-    );
-  }, [currentData.template, previousData.template]);
+  const baselineData = useFragment(templateFragment, baseline);
 
   return (
-    <FileDiff
-      fileDiff={fileDiff}
-      options={{
-        diffStyle: "unified",
-        disableFileHeader: true,
-        theme: { light: "pierre-light", dark: "pierre-dark" },
-        themeType: theme,
-      }}
+    <TextDiff
+      oldText={promptTemplateToText(baselineData.template)}
+      newText={promptTemplateToText(currentData.template)}
+      fileName="prompt.txt"
+      diffStyle={diffStyle}
     />
   );
 }

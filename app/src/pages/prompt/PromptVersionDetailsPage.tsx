@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLoaderData, useParams } from "react-router";
+import { Suspense, useCallback, useState } from "react";
+import { useLoaderData, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -8,6 +8,7 @@ import {
   Icon,
   Icons,
   LinkButton,
+  Loading,
   Switch,
   TitleWithID,
   Tooltip,
@@ -16,6 +17,8 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
+import type { TextDiffStyle } from "@phoenix/components/diff";
+import { DiffStyleToggle } from "@phoenix/components/diff";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
@@ -28,8 +31,15 @@ import type {
   promptVersionLoaderQuery$data,
 } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
-import { PromptVersionDiffView } from "./PromptVersionDiffView";
+import { PromptVersionCompareSelect } from "./PromptVersionCompareSelect";
+import { PromptVersionDiffCards } from "./PromptVersionDiffCards";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
+
+/**
+ * Search param holding the id of the version the current version is diffed
+ * against. Its presence turns on diff mode.
+ */
+const DIFF_BASE_PARAM = "diffBase";
 
 export function PromptVersionDetailsPage() {
   const loaderData = useLoaderData<PromptVersionLoaderData>();
@@ -47,9 +57,31 @@ function PromptVersionDetailsPageContent({
 }) {
   const { promptId } = useParams();
   invariant(promptId, "promptId is required");
-  const [showDiff, setShowDiff] = useState(false);
-  const previousVersion = promptVersion.previousVersion;
-  const hasPreviousVersion = previousVersion != null;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const diffBaseId = searchParams.get(DIFF_BASE_PARAM);
+  const [diffStyle, setDiffStyle] = useState<TextDiffStyle>("unified");
+  const previousVersionId = promptVersion.previousVersion?.id ?? null;
+  const isDiffMode = diffBaseId != null;
+
+  const setDiffBase = useCallback(
+    (versionId: string | null) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (versionId == null) {
+            next.delete(DIFF_BASE_PARAM);
+          } else {
+            next.set(DIFF_BASE_PARAM, versionId);
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  invariant(promptVersion.id, "promptVersion id is required");
   return (
     <View width="100%" overflow="auto" elementType="section">
       <View padding="size-200" width="100%" overflow="auto">
@@ -90,33 +122,56 @@ function PromptVersionDetailsPageContent({
               </TooltipTrigger>
             </Flex>
           </Flex>
-          <Card
-            title="Prompt"
-            collapsible
-            data-testid="prompt-chat-messages-card"
-            extra={
-              <Switch
-                labelPlacement="start"
-                isSelected={showDiff}
-                isDisabled={!hasPreviousVersion}
-                onChange={setShowDiff}
-              >
-                Diff
-              </Switch>
-            }
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            minHeight="size-400"
           >
-            {showDiff && previousVersion ? (
-              <PromptVersionDiffView
+            <Switch
+              labelPlacement="end"
+              isSelected={isDiffMode}
+              isDisabled={!isDiffMode && previousVersionId == null}
+              onChange={(isSelected) => {
+                setDiffBase(isSelected ? previousVersionId : null);
+              }}
+            >
+              Diff
+            </Switch>
+            {isDiffMode && diffBaseId != null ? (
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <PromptVersionCompareSelect
+                  promptId={promptId}
+                  currentVersionId={promptVersion.id}
+                  selectedVersionId={diffBaseId}
+                  onChange={setDiffBase}
+                />
+                <DiffStyleToggle value={diffStyle} onChange={setDiffStyle} />
+              </Flex>
+            ) : null}
+          </Flex>
+          {isDiffMode && diffBaseId != null ? (
+            <Suspense fallback={<Loading />}>
+              <PromptVersionDiffCards
+                baselineVersionId={diffBaseId}
                 current={promptVersion}
-                previous={previousVersion}
+                diffStyle={diffStyle}
               />
-            ) : (
-              <View padding="size-200">
-                <PromptChatMessages promptVersion={promptVersion} />
-              </View>
-            )}
-          </Card>
-          <PromptModelConfigurationCard promptVersion={promptVersion} />
+            </Suspense>
+          ) : (
+            <>
+              <Card
+                title="Prompt"
+                collapsible
+                data-testid="prompt-chat-messages-card"
+              >
+                <View padding="size-200">
+                  <PromptChatMessages promptVersion={promptVersion} />
+                </View>
+              </Card>
+              <PromptModelConfigurationCard promptVersion={promptVersion} />
+            </>
+          )}
           <PromptCodeExportCard promptVersion={promptVersion} />
         </Flex>
       </View>
