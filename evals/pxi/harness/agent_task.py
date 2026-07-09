@@ -78,7 +78,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=base_url,
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -101,7 +101,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=azure_endpoint_to_base_url(endpoint),
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -121,7 +121,7 @@ async def _build_model() -> PydanticAIModel:
         return AnthropicModel(
             model_name,
             provider=AnthropicProvider(
-                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=0)
+                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=3)
             ),
         )
 
