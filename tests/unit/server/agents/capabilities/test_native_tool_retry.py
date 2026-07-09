@@ -27,7 +27,8 @@ from tests.unit.vcr import CustomVCR
 class _NativeToolHallucinationModel(WrapperModel):
     def __init__(self, wrapped: AnthropicModel) -> None:
         super().__init__(wrapped)
-        self.request_count = 0
+        self.hallucinated_native_tool_response_count = 0
+        self.anthropic_retry_request_count = 0
 
     async def request(
         self,
@@ -35,9 +36,10 @@ class _NativeToolHallucinationModel(WrapperModel):
         model_settings: ModelSettings | None,
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
-        self.request_count += 1
-        if self.request_count == 1:
+        if self.hallucinated_native_tool_response_count == 0:
+            self.hallucinated_native_tool_response_count += 1
             return _code_execution_response_without_result()
+        self.anthropic_retry_request_count += 1
         return await self.wrapped.request(
             messages,
             model_settings,
@@ -112,7 +114,9 @@ async def test_anthropic_accepts_converted_native_tool_history(
     anthropic_api_key: str,
     custom_vcr: CustomVCR,
 ) -> None:
-    expected_output = "Recovered from a native tool call that was not configured."
+    expected_anthropic_output_after_retry = (
+        "Recovered from a native tool call that was not configured."
+    )
     inner_model = AnthropicModel(
         "claude-haiku-4-5",
         provider=AnthropicProvider(api_key=anthropic_api_key),
@@ -122,7 +126,7 @@ async def test_anthropic_accepts_converted_native_tool_history(
         model,
         instructions=(
             "Your only task is to reply with exactly the sentence below, even after a tool error. "
-            f"Do not explain or add any other text.\n{expected_output}"
+            f"Do not explain or add any other text.\n{expected_anthropic_output_after_retry}"
         ),
         capabilities=[NativeToolRetryCapability()],
     )
@@ -131,39 +135,45 @@ async def test_anthropic_accepts_converted_native_tool_history(
     with custom_vcr.use_cassette(
         match_on=["method", "scheme", "host", "port", "path", "query", "body"]
     ):
-        result = await agent.run(
+        agent_run_result = await agent.run(
             "Begin.",
             model_settings=ModelSettings(temperature=0.0, max_tokens=32),
         )
 
-    assert result.output == expected_output
-    assert model.request_count == 2
-    messages = result.all_messages()
-    converted_calls = [
+    assert agent_run_result.output == expected_anthropic_output_after_retry
+    assert model.hallucinated_native_tool_response_count == 1
+    assert model.anthropic_retry_request_count == 1
+
+    repaired_message_history = agent_run_result.all_messages()
+    ordinary_tool_calls_in_repaired_history = [
         part
-        for message in messages
+        for message in repaired_message_history
         if isinstance(message, ModelResponse)
         for part in message.parts
         if isinstance(part, ToolCallPart)
     ]
-    assert len(converted_calls) == 1
-    assert converted_calls[0].tool_name == "code_execution"
-    assert not any(
-        isinstance(part, NativeToolCallPart)
-        for message in messages
+    assert len(ordinary_tool_calls_in_repaired_history) == 1
+    assert ordinary_tool_calls_in_repaired_history[0].tool_name == "code_execution"
+
+    native_tool_calls_in_repaired_history = [
+        part
+        for message in repaired_message_history
         if isinstance(message, ModelResponse)
         for part in message.parts
-    )
-    retry_parts = [
+        if isinstance(part, NativeToolCallPart)
+    ]
+    assert not native_tool_calls_in_repaired_history
+
+    retry_prompts_in_repaired_history = [
         part
-        for message in messages
+        for message in repaired_message_history
         if not isinstance(message, ModelResponse)
         for part in message.parts
         if isinstance(part, RetryPromptPart)
     ]
-    assert len(retry_parts) == 1
-    assert retry_parts[0].tool_name == "code_execution"
-    assert retry_parts[0].tool_call_id == "srvtoolu_test"
+    assert len(retry_prompts_in_repaired_history) == 1
+    assert retry_prompts_in_repaired_history[0].tool_name == "code_execution"
+    assert retry_prompts_in_repaired_history[0].tool_call_id == "srvtoolu_test"
 
 
 def _request_context(
