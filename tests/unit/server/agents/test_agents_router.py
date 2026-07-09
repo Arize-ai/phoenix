@@ -13,7 +13,6 @@ from phoenix.db import models
 from phoenix.server.api.routers.agents import (
     AssistantMetadataUIMessage,
     _build_message_metadata_chunk,
-    _derive_session_title,
     _get_span_context,
     _load_bash_snapshot,
     _persist_agent_session_turn,
@@ -287,29 +286,6 @@ def _user_message(text: str, *, message_id: str = "msg-user-1") -> dict[str, Any
     }
 
 
-def test_derive_session_title_uses_first_user_text() -> None:
-    messages: list[dict[str, Any]] = [
-        {"id": "a", "role": "assistant", "parts": [{"type": "text", "text": "hi"}]},
-        _user_message("  What datasets exist?  "),
-        _user_message("second question", message_id="msg-user-2"),
-    ]
-    assert _derive_session_title(messages) == "What datasets exist?"
-
-
-def test_derive_session_title_truncates_long_text() -> None:
-    long_text = "x" * 80
-    title = _derive_session_title([_user_message(long_text)])
-    assert title == "x" * 50 + "..."
-
-
-def test_derive_session_title_empty_without_user_text() -> None:
-    messages = [
-        {"id": "a", "role": "assistant", "parts": [{"type": "text", "text": "hi"}]},
-        {"id": "b", "role": "user", "parts": [{"type": "file", "url": "blob:x"}]},
-    ]
-    assert _derive_session_title(messages) == ""
-
-
 async def test_persist_agent_session_turn_round_trip(db: DbSessionFactory) -> None:
     session_id = "11111111-1111-4111-8111-111111111111"
     first_turn = [_user_message("first question")]
@@ -337,7 +313,9 @@ async def test_persist_agent_session_turn_round_trip(db: DbSessionFactory) -> No
         assert len(agent_sessions) == 1
         agent_session = agent_sessions[0]
         assert agent_session.session_id == session_id
-        assert agent_session.title == "first question"
+        # No LLM title was supplied, so the session stays untitled; the
+        # frontend renders its own display fallback.
+        assert agent_session.title == ""
         assert agent_session.messages == second_turn
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
@@ -376,36 +354,52 @@ async def test_persist_agent_session_turn_skips_empty_transcript(db: DbSessionFa
         assert (await session.scalars(select(models.AgentSession))).all() == []
 
 
-async def test_upsert_agent_session_title_update_is_opt_in(db: DbSessionFactory) -> None:
+async def test_upsert_agent_session_title_conflict_semantics(db: DbSessionFactory) -> None:
     session_id = "33333333-3333-4333-8333-333333333333"
     async with db() as session:
         await _upsert_agent_session(
             session,
             session_id=session_id,
             user_id=None,
-            title="derived title",
+            title="",
             messages=[_user_message("original transcript")],
         )
     async with db() as session:
+        # A non-empty title always wins on conflict.
         await _upsert_agent_session(
             session,
             session_id=session_id,
             user_id=None,
-            title="ignored on conflict",
+            title="LLM title",
         )
         row = await session.scalar(select(models.AgentSession))
         assert row is not None
-        assert row.title == "derived title"
+        assert row.title == "LLM title"
         # Omitting messages leaves the stored transcript alone.
         assert row.messages == [_user_message("original transcript")]
     async with db() as session:
+        # An empty title never clobbers a stored one.
         await _upsert_agent_session(
             session,
             session_id=session_id,
             user_id=None,
-            title="LLM summary",
-            update_title_on_conflict=True,
+            title="",
         )
+        row = await session.scalar(select(models.AgentSession))
+        assert row is not None
+        assert row.title == "LLM title"
+
+
+async def test_persist_agent_session_turn_prefers_provided_title(db: DbSessionFactory) -> None:
+    await _persist_agent_session_turn(
+        db,
+        session_id="55555555-5555-4555-8555-555555555555",
+        user_id=None,
+        messages=[_user_message("first question")],
+        bashkit_snapshot=None,
+        title="LLM summary",
+    )
+    async with db() as session:
         row = await session.scalar(select(models.AgentSession))
         assert row is not None
         assert row.title == "LLM summary"
@@ -444,13 +438,17 @@ async def test_chat_turn_persists_session_transcript(
         json=body,
     )
     assert response.status_code == 200
+    # A new session's first turn streams the LLM session title as a transient
+    # data chunk (TestModel fills the summary tool with generated args: "a").
+    assert "data-session-summary" in response.text
 
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.session_id == session_id
         assert agent_session.user_id is None
-        assert agent_session.title == "What datasets exist?"
+        # The in-stream summary is persisted as the session title.
+        assert agent_session.title == "a"
         messages = agent_session.messages
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
@@ -465,6 +463,24 @@ async def test_chat_turn_persists_session_transcript(
     # request's message validation, so every stored message must round-trip.
     for message in messages:
         AssistantMetadataUIMessage.model_validate(message)
+
+    second_response = await httpx_client.post(
+        f"/agents/assistant/sessions/{session_id}/chat",
+        json={
+            **body,
+            "messages": [
+                *messages,
+                _user_message("And experiments?", message_id="msg-user-2"),
+            ],
+        },
+    )
+    assert second_response.status_code == 200
+    # Only a session's first turn summarizes; later turns keep the stored title.
+    assert "data-session-summary" not in second_response.text
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.title == "a"
 
 
 async def test_get_agent_session_messages_returns_transcript(

@@ -1514,7 +1514,7 @@ export interface paths {
         };
         /**
          * Get Agent Session Messages
-         * @description The transcript from the session's latest persisted snapshot.
+         * @description The session's persisted transcript.
          */
         get: operations["get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get"];
         put?: never;
@@ -2800,10 +2800,7 @@ export interface components {
         };
         /**
          * GetAgentSessionMessagesResponse
-         * @description Body for GET /agents/{agent_id}/sessions/{session_id}/messages.
-         *
-         *     Persisted transcripts round-trip through the chat request's message
-         *     schema (asserted at persist time), so reads reuse the same typed shape.
+         * @description Body for GET /agents/{agent_id}/sessions/{session_id}/messages
          */
         GetAgentSessionMessagesResponse: {
             /** Data */
@@ -5734,6 +5731,28 @@ export interface components {
         _SummarizeResponse: {
             /** Summary */
             summary: string;
+        };
+        /**
+         * SessionSummaryChunk
+         * @description Wire schema for the transient ``data-session-summary`` stream chunk:
+         *     the LLM-generated session title, emitted on any turn that starts with the
+         *     session still untitled.
+         */
+        SessionSummaryChunk: {
+            /**
+             * Type
+             * @default data-session-summary
+             * @constant
+             */
+            type?: "data-session-summary";
+            /** Data */
+            data: string;
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
         };
         /**
          * ToolCallProviderMetadata

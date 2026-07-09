@@ -29,6 +29,8 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 )
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
+    DataChunk,
+    FinishChunk,
     MessageMetadataChunk,
     ProviderMetadata,
     StartChunk,
@@ -178,6 +180,19 @@ class AssistantMessageMetadata(_CamelModel):
     session_id: str
     trace: AssistantMessageMetadataTraceIds | None = None
     usage: AssistantMessageMetadataUsage | None = None
+
+
+@register_openapi_schema
+class SessionSummaryChunk(BaseModel):
+    """Wire schema for the transient ``data-session-summary`` stream chunk:
+    the LLM-generated session title, emitted on any turn that starts with the
+    session still untitled."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["data-session-summary"] = "data-session-summary"
+    data: str
+    transient: Literal[True] = True
 
 
 class AssistantMetadataUIMessage(UIMessage):
@@ -678,6 +693,62 @@ async def _interleave_agent_and_subagent_message_chunks(
             await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
 
 
+def _build_session_summary_chunk(summary: str) -> DataChunk:
+    """Transient data chunk carrying the LLM-generated session title; the
+    client applies it to its session list without appending a message part."""
+    chunk = SessionSummaryChunk(data=summary)
+    return DataChunk(type=chunk.type, data=chunk.data, transient=chunk.transient)
+
+
+async def _merge_session_summary_chunk(
+    *,
+    message_chunks: AsyncIterator[BaseChunk],
+    summary_task: asyncio.Task[str | None],
+) -> AsyncIterator[BaseChunk]:
+    """Yield message chunks as they arrive, inserting the session-summary data
+    chunk as soon as the summarization task completes — whichever source is
+    ready first is yielded first. A summary still pending when the stream's
+    ``finish`` chunk arrives is awaited so the chunk lands inside the protocol
+    envelope; a stream that ends without ``finish`` (client disconnect) leaves
+    the task to the caller.
+    """
+    summary_settled = False
+
+    async def _next_message_chunk() -> BaseChunk:
+        return await anext(message_chunks)
+
+    chunk_task: asyncio.Task[BaseChunk] | None = asyncio.create_task(_next_message_chunk())
+    try:
+        while chunk_task is not None:
+            pending_tasks: set[asyncio.Task[Any]] = {chunk_task}
+            if not summary_settled:
+                pending_tasks.add(summary_task)
+            done_tasks, _ = await asyncio.wait(
+                pending_tasks,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if summary_task in done_tasks and not summary_settled:
+                summary_settled = True
+                if summary := summary_task.result():
+                    yield _build_session_summary_chunk(summary)
+            if chunk_task in done_tasks:
+                try:
+                    message_chunk = chunk_task.result()
+                except StopAsyncIteration:
+                    chunk_task = None
+                else:
+                    if isinstance(message_chunk, FinishChunk) and not summary_settled:
+                        summary_settled = True
+                        if summary := await summary_task:
+                            yield _build_session_summary_chunk(summary)
+                    yield message_chunk
+                    chunk_task = asyncio.create_task(_next_message_chunk())
+    finally:
+        if chunk_task is not None:
+            chunk_task.cancel()
+            await asyncio.gather(chunk_task, return_exceptions=True)
+
+
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve project_id by name, creating the project row if missing."""
     async with db() as session:
@@ -791,30 +862,6 @@ async def _load_phoenix_user_email(
     )
 
 
-_SESSION_TITLE_MAX_LENGTH = 50
-
-
-def _derive_session_title(messages: list[dict[str, Any]]) -> str:
-    """Initial title for a session row: the first user message's text,
-    truncated like the frontend's display-name fallback. The LLM-generated
-    summary overwrites it via the summary endpoint."""
-    for message in messages:
-        if message.get("role") != "user":
-            continue
-        text = " ".join(
-            stripped
-            for part in message.get("parts") or []
-            if isinstance(part, dict)
-            and part.get("type") == "text"
-            and (stripped := str(part.get("text") or "").strip())
-        ).strip()
-        if text:
-            if len(text) > _SESSION_TITLE_MAX_LENGTH:
-                return f"{text[:_SESSION_TITLE_MAX_LENGTH]}..."
-            return text
-    return ""
-
-
 async def _upsert_agent_session(
     session: AsyncSession,
     *,
@@ -822,20 +869,11 @@ async def _upsert_agent_session(
     user_id: int | None,
     title: str,
     messages: list[dict[str, Any]] | None = None,
-    update_title_on_conflict: bool = False,
 ) -> int:
-    """Insert the ``agent_sessions`` row if missing and return its rowid.
-
-    An existing row keeps its owner; ``updated_at`` is always bumped so the
-    session list orders by recency. The transcript is only overwritten when
-    ``messages`` is provided, and the title only when
-    ``update_title_on_conflict`` is set (LLM summaries win over the derived
-    first-message title).
-    """
     set_: dict[str, Any] = {"updated_at": func.now()}
     if messages is not None:
         set_["messages"] = messages
-    if update_title_on_conflict:
+    if title:
         set_["title"] = title
     await session.execute(
         insert_on_conflict(
@@ -866,16 +904,8 @@ async def _persist_agent_session_turn(
     user_id: int | None,
     messages: list[dict[str, Any]],
     bashkit_snapshot: bytes | None,
+    title: str | None = None,
 ) -> None:
-    """Persist a chat turn: the transcript onto the session row and any bash
-    state into the session's single snapshot row.
-
-    Sessions live only in the database — there is no in-memory or
-    browser-local copy — so this also runs when the stream ends early: the
-    incoming transcript (and any bash state captured before the interruption)
-    stays durable. A turn without bash activity leaves the snapshot row
-    untouched so previously captured shell state survives.
-    """
     if not messages:
         return
     async with db() as session:
@@ -883,7 +913,7 @@ async def _persist_agent_session_turn(
             session,
             session_id=session_id,
             user_id=user_id,
-            title=_derive_session_title(messages),
+            title=title or "",
             messages=messages,
         )
         if bashkit_snapshot is not None:
@@ -1165,13 +1195,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
                 existing_session_row = (
                     await session.execute(
-                        select(models.AgentSession.id, models.AgentSession.user_id).where(
-                            models.AgentSession.session_id == session_id
-                        )
+                        select(
+                            models.AgentSession.id,
+                            models.AgentSession.user_id,
+                            models.AgentSession.title,
+                        ).where(models.AgentSession.session_id == session_id)
                     )
                 ).first()
+                session_needs_title = existing_session_row is None or not existing_session_row[2]
                 if existing_session_row is not None:
-                    agent_session_rowid, session_owner_id = existing_session_row
+                    agent_session_rowid, session_owner_id, _ = existing_session_row
                     session_belongs_to_another_user = (
                         phoenix_user is not None and session_owner_id != request_user_id
                     )
@@ -1304,6 +1337,22 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request_parent_span_context = _get_span_context(parent_context)
         completed_run: tuple[AgentRunResult[Any], SpanContext | None] | None = None
 
+        async def _summarize_untitled_session() -> str | None:
+            try:
+                with (
+                    detached_otel_context(parent_context),
+                    using_session(session_id=session_id),
+                    _maybe_using_user(body.attach_user_id, phoenix_user_email),
+                ):
+                    result = await summarize_messages(
+                        messages=VercelAIAdapter.load_messages(body.messages),
+                        model=model,
+                    )
+            except Exception:
+                logger.exception("Failed to summarize new agent session %r", session_id)
+                return None
+            return result.summary.strip() or None
+
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             nonlocal completed_run
             span_context = (
@@ -1320,7 +1369,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            summary_task: asyncio.Task[str | None] | None = None
             try:
+                if session_needs_title:
+                    summary_task = asyncio.create_task(_summarize_untitled_session())
                 with (
                     detached_otel_context(parent_context),
                     using_session(session_id=session_id),
@@ -1371,14 +1423,28 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         yield forced_skill_message_chunk
                                     forced_skills_streamed = True
 
-                    async for message_chunk in _interleave_agent_and_subagent_message_chunks(
-                        agent_message_chunks=_agent_message_chunks(),
-                        subagent_message_chunks=subagent_message_chunks,
-                        final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
-                    ):
+                    message_chunk_stream: AsyncIterator[BaseChunk] = (
+                        _interleave_agent_and_subagent_message_chunks(
+                            agent_message_chunks=_agent_message_chunks(),
+                            subagent_message_chunks=subagent_message_chunks,
+                            final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
+                        )
+                    )
+                    if summary_task is not None:
+                        message_chunk_stream = _merge_session_summary_chunk(
+                            message_chunks=message_chunk_stream,
+                            summary_task=summary_task,
+                        )
+                    async for message_chunk in message_chunk_stream:
                         yield message_chunk
             finally:
                 result, span_context = completed_run if completed_run else (None, None)
+                session_title: str | None = None
+                if summary_task is not None:
+                    if summary_task.done() and not summary_task.cancelled():
+                        session_title = summary_task.result()
+                    else:
+                        summary_task.cancel()
                 try:
                     await _persist_agent_session_turn(
                         request.app.state.db,
@@ -1391,6 +1457,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             span_context=span_context,
                         ),
                         bashkit_snapshot=captured_bash_snapshot,
+                        title=session_title,
                     )
                 except Exception:
                     logger.exception("Failed to persist agent session %r", session_id)
@@ -1479,31 +1546,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db_traces=db_traces,
                     )
                 tracer.tracer_provider.shutdown()
-        summary = result.summary.strip()
-        if summary:
-            # The summary doubles as the persisted session title. Skip the
-            # write when the session row belongs to someone else.
-            request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
-            try:
-                async with request.app.state.db() as session:
-                    owner_row = (
-                        await session.execute(
-                            select(models.AgentSession.user_id).where(
-                                models.AgentSession.session_id == session_id
-                            )
-                        )
-                    ).first()
-                    if owner_row is None or phoenix_user is None or owner_row[0] == request_user_id:
-                        await _upsert_agent_session(
-                            session,
-                            session_id=session_id,
-                            user_id=request_user_id,
-                            title=summary,
-                            update_title_on_conflict=True,
-                        )
-            except Exception:
-                logger.exception("Failed to persist agent session title %r", session_id)
-        return _SummarizeResponse(summary=summary)
+        return _SummarizeResponse(summary=result.summary.strip())
 
     @router.get(
         "/agents/{agent_id}/sessions/{session_id}/messages",

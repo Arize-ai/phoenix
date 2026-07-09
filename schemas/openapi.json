@@ -7685,7 +7685,7 @@
           "chat"
         ],
         "summary": "Get Agent Session Messages",
-        "description": "The transcript from the session's latest persisted snapshot.",
+        "description": "The session's persisted transcript.",
         "operationId": "get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get",
         "parameters": [
           {
@@ -10820,7 +10820,7 @@
           "data"
         ],
         "title": "GetAgentSessionMessagesResponse",
-        "description": "Body for GET /agents/{agent_id}/sessions/{session_id}/messages.\n\nPersisted transcripts round-trip through the chat request's message\nschema (asserted at persist time), so reads reuse the same typed shape."
+        "description": "Body for GET /agents/{agent_id}/sessions/{session_id}/messages"
       },
       "GetAnnotationConfigResponseBody": {
         "properties": {
@@ -17829,6 +17829,33 @@
           "summary"
         ],
         "title": "_SummarizeResponse"
+      },
+      "SessionSummaryChunk": {
+        "additionalProperties": false,
+        "description": "Wire schema for the transient ``data-session-summary`` stream chunk:\nthe LLM-generated session title, emitted on any turn that starts with the\nsession still untitled.",
+        "properties": {
+          "type": {
+            "const": "data-session-summary",
+            "default": "data-session-summary",
+            "title": "Type",
+            "type": "string"
+          },
+          "data": {
+            "title": "Data",
+            "type": "string"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionSummaryChunk",
+        "type": "object"
       },
       "ToolCallProviderMetadata": {
         "additionalProperties": false,

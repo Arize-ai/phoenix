@@ -193,6 +193,13 @@ export function useAgentChat({
                     }),
                 });
               },
+              onData: (dataPart) => {
+                if (dataPart.type === "data-session-summary") {
+                  store
+                    .getState()
+                    .updateSessionSummary(sessionId, dataPart.data);
+                }
+              },
               sendAutomaticallyWhen: ({ messages }) =>
                 turnCompletionGate.handleSendAutomaticallyWhen({ messages }),
               onError: (error) => {

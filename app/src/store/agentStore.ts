@@ -747,7 +747,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
-              ? newSessions[newSessions.length - 1] ?? null
+              ? (newSessions[newSessions.length - 1] ?? null)
               : state.activeSessionId;
           return {
             sessions: newSessions,
