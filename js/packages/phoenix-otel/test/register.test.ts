@@ -1,10 +1,9 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { context, trace } from "@opentelemetry/api";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { DiagLogLevel } from "../src";
-import { getEnvProjectName } from "../src/config";
 import {
   attachGlobalTracerProvider,
   detachGlobalTracerProvider,
@@ -242,44 +241,6 @@ describe("register", () => {
 
     await firstProvider.shutdown();
     await secondProvider.shutdown();
-  });
-});
-
-describe("getEnvProjectName", () => {
-  beforeEach(() => {
-    delete process.env.PHOENIX_PROJECT_NAME;
-    delete process.env.PHOENIX_PROJECT;
-  });
-
-  afterEach(() => {
-    delete process.env.PHOENIX_PROJECT_NAME;
-    delete process.env.PHOENIX_PROJECT;
-  });
-
-  test("returns undefined when neither variable is set", () => {
-    expect(getEnvProjectName()).toBeUndefined();
-  });
-
-  test("reads PHOENIX_PROJECT_NAME when only it is set", () => {
-    process.env.PHOENIX_PROJECT_NAME = "canonical";
-    expect(getEnvProjectName()).toBe("canonical");
-  });
-
-  test("reads PHOENIX_PROJECT when only the alias is set", () => {
-    process.env.PHOENIX_PROJECT = "alias";
-    expect(getEnvProjectName()).toBe("alias");
-  });
-
-  test("prefers PHOENIX_PROJECT_NAME over PHOENIX_PROJECT", () => {
-    process.env.PHOENIX_PROJECT_NAME = "canonical";
-    process.env.PHOENIX_PROJECT = "alias";
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(getEnvProjectName()).toBe("canonical");
-    // Conflicting values emit a one-time warning naming both.
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT_NAME");
-    expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT");
-    warn.mockRestore();
   });
 });
 

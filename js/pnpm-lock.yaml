@@ -635,6 +635,9 @@ importers:
       '@arizeai/openinference-vercel':
         specifier: ^2.8.1
         version: 2.8.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.41.1)
+      '@arizeai/phoenix-config':
+        specifier: workspace:*
+        version: link:../phoenix-config
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
