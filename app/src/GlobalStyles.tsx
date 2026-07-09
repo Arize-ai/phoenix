@@ -1073,8 +1073,8 @@ const cardCSS = (theme: Theme) => css`
       ? "var(--global-color-gray-100)"
       : "var(--global-color-gray-75)"};
     --global-card-header-background-color-hover: ${theme === "light"
-      ? "var(--global-color-gray-200)"
-      : "var(--global-color-gray-100)"};
+      ? "rgba(0, 0, 0, 0.04)"
+      : "rgba(255, 255, 255, 0.07)"};
   }
 `;
 

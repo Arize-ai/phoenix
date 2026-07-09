@@ -45,7 +45,7 @@ export function TraceTreeToolbar() {
         flex: none;
         align-items: center;
         padding: var(--global-dimension-size-100);
-        border-bottom: 1px solid var(--global-color-gray-300);
+        border-bottom: 1px solid var(--global-border-color-default);
         height: var(--global-dimension-size-600);
         @container (width < ${COMPACT_BREAKPOINT}) {
           button {
