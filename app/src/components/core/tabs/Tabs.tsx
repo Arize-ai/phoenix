@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
+import { useEvent, useResizeObserver } from "@react-aria/utils";
 import type { ComponentProps } from "react";
 import React, { useEffect, useRef, useState } from "react";
-import { useEvent, useResizeObserver } from "@react-aria/utils";
 import {
   Tab as AriaTab,
   TabList as AriaTabList,
