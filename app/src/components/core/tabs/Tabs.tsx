@@ -72,10 +72,25 @@ const tabListCSS = css`
   }
 
   &[data-orientation="horizontal"] {
-    border-bottom: 1px solid var(--tab-border-color);
+    // Keep the bottom border spanning the full width even when the tabs
+    // overflow and the list becomes horizontally scrollable.
+    box-shadow: inset 0 -1px 0 0 var(--tab-border-color);
+    // When there are more tabs than horizontal space, scroll rather than
+    // wrapping tab labels or clipping tabs off the edge.
+    overflow-x: auto;
+    // Hide the scrollbar; the overflow is still scrollable via trackpad,
+    // shift-scroll, or keyboard navigation between tabs.
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
 
     .react-aria-Tab {
       border-bottom: 3px solid var(--tab-border-color);
+      // Prevent tabs from shrinking or wrapping their labels when the list
+      // runs out of room.
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
   }
 `;
