@@ -16,7 +16,15 @@ from pydantic_ai.tools import AgentDepsT
 
 @dataclass
 class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
-    """Route unavailable, unfulfilled native tool calls through function-tool handling."""
+    """Recover from hallucinated native tool calls that would produce invalid history.
+
+    A model can call a provider-native tool that was not enabled and return no matching
+    native tool result. Pydantic AI replays that unfulfilled call, causing the provider to
+    reject the next request. This capability reclassifies the call as a function tool call
+    so the standard unknown-tool retry path can give the model valid error feedback.
+
+    See https://github.com/pydantic/pydantic-ai/issues/6401 for the upstream issue.
+    """
 
     async def after_model_request(
         self,
@@ -25,8 +33,6 @@ class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
         request_context: ModelRequestContext,
         response: ModelResponse,
     ) -> ModelResponse:
-        # Work around https://github.com/pydantic/pydantic-ai/issues/6401 until
-        # Pydantic AI handles hallucinated native tool calls upstream.
         available_native_tool_names = {
             tool.unique_id for tool in request_context.model_request_parameters.native_tools
         }
