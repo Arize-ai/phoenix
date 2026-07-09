@@ -58,7 +58,8 @@ export function TraceTree(props: TraceTreeProps) {
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        height: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
         align-items: stretch;
         container-type: inline-size;
       `}
