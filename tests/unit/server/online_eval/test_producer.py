@@ -90,6 +90,32 @@ async def _work_unit_span_rowids(db: DbSessionFactory) -> list[int]:
         return list(await session.scalars(select(models.EvalWorkUnit.span_rowid)))
 
 
+async def test_cold_start_initializes_cursor_at_current_high_water(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+    await _seed_criteria(db, project.id)
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    async with db() as session:
+        cursor = (
+            await session.scalars(
+                select(models.EvalWorkCursor).where(
+                    models.EvalWorkCursor.grain == "SPAN",
+                    models.EvalWorkCursor.consumer_group == "default",
+                )
+            )
+        ).one()
+    assert cursor.produced_through_id == spans[-1].id
+    assert cursor.claimed_by == producer._producer_id
+    assert await _work_unit_span_rowids(db) == []
+
+
 async def test_tick_materializes_matching_spans_and_advances_watermark(
     db: DbSessionFactory,
 ) -> None:
@@ -151,6 +177,61 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
+
+
+async def test_tick_advances_at_most_one_id_chunk(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(5)]
+    await _seed_criteria(db, project.id)
+    low_exclusive = spans[0].id - 1
+    observed_at = _now() - timedelta(seconds=120)
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=low_exclusive,
+        observed_high_water_id=spans[-1].id,
+        observed_at=observed_at,
+    )
+
+    producer = OnlineEvalProducer(db)
+    producer._max_span_ids_per_tick = 2
+    await producer._tick()
+
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == low_exclusive + 2
+    assert cursor.observed_high_water_id == spans[-1].id
+    assert cursor.observed_at == observed_at
+    assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:2]]
+
+    await producer._tick()
+
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == low_exclusive + 4
+    assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:4]]
+
+
+async def test_cursor_regresses_to_live_span_high_water(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    stale_high_water = span.id + 100
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=stale_high_water,
+        observed_high_water_id=stale_high_water,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == span.id
+    assert cursor.observed_high_water_id is None
+    assert cursor.observed_at is None
 
 
 async def test_frontier_gate_holds_until_lag_elapses(db: DbSessionFactory) -> None:
