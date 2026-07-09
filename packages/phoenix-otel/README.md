@@ -179,6 +179,24 @@ def weather(location):
 | `PHOENIX_API_KEY`            | Authentication key   | `your-api-key`                               |
 | `PHOENIX_CLIENT_HEADERS`     | Custom headers       | `Authorization=Bearer token`                 |
 | `PHOENIX_GRPC_PORT`          | gRPC port override   | `4317`                                       |
+| `PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` discovery | `false`        |
+
+### Credential File Discovery (`.env.phoenix`)
+
+When a setting is not provided by argument or environment variable, `register()`
+looks for a `.env.phoenix` file in the current working directory — walking up
+toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/your-space
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always take precedence — the file
+never overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to
+disable discovery entirely.
 
 ## Coding Agent Skill
 

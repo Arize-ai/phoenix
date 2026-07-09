@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+from pathlib import Path
 from typing import Optional, overload
 
 import httpx
@@ -9,17 +11,129 @@ from phoenix.client.constants import (
     ENV_PHOENIX_API_KEY,
     ENV_PHOENIX_CLIENT_HEADERS,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    ENV_PHOENIX_DISCOVER_CONFIG,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_HOST_ROOT_PATH,
     ENV_PHOENIX_PORT,
     ENV_PHOENIX_PROJECT,
     ENV_PHOENIX_PROJECT_NAME,
     HOST,
+    PHOENIX_ENV_FILE_NAME,
     PORT,
 )
 from phoenix.client.utils.parse_env_headers import parse_env_headers
 
 logger = logging.getLogger(__name__)
+
+_ENV_FILE_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_warned_env_file_permissions: set[str] = set()
+
+
+def _is_env_file_discovery_enabled() -> bool:
+    """
+    Whether ``.env.phoenix`` file discovery is enabled.
+
+    Discovery is on by default and can be disabled by setting
+    ``PHOENIX_DISCOVER_CONFIG`` to "false", "0", "no", or "off" (case-insensitive)
+    in the process environment. The opt-out is intentionally never read from the
+    file itself.
+    """
+    if (value := os.getenv(ENV_PHOENIX_DISCOVER_CONFIG)) is None:
+        return True
+    return value.strip().lower() not in ("false", "0", "no", "off")
+
+
+def _find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
+    """
+    Locate the nearest ``.env.phoenix`` file.
+
+    Walks from ``start_dir`` (defaults to the current working directory) up toward
+    the filesystem root and returns the first match, or None if no file is found.
+    """
+    directory = (start_dir or Path.cwd()).resolve()
+    for candidate_dir in (directory, *directory.parents):
+        candidate = candidate_dir / PHOENIX_ENV_FILE_NAME
+        try:
+            if candidate.is_file():
+                return candidate
+        except OSError:
+            continue
+    return None
+
+
+def _warn_if_env_file_permissive(path: Path) -> None:
+    """
+    Emit a one-time warning (per file) if the file is group- or world-readable.
+
+    The file holds credentials, so it should only be readable by its owner. Values
+    are never logged. No-op on non-POSIX platforms.
+    """
+    if os.name != "posix":
+        return
+    if str(path) in _warned_env_file_permissions:
+        return
+    try:
+        mode = path.stat().st_mode
+    except OSError:
+        return
+    if mode & 0o044:
+        _warned_env_file_permissions.add(str(path))
+        logger.warning(
+            "%s is readable by other users (mode %s). It may contain credentials; "
+            "consider restricting its permissions, e.g. `chmod 600 %s`.",
+            path,
+            oct(mode & 0o777),
+            path,
+        )
+
+
+def _parse_env_file(text: str) -> dict[str, str]:
+    """
+    Parse dotenv-formatted text, keeping only ``PHOENIX_``-prefixed keys.
+
+    Supports comments (lines starting with ``#``), an optional ``export `` prefix,
+    and values wrapped in single or double quotes. Inline comments are not
+    stripped. Keys without a ``PHOENIX_`` prefix and empty values are ignored: the
+    file is a Phoenix hand-off artifact, not a general dotenv loader.
+    """
+    values: dict[str, str] = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].lstrip()
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        key = key.strip()
+        if not key.startswith("PHOENIX_") or not _ENV_FILE_KEY_PATTERN.match(key):
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+            value = value[1:-1]
+        if value:
+            values[key] = value
+    return values
+
+
+def _load_env_file_values() -> dict[str, str]:
+    """
+    Load Phoenix settings from the nearest ``.env.phoenix`` file, if any.
+
+    Returns an empty dict when discovery is disabled, no file is found, or the
+    file cannot be read.
+    """
+    if not _is_env_file_discovery_enabled():
+        return {}
+    if (path := _find_env_file()) is None:
+        return {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    _warn_if_env_file_permissive(path)
+    return _parse_env_file(text)
 
 
 def get_env_phoenix_api_key() -> Optional[str]:
@@ -67,7 +181,13 @@ def get_env_client_headers() -> dict[str, str]:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
+    # Both process environment variables take precedence over the .env.phoenix
+    # file, so the standard OTLP variable is checked before the file fallback.
+    if endpoint := (os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or "").strip():
+        return endpoint
+    if endpoint := (os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT) or "").strip():
+        return endpoint
+    return _load_env_file_values().get(ENV_PHOENIX_COLLECTOR_ENDPOINT)
 
 
 def get_base_url() -> httpx.URL:
@@ -86,6 +206,12 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     """
     Retrieves the value of an environment variable.
 
+    When the variable is not set in the process environment and the key is
+    ``PHOENIX_``-prefixed, the nearest ``.env.phoenix`` file (discovered by walking
+    up from the current working directory) is consulted before falling back to
+    `default`. A value present in the process environment (even an empty string)
+    always wins; the file never overrides anything already set.
+
     Parameters
     ----------
         key : str
@@ -100,9 +226,11 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
         Leading and trailing whitespaces are stripped from the value, assuming they were
         inadvertently added.
     """
-    if (value := os.getenv(key)) is None:
-        return default
-    return value.strip()
+    if (value := os.getenv(key)) is not None:
+        return value.strip()
+    if key.startswith("PHOENIX_") and (file_value := _load_env_file_values().get(key)) is not None:
+        return file_value
+    return default
 
 
 _warned_project_conflict = False

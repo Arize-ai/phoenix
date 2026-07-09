@@ -93,6 +93,13 @@ export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
 export PHOENIX_API_KEY="your-api-key"
 ```
 
+When a setting is not provided by argument or environment variable, `register`
+also looks for a `.env.phoenix` file in the current working directory — walking
+up toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format). Environment variables always
+take precedence over the file; set `PHOENIX_DISCOVER_CONFIG=false` to disable
+discovery entirely.
+
 ### Configuration Options
 
 The `register` function accepts the following parameters:

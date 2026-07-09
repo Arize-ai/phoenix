@@ -3,6 +3,7 @@
  * @module
  */
 
+import { readEnvFileValue } from "./envFile";
 import { isHeaders } from "./types";
 
 /**
@@ -76,7 +77,20 @@ export const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
 export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
 
 /**
- * Retrieves an integer value from an environment variable.
+ * Reads an environment variable from the process environment, falling back to
+ * the nearest `.env.phoenix` file for `PHOENIX_`-prefixed keys.
+ *
+ * A value present in the process environment (even an empty string) always
+ * wins; the file never overrides anything already set.
+ */
+function readEnvValue(envKey: string): string | undefined {
+  return process.env[envKey] ?? readEnvFileValue(envKey);
+}
+
+/**
+ * Retrieves an integer value from an environment variable, falling back to the
+ * nearest `.env.phoenix` file when the variable is not set in the process
+ * environment.
  *
  * @param envKey - The name of the environment variable to read
  * @returns The parsed integer value, or `undefined` if the variable is not set, empty, or not a valid integer
@@ -86,7 +100,7 @@ export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
  * // Returns 6006 if PHOENIX_PORT="6006", undefined otherwise
  */
 export function getIntFromEnvironment(envKey: string) {
-  const value = process.env[envKey];
+  const value = readEnvValue(envKey);
   if (!value) {
     return;
   }
@@ -98,7 +112,9 @@ export function getIntFromEnvironment(envKey: string) {
 }
 
 /**
- * Retrieves a string value from an environment variable.
+ * Retrieves a string value from an environment variable, falling back to the
+ * nearest `.env.phoenix` file when the variable is not set in the process
+ * environment.
  *
  * @param envKey - The name of the environment variable to read
  * @returns The string value, or `undefined` if the variable is not set
@@ -108,7 +124,7 @@ export function getIntFromEnvironment(envKey: string) {
  * // Returns "http://localhost:6006" if PHOENIX_HOST="http://localhost:6006"
  */
 export function getStrFromEnvironment(envKey: string) {
-  return process.env[envKey];
+  return readEnvValue(envKey);
 }
 
 /**
@@ -182,7 +198,7 @@ export function resetProjectConflictWarningForTesting(): void {
  * // Returns { Authorization: "Bearer token" }
  */
 export function getHeadersFromEnvironment(envKey: string) {
-  const value = process.env[envKey];
+  const value = readEnvValue(envKey);
   if (!value) {
     return undefined;
   }

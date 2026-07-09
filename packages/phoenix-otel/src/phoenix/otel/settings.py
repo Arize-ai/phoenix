@@ -1,8 +1,10 @@
 import logging
 import os
+import re
 import urllib.parse
+from pathlib import Path
 from re import compile
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +20,140 @@ ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT"
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
+# Set to "false" (or "0" / "no" / "off") to disable ``.env.phoenix`` file
+# discovery. Read from the process environment only.
+ENV_PHOENIX_DISCOVER_CONFIG = "PHOENIX_DISCOVER_CONFIG"
+
+PHOENIX_ENV_FILE_NAME = ".env.phoenix"
+"""Name of the credential hand-off file discovered at (or above) the working directory."""
 
 GRPC_PORT = 4317
 """The port the gRPC server will run on after launch_app is called.
 The default network port for OTLP/gRPC is 4317.
 See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
+
+_ENV_FILE_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_warned_env_file_permissions: Set[str] = set()
+
+
+def _is_env_file_discovery_enabled() -> bool:
+    """
+    Whether ``.env.phoenix`` file discovery is enabled.
+
+    Discovery is on by default and can be disabled by setting
+    ``PHOENIX_DISCOVER_CONFIG`` to "false", "0", "no", or "off" (case-insensitive)
+    in the process environment. The opt-out is intentionally never read from the
+    file itself.
+    """
+    if (value := os.getenv(ENV_PHOENIX_DISCOVER_CONFIG)) is None:
+        return True
+    return value.strip().lower() not in ("false", "0", "no", "off")
+
+
+def _find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
+    """
+    Locate the nearest ``.env.phoenix`` file.
+
+    Walks from ``start_dir`` (defaults to the current working directory) up toward
+    the filesystem root and returns the first match, or None if no file is found.
+    """
+    directory = (start_dir or Path.cwd()).resolve()
+    for candidate_dir in (directory, *directory.parents):
+        candidate = candidate_dir / PHOENIX_ENV_FILE_NAME
+        try:
+            if candidate.is_file():
+                return candidate
+        except OSError:
+            continue
+    return None
+
+
+def _warn_if_env_file_permissive(path: Path) -> None:
+    """
+    Emit a one-time warning (per file) if the file is group- or world-readable.
+
+    The file holds credentials, so it should only be readable by its owner. Values
+    are never logged. No-op on non-POSIX platforms.
+    """
+    if os.name != "posix":
+        return
+    if str(path) in _warned_env_file_permissions:
+        return
+    try:
+        mode = path.stat().st_mode
+    except OSError:
+        return
+    if mode & 0o044:
+        _warned_env_file_permissions.add(str(path))
+        logger.warning(
+            "%s is readable by other users (mode %s). It may contain credentials; "
+            "consider restricting its permissions, e.g. `chmod 600 %s`.",
+            path,
+            oct(mode & 0o777),
+            path,
+        )
+
+
+def _parse_env_file(text: str) -> Dict[str, str]:
+    """
+    Parse dotenv-formatted text, keeping only ``PHOENIX_``-prefixed keys.
+
+    Supports comments (lines starting with ``#``), an optional ``export `` prefix,
+    and values wrapped in single or double quotes. Inline comments are not
+    stripped. Keys without a ``PHOENIX_`` prefix and empty values are ignored: the
+    file is a Phoenix hand-off artifact, not a general dotenv loader.
+    """
+    values: Dict[str, str] = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].lstrip()
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        key = key.strip()
+        if not key.startswith("PHOENIX_") or not _ENV_FILE_KEY_PATTERN.match(key):
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+            value = value[1:-1]
+        if value:
+            values[key] = value
+    return values
+
+
+def _load_env_file_values() -> Dict[str, str]:
+    """
+    Load Phoenix settings from the nearest ``.env.phoenix`` file, if any.
+
+    Returns an empty dict when discovery is disabled, no file is found, or the
+    file cannot be read.
+    """
+    if not _is_env_file_discovery_enabled():
+        return {}
+    if (path := _find_env_file()) is None:
+        return {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    _warn_if_env_file_permissive(path)
+    return _parse_env_file(text)
+
+
+def _getenv(key: str) -> Optional[str]:
+    """
+    Read a Phoenix setting from the process environment, falling back to the
+    nearest ``.env.phoenix`` file.
+
+    A value present in the process environment (even an empty string) always wins;
+    the file never overrides anything already set.
+    """
+    if (value := os.getenv(key)) is not None:
+        return value
+    return _load_env_file_values().get(key)
 
 
 def get_env_collector_endpoint() -> Optional[str]:
@@ -30,12 +161,18 @@ def get_env_collector_endpoint() -> Optional[str]:
     Get the collector endpoint from environment variables.
 
     Checks for Phoenix-specific collector endpoint first, then falls back to the
-    standard OpenTelemetry OTLP endpoint environment variable.
+    standard OpenTelemetry OTLP endpoint environment variable, then to a
+    ``PHOENIX_COLLECTOR_ENDPOINT`` entry in the nearest ``.env.phoenix`` file
+    (process environment variables always take precedence over the file).
 
     Returns:
         Optional[str]: The collector endpoint URL if found, None otherwise.
     """
-    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
+    return (
+        os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+        or os.getenv(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
+        or _load_env_file_values().get(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    )
 
 
 _warned_project_conflict = False
@@ -54,8 +191,8 @@ def get_env_project_name() -> str:
         str: The resolved project name, defaults to "default".
     """
     global _warned_project_conflict
-    canonical = os.getenv(ENV_PHOENIX_PROJECT)
-    alias = os.getenv(ENV_PHOENIX_PROJECT_NAME)
+    canonical = _getenv(ENV_PHOENIX_PROJECT)
+    alias = _getenv(ENV_PHOENIX_PROJECT_NAME)
     if canonical and alias and canonical != alias and not _warned_project_conflict:
         _warned_project_conflict = True
         logger.warning(
@@ -83,7 +220,7 @@ def get_env_client_headers() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Parsed headers dictionary or None if not set.
     """
-    if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
+    if headers_str := _getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
 
@@ -98,7 +235,7 @@ def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Authorization header dictionary or None if API key not set.
     """
-    api_key = os.environ.get(ENV_PHOENIX_API_KEY)
+    api_key = _getenv(ENV_PHOENIX_API_KEY)
     if api_key:
         return dict(authorization=f"Bearer {api_key}")
     else:
@@ -118,7 +255,7 @@ def get_env_grpc_port() -> int:
     Raises:
         ValueError: If PHOENIX_GRPC_PORT is set but not a valid integer.
     """
-    if not (port := os.getenv(ENV_PHOENIX_GRPC_PORT)):
+    if not (port := _getenv(ENV_PHOENIX_GRPC_PORT)):
         return GRPC_PORT
     if port.isnumeric():
         return int(port)

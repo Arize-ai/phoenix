@@ -42,6 +42,24 @@ npm install @arizeai/phoenix-config
 | `PHOENIX_PROJECT`            | `ENV_PHOENIX_PROJECT`            | Default project name for project-scoped operations (canonical) |
 | `PHOENIX_PROJECT_NAME`       | `ENV_PHOENIX_PROJECT_NAME`       | Supported alias for `PHOENIX_PROJECT`                          |
 | `PHOENIX_LOG_LEVEL`          | `ENV_PHOENIX_LOG_LEVEL`          | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent`   |
+| `PHOENIX_DISCOVER_CONFIG`    | `ENV_PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` file discovery        |
+
+## Credential File Discovery (`.env.phoenix`)
+
+When a Phoenix setting is not set in the process environment, the helpers look
+for a `.env.phoenix` file in the current working directory — walking up toward
+the filesystem root and stopping at the first match — and read
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/your-space
+PHOENIX_API_KEY=your-api-key
+```
+
+Process environment variables always take precedence — the file never overrides
+anything already set — and keys without a `PHOENIX_` prefix are ignored. Set
+`PHOENIX_DISCOVER_CONFIG=false` to disable discovery entirely.
 
 ## Usage
 
