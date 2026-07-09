@@ -3233,3 +3233,51 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
     """
     if not is_encrypted(target.config):
         raise ValueError("Config is not encrypted")
+
+
+class AgentSession(HasId):
+    __tablename__ = "agent_sessions"
+    session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # sessions may be created while auth is disabled
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    messages: Mapped[list[dict[str, Any]]] = mapped_column(JsonList, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
+        "AgentSessionSnapshot",
+        back_populates="agent_session",
+        uselist=False,
+    )
+    __table_args__ = (
+        Index(
+            "ix_agent_sessions_user_id_updated_at",
+            "user_id",
+            updated_at.desc(),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class AgentSessionSnapshot(HasId):
+    __tablename__ = "agent_session_snapshots"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="snapshot",
+    )
+    __table_args__ = (dict(sqlite_autoincrement=True),)
