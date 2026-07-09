@@ -410,6 +410,48 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
     USING btree (username);
 
 
+-- Table: agent_sessions
+-- ---------------------
+CREATE TABLE public.agent_sessions (
+    id bigserial NOT NULL,
+    session_id VARCHAR NOT NULL,
+    user_id BIGINT,
+    title VARCHAR NOT NULL,
+    messages JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
+    CONSTRAINT uq_agent_sessions_session_id
+        UNIQUE (session_id),
+    CONSTRAINT fk_agent_sessions_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
+    USING btree (user_id, updated_at DESC);
+
+
+-- Table: agent_session_snapshots
+-- ------------------------------
+CREATE TABLE public.agent_session_snapshots (
+    id bigserial NOT NULL,
+    agent_session_id BIGINT NOT NULL,
+    bashkit_snapshot BYTEA,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_session_snapshots PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_snapshots_agent_session_id
+        UNIQUE (agent_session_id),
+    CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
+        FOREIGN KEY
+        (agent_session_id)
+        REFERENCES public.agent_sessions (id)
+        ON DELETE CASCADE
+);
+
+
 -- Table: api_keys
 -- ---------------
 CREATE TABLE public.api_keys (
