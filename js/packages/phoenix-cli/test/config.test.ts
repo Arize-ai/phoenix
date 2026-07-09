@@ -59,15 +59,15 @@ describe("Configuration", () => {
       expect(config.apiKey).toBeUndefined();
     });
 
-    it("should load project from PHOENIX_PROJECT_NAME", () => {
-      process.env.PHOENIX_PROJECT_NAME = "canonical-project";
+    it("should load project from PHOENIX_PROJECT_NAME alias", () => {
+      process.env.PHOENIX_PROJECT_NAME = "alias-project";
       const config = loadConfigFromEnvironment();
-      expect(config.project).toBe("canonical-project");
+      expect(config.project).toBe("alias-project");
     });
 
-    it("should prefer PHOENIX_PROJECT_NAME over PHOENIX_PROJECT", () => {
-      process.env.PHOENIX_PROJECT_NAME = "canonical-project";
-      process.env.PHOENIX_PROJECT = "alias-project";
+    it("should prefer PHOENIX_PROJECT over PHOENIX_PROJECT_NAME", () => {
+      process.env.PHOENIX_PROJECT = "canonical-project";
+      process.env.PHOENIX_PROJECT_NAME = "alias-project";
       const config = loadConfigFromEnvironment();
       expect(config.project).toBe("canonical-project");
     });
@@ -162,7 +162,7 @@ describe("Configuration", () => {
       const validation = validateConfig({ config });
       expect(validation.valid).toBe(false);
       expect(validation.errors).toContain(
-        "Project not configured. Set PHOENIX_PROJECT_NAME environment variable or use --project flag."
+        "Project not configured. Set PHOENIX_PROJECT environment variable or use --project flag."
       );
     });
   });
@@ -181,7 +181,7 @@ describe("Configuration", () => {
       expect(message).toContain("Project not configured.");
       expect(message).toContain("Quick Start:");
       expect(message).toContain("export PHOENIX_HOST=");
-      expect(message).toContain("export PHOENIX_PROJECT_NAME=");
+      expect(message).toContain("export PHOENIX_PROJECT=");
     });
   });
 });

@@ -301,7 +301,7 @@ describe("env", () => {
         PHOENIX_COLLECTOR_ENDPOINT: undefined,
         PHOENIX_API_KEY: undefined,
         PHOENIX_LOG_LEVEL: undefined,
-        PHOENIX_PROJECT_NAME: undefined,
+        PHOENIX_PROJECT: undefined,
       });
     });
 
@@ -351,16 +351,16 @@ describe("env", () => {
       expect(keys).toContain(ENV_PHOENIX_COLLECTOR_ENDPOINT);
       expect(keys).toContain(ENV_PHOENIX_API_KEY);
       expect(keys).toContain(ENV_PHOENIX_LOG_LEVEL);
-      expect(keys).toContain(ENV_PHOENIX_PROJECT_NAME);
+      expect(keys).toContain(ENV_PHOENIX_PROJECT);
       expect(keys).toHaveLength(8);
     });
 
     it("should resolve the project name into the config", () => {
-      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical-project";
+      process.env[ENV_PHOENIX_PROJECT] = "canonical-project";
 
       const config = getEnvironmentConfig();
 
-      expect(config[ENV_PHOENIX_PROJECT_NAME]).toBe("canonical-project");
+      expect(config[ENV_PHOENIX_PROJECT]).toBe("canonical-project");
     });
   });
 
@@ -373,26 +373,26 @@ describe("env", () => {
       expect(getProjectFromEnvironment()).toBeUndefined();
     });
 
-    it("should read PHOENIX_PROJECT_NAME when only it is set", () => {
-      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical";
+    it("should read PHOENIX_PROJECT when only it is set", () => {
+      process.env[ENV_PHOENIX_PROJECT] = "canonical";
       expect(getProjectFromEnvironment()).toBe("canonical");
     });
 
-    it("should read PHOENIX_PROJECT when only the alias is set", () => {
-      process.env[ENV_PHOENIX_PROJECT] = "alias";
+    it("should read PHOENIX_PROJECT_NAME when only the alias is set", () => {
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "alias";
       expect(getProjectFromEnvironment()).toBe("alias");
     });
 
-    it("should prefer PHOENIX_PROJECT_NAME over PHOENIX_PROJECT", () => {
-      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical";
-      process.env[ENV_PHOENIX_PROJECT] = "alias";
+    it("should prefer PHOENIX_PROJECT over PHOENIX_PROJECT_NAME", () => {
+      process.env[ENV_PHOENIX_PROJECT] = "canonical";
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "alias";
       expect(getProjectFromEnvironment()).toBe("canonical");
     });
 
     it("should not warn when both are set to the same value", () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      process.env[ENV_PHOENIX_PROJECT_NAME] = "same";
       process.env[ENV_PHOENIX_PROJECT] = "same";
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "same";
 
       expect(getProjectFromEnvironment()).toBe("same");
       expect(warn).not.toHaveBeenCalled();
@@ -401,8 +401,8 @@ describe("env", () => {
 
     it("should warn once when both are set to different values", () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      process.env[ENV_PHOENIX_PROJECT_NAME] = "canonical";
-      process.env[ENV_PHOENIX_PROJECT] = "alias";
+      process.env[ENV_PHOENIX_PROJECT] = "canonical";
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "alias";
 
       expect(getProjectFromEnvironment()).toBe("canonical");
       expect(getProjectFromEnvironment()).toBe("canonical");

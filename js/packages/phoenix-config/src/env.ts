@@ -59,22 +59,21 @@ export const ENV_PHOENIX_LOG_LEVEL = "PHOENIX_LOG_LEVEL";
 
 /**
  * Environment variable name for the default Phoenix project (canonical name).
- * This is the name the Python SDKs read and the docs-canonical name.
  * When set, project-scoped operations use this project unless overridden.
- * @example
- * process.env[ENV_PHOENIX_PROJECT_NAME] = "my-project";
- */
-export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
-
-/**
- * Environment variable name for the default Phoenix project (supported alias).
- * Retained so existing `px` CLI users are unaffected. When set, project-scoped
- * operations use this project unless overridden. Prefer
- * {@link ENV_PHOENIX_PROJECT_NAME}, which takes precedence when both are set.
  * @example
  * process.env[ENV_PHOENIX_PROJECT] = "my-project";
  */
 export const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
+
+/**
+ * Environment variable name for the default Phoenix project (supported alias).
+ * Accepted so the Python SDKs' `PHOENIX_PROJECT_NAME` keeps working. When set,
+ * project-scoped operations use this project unless overridden. Prefer
+ * {@link ENV_PHOENIX_PROJECT}, which takes precedence when both are set.
+ * @example
+ * process.env[ENV_PHOENIX_PROJECT_NAME] = "my-project";
+ */
+export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
 
 /**
  * Retrieves an integer value from an environment variable.
@@ -121,11 +120,11 @@ let hasWarnedProjectConflict = false;
 /**
  * Resolves the default Phoenix project name from the environment.
  *
- * Reads both {@link ENV_PHOENIX_PROJECT_NAME} (canonical) and
- * {@link ENV_PHOENIX_PROJECT} (supported alias). Precedence is:
+ * Reads both {@link ENV_PHOENIX_PROJECT} (canonical) and
+ * {@link ENV_PHOENIX_PROJECT_NAME} (supported alias). Precedence is:
  *
- * 1. `PHOENIX_PROJECT_NAME`
- * 2. `PHOENIX_PROJECT`
+ * 1. `PHOENIX_PROJECT`
+ * 2. `PHOENIX_PROJECT_NAME`
  *
  * Explicit arguments/flags supplied by callers still take precedence over both;
  * this function only covers the environment fallback. When both variables are
@@ -135,21 +134,21 @@ let hasWarnedProjectConflict = false;
  * @returns The resolved project name, or `undefined` if neither variable is set.
  *
  * @example
- * // With PHOENIX_PROJECT_NAME="checkout"
+ * // With PHOENIX_PROJECT="checkout"
  * const project = getProjectFromEnvironment();
  * // Returns "checkout"
  */
 export function getProjectFromEnvironment(): string | undefined {
-  const canonical = process.env[ENV_PHOENIX_PROJECT_NAME];
-  const alias = process.env[ENV_PHOENIX_PROJECT];
+  const canonical = process.env[ENV_PHOENIX_PROJECT];
+  const alias = process.env[ENV_PHOENIX_PROJECT_NAME];
 
   if (canonical && alias && canonical !== alias && !hasWarnedProjectConflict) {
     hasWarnedProjectConflict = true;
     // eslint-disable-next-line no-console
     console.warn(
-      `Both ${ENV_PHOENIX_PROJECT_NAME} ("${canonical}") and ${ENV_PHOENIX_PROJECT} ("${alias}") ` +
-        `are set to different values. Using ${ENV_PHOENIX_PROJECT_NAME} ("${canonical}"). ` +
-        `${ENV_PHOENIX_PROJECT} is a supported alias for ${ENV_PHOENIX_PROJECT_NAME}.`
+      `Both ${ENV_PHOENIX_PROJECT} ("${canonical}") and ${ENV_PHOENIX_PROJECT_NAME} ("${alias}") ` +
+        `are set to different values. Using ${ENV_PHOENIX_PROJECT} ("${canonical}"). ` +
+        `${ENV_PHOENIX_PROJECT_NAME} is a supported alias for ${ENV_PHOENIX_PROJECT}.`
     );
   }
 
@@ -217,7 +216,7 @@ export function getHeadersFromEnvironment(envKey: string) {
  * //   PHOENIX_CLIENT_HEADERS: { "X-Custom": "header" },
  * //   PHOENIX_COLLECTOR_ENDPOINT: "http://localhost:6006",
  * //   PHOENIX_API_KEY: "api-key",
- * //   PHOENIX_PROJECT_NAME: "my-project"
+ * //   PHOENIX_PROJECT: "my-project"
  * // }
  */
 export function getEnvironmentConfig() {
@@ -233,8 +232,8 @@ export function getEnvironmentConfig() {
     ),
     [ENV_PHOENIX_API_KEY]: getStrFromEnvironment(ENV_PHOENIX_API_KEY),
     [ENV_PHOENIX_LOG_LEVEL]: getStrFromEnvironment(ENV_PHOENIX_LOG_LEVEL),
-    // Resolves PHOENIX_PROJECT_NAME (canonical) then PHOENIX_PROJECT (alias).
-    [ENV_PHOENIX_PROJECT_NAME]: getProjectFromEnvironment(),
+    // Resolves PHOENIX_PROJECT (canonical) then PHOENIX_PROJECT_NAME (alias).
+    [ENV_PHOENIX_PROJECT]: getProjectFromEnvironment(),
   };
 }
 

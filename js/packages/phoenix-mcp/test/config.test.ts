@@ -63,17 +63,17 @@ describe("resolveConfig", () => {
     });
   });
 
-  it("reads the project from PHOENIX_PROJECT_NAME", () => {
-    vi.stubEnv("PHOENIX_PROJECT_NAME", "canonical-project");
+  it("reads the project from the PHOENIX_PROJECT_NAME alias", () => {
+    vi.stubEnv("PHOENIX_PROJECT_NAME", "alias-project");
 
     const config = loadConfigFromEnvironment();
 
-    expect(config.project).toBe("canonical-project");
+    expect(config.project).toBe("alias-project");
   });
 
-  it("prefers PHOENIX_PROJECT_NAME over PHOENIX_PROJECT", () => {
-    vi.stubEnv("PHOENIX_PROJECT_NAME", "canonical-project");
-    vi.stubEnv("PHOENIX_PROJECT", "alias-project");
+  it("prefers PHOENIX_PROJECT over PHOENIX_PROJECT_NAME", () => {
+    vi.stubEnv("PHOENIX_PROJECT", "canonical-project");
+    vi.stubEnv("PHOENIX_PROJECT_NAME", "alias-project");
 
     const config = loadConfigFromEnvironment();
 

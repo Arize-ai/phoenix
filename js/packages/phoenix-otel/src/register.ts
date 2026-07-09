@@ -58,9 +58,9 @@ export type RegisterParams = {
    * The project name that spans will be associated with in Phoenix.
    * This helps organize and filter traces in the Phoenix UI.
    *
-   * If not provided, the system will check the `PHOENIX_PROJECT_NAME`
-   * environment variable (canonical) and then the `PHOENIX_PROJECT` alias,
-   * falling back to `"default"` if neither is set.
+   * If not provided, the system will check the `PHOENIX_PROJECT` environment
+   * variable (canonical) and then the `PHOENIX_PROJECT_NAME` alias, falling
+   * back to `"default"` if neither is set.
    *
    * @default "default"
    * @example "my-web-app"

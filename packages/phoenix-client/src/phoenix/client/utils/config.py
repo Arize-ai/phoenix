@@ -112,26 +112,26 @@ def get_env_project_name() -> str:
     """
     Resolve the project name from environment variables.
 
-    Reads both ``PHOENIX_PROJECT_NAME`` (canonical) and ``PHOENIX_PROJECT``
-    (supported alias), with ``PHOENIX_PROJECT_NAME`` taking precedence. When both
+    Reads both ``PHOENIX_PROJECT`` (canonical) and ``PHOENIX_PROJECT_NAME``
+    (supported alias), with ``PHOENIX_PROJECT`` taking precedence. When both
     are set to different values, the canonical value is used and a one-time
     warning naming both values is emitted.
     """
     global _warned_project_conflict
-    canonical = getenv(ENV_PHOENIX_PROJECT_NAME)
-    alias = getenv(ENV_PHOENIX_PROJECT)
+    canonical = getenv(ENV_PHOENIX_PROJECT)
+    alias = getenv(ENV_PHOENIX_PROJECT_NAME)
     if canonical and alias and canonical != alias and not _warned_project_conflict:
         _warned_project_conflict = True
         logger.warning(
             "Both %s (%r) and %s (%r) are set to different values. Using %s (%r). "
             "%s is a supported alias for %s.",
-            ENV_PHOENIX_PROJECT_NAME,
-            canonical,
             ENV_PHOENIX_PROJECT,
+            canonical,
+            ENV_PHOENIX_PROJECT_NAME,
             alias,
-            ENV_PHOENIX_PROJECT_NAME,
-            canonical,
             ENV_PHOENIX_PROJECT,
+            canonical,
             ENV_PHOENIX_PROJECT_NAME,
+            ENV_PHOENIX_PROJECT,
         )
     return canonical or alias or "default"

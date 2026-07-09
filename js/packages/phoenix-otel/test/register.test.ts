@@ -245,8 +245,8 @@ describe("register", () => {
 });
 
 test("register uses the env project name as a fallback", () => {
-  delete process.env.PHOENIX_PROJECT;
-  process.env.PHOENIX_PROJECT_NAME = "env-project";
+  delete process.env.PHOENIX_PROJECT_NAME;
+  process.env.PHOENIX_PROJECT = "env-project";
   try {
     let capturedProjectName: unknown;
     const captureProcessor: SpanProcessor = {
@@ -270,7 +270,7 @@ test("register uses the env project name as a fallback", () => {
       .end();
     expect(capturedProjectName).toBe("env-project");
   } finally {
-    delete process.env.PHOENIX_PROJECT_NAME;
+    delete process.env.PHOENIX_PROJECT;
   }
 });
 

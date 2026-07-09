@@ -32,12 +32,12 @@ def test_get_env_collector_endpoint(env: dict[str, str], expected: Optional[str]
     "env, expected",
     [
         ({}, "default"),
-        ({"PHOENIX_PROJECT_NAME": "canonical"}, "canonical"),
-        ({"PHOENIX_PROJECT": "alias"}, "alias"),
-        # PHOENIX_PROJECT_NAME takes precedence over the PHOENIX_PROJECT alias.
-        ({"PHOENIX_PROJECT_NAME": "canonical", "PHOENIX_PROJECT": "alias"}, "canonical"),
+        ({"PHOENIX_PROJECT": "canonical"}, "canonical"),
+        ({"PHOENIX_PROJECT_NAME": "alias"}, "alias"),
+        # PHOENIX_PROJECT takes precedence over the PHOENIX_PROJECT_NAME alias.
+        ({"PHOENIX_PROJECT": "canonical", "PHOENIX_PROJECT_NAME": "alias"}, "canonical"),
         # Matching values are not a conflict.
-        ({"PHOENIX_PROJECT_NAME": "same", "PHOENIX_PROJECT": "same"}, "same"),
+        ({"PHOENIX_PROJECT": "same", "PHOENIX_PROJECT_NAME": "same"}, "same"),
     ],
 )
 def test_get_env_project_name(
@@ -52,7 +52,7 @@ def test_get_env_project_name_warns_once_on_conflict(
     caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(config_module, "_warned_project_conflict", False)
-    env = {"PHOENIX_PROJECT_NAME": "canonical", "PHOENIX_PROJECT": "alias"}
+    env = {"PHOENIX_PROJECT": "canonical", "PHOENIX_PROJECT_NAME": "alias"}
     with patch.dict(os.environ, env, clear=True):
         with caplog.at_level("WARNING"):
             assert get_env_project_name() == "canonical"

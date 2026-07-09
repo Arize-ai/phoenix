@@ -26,9 +26,9 @@ export function getEnvApiKey(): string | undefined {
 /**
  * Reads the Phoenix project name from the environment.
  *
- * Delegates to `@arizeai/phoenix-config` so the `PHOENIX_PROJECT_NAME`
- * (canonical) / `PHOENIX_PROJECT` (alias) resolution — including precedence and
- * the one-time conflict warning — lives in a single shared implementation.
+ * Delegates to `@arizeai/phoenix-config` so the `PHOENIX_PROJECT` (canonical) /
+ * `PHOENIX_PROJECT_NAME` (alias) resolution — including precedence and the
+ * one-time conflict warning — lives in a single shared implementation.
  *
  * @returns The resolved project name, or `undefined` if neither variable is set.
  */
