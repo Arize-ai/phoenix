@@ -508,6 +508,22 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setFabMode", () => {
+    it("defaults to the pinned top-nav button", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().fabMode).toBe("pinned");
+    });
+
+    it("switches the assistant button to floating", () => {
+      const store = createAgentStore();
+
+      store.getState().setFabMode("floating");
+
+      expect(store.getState().fabMode).toBe("floating");
+    });
+  });
+
   describe("setFabPlacement", () => {
     it("updates the pinned FAB corner", () => {
       const store = createAgentStore();

@@ -45,6 +45,14 @@ export type AgentFabPlacement =
   | "bottom-start"
   | "bottom-end";
 
+/**
+ * How the PXI assistant button is presented.
+ * - "pinned": rendered inline at the right edge of the top nav
+ * - "floating": a draggable floating action button snapped to a viewport
+ *   corner (see {@link AgentFabPlacement})
+ */
+export type AgentFabMode = "pinned" | "floating";
+
 /** Server-provided PXI configuration exposed to the frontend. */
 export type AgentServerConfig = {
   /** Remote collector used for optional agent trace export. */
@@ -257,6 +265,8 @@ export interface AgentProps {
   isOpen: boolean;
   /** Current layout position of the agent panel. */
   position: AgentPosition;
+  /** Whether the assistant button is pinned to the top nav or floating. */
+  fabMode: AgentFabMode;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
   /** Ordered list of session IDs. */
@@ -285,6 +295,7 @@ export interface AgentState extends AgentProps {
   setIsOpen: (isOpen: boolean) => void;
   toggleOpen: () => void;
   setPosition: (position: AgentPosition) => void;
+  setFabMode: (mode: AgentFabMode) => void;
   setFabPlacement: (placement: AgentFabPlacement) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
@@ -673,6 +684,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   > = (set, get) => ({
     isOpen: false,
     position: "pinned",
+    fabMode: "pinned",
     fabPlacement: "bottom-end",
     sessions: [],
     activeSessionId: null,
@@ -704,6 +716,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setPosition: (position) => {
       set({ position }, false, { type: "setPosition" });
+    },
+    setFabMode: (fabMode) => {
+      set({ fabMode }, false, { type: "setFabMode" });
     },
     setFabPlacement: (fabPlacement) => {
       set({ fabPlacement }, false, { type: "setFabPlacement" });
@@ -1378,6 +1393,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,
+        fabMode: state.fabMode,
         fabPlacement: state.fabPlacement,
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,

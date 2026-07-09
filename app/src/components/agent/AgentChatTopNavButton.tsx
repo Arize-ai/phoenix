@@ -25,8 +25,10 @@ import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 // Keep these in sync with topNavCSS in components/nav/Navbar.tsx: the nav has
 // `padding: static-size-100` (8px) and `padding-right: static-size-200`
 // (16px), so the detached pill rendered at these fixed offsets appears to
-// stay exactly where the in-flow pill was.
-const NAV_PILL_TOP_PX = 4;
+// stay exactly where the in-flow pill was. The detached wrapper contains the
+// same fixed-height pill wrapper as the in-flow pill, so aligning it with the
+// nav's top padding reproduces the in-flow position exactly.
+const NAV_PILL_TOP_PX = 8;
 const NAV_PILL_RIGHT_PX = 16;
 // Gap between the pill and an open drawer's left edge.
 const DRAWER_EDGE_GAP_PX = 12;
@@ -34,23 +36,26 @@ const DRAWER_EDGE_GAP_PX = 12;
 // drawer cannot push the pill off screen.
 const MIN_VIEWPORT_RIGHT_GAP_PX = 96;
 
-// Height of the resting pill (see FAB_RESTING_SIZE in agentFabPositioning.ts).
-// The streaming state grows to FAB_STREAMING_SIZE.height (40px); pinning the
-// wrapper to the resting height with visible overflow lets the taller
-// streaming state bleed out without reflowing the nav row.
-const RESTING_PILL_HEIGHT_PX = 36;
+// Height of the nav's natural content row (a size-S control is 30px), NOT the
+// pill's rendered height. The resting pill (36px, see FAB_RESTING_SIZE in
+// agentFabPositioning.ts) and the streaming state (40px,
+// FAB_STREAMING_SIZE.height) are both taller; pinning the wrapper to the
+// nav's natural content height with visible overflow lets the pill bleed
+// into the nav's 8px vertical padding without inflating the nav row —
+// toggling the pill in and out of the nav must not shift the layout.
+const NAV_PILL_WRAPPER_HEIGHT_PX = 30;
 
-// Fixed-height, centered wrapper so the button's height animation (resting
-// 36px <-> streaming 40px) does not change the wrapper's box and reflow the
-// surrounding layout. The wrapper keeps its intrinsic size when the nav gets
-// tight; the breadcrumb is the nav's designated shrinking region (see
-// topNavCSS in Navbar.tsx).
+// Fixed-height, centered wrapper so neither the pill's resting size nor its
+// height animation (resting 36px <-> streaming 40px) changes the wrapper's
+// box and reflows the surrounding layout. The wrapper keeps its intrinsic
+// size when the nav gets tight; the breadcrumb is the nav's designated
+// shrinking region (see topNavCSS in Navbar.tsx).
 const pillWrapperCSS = css`
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: ${RESTING_PILL_HEIGHT_PX}px;
+  height: ${NAV_PILL_WRAPPER_HEIGHT_PX}px;
   overflow: visible;
 `;
 

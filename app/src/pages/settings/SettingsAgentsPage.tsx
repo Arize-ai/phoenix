@@ -92,24 +92,63 @@ function AssistantAgentEnabledSetting() {
     (state) => state.setIsAssistantAgentEnabled
   );
   return (
+    <li css={settingRowCSS}>
+      <Switch
+        labelPlacement="start"
+        isSelected={adminAssistantEnabled && isAssistantAgentEnabled}
+        isDisabled={!adminAssistantEnabled}
+        onChange={setIsAssistantAgentEnabled}
+        css={settingSwitchCSS}
+      >
+        <span className="assistant-personal-settings__label">
+          <Text weight="heavy">Use assistant</Text>
+          <Text color="text-500" size="S">
+            Shows the assistant in this browser.
+          </Text>
+        </span>
+      </Switch>
+      {!adminAssistantEnabled ? <SystemSettingsWarning /> : null}
+    </li>
+  );
+}
+
+function AssistantFabModeSetting() {
+  const adminAssistantEnabled = useAgentContext(
+    (state) => state.agentsConfig.assistantEnabled
+  );
+  const isAssistantAgentEnabled = usePreferencesContext(
+    (state) => state.isAssistantAgentEnabled
+  );
+  const fabMode = useAgentContext((state) => state.fabMode);
+  const setFabMode = useAgentContext((state) => state.setFabMode);
+  return (
+    <li css={settingRowCSS}>
+      <Switch
+        labelPlacement="start"
+        isSelected={fabMode === "floating"}
+        isDisabled={!adminAssistantEnabled || !isAssistantAgentEnabled}
+        onChange={(isFloating) =>
+          setFabMode(isFloating ? "floating" : "pinned")
+        }
+        css={settingSwitchCSS}
+      >
+        <span className="assistant-personal-settings__label">
+          <Text weight="heavy">Floating assistant button</Text>
+          <Text color="text-500" size="S">
+            Shows the assistant as a draggable floating button instead of
+            pinning it to the top navigation bar.
+          </Text>
+        </span>
+      </Switch>
+    </li>
+  );
+}
+
+function AssistantDisplaySettings() {
+  return (
     <ul css={settingsListCSS}>
-      <li css={settingRowCSS}>
-        <Switch
-          labelPlacement="start"
-          isSelected={adminAssistantEnabled && isAssistantAgentEnabled}
-          isDisabled={!adminAssistantEnabled}
-          onChange={setIsAssistantAgentEnabled}
-          css={settingSwitchCSS}
-        >
-          <span className="assistant-personal-settings__label">
-            <Text weight="heavy">Use assistant</Text>
-            <Text color="text-500" size="S">
-              Shows the assistant in this browser.
-            </Text>
-          </span>
-        </Switch>
-        {!adminAssistantEnabled ? <SystemSettingsWarning /> : null}
-      </li>
+      <AssistantAgentEnabledSetting />
+      <AssistantFabModeSetting />
     </ul>
   );
 }
@@ -140,7 +179,7 @@ function PersonalSettingsSection() {
         These settings apply only to this browser. System settings control which
         options are available.
       </Text>
-      <AssistantAgentEnabledSetting />
+      <AssistantDisplaySettings />
       <AgentSettingsForm>
         <AgentWebAccessSettings />
         {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
