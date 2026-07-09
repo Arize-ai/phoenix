@@ -37,7 +37,7 @@ class _NativeToolHallucinationModel(WrapperModel):
     ) -> ModelResponse:
         self.request_count += 1
         if self.request_count == 1:
-            return _unfulfilled_code_execution_response()
+            return _code_execution_response_without_result()
         return await self.wrapped.request(
             messages,
             model_settings,
@@ -45,10 +45,12 @@ class _NativeToolHallucinationModel(WrapperModel):
         )
 
 
-async def test_converts_unavailable_unfulfilled_native_tool_call() -> None:
+async def test_converts_unconfigured_native_tool_call_without_result() -> None:
     before = TextPart(content="before")
     after = TextPart(content="after")
-    response = ModelResponse(parts=[before, *_unfulfilled_code_execution_response().parts, after])
+    response = ModelResponse(
+        parts=[before, *_code_execution_response_without_result().parts, after]
+    )
 
     normalized = await NativeToolRetryCapability[None]().after_model_request(
         cast(RunContext[None], None),
@@ -70,8 +72,8 @@ async def test_converts_unavailable_unfulfilled_native_tool_call() -> None:
     assert call.provider_details == {"caller": "direct"}
 
 
-async def test_keeps_available_unfulfilled_native_tool_call() -> None:
-    response = _unfulfilled_code_execution_response()
+async def test_keeps_configured_native_tool_call_without_result() -> None:
+    response = _code_execution_response_without_result()
 
     normalized = await NativeToolRetryCapability[None]().after_model_request(
         cast(RunContext[None], None),
@@ -83,10 +85,10 @@ async def test_keeps_available_unfulfilled_native_tool_call() -> None:
     assert isinstance(normalized.parts[0], NativeToolCallPart)
 
 
-async def test_keeps_unavailable_fulfilled_native_tool_call() -> None:
+async def test_keeps_unconfigured_native_tool_call_with_result() -> None:
     response = ModelResponse(
         parts=[
-            *_unfulfilled_code_execution_response().parts,
+            *_code_execution_response_without_result().parts,
             NativeToolReturnPart(
                 tool_name="code_execution",
                 content={"stdout": "hello\n"},
@@ -111,7 +113,7 @@ async def test_anthropic_accepts_reclassified_native_tool_history(
     custom_vcr: CustomVCR,
 ) -> None:
     del anthropic_api_key
-    expected_output = "Recovered from the unavailable native tool call."
+    expected_output = "Recovered from a native tool call that was not configured."
     inner_model = AnthropicModel("claude-haiku-4-5", provider=AnthropicProvider())
     model = _NativeToolHallucinationModel(inner_model)
     agent = Agent(
@@ -173,7 +175,7 @@ def _request_context(
     )
 
 
-def _unfulfilled_code_execution_response() -> ModelResponse:
+def _code_execution_response_without_result() -> ModelResponse:
     return ModelResponse(
         parts=[
             NativeToolCallPart(
