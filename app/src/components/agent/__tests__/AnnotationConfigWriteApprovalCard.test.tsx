@@ -50,78 +50,75 @@ function renderCard(pending: PendingAnnotationConfigWrite) {
   });
 }
 
-function findInputByValue(value: string): HTMLInputElement {
-  const input = Array.from(container.querySelectorAll("input")).find(
-    (candidate) => candidate.value === value
-  );
-  expect(input).toBeDefined();
-  return input as HTMLInputElement;
-}
-
-async function changeInput(input: HTMLInputElement, value: string) {
-  await act(async () => {
-    const valueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
-      "value"
-    )?.set;
-    valueSetter?.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
-
-async function click(element: Element | null) {
+function click(element: Element | null) {
   expect(element).not.toBeNull();
-  await act(async () => {
+  act(() => {
     element!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 }
 
-describe("AnnotationConfigWriteApprovalCard", () => {
-  it("submits the edited categorical draft when creating a config", async () => {
-    const acceptDraft = vi.fn().mockResolvedValue(undefined);
-    renderCard({
-      toolCallId: "tool-call-1",
-      toolName: "create_annotation_config",
-      preview: {
-        kind: "create",
-        projectId: "project-1",
-        draft: {
-          type: "categorical",
-          name: "tool_selection",
-          optimizationDirection: "MAXIMIZE",
-          values: [
-            { label: "correct", score: 1 },
-            { label: "incorrect", score: 0 },
-          ],
-        },
+function createPending(
+  overrides: Partial<PendingAnnotationConfigWrite> = {}
+): PendingAnnotationConfigWrite {
+  return {
+    toolCallId: "tool-call-1",
+    toolName: "create_annotation_config",
+    preview: {
+      kind: "create",
+      projectId: "project-1",
+      draft: {
+        type: "categorical",
+        name: "tool_selection",
+        optimizationDirection: "MAXIMIZE",
+        values: [
+          { label: "correct", score: 1 },
+          { label: "incorrect", score: 0 },
+        ],
       },
-      acceptDraft,
-      accept: async () => undefined,
-      reject: async () => undefined,
-    });
+    },
+    accept: async () => undefined,
+    reject: async () => undefined,
+    ...overrides,
+  };
+}
 
-    expect(container.textContent).not.toContain("Create annotation config");
-    expect(container.textContent).toContain("Create config");
-    expect(container.textContent).not.toContain("project-1");
+describe("AnnotationConfigWriteApprovalCard", () => {
+  it("renders a read-only preview of the proposed config", () => {
+    renderCard(createPending());
 
-    await changeInput(findInputByValue("tool_selection"), "accuracy");
-    await changeInput(findInputByValue("incorrect"), "wrong");
-    await click(
-      Array.from(container.querySelectorAll("button")).find(
-        (button) => button.textContent === "Create config"
-      ) ?? null
+    expect(container.textContent).toContain("Create annotation config");
+    expect(container.textContent).toContain("tool_selection");
+    expect(container.textContent).toContain("correct");
+    expect(container.textContent).toContain("project-1");
+    expect(container.querySelectorAll("input, textarea")).toHaveLength(0);
+  });
+
+  it("warns that an update replaces the entire config", () => {
+    renderCard(
+      createPending({
+        toolName: "update_annotation_config",
+        preview: {
+          kind: "update",
+          configId: "config-1",
+          draft: { type: "freeform", name: "notes" },
+        },
+      })
     );
 
-    expect(acceptDraft).toHaveBeenCalledTimes(1);
-    expect(acceptDraft).toHaveBeenCalledWith({
-      type: "categorical",
-      name: "accuracy",
-      description: null,
-      optimizationDirection: "MAXIMIZE",
-      values: [
-        { label: "correct", score: 1 },
-        { label: "wrong", score: 0 },
-      ],
-    });
+    expect(container.textContent).toContain("Replace annotation config");
+    expect(container.textContent).toContain("config-1");
+    expect(container.textContent).toContain("Replaces the entire config");
+  });
+
+  it("invokes accept and reject handlers from the card buttons", () => {
+    const accept = vi.fn().mockResolvedValue(undefined);
+    const reject = vi.fn().mockResolvedValue(undefined);
+    renderCard(createPending({ accept, reject }));
+
+    const buttons = Array.from(container.querySelectorAll("button"));
+    click(buttons.find((button) => button.textContent === "Accept") ?? null);
+    expect(accept).toHaveBeenCalledTimes(1);
+    click(buttons.find((button) => button.textContent === "Reject") ?? null);
+    expect(reject).toHaveBeenCalledTimes(1);
   });
 });

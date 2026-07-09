@@ -6,10 +6,8 @@ import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { ANNOTATION_CONFIG_WRITE_REJECTED_MESSAGE } from "./constants";
 import type {
-  AnnotationConfigDraft,
   AnnotationConfigWriteApplyResult,
   AnnotationConfigWritePreview,
-  PendingAnnotationConfigWrite,
 } from "./types";
 
 /**
@@ -29,51 +27,22 @@ export async function stageAnnotationConfigWrite({
     toolName: string;
     preview: AnnotationConfigWritePreview;
   };
-  apply: (
-    draft: AnnotationConfigDraft
-  ) => Promise<AnnotationConfigWriteApplyResult>;
+  apply: () => Promise<AnnotationConfigWriteApplyResult>;
   addToolOutput: ApprovalToolOutputSender;
   agentStore: AgentStore;
 }): Promise<void> {
-  const { toolCallId, toolName, preview } = proposal;
   const pending = bindPendingApproval({
     pending: proposal,
-    apply: () => apply(preview.draft),
+    apply,
     addToolOutput,
     setPending: agentStore.getState().setPendingAnnotationConfigWrite,
     rejectedMessage: ANNOTATION_CONFIG_WRITE_REJECTED_MESSAGE,
   });
-  const pendingWithDraft: PendingAnnotationConfigWrite = {
-    ...pending,
-    acceptDraft: async (draft, { approvalSource = "user" } = {}) => {
-      agentStore.getState().setPendingAnnotationConfigWrite(toolCallId, null);
-      const result = await apply(draft);
-      if (!result.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: toolName,
-          toolCallId,
-          errorText: result.error,
-        });
-        return;
-      }
-      await addToolOutput({
-        state: "output-available",
-        tool: toolName,
-        toolCallId,
-        output: {
-          status: "accepted",
-          acceptedBy: approvalSource,
-          message: result.output,
-        },
-      });
-    },
-  };
   if (agentStore.getState().permissions.edits === "bypass") {
     await pending.accept?.({ approvalSource: "auto" });
     return;
   }
   agentStore
     .getState()
-    .setPendingAnnotationConfigWrite(toolCallId, pendingWithDraft);
+    .setPendingAnnotationConfigWrite(proposal.toolCallId, pending);
 }
