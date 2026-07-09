@@ -18,11 +18,6 @@ from pydantic_ai.tools import AgentDepsT
 class NativeToolRetryCapability(AbstractCapability[AgentDepsT]):
     """Recover from hallucinated native tool calls that would produce invalid history.
 
-    A model can call a provider-native tool that was not enabled and return no matching
-    native tool result. Pydantic AI replays that unfulfilled call, causing the provider to
-    reject the next request. This capability reclassifies the call as a function tool call
-    so the standard unknown-tool retry path can give the model valid error feedback.
-
     See https://github.com/pydantic/pydantic-ai/issues/6401 for the upstream issue.
     """
 
