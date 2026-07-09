@@ -27,7 +27,8 @@ const tagCSS = css`
 
   &[data-selected] {
     border-color: var(--global-color-primary);
-    background: var(--global-color-primary-700);
+    background: var(--global-color-primary);
+    color: var(--global-button-primary-foreground-color);
   }
 `;
 function Tag({ ref, ...props }: TagProps & { ref?: Ref<HTMLDivElement> }) {
