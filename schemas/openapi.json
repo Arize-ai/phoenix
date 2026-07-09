@@ -17832,13 +17832,25 @@
       },
       "SessionSummaryChunk": {
         "additionalProperties": false,
-        "description": "Wire schema for the transient ``data-session-summary`` stream chunk:\nthe LLM-generated session title, emitted on any turn that starts with the\nsession still untitled.",
+        "description": "Transient ``data-session-summary`` stream chunk: the LLM-generated\nsession title, emitted on any turn that starts with the session still\nuntitled. Being transient, it reaches the client's ``onData`` callback\nbut is never appended to the message parts.\n\nSee the Vercel AI SDK data stream protocol:\n    - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts\n    - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral",
         "properties": {
           "type": {
             "const": "data-session-summary",
             "default": "data-session-summary",
             "title": "Type",
             "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
           },
           "data": {
             "title": "Data",

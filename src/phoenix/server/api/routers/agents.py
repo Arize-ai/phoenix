@@ -183,12 +183,16 @@ class AssistantMessageMetadata(_CamelModel):
 
 
 @register_openapi_schema
-class SessionSummaryChunk(BaseModel):
-    """Wire schema for the transient ``data-session-summary`` stream chunk:
-    the LLM-generated session title, emitted on any turn that starts with the
-    session still untitled."""
+class SessionSummaryChunk(DataChunk):
+    """Transient ``data-session-summary`` stream chunk: the LLM-generated
+    session title, emitted on any turn that starts with the session still
+    untitled. Being transient, it reaches the client's ``onData`` callback
+    but is never appended to the message parts.
 
-    model_config = ConfigDict(extra="forbid")
+    See the Vercel AI SDK data stream protocol:
+        - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts
+        - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral
+    """
 
     type: Literal["data-session-summary"] = "data-session-summary"
     data: str
@@ -693,13 +697,6 @@ async def _interleave_agent_and_subagent_message_chunks(
             await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
 
 
-def _build_session_summary_chunk(summary: str) -> DataChunk:
-    """Transient data chunk carrying the LLM-generated session title; the
-    client applies it to its session list without appending a message part."""
-    chunk = SessionSummaryChunk(data=summary)
-    return DataChunk(type=chunk.type, data=chunk.data, transient=chunk.transient)
-
-
 async def _merge_session_summary_chunk(
     *,
     message_chunks: AsyncIterator[BaseChunk],
@@ -730,7 +727,7 @@ async def _merge_session_summary_chunk(
             if summary_task in done_tasks and not summary_settled:
                 summary_settled = True
                 if summary := summary_task.result():
-                    yield _build_session_summary_chunk(summary)
+                    yield SessionSummaryChunk(data=summary)
             if chunk_task in done_tasks:
                 try:
                     message_chunk = chunk_task.result()
@@ -740,7 +737,7 @@ async def _merge_session_summary_chunk(
                     if isinstance(message_chunk, FinishChunk) and not summary_settled:
                         summary_settled = True
                         if summary := await summary_task:
-                            yield _build_session_summary_chunk(summary)
+                            yield SessionSummaryChunk(data=summary)
                     yield message_chunk
                     chunk_task = asyncio.create_task(_next_message_chunk())
     finally:
