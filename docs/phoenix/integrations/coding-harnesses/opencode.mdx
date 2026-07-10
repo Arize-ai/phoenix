@@ -6,7 +6,7 @@ keywords: ["opencode", "opencode tracing", "phoenix", "agent tracing", "terminal
 
 > Trace OpenCode terminal coding sessions, model calls, and tool usage with Phoenix for full observability.
 
-[OpenCode](https://opencode.ai/) is an open-source AI coding agent built for the terminal. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments OpenCode sessions with an in-process plugin and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Each turn is captured as a trace, with nested spans for the model call and every tool invocation.
+[OpenCode](https://opencode.ai/) is an open-source AI coding agent built for the terminal. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every OpenCode turn shows up in Phoenix as a trace, with the model call and every tool invocation captured as nested spans and grouped into its session. You don't change any code: the toolkit loads an in-process plugin and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
 
 ## Launch Phoenix
 
@@ -16,7 +16,9 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 ## Install
 
-### Curl installer
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -79,7 +81,9 @@ export ARIZE_LOG_TOOL_CONTENT="false"
 
 Once tracing is enabled, OpenCode activity is streamed to Phoenix. Each turn (one user prompt to the assistant's response) is captured as a trace.
 
-### Spans Captured
+### Spans captured
+
+<Accordion title="The spans each turn produces">
 
 Each turn produces a three-level span tree:
 
@@ -90,6 +94,8 @@ Each turn produces a three-level span tree:
 | `{tool}` | TOOL | One per completed tool call, with `tool.name`, redacted input/output, and tool-specific attributes such as `tool.command`, `tool.file_path`, `tool.query`, and `tool.url`. |
 
 Timestamps come from OpenCode's own millisecond clocks rather than wall-clock time on the tracing process. The default project name is `opencode` unless you set `ARIZE_PROJECT_NAME`.
+
+</Accordion>
 
 ## How Tracing Works
 

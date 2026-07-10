@@ -6,7 +6,7 @@ keywords: ["gemini", "gemini cli", "gemini tracing", "phoenix", "agent tracing"]
 
 > Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix for full observability.
 
-[Gemini CLI](https://github.com/google-gemini/gemini-cli) is Google's open-source command-line agent for Gemini. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments Gemini CLI sessions and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
+[Gemini CLI](https://github.com/google-gemini/gemini-cli) is Google's open-source command-line agent for Gemini. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every Gemini CLI turn shows up in Phoenix as a trace — the model call, each tool it runs, and token usage — grouped into its session. You don't change any code: the toolkit hooks into Gemini CLI's own lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
 
 ## Launch Phoenix
 
@@ -16,7 +16,9 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 ## Install
 
-### Curl installer
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -81,7 +83,9 @@ Once tracing is enabled, Gemini CLI activity is streamed to Phoenix. You'll see:
 - **Tool spans** — paired `BeforeTool` / `AfterTool` events with input, output, and duration
 - **Session grouping** — all spans from the same session grouped by `session_id`
 
-### Hooks Captured
+### Hooks captured
+
+<Accordion title="All hook events and the spans they produce">
 
 | Hook            | Span Kind | Description                                  |
 | :-------------- | :-------- | :------------------------------------------- |
@@ -93,6 +97,8 @@ Once tracing is enabled, Gemini CLI activity is streamed to Phoenix. You'll see:
 | `BeforeTool`    | TOOL      | Tool invocation started, records name and input |
 | `AfterTool`     | TOOL      | Tool invocation completed, records output and duration |
 | `SessionEnd`    | CHAIN     | Session teardown, state file cleanup         |
+
+</Accordion>
 
 ## Reference
 

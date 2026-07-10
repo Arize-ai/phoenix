@@ -6,7 +6,7 @@ keywords: ["cursor", "cursor tracing", "phoenix", "mcp tracing", "agent tracing"
 
 > Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix for full observability.
 
-[Cursor](https://cursor.com/) is an AI code editor for agentic software development. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments Cursor IDE and CLI hook events and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. A Cursor conversation maps to a session, and each message turn maps to a trace.
+[Cursor](https://cursor.com/) is an AI code editor for agentic software development. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, your Cursor work shows up in Phoenix: each conversation becomes a session and each message turn a trace, with the model's response, shell commands, MCP tools, and file edits captured as nested spans. You don't change any code: the toolkit hooks into Cursor's own IDE and CLI events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
 
 ## Launch Phoenix
 
@@ -16,7 +16,9 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 ## Install
 
-### Curl installer
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -86,7 +88,9 @@ Once tracing is enabled, Cursor activity is streamed to Phoenix. You'll see:
 
 The default project name is `cursor` unless you set `ARIZE_PROJECT_NAME`.
 
-### Hooks Captured
+### Hooks captured
+
+<Accordion title="All hook events and the spans they produce">
 
 Cursor IDE fires the full set of hooks. Cursor CLI fires a subset (no prompt/response, MCP, or file-read events).
 
@@ -107,6 +111,8 @@ Cursor IDE fires the full set of hooks. Cursor CLI fires a subset (no prompt/res
 | `afterTabFileEdit` | ✓ | | Tab file edit span |
 | `postToolUse` | ✓ | ✓ | Generic tool span for non-shell, non-MCP tools |
 | `stop` | ✓ | ✓ | Stop span and state cleanup for the turn |
+
+</Accordion>
 
 ## How Shell and MCP Merge Works
 

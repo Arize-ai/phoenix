@@ -57,6 +57,39 @@ Integrate Phoenix with AI coding assistants to debug and analyze your LLM applic
 
 ---
 
+## Coding Harness Tracing
+
+Trace your coding agent's own sessions — turns, tool calls, and token costs — by installing the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit. No application code changes required; it hooks into each agent's own extension points and streams OpenInference spans to Phoenix.
+
+<CardGroup cols={2}>
+  <Card title="Claude Code" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/claude-code">
+    Trace Claude Code CLI and Agent SDK sessions, tool usage, and token costs.
+  </Card>
+  <Card title="Codex" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/codex">
+    Trace OpenAI Codex CLI agent turns, tool calls, and API requests.
+  </Card>
+  <Card title="Cursor" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/cursor">
+    Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations.
+  </Card>
+  <Card title="GitHub Copilot" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/copilot">
+    Trace GitHub Copilot sessions in VS Code and the Copilot CLI.
+  </Card>
+  <Card title="Gemini CLI" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/gemini">
+    Trace Gemini CLI sessions, agent steps, model calls, and tool invocations.
+  </Card>
+  <Card title="Kiro" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/kiro">
+    Trace Kiro CLI agent turns, tool calls, and credit usage.
+  </Card>
+  <Card title="Oh My Pi" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/oh-my-pi">
+    Trace Oh My Pi (omp) terminal coding sessions, model calls, and tool usage.
+  </Card>
+  <Card title="OpenCode" icon="terminal" href="/docs/phoenix/integrations/coding-harnesses/opencode">
+    Trace OpenCode terminal coding sessions, model calls, and tool usage.
+  </Card>
+</CardGroup>
+
+---
+
 ## Tracing Integrations
 
 Phoenix captures detailed traces from your AI applications, giving you visibility into every step of your LLM pipeline.

@@ -6,7 +6,7 @@ keywords: ["codex", "codex tracing", "phoenix", "openai codex", "agent tracing"]
 
 > Trace Codex CLI agent turns, tool calls, and API requests in Phoenix for full observability.
 
-[Codex](https://openai.com/index/codex-cli-open-source/) is OpenAI's open-source CLI coding agent. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments Codex `notify` hook events and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Each agent turn is captured as an LLM span with tool calls, token usage, and API request details.
+[Codex](https://openai.com/index/codex-cli-open-source/) is OpenAI's open-source CLI coding agent. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every Codex turn shows up in Phoenix as a trace — the model call, each tool it runs, token usage, and API requests — grouped into its session. You don't change any code: the toolkit hooks into Codex's own `notify` events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
 
 ## Launch Phoenix
 
@@ -16,7 +16,9 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 ## Install
 
-### Curl installer
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -81,7 +83,25 @@ Once tracing is enabled, Codex activity is streamed to Phoenix. You'll see:
 - **Session grouping** — all turns from the same session grouped by `session.id`
 - **Token usage** — prompt, completion, and total token counts on every turn span
 
-### Hooks Captured
+<Frame caption="Codex turns grouped together in a single session view">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/codex-session.png"
+    alt="Phoenix session view for a Codex session showing two turns grouped together, each with its own token count, cost, and latency, plus the selected turns' inputs and outputs"
+  />
+</Frame>
+
+Drill into any turn trace to inspect the full span tree, including model generations, tool calls, and API request spans.
+
+<Frame caption="Detailed trace view for a Codex turn">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/codex-trace.png"
+    alt="Phoenix trace view showing the trace tree for a Codex turn with an LLM span and nested exec_command and apply_patch tool spans, alongside the span's model, input, token count, cost, and latency"
+  />
+</Frame>
+
+### Hooks captured
+
+<Accordion title="All notify subtypes and the spans they produce">
 
 Codex emits a single `notify` event with subtypes for each lifecycle stage. The hook fans them out into the spans listed above.
 
@@ -92,6 +112,8 @@ Codex emits a single `notify` event with subtypes for each lifecycle stage. The 
 | `agent-api-request`      | LLM       | One span per API / WebSocket request to the model         |
 | `agent-turn-complete`    | LLM       | Turn span ends; records output and token counts           |
 | `agent-session-complete` | CHAIN     | Session teardown, state file cleanup                      |
+
+</Accordion>
 
 ## Reference
 

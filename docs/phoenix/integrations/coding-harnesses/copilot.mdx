@@ -6,7 +6,7 @@ keywords: ["github copilot", "copilot tracing", "phoenix", "vs code", "agent tra
 
 > Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix for full observability.
 
-[GitHub Copilot](https://github.com/features/copilot) is GitHub's AI pair programmer for VS Code and the command line. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments both Copilot surfaces and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. VS Code uses per-event hook files; the CLI uses a single `hooks.json`.
+[GitHub Copilot](https://github.com/features/copilot) is GitHub's AI pair programmer for VS Code and the command line. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every Copilot turn — in VS Code or the CLI — shows up in Phoenix as a trace, with each tool call and any subagents captured as nested spans and grouped into its session. You don't change any code: the toolkit hooks into Copilot's own events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix. VS Code uses per-event hook files; the CLI uses a single `hooks.json`.
 
 ## Launch Phoenix
 
@@ -18,7 +18,9 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 Copilot hooks are installed at the **project level** under `.github/hooks/`. Run the installer from the root of each repository where you want tracing.
 
-### Curl installer
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -85,7 +87,9 @@ Once tracing is enabled, Copilot activity from both VS Code and the CLI streams 
 - **Error spans** — `errorOccurred` events from the CLI
 - **Session grouping** — all turns from the same session grouped by `session_id`
 
-### Hooks Captured
+### Hooks captured
+
+<Accordion title="All hook files and events">
 
 Copilot in VS Code and on the CLI use different event names. The harness handles both with one install command.
 
@@ -98,6 +102,8 @@ Copilot in VS Code and on the CLI use different event names. The harness handles
 | VS Code | `.github/hooks/stop.json` | `Stop` |
 | VS Code | `.github/hooks/subagent-stop.json` | `SubagentStop` |
 | CLI | `.github/hooks/hooks.json` | `sessionStart`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`, `sessionEnd` |
+
+</Accordion>
 
 ## Reference
 

@@ -6,7 +6,7 @@ keywords: ["kiro", "kiro tracing", "kiro cli", "phoenix", "agent tracing"]
 
 > Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix for full observability.
 
-[Kiro](https://kiro.dev) is AWS's agentic IDE and CLI for spec-driven development. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) registers hooks on a Kiro agent and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Each agent turn is captured as an LLM span with tool calls, model info, credit cost, and turn duration.
+[Kiro](https://kiro.dev) is AWS's agentic IDE and CLI for spec-driven development. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every Kiro turn shows up in Phoenix as a trace — the model call, each tool it runs, credit cost, and turn duration — grouped into its session. You don't change any code: the toolkit registers hooks on a Kiro agent and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
 
 ## Launch Phoenix
 
@@ -16,7 +16,9 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 ## Install
 
-### Curl installer
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -102,7 +104,9 @@ Once tracing is enabled, Kiro activity is streamed to Phoenix. You'll see:
 - **Credit cost** — Kiro meters in credits rather than tokens; cost is captured as `kiro.cost.credits`
 - **Model and duration** — `llm.model_name`, `kiro.turn_duration_ms`, and `kiro.context_usage_percentage` from the session sidecar
 
-### Hooks Captured
+### Hooks captured
+
+<Accordion title="All hook events and the spans they produce">
 
 | Hook              | Span Kind | Description                                          |
 | :---------------- | :-------- | :--------------------------------------------------- |
@@ -111,6 +115,8 @@ Once tracing is enabled, Kiro activity is streamed to Phoenix. You'll see:
 | `preToolUse`      | TOOL      | Tool invocation started, records tool name and input |
 | `postToolUse`     | TOOL      | Tool invocation completed, records output and duration |
 | `stop`            | LLM       | Model response completed with input/output values    |
+
+</Accordion>
 
 ### Span attributes
 

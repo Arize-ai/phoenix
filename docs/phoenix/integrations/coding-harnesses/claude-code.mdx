@@ -6,7 +6,7 @@ keywords: ["claude code", "claude code tracing", "phoenix", "agent tracing", "cl
 
 > Trace Claude Code CLI sessions, tool usage, and token costs with Phoenix for full observability.
 
-[Claude Code](https://code.claude.com/docs/en/overview) is Anthropic's agentic coding tool that lives in your terminal. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments sessions using 16 hook events and sends [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. The plugin works with both the Claude Code CLI and the Claude Agent SDK.
+[Claude Code](https://code.claude.com/docs/en/overview) is Anthropic's agentic coding tool that lives in your terminal. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) plugin installed, every Claude Code turn shows up in Phoenix as a trace — the model call, each tool it runs, and the tokens and cost — grouped into the session it belongs to. You don't change any code: the plugin hooks into Claude Code's own lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix. It works with both the Claude Code CLI and the Claude Agent SDK.
 
 <Note>
 **Use this to trace Claude Code (or Agent SDK) *sessions* via the plugin — enabled through a settings file, no in-code instrumentor.** If instead you are **building an application** with the Claude Agent SDK and want standard OpenInference agent, tool, and LLM spans in your app's code, use the [Claude Agent SDK](/docs/phoenix/integrations/python/claude-agent-sdk) instrumentor instead.
@@ -20,6 +20,8 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 ## Install
 
+Pick whichever fits how you work. The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use the **marketplace plugin** if you already manage Claude Code plugins, or a **local clone** if you want the source on hand.
+
 ### Claude Code Marketplace
 
 ```bash
@@ -29,7 +31,7 @@ claude plugin install claude-code-tracing@coding-harness-tracing
 
 The marketplace flow registers the hooks but skips the interactive wizard, so backend credentials and content-logging preferences must be set directly in `~/.claude/settings.json` under `env` (see [Configuration](#configuration)).
 
-### Curl installer
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -102,9 +104,25 @@ Now that you have tracing set up, all Claude Code sessions stream to your Phoeni
 - **Subagent spans** — activity from any subagents Claude spawns
 - **Session grouping** — all turns from the same session grouped by `session_id`
 
+<Frame caption="Claude Code turns grouped together in a single session view">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/claude-code-session.png"
+    alt="Phoenix session view for a Claude Code session showing its two turns grouped together, each with its own token count, cost, and latency, plus the selected turn's input and output"
+  />
+</Frame>
+
 Drill into any turn trace to inspect the full span tree, including model generations, tool calls, and subagent activity.
 
-### Hooks Captured
+<Frame caption="Detailed trace view for a Claude Code turn">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/claude-code-trace.png"
+    alt="Phoenix trace view showing the trace tree for a Claude Code turn — an LLM span with a nested subagent span and Glob, Grep, Read, and Edit tool spans — alongside the span's model (claude-opus-4-8), input, token count, cost, and latency"
+  />
+</Frame>
+
+### Hooks captured
+
+<Accordion title="All 16 hooks and the spans they produce">
 
 | Hook                  | Span Kind | Description                                                                |
 | :-------------------- | :-------- | :------------------------------------------------------------------------- |
@@ -125,7 +143,9 @@ Drill into any turn trace to inspect the full span tree, including model generat
 | `Notification`        | CHAIN     | System notification event                                                  |
 | `SessionEnd`          | CHAIN     | Session teardown, state file cleanup                                       |
 
-Hooks marked `—` don't emit their own span — they stash state that an adjacent hook (Turn, tool, or compaction) attaches when it fires.
+Hooks marked `—` don't emit their own span — they stash state that an adjacent hook (turn, tool, or compaction) attaches when it fires.
+
+</Accordion>
 
 ## Agent SDK Setup
 
@@ -139,7 +159,7 @@ You must use `ClaudeSDKClient`. The standalone `query()` function does not suppo
 
 The plugin path depends on how you installed the harness:
 
-- **Installed via the Claude Code CLI marketplace:** the plugin is cached at `~/.claude/plugins/cache/coding-harness-tracing/claude-code-tracing/1.0.0`.
+- **Installed via the Claude Code CLI marketplace:** the plugin is cached under `~/.claude/plugins/cache/coding-harness-tracing/claude-code-tracing/<version>/`, where `<version>` matches the installed plugin version (for example `1.0.3`).
 - **Installed via the curl or local installer:** the plugin lives at `~/.arize/harness/tracing/claude_code`.
 - **Not installed:** clone the repo into your project — the plugin path is `./coding-harness-tracing/claude-code-tracing`:
 

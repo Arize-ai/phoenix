@@ -6,7 +6,7 @@ keywords: ["oh my pi", "omp", "omp tracing", "phoenix", "agent tracing"]
 
 > Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs with Phoenix for full observability.
 
-[Oh My Pi (omp)](https://github.com/can1357/oh-my-pi) is a terminal coding agent that loads its extensions in-process inside its Bun runtime. The [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) instruments omp lifecycle events and exports [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Each agent run is captured as a trace with model calls, tool invocations, and inline token usage.
+[Oh My Pi (omp)](https://github.com/can1357/oh-my-pi) is a terminal coding agent that loads its extensions in-process inside its Bun runtime. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every omp run shows up in Phoenix as a trace — the model calls, tool invocations, and inline token usage — grouped into its session. You don't change any code: the toolkit hooks into omp's lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
 
 ## Launch Phoenix
 
@@ -16,7 +16,9 @@ Go to the settings page in your Phoenix instance to find your **endpoint** and *
 
 ## Install
 
-### Curl installer
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
 
 **macOS / Linux:**
 
@@ -95,7 +97,9 @@ Once tracing is enabled, omp activity is streamed to Phoenix. There is one trace
 
 Token usage is captured directly on each LLM span — omp surfaces cumulative usage inline on assistant messages, so prompt, completion, reasoning, cache, and cost values are available on every model call.
 
-### Spans Captured
+### Spans captured
+
+<Accordion title="The spans each run produces">
 
 omp exposes rich, once-fired lifecycle events that already carry final, structured data. The hook forwards a small whitelist of them and emits the following spans:
 
@@ -106,6 +110,8 @@ omp exposes rich, once-fired lifecycle events that already carry final, structur
 | `<tool>` | TOOL | Child of `Turn`. One per tool result in a `turn_end`, paired with its originating tool call by id and recording input args and output. |
 
 Lifecycle events forwarded: `before_agent_start`, `turn_end`, `agent_end`, and `session_shutdown`.
+
+</Accordion>
 
 ## Verifying tracing
 
