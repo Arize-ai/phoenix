@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import { Token } from "@phoenix/components";
 
+import { getAnnotationTooltipFilters } from "./annotationFilterUtils";
 import { useSpanFilters } from "./SpanFiltersContext";
 
 type AnnotationTooltipFilterActionsProps = {
@@ -14,47 +15,11 @@ type AnnotationTooltipFilterActionsProps = {
   onAppendFilterCondition: (condition: string) => void;
 };
 
-type FilterDefinition = {
-  /**
-   * The human-readable name of the filter.
-   */
-  filterName: string;
-  /**
-   * The condition that the filter represents using DSL
-   */
-  filterCondition: string;
-};
-
 export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
 ) {
   const { annotation, className, onAppendFilterCondition } = props;
-  const { name, label, score } = annotation;
-
-  const filters: FilterDefinition[] = [];
-  if (typeof score === "number") {
-    filters.push({
-      filterName: "greater than",
-      filterCondition: `annotations['${name}'].score > ${score}`,
-    });
-    filters.push({
-      filterName: "less than",
-      filterCondition: `annotations['${name}'].score < ${score}`,
-    });
-    filters.push({
-      filterName: "equals",
-      filterCondition: `annotations['${name}'].score == ${score}`,
-    });
-  } else if (label != null) {
-    filters.push({
-      filterName: "match",
-      filterCondition: `annotations['${name}'].label == "${label}"`,
-    });
-    filters.push({
-      filterName: "exclude",
-      filterCondition: `annotations['${name}'].label != "${label}"`,
-    });
-  }
+  const filters = getAnnotationTooltipFilters(annotation);
 
   if (filters.length === 0) {
     return null;

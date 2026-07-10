@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a400596e706efde5133d04febe09a9b>>
+ * @generated SignedSource<<a29b86fd850937692bbddcc920b8e517>>
  * @lightSyntaxTransform
  */
 
@@ -17,6 +17,7 @@ export type sessionFilterValidationQuery$data = {
     readonly validateSessionFilterCondition?: {
       readonly errorMessage: string | null;
       readonly isValid: boolean;
+      readonly warnings: ReadonlyArray<string>;
     };
   };
 };
@@ -74,6 +75,13 @@ v2 = {
           "args": null,
           "kind": "ScalarField",
           "name": "errorMessage",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "warnings",
           "storageKey": null
         }
       ],
@@ -141,16 +149,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "36c69a147be463602646d2a61a99f6e8",
+    "cacheID": "f76cf703dfbaec78355fe38505a082d7",
     "id": null,
     "metadata": {},
     "name": "sessionFilterValidationQuery",
     "operationKind": "query",
-    "text": "query sessionFilterValidationQuery(\n  $condition: String!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSessionFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query sessionFilterValidationQuery(\n  $condition: String!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      validateSessionFilterCondition(condition: $condition) {\n        isValid\n        errorMessage\n        warnings\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "52781b4108d9c96a38fcd35f31834d69";
+(node as any).hash = "f3e5e411f5c6bc3ccfa316df29534547";
 
 export default node;
