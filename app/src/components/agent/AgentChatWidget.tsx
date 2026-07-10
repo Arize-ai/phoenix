@@ -22,6 +22,7 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { AgentFabPositioner } from "./AgentFabPositioner";
 import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
+import { pxiGlowBreathe } from "./pxiStyles";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
 const OPEN_AGENT_HOTKEY = "mod+i";
@@ -35,15 +36,6 @@ const thinkingBorderWipe = keyframes`
   100% {
     -webkit-mask-position: 0% center;
     mask-position: 0% center;
-  }
-`;
-
-const ringBreathe = keyframes`
-  0%, 100% {
-    box-shadow: var(--agent-chat-widget-glow-outer-rest);
-  }
-  50% {
-    box-shadow: var(--agent-chat-widget-glow-outer-strong);
   }
 `;
 
@@ -130,40 +122,6 @@ const lightThemeGlyphThemeCSS = css`
     --agent-chat-widget-glyph-rest-color: var(--global-color-gray-50);
     --agent-chat-widget-glyph-pulse-color: #a4a9ae;
     --agent-chat-widget-glyph-pulse-shadow: rgba(156, 205, 255, 0.4);
-  }
-`;
-
-const darkThemeThinkingGlowCSS = css`
-  &[data-theme="dark"] {
-    --agent-chat-widget-glow-outer-rest:
-      0 0 2px 1px rgba(248, 242, 255, 0.78),
-      0 0 4px 2px rgba(154, 102, 255, 0.68),
-      0 0 8px 4px rgba(52, 128, 255, 0.52),
-      0 0 13px 5px rgba(198, 72, 255, 0.4),
-      0 0 17px 6px rgba(44, 216, 255, 0.26);
-    --agent-chat-widget-glow-outer-strong:
-      0 0 3px 2px rgba(250, 244, 255, 0.88),
-      0 0 7px 3px rgba(160, 108, 255, 0.82),
-      0 0 12px 6px rgba(58, 134, 255, 0.66),
-      0 0 19px 8px rgba(205, 78, 255, 0.52),
-      0 0 26px 10px rgba(50, 220, 255, 0.34);
-  }
-`;
-
-const lightThemeThinkingGlowCSS = css`
-  &[data-theme="light"] {
-    --agent-chat-widget-glow-outer-rest:
-      0 0 3px 1px rgba(245, 249, 255, 0.88),
-      0 0 5px 2px rgba(199, 190, 242, 0.56),
-      0 0 9px 4px rgba(88, 152, 255, 0.54),
-      0 0 14px 5px rgba(200, 150, 236, 0.23),
-      0 0 20px 7px rgba(116, 212, 255, 0.17);
-    --agent-chat-widget-glow-outer-strong:
-      0 0 4px 1px rgba(248, 251, 255, 0.94),
-      0 0 8px 3px rgba(203, 194, 244, 0.68),
-      0 0 13px 5px rgba(96, 159, 255, 0.64),
-      0 0 20px 7px rgba(205, 154, 238, 0.31),
-      0 0 26px 9px rgba(119, 214, 255, 0.22);
   }
 `;
 
@@ -262,8 +220,8 @@ const thinkingBorderCSS = css`
   }
 
   .agent-chat-widget__shimmer::before {
-    box-shadow: var(--agent-chat-widget-glow-outer-rest);
-    animation: ${ringBreathe} 2400ms ease-in-out infinite;
+    box-shadow: var(--pxi-glow-box-shadow-rest);
+    animation: ${pxiGlowBreathe} 2400ms ease-in-out infinite;
     z-index: -1;
   }
 `;
@@ -306,7 +264,7 @@ const restingHoverWipeCSS = css`
     position: absolute;
     inset: 28px;
     border-radius: inherit;
-    box-shadow: var(--agent-chat-widget-glow-outer-rest);
+    box-shadow: var(--pxi-glow-box-shadow-rest);
     opacity: 0;
     transition:
       opacity 240ms ease-out,
@@ -319,7 +277,7 @@ const restingHoverWipeCSS = css`
 
   &:hover .agent-chat-widget__hover-shimmer::before {
     opacity: 0.95;
-    animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+    animation: ${pxiGlowBreathe} 2400ms ease-in-out 1 both;
   }
 
   &:hover .agent-chat-widget__content {
@@ -336,7 +294,7 @@ const entranceHoverWipeCSS = css`
     &[data-entrance-animation="true"]
       .agent-chat-widget__hover-shimmer::before {
       animation:
-        ${ringBreathe} 2400ms ease-in-out 1,
+        ${pxiGlowBreathe} 2400ms ease-in-out 1,
         ${hoverRingOpacity} 2400ms linear 1;
     }
 
@@ -351,7 +309,7 @@ const entranceHoverWipeCSS = css`
     &[data-entrance-animation="true"]:hover
       .agent-chat-widget__hover-shimmer::before {
       opacity: 0.95;
-      animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+      animation: ${pxiGlowBreathe} 2400ms ease-in-out 1 both;
     }
   }
 `;
@@ -402,8 +360,6 @@ export function AgentChatWidgetButton({
           shapeCSS,
           darkThemeGlyphThemeCSS,
           lightThemeGlyphThemeCSS,
-          darkThemeThinkingGlowCSS,
-          lightThemeThinkingGlowCSS,
           !isStreaming ? [thinkingBorderCSS, restingHoverWipeCSS] : undefined,
           shouldShowEntranceAnimation ? entranceHoverWipeCSS : undefined,
           isStreaming ? thinkingBorderCSS : undefined,

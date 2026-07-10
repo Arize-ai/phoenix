@@ -1035,6 +1035,53 @@ const buttonCSS = (theme: Theme) => css`
   }
 `;
 
+const pxiCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --pxi-treatment-color-start: #9a66ff;
+    --pxi-treatment-color-middle: #3480ff;
+    --pxi-treatment-color-end: #2cd8ff;
+    --pxi-glow-box-shadow-rest: ${theme === "dark"
+      ? `
+        0 0 2px 1px rgba(248, 242, 255, 0.78),
+        0 0 4px 2px rgba(154, 102, 255, 0.68),
+        0 0 8px 4px rgba(52, 128, 255, 0.52),
+        0 0 13px 5px rgba(198, 72, 255, 0.4),
+        0 0 17px 6px rgba(44, 216, 255, 0.26)
+      `
+      : `
+        0 0 3px 1px rgba(245, 249, 255, 0.88),
+        0 0 5px 2px rgba(199, 190, 242, 0.56),
+        0 0 9px 4px rgba(88, 152, 255, 0.54),
+        0 0 14px 5px rgba(200, 150, 236, 0.23),
+        0 0 20px 7px rgba(116, 212, 255, 0.17)
+      `};
+    --pxi-glow-box-shadow-strong: ${theme === "dark"
+      ? `
+        0 0 3px 2px rgba(250, 244, 255, 0.88),
+        0 0 7px 3px rgba(160, 108, 255, 0.82),
+        0 0 12px 6px rgba(58, 134, 255, 0.66),
+        0 0 19px 8px rgba(205, 78, 255, 0.52),
+        0 0 26px 10px rgba(50, 220, 255, 0.34)
+      `
+      : `
+        0 0 4px 1px rgba(248, 251, 255, 0.94),
+        0 0 8px 3px rgba(203, 194, 244, 0.68),
+        0 0 13px 5px rgba(96, 159, 255, 0.64),
+        0 0 20px 7px rgba(205, 154, 238, 0.31),
+        0 0 26px 9px rgba(119, 214, 255, 0.22)
+      `};
+    --pxi-glow-box-shadow-contained-rest:
+      inset 0 0 2px rgba(154, 102, 255, 0.36),
+      inset 0 0 5px rgba(52, 128, 255, 0.28),
+      inset 0 0 9px rgba(44, 216, 255, 0.16);
+    --pxi-glow-box-shadow-contained-strong:
+      inset 0 0 3px rgba(154, 102, 255, 0.62),
+      inset 0 0 8px rgba(52, 128, 255, 0.48),
+      inset 0 0 14px rgba(44, 216, 255, 0.28);
+  }
+`;
+
 const checkboxCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1276,6 +1323,7 @@ export const derivedCSS = (theme: Theme) =>
     inputFieldCSS(theme),
     menuCSS(theme),
     buttonCSS(theme),
+    pxiCSS(theme),
     checkboxCSS(theme),
     disclosureCSS(theme),
     tooltipCSS(theme),
@@ -1294,6 +1342,12 @@ export const derivedCSS = (theme: Theme) =>
   );
 
 const appGlobalStylesCSS = css`
+  @property --pxi-conic-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 45deg;
+  }
+
   body,
   input,
   button,

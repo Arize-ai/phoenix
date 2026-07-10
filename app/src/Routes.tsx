@@ -106,7 +106,6 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
-import { PxiLabPage } from "./pages/pxi-lab/PxiLabPage";
 import { exampleRedirectLoader } from "./pages/redirects/exampleRedirectLoader";
 import { projectRedirectLoader } from "./pages/redirects/projectRedirectLoader";
 import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
@@ -693,16 +692,6 @@ export const appRouteObjects = createRoutesFromElements(
               description:
                 "Open the Phoenix GraphQL API explorer and GraphQL schema browser.",
             },
-          }}
-        />
-        {/* Temporary design-exploration playground for the "Solve with PXI"
-            affordance family. No agentRoute handle on purpose — keep it out
-            of PXI's route catalog. Remove when exploration concludes. */}
-        <Route
-          path="/pxi-lab"
-          element={<PxiLabPage />}
-          handle={{
-            crumb: () => "PXI Lab",
           }}
         />
         <Route

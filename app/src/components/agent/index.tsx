@@ -8,6 +8,19 @@ export {
 export { SystemSettingsWarning } from "./SystemSettingsWarning";
 export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
 export { AgentChatWidget } from "./AgentChatWidget";
+export { PxiOutline } from "./PxiOutline";
+export type {
+  PxiOutlineGlowMode,
+  PxiOutlineProps,
+  PxiOutlineRadius,
+  PxiOutlineState,
+} from "./PxiOutline";
+export { SolveWithPxiButton } from "./SolveWithPxiButton";
+export type {
+  SolveWithPxiButtonProps,
+  SolveWithPxiButtonSize,
+  SolveWithPxiButtonVariant,
+} from "./SolveWithPxiButton";
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 export { Chat } from "./Chat";
 export { AssistantMessage, UserMessage } from "./ChatMessage";
