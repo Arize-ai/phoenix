@@ -92,6 +92,11 @@ const spanFilterCompletions: Completion[] = [
     info: "Span annotations, accessed by name - e.x. annotations['quality'].score",
   },
   {
+    label: "trace_annotations",
+    type: "variable",
+    info: "Trace annotations, accessed by name - e.x. trace_annotations['quality'].score",
+  },
+  {
     label: "evals",
     type: "variable",
     info: "Span evaluations, accessed by name - e.x. evals['Hallucination'].label",
@@ -165,6 +170,14 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
   {
     label: "filter by annotation score",
     snippet: "annotations['${name}'].score >= ${0.5}",
+  },
+  {
+    label: "filter by trace annotation score",
+    snippet: "trace_annotations['${name}'].score >= ${0.5}",
+  },
+  {
+    label: "filter by trace annotation label",
+    snippet: "trace_annotations['${name}'].label == '${label}'",
   },
   {
     label: "search output for substring",

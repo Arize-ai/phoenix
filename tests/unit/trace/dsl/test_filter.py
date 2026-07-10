@@ -312,6 +312,37 @@ async def test_filter_translated(
             "span_annotation_0_exists_00000000000000000000000000000000",
             id="bare-annotations-exists",
         ),
+        # Trace-level annotations alias against the `trace_annotation` relation.
+        pytest.param(
+            """trace_annotations['quality'].score >= 0.5""",
+            "trace_annotation_0_score_00000000000000000000000000000000 >= 0.5",
+            id="trace-annotation-score",
+        ),
+        pytest.param(
+            """trace_annotations['quality'].label == 'good'""",
+            "trace_annotation_0_label_00000000000000000000000000000000 == 'good'",
+            id="trace-annotation-label",
+        ),
+        pytest.param(
+            """trace_annotations['quality']""",
+            "trace_annotation_0_exists_00000000000000000000000000000000",
+            id="bare-trace-annotation-exists",
+        ),
+        # A span- and trace-level annotation sharing a name get distinct aliases;
+        # the longer trace expression is substituted first so it is not
+        # corrupted by the substring replacement of the span expression.
+        pytest.param(
+            """trace_annotations['q'].score > 0.5 and annotations['q'].score < 0.5""",
+            "trace_annotation_0_score_00000000000000000000000000000000 > 0.5 "
+            "and span_annotation_1_score_00000000000000000000000000000000 < 0.5",
+            id="mixed-trace-and-span-annotation",
+        ),
+        pytest.param(
+            """annotations['q'].score < 0.5 and trace_annotations['q'].score > 0.5""",
+            "span_annotation_1_score_00000000000000000000000000000000 < 0.5 "
+            "and trace_annotation_0_score_00000000000000000000000000000000 > 0.5",
+            id="mixed-span-and-trace-annotation",
+        ),
     ],
 )
 def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
@@ -322,6 +353,55 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
     ):
         aliased, _ = _apply_eval_aliasing(filter_condition)
         assert aliased == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("trace_annotations['quality'].score >= 0.5", id="score"),
+        pytest.param("trace_annotations['quality'].label == 'good'", id="label"),
+        pytest.param("trace_annotations['quality']", id="exists"),
+    ],
+)
+async def test_trace_annotation_filter_joins_trace_annotation_relation(
+    db: DbSessionFactory,
+    condition: str,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    """A `trace_annotations[...]` reference joins the `trace_annotation` table
+    on the span's trace, and the resulting statement compiles and executes."""
+    f = SpanFilter(condition)
+    assert [relation.kind for relation in f._aliased_annotation_relations] == ["trace"]
+    stmt = f(select(models.Span.id))
+    compiled = str(stmt)
+    assert "trace_annotations" in compiled
+    assert "span_annotations" not in compiled
+    async with db() as session:
+        await session.execute(stmt)
+
+
+async def test_span_and_trace_annotations_join_distinct_relations(
+    db: DbSessionFactory,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    """A span- and trace-level annotation sharing a name resolve to two distinct
+    relations so that spans are filtered by both the span's own annotation and
+    its trace's annotation."""
+    f = SpanFilter(
+        "annotations['quality'].score >= 0.5 and trace_annotations['quality'].score >= 0.5"
+    )
+    assert sorted(relation.kind for relation in f._aliased_annotation_relations) == [
+        "span",
+        "trace",
+    ]
+    stmt = f(select(models.Span.id))
+    compiled = str(stmt)
+    assert "trace_annotations" in compiled
+    assert "span_annotations" in compiled
+    async with db() as session:
+        await session.execute(stmt)
 
 
 class TestProjectorValidationGap:
