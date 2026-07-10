@@ -24,12 +24,16 @@ export function makeExperimentMetricsTooltipContent(
     if (!active || !payload || payload.length === 0) {
       return null;
     }
-    const datum = payload[0]?.payload as { experimentName?: string };
+    const datum = payload[0]?.payload as {
+      experimentName?: string;
+      isBaseline?: boolean;
+    };
     return (
       <ChartTooltip>
         <ExperimentMetricsTooltipHeader
           sequenceNumber={Number(label)}
           name={datum?.experimentName}
+          isBaseline={datum?.isBaseline}
         />
         {payload.map((entry) => {
           const name = String(entry.name ?? entry.dataKey ?? "unknown");

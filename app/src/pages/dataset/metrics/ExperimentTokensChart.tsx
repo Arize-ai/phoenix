@@ -24,8 +24,12 @@ import {
   intShortFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
+import {
+  ExperimentBaselineSeparator,
+  ExperimentBaselineValueLine,
+} from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
-import { experimentXAxisProps } from "./experimentXAxisProps";
+import { getExperimentXAxisProps } from "./experimentXAxisProps";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
@@ -38,10 +42,12 @@ const TooltipContent = makeExperimentMetricsTooltipContent(intFormatter);
 export function ExperimentTokensChart({
   datasetId,
 }: ExperimentMetricViewProps) {
-  const { experiments } = useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment, isBaselineOutOfWindow } =
+    useExperimentMetricsData(datasetId);
   const chartData = experiments.map((experiment) => ({
     sequenceNumber: experiment.sequenceNumber,
     experimentName: experiment.name,
+    isBaseline: experiment.isBaseline,
     prompt: experiment.promptTokens,
     completion: experiment.completionTokens,
     total: experiment.totalTokens,
@@ -51,6 +57,17 @@ export function ExperimentTokensChart({
   const colors = useCategoryChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
+  const baselineTokens =
+    baselineExperiment == null ||
+    baselineExperiment.totalTokens == null ||
+    (isDataKeyHidden("prompt") && isDataKeyHidden("completion"))
+      ? null
+      : (isDataKeyHidden("prompt")
+          ? 0
+          : (baselineExperiment.promptTokens ?? 0)) +
+        (isDataKeyHidden("completion")
+          ? 0
+          : (baselineExperiment.completionTokens ?? 0));
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
@@ -65,13 +82,21 @@ export function ExperimentTokensChart({
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...experimentXAxisProps} />
+          <XAxis
+            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+          />
           <YAxis
             {...compactYAxisProps}
             allowDecimals={false}
             tickFormatter={(x) => intShortFormatter(x)}
           />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
+          <ExperimentBaselineValueLine value={baselineTokens} />
+          {isBaselineOutOfWindow && baselineExperiment && (
+            <ExperimentBaselineSeparator
+              sequenceNumber={baselineExperiment.sequenceNumber}
+            />
+          )}
           <Bar
             dataKey="prompt"
             stackId="a"

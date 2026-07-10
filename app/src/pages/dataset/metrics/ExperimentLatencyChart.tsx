@@ -18,8 +18,12 @@ import {
 } from "@phoenix/components/chart";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import {
+  ExperimentBaselineSeparator,
+  ExperimentBaselineValueLine,
+} from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
-import { experimentXAxisProps } from "./experimentXAxisProps";
+import { getExperimentXAxisProps } from "./experimentXAxisProps";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
@@ -32,10 +36,12 @@ const TooltipContent = makeExperimentMetricsTooltipContent(latencyMsFormatter);
 export function ExperimentLatencyChart({
   datasetId,
 }: ExperimentMetricViewProps) {
-  const { experiments } = useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment, isBaselineOutOfWindow } =
+    useExperimentMetricsData(datasetId);
   const chartData = experiments.map((experiment) => ({
     sequenceNumber: experiment.sequenceNumber,
     experimentName: experiment.name,
+    isBaseline: experiment.isBaseline,
     latency: experiment.averageRunLatencyMs,
   }));
   const hasData = chartData.some((datum) => typeof datum.latency === "number");
@@ -55,12 +61,22 @@ export function ExperimentLatencyChart({
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...experimentXAxisProps} />
+          <XAxis
+            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+          />
           <YAxis
             {...compactYAxisProps}
             tickFormatter={(x) => latencyMsFormatter(x)}
           />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
+          <ExperimentBaselineValueLine
+            value={baselineExperiment?.averageRunLatencyMs}
+          />
+          {isBaselineOutOfWindow && baselineExperiment && (
+            <ExperimentBaselineSeparator
+              sequenceNumber={baselineExperiment.sequenceNumber}
+            />
+          )}
           <Bar
             dataKey="latency"
             name="average latency"

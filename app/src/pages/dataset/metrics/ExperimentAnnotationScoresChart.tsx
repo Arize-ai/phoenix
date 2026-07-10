@@ -31,7 +31,11 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 import {
-  experimentXAxisProps,
+  ExperimentBaselineSeparator,
+  ExperimentBaselineValueLine,
+} from "./ExperimentBaselineReference";
+import {
+  getExperimentXAxisProps,
   useExperimentMetricsData,
 } from "./ExperimentMetrics";
 import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
@@ -55,7 +59,10 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload || payload.length === 0) {
     return null;
   }
-  const datum = payload[0]?.payload as { experimentName?: string };
+  const datum = payload[0]?.payload as {
+    experimentName?: string;
+    isBaseline?: boolean;
+  };
   const annotationEntries = payload.filter(
     (entry) =>
       entry.dataKey !== AVG_LATENCY_DATA_KEY && typeof entry.value === "number"
@@ -68,6 +75,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
       <ExperimentMetricsTooltipHeader
         sequenceNumber={Number(label)}
         name={datum?.experimentName}
+        isBaseline={datum?.isBaseline}
       />
       {annotationEntries.map((entry) => (
         <ChartTooltipItem
@@ -102,7 +110,8 @@ export function ExperimentAnnotationScoresChart({
   datasetId,
 }: ExperimentMetricViewProps) {
   const { theme } = useTheme();
-  const { experiments } = useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment, isBaselineOutOfWindow } =
+    useExperimentMetricsData(datasetId);
 
   const scoreKeySet = new Set<string>();
   const chartData = experiments.map((experiment) => {
@@ -114,6 +123,7 @@ export function ExperimentAnnotationScoresChart({
     return {
       sequenceNumber: experiment.sequenceNumber,
       experimentName: experiment.name,
+      isBaseline: experiment.isBaseline,
       [AVG_LATENCY_DATA_KEY]: experiment.averageRunLatencyMs ?? undefined,
       ...scores,
     };
@@ -173,7 +183,9 @@ export function ExperimentAnnotationScoresChart({
             </linearGradient>
           </defs>
           <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...experimentXAxisProps} />
+          <XAxis
+            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+          />
           <YAxis {...compactYAxisProps} domain={yDomain} />
           <YAxis
             {...compactYAxisProps}
@@ -181,6 +193,23 @@ export function ExperimentAnnotationScoresChart({
             orientation="right"
             tickFormatter={(x) => latencyMsFormatter(x)}
           />
+          {baselineExperiment?.annotationSummaries.map(
+            ({ annotationName, meanScore }) =>
+              typeof meanScore === "number" &&
+              !isDataKeyHidden(annotationName) ? (
+                <ExperimentBaselineValueLine
+                  key={`baseline-${annotationName}`}
+                  value={meanScore}
+                  stroke={getWordColor({ word: annotationName, theme })}
+                  yAxisId={0}
+                />
+              ) : null
+          )}
+          {isBaselineOutOfWindow && baselineExperiment && (
+            <ExperimentBaselineSeparator
+              sequenceNumber={baselineExperiment.sequenceNumber}
+            />
+          )}
           <Bar
             yAxisId="right"
             dataKey={AVG_LATENCY_DATA_KEY}
