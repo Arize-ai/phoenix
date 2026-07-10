@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import { joinFilterConditions } from "@phoenix/components/filter";
+
 export type ExperimentRunFilterConditionContextType = {
   filterCondition: string;
   setFilterCondition: (condition: string) => void;
@@ -33,18 +35,16 @@ export function ExperimentRunFilterConditionProvider(props: PropsWithChildren) {
       _setFilterCondition(condition);
     });
   }, []);
-  const appendFilterCondition = useCallback(
-    (condition: string) => {
-      startTransition(() => {
-        if (filterCondition.length > 0) {
-          _setFilterCondition(filterCondition + " and " + condition);
-        } else {
-          _setFilterCondition(condition);
-        }
-      });
-    },
-    [filterCondition]
-  );
+  const appendFilterCondition = useCallback((condition: string) => {
+    startTransition(() => {
+      _setFilterCondition((currentCondition) =>
+        joinFilterConditions({
+          existingCondition: currentCondition,
+          nextCondition: condition,
+        })
+      );
+    });
+  }, []);
 
   return (
     <ExperimentRunFilterConditionContext.Provider
