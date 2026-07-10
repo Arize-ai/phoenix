@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -13,14 +13,23 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry import context as otel_context
 from opentelemetry import propagate
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, TracerProvider
+from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
     SimpleSpanProcessor,
     SpanExporter,
     SpanExportResult,
 )
-from opentelemetry.trace import format_span_id, format_trace_id
+from opentelemetry.sdk.util.instrumentation import InstrumentationScope
+from opentelemetry.trace import (
+    SpanContext,
+    SpanKind,
+    Status,
+    TraceFlags,
+    format_span_id,
+    format_trace_id,
+)
+from opentelemetry.util.types import AttributeValue
 
 from phoenix.config import (
     get_env_phoenix_agents_collector_api_key,
@@ -158,7 +167,10 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         # span without attribute eviction.
         span_limits = SpanLimits(max_span_attributes=100_000)
         provider = TracerProvider(resource=resource, span_limits=span_limits)
-        provider.add_span_processor(SimpleSpanProcessor(self._self_exporter))
+        self._self_resource = resource
+        simple_processor = SimpleSpanProcessor(self._self_exporter)
+        self._self_span_processors: list[SpanProcessor] = [simple_processor]
+        provider.add_span_processor(simple_processor)
 
         self._self_remote_exporter: Optional[SpanExporter] = None
         remote_collector_endpoint = (
@@ -167,7 +179,9 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         if enable_remote_export and remote_collector_endpoint:
             exporter_factory = remote_span_exporter_factory or _build_remote_http_span_exporter
             self._self_remote_exporter = exporter_factory(remote_collector_endpoint)
-            provider.add_span_processor(BatchSpanProcessor(self._self_remote_exporter))
+            remote_processor = BatchSpanProcessor(self._self_remote_exporter)
+            self._self_span_processors.append(remote_processor)
+            provider.add_span_processor(remote_processor)
 
         self._self_provider = provider
         tracer = provider.get_tracer(__name__)
@@ -176,6 +190,15 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     @property
     def tracer_provider(self) -> TracerProvider:
         return self._self_provider
+
+    @property
+    def resource(self) -> Resource:
+        return self._self_resource
+
+    def record_readable_span(self, span: ReadableSpan) -> None:
+        """Feed a synthetic span through the local and remote export pipeline."""
+        for processor in self._self_span_processors:
+            processor.on_end(span)
 
     def get_db_traces(self, *, project_id: int) -> list[models.Trace]:
         """
@@ -277,6 +300,53 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
     def shutdown(self) -> None:
         self._self_provider.shutdown()
+
+
+def build_synthetic_readable_span(
+    *,
+    name: str,
+    trace_id: int,
+    span_id: int,
+    parent_span_id: int | None,
+    start_time: datetime,
+    end_time: datetime,
+    attributes: Mapping[str, AttributeValue],
+    status: Status,
+    resource: Resource,
+    kind: SpanKind = SpanKind.CLIENT,
+) -> ReadableSpan:
+    """Build a sampled span whose identity and timestamps are supplied explicitly."""
+    trace_flags = TraceFlags(TraceFlags.SAMPLED)
+    context = SpanContext(
+        trace_id=trace_id,
+        span_id=span_id,
+        is_remote=False,
+        trace_flags=trace_flags,
+    )
+    parent = (
+        SpanContext(
+            trace_id=trace_id,
+            span_id=parent_span_id,
+            is_remote=False,
+            trace_flags=trace_flags,
+        )
+        if parent_span_id is not None
+        else None
+    )
+    return ReadableSpan(
+        name=name,
+        context=context,
+        parent=parent,
+        resource=resource,
+        attributes=dict(attributes),
+        events=(),
+        links=(),
+        kind=kind,
+        status=status,
+        start_time=int(start_time.timestamp() * 1e9),
+        end_time=int(end_time.timestamp() * 1e9),
+        instrumentation_scope=InstrumentationScope("phoenix.server.pxi"),
+    )
 
 
 def _get_db_trace(

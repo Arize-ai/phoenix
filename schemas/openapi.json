@@ -8047,6 +8047,16 @@
               }
             ]
           },
+          "turn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceEnvelope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "usage": {
             "anyOf": [
               {
@@ -8552,6 +8562,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTrace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceEnvelope"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -8660,6 +8680,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTrace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceEnvelope"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -17150,6 +17180,33 @@
         ],
         "title": "TraceSpanData"
       },
+      "TurnTraceEnvelope": {
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Traceid"
+          },
+          "rootSpanId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Rootspanid"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "traceId",
+          "rootSpanId",
+          "startedAt"
+        ],
+        "title": "TurnTraceEnvelope",
+        "description": "Server-minted identity of a logical PXI turn echoed by the browser."
+      },
       "UIMessage": {
         "properties": {
           "id": {
@@ -17772,6 +17829,18 @@
             ],
             "title": "Tool Execution Environment",
             "type": "string"
+          },
+          "tool_input_emitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Input Emitted At"
           }
         },
         "required": [

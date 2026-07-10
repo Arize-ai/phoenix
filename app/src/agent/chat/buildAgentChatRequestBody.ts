@@ -1,3 +1,5 @@
+import { isToolUIPart } from "ai";
+
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
@@ -10,6 +12,8 @@ import {
 } from "@phoenix/store/agentStore";
 import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
+import type { ClientToolTimingRecorder } from "./clientToolTimings";
+import type { TurnTraceEnvelope } from "./turnTraceEnvelope";
 import type { AgentUIMessage } from "./types";
 
 type BuildAgentChatRequestBodyOptions = {
@@ -34,6 +38,10 @@ type BuildAgentChatRequestBodyOptions = {
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
   modelSelection: AgentModelSelection;
+  /** Server-minted identity echoed on continuation requests. */
+  turnTrace?: TurnTraceEnvelope | null;
+  /** Browser execution timings added to completed client-tool parts. */
+  toolTimings?: ClientToolTimingRecorder | null;
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
@@ -111,6 +119,8 @@ export function buildAgentChatRequestBody({
   permissions,
   contexts,
   modelSelection,
+  turnTrace = null,
+  toolTimings = null,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
     agentsConfig,
@@ -126,7 +136,7 @@ export function buildAgentChatRequestBody({
   return {
     ...body,
     id,
-    messages,
+    messages: enrichMessagesWithClientToolTimings({ messages, toolTimings }),
     trigger,
     messageId,
     ingestTraces: traceRecording.ingestTraces,
@@ -135,5 +145,47 @@ export function buildAgentChatRequestBody({
     editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,
+    turnTrace: turnTrace ?? undefined,
   };
+}
+
+/** Return a copy of resolved tool parts annotated with complete client timings. */
+export function enrichMessagesWithClientToolTimings({
+  messages,
+  toolTimings,
+}: {
+  messages: AgentUIMessage[];
+  toolTimings: ClientToolTimingRecorder | null;
+}): AgentUIMessage[] {
+  if (toolTimings == null) {
+    return messages;
+  }
+  return messages.map((message) => {
+    let hasChangedPart = false;
+    const parts = message.parts.map((part) => {
+      const isResolvedToolPart =
+        isToolUIPart(part) &&
+        (part.state === "output-available" || part.state === "output-error");
+      if (!isResolvedToolPart) {
+        return part;
+      }
+      const timing = toolTimings.get(part.toolCallId);
+      if (timing == null) {
+        return part;
+      }
+      hasChangedPart = true;
+      return {
+        ...part,
+        callProviderMetadata: {
+          ...part.callProviderMetadata,
+          phoenix: {
+            ...part.callProviderMetadata?.phoenix,
+            client_started_at: timing.startedAt,
+            client_ended_at: timing.endedAt,
+          },
+        },
+      };
+    });
+    return hasChangedPart ? { ...message, parts } : message;
+  });
 }

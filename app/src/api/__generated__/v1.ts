@@ -1682,6 +1682,7 @@ export interface components {
             /** Sessionid */
             sessionId: string;
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
+            turn?: components["schemas"]["TurnTraceEnvelope"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
         };
         /** AssistantMessageMetadataTraceIds */
@@ -1844,6 +1845,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTrace?: components["schemas"]["TurnTraceEnvelope"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1897,6 +1899,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTrace?: components["schemas"]["TurnTraceEnvelope"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5465,6 +5468,21 @@ export interface components {
             end_time: string;
         };
         /**
+         * TurnTraceEnvelope
+         * @description Server-minted identity of a logical PXI turn echoed by the browser.
+         */
+        TurnTraceEnvelope: {
+            /** Traceid */
+            traceId: string;
+            /** Rootspanid */
+            rootSpanId: string;
+            /**
+             * Startedat
+             * Format: date-time
+             */
+            startedAt: string;
+        };
+        /**
          * UIMessage
          * @description A message as displayed in the UI by Vercel AI Elements.
          */
@@ -5716,6 +5734,11 @@ export interface components {
              * @enum {string}
              */
             tool_execution_environment: "client" | "server";
+            /**
+             * Tool Input Emitted At
+             * @default null
+             */
+            tool_input_emitted_at?: string | null;
         };
     };
     responses: never;

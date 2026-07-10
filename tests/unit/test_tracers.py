@@ -6,6 +6,7 @@ from typing import Sequence
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.exporter.otlp.proto.http import trace_exporter as otlp_http_trace_exporter
+from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import (
     Status,
@@ -24,6 +25,7 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import (
     Tracer,
     _build_remote_http_span_exporter,
+    build_synthetic_readable_span,
     detached_otel_context,
     extract_otel_context,
 )
@@ -563,6 +565,47 @@ class TestTracer:
             tracer._self_provider.resource.attributes["openinference.project.name"]
             == "assistant_agent"
         )
+
+    def test_synthetic_span_uses_local_and_remote_processors(
+        self,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        remotely_exported: list[ReadableSpan] = []
+
+        class FakeRemoteExporter(SpanExporter):
+            def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+                remotely_exported.extend(spans)
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self) -> None:
+                return None
+
+        tracer = Tracer(
+            span_cost_calculator=span_cost_calculator,
+            enable_remote_export=True,
+            remote_collector_endpoint="https://collector.example",
+            remote_span_exporter_factory=lambda _: FakeRemoteExporter(),
+        )
+        now = datetime(2026, 7, 10, tzinfo=timezone.utc)
+        synthetic_span = build_synthetic_readable_span(
+            name="synthetic",
+            trace_id=int("1" * 32, 16),
+            span_id=int("2" * 16, 16),
+            parent_span_id=None,
+            start_time=now,
+            end_time=now,
+            attributes={OPENINFERENCE_SPAN_KIND: "AGENT"},
+            status=Status(StatusCode.OK),
+            resource=tracer.resource,
+        )
+
+        tracer.record_readable_span(synthetic_span)
+        assert tracer.force_flush()
+
+        db_traces = tracer.get_db_traces(project_id=1)
+        assert db_traces[0].trace_id == "1" * 32
+        assert db_traces[0].spans[0].span_id == "2" * 16
+        assert remotely_exported == [synthetic_span]
 
     @pytest.mark.asyncio
     async def test_save_db_traces_persists_events_and_exceptions(
