@@ -7,6 +7,8 @@ on the xdist controller. It never decides pass/fail and never touches
 ``session.exitstatus`` -- ``gate.py`` is the sole decider.
 """
 
+# ruff: noqa: I001 -- repository import formatter and lint resolver disagree on local `evals`.
+
 from __future__ import annotations
 
 import json

@@ -7,6 +7,8 @@ result). One ``record_property`` datapoint is emitted per evaluation. The tests
 never assert -- ``gate.py`` decides pass/fail from the aggregated artifact.
 """
 
+# ruff: noqa: I001 -- repository import formatter and lint resolver disagree on local `evals`.
+
 from __future__ import annotations
 
 import json
