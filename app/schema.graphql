@@ -3805,6 +3805,7 @@ type SetDatasetLabelsMutationPayload {
 }
 
 type SetExperimentBaselinePayload {
+  dataset: Dataset!
   experiment: Experiment!
   previousBaselineExperiment: Experiment
 }
