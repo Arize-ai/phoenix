@@ -7,6 +7,7 @@ import * as readline from "readline";
 import { z } from "zod";
 
 import { AuthRequiredError, NetworkError } from "./exitCodes";
+import { renderOAuthCallbackPage } from "./oauthCallbackPage";
 import {
   type OAuthTokens,
   type SettingsFile,
@@ -201,16 +202,15 @@ export async function startLoginCallbackServer({
       return;
     }
 
-    resolveResult(
-      parseOAuthCallbackUrl({
-        redirectUrl: requestUrl.toString(),
-        expectedState,
-      })
-    );
-    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    response.end(
-      "<!doctype html><html><body><h1>You can close this tab.</h1></body></html>"
-    );
+    const result = parseOAuthCallbackUrl({
+      redirectUrl: requestUrl.toString(),
+      expectedState,
+    });
+    resolveResult(result);
+    response.writeHead(result.status === "invalid" ? 400 : 200, {
+      "Content-Type": "text/html; charset=utf-8",
+    });
+    response.end(renderOAuthCallbackPage(result));
   });
 
   await new Promise<void>((resolve, reject) => {

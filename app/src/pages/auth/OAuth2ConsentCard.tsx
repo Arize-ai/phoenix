@@ -1,0 +1,411 @@
+import { css } from "@emotion/react";
+
+import { Alert, Button, Heading, Text } from "@phoenix/components";
+import { Icon, Icons } from "@phoenix/components/core/icon";
+import { Logo } from "@phoenix/components/nav/Logo";
+
+export interface OAuth2ConsentCardProps {
+  /**
+   * Human-readable name of the application requesting access
+   */
+  clientName: string;
+  /**
+   * The OAuth2 client identifier. Shown (truncated) for third-party clients.
+   */
+  clientId?: string | null;
+  /**
+   * The email or username of the signed-in user
+   */
+  signedInAs: string;
+  /**
+   * Whether the client is a first-party (Phoenix-verified) application
+   */
+  isFirstParty?: boolean;
+  /**
+   * The redirect URI the browser will be sent to after a decision
+   */
+  redirectUri: string | null;
+  /**
+   * An error message from a failed authorization attempt
+   */
+  errorMessage?: string | null;
+  /**
+   * Whether the authorization request is missing required parameters
+   */
+  isMissingRequiredParams?: boolean;
+  /**
+   * Whether an authorization decision is being submitted
+   */
+  isSubmitting?: boolean;
+  onApprove: () => void;
+  onCancel: () => void;
+}
+
+const handoffCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--global-dimension-size-300);
+`;
+
+const handoffNodeCSS = css`
+  flex: none;
+  width: var(--global-dimension-size-700);
+  height: var(--global-dimension-size-700);
+  border-radius: var(--global-rounding-large);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--global-color-gray-100);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+`;
+
+const handoffClientGlyphCSS = css`
+  font-family: var(--global-font-family-mono);
+  font-size: var(--global-font-size-m);
+  font-weight: 600;
+  color: var(--global-text-color-700);
+`;
+
+const handoffWireCSS = css`
+  position: relative;
+  width: var(--global-dimension-size-800);
+  height: 0;
+  border-top: var(--global-border-size-thin) dashed
+    var(--global-border-color-default);
+`;
+
+const handoffCheckCSS = css`
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--global-dimension-size-250);
+  height: var(--global-dimension-size-250);
+  border-radius: var(--global-rounding-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--global-background-color-default);
+  box-shadow:
+    inset 0 0 0 1px var(--global-color-success-500),
+    0 0 12px var(--global-color-success-100);
+  color: var(--global-color-success);
+  font-size: var(--global-font-size-xs);
+`;
+
+const titleCSS = css`
+  margin: 0;
+  text-align: center;
+  font-size: var(--global-font-size-l);
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+
+  .consent-title__scope {
+    color: var(--global-color-info);
+    font-weight: 700;
+  }
+`;
+
+const subtitleCSS = css`
+  margin-top: var(--global-dimension-size-100);
+  text-align: center;
+  overflow-wrap: anywhere;
+`;
+
+// Alerts default to 16px body copy which overwhelms the compact card —
+// tighten them to small text within the consent flow
+const compactAlertCSS = css`
+  .alert__icon-title-wrap {
+    h5,
+    span,
+    p {
+      font-size: var(--global-font-size-s);
+      line-height: 1.55;
+    }
+  }
+`;
+
+const alertsCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  margin-top: var(--global-dimension-size-200);
+  ${compactAlertCSS}
+`;
+
+const permListCSS = css`
+  list-style: none;
+  margin: var(--global-dimension-size-300) 0 0;
+  padding: 0;
+  border-top: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+`;
+
+const permItemCSS = css`
+  display: flex;
+  gap: var(--global-dimension-size-150);
+  align-items: flex-start;
+  padding: var(--global-dimension-size-150) 0;
+
+  &:not(:last-of-type) {
+    border-bottom: var(--global-border-size-thin) solid
+      var(--global-border-color-default);
+  }
+`;
+
+const permTickCSS = css`
+  flex: none;
+  width: var(--global-dimension-size-250);
+  height: var(--global-dimension-size-250);
+  border-radius: var(--global-rounding-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--global-font-size-xs);
+  margin-top: var(--global-dimension-size-25);
+
+  &[data-allowed="true"] {
+    color: var(--global-color-success);
+    background-color: var(--global-color-success-100);
+    box-shadow: inset 0 0 0 1px var(--global-color-success-500);
+  }
+
+  &[data-allowed="false"] {
+    color: var(--global-text-color-500);
+    background-color: var(--global-color-gray-200);
+    box-shadow: inset 0 0 0 1px var(--global-border-color-default);
+  }
+`;
+
+const noteCSS = css`
+  margin-top: var(--global-dimension-size-200);
+  ${compactAlertCSS}
+`;
+
+const actionsCSS = css`
+  margin-top: var(--global-dimension-size-300);
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+
+  & > button {
+    width: 100%;
+    justify-content: center;
+  }
+`;
+
+const metaCSS = css`
+  margin-top: var(--global-dimension-size-250);
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
+  align-items: center;
+  text-align: center;
+`;
+
+const monoCSS = css`
+  font-family: var(--global-font-family-mono);
+  color: var(--global-text-color-700);
+  overflow-wrap: anywhere;
+`;
+
+function isLoopbackRedirect(redirectUri: string) {
+  try {
+    const url = new URL(redirectUri);
+    return (
+      url.protocol === "http:" &&
+      (url.hostname === "127.0.0.1" ||
+        url.hostname === "localhost" ||
+        url.hostname === "::1" ||
+        url.hostname === "[::1]")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPrivateUseRedirect(redirectUri: string) {
+  try {
+    const url = new URL(redirectUri);
+    return url.protocol !== "http:" && url.protocol !== "https:";
+  } catch {
+    return false;
+  }
+}
+
+function formatLoopbackRedirectDestination(redirectUri: string) {
+  try {
+    const url = new URL(redirectUri);
+    return url.port ? `${url.hostname}:${url.port}` : url.hostname;
+  } catch {
+    return redirectUri;
+  }
+}
+
+function formatHostedRedirectDestination(redirectUri: string) {
+  try {
+    return new URL(redirectUri).host;
+  } catch {
+    return redirectUri;
+  }
+}
+
+function getClientInitial(clientName: string) {
+  return clientName.trim().charAt(0).toUpperCase() || "?";
+}
+
+function getClientIdSuffix(clientId: string) {
+  return clientId.length > 8 ? clientId.slice(-8) : clientId;
+}
+
+/**
+ * The consent ("handoff") card shown when an OAuth2 client asks for access.
+ * Purely presentational — all data and decision handling comes in via props.
+ */
+export function OAuth2ConsentCard({
+  clientName,
+  clientId,
+  signedInAs,
+  isFirstParty = false,
+  redirectUri,
+  errorMessage,
+  isMissingRequiredParams = false,
+  isSubmitting = false,
+  onApprove,
+  onCancel,
+}: OAuth2ConsentCardProps) {
+  const isLoopback = redirectUri != null && isLoopbackRedirect(redirectUri);
+  const isPrivateUse = redirectUri != null && isPrivateUseRedirect(redirectUri);
+  const redirectDestination =
+    redirectUri == null
+      ? null
+      : isLoopback
+        ? formatLoopbackRedirectDestination(redirectUri)
+        : formatHostedRedirectDestination(redirectUri);
+  const isActionDisabled = isSubmitting || isMissingRequiredParams;
+  return (
+    <div>
+      <div css={handoffCSS} aria-hidden="true">
+        <div css={handoffNodeCSS}>
+          {isFirstParty ? (
+            <span css={handoffClientGlyphCSS}>❯_</span>
+          ) : (
+            <span css={handoffClientGlyphCSS}>
+              {getClientInitial(clientName)}
+            </span>
+          )}
+        </div>
+        <div css={handoffWireCSS}>
+          <div css={handoffCheckCSS}>
+            <Icon svg={<Icons.Checkmark />} />
+          </div>
+        </div>
+        <div css={handoffNodeCSS}>
+          <Logo size={32} />
+        </div>
+      </div>
+      <Heading level={1} css={titleCSS}>
+        {clientName} wants{" "}
+        <span className="consent-title__scope">read-only</span> access to your
+        Phoenix workspace
+      </Heading>
+      <Text elementType="p" size="S" color="text-700" css={subtitleCSS}>
+        Signed in as <b>{signedInAs}</b>
+      </Text>
+      {!isFirstParty || errorMessage || isMissingRequiredParams ? (
+        <div css={alertsCSS}>
+          {!isFirstParty ? (
+            <Alert variant="warning" title="Unverified application">
+              This application is not verified by Phoenix. Only approve if you
+              recognize it and started this authorization flow.
+            </Alert>
+          ) : null}
+          {errorMessage ? <Alert variant="danger">{errorMessage}</Alert> : null}
+          {isMissingRequiredParams ? (
+            <Alert variant="danger">
+              This authorization request is missing required parameters.
+            </Alert>
+          ) : null}
+        </div>
+      ) : null}
+      <ul css={permListCSS}>
+        <li css={permItemCSS}>
+          <div css={permTickCSS} data-allowed="true" aria-hidden="true">
+            <Icon svg={<Icons.Checkmark />} />
+          </div>
+          <div>
+            <Text elementType="p" size="S" weight="heavy">
+              View your project data
+            </Text>
+            <Text elementType="p" size="XS" color="text-700">
+              Read traces, datasets, prompts, and experiments across your
+              projects.
+            </Text>
+          </div>
+        </li>
+        <li css={permItemCSS}>
+          <div css={permTickCSS} data-allowed="false" aria-hidden="true">
+            <Icon svg={<Icons.Close />} />
+          </div>
+          <div>
+            <Text elementType="p" size="S" weight="heavy">
+              No changes, ever
+            </Text>
+            <Text elementType="p" size="XS" color="text-700">
+              It cannot create, modify, or delete anything, and it cannot reach
+              admin settings.
+            </Text>
+          </div>
+        </li>
+      </ul>
+      {isLoopback ? (
+        <div css={noteCSS}>
+          <Alert variant="info">
+            Only approve if you started this yourself — for example, by running{" "}
+            <code css={monoCSS}>px auth login</code> in your terminal. If this
+            page appeared unexpectedly, cancel.
+          </Alert>
+        </div>
+      ) : null}
+      <div css={actionsCSS}>
+        <Button
+          variant="primary"
+          onPress={onApprove}
+          isDisabled={isActionDisabled}
+        >
+          {isSubmitting ? "Authorizing…" : "Approve access"}
+        </Button>
+        <Button onPress={onCancel} isDisabled={isActionDisabled}>
+          Cancel
+        </Button>
+      </div>
+      <div css={metaCSS}>
+        {redirectUri != null ? (
+          <Text size="XS" color="text-500">
+            Redirects to{" "}
+            {isPrivateUse ? (
+              <>
+                an application on this device (
+                <code css={monoCSS}>{redirectUri}</code>)
+              </>
+            ) : (
+              <span css={monoCSS}>{redirectDestination}</span>
+            )}
+          </Text>
+        ) : null}
+        <Text size="XS" color="text-500">
+          You can revoke this access anytime in Settings.
+        </Text>
+        {!isFirstParty && clientId ? (
+          <Text size="XS" color="text-500">
+            Client ID: <code css={monoCSS}>{getClientIdSuffix(clientId)}</code>
+          </Text>
+        ) : null}
+      </div>
+    </div>
+  );
+}
