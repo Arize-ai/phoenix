@@ -8,9 +8,10 @@ import {
   pxiConicBandCSS,
   pxiConicSpin,
   pxiContainedGlowBreathe,
-  pxiContainedGlowFlash,
   pxiGlowBreathe,
-  pxiOuterGlowFlash,
+  pxiGlowFlashOpacity,
+  pxiGlowWipe,
+  pxiGlowWipeMaskCSS,
 } from "./pxiStyles";
 
 export type PxiOutlineState = "idle" | "eligible" | "active";
@@ -69,18 +70,32 @@ const outlineCSS = css`
         var(--pxi-treatment-stroke-width)
     );
     opacity: 0.3;
-    animation: ${pxiConicSpin} 3s linear infinite paused;
+    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite
+      paused;
   }
 
   .pxi-outline__glow {
+    ${pxiGlowWipeMaskCSS};
     inset: calc(
-      -1 * (var(--pxi-outline-gap) + var(--pxi-treatment-stroke-width))
+      -1 *
+        (
+          var(--pxi-outline-gap) + var(--pxi-treatment-stroke-width) +
+            var(--pxi-glow-bleed)
+        )
     );
-    z-index: -1;
+    z-index: 0;
     border-radius: calc(
       var(--pxi-outline-target-radius) + var(--pxi-outline-gap) +
         var(--pxi-treatment-stroke-width)
     );
+  }
+
+  .pxi-outline__glow::before {
+    content: "";
+    position: absolute;
+    inset: var(--pxi-glow-bleed);
+    border-radius: inherit;
+    box-shadow: var(--pxi-glow-box-shadow-rest);
     opacity: 0;
   }
 
@@ -94,27 +109,51 @@ const outlineCSS = css`
   }
 
   &[data-state="active"] .pxi-outline__glow {
+    opacity: 1;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  &[data-state="active"] .pxi-outline__glow::before {
     opacity: 0.72;
-    animation: ${pxiGlowBreathe} 2400ms ease-in-out infinite;
+    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+      infinite;
   }
 
   &[data-state="eligible"][data-should-flash="true"] .pxi-outline__glow {
-    animation: ${pxiOuterGlowFlash} 2400ms ease-in-out 1 both;
+    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear 1;
+  }
+
+  &[data-state="eligible"][data-should-flash="true"]
+    .pxi-outline__glow::before {
+    animation:
+      ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
+      ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
   }
 
   &[data-glow-mode="contained"] {
-    .pxi-outline__stroke,
+    .pxi-outline__stroke {
+      inset: 0;
+      border-radius: var(--pxi-outline-target-radius);
+    }
+
     .pxi-outline__glow {
       inset: 0;
       border-radius: var(--pxi-outline-target-radius);
     }
 
-    &[data-state="active"] .pxi-outline__glow {
+    .pxi-outline__glow::before {
+      inset: 0;
+      box-shadow: var(--pxi-glow-box-shadow-contained-rest);
+    }
+
+    &[data-state="active"] .pxi-outline__glow::before {
       animation-name: ${pxiContainedGlowBreathe};
     }
 
-    &[data-state="eligible"][data-should-flash="true"] .pxi-outline__glow {
-      animation-name: ${pxiContainedGlowFlash};
+    &[data-state="eligible"][data-should-flash="true"]
+      .pxi-outline__glow::before {
+      animation-name: ${pxiContainedGlowBreathe}, ${pxiGlowFlashOpacity};
     }
   }
 
@@ -123,7 +162,8 @@ const outlineCSS = css`
       animation-play-state: paused;
     }
 
-    .pxi-outline__glow {
+    .pxi-outline__glow,
+    .pxi-outline__glow::before {
       animation: none !important;
     }
   }

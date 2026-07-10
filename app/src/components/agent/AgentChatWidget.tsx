@@ -22,7 +22,12 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { AgentFabPositioner } from "./AgentFabPositioner";
 import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
-import { pxiGlowBreathe } from "./pxiStyles";
+import {
+  pxiGlowBreathe,
+  pxiGlowFlashOpacity,
+  pxiGlowWipe,
+  pxiGlowWipeMaskCSS,
+} from "./pxiStyles";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
 const OPEN_AGENT_HOTKEY = "mod+i";
@@ -36,42 +41,6 @@ const thinkingBorderWipe = keyframes`
   100% {
     -webkit-mask-position: 0% center;
     mask-position: 0% center;
-  }
-`;
-
-const hoverWipe = keyframes`
-  0% {
-    opacity: 0;
-    -webkit-mask-position: 200% center;
-    mask-position: 200% center;
-  }
-  8% {
-    opacity: 1;
-  }
-  40% {
-    opacity: 1;
-  }
-  55% {
-    opacity: 0;
-    -webkit-mask-position: -60% center;
-    mask-position: -60% center;
-  }
-  100% {
-    opacity: 0;
-    -webkit-mask-position: -60% center;
-    mask-position: -60% center;
-  }
-`;
-
-const hoverRingOpacity = keyframes`
-  0%, 100% {
-    opacity: 0;
-  }
-  8%, 40% {
-    opacity: 0.95;
-  }
-  55% {
-    opacity: 0;
   }
 `;
 
@@ -184,28 +153,14 @@ const shapeContentCSS = css`
 
 const thinkingBorderCSS = css`
   .agent-chat-widget__shimmer {
+    ${pxiGlowWipeMaskCSS};
     position: absolute;
-    inset: -28px;
+    inset: calc(-1 * var(--pxi-glow-bleed));
     z-index: 0;
     border-radius: inherit;
     mix-blend-mode: plus-lighter;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    -webkit-mask-size: 200% 200%;
-    mask-size: 200% 200%;
+    opacity: 1;
     -webkit-mask-position: center;
     mask-position: center;
     animation: ${thinkingBorderWipe} 3s linear infinite both -0.5s;
@@ -214,14 +169,15 @@ const thinkingBorderCSS = css`
   .agent-chat-widget__shimmer::before {
     content: "";
     position: absolute;
-    inset: 28px;
+    inset: var(--pxi-glow-bleed);
     border-radius: inherit;
     opacity: 1;
   }
 
   .agent-chat-widget__shimmer::before {
     box-shadow: var(--pxi-glow-box-shadow-rest);
-    animation: ${pxiGlowBreathe} 2400ms ease-in-out infinite;
+    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+      infinite;
     z-index: -1;
   }
 `;
@@ -232,37 +188,19 @@ const restingHoverWipeCSS = css`
   }
 
   .agent-chat-widget__hover-shimmer {
+    ${pxiGlowWipeMaskCSS};
     position: absolute;
-    inset: -28px;
+    inset: calc(-1 * var(--pxi-glow-bleed));
     z-index: 0;
     border-radius: inherit;
     mix-blend-mode: plus-lighter;
     pointer-events: none;
-    opacity: 0;
-    -webkit-mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    -webkit-mask-size: 200% 200%;
-    mask-size: 200% 200%;
-    -webkit-mask-position: 200% center;
-    mask-position: 200% center;
   }
 
   .agent-chat-widget__hover-shimmer::before {
     content: "";
     position: absolute;
-    inset: 28px;
+    inset: var(--pxi-glow-bleed);
     border-radius: inherit;
     box-shadow: var(--pxi-glow-box-shadow-rest);
     opacity: 0;
@@ -272,12 +210,13 @@ const restingHoverWipeCSS = css`
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
-    animation: ${hoverWipe} 2400ms linear infinite;
+    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear infinite;
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
-    opacity: 0.95;
-    animation: ${pxiGlowBreathe} 2400ms ease-in-out 1 both;
+    opacity: var(--pxi-glow-opacity);
+    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1
+      both;
   }
 
   &:hover .agent-chat-widget__content {
@@ -288,14 +227,14 @@ const restingHoverWipeCSS = css`
 const entranceHoverWipeCSS = css`
   @media (prefers-reduced-motion: no-preference) {
     &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
-      animation: ${hoverWipe} 2400ms linear 1;
+      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear 1;
     }
 
     &[data-entrance-animation="true"]
       .agent-chat-widget__hover-shimmer::before {
       animation:
-        ${pxiGlowBreathe} 2400ms ease-in-out 1,
-        ${hoverRingOpacity} 2400ms linear 1;
+        ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
+        ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
     }
 
     &[data-entrance-animation="true"] .agent-chat-widget__content {
@@ -303,20 +242,22 @@ const entranceHoverWipeCSS = css`
     }
 
     &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
-      animation: ${hoverWipe} 2400ms linear infinite;
+      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear infinite;
     }
 
     &[data-entrance-animation="true"]:hover
       .agent-chat-widget__hover-shimmer::before {
-      opacity: 0.95;
-      animation: ${pxiGlowBreathe} 2400ms ease-in-out 1 both;
+      opacity: var(--pxi-glow-opacity);
+      animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1
+        both;
     }
   }
 `;
 
 const thinkingGlyphPulseCSS = css`
   .agent-chat-widget__content {
-    animation: ${glyphBreathe} 2400ms ease-in-out infinite;
+    animation: ${glyphBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+      infinite;
   }
 `;
 

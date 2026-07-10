@@ -2,9 +2,17 @@ import { css } from "@emotion/react";
 import type { Ref } from "react";
 
 import { Button, type ButtonProps } from "@phoenix/components/core/button";
+import { classNames } from "@phoenix/utils/classNames";
 
 import { PxiGlyph } from "./PxiGlyph";
-import { pxiConicBandCSS, pxiConicSpin, pxiOuterGlowFlash } from "./pxiStyles";
+import {
+  pxiConicBandCSS,
+  pxiConicSpin,
+  pxiGlowBreathe,
+  pxiGlowFlashOpacity,
+  pxiGlowWipe,
+  pxiGlowWipeMaskCSS,
+} from "./pxiStyles";
 
 export type SolveWithPxiButtonSize = "S" | "M";
 export type SolveWithPxiButtonVariant = "default" | "quiet";
@@ -34,24 +42,34 @@ const pxiButtonCSS = css`
     color-mix(in srgb, var(--pxi-treatment-color-end) 7%, transparent)
   );
 
-  &::before,
-  &::after {
+  &::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-  }
-
-  &::before {
     ${pxiConicBandCSS};
     z-index: 1;
     opacity: 0.82;
-    animation: ${pxiConicSpin} 3s linear infinite paused;
+    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite
+      paused;
   }
 
-  &::after {
-    z-index: -1;
+  .solve-with-pxi-button__glow {
+    ${pxiGlowWipeMaskCSS};
+    position: absolute;
+    inset: calc(-1 * var(--pxi-glow-bleed));
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .solve-with-pxi-button__glow::before {
+    content: "";
+    position: absolute;
+    inset: var(--pxi-glow-bleed);
+    border-radius: inherit;
+    box-shadow: var(--pxi-glow-box-shadow-rest);
     opacity: 0;
   }
 
@@ -64,8 +82,14 @@ const pxiButtonCSS = css`
     filter: brightness(0.98);
   }
 
-  &[data-pxi-should-flash="true"]::after {
-    animation: ${pxiOuterGlowFlash} 2400ms ease-in-out 1 both;
+  &[data-pxi-should-flash="true"] .solve-with-pxi-button__glow {
+    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear 1;
+  }
+
+  &[data-pxi-should-flash="true"] .solve-with-pxi-button__glow::before {
+    animation:
+      ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
+      ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
   }
 
   &[data-variant="quiet"] {
@@ -85,7 +109,8 @@ const pxiButtonCSS = css`
       animation-play-state: paused;
     }
 
-    &::after {
+    .solve-with-pxi-button__glow,
+    .solve-with-pxi-button__glow::before {
       animation: none !important;
     }
   }
@@ -99,6 +124,7 @@ const glyphCSS = css`
 
 export function SolveWithPxiButton({
   ref,
+  className,
   css: propCSS,
   label = "Solve with PXI",
   isIconOnly = false,
@@ -112,15 +138,19 @@ export function SolveWithPxiButton({
     <Button
       {...buttonProps}
       ref={ref}
+      className={classNames("solve-with-pxi-button", className)}
       size={size}
       variant={variant}
       aria-label={isButtonIconOnly ? label : buttonProps["aria-label"]}
       data-pxi-should-flash={shouldFlash ? "true" : undefined}
       css={css(pxiButtonCSS, propCSS)}
       leadingVisual={
-        <span css={glyphCSS} aria-hidden="true">
-          <PxiGlyph size={size === "S" ? 11 : 13} />
-        </span>
+        <>
+          <span className="solve-with-pxi-button__glow" aria-hidden="true" />
+          <span css={glyphCSS} aria-hidden="true">
+            <PxiGlyph size={size === "S" ? 11 : 13} />
+          </span>
+        </>
       }
     >
       {isButtonIconOnly ? undefined : label}

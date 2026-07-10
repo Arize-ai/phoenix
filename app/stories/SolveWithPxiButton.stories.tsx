@@ -3,10 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import { Button, Flex, Text } from "@phoenix/components";
-import {
-  SolveWithPxiButton,
-  type SolveWithPxiButtonProps,
-} from "@phoenix/components/agent/SolveWithPxiButton";
+import { SolveWithPxiButton } from "@phoenix/components/agent/SolveWithPxiButton";
 
 const meta = {
   title: "Agent/Solve with PXI/Button",
@@ -42,18 +39,22 @@ type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {};
 
-export const SizesAndVariants: Story = {
-  render: () => (
+function SizesAndVariantsExample({
+  shouldFlash = false,
+}: {
+  shouldFlash?: boolean;
+}) {
+  return (
     <Flex direction="column" gap="size-300">
       <Flex direction="column" gap="size-100">
         <Text size="XS" color="text-500">
           Default
         </Text>
         <Flex direction="row" gap="size-200" alignItems="center">
-          <SolveWithPxiButton size="S" />
-          <SolveWithPxiButton size="M" />
-          <SolveWithPxiButton size="S" isIconOnly />
-          <SolveWithPxiButton size="M" isIconOnly />
+          <SolveWithPxiButton size="S" shouldFlash={shouldFlash} />
+          <SolveWithPxiButton size="M" shouldFlash={shouldFlash} />
+          <SolveWithPxiButton size="S" isIconOnly shouldFlash={shouldFlash} />
+          <SolveWithPxiButton size="M" isIconOnly shouldFlash={shouldFlash} />
         </Flex>
       </Flex>
       <Flex direction="column" gap="size-100">
@@ -61,12 +62,24 @@ export const SizesAndVariants: Story = {
           Quiet
         </Text>
         <Flex direction="row" gap="size-200" alignItems="center">
-          <SolveWithPxiButton size="S" variant="quiet" />
-          <SolveWithPxiButton size="M" variant="quiet" />
+          <SolveWithPxiButton
+            size="S"
+            variant="quiet"
+            shouldFlash={shouldFlash}
+          />
+          <SolveWithPxiButton
+            size="M"
+            variant="quiet"
+            shouldFlash={shouldFlash}
+          />
         </Flex>
       </Flex>
     </Flex>
-  ),
+  );
+}
+
+export const SizesAndVariants: Story = {
+  render: () => <SizesAndVariantsExample />,
 };
 
 export const Disabled: Story = {
@@ -79,7 +92,7 @@ const attentionStoryCSS = css`
   min-width: 320px;
 `;
 
-function AttentionFlashExample(props: SolveWithPxiButtonProps) {
+function AttentionFlashExample() {
   const [flashKey, setFlashKey] = useState(0);
   return (
     <Flex
@@ -88,7 +101,9 @@ function AttentionFlashExample(props: SolveWithPxiButtonProps) {
       alignItems="center"
       css={attentionStoryCSS}
     >
-      <SolveWithPxiButton {...props} key={flashKey} shouldFlash />
+      <div key={flashKey}>
+        <SizesAndVariantsExample shouldFlash />
+      </div>
       <Button size="S" onPress={() => setFlashKey((value) => value + 1)}>
         Replay flash
       </Button>
@@ -97,5 +112,5 @@ function AttentionFlashExample(props: SolveWithPxiButtonProps) {
 }
 
 export const AttentionFlash: Story = {
-  render: (args) => <AttentionFlashExample {...args} />,
+  render: () => <AttentionFlashExample />,
 };

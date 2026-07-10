@@ -24,26 +24,65 @@ export const pxiContainedGlowBreathe = keyframes`
   }
 `;
 
-export const pxiOuterGlowFlash = keyframes`
-  0%, 100% {
+export const pxiGlowWipe = keyframes`
+  0% {
     opacity: 0;
-    box-shadow: var(--pxi-glow-box-shadow-rest);
+    -webkit-mask-position: 200% center;
+    mask-position: 200% center;
   }
-  12%, 42% {
-    opacity: 0.95;
-    box-shadow: var(--pxi-glow-box-shadow-strong);
+  8% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0;
+    -webkit-mask-position: -60% center;
+    mask-position: -60% center;
+  }
+  100% {
+    opacity: 0;
+    -webkit-mask-position: -60% center;
+    mask-position: -60% center;
   }
 `;
 
-export const pxiContainedGlowFlash = keyframes`
+export const pxiGlowFlashOpacity = keyframes`
   0%, 100% {
     opacity: 0;
-    box-shadow: var(--pxi-glow-box-shadow-contained-rest);
   }
-  12%, 42% {
-    opacity: 1;
-    box-shadow: var(--pxi-glow-box-shadow-contained-strong);
+  8%, 40% {
+    opacity: var(--pxi-glow-opacity);
   }
+  55% {
+    opacity: 0;
+  }
+`;
+
+export const pxiGlowWipeMaskCSS = css`
+  opacity: 0;
+  mix-blend-mode: plus-lighter;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 15%,
+    black 45%,
+    black 55%,
+    transparent 85%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 15%,
+    black 45%,
+    black 55%,
+    transparent 85%
+  );
+  -webkit-mask-size: 200% 200%;
+  mask-size: 200% 200%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 200% center;
+  mask-position: 200% center;
 `;
 
 /** A conic-gradient band whose thickness is controlled by the caller. */

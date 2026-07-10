@@ -1038,6 +1038,10 @@ const buttonCSS = (theme: Theme) => css`
 const pxiCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
+    --pxi-conic-spin-duration: 3s;
+    --pxi-glow-bleed: 28px;
+    --pxi-glow-opacity: 0.95;
+    --pxi-glow-wipe-duration: 2400ms;
     --pxi-treatment-color-start: #9a66ff;
     --pxi-treatment-color-middle: #3480ff;
     --pxi-treatment-color-end: #2cd8ff;

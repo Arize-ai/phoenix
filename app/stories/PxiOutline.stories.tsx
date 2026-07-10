@@ -177,27 +177,50 @@ const clippedRowCSS = css`
 `;
 
 export const ClippedRow: Story = {
-  render: () => (
-    <Flex direction="column" gap="size-300" css={outlineFrameCSS}>
-      <Flex direction="column" gap="size-100">
-        <Text size="XS" color="text-500">
-          Contained glow preserves the treatment inside overflow: hidden
-        </Text>
-        <div css={clippedRowCSS}>
-          <Text size="S">Evaluator</Text>
-          <PxiOutline glowMode="contained" state="eligible" shouldFlash>
-            <Button size="S">Hallucination</Button>
-          </PxiOutline>
-        </div>
-      </Flex>
-      <Flex direction="column" gap="size-100">
-        <Text size="XS" color="text-500">
-          Outer glow may extend when the container allows it
-        </Text>
-        <PxiOutline state="eligible" shouldFlash>
-          <Button size="S">Hallucination</Button>
-        </PxiOutline>
-      </Flex>
-    </Flex>
-  ),
+  render: () => <ClippedRowExample />,
 };
+
+function ClippedRowExample() {
+  const [flashKey, setFlashKey] = useState(0);
+  return (
+    <Flex direction="column" gap="size-300" css={outlineFrameCSS}>
+      <Flex key={flashKey} direction="column" gap="size-300">
+        <Flex direction="column" gap="size-100">
+          <Text size="XS" color="text-500">
+            Glow modes inside overflow: hidden
+          </Text>
+          <div css={clippedRowCSS}>
+            <PxiOutline glowMode="outer" state="eligible" shouldFlash>
+              <Button size="S">Outer glow</Button>
+            </PxiOutline>
+            <PxiOutline glowMode="contained" state="eligible" shouldFlash>
+              <Button size="S">Contained glow</Button>
+            </PxiOutline>
+          </div>
+        </Flex>
+        <Flex direction="column" gap="size-100">
+          <Text size="XS" color="text-500">
+            Glow modes with overflow visible
+          </Text>
+          <Flex gap="size-200">
+            <PxiOutline glowMode="outer" state="eligible" shouldFlash>
+              <Button size="S">Outer glow</Button>
+            </PxiOutline>
+            <PxiOutline glowMode="contained" state="eligible" shouldFlash>
+              <Button size="S">Contained glow</Button>
+            </PxiOutline>
+          </Flex>
+        </Flex>
+      </Flex>
+      <Button
+        size="S"
+        onPress={() => setFlashKey((value) => value + 1)}
+        css={css`
+          align-self: flex-start;
+        `}
+      >
+        Replay flash
+      </Button>
+    </Flex>
+  );
+}
