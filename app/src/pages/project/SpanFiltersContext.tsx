@@ -13,6 +13,7 @@ import {
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
 } from "@phoenix/agent/tools/spansFilter";
+import { joinFilterConditions } from "@phoenix/components/filter";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
@@ -54,18 +55,16 @@ export function SpanFiltersProvider(props: PropsWithChildren) {
       _setFilterCondition(condition);
     });
   }, []);
-  const appendFilterCondition = useCallback(
-    (condition: string) => {
-      startTransition(() => {
-        if (filterCondition.length > 0) {
-          _setFilterCondition(filterCondition + " and " + condition);
-        } else {
-          _setFilterCondition(condition);
-        }
-      });
-    },
-    [filterCondition]
-  );
+  const appendFilterCondition = useCallback((condition: string) => {
+    startTransition(() => {
+      _setFilterCondition((currentCondition) =>
+        joinFilterConditions({
+          existingCondition: currentCondition,
+          nextCondition: condition,
+        })
+      );
+    });
+  }, []);
   const setRootSpansOnly = useCallback((rootSpansOnly: boolean) => {
     startTransition(() => {
       _setRootSpansOnly(rootSpansOnly);

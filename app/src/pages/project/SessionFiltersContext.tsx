@@ -12,6 +12,7 @@ import {
   SET_SESSIONS_FILTER_TOOL_NAME,
   type SetSessionsFilterInput,
 } from "@phoenix/agent/tools/sessionsFilter";
+import { joinFilterConditions } from "@phoenix/components/filter";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
@@ -49,9 +50,10 @@ export function SessionFiltersProvider(props: PropsWithChildren) {
   function appendFilterCondition(condition: string) {
     startTransition(() => {
       setFilterConditionState((currentCondition) =>
-        currentCondition.length > 0
-          ? `${currentCondition} and ${condition}`
-          : condition
+        joinFilterConditions({
+          existingCondition: currentCondition,
+          nextCondition: condition,
+        })
       );
     });
   }
@@ -113,9 +115,12 @@ function useRegisterSetSessionsFilterClientAction({
       }
 
       setFilterCondition(condition);
+      const warningMessage = validation.warnings.length
+        ? ` Validation warnings: ${validation.warnings.join(" ")}`
+        : "";
       return {
         ok: true,
-        output: `Applied sessions filter: ${condition}.`,
+        output: `Applied sessions filter: ${condition}.${warningMessage}`,
       };
     }
   );
