@@ -2,8 +2,9 @@
 backstop all compute config fingerprints, annotation identifiers, and sampling keys
 through this module — an independent recipe that drifts from these re-materializes the
 work backlog (fingerprint mismatch) or breaks annotation idempotency (identifier
-mismatch). All functions are pure; version resolution and any DB access happen in
-callers.
+mismatch). It also holds the shared work-unit retry budget (``MAX_ATTEMPTS``), which
+the producer's reaper/backstop and the consumer's claim predicate must agree on. All
+functions are pure; version resolution and any DB access happen in callers.
 """
 
 from __future__ import annotations
@@ -16,6 +17,12 @@ from typing import Any
 
 _IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
+
+# Retry budget for a work unit before its ERROR state becomes terminal. The producer
+# excludes attempt-exhausted rows from reaping and backstop re-materialization using
+# this value, and the consumer-side coordinator stops reclaiming ERROR rows at it —
+# the two sides drifting apart either resurrects dead work or strands retryable work.
+MAX_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)

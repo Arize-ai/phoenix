@@ -26,8 +26,8 @@ from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.db_coordinator import MAX_ATTEMPTS
 from phoenix.server.online_eval.derivation import (
+    MAX_ATTEMPTS,
     ResolvedCriteria,
     annotation_identifier,
     config_fingerprint,

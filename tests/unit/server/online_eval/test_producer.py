@@ -8,8 +8,7 @@ from sqlalchemy import func, select, update
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval import producer as producer_module
-from phoenix.server.online_eval.db_coordinator import MAX_ATTEMPTS
-from phoenix.server.online_eval.derivation import config_fingerprint
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.producer import (
     OnlineEvalProducer,
     resolve_criteria,
