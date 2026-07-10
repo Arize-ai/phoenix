@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback } from "react";
+import { Suspense } from "react";
 import type { Key } from "react-aria-components";
 import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
@@ -38,15 +38,12 @@ const TABS: { id: string; label: string }[] = [
 export function SettingsPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const tab = pathname.split("/settings")[1].replace("/", "");
-  const onChangeTab = useCallback(
-    (tab: Key) => {
-      if (typeof tab === "string") {
-        navigate(`/settings/${tab}`, { replace: true });
-      }
-    },
-    [navigate]
-  );
+  const tab = pathname.split("/settings/")[1]?.split("/")[0] ?? "";
+  const onChangeTab = (tab: Key) => {
+    if (typeof tab === "string") {
+      navigate(`/settings/${tab}`, { replace: true });
+    }
+  };
   const isAgentAssistantEnabled = !window.Config.agentAssistantDisabled;
   const canManageSecrets = useViewerCanManageSandboxes();
   const canManageSandboxes = useViewerCanManageSandboxes();

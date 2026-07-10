@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { usePreloadedQuery } from "react-relay";
-import { useLoaderData } from "react-router";
+import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -18,7 +18,6 @@ import type { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__g
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
 import { GlobalRetentionPolicyCard } from "@phoenix/pages/settings/GlobalRetentionPolicyCard";
-import { OAuth2GrantsCard } from "@phoenix/pages/settings/OAuth2GrantsCard";
 import type { settingsGeneralPageLoaderType } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { settingsGeneralPageLoaderGQL } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
@@ -46,43 +45,43 @@ export function SettingsGeneralPage() {
     loaderData
   );
   return (
-    <div css={gridCSS}>
-      <Card title="Platform">
-        <form css={formCSS}>
-          <CopyField value={BASE_URL}>
-            <Label>Hostname</Label>
-            <CopyInput />
-            <Text slot="description">Connect to Phoenix over HTTP</Text>
-          </CopyField>
-          <CopyField value={VERSION}>
-            <Label>Platform Version</Label>
-            <CopyInput />
-            <Text slot="description">The version of the Phoenix server</Text>
-          </CopyField>
-          <PlatformVersionStatus />
-        </form>
-      </Card>
-      <Card title="Database Usage">
-        <View padding="size-200">
-          <DBUsagePieChart query={data} />
-        </View>
-      </Card>
-      <IsAdmin>
-        <div css={fullWidthCSS}>
-          <APIKeysCard />
-        </div>
-        <div css={fullWidthCSS}>
-          <UsersCard />
-        </div>
-        <div css={fullWidthCSS}>
-          <OAuth2GrantsCard />
-        </div>
-      </IsAdmin>
-      <CanManageRetentionPolicy>
-        <div css={fullWidthCSS}>
-          <GlobalRetentionPolicyCard />
-        </div>
-      </CanManageRetentionPolicy>
-    </div>
+    <>
+      <div css={gridCSS}>
+        <Card title="Platform">
+          <form css={formCSS}>
+            <CopyField value={BASE_URL}>
+              <Label>Hostname</Label>
+              <CopyInput />
+              <Text slot="description">Connect to Phoenix over HTTP</Text>
+            </CopyField>
+            <CopyField value={VERSION}>
+              <Label>Platform Version</Label>
+              <CopyInput />
+              <Text slot="description">The version of the Phoenix server</Text>
+            </CopyField>
+            <PlatformVersionStatus />
+          </form>
+        </Card>
+        <Card title="Database Usage">
+          <View padding="size-200">
+            <DBUsagePieChart query={data} />
+          </View>
+        </Card>
+        <IsAdmin>
+          <div css={fullWidthCSS}>
+            <APIKeysCard />
+          </div>
+          <div css={fullWidthCSS}>
+            <UsersCard />
+          </div>
+        </IsAdmin>
+        <CanManageRetentionPolicy>
+          <div css={fullWidthCSS}>
+            <GlobalRetentionPolicyCard />
+          </div>
+        </CanManageRetentionPolicy>
+      </div>
+      <Outlet />
+    </>
   );
 }

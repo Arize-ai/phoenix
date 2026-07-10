@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ea15d68ee92aaf12b9639baae75fa69>>
+ * @generated SignedSource<<8bcd933b1d5aee1c1fa176c1925fc075>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,10 +15,12 @@ export type UsersTable_users$data = {
   readonly users: {
     readonly edges: ReadonlyArray<{
       readonly user: {
+        readonly apiKeyCount: number;
         readonly authMethod: AuthMethod;
         readonly createdAt: string;
         readonly email: string | null;
         readonly id: string;
+        readonly oauth2GrantCount: number;
         readonly profilePictureUrl: string | null;
         readonly role: {
           readonly name: string;
@@ -147,6 +149,20 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "apiKeyCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "oauth2GrantCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "UserRole",
                   "kind": "LinkedField",
                   "name": "role",
@@ -227,6 +243,6 @@ return {
 };
 })();
 
-(node as any).hash = "3e71021826f5285ec7804bb7637703fd";
+(node as any).hash = "5b4963381bc87826b05613c71720c77a";
 
 export default node;
