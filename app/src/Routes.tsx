@@ -48,6 +48,7 @@ import {
   DashboardsEmptyPage,
   DashboardsRoot,
   datasetLoader,
+  DatasetMetricsPage,
   DatasetPage,
   DatasetsPage,
   datasetVersionsLoader,
@@ -432,6 +433,17 @@ export const appRouteObjects = createRoutesFromElements(
                     label: "Dataset Versions",
                     description:
                       "View dataset versions, dataset history, and version records.",
+                  },
+                }}
+              />
+              <Route
+                path="metrics"
+                element={<DatasetMetricsPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Dataset Experiment Metrics",
+                    description:
+                      "View experiment metrics charts for a dataset: run latency, error rate, cost, and token usage across recent experiments.",
                   },
                 }}
               />
