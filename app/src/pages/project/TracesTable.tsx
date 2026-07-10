@@ -678,7 +678,7 @@ export function TracesTable(props: TracesTableProps) {
         },
         enableSorting: false,
         accessorKey: "spanKind",
-        maxSize: 100,
+        size: 100,
         cell: (props) => {
           if (props.row.original.__additionalRow) {
             return (
