@@ -34,6 +34,7 @@ import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoad
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
 import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
+import { UserDetailsDrawer } from "@phoenix/pages/settings/UserDetailsDrawer";
 
 import type {
   DatasetLoaderData,
@@ -737,10 +738,12 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "General Settings",
                 description:
-                  "Configure general Phoenix instance settings including hostname, platform version, database usage, users, system API keys, and the default project retention policy.",
+                  "Configure general Phoenix instance settings including hostname, platform version, database usage, user credentials, system API keys, and the default project retention policy.",
               },
             }}
-          />
+          >
+            <Route path="users/:userId" element={<UserDetailsDrawer />} />
+          </Route>
           <Route
             path="secrets"
             loader={settingsSecretsPageLoader}

@@ -4643,6 +4643,8 @@ type User implements Node {
   role: UserRole!
   apiKeys: [UserApiKey!]!
   oauth2Grants: [OAuth2Grant!]!
+  apiKeyCount: Int!
+  oauth2GrantCount: Int!
   isManagementUser: Boolean!
 }
 

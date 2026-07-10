@@ -120,6 +120,7 @@ class User(Node):
 
     @strawberry.field
     async def api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
+        self._ensure_can_access_credentials(info)
         async with info.context.db.read() as session:
             api_keys = await session.scalars(
                 select(models.ApiKey).where(models.ApiKey.user_id == self.id)
@@ -128,8 +129,7 @@ class User(Node):
 
     @strawberry.field
     async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
-        if not can_manage_grant(info, self.id):
-            raise Unauthorized("User not authorized to access OAuth2 grants")
+        self._ensure_can_access_credentials(info)
         async with info.context.db.read() as session:
             grants = await session.scalars(
                 select(models.OAuth2Grant)
@@ -139,6 +139,23 @@ class User(Node):
                 .order_by(models.OAuth2Grant.last_used_at.desc().nullslast())
             )
         return [OAuth2Grant(id=grant.id, db_record=grant) for grant in grants]
+
+    @strawberry.field
+    async def api_key_count(self, info: Info[Context, None]) -> int:
+        self._ensure_can_access_credentials(info)
+        counts = await info.context.data_loaders.user_credential_counts.load(self.id)
+        return counts.api_key_count
+
+    @strawberry.field
+    async def oauth2_grant_count(self, info: Info[Context, None]) -> int:
+        self._ensure_can_access_credentials(info)
+        counts = await info.context.data_loaders.user_credential_counts.load(self.id)
+        return counts.oauth2_grant_count
+
+    def _ensure_can_access_credentials(self, info: Info[Context, None]) -> None:
+        if can_manage_grant(info, self.id):
+            return
+        raise Unauthorized("User not authorized to access credentials")
 
     @strawberry.field
     async def is_management_user(self, info: Info[Context, None]) -> bool:

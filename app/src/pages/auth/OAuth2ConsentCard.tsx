@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { Alert, Button, Heading, Text } from "@phoenix/components";
+import { OAuth2ClientIcon } from "@phoenix/components/auth";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import { Logo } from "@phoenix/components/nav/Logo";
 
@@ -59,13 +60,6 @@ const handoffNodeCSS = css`
   background-color: var(--global-color-gray-100);
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
-`;
-
-const handoffClientGlyphCSS = css`
-  font-family: var(--global-font-family-mono);
-  font-size: var(--global-font-size-m);
-  font-weight: 600;
-  color: var(--global-text-color-700);
 `;
 
 const handoffWireCSS = css`
@@ -249,10 +243,6 @@ function formatHostedRedirectDestination(redirectUri: string) {
   }
 }
 
-function getClientInitial(clientName: string) {
-  return clientName.trim().charAt(0).toUpperCase() || "?";
-}
-
 function getClientIdSuffix(clientId: string) {
   return clientId.length > 8 ? clientId.slice(-8) : clientId;
 }
@@ -285,15 +275,11 @@ export function OAuth2ConsentCard({
   return (
     <div>
       <div css={handoffCSS} aria-hidden="true">
-        <div css={handoffNodeCSS}>
-          {isFirstParty ? (
-            <span css={handoffClientGlyphCSS}>❯_</span>
-          ) : (
-            <span css={handoffClientGlyphCSS}>
-              {getClientInitial(clientName)}
-            </span>
-          )}
-        </div>
+        <OAuth2ClientIcon
+          clientName={clientName}
+          isFirstParty={isFirstParty}
+          size="L"
+        />
         <div css={handoffWireCSS}>
           <div css={handoffCheckCSS}>
             <Icon svg={<Icons.Checkmark />} />

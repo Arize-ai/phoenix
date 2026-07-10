@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7c2d769a1b07247db1d34960d700e503>>
+ * @generated SignedSource<<763742c7fb514647b9c05213d4cbcc9c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -119,6 +119,20 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "apiKeyCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "oauth2GrantCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "UserRole",
                     "kind": "LinkedField",
                     "name": "role",
@@ -207,12 +221,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cf219c4e90184768fe95e1ab674036e0",
+    "cacheID": "5520939a23635a17c0cbc8498fc16aaa",
     "id": null,
     "metadata": {},
     "name": "UsersCardQuery",
     "operationKind": "query",
-    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users(first: 50) {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        role {\n          name\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users(first: 50) {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        apiKeyCount\n        oauth2GrantCount\n        role {\n          name\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

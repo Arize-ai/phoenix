@@ -9,11 +9,20 @@ import {
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
+import { useNavigate, useParams } from "react-router";
 
-import { Flex, Icon, Icons, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
+import { Counter } from "@phoenix/components/core/counter";
 import { RoleSelect } from "@phoenix/components/settings/RoleSelect";
 import { LoadMoreRow } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -89,6 +98,8 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
               createdAt
               authMethod
               profilePictureUrl
+              apiKeyCount
+              oauth2GrantCount
               role {
                 name
               }
@@ -109,6 +120,8 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       createdAt: user.createdAt,
       role: user.role.name,
       authMethod: user.authMethod,
+      apiKeyCount: user.apiKeyCount,
+      oauth2GrantCount: user.oauth2GrantCount,
     }));
   }, [data]);
 
@@ -129,6 +142,8 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
     [hasNext, isLoadingNext, loadNext]
   );
   const { viewer } = useViewer();
+  const navigate = useNavigate();
+  const { userId: selectedUserId } = useParams();
   type TableRow = (typeof tableData)[number];
   const columns = useMemo((): ColumnDef<TableRow>[] => {
     return [
@@ -143,15 +158,37 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 profilePictureUrl={row.original.profilePictureUrl}
                 size={20}
               />
-              <span>{row.original.username}</span>
+              <Link to={`/settings/general/users/${row.original.id}`}>
+                {row.original.username}
+              </Link>
               {row.original.email && (
-                <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
+                <a
+                  href={`mailto:${row.original.email}`}
+                  css={emailLinkCSS}
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {row.original.email}
                 </a>
               )}
             </Flex>
           );
         },
+      },
+      {
+        header: "API keys",
+        accessorKey: "apiKeyCount",
+        size: 10,
+        cell: ({ row }) => (
+          <Counter variant="quiet">{row.original.apiKeyCount}</Counter>
+        ),
+      },
+      {
+        header: "OAuth2 grants",
+        accessorKey: "oauth2GrantCount",
+        size: 10,
+        cell: ({ row }) => (
+          <Counter variant="quiet">{row.original.oauth2GrantCount}</Counter>
+        ),
       },
       {
         header: "method",
@@ -244,7 +281,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={tableCSS}>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -305,11 +342,29 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         ) : (
           <tbody>
             {rows.map((row) => {
+              const isSelected = row.original.id === selectedUserId;
               return (
-                <tr key={row.id} css={userTableRowCSS}>
+                <tr
+                  key={row.id}
+                  css={userTableRowCSS}
+                  data-selected={isSelected}
+                  onClick={() =>
+                    navigate(`/settings/general/users/${row.original.id}`)
+                  }
+                >
                   {row.getVisibleCells().map((cell) => {
                     return (
-                      <td key={cell.id}>
+                      <td
+                        key={cell.id}
+                        onClick={(event) => {
+                          if (
+                            cell.column.id === "role" ||
+                            cell.column.id === "id"
+                          ) {
+                            event.stopPropagation();
+                          }
+                        }}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()

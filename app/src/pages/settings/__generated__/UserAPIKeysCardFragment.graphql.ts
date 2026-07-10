@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<adb541fee95d5086c11019c3698ee2be>>
+ * @generated SignedSource<<0ca5a2c36481fb87d292730efb471a4d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,53 +10,60 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type UserAPIKeysTableFragment$data = {
-  readonly userApiKeys: ReadonlyArray<{
+export type UserAPIKeysCardFragment$data = {
+  readonly apiKeys: ReadonlyArray<{
     readonly createdAt: string;
     readonly description: string | null;
     readonly expiresAt: string | null;
     readonly id: string;
     readonly name: string;
-    readonly user: {
-      readonly username: string;
-    };
   }>;
-  readonly " $fragmentType": "UserAPIKeysTableFragment";
+  readonly id: string;
+  readonly " $fragmentType": "UserAPIKeysCardFragment";
 };
-export type UserAPIKeysTableFragment$key = {
-  readonly " $data"?: UserAPIKeysTableFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"UserAPIKeysTableFragment">;
+export type UserAPIKeysCardFragment$key = {
+  readonly " $data"?: UserAPIKeysCardFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"UserAPIKeysCardFragment">;
 };
 
-import UserAPIKeysTableQuery_graphql from './UserAPIKeysTableQuery.graphql';
+import UserAPIKeysCardQuery_graphql from './UserAPIKeysCardQuery.graphql';
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": {
     "refetch": {
       "connection": null,
-      "fragmentPathInResult": [],
-      "operation": UserAPIKeysTableQuery_graphql
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": UserAPIKeysCardQuery_graphql,
+      "identifierInfo": {
+        "identifierField": "id",
+        "identifierQueryVariableName": "id"
+      }
     }
   },
-  "name": "UserAPIKeysTableFragment",
+  "name": "UserAPIKeysCardFragment",
   "selections": [
+    (v0/*: any*/),
     {
       "alias": null,
       "args": null,
       "concreteType": "UserApiKey",
       "kind": "LinkedField",
-      "name": "userApiKeys",
+      "name": "apiKeys",
       "plural": true,
       "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "id",
-          "storageKey": null
-        },
+        (v0/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -84,33 +91,16 @@ const node: ReaderFragment = {
           "kind": "ScalarField",
           "name": "expiresAt",
           "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "User",
-          "kind": "LinkedField",
-          "name": "user",
-          "plural": false,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "username",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
         }
       ],
       "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "User",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "720721b1409e41ca6fc2994af7784a18";
+(node as any).hash = "439337453337ef543f17409b51df2adf";
 
 export default node;
