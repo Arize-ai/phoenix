@@ -56,8 +56,12 @@ type ToolOutputTraceInput = {
   errorText?: string;
 };
 
-type CreateLocalTraceExporter = (projectName: string) => SpanExporter;
-type GetProjectNameForSpan = (span: ReadableSpan) => string | null;
+type PxiTraceDestination = {
+  ingestTraces: boolean;
+  exportRemoteTraces: boolean;
+};
+type CreateTraceExporter = (destination: PxiTraceDestination) => SpanExporter;
+type GetDestinationForSpan = (span: ReadableSpan) => PxiTraceDestination | null;
 
 type AgentTurnTracingOptions = {
   sessionId: string;
@@ -82,7 +86,7 @@ let webTracerProvider: WebTracerProvider | null = null;
 const DEFAULT_FORCE_FLUSH_TIMEOUT_MS = 5_000;
 
 const PXI_TRACER_NAME = "phoenix-ui.pxi";
-const pxiProjectNameByTraceId = new Map<string, string>();
+const pxiTraceDestinationByTraceId = new Map<string, PxiTraceDestination>();
 
 // PXI-specific carrier headers, sent alongside the standard W3C ones. Cloud
 // deployments may inject their own client tracing (e.g. Datadog RUM) whose
@@ -97,48 +101,55 @@ const PHOENIX_TRACESTATE_HEADER = "x-phoenix-tracestate";
 // instrumentation injected by the hosting deployment.
 const pxiPropagator = new W3CTraceContextPropagator();
 
-const createDefaultLocalTraceExporter: CreateLocalTraceExporter = (
-  projectName
-) =>
+const createDefaultTraceExporter: CreateTraceExporter = (destination) =>
   new OTLPTraceExporter({
-    url: prependBasename("/v1/traces"),
+    url: prependBasename("/agents/traces"),
     headers: {
-      "x-project-name": projectName,
+      "x-phoenix-pxi-ingest-traces": String(destination.ingestTraces),
+      "x-phoenix-pxi-export-remote-traces": String(
+        destination.exportRemoteTraces
+      ),
     },
   });
 
-function getPxiProjectNameForSpan(span: ReadableSpan): string | null {
-  return pxiProjectNameByTraceId.get(span.spanContext().traceId) ?? null;
+function getPxiDestinationForSpan(
+  span: ReadableSpan
+): PxiTraceDestination | null {
+  return pxiTraceDestinationByTraceId.get(span.spanContext().traceId) ?? null;
 }
 
 export class PxiRootSpanExporter implements SpanExporter {
-  private exportersByProjectName = new Map<string, SpanExporter>();
+  private exportersByDestination = new Map<string, SpanExporter>();
 
   constructor(
-    private createLocalTraceExporter: CreateLocalTraceExporter = createDefaultLocalTraceExporter,
-    private getProjectNameForSpan: GetProjectNameForSpan = getPxiProjectNameForSpan
+    private createTraceExporter: CreateTraceExporter = createDefaultTraceExporter,
+    private getDestinationForSpan: GetDestinationForSpan = getPxiDestinationForSpan
   ) {}
 
   export(
     spans: ReadableSpan[],
     resultCallback: (result: { code: ExportResultCode; error?: Error }) => void
   ): void {
-    const spansByProjectName = new Map<string, ReadableSpan[]>();
+    const spansByDestination = new Map<
+      string,
+      { destination: PxiTraceDestination; spans: ReadableSpan[] }
+    >();
     for (const span of spans) {
-      const projectName = this.getProjectNameForSpan(span);
-      if (!projectName) {
+      const destination = this.getDestinationForSpan(span);
+      if (!destination) {
         continue;
       }
-      const projectSpans = spansByProjectName.get(projectName) ?? [];
-      projectSpans.push(span);
-      spansByProjectName.set(projectName, projectSpans);
+      const key = JSON.stringify(destination);
+      const group = spansByDestination.get(key) ?? { destination, spans: [] };
+      group.spans.push(span);
+      spansByDestination.set(key, group);
     }
-    if (spansByProjectName.size === 0) {
+    if (spansByDestination.size === 0) {
       resultCallback({ code: ExportResultCode.SUCCESS });
       return;
     }
 
-    let pendingExports = spansByProjectName.size;
+    let pendingExports = spansByDestination.size;
     let hasExportError = false;
     let exportError: Error | undefined;
     const onExportComplete = (result: {
@@ -159,35 +170,38 @@ export class PxiRootSpanExporter implements SpanExporter {
       }
     };
 
-    for (const [projectName, projectSpans] of spansByProjectName) {
-      this.getExporter(projectName).export(projectSpans, onExportComplete);
+    for (const [key, { destination, spans }] of spansByDestination) {
+      this.getExporter(key, destination).export(spans, onExportComplete);
     }
   }
 
   async shutdown(): Promise<void> {
     await Promise.all(
-      Array.from(this.exportersByProjectName.values()).map((exporter) =>
+      Array.from(this.exportersByDestination.values()).map((exporter) =>
         exporter.shutdown()
       )
     );
-    this.exportersByProjectName.clear();
+    this.exportersByDestination.clear();
   }
 
   async forceFlush(): Promise<void> {
     await Promise.all(
-      Array.from(this.exportersByProjectName.values()).map((exporter) =>
+      Array.from(this.exportersByDestination.values()).map((exporter) =>
         exporter.forceFlush?.()
       )
     );
   }
 
-  private getExporter(projectName: string): SpanExporter {
-    const existingExporter = this.exportersByProjectName.get(projectName);
+  private getExporter(
+    key: string,
+    destination: PxiTraceDestination
+  ): SpanExporter {
+    const existingExporter = this.exportersByDestination.get(key);
     if (existingExporter) {
       return existingExporter;
     }
-    const exporter = this.createLocalTraceExporter(projectName);
-    this.exportersByProjectName.set(projectName, exporter);
+    const exporter = this.createTraceExporter(destination);
+    this.exportersByDestination.set(key, exporter);
     return exporter;
   }
 }
@@ -298,7 +312,7 @@ export function createAgentTurnTracer({
       agentsConfig,
       observability,
     });
-    if (!traceRecording.ingestTraces) {
+    if (!traceRecording.ingestTraces && !traceRecording.exportRemoteTraces) {
       return;
     }
 
@@ -312,7 +326,9 @@ export function createAgentTurnTracer({
       },
     });
     const traceId = span.spanContext().traceId;
-    pxiProjectNameByTraceId.set(traceId, agentsConfig.assistantProjectName);
+    pxiTraceDestinationByTraceId.set(traceId, {
+      ...traceRecording,
+    });
     activeTurnTrace = {
       span,
       context: trace.setSpan(context.active(), span),
@@ -350,7 +366,7 @@ export function createAgentTurnTracer({
     try {
       await forceFlushBrowserSpans(forceFlushTimeoutMs);
     } finally {
-      pxiProjectNameByTraceId.delete(traceId);
+      pxiTraceDestinationByTraceId.delete(traceId);
     }
   }
 

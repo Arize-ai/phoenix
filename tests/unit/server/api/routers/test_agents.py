@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
+import httpx
+import pytest
+import respx
+from asgi_lifespan import LifespanManager
+from fastapi import FastAPI, HTTPException
 from jinja2 import Template
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
+from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans, Span
+from pydantic import SecretStr
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from sqlalchemy import func, select
+from starlette.datastructures import State
+from starlette.types import ASGIApp
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -18,6 +29,8 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    _enqueue_pxi_spans,
+    _export_pxi_otlp_request,
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
     _load_sandbox_availability,
@@ -25,9 +38,40 @@ from phoenix.server.api.routers.agents import (
     _persist_db_traces_and_emit_event,
     _SubagentMessageChunksClosed,
 )
+from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
+from phoenix.server.settings.registry import AgentTraceRecordingSetting
 from phoenix.server.types import DbSessionFactory, UserId
+from tests.unit.conftest import TestBulkInserter as _TestBulkInserter
+from tests.unit.conftest import patch_grpc_server
+
+
+@pytest.fixture
+async def pxi_app_with_auth(db: DbSessionFactory) -> AsyncIterator[FastAPI]:
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_grpc_server())
+        yield create_app(
+            db=db,
+            authentication_enabled=True,
+            serve_ui=False,
+            bulk_inserter_factory=_TestBulkInserter,
+            secret=SecretStr("test-secret-at-least-32-chars-long!!"),
+        )
+
+
+@pytest.fixture
+async def pxi_asgi_app_with_auth(pxi_app_with_auth: FastAPI) -> AsyncIterator[ASGIApp]:
+    async with LifespanManager(pxi_app_with_auth) as manager:
+        yield manager.app
+
+
+@pytest.fixture
+def pxi_client_with_auth(pxi_asgi_app_with_auth: ASGIApp) -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=pxi_asgi_app_with_auth),
+        base_url="http://test",
+    )
 
 
 class _EventQueue:
@@ -36,6 +80,184 @@ class _EventQueue:
 
     def put(self, item: DmlEvent) -> None:
         self.events.append(item)
+
+
+class TestPxiBrowserTraceRelay:
+    async def test_local_enqueue_preserves_trace_and_parent_identity(self) -> None:
+        trace_id = bytes.fromhex("1234567890abcdef1234567890abcdef")
+        span_id = bytes.fromhex("1234567890abcdef")
+        parent_span_id = bytes.fromhex("fedcba0987654321")
+        otlp_request = ExportTraceServiceRequest(
+            resource_spans=[
+                ResourceSpans(
+                    scope_spans=[
+                        ScopeSpans(
+                            spans=[
+                                Span(
+                                    trace_id=trace_id,
+                                    span_id=span_id,
+                                    parent_span_id=parent_span_id,
+                                    name="client-tool",
+                                    start_time_unix_nano=1_000_000_000,
+                                    end_time_unix_nano=2_000_000_000,
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+        state = State()
+        state.enqueue_span = AsyncMock()
+
+        await _enqueue_pxi_spans(
+            otlp_request=otlp_request,
+            state=state,
+            project_name="pxi_test",
+        )
+
+        decoded_span, project_name = state.enqueue_span.await_args.args
+        assert decoded_span.context.trace_id == trace_id.hex()
+        assert decoded_span.context.span_id == span_id.hex()
+        assert decoded_span.parent_id == parent_span_id.hex()
+        assert decoded_span.name == "client-tool"
+        assert project_name == "pxi_test"
+
+    @pytest.mark.parametrize(
+        ("ingest_traces", "export_remote_traces", "expected_local", "expected_remote"),
+        [
+            (False, False, False, False),
+            (True, False, True, False),
+            (False, True, False, True),
+            (True, True, True, True),
+        ],
+    )
+    async def test_applies_all_destination_modes(
+        self,
+        app: FastAPI,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        ingest_traces: bool,
+        export_remote_traces: bool,
+        expected_local: bool,
+        expected_remote: bool,
+    ) -> None:
+        await app.state.system_settings.update_agent_trace_recording(
+            AgentTraceRecordingSetting(
+                allow_local_traces=True,
+                allow_remote_export=True,
+            )
+        )
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://collector.example")
+        monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "pxi_test")
+        enqueue = AsyncMock()
+        export = AsyncMock()
+        monkeypatch.setattr("phoenix.server.api.routers.agents._enqueue_pxi_spans", enqueue)
+        monkeypatch.setattr("phoenix.server.api.routers.agents._export_pxi_otlp_request", export)
+
+        response = await httpx_client.post(
+            "/agents/traces",
+            content=ExportTraceServiceRequest().SerializeToString(),
+            headers={
+                "content-type": "application/x-protobuf",
+                "x-phoenix-pxi-ingest-traces": str(ingest_traces),
+                "x-phoenix-pxi-export-remote-traces": str(export_remote_traces),
+            },
+        )
+
+        assert response.status_code == 200
+        assert enqueue.await_count == int(expected_local)
+        assert export.await_count == int(expected_remote)
+        if expected_local:
+            enqueue_args = enqueue.await_args
+            assert enqueue_args is not None
+            assert enqueue_args.kwargs["project_name"] == "pxi_test"
+        if expected_remote:
+            export_args = export.await_args
+            assert export_args is not None
+            assert export_args.kwargs["project_name"] == "pxi_test"
+            assert export_args.kwargs["collector_endpoint"] == "https://collector.example"
+
+    async def test_server_policy_is_a_ceiling(
+        self,
+        app: FastAPI,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        await app.state.system_settings.update_agent_trace_recording(
+            AgentTraceRecordingSetting(
+                allow_local_traces=False,
+                allow_remote_export=False,
+            )
+        )
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://collector.example")
+        enqueue = AsyncMock()
+        export = AsyncMock()
+        monkeypatch.setattr("phoenix.server.api.routers.agents._enqueue_pxi_spans", enqueue)
+        monkeypatch.setattr("phoenix.server.api.routers.agents._export_pxi_otlp_request", export)
+
+        response = await httpx_client.post(
+            "/agents/traces",
+            content=b"",
+            headers={
+                "content-type": "application/x-protobuf",
+                "x-phoenix-pxi-ingest-traces": "true",
+                "x-phoenix-pxi-export-remote-traces": "true",
+            },
+        )
+
+        assert response.status_code == 200
+        enqueue.assert_not_awaited()
+        export.assert_not_awaited()
+
+    async def test_requires_authentication_when_enabled(
+        self, pxi_client_with_auth: httpx.AsyncClient
+    ) -> None:
+        response = await pxi_client_with_auth.post(
+            "/agents/traces",
+            content=b"",
+            headers={"content-type": "application/x-protobuf"},
+        )
+
+        assert response.status_code == 401
+
+    async def test_remote_export_uses_server_credentials_and_project(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_API_KEY", "secret-api-key")
+        body = ExportTraceServiceRequest().SerializeToString()
+        with respx.mock:
+            route = respx.post("https://collector.example/v1/traces").mock(
+                return_value=httpx.Response(200)
+            )
+            await _export_pxi_otlp_request(
+                body=body,
+                content_encoding=None,
+                collector_endpoint="https://collector.example",
+                project_name="pxi_test",
+            )
+
+        request = route.calls.last.request
+        assert request.content == body
+        assert request.headers["authorization"] == "Bearer secret-api-key"
+        assert request.headers["x-project-name"] == "pxi_test"
+
+    async def test_remote_export_failure_is_retryable_by_the_browser(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        with respx.mock:
+            respx.post("https://collector.example/v1/traces").mock(
+                return_value=httpx.Response(503)
+            )
+            with pytest.raises(HTTPException) as exc_info:
+                await _export_pxi_otlp_request(
+                    body=b"",
+                    content_encoding=None,
+                    collector_endpoint="https://collector.example",
+                    project_name="pxi_test",
+                )
+
+        assert exc_info.value.status_code == 502
 
 
 class TestPersistDbTracesAndEmitEvent:

@@ -1,5 +1,7 @@
 import asyncio
+import gzip
 import logging
+import zlib
 from collections.abc import (
     AsyncGenerator,
     AsyncIterator,
@@ -11,10 +13,16 @@ from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+from fastapi import APIRouter, Depends, Header, HTTPException
+from google.protobuf.message import DecodeError
 from openinference.instrumentation import using_metadata, using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.context import Context
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+    ExportTraceServiceRequest,
+    ExportTraceServiceResponse,
+)
 from opentelemetry.sdk.trace import Span as SDKSpan
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.trace import SpanContext, format_span_id, format_trace_id, get_current_span
@@ -40,6 +48,8 @@ from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response
 from strawberry.relay import GlobalID
@@ -47,6 +57,8 @@ from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
+    get_env_phoenix_agents_collector_api_key,
+    get_env_phoenix_agents_collector_endpoint,
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_web_access_enabled,
 )
@@ -92,7 +104,9 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
+from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.server.types import CanPutItem, DbSessionFactory
+from phoenix.trace.otel import decode_otlp_span
 from phoenix.tracers import (
     Tracer,
     detached_otel_context,
@@ -101,6 +115,9 @@ from phoenix.tracers import (
 )
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+
+_PXI_OTLP_CONTENT_TYPE = "application/x-protobuf"
+_PXI_REMOTE_EXPORT_TIMEOUT_SECONDS = 5.0
 
 ToolExecutionEnvironment = Literal["client", "server"]
 
@@ -772,9 +789,130 @@ async def _load_phoenix_user_email(
     )
 
 
+async def _decode_pxi_otlp_request(
+    *, body: bytes, content_encoding: str | None
+) -> ExportTraceServiceRequest:
+    if content_encoding == "gzip":
+        body = await run_in_threadpool(gzip.decompress, body)
+    elif content_encoding == "deflate":
+        body = await run_in_threadpool(zlib.decompress, body)
+    elif content_encoding:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported content encoding: {content_encoding}",
+        )
+
+    otlp_request = ExportTraceServiceRequest()
+    try:
+        await run_in_threadpool(otlp_request.ParseFromString, body)
+    except DecodeError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="Request body is invalid ExportTraceServiceRequest",
+        ) from exc
+    return otlp_request
+
+
+async def _enqueue_pxi_spans(
+    *, otlp_request: ExportTraceServiceRequest, state: State, project_name: str
+) -> None:
+    for resource_spans in otlp_request.resource_spans:
+        for scope_spans in resource_spans.scope_spans:
+            for otlp_span in scope_spans.spans:
+                span = await run_in_threadpool(decode_otlp_span, otlp_span)
+                await state.enqueue_span(span, project_name)
+
+
+async def _export_pxi_otlp_request(
+    *,
+    body: bytes,
+    content_encoding: str | None,
+    collector_endpoint: str,
+    project_name: str,
+) -> None:
+    headers = {
+        "content-type": _PXI_OTLP_CONTENT_TYPE,
+        "x-project-name": project_name,
+    }
+    if content_encoding:
+        headers["content-encoding"] = content_encoding
+    if api_key := get_env_phoenix_agents_collector_api_key():
+        headers["authorization"] = f"Bearer {api_key}"
+
+    endpoint = normalize_http_collector_endpoint(collector_endpoint) + "/v1/traces"
+    try:
+        async with httpx.AsyncClient(timeout=_PXI_REMOTE_EXPORT_TIMEOUT_SECONDS) as client:
+            response = await client.post(endpoint, content=body, headers=headers)
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.warning("Failed to relay PXI browser spans to %s: %s", endpoint, exc)
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to export PXI traces to the configured collector",
+        ) from exc
+
+
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
+
+    @router.post("/agents/traces", include_in_schema=False)
+    async def relay_browser_traces(
+        request: Request,
+        content_type: str | None = Header(default=None),
+        content_encoding: str | None = Header(default=None),
+        x_phoenix_pxi_ingest_traces: bool = Header(default=False),
+        x_phoenix_pxi_export_remote_traces: bool = Header(default=False),
+    ) -> Response:
+        """Apply PXI trace policy and relay browser-owned OTLP spans."""
+        if content_type != _PXI_OTLP_CONTENT_TYPE:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported content type: {content_type}",
+            )
+
+        recording = request.app.state.system_settings.agent_trace_recording
+        ingest_traces = bool(
+            x_phoenix_pxi_ingest_traces and recording.allow_local_traces
+        )
+        collector_endpoint = get_env_phoenix_agents_collector_endpoint()
+        export_remote_traces = bool(
+            x_phoenix_pxi_export_remote_traces
+            and recording.allow_remote_export
+            and collector_endpoint
+        )
+        if ingest_traces and request.app.state.span_queue_is_full():
+            raise HTTPException(
+                status_code=503,
+                detail="Server is at capacity and cannot process more requests",
+            )
+        body = await request.body()
+        otlp_request = await _decode_pxi_otlp_request(
+            body=body, content_encoding=content_encoding
+        )
+        project_name = get_env_phoenix_agents_assistant_project_name()
+
+        if ingest_traces:
+            await _enqueue_pxi_spans(
+                otlp_request=otlp_request,
+                state=request.state,
+                project_name=project_name,
+            )
+        if export_remote_traces:
+            assert collector_endpoint is not None
+            await _export_pxi_otlp_request(
+                body=body,
+                content_encoding=content_encoding,
+                collector_endpoint=collector_endpoint,
+                project_name=project_name,
+            )
+
+        response_message = ExportTraceServiceResponse()
+        return Response(
+            content=response_message.SerializeToString(),
+            media_type=_PXI_OTLP_CONTENT_TYPE,
+            status_code=200,
+        )
 
     @router.post("/agents/server/sessions/{session_id}/chat")
     async def run_server_agent(

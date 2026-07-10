@@ -101,6 +101,36 @@ describe("createAgentTurnTracer", () => {
     ).toBeNull();
   });
 
+  it("creates a complete browser trace for remote-only recording", async () => {
+    const fetch = createMockFetch();
+    const tracer = createAgentTurnTracer({
+      sessionId: "session-1",
+      fetch,
+      getAgentsConfig: () => ({
+        ...agentsConfig,
+        collectorEndpoint: "https://collector.example",
+        allowLocalTraces: false,
+        allowRemoteExport: true,
+      }),
+      getObservability: () => ({
+        ...observability,
+        storeLocalTraces: false,
+        exportRemoteTraces: true,
+      }),
+      forceFlushTimeoutMs: 0,
+    });
+
+    tracer.startTurn("submit-message");
+    await tracer.fetch("/agents/assistant/sessions/session-1/chat", {
+      method: "POST",
+    });
+
+    expect(readTraceparent(fetch.mock.calls[0]?.[1])).toMatch(
+      /^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/
+    );
+    await tracer.endTurn();
+  });
+
   it("mirrors the trace context into x-phoenix-* headers that survive traceparent rewrites", async () => {
     const fetch = createMockFetch();
     const tracer = createAgentTurnTracer({
@@ -311,16 +341,16 @@ describe("createAgentTurnTracer", () => {
     expect(secondToolSpan?.status.code).toBe(SpanStatusCode.OK);
   });
 
-  it("exports only PXI browser spans with registered projects by project", async () => {
-    const exportedSpansByProjectName = new Map<string, ReadableSpan[]>();
-    const projectNameByTraceId = new Map([
-      ["trace-local", "assistant_agent"],
-      ["trace-other", "other_agent"],
+  it("exports only registered PXI browser spans by destination", async () => {
+    const exportedSpansByDestination = new Map<string, ReadableSpan[]>();
+    const destinationByTraceId = new Map([
+      ["trace-local", { ingestTraces: true, exportRemoteTraces: false }],
+      ["trace-remote", { ingestTraces: false, exportRemoteTraces: true }],
     ]);
-    const createExporter = vi.fn((projectName: string): SpanExporter => {
+    const createExporter = vi.fn((destination): SpanExporter => {
       return {
         export(spans, resultCallback) {
-          exportedSpansByProjectName.set(projectName, spans);
+          exportedSpansByDestination.set(JSON.stringify(destination), spans);
           resultCallback({ code: ExportResultCode.SUCCESS });
         },
         shutdown: async () => undefined,
@@ -328,7 +358,7 @@ describe("createAgentTurnTracer", () => {
     });
     const exporter = new PxiRootSpanExporter(
       createExporter,
-      (span) => projectNameByTraceId.get(span.spanContext().traceId) ?? null
+      (span) => destinationByTraceId.get(span.spanContext().traceId) ?? null
     );
     const resultCallback = vi.fn();
 
@@ -347,9 +377,9 @@ describe("createAgentTurnTracer", () => {
         "openinference.span.kind": "TOOL",
       },
     });
-    const otherProjectSpan = createReadableSpan({
+    const remoteSpan = createReadableSpan({
       name: "pxi.turn",
-      traceId: "trace-other",
+      traceId: "trace-remote",
     });
     const unrelatedSpan = createReadableSpan({
       name: "click",
@@ -361,22 +391,31 @@ describe("createAgentTurnTracer", () => {
         localRootSpan,
         unregisteredRootSpan,
         localToolSpan,
-        otherProjectSpan,
+        remoteSpan,
         unrelatedSpan,
       ],
       resultCallback
     );
 
     expect(createExporter).toHaveBeenCalledTimes(2);
-    expect(createExporter).toHaveBeenCalledWith("assistant_agent");
-    expect(createExporter).toHaveBeenCalledWith("other_agent");
-    expect(exportedSpansByProjectName.get("assistant_agent")).toEqual([
-      localRootSpan,
-      localToolSpan,
-    ]);
-    expect(exportedSpansByProjectName.get("other_agent")).toEqual([
-      otherProjectSpan,
-    ]);
+    expect(createExporter).toHaveBeenCalledWith({
+      ingestTraces: true,
+      exportRemoteTraces: false,
+    });
+    expect(createExporter).toHaveBeenCalledWith({
+      ingestTraces: false,
+      exportRemoteTraces: true,
+    });
+    expect(
+      exportedSpansByDestination.get(
+        JSON.stringify({ ingestTraces: true, exportRemoteTraces: false })
+      )
+    ).toEqual([localRootSpan, localToolSpan]);
+    expect(
+      exportedSpansByDestination.get(
+        JSON.stringify({ ingestTraces: false, exportRemoteTraces: true })
+      )
+    ).toEqual([remoteSpan]);
     expect(resultCallback).toHaveBeenCalledWith({
       code: ExportResultCode.SUCCESS,
     });
@@ -390,7 +429,7 @@ describe("createAgentTurnTracer", () => {
         },
         shutdown: async () => undefined,
       }),
-      () => "assistant_agent"
+      () => ({ ingestTraces: true, exportRemoteTraces: false })
     );
     const resultCallback = vi.fn();
 
