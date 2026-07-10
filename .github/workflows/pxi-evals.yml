@@ -28,7 +28,9 @@ env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
   PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
-  PXI_EVAL_RESULTS_PATH: ${{ github.workspace }}/pxi-eval-results.json
+  PXI_EVAL_INITIAL_RESULTS_PATH: ${{ github.workspace }}/pxi-eval-results-initial.json
+  PXI_EVAL_RETRY_RESULTS_PATH: ${{ github.workspace }}/pxi-eval-results-retry.json
+  PXI_EVAL_RETRY_NODEIDS_PATH: ${{ github.workspace }}/pxi-eval-retry-nodeids.txt
 
 jobs:
   regression:
@@ -91,15 +93,20 @@ jobs:
             exit 1
           fi
       - name: Run PXI eval suite
+        id: initial
         shell: bash
         env:
           PXI_RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'regression' }}
+          PXI_EVAL_RESULTS_PATH: ${{ env.PXI_EVAL_INITIAL_RESULTS_PATH }}
         run: |
           set -uo pipefail
 
           # Start from a clean artifact so the gate reads this run's results,
           # never a leftover from the workspace.
-          rm -f "${PXI_EVAL_RESULTS_PATH}"
+          rm -f \
+            "${PXI_EVAL_INITIAL_RESULTS_PATH}" \
+            "${PXI_EVAL_RETRY_RESULTS_PATH}" \
+            "${PXI_EVAL_RETRY_NODEIDS_PATH}"
 
           # full collection (no -m) is the only mode that prune-syncs the
           # Phoenix dataset; -m regression matches the PR cost profile and
@@ -115,74 +122,80 @@ jobs:
           pytest_rc=$?
           set -e
           echo "pytest exited ${pytest_rc} — the gate step decides the job, not this exit code."
+      - name: Plan targeted behavioral retry
+        id: retry_plan
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # Planning validates the initial artifact and emits only node IDs
+          # carrying assessable misses in gating cells. An invalid run emits an
+          # empty file and is classified by the final gate as unmeasurable.
+          set +e
+          uv run python -m evals.pxi.gate \
+            "${PXI_EVAL_INITIAL_RESULTS_PATH}" \
+            --thresholds evals/pxi/thresholds.yaml \
+            --retry-nodeids-out "${PXI_EVAL_RETRY_NODEIDS_PATH}"
+          plan_rc=$?
+          set -e
+
+          if [[ "${plan_rc}" -eq 0 && -s "${PXI_EVAL_RETRY_NODEIDS_PATH}" ]]; then
+            echo "retry=true" >> "${GITHUB_OUTPUT}"
+            echo "Targeted retry required for:"
+            sed 's/^/  - /' "${PXI_EVAL_RETRY_NODEIDS_PATH}"
+          else
+            echo "retry=false" >> "${GITHUB_OUTPUT}"
+            echo "No targeted behavioral retry will run (planning exit ${plan_rc})."
+          fi
+      - name: Retry initial behavioral misses
+        if: always() && steps.retry_plan.outputs.retry == 'true'
+        shell: bash
+        env:
+          PXI_EVAL_RESULTS_PATH: ${{ env.PXI_EVAL_RETRY_RESULTS_PATH }}
+        run: |
+          set -uo pipefail
+
+          mapfile -t retry_nodeids < "${PXI_EVAL_RETRY_NODEIDS_PATH}"
+          echo "Retrying ${#retry_nodeids[@]} failed pytest node ID(s) once."
+          set +e
+          uv run pytest \
+            -c evals/pxi/pytest.ini \
+            -n auto \
+            "${retry_nodeids[@]}"
+          pytest_rc=$?
+          set -e
+          echo "retry pytest exited ${pytest_rc} — the final gate reconciles both artifacts."
       - name: Gate results and render report
         if: always()
         shell: bash
         run: |
           set -uo pipefail
 
-          results="${PXI_EVAL_RESULTS_PATH}"
+          initial_results="${PXI_EVAL_INITIAL_RESULTS_PATH}"
+          retry_results="${PXI_EVAL_RETRY_RESULTS_PATH}"
           step_summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
           report_dir="${RUNNER_TEMP}/pxi-eval-reports"
           mkdir -p "${report_dir}"
+          report_md="${report_dir}/pxi-eval-summary.md"
 
-          # gate.py is the sole decider: it fails closed on a missing, partial,
-          # or dirty-session artifact before any pass-rate comparison, so it must
-          # run even when pytest exited nonzero above.
+          gate_args=(
+            "${initial_results}"
+            --thresholds evals/pxi/thresholds.yaml
+            --report-out "${report_md}"
+          )
+          if [[ "${{ steps.retry_plan.outputs.retry }}" == "true" ]]; then
+            gate_args+=(--retry-artifact "${retry_results}")
+          fi
+
+          # gate.py is the sole decider. Exit 1 requires the same assessable
+          # evaluator miss on both attempts and a threshold breach. Exit 2 is
+          # reserved for an unmeasurable run and never masquerades as regression.
           set +e
-          gate_output="$(uv run python -m evals.pxi.gate "${results}" --thresholds evals/pxi/thresholds.yaml 2>&1)"
+          gate_output="$(uv run python -m evals.pxi.gate "${gate_args[@]}" 2>&1)"
           gate_rc=$?
           set -e
           echo "${gate_output}"
-
-          short_sha="${GITHUB_SHA::7}"
-          report_md="${report_dir}/pxi-eval-summary.md"
-          {
-            echo "===== BEGIN PXI EVAL REPORT ====="
-            echo ""
-            echo "# PXI Eval Report"
-            echo ""
-            echo "- **Commit**: \`${GITHUB_REF_NAME}\` @ \`${short_sha}\`"
-            echo "- **Run**: ${GITHUB_RUN_ID}"
-            echo ""
-            echo '```'
-            echo "${gate_output}"
-            echo '```'
-            echo ""
-            if [[ -f "${results}" ]] &&
-              pass_rates="$(
-                jq -r '
-                  .datasets[] | .dataset as $d
-                  | .evaluators[] | .evaluator as $e
-                  | .splits | to_entries[]
-                  | "| `\($d)` | `\($e)` | \(.key) | \(.value.passed)/\(.value.scored) | \((.value.pass_rate*1000|round)/1000) |"
-                ' "${results}"
-              )" &&
-              session_summary="$(
-                jq -r '.session | "status \(.status), collected \(.collected), completed \(.completed), errors \(.errors)"' "${results}"
-              )"; then
-              echo "## Pass rates"
-              echo ""
-              echo "| Dataset | Evaluator | Split | Passed | Pass rate |"
-              echo "| --- | --- | --- | --- | --- |"
-              echo "${pass_rates}"
-              echo ""
-              echo "Session: ${session_summary}"
-              echo ""
-            elif [[ -f "${results}" ]]; then
-              echo "Results artifact exists, but its pass-rate details could not be rendered."
-              echo ""
-            else
-              echo "No results artifact was written — the run failed before recording any data."
-              echo ""
-            fi
-            echo "Per-example failure detail and agent traces live in the Phoenix UI:"
-            echo "open the dataset under test and pick this run's experiment — the most"
-            echo "recent one matching the run's branch and time. The results artifact is"
-            echo "uploaded as \`pxi-eval-reports-${GITHUB_RUN_ID}\`."
-            echo ""
-            echo "===== END PXI EVAL REPORT ====="
-          } > "${report_md}"
 
           if [[ "${gate_rc}" -ne 0 ]]; then
             # Embed the report in the job log under ::stop-commands:: so a payload
@@ -200,9 +213,9 @@ jobs:
             # a threshold. Keep the two annotations distinct so a "couldn't
             # measure" run doesn't read as a regression to hunt for.
             if [[ "${gate_rc}" -eq 2 ]]; then
-              echo "::error title=PXI eval could not be measured::The PXI eval gate could not measure a pass rate (exit 2): the results artifact was missing, invalid, partial, from a dirty session, or recording was not bootstrapped. This is not a measured regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+              echo "::error title=PXI eval unmeasurable::The PXI eval gate is unmeasurable (exit 2): an artifact was missing, invalid, partial, or a gating cell had zero assessable rows. This is not an agent regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
             else
-              echo "::error title=PXI eval gate failed: regression measured::The PXI eval gate measured a pass-rate regression (exit 1). Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+              echo "::error title=PXI confirmed regression::The same assessable evaluator failure occurred on both attempts and breached policy (exit 1). The digest names every example and links both Phoenix experiments. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
             fi
           fi
 
@@ -214,11 +227,12 @@ jobs:
             echo "## PXI Regression Evals"
             echo ""
             if [[ "${gate_rc}" -eq 0 ]]; then
-              echo "**Result: ✅ gate passed**"
+              result_line="$(grep -m1 '^\*\*Result:' "${report_md}" || true)"
+              echo "${result_line:-**Result: ✅ gate passed**}"
             elif [[ "${gate_rc}" -eq 2 ]]; then
-              echo "**Result: ⚠️ gate could not measure (invalid or missing artifact)**"
+              echo "**Result: ⚠️ gate unmeasurable (not a regression)**"
             else
-              echo "**Result: ❌ gate failed: regression measured**"
+              echo "**Result: ❌ confirmed regression**"
             fi
             echo ""
             if [[ "${report_bytes}" -lt "${summary_embed_budget}" ]]; then
@@ -240,6 +254,8 @@ jobs:
         with:
           name: pxi-eval-reports-${{ github.run_id }}
           path: |
-            ${{ env.PXI_EVAL_RESULTS_PATH }}
+            ${{ env.PXI_EVAL_INITIAL_RESULTS_PATH }}
+            ${{ env.PXI_EVAL_RETRY_RESULTS_PATH }}
+            ${{ env.PXI_EVAL_RETRY_NODEIDS_PATH }}
             ${{ runner.temp }}/pxi-eval-reports/
           if-no-files-found: ignore

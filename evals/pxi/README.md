@@ -127,8 +127,11 @@ turn.
 The whole dataset tree also runs as parametrized pytest tests, each example a
 `@pytest.mark.phoenix` item recorded to a Phoenix experiment. The tests never
 assert: they record one datapoint per `(example, evaluator)` to a
-`pxi-eval-results.json` artifact, and a standalone gate decides pass/fail from
-that artifact against `thresholds.yaml`. This is what CI runs.
+schema-4 JSON artifact, and a standalone gate decides pass/fail against
+`thresholds.yaml`. Raw rows retain the stable pytest node ID and evaluator
+evidence. Aggregate `scored`/`assessed` counts include only numeric evaluator
+verdicts; provider, setup, and evaluator errors are counted separately as
+`infra`. This is what CI runs.
 
 ```bash
 # Run the regression split and write pxi-eval-results.json
@@ -136,6 +139,16 @@ uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
 
 # Decide pass/fail (exit nonzero on a breach or an invalid/partial run)
 uv run python -m evals.pxi.gate pxi-eval-results.json --thresholds evals/pxi/thresholds.yaml
+
+# CI's two-attempt flow: plan exact node IDs, run them into a second artifact,
+# then reconcile the same evaluator verdict across both attempts.
+uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+  --retry-nodeids-out pxi-eval-retry-nodeids.txt
+mapfile -t retry_nodeids < pxi-eval-retry-nodeids.txt
+PXI_EVAL_RESULTS_PATH=pxi-eval-results-retry.json \
+  uv run pytest -c evals/pxi/pytest.ini "${retry_nodeids[@]}"
+uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+  --retry-artifact pxi-eval-results-retry.json
 ```
 
 `pytest.ini` is a complete, self-contained config: `pytest -c <file>` replaces
@@ -156,14 +169,14 @@ lenient; `val` is recorded but non-gating. Relaxing a threshold lowers the
 gate's bar, so call it out in the PR description rather than bundling it with
 unrelated edits.
 
-The gate also **fails closed on an incomplete run**: a missing, malformed, or
-partial `pxi-eval-results.json` (collection/setup errors, fewer completed items
-than collected, or a nonzero pytest session status) exits nonzero before any
-threshold is compared, so "the gate passed" always means "a complete run
-passed". When `PHOENIX_API_KEY` is set (i.e. CI), it additionally fails closed
-if the plugin recorded nothing — bootstrap failure degrades to a warning in the
-plugin, so without this a green gate could mean "recorded nothing to Phoenix".
-Local runs with no key skip this check, since recording is optional there.
+The gate also **fails closed on an unmeasurable run** with exit 2: a missing,
+malformed, partial, or dirty artifact; a targeted retry that omitted or added a
+node ID; or a gating cell with zero assessable rows. These outcomes are labeled
+unmeasurable, not regression. When `PHOENIX_API_KEY` is set (i.e. CI), the gate
+also fails closed if the plugin recorded nothing — bootstrap failure degrades
+to a warning in the plugin, so without this a green gate could mean "recorded
+nothing to Phoenix". Local runs with no key skip this check, since recording is
+optional there.
 
 ### Regression gate vs. full-collection sync
 
@@ -404,12 +417,14 @@ Phoenix Cloud. It runs on PRs that change `evals/**` or
 the Actions tab.
 
 On a PR the job runs `pytest evals/pxi -c evals/pxi/pytest.ini -m regression`
-to record `pxi-eval-results.json`, then `python -m evals.pxi.gate` decides the
-job's red/green from that artifact against `thresholds.yaml`. The gate runs
-even when pytest exits nonzero, so a crashed or partial run fails closed rather
-than passing on incomplete data. Phoenix connectivity is checked up front so an
-unreachable collector reports as an infrastructure failure rather than a pile
-of agent setup errors.
+to record the initial artifact. The gate then emits the exact node IDs for
+assessable misses in gating cells. Only those nodes run once more into a
+separate retry artifact, and the final gate reconciles both artifacts. A retry
+pass is a green **flaky recovery**. Exit 1 requires the same evaluator miss to
+remain assessable on both attempts and the reconciled cell to breach its fixed
+threshold. Infrastructure rows never enter the pass-rate denominator. The gate
+runs even when pytest exits nonzero, so a crashed or partial run exits 2 rather
+than passing or masquerading as agent regression.
 
 A manual `workflow_dispatch` run takes a `mode` input:
 
@@ -426,9 +441,11 @@ coding agent) consume it:
 
 1. **Job log (primary, agents).** When the gate fails, the report is embedded
    in the log under a collapsed `PXI EVAL REPORT (agent-readable)` group,
-   wrapped in `===== BEGIN/END PXI EVAL REPORT =====` sentinels and a
-   `::stop-commands::` block. It carries the gate's exact breach list, the
-   per-`(dataset, evaluator, split)` pass-rate table, and session health.
+   in the log under a collapsed `PXI EVAL REPORT (agent-readable)` group and a
+   `::stop-commands::` block. It names every confirmed, flaky, and infrastructure
+   example; includes both attempts' evaluator labels, scores, and explanations;
+   preserves the pytest node ID; and links the initial and retry Phoenix
+   experiments. It also carries the reconciled per-cell denominator and policy.
    Retrieval from a red check is two commands:
 
    ```bash
@@ -436,15 +453,14 @@ coding agent) consume it:
    gh run view <run-id> --log-failed  # the agent-readable report
    ```
 
-   For the specific failing examples (inputs, the agent's tool calls,
-   per-evaluator explanations, and a trace link), open the Phoenix UI: find the
-   dataset under test and pick this run's experiment — the most recent one
-   matching the PR branch and run time. (The `Run PXI eval suite` step log
-   confirms how many experiments were recorded but does not print their URLs.)
+   Follow either Phoenix link in the digest for the full input, agent output,
+   tool calls, annotations, and traces. The digest itself is sufficient to hand
+   to a coding agent without reconstructing attempt membership from raw logs.
 2. **Step summary (humans).** The run's summary page shows the gate verdict and
    the same report inside a `<details>` block for browser copy-paste.
-3. **Artifact (programmatic).** `pxi-eval-results.json` and the rendered report
-   are uploaded as the `pxi-eval-reports-<run-id>` artifact on every run:
+3. **Artifact (programmatic).** The initial artifact, optional retry artifact,
+   exact retry-node list, and rendered digest are uploaded as the
+   `pxi-eval-reports-<run-id>` artifact on every run:
 
    ```bash
    gh run download <run-id> -n pxi-eval-reports-<run-id>
