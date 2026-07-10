@@ -291,7 +291,6 @@ px.describe(
         px.logAnnotation({
           name: "user_friction",
           label: result.label,
-          score: result.score,
           explanation: result.explanation,
           annotatorKind: "LLM",
         });
