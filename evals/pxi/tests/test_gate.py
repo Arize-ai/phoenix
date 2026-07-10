@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from evals.pxi import conftest as recorder
 from evals.pxi import gate
 
 # Recording that is present and consistent, so the recording fail-closed check
@@ -23,17 +24,24 @@ VALID_RECORDING = {"expected": False, "bootstrapped": False, "experiments": 0, "
 
 def _evaluator(name: str, *, scored: int, passed: int, split: str = "dev") -> dict[str, Any]:
     rate = passed / scored if scored else 0.0
+    stats = {
+        "rows": scored,
+        "assessed": scored,
+        "scored": scored,
+        "infra": 0,
+        "passed": passed,
+        "failed": scored - passed,
+        "pass_rate": rate,
+    }
     return {
         "evaluator": name,
-        "scored": scored,
-        "passed": passed,
-        "pass_rate": rate,
-        "splits": {split: {"scored": scored, "passed": passed, "pass_rate": rate}},
+        **stats,
+        "splits": {split: stats},
     }
 
 
 def _artifact(
-    *, completed: int, datasets: list[dict[str, Any]], schema_version: int = 3
+    *, completed: int, datasets: list[dict[str, Any]], schema_version: int = 4
 ) -> dict[str, Any]:
     # collected == completed keeps the partial-completion check quiet, so only
     # the path under test can fail.
@@ -66,15 +74,15 @@ def test_fewer_scored_rows_than_completed_fails_closed(tmp_path: Path) -> None:
     assert _run_gate(tmp_path, artifact) == gate.EXIT_INVALID
 
 
-def test_wellformed_schema3_artifact_passes(tmp_path: Path) -> None:
+def test_wellformed_schema4_artifact_passes(tmp_path: Path) -> None:
     datasets = [{"dataset": "d1", "evaluators": [_evaluator("e1", scored=2, passed=2)]}]
     artifact = _artifact(completed=2, datasets=datasets)
     assert _run_gate(tmp_path, artifact) == gate.EXIT_OK
 
 
-def test_schema_version_2_is_rejected(tmp_path: Path) -> None:
+def test_schema_version_3_is_rejected(tmp_path: Path) -> None:
     datasets = [{"dataset": "d1", "evaluators": [_evaluator("e1", scored=2, passed=2)]}]
-    artifact = _artifact(completed=2, datasets=datasets, schema_version=2)
+    artifact = _artifact(completed=2, datasets=datasets, schema_version=3)
     assert _run_gate(tmp_path, artifact) == gate.EXIT_INVALID
 
 
@@ -96,3 +104,56 @@ def test_valid_artifact_below_threshold_returns_breach(tmp_path: Path) -> None:
     datasets = [{"dataset": "d1", "evaluators": [_evaluator("e1", scored=2, passed=0)]}]
     artifact = _artifact(completed=2, datasets=datasets)
     assert _run_gate(tmp_path, artifact, min_pass_rate=0.5) == gate.EXIT_BREACH
+
+
+def test_artifact_aggregates_assessed_and_infra_rows_separately(
+    monkeypatch: Any,
+) -> None:
+    rows = [
+        {
+            "dataset": "d1",
+            "example_id": "pass",
+            "nodeid": "test.py::test_eval[pass]",
+            "evaluator": "e1",
+            "split": "regression",
+            "score": 1.0,
+            "passed": True,
+        },
+        {
+            "dataset": "d1",
+            "example_id": "miss",
+            "nodeid": "test.py::test_eval[miss]",
+            "evaluator": "e1",
+            "split": "regression",
+            "score": 0.0,
+            "passed": False,
+            "label": "missing_required",
+            "explanation": "Required tool was not called",
+        },
+        {
+            "dataset": "d1",
+            "example_id": "provider-error",
+            "nodeid": "test.py::test_eval[provider-error]",
+            "evaluator": "e1",
+            "split": "regression",
+            "score": None,
+            "passed": False,
+            "task_error": "HTTP 520 from provider",
+        },
+    ]
+    monkeypatch.setattr(recorder, "_rows", rows)
+
+    artifact = recorder._build_artifact(0, VALID_RECORDING)
+
+    assert artifact["schema_version"] == 4
+    assert artifact["rows"] == rows
+    stats = artifact["datasets"][0]["evaluators"][0]["splits"]["regression"]
+    assert stats == {
+        "rows": 3,
+        "assessed": 2,
+        "scored": 2,
+        "infra": 1,
+        "passed": 1,
+        "failed": 1,
+        "pass_rate": 0.5,
+    }

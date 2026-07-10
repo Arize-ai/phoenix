@@ -14,12 +14,12 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from phoenix.client.pytest import evaluate, log_output
 
 from evals.pxi.evaluators import EVALUATORS_BY_NAME
 from evals.pxi.harness.agent_task import run_pxi_example
 from evals.pxi.harness.datasets import DATASETS_DIR, load_dataset
 from evals.pxi.harness.reporting import PASSING_SCORE
+from phoenix.client.pytest import evaluate, log_output
 
 
 @dataclass(frozen=True)
@@ -89,6 +89,20 @@ def _result_score(result: Any) -> float | None:
     return None
 
 
+def _result_details(result: Any) -> dict[str, Any]:
+    """Return JSON-safe evaluator evidence from the first emitted score."""
+    if isinstance(result, (list, tuple)):
+        result = result[0] if result else None
+    details: dict[str, Any] = {"score": _result_score(result)}
+    for key in ("label", "explanation", "metadata"):
+        value = getattr(result, key, None)
+        if value is None and isinstance(result, dict):
+            value = result.get(key)
+        if value is not None:
+            details[key] = value
+    return details
+
+
 @pytest.mark.parametrize("case", _load_cases())
 async def test_pxi_eval(
     case: EvalCase,
@@ -108,20 +122,25 @@ async def test_pxi_eval(
     # output would make an infrastructure error indistinguishable from a real
     # regression, so skip evaluation and emit one placeholder row per evaluator
     # (score None, passed False). Emitting one row per evaluator keeps the
-    # aggregate ``scored`` denominator identical to the scored path.
+    # infrastructure visible while excluding it from the behavioral denominator.
     task_error = result.get("error")
     for evaluator_name in case.evaluator_names:
+        evaluator_error = None
+        details: dict[str, Any] = {"score": None}
         if task_error:
-            score = None
             passed = False
         else:
-            eval_result = evaluate(
-                EVALUATORS_BY_NAME[evaluator_name],
-                output=result,
-                expected=case.expected,
-                input=case.input,
-            )
-            score = _result_score(eval_result)
+            try:
+                eval_result = evaluate(
+                    EVALUATORS_BY_NAME[evaluator_name],
+                    output=result,
+                    expected=case.expected,
+                    input=case.input,
+                )
+                details = _result_details(eval_result)
+            except Exception as exc:  # evaluator failure is unassessable infrastructure
+                evaluator_error = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+            score = details["score"]
             # Same passing rule reporting.py applies to Phoenix annotations, so
             # the gate and the Phoenix UI agree on which evaluations passed.
             passed = score is not None and score >= PASSING_SCORE
@@ -131,9 +150,11 @@ async def test_pxi_eval(
             "nodeid": nodeid,
             "evaluator": evaluator_name,
             "split": case.split,
-            "score": score,
+            **details,
             "passed": passed,
         }
         if task_error:
             row["task_error"] = task_error
+        if evaluator_error:
+            row["evaluator_error"] = evaluator_error
         record_property("pxi_eval", json.dumps(row))

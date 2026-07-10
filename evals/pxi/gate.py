@@ -34,8 +34,8 @@ def _validate_artifact(artifact: Any) -> list[str]:
         return ["artifact is not a JSON object"]
 
     errors: list[str] = []
-    if artifact.get("schema_version") != 3:
-        errors.append(f"unexpected schema_version {artifact.get('schema_version')!r} (want 3)")
+    if artifact.get("schema_version") != 4:
+        errors.append(f"unexpected schema_version {artifact.get('schema_version')!r} (want 4)")
 
     session = artifact.get("session")
     if not isinstance(session, dict):
@@ -64,10 +64,10 @@ def _validate_artifact(artifact: Any) -> list[str]:
         # rows than completed examples means evaluations silently dropped (an
         # id-rewrite bug that skips scoring, say). The per-split pass-rate check
         # can't catch it -- an empty or short datasets list has nothing to fail.
-        total_scored = _total_scored(datasets)
-        if total_scored < session["completed"]:
+        total_rows = _total_rows(datasets)
+        if total_rows < session["completed"]:
             errors.append(
-                f"only {total_scored} evaluator row(s) scored for "
+                f"only {total_rows} evaluator row(s) recorded for "
                 f"{session['completed']} completed example(s); expected at least "
                 f"one row per completed example"
             )
@@ -87,8 +87,8 @@ def _validate_artifact(artifact: Any) -> list[str]:
     return errors
 
 
-def _total_scored(datasets: list[Any]) -> int:
-    """Sum ``scored`` over every (dataset, evaluator, split) in the aggregate.
+def _total_rows(datasets: list[Any]) -> int:
+    """Sum raw rows over every (dataset, evaluator, split) in the aggregate.
 
     Tolerates a malformed entry by skipping it: a dropped or non-integer count
     lowers the total, which fails the shortfall check closed rather than raising.
@@ -101,9 +101,9 @@ def _total_scored(datasets: list[Any]) -> int:
             if not isinstance(splits, dict):
                 continue
             for stats in splits.values():
-                scored = stats.get("scored") if isinstance(stats, dict) else None
-                if isinstance(scored, int):
-                    total += scored
+                rows = stats.get("rows") if isinstance(stats, dict) else None
+                if isinstance(rows, int):
+                    total += rows
     return total
 
 
