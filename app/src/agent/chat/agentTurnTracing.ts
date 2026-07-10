@@ -139,7 +139,10 @@ export class PxiRootSpanExporter implements SpanExporter {
       if (!destination) {
         continue;
       }
-      const key = JSON.stringify(destination);
+      // PxiTraceDestination has exactly two boolean fields, so this key
+      // covers all reachable destinations without relying on JSON.stringify
+      // key-order stability.
+      const key = `${destination.ingestTraces}:${destination.exportRemoteTraces}`;
       const group = spansByDestination.get(key) ?? { destination, spans: [] };
       group.spans.push(span);
       spansByDestination.set(key, group);

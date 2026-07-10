@@ -101,8 +101,10 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatus,
     get_sandbox_backend_info,
 )
+from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
+from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -793,9 +795,21 @@ async def _decode_pxi_otlp_request(
     *, body: bytes, content_encoding: str | None
 ) -> ExportTraceServiceRequest:
     if content_encoding == "gzip":
-        body = await run_in_threadpool(gzip.decompress, body)
+        try:
+            body = await run_in_threadpool(gzip.decompress, body)
+        except OSError as exc:
+            raise HTTPException(
+                status_code=415,
+                detail="Request body is not valid gzip-encoded data",
+            ) from exc
     elif content_encoding == "deflate":
-        body = await run_in_threadpool(zlib.decompress, body)
+        try:
+            body = await run_in_threadpool(zlib.decompress, body)
+        except zlib.error as exc:
+            raise HTTPException(
+                status_code=415,
+                detail="Request body is not valid deflate-encoded data",
+            ) from exc
     elif content_encoding:
         raise HTTPException(
             status_code=415,
@@ -823,6 +837,20 @@ async def _enqueue_pxi_spans(
                 await state.enqueue_span(span, project_name)
 
 
+_pxi_remote_export_client: httpx.AsyncClient | None = None
+
+
+def _get_pxi_remote_export_client() -> httpx.AsyncClient:
+    # Reused across calls rather than opened/closed per request: this fires
+    # once per browser trace flush, and a fresh client would pay a new
+    # TCP/TLS handshake to the Cloud collector on every flush instead of
+    # reusing a warm connection.
+    global _pxi_remote_export_client
+    if _pxi_remote_export_client is None:
+        _pxi_remote_export_client = httpx.AsyncClient(timeout=_PXI_REMOTE_EXPORT_TIMEOUT_SECONDS)
+    return _pxi_remote_export_client
+
+
 async def _export_pxi_otlp_request(
     *,
     body: bytes,
@@ -841,9 +869,9 @@ async def _export_pxi_otlp_request(
 
     endpoint = normalize_http_collector_endpoint(collector_endpoint) + "/v1/traces"
     try:
-        async with httpx.AsyncClient(timeout=_PXI_REMOTE_EXPORT_TIMEOUT_SECONDS) as client:
-            response = await client.post(endpoint, content=body, headers=headers)
-            response.raise_for_status()
+        client = _get_pxi_remote_export_client()
+        response = await client.post(endpoint, content=body, headers=headers)
+        response.raise_for_status()
     except httpx.HTTPError as exc:
         logger.warning("Failed to relay PXI browser spans to %s: %s", endpoint, exc)
         raise HTTPException(
@@ -879,16 +907,29 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and recording.allow_remote_export
             and collector_endpoint
         )
-        if ingest_traces and request.app.state.span_queue_is_full():
-            raise HTTPException(
-                status_code=503,
-                detail="Server is at capacity and cannot process more requests",
-            )
         body = await request.body()
-        otlp_request = await _decode_pxi_otlp_request(body=body, content_encoding=content_encoding)
+        # PXI traces are always routed to the single configured assistant
+        # project rather than following the header/resource-attribute
+        # precedence generic OTLP ingestion uses: browser-side PXI spans
+        # never carry a project-name resource attribute of their own.
         project_name = get_env_phoenix_agents_assistant_project_name()
 
         if ingest_traces:
+            # Mirror the guards generic OTLP ingestion (`/v1/traces`) applies
+            # before writing spans: refuse local writes once storage is
+            # locked, and count/reject once the span queue is saturated.
+            # Both are scoped to `ingest_traces` since remote-only export
+            # never touches local storage or the local span queue.
+            is_not_locked(request)
+            if request.app.state.span_queue_is_full():
+                SPAN_QUEUE_REJECTIONS.inc()
+                raise HTTPException(
+                    status_code=503,
+                    detail="Server is at capacity and cannot process more requests",
+                )
+            otlp_request = await _decode_pxi_otlp_request(
+                body=body, content_encoding=content_encoding
+            )
             await _enqueue_pxi_spans(
                 otlp_request=otlp_request,
                 state=request.state,

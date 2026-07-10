@@ -29,6 +29,7 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    _decode_pxi_otlp_request,
     _enqueue_pxi_spans,
     _export_pxi_otlp_request,
     _interleave_agent_and_subagent_message_chunks,
@@ -41,6 +42,7 @@ from phoenix.server.api.routers.agents import (
 from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
+from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.settings.registry import AgentTraceRecordingSetting
 from phoenix.server.types import DbSessionFactory, UserId
 from tests.unit.conftest import TestBulkInserter as _TestBulkInserter
@@ -210,6 +212,79 @@ class TestPxiBrowserTraceRelay:
         enqueue.assert_not_awaited()
         export.assert_not_awaited()
 
+    async def test_storage_lock_blocks_local_ingestion_but_not_remote_export(
+        self,
+        app: FastAPI,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        await app.state.system_settings.update_agent_trace_recording(
+            AgentTraceRecordingSetting(
+                allow_local_traces=True,
+                allow_remote_export=True,
+            )
+        )
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://collector.example")
+        monkeypatch.setattr(app.state.db, "should_not_insert_or_update", True)
+        enqueue = AsyncMock()
+        export = AsyncMock()
+        monkeypatch.setattr("phoenix.server.api.routers.agents._enqueue_pxi_spans", enqueue)
+        monkeypatch.setattr("phoenix.server.api.routers.agents._export_pxi_otlp_request", export)
+
+        response = await httpx_client.post(
+            "/agents/traces",
+            content=ExportTraceServiceRequest().SerializeToString(),
+            headers={
+                "content-type": "application/x-protobuf",
+                "x-phoenix-pxi-ingest-traces": "true",
+                "x-phoenix-pxi-export-remote-traces": "false",
+            },
+        )
+
+        assert response.status_code == 507
+        enqueue.assert_not_awaited()
+
+        # A remote-only request is unaffected by the local storage lock.
+        response = await httpx_client.post(
+            "/agents/traces",
+            content=ExportTraceServiceRequest().SerializeToString(),
+            headers={
+                "content-type": "application/x-protobuf",
+                "x-phoenix-pxi-ingest-traces": "false",
+                "x-phoenix-pxi-export-remote-traces": "true",
+            },
+        )
+
+        assert response.status_code == 200
+        export.assert_awaited_once()
+
+    async def test_queue_full_increments_rejection_metric(
+        self,
+        app: FastAPI,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        await app.state.system_settings.update_agent_trace_recording(
+            AgentTraceRecordingSetting(
+                allow_local_traces=True,
+                allow_remote_export=False,
+            )
+        )
+        monkeypatch.setattr(app.state, "span_queue_is_full", lambda: True)
+        rejections_before = SPAN_QUEUE_REJECTIONS._value.get()
+
+        response = await httpx_client.post(
+            "/agents/traces",
+            content=ExportTraceServiceRequest().SerializeToString(),
+            headers={
+                "content-type": "application/x-protobuf",
+                "x-phoenix-pxi-ingest-traces": "true",
+            },
+        )
+
+        assert response.status_code == 503
+        assert SPAN_QUEUE_REJECTIONS._value.get() == rejections_before + 1
+
     async def test_requires_authentication_when_enabled(
         self, pxi_client_with_auth: httpx.AsyncClient
     ) -> None:
@@ -241,6 +316,18 @@ class TestPxiBrowserTraceRelay:
         assert request.content == body
         assert request.headers["authorization"] == "Bearer secret-api-key"
         assert request.headers["x-project-name"] == "pxi_test"
+
+    @pytest.mark.parametrize("content_encoding", ["gzip", "deflate"])
+    async def test_decode_rejects_malformed_compressed_body_with_a_clean_error(
+        self, content_encoding: str
+    ) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await _decode_pxi_otlp_request(
+                body=b"not a valid compressed payload",
+                content_encoding=content_encoding,
+            )
+
+        assert exc_info.value.status_code == 415
 
     async def test_remote_export_failure_is_retryable_by_the_browser(
         self, monkeypatch: pytest.MonkeyPatch
