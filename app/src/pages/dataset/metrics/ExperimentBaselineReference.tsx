@@ -7,7 +7,7 @@ const BASELINE_STROKE_DASHARRAY = "4 4";
 
 const BASELINE_LEGEND_PAYLOAD: ReadonlyArray<LegendPayload> = [
   {
-    value: "Baseline",
+    value: "baseline",
     type: "plainline",
     color: BASELINE_COLOR,
     payload: { strokeDasharray: BASELINE_STROKE_DASHARRAY },
