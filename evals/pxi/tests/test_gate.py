@@ -278,6 +278,107 @@ def test_retry_infra_that_leaves_zero_assessable_rows_is_unmeasurable() -> None:
     assert decision.label == "UNMEASURABLE"
 
 
+def test_task_error_on_first_attempt_is_retried(tmp_path: Path) -> None:
+    """A task error carries no behavioral signal either way -- retry it like a
+    clean miss instead of writing the example off after one try."""
+    first = _artifact([_row("provider-error", passed=False, task_error="HTTP 520")])
+
+    rc, retry_ids, _ = _run_gate(tmp_path, first, planning=True)
+
+    assert rc == gate.EXIT_OK
+    assert retry_ids.read_text().splitlines() == [first["rows"][0]["nodeid"]]
+
+
+def test_task_error_recovers_on_retry() -> None:
+    first = _artifact([_row("provider-error", passed=False, task_error="HTTP 520")])
+    retry = _artifact([_row("provider-error", passed=True)])
+
+    decision = gate.decide(first, _policy(), retry=retry)
+
+    assert decision.exit_code == gate.EXIT_OK
+    assert decision.label == "FLAKY RECOVERY"
+    assert decision.cells[0]["assessed"] == 1
+    assert decision.cells[0]["passed"] == 1
+
+
+def test_recurring_task_error_is_unmeasurable_not_a_regression() -> None:
+    """Two independent failures to execute still can't be attributed to the
+    agent -- report it plainly and keep it out of the pass-rate math, never as
+    a confirmed regression."""
+    first = _artifact([_row("provider-error", passed=False, task_error="HTTP 520")])
+    retry = _artifact([_row("provider-error", passed=False, task_error="HTTP 520 again")])
+
+    decision = gate.decide(first, _policy(), retry=retry)
+
+    assert decision.exit_code == gate.EXIT_INVALID
+    assert decision.label == "UNMEASURABLE"
+    assert decision.confirmed == []
+    assert [item.reason for item in decision.infra] == ["recurring task error: HTTP 520 again"]
+
+
+def test_task_error_that_executes_and_fails_on_retry_is_a_real_assessed_miss() -> None:
+    """The retry is the only attempt that actually ran the task -- its result
+    is real signal and should count, even though attempt 1 gave none."""
+    first = _artifact([_row("provider-error", passed=False, task_error="HTTP 520")])
+    retry = _artifact(
+        [_row("provider-error", passed=False, explanation="Required tool was not called")]
+    )
+
+    decision = gate.decide(first, _policy(), retry=retry)
+
+    assert decision.exit_code == gate.EXIT_BREACH
+    assert decision.label == "CONFIRMED REGRESSION"
+    assert decision.cells[0]["assessed"] == 1
+    assert decision.cells[0]["failed"] == 1
+
+
+def test_zero_assessable_cell_gets_a_retry_chance_before_unmeasurable(tmp_path: Path) -> None:
+    """A cell whose only row is an unretried task error must not be declared
+    unmeasurable before that row gets its one shot at a real result."""
+    first = _artifact([_row("provider-error", passed=False, task_error="HTTP 520")])
+
+    plan_rc, retry_ids, _ = _run_gate(tmp_path, first, planning=True)
+
+    assert plan_rc == gate.EXIT_OK
+    assert retry_ids.read_text().strip() != ""
+
+
+def test_bystander_evaluator_task_error_on_retry_is_still_reported() -> None:
+    """A retried node reruns every evaluator on it. If the shared task crashes
+    on retry, that crash hits an evaluator that already passed attempt 1 too
+    -- it shouldn't flip that evaluator's verdict, but the crash must still be
+    visible instead of silently vanishing behind the one evaluator being
+    confirmed."""
+    first = _artifact(
+        [
+            _row("example", passed=False, evaluator="tools"),
+            _row("example", passed=True, evaluator="args"),
+            # Keeps the "tools" cell measurable after retry so this test
+            # isolates the bystander-reporting question from the (separately
+            # tested) zero-assessable-cell case.
+            _row("other", passed=True, evaluator="tools"),
+            _row("other", passed=True, evaluator="args"),
+        ]
+    )
+    retry = _artifact(
+        [
+            _row("example", passed=False, evaluator="tools", task_error="TimeoutError"),
+            _row("example", passed=False, evaluator="args", task_error="TimeoutError"),
+        ],
+        collected=1,
+    )
+
+    decision = gate.decide(first, _policy(), retry=retry)
+
+    assert decision.exit_code == gate.EXIT_OK
+    assert {item.first["evaluator"] for item in decision.infra} == {"tools", "args"}
+    # args passed attempt 1 and wasn't part of the retry decision -- its
+    # verdict stands even though the shared retry task crashed.
+    args_cell = next(c for c in decision.cells if c["evaluator"] == "args")
+    assert args_cell["assessed"] == 2
+    assert args_cell["passed"] == 2
+
+
 def test_retry_scope_contains_only_initial_failed_nodeids(tmp_path: Path) -> None:
     first = _artifact([_row("pass", passed=True), _row("fail", passed=False)])
 

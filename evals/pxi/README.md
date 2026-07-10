@@ -131,7 +131,10 @@ schema-4 JSON artifact, and a standalone gate decides pass/fail against
 `thresholds.yaml`. Raw rows retain the stable pytest node ID and evaluator
 evidence. Aggregate `scored`/`assessed` counts include only numeric evaluator
 verdicts; provider, setup, and evaluator errors are counted separately as
-`infra`. This is what CI runs.
+`infra`. A task error (the agent run itself never produced output) gets the
+same one retry as a clean miss, since it carries no reliable signal either
+way; if it recurs, it's reported as a recurring task error and still never
+enters the pass-rate denominator. This is what CI runs.
 
 ```bash
 # Run the regression split and write pxi-eval-results.json
@@ -420,13 +423,14 @@ the Actions tab.
 
 On a PR the job runs `pytest evals/pxi -c evals/pxi/pytest.ini -m regression`
 to record the initial artifact. The gate then emits the exact node IDs for
-assessable misses in gating cells. Only those nodes run once more into a
-separate retry artifact, and the final gate reconciles both artifacts. A retry
-pass is a green **flaky recovery**. Exit 1 requires the same evaluator miss to
-remain assessable on both attempts and the reconciled cell to breach its fixed
-threshold. Infrastructure rows never enter the pass-rate denominator. The gate
-runs even when pytest exits nonzero, so a crashed or partial run exits 2 rather
-than passing or masquerading as agent regression.
+assessable misses and task errors in gating cells. Only those nodes run once
+more into a separate retry artifact, and the final gate reconciles both
+artifacts. A retry pass is a green **flaky recovery**. Exit 1 requires the
+same evaluator miss to remain assessable on both attempts and the reconciled
+cell to breach its fixed threshold; a task error that recurs is reported as
+unmeasurable, never as a regression. The gate runs even when pytest exits
+nonzero, so a crashed or partial run exits 2 rather than passing or
+masquerading as agent regression.
 
 A manual `workflow_dispatch` run takes a `mode` input:
 

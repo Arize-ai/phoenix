@@ -197,11 +197,23 @@ def _artifact_rows(artifact: Mapping[str, Any]) -> list[dict[str, Any]]:
 def _retryable_rows(
     rows: Iterable[Mapping[str, Any]], policy: Mapping[str, Any]
 ) -> list[Mapping[str, Any]]:
+    """Rows worth a second attempt: clean evaluator misses, and rows whose task
+
+    never produced output at all. A task error carries no behavioral signal
+    either way -- it could be a transient provider hiccup or a genuine agent
+    crash we can't distinguish here -- so give it the same second look as a
+    clean miss rather than writing the example off after one try. Evaluator-side
+    breakage (the task ran, scoring didn't) is a different failure surface and
+    is not retried here.
+    """
     retryable: list[Mapping[str, Any]] = []
     for row in rows:
         dataset, _, evaluator, split = _row_key(row)
         resolved = _resolve_policy(policy, dataset, evaluator, split)
-        if _is_gating(resolved) and _policy_error(resolved) is None and _row_state(row) == "failed":
+        if not (_is_gating(resolved) and _policy_error(resolved) is None):
+            continue
+        state = _row_state(row)
+        if state == "failed" or (state == "infra" and row.get("task_error")):
             retryable.append(row)
     return retryable
 
@@ -222,6 +234,17 @@ def _recording_urls(artifact: Mapping[str, Any]) -> dict[str, str]:
     return urls
 
 
+def _unassessed_reason(row: Mapping[str, Any]) -> str:
+    """Describe why a row couldn't be scored, without guessing at blame."""
+    task_error = row.get("task_error")
+    if task_error:
+        return f"task error: {task_error}"
+    evaluator_error = row.get("evaluator_error")
+    if evaluator_error:
+        return f"evaluator error: {evaluator_error}"
+    return "no finite numeric score recorded"
+
+
 def _infra_evidence(rows: Iterable[Mapping[str, Any]]) -> list[Evidence]:
     evidence: list[Evidence] = []
     seen: set[tuple[str, str, str, str]] = set()
@@ -231,11 +254,7 @@ def _infra_evidence(rows: Iterable[Mapping[str, Any]]) -> list[Evidence]:
         # Task errors repeat once per evaluator. One entry per example/error is
         # enough; evaluator errors remain evaluator-specific.
         evaluator = "*" if row.get("task_error") else str(row.get("evaluator", "unknown"))
-        reason = str(
-            row.get("task_error")
-            or row.get("evaluator_error")
-            or "evaluation produced no finite numeric score"
-        )
+        reason = _unassessed_reason(row)
         key = (str(row.get("dataset")), str(row.get("example_id")), evaluator, reason)
         if key in seen:
             continue
@@ -244,20 +263,33 @@ def _infra_evidence(rows: Iterable[Mapping[str, Any]]) -> list[Evidence]:
     return evidence
 
 
-def _group_cells(rows: Iterable[Mapping[str, Any]]) -> dict[tuple[str, str, str], list[RowState]]:
-    cells: dict[tuple[str, str, str], list[RowState]] = {}
+def _group_cells(
+    rows: Iterable[Mapping[str, Any]],
+) -> dict[tuple[str, str, str], list[Mapping[str, Any]]]:
+    cells: dict[tuple[str, str, str], list[Mapping[str, Any]]] = {}
     for row in rows:
-        cells.setdefault(_cell_key(row), []).append(_row_state(row))
+        cells.setdefault(_cell_key(row), []).append(row)
     return cells
 
 
 def _evaluate_cells(
-    rows: Sequence[Mapping[str, Any]], policy: Mapping[str, Any]
+    rows: Sequence[Mapping[str, Any]],
+    policy: Mapping[str, Any],
+    retryable_keys: frozenset[RowKey] = frozenset(),
 ) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """Resolve each (dataset, evaluator, split) cell against threshold policy.
+
+    ``retryable_keys`` defers the zero-assessable-rows verdict for a cell whose
+    only rows are still-retryable task errors: those examples haven't had
+    their one shot at producing a real result yet, so calling the cell
+    unmeasurable before retry runs would deny them that chance. Pass the
+    default (empty) once retry has already happened (or was never available)
+    -- at that point zero assessable rows is a final verdict, not a pending one.
+    """
     cells_out: list[dict[str, Any]] = []
     breaches: list[str] = []
     invalid: list[str] = []
-    for (dataset, evaluator, split), states in sorted(_group_cells(rows).items()):
+    for (dataset, evaluator, split), cell_rows in sorted(_group_cells(rows).items()):
         where = f"{dataset} / {evaluator} / {split}"
         resolved = _resolve_policy(policy, dataset, evaluator, split)
         policy_error = _policy_error(resolved)
@@ -265,6 +297,7 @@ def _evaluate_cells(
             invalid.append(f"{where}: {policy_error}")
             continue
         assert resolved is not None
+        states = [_row_state(row) for row in cell_rows]
         assessed = sum(state != "infra" for state in states)
         infra = sum(state == "infra" for state in states)
         passed = sum(state == "passed" for state in states)
@@ -286,7 +319,9 @@ def _evaluate_cells(
         if not gating:
             continue
         if assessed == 0:
-            invalid.append(f"{where}: zero assessable rows (unmeasurable)")
+            pending_retry = any(_row_key(row) in retryable_keys for row in cell_rows)
+            if not pending_retry:
+                invalid.append(f"{where}: zero assessable rows (unmeasurable)")
             continue
         minimum = float(resolved["min_pass_rate"])
         if pass_rate < minimum:
@@ -329,10 +364,13 @@ def decide(
     first_rows = _artifact_rows(initial)
     retryable = _retryable_rows(first_rows, policy)
     retry_nodeids = tuple(sorted({str(row["nodeid"]) for row in retryable}))
+    retryable_keys = frozenset(_row_key(row) for row in retryable)
 
-    # Policy validity and zero-assessable cells must fail before retry planning:
-    # there is no behavioral signal to confirm in those cells.
-    initial_cells, _, initial_invalid = _evaluate_cells(first_rows, policy)
+    # Policy validity must fail before retry planning: there is no threshold to
+    # confirm against. A cell with zero assessable rows is only a final verdict
+    # if nothing in it is still pending a retry -- a cell that's entirely
+    # unretried task errors gets its one shot before being called unmeasurable.
+    initial_cells, _, initial_invalid = _evaluate_cells(first_rows, policy, retryable_keys)
     if initial_invalid:
         return Decision(
             "UNMEASURABLE",
@@ -387,18 +425,28 @@ def decide(
 
     retry_rows = _artifact_rows(retry)
     retry_by_key = {_row_key(row): row for row in retry_rows}
-    retryable_keys = {_row_key(row) for row in retryable}
     effective_rows: list[Mapping[str, Any]] = []
     confirmed: list[Evidence] = []
     flaky: list[Evidence] = []
-    infra = _infra_evidence(first_rows)
+    # Rows being reconciled below get their final classification from the
+    # retry attempt, not the first one -- exclude them here so each retried
+    # row is reported exactly once.
+    infra = [
+        item for item in _infra_evidence(first_rows) if _row_key(item.first) not in retryable_keys
+    ]
     # A targeted node reruns all of its evaluators. Surface incidental retry
-    # infrastructure even when that evaluator passed initially and therefore
-    # is not part of reconciliation.
+    # infrastructure even for an evaluator that passed (or wasn't a task
+    # error) initially and therefore isn't part of reconciliation below --
+    # including when the shared task itself crashed on retry, since that
+    # crash affects every evaluator on the node, not just the one being
+    # confirmed. Per-row rather than via ``_infra_evidence``: that helper
+    # collapses every evaluator of a task-errored example into one wildcard
+    # entry, which would also swallow the reconciled evaluator's own row and
+    # erase every bystander but the first.
     infra.extend(
-        item
-        for item in _infra_evidence(retry_rows)
-        if _row_key(item.first) not in retryable_keys and not item.first.get("task_error")
+        Evidence("infra", row, reason=_unassessed_reason(row))
+        for row in retry_rows
+        if _row_state(row) == "infra" and _row_key(row) not in retryable_keys
     )
     for first in first_rows:
         key = _row_key(first)
@@ -424,11 +472,10 @@ def decide(
         elif state == "failed":
             confirmed.append(Evidence("confirmed", first, retry=second))
         else:
-            reason = str(
-                second.get("task_error")
-                or second.get("evaluator_error")
-                or "retry produced no finite numeric score"
-            )
+            if first.get("task_error") and second.get("task_error"):
+                reason = f"recurring task error: {second['task_error']}"
+            else:
+                reason = f"retry attempt's {_unassessed_reason(second)}"
             infra.append(Evidence("infra", first, retry=second, reason=reason))
 
     cells, breaches, invalid = _evaluate_cells(effective_rows, policy)
@@ -477,9 +524,8 @@ def _md(value: Any, *, limit: int = 240) -> str:
 def _row_details(row: Mapping[str, Any] | None) -> str:
     if row is None:
         return "missing"
-    error = row.get("task_error") or row.get("evaluator_error")
-    if error:
-        return f"infra: {_md(error)}"
+    if row.get("task_error") or row.get("evaluator_error"):
+        return _md(_unassessed_reason(row))
     parts = [f"score={row.get('score')!r}"]
     if row.get("label") is not None:
         parts.append(f"label={_md(row['label'])}")
@@ -540,7 +586,7 @@ def render_digest(
         f"**Result: {decision.label} (exit {decision.exit_code})**",
         "",
         f"Confirmed evaluator misses: {len(decision.confirmed)}; "
-        f"flaky recoveries: {len(decision.flaky)}; infra examples: {len(decision.infra)}.",
+        f"flaky recoveries: {len(decision.flaky)}; not-assessable examples: {len(decision.infra)}.",
     ]
     if decision.errors:
         lines.extend(["", "## Decision details", ""])
@@ -551,7 +597,7 @@ def render_digest(
                 "",
                 "## Gating cells",
                 "",
-                "| Dataset | Evaluator | Split | Assessed | Infra | Passed | Pass rate | Minimum |",
+                "| Dataset | Evaluator | Split | Assessed | Unassessed | Passed | Pass rate | Minimum |",
                 "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
             ]
         )
@@ -565,7 +611,7 @@ def render_digest(
     sections = (
         ("Confirmed regressions", decision.confirmed),
         ("Flaky recoveries", decision.flaky),
-        ("Infrastructure", decision.infra),
+        ("Not assessable", decision.infra),
     )
     for title, evidence in sections:
         if not evidence:
