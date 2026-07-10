@@ -1,5 +1,18 @@
 # Changelog
 
+## [17.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.23.0...arize-phoenix-v17.24.0) (2026-07-10)
+
+
+### Features
+
+* **evals:** move PXI evals to pytest plugin ([#13999](https://github.com/Arize-ai/phoenix/issues/13999)) ([2d5052c](https://github.com/Arize-ai/phoenix/commit/2d5052cd091b7b85ade2ccd29322258819886fae))
+
+
+### Bug Fixes
+
+* **agents:** retry hallucinated native tool calls ([#14185](https://github.com/Arize-ai/phoenix/issues/14185)) ([a6f867e](https://github.com/Arize-ai/phoenix/commit/a6f867ea10cd17b9784b084ee598a9c2ad5f914e))
+* **cost:** update built-in model token prices ([#14196](https://github.com/Arize-ai/phoenix/issues/14196)) ([6f16e4e](https://github.com/Arize-ai/phoenix/commit/6f16e4ead1bab7adafed3b9de223528847f16f92))
+
 ## [17.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.22.0...arize-phoenix-v17.23.0) (2026-07-09)
 
 
