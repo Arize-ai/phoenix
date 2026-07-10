@@ -105,13 +105,21 @@ def session_filter_vocabulary_terms(
         add(
             name=f"annotations[{annotation_subscript}].score",
             value_type=_NUMBER,
-            description=f"Numeric score of the {annotation_subscript} session annotation.",
+            description=(
+                f"Numeric score of the {annotation_subscript} session annotation; null when the "
+                "session lacks this annotation, so comparisons exclude those sessions "
+                "(target them with `is None`)."
+            ),
             category=_ANNOTATION,
         )
         add(
             name=f"annotations[{annotation_subscript}].label",
             value_type=_STRING,
-            description=f"Label of the {annotation_subscript} session annotation.",
+            description=(
+                f"Label of the {annotation_subscript} session annotation; null when the session "
+                "lacks this annotation, so `!=` excludes those sessions "
+                "(target them with `is None`)."
+            ),
             category=_ANNOTATION,
         )
     return list(terms.values())
