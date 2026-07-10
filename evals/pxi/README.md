@@ -183,6 +183,12 @@ to a warning in the plugin, so without this a green gate could mean "recorded
 nothing to Phoenix". Local runs with no key skip this check, since recording is
 optional there.
 
+Past `--retry-cap` examples needing a retry (default 15), the gate skips
+confirm-on-retry entirely and fails on attempt 1 alone: at that scale the
+failure is structural, and confirming each example individually would just
+delay a result that was never in doubt. This is reported as **too many
+failures to confirm**, distinct from a confirmed regression.
+
 ### Regression gate vs. full-collection sync
 
 The marker you pass picks the trade-off:

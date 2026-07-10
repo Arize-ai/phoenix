@@ -31,6 +31,12 @@ EXIT_BREACH = 1
 EXIT_INVALID = 2
 SCHEMA_VERSION = 4
 
+# Past this many examples needing a retry, mass failure is structural, not a
+# coin flip worth confirming individually -- retrying dozens of examples (a
+# second live agent run each) just delays a result that was never in doubt.
+# Ported from PR #13845's ``RETRY_FAILED_CAP``.
+RETRY_FAILED_CAP = 15
+
 RowState = Literal["passed", "failed", "infra"]
 RowKey = tuple[str, str, str, str]
 
@@ -356,21 +362,37 @@ def decide(
     *,
     retry: Mapping[str, Any] | None = None,
     planning: bool = False,
+    retry_cap: int = RETRY_FAILED_CAP,
 ) -> Decision:
     initial_errors = _validate_artifact(initial)
     if initial_errors:
         return Decision("UNMEASURABLE", EXIT_INVALID, errors=initial_errors)
 
     first_rows = _artifact_rows(initial)
-    retryable = _retryable_rows(first_rows, policy)
-    retry_nodeids = tuple(sorted({str(row["nodeid"]) for row in retryable}))
+    all_retryable = _retryable_rows(first_rows, policy)
+    all_retry_nodeids = tuple(sorted({str(row["nodeid"]) for row in all_retryable}))
+
+    retry_skip_reason: str | None = None
+    if len(all_retry_nodeids) > retry_cap:
+        retry_skip_reason = (
+            f"{len(all_retry_nodeids)} example(s) need a retry, exceeding the cap of "
+            f"{retry_cap} -- too many to confirm individually, skipping retry and "
+            "gating on attempt 1 alone"
+        )
+        retryable: Sequence[Mapping[str, Any]] = ()
+        retry_nodeids: tuple[str, ...] = ()
+    else:
+        retryable = all_retryable
+        retry_nodeids = all_retry_nodeids
     retryable_keys = frozenset(_row_key(row) for row in retryable)
 
     # Policy validity must fail before retry planning: there is no threshold to
     # confirm against. A cell with zero assessable rows is only a final verdict
     # if nothing in it is still pending a retry -- a cell that's entirely
     # unretried task errors gets its one shot before being called unmeasurable.
-    initial_cells, _, initial_invalid = _evaluate_cells(first_rows, policy, retryable_keys)
+    initial_cells, initial_breaches, initial_invalid = _evaluate_cells(
+        first_rows, policy, retryable_keys
+    )
     if initial_invalid:
         return Decision(
             "UNMEASURABLE",
@@ -378,7 +400,21 @@ def decide(
             retry_nodeids=retry_nodeids,
             infra=_infra_evidence(first_rows),
             cells=initial_cells,
-            errors=initial_invalid,
+            errors=[*([retry_skip_reason] if retry_skip_reason else []), *initial_invalid],
+        )
+
+    if retry_skip_reason is not None:
+        # retryable_keys is empty here, so initial_cells/initial_breaches above
+        # already reflect a strict (no-deferral) evaluation -- this is the
+        # final verdict, gated on attempt 1 alone.
+        label = "TOO MANY FAILURES TO CONFIRM" if initial_breaches else "PASSED"
+        return Decision(
+            label,
+            EXIT_BREACH if initial_breaches else EXIT_OK,
+            retry_nodeids=(),
+            infra=_infra_evidence(first_rows),
+            cells=initial_cells,
+            errors=[retry_skip_reason, *initial_breaches],
         )
 
     if planning and retry_nodeids:
@@ -661,6 +697,15 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         default=DEFAULT_THRESHOLDS,
         help="Path to thresholds.yaml",
     )
+    parser.add_argument(
+        "--retry-cap",
+        type=int,
+        default=RETRY_FAILED_CAP,
+        help=(
+            "Skip confirm-on-retry and gate on attempt 1 alone once more than this "
+            f"many examples need a retry (default: {RETRY_FAILED_CAP})"
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -690,6 +735,7 @@ def main(argv: list[str] | None = None) -> int:
                 policy,
                 retry=retry,
                 planning=args.retry_nodeids_out is not None,
+                retry_cap=args.retry_cap,
             )
 
     if args.retry_nodeids_out is not None and decision.exit_code != EXIT_INVALID:

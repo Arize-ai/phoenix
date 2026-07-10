@@ -214,6 +214,8 @@ jobs:
             # measure" run doesn't read as a regression to hunt for.
             if [[ "${gate_rc}" -eq 2 ]]; then
               echo "::error title=PXI eval unmeasurable::The PXI eval gate is unmeasurable (exit 2): an artifact was missing, invalid, partial, or a gating cell had zero assessable rows. This is not an agent regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+            elif grep -q '^\*\*Result: TOO MANY FAILURES TO CONFIRM' "${report_md}"; then
+              echo "::error title=PXI eval too many failures to confirm::Too many examples needed a retry to confirm individually, so the gate failed on attempt 1 alone without confirming any single example twice (exit 1). This is a real failure, but not a per-example confirmed regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
             else
               echo "::error title=PXI confirmed regression::The same assessable evaluator failure occurred on both attempts and breached policy (exit 1). The digest names every example and links both Phoenix experiments. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
             fi
@@ -231,6 +233,8 @@ jobs:
               echo "${result_line:-**Result: ✅ gate passed**}"
             elif [[ "${gate_rc}" -eq 2 ]]; then
               echo "**Result: ⚠️ gate unmeasurable (not a regression)**"
+            elif grep -q '^\*\*Result: TOO MANY FAILURES TO CONFIRM' "${report_md}"; then
+              echo "**Result: ❌ too many failures to confirm individually (not a per-example confirmed regression)**"
             else
               echo "**Result: ❌ confirmed regression**"
             fi

@@ -97,6 +97,7 @@ def _run_gate(
     retry: dict[str, Any] | None = None,
     planning: bool = False,
     minimum: float = 1.0,
+    retry_cap: int | None = None,
 ) -> tuple[int, Path, Path]:
     initial_path = tmp_path / "initial.json"
     initial_path.write_text(json.dumps(initial))
@@ -111,6 +112,8 @@ def _run_gate(
         retry_path = tmp_path / "retry.json"
         retry_path.write_text(json.dumps(retry))
         args.extend(("--retry-artifact", str(retry_path)))
+    if retry_cap is not None:
+        args.extend(("--retry-cap", str(retry_cap)))
     return gate.main(args), retry_ids, report
 
 
@@ -377,6 +380,36 @@ def test_bystander_evaluator_task_error_on_retry_is_still_reported() -> None:
     args_cell = next(c for c in decision.cells if c["evaluator"] == "args")
     assert args_cell["assessed"] == 2
     assert args_cell["passed"] == 2
+
+
+def test_retry_skipped_and_gate_fails_when_failures_exceed_cap(tmp_path: Path) -> None:
+    """Ported from PR #13845's ``test_gate_skips_retry_when_over_cap``: past a
+    cap, mass failure is structural, not worth confirming example by example --
+    retrying each one just delays a result that was never in doubt."""
+    first = _artifact(
+        [_row("one", passed=False), _row("two", passed=False), _row("three", passed=False)]
+    )
+
+    plan_rc, retry_ids, _ = _run_gate(tmp_path, first, planning=True, retry_cap=2)
+
+    assert plan_rc == gate.EXIT_BREACH
+    assert retry_ids.read_text() == ""
+
+    final_rc, _, report = _run_gate(tmp_path, first, retry_cap=2)
+
+    assert final_rc == gate.EXIT_BREACH
+    digest = report.read_text()
+    assert "TOO MANY FAILURES TO CONFIRM" in digest
+    assert "exceeding the cap of 2" in digest
+
+
+def test_failures_within_cap_still_retry_normally(tmp_path: Path) -> None:
+    first = _artifact([_row("one", passed=False), _row("two", passed=False)])
+
+    rc, retry_ids, _ = _run_gate(tmp_path, first, planning=True, retry_cap=2)
+
+    assert rc == gate.EXIT_OK
+    assert len(retry_ids.read_text().splitlines()) == 2
 
 
 def test_retry_scope_contains_only_initial_failed_nodeids(tmp_path: Path) -> None:
