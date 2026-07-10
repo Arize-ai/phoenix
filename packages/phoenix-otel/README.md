@@ -190,7 +190,7 @@ toward the filesystem root and stopping at the first match — and reads
 
 ```bash
 # .env.phoenix
-PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/your-space
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_API_KEY=your-api-key
 ```
 

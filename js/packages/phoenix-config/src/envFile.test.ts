@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_PROJECT_NAME,
+  getCredentialsFromEnvironment,
   getIntFromEnvironment,
   getProjectFromEnvironment,
   getStrFromEnvironment,
@@ -17,12 +19,13 @@ import {
   findEnvFile,
   parseEnvFile,
   PHOENIX_ENV_FILE_NAME,
+  clearEnvFileCache,
   readEnvFileValue,
-  resetEnvFilePermissionWarningsForTesting,
 } from "./envFile";
 
 const MANAGED_ENV_KEYS = [
   ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
   ENV_PHOENIX_PROJECT,
   "PHOENIX_PROJECT_NAME",
@@ -43,7 +46,7 @@ describe("envFile", () => {
     // Run "from" the temp dir so a developer's real .env.phoenix (anywhere
     // above the repo) cannot leak into assertions.
     vi.spyOn(process, "cwd").mockReturnValue(tempDir);
-    resetEnvFilePermissionWarningsForTesting();
+    clearEnvFileCache();
   });
 
   afterEach(() => {
@@ -170,7 +173,7 @@ describe("envFile", () => {
       expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBe("secret-value");
       expect(warnSpy).toHaveBeenCalledTimes(1);
       const warningMessage = warnSpy.mock.calls[0]?.[0] as string;
-      expect(warningMessage).toContain("readable by other users");
+      expect(warningMessage).toContain("accessible by other users");
       // Hygiene: the credential value itself is never logged.
       expect(warningMessage).not.toContain("secret-value");
     });
@@ -213,6 +216,47 @@ describe("envFile", () => {
       writeEnvFile(tempDir, "PHOENIX_PROJECT=file-project\n");
       process.env[ENV_PHOENIX_PROJECT_NAME] = "process-project";
       expect(getProjectFromEnvironment()).toBe("process-project");
+    });
+  });
+
+  describe("credential group", () => {
+    it("uses file credentials when no process credential is set", () => {
+      writeEnvFile(tempDir, "PHOENIX_API_KEY=file-key\n");
+      expect(getCredentialsFromEnvironment()).toEqual({
+        apiKey: "file-key",
+        headers: undefined,
+      });
+    });
+
+    it("process client headers suppress a file API key", () => {
+      writeEnvFile(tempDir, "PHOENIX_API_KEY=file-key\n");
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = '{"X-Custom": "value"}';
+      const credentials = getCredentialsFromEnvironment();
+      expect(credentials.apiKey).toBeUndefined();
+      expect(credentials.headers).toEqual({ "X-Custom": "value" });
+    });
+
+    it("a process API key suppresses file client headers", () => {
+      writeEnvFile(
+        tempDir,
+        'PHOENIX_CLIENT_HEADERS={"X-File": "value"}\nPHOENIX_API_KEY=file-key\n'
+      );
+      process.env[ENV_PHOENIX_API_KEY] = "process-key";
+      const credentials = getCredentialsFromEnvironment();
+      expect(credentials.apiKey).toBe("process-key");
+      expect(credentials.headers).toBeUndefined();
+    });
+  });
+
+  describe("clearEnvFileCache", () => {
+    it("picks up a file created after the first (cached) lookup", () => {
+      expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBeUndefined();
+      writeEnvFile(tempDir, "PHOENIX_API_KEY=late-key\n");
+      // The no-file result is cached per directory...
+      expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBeUndefined();
+      // ...until the cache is cleared.
+      clearEnvFileCache();
+      expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBe("late-key");
     });
   });
 });

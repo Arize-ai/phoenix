@@ -28,6 +28,24 @@ logger = logging.getLogger(__name__)
 
 _ENV_FILE_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _warned_env_file_permissions: set[str] = set()
+# Parsed file values cached per working directory (an empty dict when no file
+# exists), so each directory is walked and the file parsed at most once per
+# process. Call clear_env_file_cache() to pick up a file created afterwards.
+_env_file_values_by_dir: dict[str, dict[str, str]] = {}
+
+# Related settings resolved as one tier group: when any key of a group is set
+# in the process environment, the ``.env.phoenix`` file tier is ignored for the
+# whole group, so process and file values are never mixed within a group.
+_CREDENTIAL_ENV_KEYS = (
+    ENV_PHOENIX_API_KEY,
+    ENV_PHOENIX_CLIENT_HEADERS,
+)
+_SERVER_LOCATION_ENV_KEYS = (
+    ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+    ENV_PHOENIX_HOST,
+    ENV_PHOENIX_PORT,
+)
 
 
 def _is_env_file_discovery_enabled() -> bool:
@@ -44,45 +62,46 @@ def _is_env_file_discovery_enabled() -> bool:
     return value.strip().lower() not in ("false", "0", "no", "off")
 
 
-def _find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
+def _is_trusted_env_file_stat(stat: os.stat_result) -> bool:
+    """Whether the stat describes a regular file owned by the current user."""
+    is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
+    return stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user
+
+
+def _find_env_file(start_dir: Path) -> Optional[Path]:
     """
     Locate the nearest ``.env.phoenix`` file.
 
-    Walks from ``start_dir`` (defaults to the current working directory) up toward
-    the filesystem root and returns the first match, or None if no file is found.
+    Walks from ``start_dir`` (a resolved directory) up toward the filesystem root
+    and returns the first match, or None if no file is found.
     """
-    directory = (start_dir or Path.cwd()).resolve()
-    for candidate_dir in (directory, *directory.parents):
+    for candidate_dir in (start_dir, *start_dir.parents):
         candidate = candidate_dir / PHOENIX_ENV_FILE_NAME
         try:
-            stat = candidate.stat()
-            is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
-            if stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user:
+            if _is_trusted_env_file_stat(candidate.stat()):
                 return candidate
         except OSError:
             continue
     return None
 
 
-def _warn_if_env_file_permissive(path: Path) -> None:
+def _warn_if_env_file_permissive(path: Path, mode: int) -> None:
     """
-    Emit a one-time warning (per file) if the file is group- or world-readable.
+    Emit a one-time warning (per file) if the file is readable or writable by
+    users other than its owner.
 
-    The file holds credentials, so it should only be readable by its owner. Values
-    are never logged. No-op on non-POSIX platforms.
+    The file holds credentials, so it should only be accessible by its owner —
+    write access by others is the injection vector for redirecting traffic and
+    credentials. Values are never logged. No-op on non-POSIX platforms.
     """
     if os.name != "posix":
         return
     if str(path) in _warned_env_file_permissions:
         return
-    try:
-        mode = path.stat().st_mode
-    except OSError:
-        return
-    if mode & 0o044:
+    if mode & 0o066:
         _warned_env_file_permissions.add(str(path))
         logger.warning(
-            "%s is readable by other users (mode %s). It may contain credentials; "
+            "%s is accessible by other users (mode %s). It may contain credentials; "
             "consider restricting its permissions, e.g. `chmod 600 %s`.",
             path,
             oct(mode & 0o777),
@@ -124,19 +143,47 @@ def _load_env_file_values() -> dict[str, str]:
     """
     Load Phoenix settings from the nearest ``.env.phoenix`` file, if any.
 
-    Returns an empty dict when discovery is disabled, no file is found, or the
-    file cannot be read.
+    Results are cached per working directory (including the no-file case), so
+    each directory is walked and the file parsed at most once per process; call
+    :func:`clear_env_file_cache` to pick up a file created after the first
+    lookup. Returns an empty dict when discovery is disabled, no file is found,
+    or the file cannot be read.
     """
     if not _is_env_file_discovery_enabled():
         return {}
-    if (path := _find_env_file()) is None:
-        return {}
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return {}
-    _warn_if_env_file_permissive(path)
-    return _parse_env_file(text)
+    # os.getcwd() is already symlink-free, so no resolve() is needed.
+    start_dir = Path.cwd()
+    if (cached := _env_file_values_by_dir.get(str(start_dir))) is not None:
+        return cached
+    values: dict[str, str] = {}
+    if (path := _find_env_file(start_dir)) is not None:
+        try:
+            with open(path, "rb") as env_file:
+                # Re-verify trust on the opened file descriptor so the content
+                # read cannot differ from the file the ownership check saw.
+                stat = os.fstat(env_file.fileno())
+                if _is_trusted_env_file_stat(stat):
+                    _warn_if_env_file_permissive(path, stat.st_mode)
+                    values = _parse_env_file(env_file.read().decode("utf-8"))
+        except (OSError, UnicodeError):
+            pass
+    _env_file_values_by_dir[str(start_dir)] = values
+    return values
+
+
+def clear_env_file_cache() -> None:
+    """
+    Clear cached ``.env.phoenix`` discovery results.
+
+    Discovery results (including the absence of a file) are cached per working
+    directory for the lifetime of the process. Long-running processes (e.g.
+    notebooks) that create or change a ``.env.phoenix`` file after the first
+    configuration lookup can call this to make subsequent lookups re-discover
+    the file.
+    """
+    _env_file_values_by_dir.clear()
+    _warned_env_file_permissions.clear()
+    _warned_invalid_env_file_values.clear()
 
 
 def _load_process_env_values(keys: Iterable[str]) -> dict[str, str]:
@@ -148,8 +195,44 @@ def _resolve_env_tier(keys: Iterable[str]) -> dict[str, str]:
     keys = tuple(keys)
     if process_values := _load_process_env_values(keys):
         return process_values
+    if not any(key.startswith("PHOENIX_") for key in keys):
+        return {}
     file_values = _load_env_file_values()
     return {key: file_values[key] for key in keys if key in file_values}
+
+
+_warned_invalid_env_file_values: set[str] = set()
+
+
+def _reject_invalid_env_value(env_key: str, value: str, message: str) -> None:
+    """
+    Handle an invalid configuration value according to its source tier.
+
+    A value the user explicitly set in the process environment raises (as it
+    always has); a value that only came from a discovered ``.env.phoenix`` file
+    must not break startup, so it is ignored with a one-time warning and the
+    caller falls back to its default.
+    """
+    if os.getenv(env_key) is not None:
+        raise ValueError(f"Invalid value for environment variable {env_key}: {value}. {message}")
+    if env_key not in _warned_invalid_env_file_values:
+        _warned_invalid_env_file_values.add(env_key)
+        logger.warning(
+            "Ignoring invalid %s value from a discovered %s file: %s. %s",
+            env_key,
+            PHOENIX_ENV_FILE_NAME,
+            value,
+            message,
+        )
+
+
+def _coerce_port(port: Optional[str]) -> int:
+    if not port:
+        return PORT
+    if port.isnumeric():
+        return int(port)
+    _reject_invalid_env_value(ENV_PHOENIX_PORT, port, "Value must be an integer.")
+    return PORT
 
 
 def get_env_phoenix_api_key() -> Optional[str]:
@@ -157,14 +240,7 @@ def get_env_phoenix_api_key() -> Optional[str]:
 
 
 def get_env_port() -> int:
-    if not (port := getenv(ENV_PHOENIX_PORT)):
-        return PORT
-    if port.isnumeric():
-        return int(port)
-    raise ValueError(
-        f"Invalid value for environment variable {ENV_PHOENIX_PORT}: "
-        f"{port}. Value must be an integer."
-    )
+    return _coerce_port(getenv(ENV_PHOENIX_PORT))
 
 
 def get_env_host() -> str:
@@ -175,21 +251,25 @@ def get_env_host_root_path() -> str:
     if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
         return ""
     if not host_root_path.startswith("/"):
-        raise ValueError(
-            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
-            f"{host_root_path}. Value must start with '/'"
+        _reject_invalid_env_value(
+            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value must start with '/'"
         )
+        return ""
     if host_root_path.endswith("/"):
-        raise ValueError(
-            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
-            f"{host_root_path}. Value cannot end with '/'"
+        _reject_invalid_env_value(
+            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value cannot end with '/'"
         )
+        return ""
     return host_root_path
 
 
 def get_env_client_headers() -> dict[str, str]:
-    headers = parse_env_headers(getenv(ENV_PHOENIX_CLIENT_HEADERS))
-    if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
+    # API key and client headers are one credential group: a credential the
+    # user provides via the process environment is never combined with (or
+    # shadowed by) a credential from a discovered file.
+    values = _resolve_env_tier(_CREDENTIAL_ENV_KEYS)
+    headers = parse_env_headers(values.get(ENV_PHOENIX_CLIENT_HEADERS))
+    if (api_key := values.get(ENV_PHOENIX_API_KEY)) and "authorization" not in [
         k.lower() for k in headers
     ]:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -197,35 +277,24 @@ def get_env_client_headers() -> dict[str, str]:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    values = _resolve_env_tier((ENV_PHOENIX_COLLECTOR_ENDPOINT, ENV_OTEL_EXPORTER_OTLP_ENDPOINT))
+    values = _resolve_env_tier(_SERVER_LOCATION_ENV_KEYS)
     return values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 def get_base_url() -> httpx.URL:
-    host: str = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    process_values = _load_process_env_values(
-        (
-            ENV_PHOENIX_COLLECTOR_ENDPOINT,
-            ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
-            ENV_PHOENIX_HOST,
-            ENV_PHOENIX_PORT,
-        )
-    )
-    process_endpoint = process_values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or process_values.get(
+    # Endpoint, host, and port are one server-location group: all of them are
+    # read from the same resolved tier, so a URL is never spliced together from
+    # process and file values.
+    values = _resolve_env_tier(_SERVER_LOCATION_ENV_KEYS)
+    endpoint = values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(
         ENV_OTEL_EXPORTER_OTLP_ENDPOINT
     )
-    has_process_host_config = any(
-        key in process_values for key in (ENV_PHOENIX_HOST, ENV_PHOENIX_PORT)
-    )
-    file_endpoint = (
-        None
-        if has_process_host_config
-        else _load_env_file_values().get(ENV_PHOENIX_COLLECTOR_ENDPOINT)
-    )
-    base_url: str = process_endpoint or file_endpoint or f"http://{host}:{get_env_port()}"
-    return httpx.URL(base_url)
+    if endpoint:
+        return httpx.URL(endpoint)
+    host = values.get(ENV_PHOENIX_HOST) or HOST
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    return httpx.URL(f"http://{host}:{_coerce_port(values.get(ENV_PHOENIX_PORT))}")
 
 
 @overload
@@ -256,7 +325,11 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
         Leading and trailing whitespaces are stripped from the value, assuming they were
         inadvertently added.
     """
-    return _resolve_env_tier((key,)).get(key, default)
+    if (value := os.getenv(key)) is not None:
+        return value.strip()
+    if not key.startswith("PHOENIX_"):
+        return default
+    return _load_env_file_values().get(key, default)
 
 
 _warned_project_conflict = False

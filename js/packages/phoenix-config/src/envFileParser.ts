@@ -1,6 +1,22 @@
 const ENV_FILE_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
+ * Name of the credential hand-off file discovered at (or above) the working
+ * directory.
+ */
+export const PHOENIX_ENV_FILE_NAME = ".env.phoenix";
+
+/**
+ * Environment variable name for disabling `.env.phoenix` file discovery.
+ * Discovery is on by default; set to "false" (or "0" / "no" / "off",
+ * case-insensitive) to disable. Read from the process environment only — the
+ * opt-out is intentionally never read from the file itself.
+ * @example
+ * process.env[ENV_PHOENIX_DISCOVER_CONFIG] = "false";
+ */
+export const ENV_PHOENIX_DISCOVER_CONFIG = "PHOENIX_DISCOVER_CONFIG";
+
+/**
  * Parses dotenv-formatted text, retaining only non-empty `PHOENIX_` settings.
  * Supports comments, an optional `export ` prefix, and quoted values.
  */

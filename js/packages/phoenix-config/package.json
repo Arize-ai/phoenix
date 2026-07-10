@@ -25,7 +25,9 @@
   "module": "dist/esm/index.js",
   "browser": {
     "./dist/esm/envFile.js": "./dist/esm/envFile.browser.js",
-    "./dist/src/envFile.js": "./dist/src/envFile.browser.js"
+    "./dist/esm/envFile": "./dist/esm/envFile.browser.js",
+    "./dist/src/envFile.js": "./dist/src/envFile.browser.js",
+    "./dist/src/envFile": "./dist/src/envFile.browser.js"
   },
   "types": "dist/src/index.d.ts",
   "exports": {
@@ -40,7 +42,7 @@
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
   },
   "devDependencies": {
     "@types/node": "^25.9.4",

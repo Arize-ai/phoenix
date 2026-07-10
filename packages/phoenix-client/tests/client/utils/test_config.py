@@ -15,16 +15,6 @@ from phoenix.client.utils.config import (
 )
 
 
-@pytest.fixture(autouse=True)
-def isolated_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """
-    Run every test from an empty temporary directory so that a developer's real
-    ``.env.phoenix`` file (anywhere above the repo) cannot leak into assertions.
-    """
-    monkeypatch.chdir(tmp_path)
-    return tmp_path
-
-
 @pytest.mark.parametrize(
     "env,expected",
     [
@@ -122,6 +112,45 @@ class TestEnvFileDiscovery:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n")
         with patch.dict(os.environ, {"PHOENIX_HOST": "process-host"}, clear=True):
             assert get_base_url() == "http://process-host:6006"
+            # The server-location group is suppressed as a whole, so the two
+            # public getters agree about the effective endpoint.
+            assert get_env_collector_endpoint() is None
+
+    def test_process_host_suppresses_file_port(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text(
+            "PHOENIX_PORT=9999\nPHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
+        )
+        with patch.dict(os.environ, {"PHOENIX_HOST": "process-host"}, clear=True):
+            # The base URL is never spliced together from process and file
+            # values: the file port is ignored along with the file endpoint.
+            assert get_base_url() == "http://process-host:6006"
+
+    def test_process_headers_suppress_file_api_key(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=file-key\n")
+        with patch.dict(os.environ, {"PHOENIX_CLIENT_HEADERS": "x-custom=abc"}, clear=True):
+            headers = config_module.get_env_client_headers()
+            assert "authorization" not in [k.lower() for k in headers]
+
+    def test_invalid_file_port_falls_back_to_default(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_PORT=not-a-port\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert config_module.get_env_port() == 6006
+            assert get_base_url() == "http://127.0.0.1:6006"
+
+    def test_invalid_process_port_still_raises(self) -> None:
+        with patch.dict(os.environ, {"PHOENIX_PORT": "not-a-port"}, clear=True):
+            with pytest.raises(ValueError):
+                config_module.get_env_port()
+
+    def test_clear_env_file_cache_picks_up_new_file(self, tmp_path: Path) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_api_key() is None
+            (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=late-key\n")
+            # The no-file result is cached per directory...
+            assert get_env_phoenix_api_key() is None
+            # ...until the cache is cleared.
+            config_module.clear_env_file_cache()
+            assert get_env_phoenix_api_key() == "late-key"
 
     def test_process_project_alias_beats_file_canonical(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_PROJECT=file-project\n")
@@ -164,12 +193,11 @@ class TestEnvFileDiscovery:
     def test_permission_warning_emitted_once(
         self,
         tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         if os.name != "posix":
             pytest.skip("POSIX permission bits are not meaningful on this platform")
-        monkeypatch.setattr(config_module, "_warned_env_file_permissions", set())
+        config_module.clear_env_file_cache()
         env_file = tmp_path / ".env.phoenix"
         env_file.write_text("PHOENIX_API_KEY=secret-value\n")
         env_file.chmod(0o644)
@@ -179,19 +207,18 @@ class TestEnvFileDiscovery:
                 assert get_env_phoenix_api_key() == "secret-value"
         warnings = [r for r in caplog.records if r.levelname == "WARNING"]
         assert len(warnings) == 1
-        assert "readable by other users" in warnings[0].message
+        assert "accessible by other users" in warnings[0].message
         # Hygiene: the credential value itself is never logged.
         assert "secret-value" not in warnings[0].message
 
     def test_no_permission_warning_for_owner_only_file(
         self,
         tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         if os.name != "posix":
             pytest.skip("POSIX permission bits are not meaningful on this platform")
-        monkeypatch.setattr(config_module, "_warned_env_file_permissions", set())
+        config_module.clear_env_file_cache()
         env_file = tmp_path / ".env.phoenix"
         env_file.write_text("PHOENIX_API_KEY=file-key\n")
         env_file.chmod(0o600)
@@ -214,8 +241,8 @@ class TestEnvFileDiscovery:
         env_file.write_text("PHOENIX_API_KEY=untrusted\n")
         real_stat = Path.stat
 
-        def stat_with_foreign_owner(path: Path, *args: object, **kwargs: object) -> os.stat_result:
-            stat = real_stat(path, *args, **kwargs)
+        def stat_with_foreign_owner(path: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+            stat = real_stat(path, follow_symlinks=follow_symlinks)
             if path == env_file:
                 values = list(stat)
                 values[4] = os.getuid() + 1
@@ -254,4 +281,4 @@ class TestEnvFileDiscovery:
     ],
 )
 def test_parse_env_file(text: str, expected: dict[str, str]) -> None:
-    assert config_module._parse_env_file(text) == expected
+    assert config_module._parse_env_file(text) == expected  # pyright: ignore[reportPrivateUsage]

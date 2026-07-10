@@ -4,6 +4,7 @@
  */
 
 import { readEnvFileValue } from "./envFile";
+import type { Headers } from "./types";
 import { isHeaders } from "./types";
 
 /**
@@ -77,6 +78,17 @@ export const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
 export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
 
 /**
+ * Environment variables that carry credentials. They are resolved as one tier
+ * group (see {@link resolveEnvironmentTier}) so a credential the user provides
+ * via the process environment is never combined with (or shadowed by) a
+ * credential from a discovered `.env.phoenix` file.
+ */
+export const PHOENIX_CREDENTIAL_ENV_KEYS = [
+  ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
+] as const;
+
+/**
  * Reads an environment variable from the process environment, falling back to
  * the nearest `.env.phoenix` file for `PHOENIX_`-prefixed keys.
  *
@@ -85,6 +97,42 @@ export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
  */
 function readEnvValue(envKey: string): string | undefined {
   return process.env[envKey] ?? readEnvFileValue(envKey);
+}
+
+/**
+ * Resolves a group of related environment variables as one two-tier unit.
+ *
+ * When any key of the group is set in the process environment (even to an
+ * empty string), only process values are returned; the `.env.phoenix` file
+ * tier is consulted for the whole group only when none of the keys are set in
+ * the process environment. This prevents mixing process and file values for
+ * settings that must be consistent with each other (e.g. credentials, or a
+ * project name and its alias).
+ *
+ * @param envKeys - the environment variable names forming the group
+ * @returns The resolved values, keyed by environment variable name.
+ */
+export function resolveEnvironmentTier(
+  envKeys: readonly string[]
+): Partial<Record<string, string>> {
+  const processValues: Partial<Record<string, string>> = {};
+  for (const envKey of envKeys) {
+    const value = process.env[envKey];
+    if (value !== undefined) {
+      processValues[envKey] = value;
+    }
+  }
+  if (Object.keys(processValues).length > 0) {
+    return processValues;
+  }
+  const fileValues: Partial<Record<string, string>> = {};
+  for (const envKey of envKeys) {
+    const value = readEnvFileValue(envKey);
+    if (value !== undefined) {
+      fileValues[envKey] = value;
+    }
+  }
+  return fileValues;
 }
 
 /**
@@ -155,18 +203,14 @@ let hasWarnedProjectConflict = false;
  * // Returns "checkout"
  */
 export function getProjectFromEnvironment(): string | undefined {
-  const processCanonical = process.env[ENV_PHOENIX_PROJECT];
-  const processAlias = process.env[ENV_PHOENIX_PROJECT_NAME];
-  const canonical =
-    processCanonical ??
-    (processAlias === undefined
-      ? readEnvFileValue(ENV_PHOENIX_PROJECT)
-      : undefined);
-  const alias =
-    processAlias ??
-    (processCanonical === undefined
-      ? readEnvFileValue(ENV_PHOENIX_PROJECT_NAME)
-      : undefined);
+  // The canonical name and its alias are one tier group, so a process-level
+  // alias is never trumped by a file canonical (or vice versa).
+  const values = resolveEnvironmentTier([
+    ENV_PHOENIX_PROJECT,
+    ENV_PHOENIX_PROJECT_NAME,
+  ]);
+  const canonical = values[ENV_PHOENIX_PROJECT];
+  const alias = values[ENV_PHOENIX_PROJECT_NAME];
 
   if (canonical && alias && canonical !== alias && !hasWarnedProjectConflict) {
     hasWarnedProjectConflict = true;
@@ -208,7 +252,18 @@ export function resetProjectConflictWarningForTesting(): void {
  * // Returns { Authorization: "Bearer token" }
  */
 export function getHeadersFromEnvironment(envKey: string) {
-  const value = readEnvValue(envKey);
+  return parseHeaders(readEnvValue(envKey));
+}
+
+/**
+ * Parses a JSON-encoded headers value into a headers object.
+ *
+ * @param value - the raw (JSON) headers value, e.g. from an environment
+ *   variable
+ * @returns The parsed headers object, or `undefined` if the value is unset,
+ *   empty, not valid JSON, or not a valid headers object.
+ */
+export function parseHeaders(value: string | undefined): Headers | undefined {
   if (!value) {
     return undefined;
   }
@@ -221,6 +276,29 @@ export function getHeadersFromEnvironment(envKey: string) {
   } catch {
     return;
   }
+}
+
+/**
+ * Retrieves the Phoenix credentials (API key and client headers) from the
+ * environment.
+ *
+ * The two variables are resolved as one tier group: a credential set in the
+ * process environment is never combined with a credential from a discovered
+ * `.env.phoenix` file, so a file API key can never override or augment
+ * process-supplied headers (and vice versa).
+ *
+ * @returns The resolved API key and parsed client headers, each `undefined`
+ *   when not configured.
+ */
+export function getCredentialsFromEnvironment(): {
+  apiKey?: string;
+  headers?: Headers;
+} {
+  const values = resolveEnvironmentTier(PHOENIX_CREDENTIAL_ENV_KEYS);
+  return {
+    apiKey: values[ENV_PHOENIX_API_KEY] || undefined,
+    headers: parseHeaders(values[ENV_PHOENIX_CLIENT_HEADERS]),
+  };
 }
 
 /**
@@ -246,17 +324,18 @@ export function getHeadersFromEnvironment(envKey: string) {
  * // }
  */
 export function getEnvironmentConfig() {
+  // API key and client headers are resolved as one credential group so that
+  // process and file credentials are never mixed.
+  const credentials = getCredentialsFromEnvironment();
   return {
     [ENV_PHOENIX_PORT]: getIntFromEnvironment(ENV_PHOENIX_PORT),
     [ENV_PHOENIX_GRPC_PORT]: getIntFromEnvironment(ENV_PHOENIX_GRPC_PORT),
     [ENV_PHOENIX_HOST]: getStrFromEnvironment(ENV_PHOENIX_HOST),
-    [ENV_PHOENIX_CLIENT_HEADERS]: getHeadersFromEnvironment(
-      ENV_PHOENIX_CLIENT_HEADERS
-    ),
+    [ENV_PHOENIX_CLIENT_HEADERS]: credentials.headers,
     [ENV_PHOENIX_COLLECTOR_ENDPOINT]: getStrFromEnvironment(
       ENV_PHOENIX_COLLECTOR_ENDPOINT
     ),
-    [ENV_PHOENIX_API_KEY]: getStrFromEnvironment(ENV_PHOENIX_API_KEY),
+    [ENV_PHOENIX_API_KEY]: credentials.apiKey,
     [ENV_PHOENIX_LOG_LEVEL]: getStrFromEnvironment(ENV_PHOENIX_LOG_LEVEL),
     // Resolves PHOENIX_PROJECT (canonical) then PHOENIX_PROJECT_NAME (alias).
     [ENV_PHOENIX_PROJECT]: getProjectFromEnvironment(),

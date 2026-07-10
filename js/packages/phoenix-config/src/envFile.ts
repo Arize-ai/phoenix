@@ -16,25 +16,17 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { parseEnvFile } from "./envFileParser";
+import {
+  ENV_PHOENIX_DISCOVER_CONFIG,
+  parseEnvFile,
+  PHOENIX_ENV_FILE_NAME,
+} from "./envFileParser";
 
-export { parseEnvFile } from "./envFileParser";
-
-/**
- * Name of the credential hand-off file discovered at (or above) the working
- * directory.
- */
-export const PHOENIX_ENV_FILE_NAME = ".env.phoenix";
-
-/**
- * Environment variable name for disabling `.env.phoenix` file discovery.
- * Discovery is on by default; set to "false" (or "0" / "no" / "off",
- * case-insensitive) to disable. Read from the process environment only — the
- * opt-out is intentionally never read from the file itself.
- * @example
- * process.env[ENV_PHOENIX_DISCOVER_CONFIG] = "false";
- */
-export const ENV_PHOENIX_DISCOVER_CONFIG = "PHOENIX_DISCOVER_CONFIG";
+export {
+  ENV_PHOENIX_DISCOVER_CONFIG,
+  parseEnvFile,
+  PHOENIX_ENV_FILE_NAME,
+} from "./envFileParser";
 
 const DISCOVERY_OPT_OUT_VALUES = new Set(["false", "0", "no", "off"]);
 
@@ -43,6 +35,13 @@ const DISCOVERY_OPT_OUT_VALUES = new Set(["false", "0", "no", "off"]);
  * warning so it is emitted at most once per file.
  */
 const warnedPermissivePaths = new Set<string>();
+
+/**
+ * Caches parsed file values per resolved working directory (an empty record
+ * when no file exists), so each directory is walked and the file parsed at
+ * most once per process.
+ */
+const envFileValuesByDir = new Map<string, Partial<Record<string, string>>>();
 
 /**
  * Whether `.env.phoenix` file discovery is enabled (the default). Disabled by
@@ -55,6 +54,17 @@ function isEnvFileDiscoveryEnabled(): boolean {
     return true;
   }
   return !DISCOVERY_OPT_OUT_VALUES.has(value.trim().toLowerCase());
+}
+
+/**
+ * Whether the stats describe a regular file owned by the current user.
+ */
+function isTrustedEnvFileStats(stats: fs.Stats): boolean {
+  const isOwnedByCurrentUser =
+    process.platform === "win32" ||
+    typeof process.getuid !== "function" ||
+    stats.uid === process.getuid();
+  return stats.isFile() && isOwnedByCurrentUser;
 }
 
 /**
@@ -77,12 +87,7 @@ export function findEnvFile({
   for (;;) {
     const candidate = path.join(currentDir, PHOENIX_ENV_FILE_NAME);
     try {
-      const stats = fs.statSync(candidate);
-      const isOwnedByCurrentUser =
-        process.platform === "win32" ||
-        typeof process.getuid !== "function" ||
-        stats.uid === process.getuid();
-      if (stats.isFile() && isOwnedByCurrentUser) {
+      if (isTrustedEnvFileStats(fs.statSync(candidate))) {
         return candidate;
       }
     } catch {
@@ -97,35 +102,66 @@ export function findEnvFile({
 }
 
 /**
- * Emits a one-time warning (per file) if the file is group- or world-readable.
- * The file holds credentials, so it should only be readable by its owner.
- * Values are never logged. No-op on Windows, where POSIX mode bits are not
- * meaningful.
+ * Emits a one-time warning (per file) if the file is readable or writable by
+ * users other than its owner. The file holds credentials, so it should only be
+ * accessible by its owner — write access by others is the injection vector for
+ * redirecting traffic and credentials. Values are never logged. No-op on
+ * Windows, where POSIX mode bits are not meaningful.
  */
-function warnIfEnvFilePermissive(filePath: string): void {
+function warnIfEnvFilePermissive(filePath: string, mode: number): void {
   if (process.platform === "win32") {
     return;
   }
   if (warnedPermissivePaths.has(filePath)) {
     return;
   }
-  let mode: number;
-  try {
-    mode = fs.statSync(filePath).mode;
-  } catch {
-    return;
-  }
-  const isReadableByOthers = (mode & 0o044) !== 0;
-  if (isReadableByOthers) {
+  const isAccessibleByOthers = (mode & 0o066) !== 0;
+  if (isAccessibleByOthers) {
     warnedPermissivePaths.add(filePath);
     const permissions = (mode & 0o777).toString(8);
     // eslint-disable-next-line no-console
     console.warn(
-      `${filePath} is readable by other users (mode 0${permissions}). ` +
+      `${filePath} is accessible by other users (mode 0${permissions}). ` +
         `It may contain credentials; consider restricting its permissions, ` +
         `e.g. \`chmod 600 ${filePath}\`.`
     );
   }
+}
+
+/**
+ * Loads the values of the nearest `.env.phoenix` file, discovering and parsing
+ * it at most once per working directory (the cache also remembers when no file
+ * exists; call {@link clearEnvFileCache} to re-discover). A file that cannot be
+ * read is treated as absent.
+ */
+function loadEnvFileValues(): Partial<Record<string, string>> {
+  const startDir = path.resolve(process.cwd());
+  const cached = envFileValuesByDir.get(startDir);
+  if (cached) {
+    return cached;
+  }
+  let values: Partial<Record<string, string>> = {};
+  const filePath = findEnvFile({ startDir });
+  if (filePath) {
+    try {
+      const fd = fs.openSync(filePath, "r");
+      try {
+        // Re-verify trust on the opened file descriptor so the content read
+        // cannot differ from the file the ownership check saw.
+        const stats = fs.fstatSync(fd);
+        if (isTrustedEnvFileStats(stats)) {
+          warnIfEnvFilePermissive(filePath, stats.mode);
+          values = parseEnvFile(fs.readFileSync(fd, "utf8"));
+        }
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch {
+      // Unreadable file — treat as absent.
+    }
+  }
+  envFileValuesByDir.set(startDir, values);
+  return values;
 }
 
 /**
@@ -136,44 +172,25 @@ function warnIfEnvFilePermissive(filePath: string): void {
  * to consult the process environment first — the file is strictly a fallback.
  *
  * @param envKey - the environment variable name to look up
- * @param params - lookup parameters
- * @param params.startDir - directory to start the file discovery walk from
- *   (defaults to the current working directory)
  * @returns The value from the file, or `undefined` if not available.
  */
-export function readEnvFileValue(
-  envKey: string,
-  {
-    startDir = process.cwd(),
-  }: {
-    startDir?: string;
-  } = {}
-): string | undefined {
+export function readEnvFileValue(envKey: string): string | undefined {
   if (!envKey.startsWith("PHOENIX_") || !isEnvFileDiscoveryEnabled()) {
     return undefined;
   }
-  const filePath = findEnvFile({ startDir });
-  if (!filePath) {
-    return undefined;
-  }
-  let contents: string;
-  try {
-    contents = fs.readFileSync(filePath, "utf8");
-  } catch {
-    return undefined;
-  }
-  warnIfEnvFilePermissive(filePath);
-  return parseEnvFile(contents)[envKey];
+  return loadEnvFileValues()[envKey];
 }
 
 /**
- * Resets the one-time permissive-permissions warning latch.
+ * Clears cached `.env.phoenix` discovery results.
  *
- * Intended for use in tests that need to exercise the warning path more than
- * once within the same module instance.
- *
- * @internal
+ * Discovery results (including the absence of a file) are cached per working
+ * directory for the lifetime of the process. Long-running processes (e.g.
+ * notebooks) that create or change a `.env.phoenix` file after the first
+ * configuration lookup can call this to make subsequent lookups re-discover
+ * the file.
  */
-export function resetEnvFilePermissionWarningsForTesting(): void {
+export function clearEnvFileCache(): void {
+  envFileValuesByDir.clear();
   warnedPermissivePaths.clear();
 }

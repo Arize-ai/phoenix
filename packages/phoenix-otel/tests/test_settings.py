@@ -18,16 +18,6 @@ from phoenix.otel.settings import (
 )
 
 
-@pytest.fixture(autouse=True)
-def isolated_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """
-    Run every test from an empty temporary directory so that a developer's real
-    ``.env.phoenix`` file (anywhere above the repo) cannot leak into assertions.
-    """
-    monkeypatch.chdir(tmp_path)
-    return tmp_path
-
-
 @pytest.mark.parametrize(
     "env,expected",
     [
@@ -162,6 +152,35 @@ class TestEnvFileDiscovery:
             assert get_env_client_headers() is None
             assert get_env_phoenix_auth_header() is None
 
+    def test_process_client_headers_suppress_file_api_key(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=file-key\n")
+        env = {"PHOENIX_CLIENT_HEADERS": "authorization=process-token"}
+        with patch.dict(os.environ, env, clear=True):
+            # A file API key must never override (or ride alongside) an
+            # authorization the user supplied via the process environment.
+            assert get_env_phoenix_auth_header() is None
+            assert get_env_client_headers() == {"authorization": "process-token"}
+
+    def test_invalid_file_grpc_port_falls_back_to_default(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_GRPC_PORT=not-a-port\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_grpc_port() == 4317
+
+    def test_invalid_process_grpc_port_still_raises(self) -> None:
+        with patch.dict(os.environ, {"PHOENIX_GRPC_PORT": "not-a-port"}, clear=True):
+            with pytest.raises(ValueError):
+                get_env_grpc_port()
+
+    def test_clear_env_file_cache_picks_up_new_file(self, tmp_path: Path) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+            (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=late-key\n")
+            # The no-file result is cached per directory...
+            assert get_env_phoenix_auth_header() is None
+            # ...until the cache is cleared.
+            settings_module.clear_env_file_cache()
+            assert get_env_phoenix_auth_header() == {"authorization": "Bearer late-key"}
+
     def test_non_phoenix_keys_ignored(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text(
             "OTEL_EXPORTER_OTLP_ENDPOINT=http://from-file:4318\n"
@@ -208,7 +227,7 @@ class TestEnvFileDiscovery:
                 assert get_env_phoenix_auth_header() == {"authorization": "Bearer secret-value"}
         warnings = [r for r in caplog.records if r.levelname == "WARNING"]
         assert len(warnings) == 1
-        assert "readable by other users" in warnings[0].message
+        assert "accessible by other users" in warnings[0].message
         # Hygiene: the credential value itself is never logged.
         assert "secret-value" not in warnings[0].message
 

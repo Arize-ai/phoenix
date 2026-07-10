@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import stat as stat_module
 import urllib.parse
 from pathlib import Path
@@ -34,8 +33,22 @@ GRPC_PORT = 4317
 The default network port for OTLP/gRPC is 4317.
 See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
 
-_ENV_FILE_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_ENV_FILE_KEY_PATTERN = compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _warned_env_file_permissions: Set[str] = set()
+_warned_invalid_env_file_values: Set[str] = set()
+# Parsed file values cached per working directory (an empty dict when no file
+# exists), so each directory is walked and the file parsed at most once per
+# process. Call clear_env_file_cache() to pick up a file created afterwards.
+_env_file_values_by_dir: Dict[str, Dict[str, str]] = {}
+
+# Related settings resolved as one tier group: when any key of a group is set
+# in the process environment, the ``.env.phoenix`` file tier is ignored for the
+# whole group, so process and file values are never mixed within a group.
+_CREDENTIAL_ENV_KEYS = (
+    ENV_PHOENIX_API_KEY,
+    ENV_PHOENIX_CLIENT_HEADERS,
+    ENV_OTEL_EXPORTER_OTLP_HEADERS,
+)
 
 
 def _is_env_file_discovery_enabled() -> bool:
@@ -52,45 +65,46 @@ def _is_env_file_discovery_enabled() -> bool:
     return value.strip().lower() not in ("false", "0", "no", "off")
 
 
-def _find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
+def _is_trusted_env_file_stat(stat: os.stat_result) -> bool:
+    """Whether the stat describes a regular file owned by the current user."""
+    is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
+    return stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user
+
+
+def _find_env_file(start_dir: Path) -> Optional[Path]:
     """
     Locate the nearest ``.env.phoenix`` file.
 
-    Walks from ``start_dir`` (defaults to the current working directory) up toward
-    the filesystem root and returns the first match, or None if no file is found.
+    Walks from ``start_dir`` (a resolved directory) up toward the filesystem root
+    and returns the first match, or None if no file is found.
     """
-    directory = (start_dir or Path.cwd()).resolve()
-    for candidate_dir in (directory, *directory.parents):
+    for candidate_dir in (start_dir, *start_dir.parents):
         candidate = candidate_dir / PHOENIX_ENV_FILE_NAME
         try:
-            stat = candidate.stat()
-            is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
-            if stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user:
+            if _is_trusted_env_file_stat(candidate.stat()):
                 return candidate
         except OSError:
             continue
     return None
 
 
-def _warn_if_env_file_permissive(path: Path) -> None:
+def _warn_if_env_file_permissive(path: Path, mode: int) -> None:
     """
-    Emit a one-time warning (per file) if the file is group- or world-readable.
+    Emit a one-time warning (per file) if the file is readable or writable by
+    users other than its owner.
 
-    The file holds credentials, so it should only be readable by its owner. Values
-    are never logged. No-op on non-POSIX platforms.
+    The file holds credentials, so it should only be accessible by its owner —
+    write access by others is the injection vector for redirecting traffic and
+    credentials. Values are never logged. No-op on non-POSIX platforms.
     """
     if os.name != "posix":
         return
     if str(path) in _warned_env_file_permissions:
         return
-    try:
-        mode = path.stat().st_mode
-    except OSError:
-        return
-    if mode & 0o044:
+    if mode & 0o066:
         _warned_env_file_permissions.add(str(path))
         logger.warning(
-            "%s is readable by other users (mode %s). It may contain credentials; "
+            "%s is accessible by other users (mode %s). It may contain credentials; "
             "consider restricting its permissions, e.g. `chmod 600 %s`.",
             path,
             oct(mode & 0o777),
@@ -132,19 +146,47 @@ def _load_env_file_values() -> Dict[str, str]:
     """
     Load Phoenix settings from the nearest ``.env.phoenix`` file, if any.
 
-    Returns an empty dict when discovery is disabled, no file is found, or the
-    file cannot be read.
+    Results are cached per working directory (including the no-file case), so
+    each directory is walked and the file parsed at most once per process; call
+    :func:`clear_env_file_cache` to pick up a file created after the first
+    lookup. Returns an empty dict when discovery is disabled, no file is found,
+    or the file cannot be read.
     """
     if not _is_env_file_discovery_enabled():
         return {}
-    if (path := _find_env_file()) is None:
-        return {}
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return {}
-    _warn_if_env_file_permissive(path)
-    return _parse_env_file(text)
+    # os.getcwd() is already symlink-free, so no resolve() is needed.
+    start_dir = Path.cwd()
+    if (cached := _env_file_values_by_dir.get(str(start_dir))) is not None:
+        return cached
+    values: Dict[str, str] = {}
+    if (path := _find_env_file(start_dir)) is not None:
+        try:
+            with open(path, "rb") as env_file:
+                # Re-verify trust on the opened file descriptor so the content
+                # read cannot differ from the file the ownership check saw.
+                stat = os.fstat(env_file.fileno())
+                if _is_trusted_env_file_stat(stat):
+                    _warn_if_env_file_permissive(path, stat.st_mode)
+                    values = _parse_env_file(env_file.read().decode("utf-8"))
+        except (OSError, UnicodeError):
+            pass
+    _env_file_values_by_dir[str(start_dir)] = values
+    return values
+
+
+def clear_env_file_cache() -> None:
+    """
+    Clear cached ``.env.phoenix`` discovery results.
+
+    Discovery results (including the absence of a file) are cached per working
+    directory for the lifetime of the process. Long-running processes (e.g.
+    notebooks) that create or change a ``.env.phoenix`` file after the first
+    configuration lookup can call this to make subsequent lookups re-discover
+    the file.
+    """
+    _env_file_values_by_dir.clear()
+    _warned_env_file_permissions.clear()
+    _warned_invalid_env_file_values.clear()
 
 
 def _load_process_env_values(keys: Iterable[str]) -> Dict[str, str]:
@@ -156,6 +198,8 @@ def _resolve_env_tier(keys: Iterable[str]) -> Dict[str, str]:
     keys = tuple(keys)
     if process_values := _load_process_env_values(keys):
         return process_values
+    if not any(key.startswith("PHOENIX_") for key in keys):
+        return {}
     file_values = _load_env_file_values()
     return {key: file_values[key] for key in keys if key in file_values}
 
@@ -168,7 +212,33 @@ def _getenv(key: str) -> Optional[str]:
     A value present in the process environment (even an empty string) always wins;
     the file never overrides anything already set.
     """
-    return _resolve_env_tier((key,)).get(key)
+    if (value := os.getenv(key)) is not None:
+        return value.strip()
+    if not key.startswith("PHOENIX_"):
+        return None
+    return _load_env_file_values().get(key)
+
+
+def _reject_invalid_env_value(env_key: str, value: str, message: str) -> None:
+    """
+    Handle an invalid configuration value according to its source tier.
+
+    A value the user explicitly set in the process environment raises (as it
+    always has); a value that only came from a discovered ``.env.phoenix`` file
+    must not break startup, so it is ignored with a one-time warning and the
+    caller falls back to its default.
+    """
+    if os.getenv(env_key) is not None:
+        raise ValueError(f"Invalid value for environment variable {env_key}: {value}. {message}")
+    if env_key not in _warned_invalid_env_file_values:
+        _warned_invalid_env_file_values.add(env_key)
+        logger.warning(
+            "Ignoring invalid %s value from a discovered %s file: %s. %s",
+            env_key,
+            PHOENIX_ENV_FILE_NAME,
+            value,
+            message,
+        )
 
 
 def get_env_collector_endpoint() -> Optional[str]:
@@ -233,7 +303,10 @@ def get_env_client_headers() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Parsed headers dictionary or None if not set.
     """
-    values = _resolve_env_tier((ENV_PHOENIX_CLIENT_HEADERS, ENV_OTEL_EXPORTER_OTLP_HEADERS))
+    # API key, client headers, and OTLP headers are one credential group: a
+    # credential the user provides via the process environment is never
+    # combined with (or shadowed by) a credential from a discovered file.
+    values = _resolve_env_tier(_CREDENTIAL_ENV_KEYS)
     if headers_str := values.get(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
@@ -249,7 +322,10 @@ def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
     Returns:
         Optional[Dict[str, str]]: Authorization header dictionary or None if API key not set.
     """
-    values = _resolve_env_tier((ENV_PHOENIX_API_KEY, ENV_OTEL_EXPORTER_OTLP_HEADERS))
+    # Same credential group as get_env_client_headers: a file API key is used
+    # only when no credential of any kind is set in the process environment,
+    # so it can never override a process-supplied authorization header.
+    values = _resolve_env_tier(_CREDENTIAL_ENV_KEYS)
     api_key = values.get(ENV_PHOENIX_API_KEY)
     if api_key:
         return dict(authorization=f"Bearer {api_key}")
@@ -268,16 +344,16 @@ def get_env_grpc_port() -> int:
         int: The gRPC port number.
 
     Raises:
-        ValueError: If PHOENIX_GRPC_PORT is set but not a valid integer.
+        ValueError: If PHOENIX_GRPC_PORT is set in the process environment but
+            is not a valid integer. An invalid value that only came from a
+            discovered ``.env.phoenix`` file is ignored with a warning instead.
     """
     if not (port := _getenv(ENV_PHOENIX_GRPC_PORT)):
         return GRPC_PORT
     if port.isnumeric():
         return int(port)
-    raise ValueError(
-        f"Invalid value for environment variable {ENV_PHOENIX_GRPC_PORT}: "
-        f"{port}. Value must be an integer."
-    )
+    _reject_invalid_env_value(ENV_PHOENIX_GRPC_PORT, port, "Value must be an integer.")
+    return GRPC_PORT
 
 
 # Optional whitespace

@@ -1,9 +1,7 @@
 import {
   DEFAULT_PHOENIX_BASE_URL,
-  ENV_PHOENIX_API_KEY,
-  ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
-  getHeadersFromEnvironment,
+  getCredentialsFromEnvironment,
   getProjectFromEnvironment,
   getStrFromEnvironment,
   type Headers,
@@ -28,11 +26,13 @@ export interface ResolveConfigOptions {
 
 /**
  * Load Phoenix MCP configuration from environment variables.
+ *
+ * Credentials (API key and client headers) are resolved as one group, so
+ * process-environment and `.env.phoenix` file credentials are never mixed.
  */
 export function loadConfigFromEnvironment(): PhoenixMcpConfig {
   const baseUrl = getStrFromEnvironment(ENV_PHOENIX_HOST);
-  const apiKey = getStrFromEnvironment(ENV_PHOENIX_API_KEY);
-  const headers = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+  const { apiKey, headers } = getCredentialsFromEnvironment();
   const project = getProjectFromEnvironment();
 
   return {

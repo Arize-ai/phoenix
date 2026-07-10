@@ -56,13 +56,21 @@ in this file (the Phoenix repository already ignores it).
 
 ```bash
 # .env.phoenix
-PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/your-space
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_API_KEY=your-api-key
 ```
 
 Process environment variables always take precedence — the file never overrides
-anything already set — and keys without a `PHOENIX_` prefix are ignored. Set
-`PHOENIX_DISCOVER_CONFIG=false` to disable discovery entirely.
+anything already set — and keys without a `PHOENIX_` prefix are ignored. Related
+settings are resolved as groups: when any credential (`PHOENIX_API_KEY`,
+`PHOENIX_CLIENT_HEADERS`) is set in the process environment, the file is ignored
+for the whole credential group, so process and file credentials are never mixed.
+Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery entirely.
+
+Discovery results are cached per working directory for the lifetime of the
+process (including the absence of a file). Long-running processes that create
+the file after the first configuration lookup can call `clearEnvFileCache()` to
+re-discover it.
 
 ## Usage
 
