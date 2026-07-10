@@ -33,10 +33,11 @@ _POSTGRESQL_DIALECT = cast(Dialect, postgresql.dialect())  # type: ignore[no-unt
             "duration_ms > 1000 or session_id == 'abc'",
             "or_(duration_ms > 1000, session_id == 'abc')",
         ),
-        # ratio predicate — no grammar change, just float-name bindings
+        # ratio predicate — the denominator is guarded with nullif so 0 yields NULL (not a
+        # dialect-divergent divide-by-zero) and the row is excluded on both backends.
         (
             "num_traces_with_error / num_traces > 0.2",
-            "num_traces_with_error / num_traces > 0.2",
+            "num_traces_with_error / nullif(num_traces, 0) > 0.2",
         ),
         # user.id / metadata read from the earliest root span via the attributes accessor
         (
@@ -75,7 +76,8 @@ def test_session_filter_tool_call_count_subscript_translates_to_flat_binding() -
     ).strip()
 
     assert "tool_call_count[" not in translated
-    assert "__session_tool_call_count_by_name_" in translated
+    # Ordinal alias (first-appearance index), not a content-derived hash.
+    assert "__session_tool_call_count_by_name_0" in translated
     assert "tool_call_count >= 3" in translated
 
 
@@ -93,6 +95,15 @@ def test_session_filter_tool_call_count_subscript_groups_duplicate_name_join() -
     assert compiled.count("left outer join (select") == 2
     assert "spans.name = 'search'" in compiled
     assert "spans.name = 'lookup'" in compiled
+
+
+def test_session_filter_rejects_user_written_reserved_alias_prefix() -> None:
+    # Ordinal aliases are predictable (`__session_tool_call_count_by_name_0`), so visit_Name
+    # must reject any user-written name carrying the reserved prefix before aliases are
+    # injected — otherwise a crafted condition could collide with a generated aggregate.
+    with pytest.raises(SyntaxError) as exc_info:
+        SessionFilter("__session_tool_call_count_by_name_0 > 1")
+    assert "invalid name" in str(exc_info.value)
 
 
 @pytest.mark.parametrize(
@@ -725,3 +736,40 @@ async def test_session_filter_differential_oracle(db: DbSessionFactory) -> None:
             session, SessionFilter("num_traces > 2 and total_cost > 0.1"), project
         )
         assert equivalent == expected
+
+
+async def test_session_filter_ratio_zero_denominator_excludes_without_error(
+    db: DbSessionFactory,
+) -> None:
+    """A ratio predicate whose denominator aggregate coalesces to 0 must not raise (PostgreSQL
+    raises division-by-zero on a raw ``/``); the guarded ``nullif`` denominator yields NULL so the
+    row is excluded consistently on both dialects."""
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        # No cost configured for this session: total_cost / prompt_cost both coalesce to 0.
+        zero_cost = await _seed_session(
+            session, project, num_traces=3, total_cost=0.0, start_time=start
+        )
+        # A retention-orphaned session: exists with no traces, so num_traces coalesces to 0.
+        orphan = await _seed_session(
+            session, project, num_traces=0, total_cost=0.0, start_time=start
+        )
+        has_cost = await _seed_session(
+            session, project, num_traces=3, total_cost=0.4, start_time=start
+        )
+
+        # prompt_cost / total_cost: 0/0 on zero_cost, undefined on orphan, 1.0 on has_cost.
+        by_cost_ratio = await _matched_rowids(
+            session, SessionFilter("prompt_cost / total_cost > 0.5"), project
+        )
+        assert by_cost_ratio == {has_cost.id}
+        assert zero_cost.id not in by_cost_ratio
+        assert orphan.id not in by_cost_ratio
+
+        # num_traces denominator is 0 on the orphan session — must not raise either.
+        by_trace_ratio = await _matched_rowids(
+            session, SessionFilter("num_traces_with_error / num_traces > 0.2"), project
+        )
+        assert orphan.id not in by_trace_ratio
+        assert zero_cost.id not in by_trace_ratio

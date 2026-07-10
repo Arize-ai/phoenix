@@ -11,12 +11,13 @@ uses. ``user.id`` and ``metadata["k"]`` read the session's earliest root span.
 Like ``SpanFilter``, ``SessionFilter`` applies as a pure ``Select -> Select`` transform;
 ``as_session_rowids_subquery`` packages that into a ``ScalarSelect[int]`` of session rowids. Both
 the transform and the subquery accept an optional candidate-rowid restriction that is pushed into
-the aggregate SQL, so a candidate-scoped tick costs an index scan over that set rather than a
-project-wide group-by.
+the aggregate SQL. This is the integration seam designed for the online-evaluator tick: when that
+consumer lands it will pass its candidate session rowids so a candidate-scoped evaluation costs an
+index scan over that set rather than a project-wide group-by. No production consumer passes
+candidate rowids today; the parameter defaults to the whole project.
 """
 
 import ast
-import hashlib
 import typing
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
@@ -54,6 +55,11 @@ from phoenix.trace.dsl.filter import (
 
 __all__ = ["SessionFilter", "SESSION_BINDINGS", "SESSION_FILTER_DESCRIPTIONS"]
 
+# Two aggregate SQL shapes, picked by the caller's access pattern (benchmarks in
+# scripts/perf/session_filter_perf.py):
+#   - "correlated" scalars serve the paginated sessions page — LIMIT early-exit keeps it ~2ms flat.
+#   - "grouped" subqueries serve counts/sweeps — a grouped JOIN is O(all traces) on the page path
+#     (411ms pg / 1.44s sqlite per page @100k sessions), so it only wins when every row is scanned.
 AggregateShape: typing.TypeAlias = typing.Literal["grouped", "correlated"]
 
 
@@ -160,41 +166,70 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "start_time": "Session start timestamp (earliest trace).",
         "end_time": "Session end timestamp (latest trace).",
         "duration_ms": "Session wall-clock duration in milliseconds (end_time - start_time).",
-        "num_traces": "Number of traces in the session — ≈ conversation turns.",
-        "num_traces_with_error": "Number of traces in the session containing an errored span.",
-        "token_count_prompt": "Total LLM prompt tokens across the session's spans.",
-        "token_count_completion": "Total LLM completion tokens across the session's spans.",
-        "token_count_total": "Total LLM tokens (prompt + completion) across the session's spans.",
-        "prompt_cost": "Total prompt cost across the session's spans.",
-        "completion_cost": "Total completion cost across the session's spans.",
-        "total_cost": "Total cost across the session's spans.",
-        "tool_call_count": 'TOOL span count; subscript by name, e.g. tool_call_count["search"].',
-        "llm_call_count": "Number of LLM spans in the session.",
+        "num_traces": (
+            "Number of traces in the session — ≈ conversation turns; 0 when absent, never null."
+        ),
+        "num_traces_with_error": (
+            "Number of traces in the session containing an errored span; 0 when absent, never null."
+        ),
+        "token_count_prompt": (
+            "Total LLM prompt tokens across the session's spans; 0 when absent, never null."
+        ),
+        "token_count_completion": (
+            "Total LLM completion tokens across the session's spans; 0 when absent, never null."
+        ),
+        "token_count_total": (
+            "Total LLM tokens (prompt + completion) across the session's spans; "
+            "0 when absent, never null."
+        ),
+        "prompt_cost": (
+            "Total prompt cost across the session's spans; "
+            "0 when no cost is configured, never null."
+        ),
+        "completion_cost": (
+            "Total completion cost across the session's spans; "
+            "0 when no cost is configured, never null."
+        ),
+        "total_cost": (
+            "Total cost across the session's spans; 0 when no cost is configured, never null."
+        ),
+        "tool_call_count": (
+            'TOOL span count; subscript by name, e.g. tool_call_count["search"]. '
+            "0 when absent, never null."
+        ),
+        "llm_call_count": "Number of LLM spans in the session; 0 when absent, never null.",
         "any_input": (
             "Case-sensitive containment in some root span's input payload; "
-            "instrumentation-shaped, not a user-role message."
+            "instrumentation-shaped, not a user-role message. "
+            "`'x' not in any_input` also matches sessions with no input (NOT EXISTS)."
         ),
         "any_output": (
             "Case-sensitive containment in some root span's output payload; "
-            "instrumentation-shaped, not an agent-role message."
+            "instrumentation-shaped, not an agent-role message. "
+            "`'x' not in any_output` also matches sessions with no output (NOT EXISTS)."
         ),
-        "first_input": "Case-sensitive turn-1-only root span input.value string.",
-        "last_output": "Case-sensitive final-turn-only root span output.value string.",
+        "first_input": (
+            "Case-sensitive turn-1-only root span input.value string; a session with no first "
+            "input is SQL null, so `not in` and comparisons exclude it (target it with `is None`)."
+        ),
+        "last_output": (
+            "Case-sensitive final-turn-only root span output.value string; a session with no last "
+            "output is SQL null, so `not in last_output` excludes it (target it with `is None`)."
+        ),
         "attributes[...]": (
             "Open root-span attribute access. Use canonical bracket paths such as "
             'attributes["input"]["value"]; values are read from the session\'s earliest root span '
-            "and are string-cast unless explicitly cast."
+            "and are string-cast unless explicitly cast. A missing attribute is SQL null, so "
+            "comparisons and `not in` exclude those sessions (target them with `is None`)."
         ),
         "user.id": (
             'Accepted proxy for attributes["user"]["id"]; reads from the session\'s earliest '
-            "root span."
+            "root span. Missing on that span is SQL null (target it with `is None`)."
         ),
         'metadata["key"]': (
             'Accepted proxy for attributes["metadata"]["key"]; reads from the session\'s '
-            "earliest root span."
+            "earliest root span. Missing on that span is SQL null (target it with `is None`)."
         ),
-        'annotations["name"].score': "Numeric score of a session annotation by name.",
-        'annotations["name"].label': "Label of a session annotation by name.",
     }
 )
 
@@ -204,11 +239,6 @@ def _referenced_names(translated: ast.Expression) -> set[str]:
 
 
 CandidateRowids: typing.TypeAlias = typing.Optional[typing.Collection[int]]
-
-
-def _tool_call_count_by_name_alias(span_name: str) -> str:
-    digest = hashlib.sha256(span_name.encode("utf-8")).hexdigest()
-    return f"{_TOOL_CALL_COUNT_BY_NAME_ALIAS_PREFIX}{digest}"
 
 
 class _ToolCallCountSubscriptAliasResult(typing.NamedTuple):
@@ -224,8 +254,17 @@ def _tool_call_count_by_name_builder(span_name: str) -> typing.Callable[[], Sess
 
 
 class _ToolCallCountSubscriptAliaser(ast.NodeTransformer):
+    """Rewrites ``tool_call_count["name"]`` subscripts to flat ordinal aggregate names.
+
+    Aliases are assigned by first-appearance ordinal (mirroring the annotation aliaser in
+    ``filter.py``); identical span names collapse to one alias so a repeated subscript LEFT JOINs
+    its subquery once. Aliases never outlive one compile pass, so a content-derived (hash) alias
+    would buy no cross-pass stability — the ordinal is simpler and just as collision-free within a
+    pass.
+    """
+
     def __init__(self) -> None:
-        self._span_names_by_alias: dict[str, str] = {}
+        self._aliases_by_span_name: dict[str, str] = {}
 
     @property
     def aggregate_specs(self) -> dict[str, _AggregateSpec]:
@@ -235,7 +274,7 @@ class _ToolCallCountSubscriptAliaser(ast.NodeTransformer):
                 builder=_tool_call_count_by_name_builder(span_name),
                 value_column="span_kind_count",
             )
-            for alias, span_name in self._span_names_by_alias.items()
+            for span_name, alias in self._aliases_by_span_name.items()
         }
 
     def visit_Name(self, node: ast.Name) -> ast.AST:
@@ -246,8 +285,10 @@ class _ToolCallCountSubscriptAliaser(ast.NodeTransformer):
     def visit_Subscript(self, node: ast.Subscript) -> ast.AST:
         if isinstance(node.value, ast.Name) and node.value.id == _TOOL_CALL_COUNT_NAME:
             span_name = _tool_call_count_subscript_key(node)
-            alias = _tool_call_count_by_name_alias(span_name)
-            self._span_names_by_alias.setdefault(alias, span_name)
+            if (alias := self._aliases_by_span_name.get(span_name)) is None:
+                index = len(self._aliases_by_span_name)
+                alias = f"{_TOOL_CALL_COUNT_BY_NAME_ALIAS_PREFIX}{index}"
+                self._aliases_by_span_name[span_name] = alias
             return ast.copy_location(ast.Name(id=alias, ctx=ast.Load()), node)
         return self.generic_visit(node)
 
