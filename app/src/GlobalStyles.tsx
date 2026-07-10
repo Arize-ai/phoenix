@@ -1041,11 +1041,12 @@ const pxiCSS = (theme: Theme) => css`
     --pxi-conic-spin-duration: 3s;
     --pxi-glow-bleed: 28px;
     --pxi-glow-opacity: 0.95;
-    --pxi-glow-wipe-duration: 2400ms;
+    --pxi-glow-wipe-duration: 2800ms;
+    --pxi-glow-wipe-easing: cubic-bezier(0.4, 0.4, 0.65, 1);
     --pxi-treatment-color-start: #9a66ff;
     --pxi-treatment-color-middle: #3480ff;
     --pxi-treatment-color-end: #2cd8ff;
-    --pxi-glow-box-shadow-rest: ${theme === "dark"
+    --pxi-glow-box-shadow-fab-rest: ${theme === "dark"
       ? `
         0 0 2px 1px rgba(248, 242, 255, 0.78),
         0 0 4px 2px rgba(154, 102, 255, 0.68),
@@ -1060,7 +1061,7 @@ const pxiCSS = (theme: Theme) => css`
         0 0 14px 5px rgba(200, 150, 236, 0.23),
         0 0 20px 7px rgba(116, 212, 255, 0.17)
       `};
-    --pxi-glow-box-shadow-strong: ${theme === "dark"
+    --pxi-glow-box-shadow-fab-strong: ${theme === "dark"
       ? `
         0 0 3px 2px rgba(250, 244, 255, 0.88),
         0 0 7px 3px rgba(160, 108, 255, 0.82),
@@ -1074,6 +1075,36 @@ const pxiCSS = (theme: Theme) => css`
         0 0 13px 5px rgba(96, 159, 255, 0.64),
         0 0 20px 7px rgba(205, 154, 238, 0.31),
         0 0 26px 9px rgba(119, 214, 255, 0.22)
+      `};
+    --pxi-glow-box-shadow-rest: ${theme === "dark"
+      ? `
+        0 0 1px 1px rgba(248, 242, 255, 0.78),
+        0 0 3px 1px rgba(154, 102, 255, 0.68),
+        0 0 5px 2px rgba(52, 128, 255, 0.52),
+        0 0 8px 3px rgba(198, 72, 255, 0.4),
+        0 0 11px 4px rgba(44, 216, 255, 0.26)
+      `
+      : `
+        0 0 2px 1px rgba(245, 249, 255, 0.88),
+        0 0 3px 1px rgba(199, 190, 242, 0.56),
+        0 0 6px 2px rgba(88, 152, 255, 0.54),
+        0 0 9px 3px rgba(200, 150, 236, 0.23),
+        0 0 13px 4px rgba(116, 212, 255, 0.17)
+      `};
+    --pxi-glow-box-shadow-strong: ${theme === "dark"
+      ? `
+        0 0 2px 1px rgba(250, 244, 255, 0.88),
+        0 0 4px 2px rgba(160, 108, 255, 0.82),
+        0 0 7px 3px rgba(58, 134, 255, 0.66),
+        0 0 11px 4px rgba(205, 78, 255, 0.52),
+        0 0 16px 6px rgba(50, 220, 255, 0.34)
+      `
+      : `
+        0 0 3px 1px rgba(248, 251, 255, 0.94),
+        0 0 5px 2px rgba(203, 194, 244, 0.68),
+        0 0 8px 3px rgba(96, 159, 255, 0.64),
+        0 0 13px 4px rgba(205, 154, 238, 0.31),
+        0 0 17px 6px rgba(119, 214, 255, 0.22)
       `};
     --pxi-glow-box-shadow-contained-rest:
       inset 0 0 2px rgba(154, 102, 255, 0.36),

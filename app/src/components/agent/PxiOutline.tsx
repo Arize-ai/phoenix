@@ -121,7 +121,8 @@ const outlineCSS = css`
   }
 
   &[data-state="eligible"][data-should-flash="true"] .pxi-outline__glow {
-    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear 1;
+    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+      var(--pxi-glow-wipe-easing) 1;
   }
 
   &[data-state="eligible"][data-should-flash="true"]

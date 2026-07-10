@@ -83,7 +83,8 @@ const pxiButtonCSS = css`
   }
 
   &[data-pxi-should-flash="true"] .solve-with-pxi-button__glow {
-    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear 1;
+    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+      var(--pxi-glow-wipe-easing) 1;
   }
 
   &[data-pxi-should-flash="true"] .solve-with-pxi-button__glow::before {

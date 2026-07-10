@@ -95,6 +95,8 @@ const lightThemeGlyphThemeCSS = css`
 `;
 
 const shapeCSS = css`
+  --pxi-glow-box-shadow-rest: var(--pxi-glow-box-shadow-fab-rest);
+  --pxi-glow-box-shadow-strong: var(--pxi-glow-box-shadow-fab-strong);
   position: relative;
   display: flex;
   align-items: center;
@@ -210,7 +212,8 @@ const restingHoverWipeCSS = css`
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
-    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear infinite;
+    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+      var(--pxi-glow-wipe-easing) infinite;
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
@@ -227,7 +230,8 @@ const restingHoverWipeCSS = css`
 const entranceHoverWipeCSS = css`
   @media (prefers-reduced-motion: no-preference) {
     &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
-      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear 1;
+      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+        var(--pxi-glow-wipe-easing) 1;
     }
 
     &[data-entrance-animation="true"]
@@ -242,7 +246,8 @@ const entranceHoverWipeCSS = css`
     }
 
     &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
-      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration) linear infinite;
+      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+        var(--pxi-glow-wipe-easing) infinite;
     }
 
     &[data-entrance-animation="true"]:hover
