@@ -20,6 +20,7 @@ from phoenix.server.agents.capabilities.skills import SkillsCapability, SkillsTo
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
 from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashCapability,
+    OnGraphQLResult,
 )
 from phoenix.server.agents.capabilities.tools.internal.write_span_note import (
     WriteSpanNoteCapability,
@@ -69,6 +70,7 @@ def build_server_agent(
     is_viewer: bool = False,
     tracer_provider: TracerProvider | None = None,
     enable_subagents: bool = False,
+    on_graphql_result: OnGraphQLResult | None = None,
 ) -> AbstractAgent[None, str]:
     """Construct server agent."""
     resolved_prompts = prompts or ServerAgentPrompts()
@@ -83,6 +85,7 @@ def build_server_agent(
             build_graphql_context=build_graphql_context,
             instructions=resolved_prompts.bash_tool.render(),
             allow_mutations=allow_mutations,
+            on_graphql_result=on_graphql_result,
         ),
         WriteSpanNoteCapability(
             db=db,
@@ -135,6 +138,7 @@ def build_server_agent(
             is_viewer=is_viewer,
             tracer_provider=tracer_provider,
             enable_subagents=False,
+            on_graphql_result=on_graphql_result,
         )
         capabilities.append(
             CallSubAgentCapability[None](

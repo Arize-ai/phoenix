@@ -51,6 +51,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 )
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
+    DataChunk,
     MessageMetadataChunk,
     ProviderMetadata,
     StartChunk,
@@ -78,6 +79,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
+from phoenix.server.agents.capabilities.tools.internal.bash import PhoenixGQLResult
 from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
@@ -229,6 +231,37 @@ class AssistantMessageMetadata(_CamelModel):
     trace: AssistantMessageMetadataTraceIds | None = None
     turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
+
+
+class GraphQLResultPayload(_CamelModel):
+    """Input and output of one server-side ``phoenix-gql`` execution."""
+
+    query: str
+    variables: dict[str, Any] | None = None
+    data: Any = None
+    errors: list[Any] | None = None
+    operation_type: Literal["query", "mutation"]
+
+
+@register_openapi_schema
+class GraphQLResultChunk(DataChunk):
+    """Transient server-side GraphQL result streamed to the browser."""
+
+    type: Literal["data-graphql-result"] = "data-graphql-result"
+    data: GraphQLResultPayload
+    transient: Literal[True] = True
+
+
+def _build_graphql_result_chunk(graphql_result: PhoenixGQLResult) -> GraphQLResultChunk:
+    return GraphQLResultChunk(
+        data=GraphQLResultPayload(
+            query=graphql_result.query,
+            variables=graphql_result.variables,
+            data=graphql_result.payload.get("data"),
+            errors=graphql_result.payload.get("errors"),
+            operation_type=graphql_result.operation_type,
+        )
+    )
 
 
 class AssistantMetadataUIMessage(UIMessage):
@@ -1169,6 +1202,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and get_env_phoenix_agents_web_access_enabled()
         )
         subagents_enabled = _subagents_enabled(resolved_contexts)
+        graphql_result_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
+            asyncio.Queue()
+        )
+
+        async def _publish_graphql_result(graphql_result: PhoenixGQLResult) -> None:
+            await graphql_result_chunks.put(_build_graphql_result_chunk(graphql_result))
+
         server_agent = build_server_agent(
             model=model,
             schema=request.app.state.graphql_schema,
@@ -1185,6 +1225,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             is_viewer=is_viewer,
             tracer_provider=tracer_provider,
             enable_subagents=subagents_enabled,
+            on_graphql_result=_publish_graphql_result,
         )
         adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
             agent=server_agent,
@@ -1206,15 +1247,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 with detached_otel_context(), using_session(session_id=session_id):
                     raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
-                    async with aclosing(raw_stream) as stream:
-                        async for chunk in stream:
-                            if isinstance(chunk, ToolInputAvailableChunk):
-                                chunk.provider_metadata = _get_updated_provider_metadata(
-                                    provider_metadata=chunk.provider_metadata or {},
-                                    tool_name=chunk.tool_name,
-                                    emitted_at=datetime.now(timezone.utc),
-                                )
-                            yield chunk
+
+                    async def _server_agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                        async with aclosing(raw_stream) as stream:
+                            async for chunk in stream:
+                                if isinstance(chunk, ToolInputAvailableChunk):
+                                    chunk.provider_metadata = _get_updated_provider_metadata(
+                                        provider_metadata=chunk.provider_metadata or {},
+                                        tool_name=chunk.tool_name,
+                                        emitted_at=datetime.now(timezone.utc),
+                                    )
+                                yield chunk
+
+                    async for chunk in _interleave_agent_and_subagent_message_chunks(
+                        agent_message_chunks=_server_agent_message_chunks(),
+                        subagent_message_chunks=graphql_result_chunks,
+                        final_tool_outputs_by_tool_call_id={},
+                    ):
+                        yield chunk
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
@@ -1314,6 +1364,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
+        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
+            asyncio.Queue()
+        )
+
+        async def _publish_graphql_result(graphql_result: PhoenixGQLResult) -> None:
+            await subagent_message_chunks.put(_build_graphql_result_chunk(graphql_result))
 
         server_agent = (
             build_server_agent(
@@ -1331,12 +1387,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 is_viewer=is_viewer,
                 tracer_provider=tracer_provider,
                 enable_subagents=False,
+                on_graphql_result=_publish_graphql_result,
             )
             if subagents_enabled
             else None
-        )
-        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
-            asyncio.Queue()
         )
         final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
         publish_subagent_message_chunk: (

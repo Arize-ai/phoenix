@@ -17817,6 +17817,97 @@
         ],
         "title": "_SummarizeResponse"
       },
+      "GraphQLResultChunk": {
+        "additionalProperties": false,
+        "description": "Transient server-side GraphQL result streamed to the browser.",
+        "properties": {
+          "type": {
+            "const": "data-graphql-result",
+            "default": "data-graphql-result",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GraphQLResultPayload"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "GraphQLResultChunk",
+        "type": "object"
+      },
+      "GraphQLResultPayload": {
+        "description": "Input and output of one server-side ``phoenix-gql`` execution.",
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "variables": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Variables"
+          },
+          "data": {
+            "default": null,
+            "title": "Data"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Errors"
+          },
+          "operationType": {
+            "enum": [
+              "query",
+              "mutation"
+            ],
+            "title": "Operationtype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query",
+          "operationType"
+        ],
+        "title": "GraphQLResultPayload",
+        "type": "object"
+      },
       "ToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",

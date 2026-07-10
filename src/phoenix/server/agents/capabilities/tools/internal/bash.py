@@ -1,24 +1,40 @@
 from __future__ import annotations
 
 import json
+import logging
 import posixpath
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
-from graphql import GraphQLSyntaxError
+from graphql import (
+    GraphQLInterfaceType,
+    GraphQLObjectType,
+    GraphQLSchema,
+    GraphQLSyntaxError,
+)
 from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
-from graphql.language.ast import OperationDefinitionNode
+from graphql import print_ast as print_graphql_ast
+from graphql.language.ast import (
+    FieldNode,
+    NameNode,
+    OperationDefinitionNode,
+    SelectionSetNode,
+)
+from graphql.language.visitor import Visitor, visit
+from graphql.utilities import TypeInfo, TypeInfoVisitor, build_schema
 from jinja2 import Template
 from pydantic_ai import Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
-from typing_extensions import TypedDict
+from typing_extensions import Literal, TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
+
+logger = logging.getLogger(__name__)
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
@@ -244,16 +260,85 @@ def _write_file(ctx: BuiltinContext, path: str, content: str) -> None:
     ctx.fs.write_file(path, content.encode("utf-8"))
 
 
+@dataclass(frozen=True)
+class PhoenixGQLResult:
+    """Input and output of one server-side ``phoenix-gql`` execution."""
+
+    query: str
+    variables: Optional[dict[str, Any]]
+    payload: dict[str, Any]
+    operation_type: Literal["query", "mutation"]
+
+
+OnGraphQLResult = Callable[[PhoenixGQLResult], Awaitable[None]]
+
+
+def _selects_field(selection_set: SelectionSetNode, field_name: str) -> bool:
+    return any(
+        isinstance(selection, FieldNode)
+        and selection.alias is None
+        and selection.name.value == field_name
+        for selection in selection_set.selections
+    )
+
+
+def _inject_id_and_typename(query: str, graphql_core_schema: GraphQLSchema) -> str:
+    """Add ``id`` and ``__typename`` to selection sets for Relay normalization."""
+    try:
+        document = parse_graphql(query)
+    except GraphQLSyntaxError:
+        return query
+    type_info = TypeInfo(graphql_core_schema)
+
+    class _SelectionInjector(Visitor):
+        def enter_selection_set(
+            self, node: SelectionSetNode, *_: Any
+        ) -> Optional[SelectionSetNode]:
+            parent_type = type_info.get_parent_type()
+            if parent_type is None:
+                return None
+            additions: list[FieldNode] = []
+            if not _selects_field(node, "__typename"):
+                additions.append(FieldNode(name=NameNode(value="__typename")))
+            parent_has_id_field = (
+                isinstance(parent_type, (GraphQLObjectType, GraphQLInterfaceType))
+                and "id" in parent_type.fields
+            )
+            if parent_has_id_field and not _selects_field(node, "id"):
+                additions.append(FieldNode(name=NameNode(value="id")))
+            if not additions:
+                return None
+            return SelectionSetNode(selections=tuple(node.selections) + tuple(additions))
+
+    try:
+        injected_document = visit(document, TypeInfoVisitor(type_info, _SelectionInjector()))
+    except Exception:
+        logger.warning("phoenix-gql id/__typename injection failed", exc_info=True)
+        return query
+    return print_graphql_ast(injected_document)
+
+
 def create_phoenix_gql_builtin(
     *,
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
     allow_mutations: bool,
+    on_graphql_result: Optional[OnGraphQLResult] = None,
 ) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
-    """Build the ``phoenix-gql`` custom shell command."""
+    """Build the server-side ``phoenix-gql`` custom shell command."""
     allowed_operation_types = (
         {OperationType.QUERY, OperationType.MUTATION} if allow_mutations else {OperationType.QUERY}
     )
+    graphql_core_schema: Optional[GraphQLSchema] = None
+    if on_graphql_result is not None:
+        try:
+            graphql_core_schema = build_schema(schema.as_str())
+        except Exception:
+            logger.warning(
+                "Failed to build a graphql-core schema for phoenix-gql id/__typename "
+                "injection; responses may not merge cleanly into the client store",
+                exc_info=True,
+            )
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:
         try:
@@ -274,8 +359,14 @@ def create_phoenix_gql_builtin(
 
             variables = _resolve_variables(parsed, ctx)
 
+            executed_query = (
+                _inject_id_and_typename(query, graphql_core_schema)
+                if graphql_core_schema is not None
+                else query
+            )
+
             result = await schema.execute(
-                query,
+                executed_query,
                 variable_values=variables,
                 context_value=build_graphql_context(),
                 allowed_operation_types=allowed_operation_types,
@@ -285,6 +376,23 @@ def create_phoenix_gql_builtin(
             payload: dict[str, Any] = {"data": result.data}
             if errors:
                 payload["errors"] = [error.formatted for error in errors]
+
+            if on_graphql_result is not None and result.data is not None:
+                try:
+                    await on_graphql_result(
+                        PhoenixGQLResult(
+                            query=executed_query,
+                            variables=variables,
+                            payload=payload,
+                            operation_type=(
+                                "mutation"
+                                if GraphQLOperationType.MUTATION in operation_types
+                                else "query"
+                            ),
+                        )
+                    )
+                except Exception:
+                    logger.exception("phoenix-gql on_graphql_result callback failed")
             graphql_error_text = (
                 _format_graphql_errors([error.message for error in errors]) if errors else ""
             )
@@ -334,6 +442,7 @@ class BashToolset(FunctionToolset[None]):
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
         allow_mutations: bool,
+        on_graphql_result: Optional[OnGraphQLResult] = None,
     ) -> None:
         shell = Bash(
             python=False,
@@ -343,6 +452,7 @@ class BashToolset(FunctionToolset[None]):
                     schema=schema,
                     build_graphql_context=build_graphql_context,
                     allow_mutations=allow_mutations,
+                    on_graphql_result=on_graphql_result,
                 ),
             },
         )
@@ -378,12 +488,14 @@ class BashCapability(AbstractStaticCapability[None]):
     build_graphql_context: Callable[[], Context]
     instructions: str
     allow_mutations: bool = False
+    on_graphql_result: Optional[OnGraphQLResult] = None
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
+            on_graphql_result=self.on_graphql_result,
         )
 
     def get_static_instructions(self) -> str:

@@ -5720,6 +5720,60 @@ export interface components {
             summary: string;
         };
         /**
+         * GraphQLResultChunk
+         * @description Transient server-side GraphQL result streamed to the browser.
+         */
+        GraphQLResultChunk: {
+            /**
+             * Type
+             * @default data-graphql-result
+             * @constant
+             */
+            type?: "data-graphql-result";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["GraphQLResultPayload"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /**
+         * GraphQLResultPayload
+         * @description Input and output of one server-side ``phoenix-gql`` execution.
+         */
+        GraphQLResultPayload: {
+            /** Query */
+            query: string;
+            /**
+             * Variables
+             * @default null
+             */
+            variables?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Data
+             * @default null
+             */
+            data?: unknown;
+            /**
+             * Errors
+             * @default null
+             */
+            errors?: unknown[] | null;
+            /**
+             * Operationtype
+             * @enum {string}
+             */
+            operationType: "query" | "mutation";
+        };
+        /**
          * ToolCallCallbackProviderMetadata
          * @description Shape of the ``phoenix`` namespace the browser returns in
          *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields

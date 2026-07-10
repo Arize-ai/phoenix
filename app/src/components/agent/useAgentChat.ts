@@ -25,6 +25,7 @@ import {
 } from "@phoenix/agent/chat/turnTraceContext";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
+import { applyServerGraphQLResult } from "@phoenix/agent/relay/applyServerGraphQLResult";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type {
@@ -208,6 +209,11 @@ export function useAgentChat({
                   },
                   agentStore: store,
                 });
+              },
+              onData: (dataPart) => {
+                if (dataPart.type === "data-graphql-result") {
+                  applyServerGraphQLResult(dataPart.data);
+                }
               },
               sendAutomaticallyWhen: ({ messages }) =>
                 turnCompletionGate.handleSendAutomaticallyWhen({ messages }),

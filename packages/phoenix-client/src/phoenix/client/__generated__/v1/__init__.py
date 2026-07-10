@@ -1031,6 +1031,14 @@ class FieldSummarizeResponse(TypedDict):
     summary: str
 
 
+class GraphQLResultPayload(TypedDict):
+    query: str
+    operationType: Literal["query", "mutation"]
+    variables: NotRequired[Mapping[str, Any]]
+    data: NotRequired[Any]
+    errors: NotRequired[Sequence[Any]]
+
+
 class ToolCallCallbackProviderMetadata(TypedDict):
     tool_execution_environment: Literal["client", "server"]
     tool_input_emitted_at: NotRequired[str]
@@ -1595,6 +1603,13 @@ class FieldSummarizeRequest(TypedDict):
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
+
+
+class GraphQLResultChunk(TypedDict):
+    type: Literal["data-graphql-result"]
+    data: GraphQLResultPayload
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):

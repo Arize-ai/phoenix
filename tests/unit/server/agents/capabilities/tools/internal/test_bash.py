@@ -1,15 +1,35 @@
 import json
+import re
 from typing import Any, Awaitable, Protocol
 from unittest.mock import Mock
 
 import pytest
 import strawberry
+from graphql.utilities import build_schema
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
-from phoenix.server.agents.capabilities.tools.internal.bash import BashToolset
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BashToolset,
+    OnGraphQLResult,
+    PhoenixGQLResult,
+    _inject_id_and_typename,
+)
 from phoenix.server.api.context import Context
+
+
+@strawberry.type
+class Owner:
+    id: strawberry.ID
+    email: str
+
+
+@strawberry.type
+class Project:
+    id: strawberry.ID
+    name: str
+    owner: Owner
 
 
 @strawberry.type
@@ -30,6 +50,14 @@ class Query:
     def big(self, size: int) -> str:
         return "x" * size
 
+    @strawberry.field
+    def project(self) -> Project:
+        return Project(
+            id=strawberry.ID("proj-1"),
+            name="Demo",
+            owner=Owner(id=strawberry.ID("user-1"), email="owner@example.com"),
+        )
+
 
 @strawberry.type
 class Mutation:
@@ -42,11 +70,16 @@ class RunBash(Protocol):
     def __call__(self, command: str) -> Awaitable[dict[str, Any]]: ...
 
 
-def _build_run_bash(*, allow_mutations: bool) -> RunBash:
+def _build_run_bash(
+    *,
+    allow_mutations: bool,
+    on_graphql_result: OnGraphQLResult | None = None,
+) -> RunBash:
     toolset = BashToolset(
         schema=strawberry.Schema(query=Query, mutation=Mutation),
         build_graphql_context=lambda: Mock(spec=Context),
         allow_mutations=allow_mutations,
+        on_graphql_result=on_graphql_result,
     )
     ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
 
@@ -284,3 +317,138 @@ async def test_web_commands_cannot_reach_loopback(run_bash: RunBash, command: st
     # Loopback/private addresses are unreachable too: the built-in never connects to
     # the host the server runs on.
     assert "network access not configured" in result["stdout"] + result["stderr"]
+
+
+def _build_recording_run_bash(
+    *, allow_mutations: bool = False
+) -> tuple[RunBash, list[PhoenixGQLResult]]:
+    recorded: list[PhoenixGQLResult] = []
+
+    async def record(graphql_result: PhoenixGQLResult) -> None:
+        recorded.append(graphql_result)
+
+    return _build_run_bash(allow_mutations=allow_mutations, on_graphql_result=record), recorded
+
+
+async def test_on_graphql_result_records_injected_query_and_payload() -> None:
+    run_bash, recorded = _build_recording_run_bash()
+
+    result = await run_bash("phoenix-gql '{ project { name owner { email } } }'")
+
+    assert result["exit_code"] == 0
+    assert len(recorded) == 1
+    graphql_result = recorded[0]
+    assert graphql_result.query.count("__typename") == 3
+    assert len(re.findall(r"\bid\b", graphql_result.query)) == 2
+    assert graphql_result.operation_type == "query"
+    assert graphql_result.variables is None
+    assert graphql_result.payload["data"]["project"] == {
+        "name": "Demo",
+        "owner": {
+            "email": "owner@example.com",
+            "__typename": "Owner",
+            "id": "user-1",
+        },
+        "__typename": "Project",
+        "id": "proj-1",
+    }
+    assert json.loads(result["stdout"])["data"]["project"]["id"] == "proj-1"
+
+
+async def test_on_graphql_result_records_variables_and_mutation_type() -> None:
+    run_bash, recorded = _build_recording_run_bash(allow_mutations=True)
+
+    result = await run_bash("phoenix-gql 'mutation { deleteEverything }'")
+
+    assert result["exit_code"] == 0
+    assert recorded[0].operation_type == "mutation"
+    assert recorded[0].payload["data"] == {
+        "deleteEverything": "deleted",
+        "__typename": "Mutation",
+    }
+
+    variables_result = await run_bash(
+        "phoenix-gql 'query($text: String!) { echo(text: $text) }' --vars '{\"text\": \"hi\"}'"
+    )
+
+    assert variables_result["exit_code"] == 0
+    assert recorded[1].variables == {"text": "hi"}
+    assert recorded[1].payload["data"]["echo"] == "hi"
+
+
+async def test_on_graphql_result_skipped_when_response_has_no_data() -> None:
+    run_bash, recorded = _build_recording_run_bash()
+
+    result = await run_bash("phoenix-gql '{ boom }'")
+
+    assert result["exit_code"] == 1
+    assert recorded == []
+
+
+async def test_on_graphql_result_callback_failure_does_not_fail_the_command() -> None:
+    async def explode(graphql_result: PhoenixGQLResult) -> None:
+        raise RuntimeError("callback exploded")
+
+    run_bash = _build_run_bash(allow_mutations=False, on_graphql_result=explode)
+
+    result = await run_bash("phoenix-gql '{ hello }'")
+
+    assert result["exit_code"] == 0
+    assert json.loads(result["stdout"])["data"]["hello"] == "world"
+
+
+async def test_no_injection_without_callback(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql '{ project { name } }'")
+
+    assert result["exit_code"] == 0
+    assert json.loads(result["stdout"]) == {"data": {"project": {"name": "Demo"}}}
+
+
+_INJECTION_SDL = """
+type Query {
+  project: Project
+  hello: String
+}
+type Project {
+  id: ID!
+  name: String
+  owner: Owner
+}
+type Owner {
+  id: ID!
+  email: String
+}
+"""
+
+
+def test_inject_adds_typename_everywhere_and_id_where_defined() -> None:
+    injected = _inject_id_and_typename("{ project { name } }", build_schema(_INJECTION_SDL))
+
+    assert injected.count("__typename") == 2
+    assert len(re.findall(r"\bid\b", injected)) == 1
+
+
+def test_inject_does_not_duplicate_existing_selections() -> None:
+    injected = _inject_id_and_typename(
+        "{ project { id __typename name } }", build_schema(_INJECTION_SDL)
+    )
+
+    assert injected.count("__typename") == 2
+    assert len(re.findall(r"\bid\b", injected)) == 1
+
+
+def test_inject_reaches_fragment_definitions() -> None:
+    injected = _inject_id_and_typename(
+        "query { project { ...ProjectParts } } fragment ProjectParts on Project { name }",
+        build_schema(_INJECTION_SDL),
+    )
+
+    assert injected.count("__typename") == 3
+    assert len(re.findall(r"\bid\b", injected)) == 2
+
+
+def test_inject_returns_unparseable_query_unchanged() -> None:
+    assert (
+        _inject_id_and_typename("this is not graphql", build_schema(_INJECTION_SDL))
+        == "this is not graphql"
+    )
