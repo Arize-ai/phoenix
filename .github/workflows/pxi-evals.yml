@@ -156,7 +156,14 @@ jobs:
         run: |
           set -uo pipefail
 
-          mapfile -t retry_nodeids < "${PXI_EVAL_RETRY_NODEIDS_PATH}"
+          # gate.py emits node IDs relative to evals/pxi (pytest's rootdir,
+          # set by -c evals/pxi/pytest.ini). This step runs from the repo
+          # root like every other step here, so re-root each node ID onto
+          # that same path before handing it to pytest -- otherwise pytest
+          # looks for e.g. ./tests/test_pxi_evals.py from the repo root,
+          # finds nothing, and silently collects zero items.
+          mapfile -t bare_nodeids < "${PXI_EVAL_RETRY_NODEIDS_PATH}"
+          retry_nodeids=("${bare_nodeids[@]/#/evals/pxi/}")
           echo "Retrying ${#retry_nodeids[@]} failed pytest node ID(s) once."
           set +e
           uv run pytest \
@@ -169,6 +176,11 @@ jobs:
       - name: Gate results and render report
         if: always()
         shell: bash
+        env:
+          # Routed through env rather than interpolated directly into the
+          # script so this step's action output can never be read as shell
+          # syntax (zizmor: code injection via template expansion).
+          RETRY_PLANNED: ${{ steps.retry_plan.outputs.retry }}
         run: |
           set -uo pipefail
 
@@ -184,7 +196,7 @@ jobs:
             --thresholds evals/pxi/thresholds.yaml
             --report-out "${report_md}"
           )
-          if [[ "${{ steps.retry_plan.outputs.retry }}" == "true" ]]; then
+          if [[ "${RETRY_PLANNED}" == "true" ]]; then
             gate_args+=(--retry-artifact "${retry_results}")
           fi
 
