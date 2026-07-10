@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c13e22286f9ef9d25dd628b803ca4281>>
+ * @generated SignedSource<<75b48d6af525ceb3b5d34e5c18701c46>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,7 @@ export type SessionsTableSessionCountQuery$variables = {
   filterIoSubstring?: string | null;
   id: string;
   sessionFilterCondition?: string | null;
+  sessionId?: string | null;
   timeRange: TimeRange;
 };
 export type SessionsTableSessionCountQuery$data = {
@@ -47,16 +48,21 @@ v2 = {
 v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "sessionId"
+},
+v4 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v4 = [
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v5 = {
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -71,6 +77,11 @@ v5 = {
           "kind": "Variable",
           "name": "sessionFilterCondition",
           "variableName": "sessionFilterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "sessionId",
+          "variableName": "sessionId"
         },
         {
           "kind": "Variable",
@@ -92,7 +103,8 @@ return {
       (v0/*:: as any*/),
       (v1/*:: as any*/),
       (v2/*:: as any*/),
-      (v3/*:: as any*/)
+      (v3/*:: as any*/),
+      (v4/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -100,13 +112,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*:: as any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -118,16 +130,17 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v1/*:: as any*/),
-      (v3/*:: as any*/),
+      (v4/*:: as any*/),
       (v0/*:: as any*/),
-      (v2/*:: as any*/)
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableSessionCountQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -140,7 +153,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*:: as any*/),
+          (v6/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -154,16 +167,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0c5b1658f348d7526a54664cc8eeba90",
+    "cacheID": "effd355e41e16d9d6a20b7d5220b2770",
     "id": null,
     "metadata": {},
     "name": "SessionsTableSessionCountQuery",
     "operationKind": "query",
-    "text": "query SessionsTableSessionCountQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterIoSubstring: String\n  $sessionFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      sessionCount(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionFilterCondition: $sessionFilterCondition)\n    }\n    id\n  }\n}\n"
+    "text": "query SessionsTableSessionCountQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterIoSubstring: String\n  $sessionFilterCondition: String\n  $sessionId: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      sessionCount(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionFilterCondition: $sessionFilterCondition, sessionId: $sessionId)\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "27130c55fa0543b1ce7457c90d62e8d0";
+(node as any).hash = "154bb10c40251b9e32a41937fb9d2bf3";
 
 export default node;

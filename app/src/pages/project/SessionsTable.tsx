@@ -65,6 +65,7 @@ import {
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import type { SessionsTableSessionCountQuery } from "./__generated__/SessionsTableSessionCountQuery.graphql";
+import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   SessionInputValueTooltipCell,
@@ -196,12 +197,6 @@ export function SessionsTable(props: SessionsTableProps) {
           id
           name
           ...SessionColumnSelector_annotations
-          sessionFilterVocabulary {
-            name
-            type
-            description
-            category
-          }
           sessions(
             first: $first
             after: $after
@@ -596,6 +591,24 @@ export function SessionsTable(props: SessionsTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const vocabularyData =
+    useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
+      graphql`
+        query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
+          project: node(id: $id) {
+            ... on Project {
+              sessionFilterVocabulary {
+                name
+                type
+                description
+                category
+              }
+            }
+          }
+        }
+      `,
+      { id: data.id }
+    );
   const { columnSizingInfo, columnSizing: columnSizingState } =
     table.getState();
   const getFlatHeaders = table.getFlatHeaders;
@@ -644,7 +657,9 @@ export function SessionsTable(props: SessionsTableProps) {
             </div>
             <div css={toolbarFilterFieldCSS}>
               <SessionFilterConditionField
-                vocabulary={data.sessionFilterVocabulary}
+                vocabulary={
+                  vocabularyData.project?.sessionFilterVocabulary ?? []
+                }
                 onValidCondition={setValidSessionFilterCondition}
               />
             </div>
@@ -853,6 +868,7 @@ function SessionFilterMatchCountValue({
         $timeRange: TimeRange!
         $filterIoSubstring: String
         $sessionFilterCondition: String
+        $sessionId: String
       ) {
         project: node(id: $id) {
           ... on Project {
@@ -860,6 +876,7 @@ function SessionFilterMatchCountValue({
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
               sessionFilterCondition: $sessionFilterCondition
+              sessionId: $sessionId
             )
           }
         }
@@ -870,6 +887,7 @@ function SessionFilterMatchCountValue({
       timeRange,
       filterIoSubstring: filterIoSubstring || null,
       sessionFilterCondition: sessionFilterCondition || null,
+      sessionId: filterIoSubstring || null,
     },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
