@@ -8,4 +8,5 @@ export * from "./TimeRangeControls";
 export * from "./ConnectedTimeRangeSelector";
 export * from "./ConnectedTimeRangeControls";
 export * from "./TimeRangeForm";
+export * from "./useTimeRangeVariable";
 export type { TimeRangeKey, OpenTimeRangeWithKey } from "./types";

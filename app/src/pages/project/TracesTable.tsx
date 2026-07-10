@@ -43,6 +43,10 @@ import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotatio
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
+  useTimeRange,
+  useTimeRangeVariable,
+} from "@phoenix/components/datetime";
+import {
   CellWithControlsWrap,
   createRowSelectionColumn,
   TextCell,
@@ -234,6 +238,12 @@ export function TracesTable(props: TracesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { fetchKey } = useStreamState();
+  // Source the time range directly here (rather than only via the preloaded
+  // parent query) so a live window sliding forward refetches with the filter
+  // still applied. The parent query is intentionally not reloaded on window
+  // slides — see the load effect in `ProjectPage` and issue #14216.
+  const { timeRange } = useTimeRange();
+  const timeRangeVariable = useTimeRangeVariable(timeRange);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -912,13 +922,14 @@ export function TracesTable(props: TracesTableProps) {
           first: PAGE_SIZE,
           filterCondition: filterCondition,
           numDescendants: NUM_DESCENDANTS,
+          timeRange: timeRangeVariable,
         },
         {
           fetchPolicy: "store-and-network",
         }
       );
     });
-  }, [sorting, refetch, filterCondition, fetchKey]);
+  }, [sorting, refetch, filterCondition, fetchKey, timeRangeVariable]);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {

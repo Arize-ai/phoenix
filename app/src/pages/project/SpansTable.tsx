@@ -38,6 +38,10 @@ import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotatio
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
+  useTimeRange,
+  useTimeRangeVariable,
+} from "@phoenix/components/datetime";
+import {
   CellWithControlsWrap,
   createRowSelectionColumn,
   LoadMoreRow,
@@ -203,6 +207,12 @@ export function SpansTable(props: SpansTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { rootSpansOnly, setRootSpansOnly } = useSpanFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  // Source the time range directly here (rather than only via the preloaded
+  // parent query) so a live window sliding forward refetches with the filter
+  // still applied. The parent query is intentionally not reloaded on window
+  // slides — see the load effect in `ProjectPage` and issue #14216.
+  const { timeRange } = useTimeRange();
+  const timeRangeVariable = useTimeRangeVariable(timeRange);
 
   // Advertise the current rootSpansOnly state so the agent's context message
   // reflects whether the toggle is mounted on this tab.
@@ -780,11 +790,19 @@ export function SpansTable(props: SpansTableProps) {
           first: PAGE_SIZE,
           filterCondition,
           rootSpansOnly,
+          timeRange: timeRangeVariable,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterCondition, fetchKey, rootSpansOnly]);
+  }, [
+    sorting,
+    refetch,
+    filterCondition,
+    fetchKey,
+    rootSpansOnly,
+    timeRangeVariable,
+  ]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {

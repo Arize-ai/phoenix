@@ -5,6 +5,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useEffectEvent,
   useMemo,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
@@ -170,40 +171,49 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
-  useEffect(() => {
-    startTransition(() => {
-      if (tabIndex === TAB_INDEX_MAP.spans) {
+  // Load the preloaded query backing the active tab's table. The time range is
+  // read at load time (via an effect event, so it is not a reactive trigger)
+  // rather than tracked as a dependency: live "last-N" windows slide forward on
+  // a timer, and these preloaded queries carry no span-filter argument, so
+  // reloading them on every slide would replace the table's filtered rows with
+  // unfiltered data — dropping an applied filter while streaming (see issue
+  // #14216). The tables instead own time-range and filter liveness through
+  // their own `refetch`, so the preloaded query only needs an initial window
+  // and reloads solely on project, tab, or orphan-span changes.
+  const loadTableQueryForTab = useEffectEvent(
+    (
+      currentTabIndex: number,
+      currentProjectId: string,
+      currentTreatOrphansAsRoots: boolean
+    ) => {
+      if (currentTabIndex === TAB_INDEX_MAP.spans) {
         loadSpansQuery({
-          id: projectId as string,
+          id: currentProjectId,
           timeRange: timeRangeVariable,
-          orphanSpanAsRootSpan: treatOrphansAsRoots,
+          orphanSpanAsRootSpan: currentTreatOrphansAsRoots,
         });
-      } else if (tabIndex === TAB_INDEX_MAP.traces) {
+      } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         loadTracesQuery({
-          id: projectId as string,
+          id: currentProjectId,
           timeRange: timeRangeVariable,
         });
-      } else if (tabIndex === TAB_INDEX_MAP.sessions) {
+      } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
-          id: projectId as string,
+          id: currentProjectId,
           timeRange: timeRangeVariable,
         });
-      } else if (tabIndex === TAB_INDEX_MAP.config) {
+      } else if (currentTabIndex === TAB_INDEX_MAP.config) {
         loadProjectConfigQuery({
-          id: projectId as string,
+          id: currentProjectId,
         });
       }
+    }
+  );
+  useEffect(() => {
+    startTransition(() => {
+      loadTableQueryForTab(tabIndex, projectId as string, treatOrphansAsRoots);
     });
-  }, [
-    loadTracesQuery,
-    projectId,
-    timeRangeVariable,
-    tabIndex,
-    loadSpansQuery,
-    loadSessionsQuery,
-    loadProjectConfigQuery,
-    treatOrphansAsRoots,
-  ]);
+  }, [tabIndex, projectId, treatOrphansAsRoots]);
 
   const onTabChange = useCallback(
     (index: number) => {
