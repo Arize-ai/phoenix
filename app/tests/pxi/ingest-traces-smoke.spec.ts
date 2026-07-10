@@ -182,9 +182,7 @@ test.describe("PXI ingest traces smoke", () => {
 
         if (process.env.PXI_E2E_EXPORT_REMOTE_TRACES === "true") {
           expect(relayRemoteExportHeaders).toContain("true");
-          await expect
-            .poll(() => relayResponseStatuses)
-            .toContain(200);
+          await expect.poll(() => relayResponseStatuses).toContain(200);
         }
 
         expect(chatTrace!.spans.length).toBeGreaterThanOrEqual(

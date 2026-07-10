@@ -872,9 +872,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             )
 
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(
-            x_phoenix_pxi_ingest_traces and recording.allow_local_traces
-        )
+        ingest_traces = bool(x_phoenix_pxi_ingest_traces and recording.allow_local_traces)
         collector_endpoint = get_env_phoenix_agents_collector_endpoint()
         export_remote_traces = bool(
             x_phoenix_pxi_export_remote_traces
@@ -887,9 +885,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 detail="Server is at capacity and cannot process more requests",
             )
         body = await request.body()
-        otlp_request = await _decode_pxi_otlp_request(
-            body=body, content_encoding=content_encoding
-        )
+        otlp_request = await _decode_pxi_otlp_request(body=body, content_encoding=content_encoding)
         project_name = get_env_phoenix_agents_assistant_project_name()
 
         if ingest_traces:

@@ -246,9 +246,7 @@ class TestPxiBrowserTraceRelay:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         with respx.mock:
-            respx.post("https://collector.example/v1/traces").mock(
-                return_value=httpx.Response(503)
-            )
+            respx.post("https://collector.example/v1/traces").mock(return_value=httpx.Response(503))
             with pytest.raises(HTTPException) as exc_info:
                 await _export_pxi_otlp_request(
                     body=b"",
