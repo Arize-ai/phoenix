@@ -4046,6 +4046,222 @@ class TestProject:
         )
         assert session_count == 1
 
+    async def test_session_count_mirrors_sessions_exact_session_id_precedence(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """sessionCount agrees with the sessions list in every session_id precedence branch."""
+        project = _data.projects[0]
+
+        async def _list_len(args: str) -> int:
+            result = await self._node(
+                f"sessions({args}){{edges{{node{{id}}}}}}", project, httpx_client
+            )
+            return len(result["edges"])
+
+        async def _count(args: str) -> int:
+            return await self._node(f"sessionCount({args})", project, httpx_client)
+
+        # Case 1 — exact-ID hit short-circuits to that one session, ignoring the substring/DSL that
+        # would otherwise exclude it (session 0 has a single trace, so `num_traces >= 999` fails).
+        hit_id = json.dumps(_data.project_sessions[0].session_id)
+        hit_args = (
+            f"sessionId:{hit_id},"
+            f"filterIoSubstring:{json.dumps('does-not-match')},"
+            f"sessionFilterCondition:{json.dumps('num_traces >= 999')}"
+        )
+        assert await _list_len(hit_args) == await _count(hit_args) == 1
+
+        # Case 2 — exact-ID miss with other filters falls through to the composed filters; only
+        # session index 2 has two traces.
+        condition = json.dumps("num_traces >= 2")
+        miss_args = f"sessionId:{json.dumps('does-not-exist')},sessionFilterCondition:{condition}"
+        assert await _list_len(miss_args) == await _count(miss_args) == 1
+
+        # Case 3 — no session_id: plain composed-filter agreement.
+        plain_args = f"sessionFilterCondition:{condition}"
+        assert await _list_len(plain_args) == await _count(plain_args) == 1
+
+    @staticmethod
+    async def _validate_session_filter(
+        project: models.Project,
+        condition: str,
+        gql_client: AsyncGraphQLClient,
+    ) -> dict[str, Any]:
+        query = """
+            query($id: ID!, $condition: String!) {
+              node(id: $id) {
+                ... on Project {
+                  validateSessionFilterCondition(condition: $condition) {
+                    isValid
+                    errorMessage
+                    warnings
+                  }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={"id": project_gid, "condition": condition},
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        result: dict[str, Any] = data["node"]["validateSessionFilterCondition"]
+        return result
+
+    async def test_validate_session_filter_condition_warns_on_unknown_dynamic_names(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """Typo'd names in string-literal subscripts compile but warn against observed names."""
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_session = await _add_project_session(session, project, start_time=base_time)
+            trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            tool_span = await _add_span(
+                session,
+                trace,
+                span_kind="TOOL",
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=1),
+            )
+            tool_span.name = "search"
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="quality",
+                    label="good",
+                    score=1.0,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+            await session.flush()
+
+        # Typo'd annotation name: valid (compiles) but warns, naming the unknown + the observed set.
+        result = await self._validate_session_filter(
+            project, "annotations['typoo'].score > 0.5", gql_client
+        )
+        assert result["isValid"] is True
+        assert result["errorMessage"] is None
+        assert any(
+            w.startswith("unknown annotation name 'typoo'") and "quality" in w
+            for w in result["warnings"]
+        )
+
+        # Typo'd tool name: same soft-warning behavior.
+        result = await self._validate_session_filter(
+            project, 'tool_call_count["typo"] > 0', gql_client
+        )
+        assert result["isValid"] is True
+        assert any(
+            w.startswith("unknown tool name 'typo'") and "search" in w for w in result["warnings"]
+        )
+
+        # Valid names (both observed) produce no warnings.
+        result = await self._validate_session_filter(
+            project,
+            "annotations['quality'].score > 0.5 and tool_call_count['search'] > 0",
+            gql_client,
+        )
+        assert result["isValid"] is True
+        assert result["warnings"] == []
+
+    async def test_validate_session_filter_condition_warns_with_no_observed_names(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """An unknown name still warns when the project has observed no names at all."""
+        async with db() as session:
+            project = await _add_project(session)
+        result = await self._validate_session_filter(
+            project, "annotations['typoo'].score > 0.5", gql_client
+        )
+        assert result["isValid"] is True
+        assert result["errorMessage"] is None
+        assert any(
+            w.startswith("unknown annotation name 'typoo'") and "observed names: []" in w
+            for w in result["warnings"]
+        )
+
+    async def test_session_filter_vocabulary_bounds_attribute_scan_to_recent_sessions(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The root-span attribute scan is capped to the most recent N sessions (recency-biased)."""
+        from phoenix.server.api.types import Project as project_module
+
+        monkeypatch.setattr(project_module, "_VOCABULARY_ATTRIBUTE_SCAN_LIMIT", 1)
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            older_session = await _add_project_session(session, project, start_time=base_time)
+            older_trace = await _add_trace(
+                session,
+                project,
+                older_session,
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            await _add_span(
+                session,
+                older_trace,
+                attributes={"old_only": "x"},
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            newer_session = await _add_project_session(
+                session, project, start_time=base_time + timedelta(minutes=5)
+            )
+            newer_trace = await _add_trace(
+                session,
+                project,
+                newer_session,
+                start_time=base_time + timedelta(minutes=5),
+                end_time=base_time + timedelta(minutes=5, seconds=10),
+            )
+            await _add_span(
+                session,
+                newer_trace,
+                attributes={"new_only": "y"},
+                start_time=base_time + timedelta(minutes=5),
+                end_time=base_time + timedelta(minutes=5, seconds=10),
+            )
+            await session.flush()
+        query = """
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Project {
+                  sessionFilterVocabulary { name }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(query=query, variables={"id": project_gid})
+        assert not response.errors
+        assert (data := response.data) is not None
+        term_names = {t["name"] for t in data["node"]["sessionFilterVocabulary"]}
+        # Only the most recent session's attribute is discovered under the cap of 1.
+        assert 'attributes["new_only"]' in term_names
+        assert 'attributes["old_only"]' not in term_names
+
 
 @pytest.mark.parametrize(
     "sort_col, sort_dir, expected_order",

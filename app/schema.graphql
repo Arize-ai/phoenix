@@ -4758,6 +4758,7 @@ enum UserRoleInput {
 type ValidationResult {
   isValid: Boolean!
   errorMessage: String
+  warnings: [String!]!
 }
 
 input VercelConfigInput {

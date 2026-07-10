@@ -1,3 +1,4 @@
+import ast
 import operator
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
@@ -66,6 +67,11 @@ from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.session_filter import SessionFilter
 
 DEFAULT_PAGE_SIZE = 30
+# Cap on the sessions whose earliest-root-span attributes seed session-filter-vocabulary
+# autocomplete. The attribute discovery walks each session's root span in Python, so an unbounded
+# scan grows with project size; a recency-biased sample of this many sessions keeps the field cheap
+# while still surfacing the attribute shapes an author is likely to filter on.
+_VOCABULARY_ATTRIBUTE_SCAN_LIMIT = 1000
 _TOKEN_COUNT_DETAIL_EPSILON = 1e-9
 _TOKEN_COUNT_DETAIL_SORT_ORDER = {
     "input": 0,
@@ -215,6 +221,67 @@ def _attribute_leaf_paths(
             yield from _attribute_leaf_paths(value, path)
         else:
             yield path
+
+
+# Dynamic names live inside string-literal subscripts (``annotations["x"]``,
+# ``tool_call_count["x"]``) that the compiler's unbound-name rejection never inspects: a typo
+# compiles fine and silently matches nothing. These drive a soft validation warning that compares
+# such names against observed ones. ``evals`` is the compiler's accepted alias for ``annotations``.
+_ANNOTATION_SUBSCRIPT_NAMES = frozenset({"annotations", "evals"})
+_TOOL_CALL_COUNT_SUBSCRIPT_NAMES = frozenset({"tool_call_count"})
+
+
+def _referenced_subscript_names(condition: str, subscript_names: frozenset[str]) -> set[str]:
+    """String-literal subscript keys of ``<name>[...]`` for each ``name`` in ``subscript_names``.
+
+    e.g. ``annotations["typoo"].score`` yields ``{"typoo"}`` for the annotation names, and
+    ``tool_call_count["typo"] > 0`` yields ``{"typo"}`` for the tool names. Only string-literal
+    subscripts are extracted (the same shape the compiler binds), so this cannot surface a name the
+    compiler would itself reject. An unparseable condition returns the empty set — it already fails
+    compile-time validation, where the failure is reported as an error rather than a warning.
+    """
+    try:
+        tree = ast.parse(condition, mode="eval")
+    except SyntaxError:
+        return set()
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name)
+            and node.value.id in subscript_names
+            and isinstance(node.slice, ast.Constant)
+            and isinstance(node.slice.value, str)
+        ):
+            names.add(node.slice.value)
+    return names
+
+
+def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
+    """Distinct session-annotation names in a project.
+
+    Shared by ``sessionFilterVocabulary`` (folded in as ``annotations[...]`` terms) and
+    ``validateSessionFilterCondition`` (checked against referenced annotation names).
+    """
+    return (
+        select(distinct(models.ProjectSessionAnnotation.name))
+        .join(models.ProjectSession)
+        .where(models.ProjectSession.project_id == project_rowid)
+    )
+
+
+def _session_tool_span_names_stmt(project_rowid: int) -> Select[Any]:
+    """Distinct TOOL span names in a project.
+
+    Shared by ``sessionFilterVocabulary`` (folded in as ``tool_call_count[...]`` terms) and
+    ``validateSessionFilterCondition`` (checked against referenced tool names).
+    """
+    return (
+        select(distinct(models.Span.name))
+        .join(models.Trace)
+        .where(models.Trace.project_rowid == project_rowid)
+        .where(func.upper(models.Span.span_kind) == "TOOL")
+    )
 
 
 @strawberry.type
@@ -736,12 +803,27 @@ class Project(Node):
                     None,
                 ),
             )
+        # Mirror the exact-session-id precedence of the ``sessions`` list resolver so the count
+        # preview never disagrees with the rows shown: an exact match short-circuits to 1 (ignoring
+        # time range / substring / DSL), a miss with no other filters is 0, and a miss with other
+        # filters falls through to the composed count below.
+        if session_id:
+            async with info.context.db.read() as session:
+                ans = await session.scalar(
+                    select(models.ProjectSession).filter_by(
+                        session_id=session_id,
+                        project_id=self.id,
+                    )
+                )
+            if ans:
+                return 1
+            elif not filter_io_substring and not session_filter_condition:
+                return 0
         stmt = _apply_project_session_filters(
             select(func.count(models.ProjectSession.id)),
             project_rowid=self.id,
             time_range=time_range or None,
             filter_io_substring=filter_io_substring or None,
-            session_id=session_id or None,
         )
         if session_filter_condition:
             filtered_session_rowids = get_filtered_session_rowids_subquery(
@@ -1152,16 +1234,48 @@ class Project(Node):
 
         Mirrors ``validate_span_filter_condition`` for the session grain: the condition is compiled
         to SQL for both dialects without executing, so any syntax or binding error surfaces as an
-        invalid result. Per-keystroke annotation-name validation is intentionally skipped for cost.
+        invalid result.
+
+        A compiling condition may still reference an ``annotations["..."]`` or
+        ``tool_call_count[...]`` name that no session in the project has — a typo lives in a
+        string-literal subscript, so it never trips the compiler's unbound-name rejection and
+        instead silently matches nothing. Such names are surfaced as ``warnings`` (not errors: a
+        name may be about to exist, e.g. a new eval's future annotations), checked against the
+        project's observed annotation and TOOL names. Per-keystroke annotation-name validation as a
+        hard error is intentionally skipped for cost.
         """
         try:
             session_filter = SessionFilter(condition=condition)
             stmt = session_filter(select(models.ProjectSession))
             str(stmt.compile(dialect=sqlite.dialect()))
             str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-            return ValidationResult(is_valid=True, error_message=None)
         except Exception as e:
             return ValidationResult(is_valid=False, error_message=str(e))
+        referenced_annotation_names = _referenced_subscript_names(
+            condition, _ANNOTATION_SUBSCRIPT_NAMES
+        )
+        referenced_tool_names = _referenced_subscript_names(
+            condition, _TOOL_CALL_COUNT_SUBSCRIPT_NAMES
+        )
+        warnings: list[str] = []
+        if referenced_annotation_names or referenced_tool_names:
+            async with info.context.db.read() as session:
+                observed_annotation_names = set(
+                    await session.scalars(_session_annotation_names_stmt(self.id))
+                )
+                observed_tool_names = set(
+                    await session.scalars(_session_tool_span_names_stmt(self.id))
+                )
+            for name in sorted(referenced_annotation_names - observed_annotation_names):
+                warnings.append(
+                    f"unknown annotation name '{name}' — "
+                    f"observed names: {sorted(observed_annotation_names)}"
+                )
+            for name in sorted(referenced_tool_names - observed_tool_names):
+                warnings.append(
+                    f"unknown tool name '{name}' — observed names: {sorted(observed_tool_names)}"
+                )
+        return ValidationResult(is_valid=True, error_message=None, warnings=warnings)
 
     @strawberry.field
     async def session_filter_vocabulary(
@@ -1173,30 +1287,40 @@ class Project(Node):
         Static terms derive from the ``SessionFilter`` compiler's own name maps, so they cannot
         drift from what compiles; per-project session-annotation names are folded in as typed
         ``annotations[...]`` terms, observed root-span attributes, and observed TOOL span names.
+
+        The observed-attribute discovery walks each session's earliest root-span attributes in
+        Python, so it is bounded to the project's most recent ``_VOCABULARY_ATTRIBUTE_SCAN_LIMIT``
+        sessions: a recency-biased sample keeps autocomplete cheap on large projects while still
+        surfacing the attribute shapes an author is likely to filter on. The cheap distinct-name
+        queries (annotations, TOOL names) stay unbounded.
         """
-        annotation_names_stmt = (
-            select(distinct(models.ProjectSessionAnnotation.name))
-            .join(models.ProjectSession)
+        annotation_names_stmt = _session_annotation_names_stmt(self.id)
+        tool_span_names_stmt = _session_tool_span_names_stmt(self.id)
+        recent_session_rowids_stmt = (
+            select(models.ProjectSession.id)
             .where(models.ProjectSession.project_id == self.id)
-        )
-        root_spans = earliest_root_span_by_session(project_rowids=[self.id]).subquery()
-        root_span_attributes_stmt = (
-            select(models.Span.attributes)
-            .select_from(models.Span)
-            .join(root_spans, models.Span.id == root_spans.c[SPAN_ROWID])
-            .join(models.ProjectSession, models.ProjectSession.id == root_spans.c[SESSION_ROWID])
-            .where(models.ProjectSession.project_id == self.id)
-        )
-        tool_span_names_stmt = (
-            select(distinct(models.Span.name))
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id)
-            .where(func.upper(models.Span.span_kind) == "TOOL")
+            .order_by(models.ProjectSession.start_time.desc(), models.ProjectSession.id.desc())
+            .limit(_VOCABULARY_ATTRIBUTE_SCAN_LIMIT)
         )
         async with info.context.db.read() as session:
             annotation_names = list(await session.scalars(annotation_names_stmt))
-            root_span_attributes = list(await session.scalars(root_span_attributes_stmt))
             tool_span_names = list(await session.scalars(tool_span_names_stmt))
+            recent_session_rowids = list(await session.scalars(recent_session_rowids_stmt))
+            root_spans = earliest_root_span_by_session(
+                keys=recent_session_rowids,
+                project_rowids=[self.id],
+            ).subquery()
+            root_span_attributes_stmt = (
+                select(models.Span.attributes)
+                .select_from(models.Span)
+                .join(root_spans, models.Span.id == root_spans.c[SPAN_ROWID])
+                .join(
+                    models.ProjectSession,
+                    models.ProjectSession.id == root_spans.c[SESSION_ROWID],
+                )
+                .where(models.ProjectSession.project_id == self.id)
+            )
+            root_span_attributes = list(await session.scalars(root_span_attributes_stmt))
         root_span_attribute_paths: list[tuple[str, ...]] = []
         for attributes in root_span_attributes:
             if isinstance(attributes, Mapping):
