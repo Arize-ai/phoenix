@@ -7,7 +7,6 @@ from typing import Any
 import httpx
 import pandas as pd
 from opentelemetry import trace as trace_api
-
 from phoenix.client import Client
 from phoenix.client.experiments import create_evaluator
 from phoenix.otel import register
