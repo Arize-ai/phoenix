@@ -22,11 +22,11 @@ test.describe("OAuth2 consent", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "Phoenix CLI is requesting READ-ONLY access",
+        name: "Phoenix CLI wants read-only access to your Phoenix workspace",
       })
     ).toBeVisible();
     await expect(page.getByText("project data")).toBeVisible();
-    await expect(page.getByText("not admin settings")).toBeVisible();
+    await expect(page.getByText("admin settings")).toBeVisible();
     await expect(
       page.getByText("Only approve if you started this yourself")
     ).toBeVisible();
