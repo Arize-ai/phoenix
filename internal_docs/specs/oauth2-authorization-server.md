@@ -155,14 +155,18 @@ sequenceDiagram
     Phoenix-->>CLI: 200 (always, per RFC 7009)
 ```
 
-The consent handoff is deliberately split in two: `GET /oauth2/authorize`
-performs all protocol validation server-side and then redirects to the SPA
-consent route with only display parameters appended, and the SPA posts the
-user's decision to a JSON endpoint that requires both a valid session cookie
-and a same-origin `Origin` header (CSRF defense; dial-off via
+The consent handoff is split in two: `GET /oauth2/authorize` performs protocol
+validation server-side and redirects to the SPA consent route with the request
+parameters plus server-derived `client_name` and `is_first_party` display
+parameters. The SPA posts the user's decision to a JSON endpoint that
+re-validates the client and redirect URI and requires both a valid session
+cookie and a same-origin `Origin` header (CSRF defense; dial-off via
 `PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK=off` for unusual proxy setups). The
 authorization code is minted only after an authenticated, origin-verified
-approval.
+approval. The display parameters in the SPA URL are not authenticated state:
+direct navigation can forge the consent-page label or badge even though it
+cannot bypass decision validation. Replacing this handoff with server-derived
+display data or trusted short-lived request state remains security work.
 
 ---
 
@@ -178,16 +182,17 @@ token tables. All JSON columns are JSONB on PostgreSQL.
 | `client_id` | string, unique index | Public client identifier (`phoenix-cli`, or `px_dcr_` + 22 base62 chars for DCR) |
 | `name` | string | Display name shown on the consent page |
 | `logo_uri` | string, nullable | Optional client-supplied logo |
-| `redirect_uris` | JSON | Registered **https** URIs only; loopback and private-use URIs are validated dynamically per request |
+| `redirect_uris` | JSON | Every registered redirect URI; authorization is always bound to this per-client list |
 | `grant_types` | JSON | Subset of `authorization_code`, `refresh_token` |
 | `token_endpoint_auth_method` | string | `none` — public clients only in this iteration |
 | `is_first_party` | bool | Seeded Phoenix clients get verified consent copy; DCR clients get a caution notice |
 | `metadata_` | JSON, nullable | Unrecognized RFC 7591 fields, plus the registering IP for DCR hygiene |
 
 The `phoenix-cli` first-party client is seeded idempotently at startup
-(`facilitator.py`) with an **empty** `redirect_uris` list: a CLI binds a random
-loopback port per login, so its redirects can only be validated structurally,
-not by string registration.
+(`facilitator.py`) with `http://127.0.0.1/callback`. Loopback comparison ignores
+only the port, so a CLI can bind a random port without allowing another host or
+path. Startup also reconciles rows created by earlier builds of this unreleased
+feature that seeded an empty redirect list.
 
 ### `oauth2_grants`
 
@@ -198,7 +203,7 @@ grant behind (the unredeemed code expires and is swept).
 | Column | Type | Purpose |
 |--------|------|---------|
 | `user_id`, `oauth2_client_id` | FK, CASCADE | Grant identity |
-| `scopes`, `audience` | JSON, nullable | Snapshot copied onto every token minted under the grant |
+| `scopes`, `audience` | JSON, nullable | Granted values copied onto every token; currently scopes are empty and audience is unset |
 | `expires_at` | timestamp, nullable | Grant ceiling (default 90 days); refresh-token lifetimes are clamped to it |
 | `last_used_at` | timestamp | Touched on every refresh — feeds DCR client-cleanup and future session UI |
 | `revoked_at` | timestamp, nullable | Soft revocation; refresh redemption checks it |
@@ -210,8 +215,8 @@ grant behind (the unredeemed code expires and is swept).
 | `code_hash` | string, unique index | SHA-256 of the code — a DB leak does not yield redeemable codes |
 | `redirect_uri` | string | Must be echoed exactly at the token endpoint (RFC 6749 §4.1.3) |
 | `code_challenge`, `code_challenge_method` | string | PKCE (S256 only) |
-| `scopes`, `resource`, `audience` | JSON/string, nullable | Request snapshot carried into the grant |
-| `expires_at` | timestamp | 5-minute TTL; single-use — deleted on redemption, rejected-and-deleted if presented after expiry, and swept at server startup |
+| `scopes`, `resource`, `audience` | JSON/string, nullable | Reserved for future scope/audience enforcement; current grants store no granted scopes or resource audience |
+| `expires_at` | timestamp | 5-minute TTL; single-use — atomically claimed on redemption, rejected-and-deleted if presented after expiry, and swept at server startup |
 
 ### Token-table extensions
 
@@ -230,7 +235,7 @@ which is how the two token populations are distinguished.
 |----------|--------|------|-----------|-------|
 | `/.well-known/oauth-authorization-server` | GET | none | — | RFC 8414; advertises `registration_endpoint` unless DCR is disabled |
 | `/.well-known/oauth-protected-resource` | GET | none | — | RFC 9728; lists this deployment as its own authorization server when auth is enabled |
-| `/oauth2/authorize` | GET | session cookie (redirects to login) | — | Validates client, redirect URI, state (≥22 chars), `response_type=code`, PKCE S256, optional `resource`; errors that can be delivered safely go to the redirect URI per RFC 6749 §4.1.2.1, pre-validation failures render an HTML error |
+| `/oauth2/authorize` | GET | session cookie (redirects to login) | — | Validates client, redirect URI, state (≥22 chars), `response_type=code`, PKCE S256, optional `resource`; unsupported response types return `unsupported_response_type`; errors that can be delivered safely go to the redirect URI per RFC 6749 §4.1.2.1, pre-validation failures render an HTML error |
 | `/oauth2/consent` | GET (SPA route) | session | — | Display only; owns no protocol state |
 | `/oauth2/authorize/decision` | POST | session cookie + strict Origin | — | JSON body; approval mints the hashed one-time code |
 | `/oauth2/token` | POST (form) | none (public clients, PKCE is the proof) | 0.2 req/s per IP | `authorization_code` and `refresh_token` grants |
@@ -244,6 +249,14 @@ is `invalid_target` (RFC 8707) for a `resource` value that does not match this
 deployment — that is a request-shape error the client needs to correct, and
 it reveals nothing about any stored code.
 
+Successful token responses and OAuth JSON error/registration responses include
+`Cache-Control: no-store` and `Pragma: no-cache`. Code redemption validates
+client identity, exact redirect binding, expiry, and PKCE before consuming the
+code. The validated code is then deleted with a conditional `DELETE …
+RETURNING` in the grant-creation transaction; PostgreSQL row locking and an
+immediate SQLite write transaction ensure concurrent redemptions have one
+winner. Failed validation does not consume an otherwise valid code.
+
 ---
 
 ## Redirect URI Model
@@ -254,8 +267,8 @@ three structurally different ways, and each class gets its own validation rule
 
 | Class | Validation | Who needs it |
 |-------|-----------|--------------|
-| **Loopback** (`http://127.0.0.1`, `::1`, `localhost`) | Any port, any path; no query/fragment; no userinfo | CLIs and desktop agents that bind an ephemeral port per login. Observed paths differ per platform — `/callback` (Claude Code, `px`), `/callback/<id>` (Codex CLI), fixed ports with nested paths (OpenCode), even a bare `/` (VS Code) — so pinning ports or paths breaks real clients. RFC 8252 §7.3 explicitly requires accepting arbitrary ports. |
-| **Private-use scheme** (`cursor://…`, `vscode://…`) | Scheme must be a valid URI scheme *not* in a deny-set (`http`, `https`, `javascript`, `data`, `vbscript`, `file`, `blob`, `about`, `ws`, `wss`); no query/fragment | Desktop IDE agents whose OS routes the scheme to the installed app (Cursor's documented desktop callback is `cursor://anysphere.cursor-mcp/oauth/callback`). The deny-set is a security boundary: without it, `javascript:` or `data:` "schemes" would turn the redirect into an XSS vector. |
+| **Loopback** (`http://127.0.0.1`, `::1`, `localhost`) | Must match a URI registered to that client by scheme, host, path, and query; only the port may differ; fragments and userinfo are rejected | CLIs and desktop agents bind an ephemeral port per login. Different clients register the path they actually use — `/`, `/callback`, `/callback/<id>`, or `/mcp/oauth/callback` — while RFC 8252 §7.3 requires the AS to accept an arbitrary runtime port. |
+| **Private-use scheme** (`cursor://…`, `vscode://…`) | Exact registered URI match; scheme must also be a valid URI scheme *not* in a deny-set (`http`, `https`, `javascript`, `data`, `vbscript`, `file`, `blob`, `about`, `ws`, `wss`); fragments are rejected | Desktop IDE agents whose OS routes the scheme to the installed app (Cursor's documented desktop callback is `cursor://anysphere.cursor-mcp/oauth/callback`). Exact per-client binding prevents one registered native client from borrowing another client's callback. |
 | **HTTPS registered** | Exact string match against the client's registered list, plus an optional host allowlist | Hosted agent surfaces (web-based agents with a cloud callback URL). Highest-risk class — a redirect to an attacker-controlled https URL exfiltrates codes — so it is off except at the most permissive dial position. |
 
 Classification and validation live in one pure function
@@ -306,8 +319,8 @@ structural rather than optional:
 - Cleanup runs opportunistically at registration time, at most once per day
 - Only `client_name` (≤200 printable chars), `logo_uri` (≤2048), redirect
   URIs, and the supported grant/response types are honored; everything else is
-  retained opaquely in `metadata_`. Only https URIs are *stored* — the local
-  classes are re-validated per request
+  retained opaquely in `metadata_`. All submitted redirect URIs are stored and
+  each authorization request is matched against that client's registrations.
 
 DCR clients are always public (`token_endpoint_auth_method: none`) and
 restricted to `authorization_code` + `refresh_token`.
@@ -368,10 +381,13 @@ tokens.
 
 Codes are 32 bytes of `secrets` entropy, stored as SHA-256 (lookup by hash —
 inherently timing-safe on the hot path), expire in 5 minutes, and are deleted
-on first redemption. PKCE comparison uses `hmac.compare_digest`. S256 is the
-only accepted challenge method; `plain` is not implemented.
+by a conditional database claim on first valid redemption. Invalid client,
+redirect, or PKCE input cannot burn a valid code, and concurrent valid
+redemptions cannot both create grants. PKCE comparison uses
+`hmac.compare_digest`. S256 is the only accepted challenge method; `plain` is
+not implemented.
 
-### Refresh rotation with family revocation
+### Refresh rotation without replay-family detection
 
 Redeeming a refresh token mints a new pair and then revokes the old refresh
 token *and every access token minted under it*. A replayed old refresh token
@@ -402,7 +418,9 @@ and must canonicalize to this deployment's own origin (scheme/host lowercased,
 default ports elided, root path applied); anything else is `invalid_target`.
 Phoenix is currently the only resource its tokens are good for — the
 parameter, and the `resource`/`audience` columns, exist so multi-audience
-support later is additive rather than migratory.
+support later is additive rather than migratory. The authorization request's
+resource is not yet persisted and bound to token redemption; that must be
+implemented before supporting more than this single deployment resource.
 
 ### Issuer identity from configuration, not from Host headers
 
@@ -434,12 +452,13 @@ here is small enough that a framework would mostly be indirection.
 Two layers, matching how the code is split:
 
 **Unit** (`tests/unit/server/test_oauth2_authorization_server.py` and
-friends): the pure validation module — PKCE grammar and verification, all
-three redirect classes against all three dial positions, the private-use-scheme
-deny-set, state length, resource canonicalization (ports, case, root paths,
-IPv6), plus grant-claims hydration. These run with auth disabled and no
-server, because the functions under test take strings and return
-classifications.
+friends): the pure validation module — PKCE grammar and verification,
+per-client matching for all three redirect classes, dial-position rejection,
+the private-use-scheme deny-set, state length, resource canonicalization
+(ports, case, root paths, IPv6), plus grant-claims hydration. These run with
+auth disabled and no server, because the functions under test take strings and
+return classifications. Facilitator tests exercise first-party client seeding
+and startup reconciliation on SQLite and PostgreSQL.
 
 **Integration** (`tests/integration/auth/test_oauth2.py`): a real server
 process with auth enabled, real HTTP, no mocks. A small `_OAuthPublicClient`
@@ -450,9 +469,9 @@ Coverage is organized by concern, one class each:
 | Class | Covers |
 |-------|--------|
 | `TestDiscovery` | Both well-known documents, registration-endpoint advertisement per dial |
-| `TestAuthorizationCodeFlow` | Happy path, denial, state/PKCE failures, code single-use |
+| `TestAuthorizationCodeFlow` | Happy path, denial, unsupported response type, PKCE failures without code consumption, sequential reuse, and concurrent single-use |
 | `TestTokenLifecycle` | Refresh rotation, replay of rotated tokens, revocation semantics |
-| `TestDynamicClientRegistration` | Registration across all three dial positions, redirect-class rejection, hygiene caps |
+| `TestDynamicClientRegistration` | Registration across all three dial positions, cache headers, multi-URI persistence, per-client redirect binding, port-only loopback variance, redirect-class rejection, and rate limiting |
 | `TestGrantTokenAccess` | Granted tokens act with the authorizing user's permissions (scope enforcement deferred to the authorization workstream) |
 | `TestAdminGrantOversight` | Admins can list and revoke grants across users; non-admins can do neither |
 
@@ -491,8 +510,8 @@ configuration — grant tokens are the same tokens.
 | RFC 8414 (AS Metadata) | Implemented at the well-known path under the deployment root |
 | RFC 8252 (OAuth for Native Apps) | Loopback (§7.3, arbitrary ports) and private-use schemes (§7.2) per the redirect model above |
 | RFC 9728 (Protected Resource Metadata) | Implemented; PRM points at this deployment as its own AS |
-| RFC 8707 (Resource Indicators) | Accepted and strictly validated against the single deployment resource; `invalid_target` on mismatch |
-| OAuth 2.1 (draft) | Aligned by construction: code+PKCE only, no implicit grant, exact/structural redirect matching, rotation on refresh |
+| RFC 8707 (Resource Indicators) | Accepted and validated against the single deployment resource; `invalid_target` on mismatch; authorization-to-token resource binding remains future work |
+| OAuth 2.1 (draft) | Partially aligned: code+PKCE only, no implicit grant, registered redirect matching, and refresh rotation; replay-family detection remains future work |
 | Client ID Metadata Documents (draft) | Not implemented; noted as the likely successor to DCR for agent platforms as the draft and client support mature |
 
 ## Appendix: Lessons Learned

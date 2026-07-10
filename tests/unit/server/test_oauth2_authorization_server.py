@@ -79,13 +79,18 @@ def test_verify_pkce_uses_constant_time_challenge_comparison() -> None:
         ("http://[::1]:8080/anything/here", "::1", 8080, "/anything/here"),
     ],
 )
-def test_loopback_redirect_uri_allows_any_port_and_path(
+def test_loopback_redirect_uri_allows_registered_path_on_any_port(
     uri: str,
     host: str,
     port: int | None,
     path: str,
 ) -> None:
-    redirect_uri = validate_redirect_uri(uri, [], RedirectUriDialPosition.LOCAL_ONLY)
+    registered_uri = f"http://{f'[{host}]' if ':' in host else host}{path}"
+    redirect_uri = validate_redirect_uri(
+        uri,
+        [registered_uri],
+        RedirectUriDialPosition.LOCAL_ONLY,
+    )
 
     assert redirect_uri == Loopback(uri=uri, host=host, port=port, path=path)
 
@@ -93,14 +98,34 @@ def test_loopback_redirect_uri_allows_any_port_and_path(
 @pytest.mark.parametrize(
     "uri",
     [
-        "http://127.0.0.1:1234/callback?code=abc",
         "http://127.0.0.1:1234/callback#fragment",
         "http://example.com/callback",
     ],
 )
-def test_loopback_redirect_uri_rejects_query_fragment_and_non_loopback_host(uri: str) -> None:
+def test_loopback_redirect_uri_rejects_fragment_and_non_loopback_host(uri: str) -> None:
     with pytest.raises(RedirectUriValidationError):
-        validate_redirect_uri(uri, [], RedirectUriDialPosition.LOCAL_ONLY)
+        validate_redirect_uri(uri, [uri], RedirectUriDialPosition.LOCAL_ONLY)
+
+
+def test_loopback_redirect_uri_requires_registered_host_path_and_query() -> None:
+    registered_uri = "http://127.0.0.1/callback?channel=stable"
+
+    assert validate_redirect_uri(
+        "http://127.0.0.1:49152/callback?channel=stable",
+        [registered_uri],
+        RedirectUriDialPosition.LOCAL_ONLY,
+    )
+    for unregistered_uri in (
+        "http://localhost:49152/callback?channel=stable",
+        "http://127.0.0.1:49152/",
+        "http://127.0.0.1:49152/callback?channel=insiders",
+    ):
+        with pytest.raises(RedirectUriValidationError):
+            validate_redirect_uri(
+                unregistered_uri,
+                [registered_uri],
+                RedirectUriDialPosition.LOCAL_ONLY,
+            )
 
 
 @pytest.mark.parametrize(
@@ -112,7 +137,7 @@ def test_loopback_redirect_uri_rejects_query_fragment_and_non_loopback_host(uri:
     ],
 )
 def test_private_use_scheme_redirect_uri(uri: str, scheme: str) -> None:
-    redirect_uri = validate_redirect_uri(uri, [], RedirectUriDialPosition.LOCAL_ONLY)
+    redirect_uri = validate_redirect_uri(uri, [uri], RedirectUriDialPosition.LOCAL_ONLY)
 
     assert redirect_uri == PrivateUseScheme(uri=uri, scheme=scheme)
 
@@ -126,16 +151,26 @@ def test_private_use_scheme_redirect_uri_rejects_each_denied_scheme(scheme: str)
 @pytest.mark.parametrize(
     "uri",
     [
-        "cursor://anysphere.cursor-mcp/oauth/callback?code=abc",
         "cursor://anysphere.cursor-mcp/oauth/callback#fragment",
         "1cursor://callback",
     ],
 )
-def test_private_use_scheme_redirect_uri_rejects_query_fragment_and_bad_scheme(
+def test_private_use_scheme_redirect_uri_rejects_fragment_and_bad_scheme(
     uri: str,
 ) -> None:
     with pytest.raises(RedirectUriValidationError):
-        validate_redirect_uri(uri, [], RedirectUriDialPosition.LOCAL_ONLY)
+        validate_redirect_uri(uri, [uri], RedirectUriDialPosition.LOCAL_ONLY)
+
+
+def test_private_use_scheme_redirect_uri_requires_exact_registration() -> None:
+    registered_uri = "cursor://anysphere.cursor-mcp/oauth/callback"
+
+    with pytest.raises(RedirectUriValidationError):
+        validate_redirect_uri(
+            "cursor://other-app/oauth/callback",
+            [registered_uri],
+            RedirectUriDialPosition.LOCAL_ONLY,
+        )
 
 
 def test_https_redirect_uri_requires_exact_registered_match_and_enabled_dial() -> None:
@@ -159,7 +194,7 @@ def test_https_redirect_uri_requires_exact_registered_match_and_enabled_dial() -
 )
 def test_dynamic_redirect_uris_are_rejected_when_dial_is_disabled(uri: str) -> None:
     with pytest.raises(RedirectUriValidationError):
-        validate_redirect_uri(uri, [], RedirectUriDialPosition.DISABLED)
+        validate_redirect_uri(uri, [uri], RedirectUriDialPosition.DISABLED)
 
 
 @pytest.mark.parametrize("state", [None, "", "a" * 21])

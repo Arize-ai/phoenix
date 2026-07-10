@@ -161,27 +161,26 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
 
 PHOENIX_CLI_OAUTH2_CLIENT_ID = "phoenix-cli"
 PHOENIX_CLI_OAUTH2_CLIENT_NAME = "Phoenix CLI"
+PHOENIX_CLI_OAUTH2_REDIRECT_URIS = ["http://127.0.0.1/callback"]
 
 
 async def _ensure_oauth2_clients(db: DbSessionFactory) -> None:
-    """Idempotently seed the first-party Phoenix CLI OAuth2 client.
-
-    Loopback and private-use-scheme redirect URIs are validated dynamically at
-    authorize time, so ``redirect_uris`` stays empty for this public client.
-    """
+    """Idempotently seed and reconcile the first-party Phoenix CLI OAuth2 client."""
     async with db() as session:
         existing = await session.scalar(
-            sa.select(models.OAuth2Client.id).where(
+            sa.select(models.OAuth2Client).where(
                 models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
             )
         )
         if existing is not None:
+            if existing.redirect_uris != PHOENIX_CLI_OAUTH2_REDIRECT_URIS:
+                existing.redirect_uris = list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS)
             return
         session.add(
             models.OAuth2Client(
                 client_id=PHOENIX_CLI_OAUTH2_CLIENT_ID,
                 name=PHOENIX_CLI_OAUTH2_CLIENT_NAME,
-                redirect_uris=[],
+                redirect_uris=list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS),
                 grant_types=["authorization_code", "refresh_token"],
                 token_endpoint_auth_method="none",
                 is_first_party=True,

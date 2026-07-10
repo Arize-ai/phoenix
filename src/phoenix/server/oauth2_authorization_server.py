@@ -177,15 +177,26 @@ def validate_redirect_uri(
     registered_redirect_uris: list[str],
     dial_position: RedirectUriDialPosition,
 ) -> RedirectUri:
-    """Classify a redirect URI after validating its delivery mechanism."""
+    """Classify a redirect URI after validating it against client registration."""
     parsed = urlsplit(uri)
     _reject_malformed_uri(parsed)
     scheme = parsed.scheme.lower()
 
     if scheme == "http":
-        return _validate_loopback_redirect(uri, parsed, dial_position)
+        return _validate_loopback_redirect(
+            uri,
+            parsed,
+            registered_redirect_uris,
+            dial_position,
+        )
     if _is_private_use_scheme(scheme):
-        return _validate_private_use_scheme_redirect(uri, parsed, scheme, dial_position)
+        return _validate_private_use_scheme_redirect(
+            uri,
+            parsed,
+            scheme,
+            registered_redirect_uris,
+            dial_position,
+        )
     if scheme == "https":
         return _validate_https_registered_redirect(uri, registered_redirect_uris, dial_position)
     raise RedirectUriValidationError("Unsupported redirect URI scheme.")
@@ -242,30 +253,62 @@ def public_origin(request: Request) -> str:
 def _validate_loopback_redirect(
     uri: str,
     parsed: SplitResult,
+    registered_redirect_uris: list[str],
     dial_position: RedirectUriDialPosition,
 ) -> Loopback:
     if dial_position == RedirectUriDialPosition.DISABLED:
         raise RedirectUriValidationError("Loopback redirect URIs are disabled.")
-    if parsed.query or parsed.fragment:
-        raise RedirectUriValidationError("Loopback redirect URI cannot include query or fragment.")
+    if parsed.fragment:
+        raise RedirectUriValidationError("Loopback redirect URI cannot include a fragment.")
     host = _parsed_host(parsed)
     if host not in _LOOPBACK_HOSTS:
         raise RedirectUriValidationError("Loopback redirect URI must use a loopback host.")
     port = _parsed_port(parsed)
+    if not any(
+        _loopback_redirect_matches_registration(parsed, registered_uri)
+        for registered_uri in registered_redirect_uris
+    ):
+        raise RedirectUriValidationError("Loopback redirect URI is not registered for this client.")
     return Loopback(uri=uri, host=host, port=port, path=parsed.path or "/")
+
+
+def _loopback_redirect_matches_registration(
+    requested: SplitResult,
+    registered_uri: str,
+) -> bool:
+    registered = urlsplit(registered_uri)
+    try:
+        _reject_malformed_uri(registered)
+        registered_host = _parsed_host(registered)
+    except OAuth2AuthorizationServerError:
+        return False
+    if registered.scheme.lower() != "http" or registered_host not in _LOOPBACK_HOSTS:
+        return False
+    if registered.fragment:
+        return False
+    return (
+        _parsed_host(requested) == registered_host
+        and (requested.path or "/") == (registered.path or "/")
+        and requested.query == registered.query
+    )
 
 
 def _validate_private_use_scheme_redirect(
     uri: str,
     parsed: SplitResult,
     scheme: str,
+    registered_redirect_uris: list[str],
     dial_position: RedirectUriDialPosition,
 ) -> PrivateUseScheme:
     if dial_position == RedirectUriDialPosition.DISABLED:
         raise RedirectUriValidationError("Private-use-scheme redirect URIs are disabled.")
-    if parsed.query or parsed.fragment:
+    if parsed.fragment:
         raise RedirectUriValidationError(
-            "Private-use-scheme redirect URI cannot include query or fragment."
+            "Private-use-scheme redirect URI cannot include a fragment."
+        )
+    if uri not in registered_redirect_uris:
+        raise RedirectUriValidationError(
+            "Private-use-scheme redirect URI is not registered for this client."
         )
     return PrivateUseScheme(uri=uri, scheme=scheme)
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from secrets import token_hex
+from threading import Barrier
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -124,6 +126,56 @@ class TestAuthorizationCodeFlow:
         assert query["error"] == ["access_denied"]
         assert query["state"] == [params["state"]]
 
+    def test_authorization_decision_enforces_origin(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        params = _oauth_public_client.authorize(user)
+        body = {**params, "approved": True}
+
+        # The endpoint requires an Origin header.
+        missing_origin = _httpx_client(_app, user).post(
+            "oauth2/authorize/decision",
+            json=body,
+        )
+        assert missing_origin.status_code == 403
+
+        # A trusted hostname must still match the complete origin.
+        wrong_port_origin = _httpx_client(
+            _app, user, headers={"origin": "http://127.0.0.1:1"}
+        ).post("oauth2/authorize/decision", json=body)
+        assert wrong_port_origin.status_code == 403
+
+        # The same request succeeds with the server's origin.
+        redirect_to = _oauth_public_client.decide(user, params)
+        assert parse_qs(urlparse(redirect_to).query).get("code")
+
+    def test_unsupported_response_type_is_returned_by_authorize_and_decision(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        params = _oauth_public_client.authorization_params()
+        params["response_type"] = "token"
+
+        authorize_response = _httpx_client(_app, user).get(
+            "oauth2/authorize",
+            params=params,
+            follow_redirects=False,
+        )
+        decision_redirect = _oauth_public_client.decide(user, params)
+
+        assert authorize_response.status_code == 302
+        authorize_query = parse_qs(urlparse(authorize_response.headers["location"]).query)
+        assert authorize_query["error"] == ["unsupported_response_type"]
+        decision_query = parse_qs(urlparse(decision_redirect).query)
+        assert decision_query["error"] == ["unsupported_response_type"]
+
     def test_token_exchange_rejects_wrong_code_verifier(
         self,
         _app: _AppInfo,
@@ -148,10 +200,130 @@ class TestAuthorizationCodeFlow:
 
         assert token_response.status_code == 400
         assert token_response.json()["error"] == "invalid_grant"
+        assert token_response.headers["cache-control"] == "no-store"
+        assert token_response.headers["pragma"] == "no-cache"
+
+        valid_response = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "client_id": _oauth_public_client.client_id,
+                "redirect_uri": _oauth_public_client.redirect_uri,
+                "code_verifier": _oauth_public_client.code_verifier,
+            },
+        )
+        valid_response.raise_for_status()
+
+    def test_token_exchange_binds_code_to_client_and_redirect(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        params = _oauth_public_client.authorize(user)
+        redirect_to = _oauth_public_client.decide(user, params)
+        code = parse_qs(urlparse(redirect_to).query)["code"][0]
+        base_form = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": _oauth_public_client.redirect_uri,
+            "code_verifier": _oauth_public_client.code_verifier,
+        }
+
+        # A code minted for one client cannot be redeemed by presenting another
+        # client's identifier, and the redirect URI must match the one bound at
+        # authorization time. Neither rejected attempt may consume the code.
+        wrong_client = _httpx_client(_app).post(
+            "oauth2/token",
+            data={**base_form, "client_id": "phoenix-cli"},
+        )
+        assert wrong_client.status_code == 400
+        assert wrong_client.json()["error"] == "invalid_grant"
+
+        wrong_redirect = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                **base_form,
+                "client_id": _oauth_public_client.client_id,
+                "redirect_uri": "http://127.0.0.1:8765/callback/other",
+            },
+        )
+        assert wrong_redirect.status_code == 400
+        assert wrong_redirect.json()["error"] == "invalid_grant"
+
+        valid_response = _httpx_client(_app).post(
+            "oauth2/token",
+            data={**base_form, "client_id": _oauth_public_client.client_id},
+        )
+        valid_response.raise_for_status()
+        assert valid_response.headers["cache-control"] == "no-store"
+        assert valid_response.headers["pragma"] == "no-cache"
+
+    def test_authorization_code_cannot_be_reused_sequentially(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        params = _oauth_public_client.authorize(user)
+        redirect_to = _oauth_public_client.decide(user, params)
+        code = parse_qs(urlparse(redirect_to).query)["code"][0]
+        form = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": _oauth_public_client.client_id,
+            "redirect_uri": _oauth_public_client.redirect_uri,
+            "code_verifier": _oauth_public_client.code_verifier,
+        }
+
+        first_response = _httpx_client(_app).post("oauth2/token", data=form)
+        second_response = _httpx_client(_app).post("oauth2/token", data=form)
+
+        first_response.raise_for_status()
+        assert second_response.status_code == 400
+        assert second_response.json()["error"] == "invalid_grant"
+
+    def test_concurrent_authorization_code_redemption_has_one_winner(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        before = {grant["id"] for grant in _active_grants(_app, user)}
+        params = _oauth_public_client.authorize(user)
+        redirect_to = _oauth_public_client.decide(user, params)
+        code = parse_qs(urlparse(redirect_to).query)["code"][0]
+        form = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": _oauth_public_client.client_id,
+            "redirect_uri": _oauth_public_client.redirect_uri,
+            "code_verifier": _oauth_public_client.code_verifier,
+        }
+        barrier = Barrier(2)
+
+        def redeem() -> httpx.Response:
+            barrier.wait()
+            return _httpx_client(_app).post("oauth2/token", data=form)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            responses = list(executor.map(lambda _: redeem(), range(2)))
+
+        assert sorted(response.status_code for response in responses) == [200, 400]
+        rejected = next(response for response in responses if response.status_code == 400)
+        assert rejected.json()["error"] == "invalid_grant"
+        # Concurrent redemption must have the same externally observable
+        # single-use behavior as sequential redemption.
+        new_grants = [grant for grant in _active_grants(_app, user) if grant["id"] not in before]
+        assert len(new_grants) == 1
 
 
 class TestTokenLifecycle:
-    def test_refresh_token_rotates_pair(
+    def test_refresh_token_rotation_lifecycle(
         self,
         _app: _AppInfo,
         _get_user: _GetUser,
@@ -174,6 +346,32 @@ class TestTokenLifecycle:
         assert rotated["access_token"] != token_response["access_token"]
         assert rotated["refresh_token"] != token_response["refresh_token"]
         assert "scope" not in rotated
+
+        # The rotated access token is usable...
+        rotated_read = _httpx_client(
+            _app,
+            headers={"authorization": f"Bearer {rotated['access_token']}"},
+        ).post("graphql", json={"query": "query { viewer { id } }"})
+        assert rotated_read.status_code == 200
+        assert not rotated_read.json().get("errors")
+
+        # ...the access token from the rotated-away pair is no longer accepted...
+        stale_read = _httpx_client(
+            _app,
+            headers={"authorization": f"Bearer {token_response['access_token']}"},
+        ).post("graphql", json={"query": "query { viewer { id } }"})
+        assert stale_read.status_code == 401
+
+        # ...and the new refresh token can itself be rotated again.
+        second_refresh = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": rotated["refresh_token"],
+                "client_id": _oauth_public_client.client_id,
+            },
+        )
+        assert second_refresh.status_code == 200
 
     def test_rotated_refresh_token_reuse_is_invalid_grant(
         self,
@@ -207,6 +405,36 @@ class TestTokenLifecycle:
         assert reuse_response.json()["error"] == "invalid_grant"
         new_grants = [grant for grant in _active_grants(_app, user) if grant["id"] not in before]
         assert len(new_grants) == 1
+
+    def test_refresh_token_is_bound_to_its_client(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        token_response = _oauth_public_client.complete_flow(user)
+
+        wrong_client = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": token_response["refresh_token"],
+                "client_id": "phoenix-cli",
+            },
+        )
+        assert wrong_client.status_code == 400
+        assert wrong_client.json()["error"] == "invalid_grant"
+
+        valid_client = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": token_response["refresh_token"],
+                "client_id": _oauth_public_client.client_id,
+            },
+        )
+        valid_client.raise_for_status()
 
     def test_revoke_soft_revokes_grant(
         self,
@@ -283,20 +511,125 @@ class TestTokenLifecycle:
 
 
 class TestDynamicClientRegistration:
-    def test_register_local_only_client_completes_authorization_code_flow(
+    def test_registration_response_and_error_disable_caching(self, _app: _AppInfo) -> None:
+        success = _register_response(
+            _app,
+            redirect_uri="http://127.0.0.1:8765/callback/cache-headers",
+        )
+        error = _register_response(
+            _app,
+            redirect_uri="https://unavailable.example.com/callback",
+        )
+
+        success.raise_for_status()
+        assert success.headers["cache-control"] == "no-store"
+        assert success.headers["pragma"] == "no-cache"
+        assert error.status_code == 400
+        assert error.headers["cache-control"] == "no-store"
+        assert error.headers["pragma"] == "no-cache"
+
+    def test_loopback_registration_allows_only_port_to_differ(
         self,
         _app: _AppInfo,
         _get_user: _GetUser,
     ) -> None:
-        redirect_uri = "http://127.0.0.1:8765/callback/test-client"
-        client = _register_client(_app, redirect_uri=redirect_uri)
+        registered = _register_client(
+            _app,
+            redirect_uri="http://127.0.0.1:8765/callback",
+        )
+        client = _OAuthPublicClient(
+            client_id=registered.client_id,
+            name=registered.name,
+            redirect_uri="http://127.0.0.1:49152/callback",
+            app=_app,
+        )
         user = _get_user(_app, _MEMBER).log_in(_app)
 
         token_response = client.complete_flow(user)
 
-        assert token_response["token_type"] == "Bearer"
         assert token_response["access_token"]
-        assert token_response["refresh_token"]
+
+    def test_all_registered_redirect_uris_are_usable(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        redirect_uris = [
+            "http://127.0.0.1:8765/",
+            "http://127.0.0.1:8765/mcp/oauth/callback",
+        ]
+        response = _httpx_client(_app).post(
+            "oauth2/register",
+            json={"client_name": "Multi-redirect client", "redirect_uris": redirect_uris},
+        )
+        response.raise_for_status()
+        registration = response.json()
+        user = _get_user(_app, _MEMBER).log_in(_app)
+
+        # Every URI submitted at registration must be independently usable, not
+        # just the first: a client picks one per login and Phoenix binds against
+        # the whole registered list.
+        for redirect_uri in redirect_uris:
+            client = _OAuthPublicClient(
+                client_id=registration["client_id"],
+                name="Multi-redirect client",
+                redirect_uri=redirect_uri,
+                app=_app,
+            )
+            token_response = client.complete_flow(user)
+            assert token_response["access_token"]
+
+    def test_redirect_uri_cannot_cross_clients_or_paths(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        first = _register_client(
+            _app,
+            redirect_uri="http://127.0.0.1:8765/callback/first",
+        )
+        second = _register_client(
+            _app,
+            redirect_uri="http://127.0.0.1:8765/callback/second",
+        )
+        user = _get_user(_app, _MEMBER).log_in(_app)
+
+        for redirect_uri in (
+            second.redirect_uri,
+            "http://127.0.0.1:8765/callback/unregistered",
+        ):
+            params = first.authorization_params()
+            params["redirect_uri"] = redirect_uri
+            response = _httpx_client(_app, user).get(
+                "oauth2/authorize",
+                params=params,
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 400
+            assert "Invalid redirect URI" in response.text
+
+    def test_private_use_redirect_requires_exact_client_registration(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        client = _register_client(
+            _app,
+            redirect_uri="cursor://anysphere.cursor-mcp/oauth/callback",
+        )
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        params = client.authorization_params()
+        params["redirect_uri"] = "cursor://attacker.example/oauth/callback"
+
+        response = _httpx_client(_app, user).get(
+            "oauth2/authorize",
+            params=params,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 400
+        assert "Invalid redirect URI" in response.text
 
     @pytest.mark.parametrize(
         "redirect_uri",
@@ -317,7 +650,9 @@ class TestDynamicClientRegistration:
 
         token_response = client.complete_flow(user)
 
+        assert token_response["token_type"] == "Bearer"
         assert token_response["access_token"]
+        assert token_response["refresh_token"]
 
     @pytest.mark.parametrize(
         "redirect_uri",

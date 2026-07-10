@@ -2300,7 +2300,7 @@ class OAuth2AuthorizationCode(HasId):
     """Single-use authorization code issued after consent, redeemed for tokens.
 
     The raw code is never stored — only its SHA-256 hash. Codes expire after a short TTL and
-    are deleted in the same transaction that creates the grant and mints tokens.
+    are deleted in the same transaction that creates the grant before token issuance.
     """
 
     __tablename__ = "oauth2_authorization_codes"

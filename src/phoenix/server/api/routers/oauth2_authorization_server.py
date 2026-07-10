@@ -76,6 +76,10 @@ _DCR_METADATA_CLIENT_IP_KEY = "registration_client_ip"
 _DCR_SUPPORTED_GRANT_TYPES = frozenset({"authorization_code", "refresh_token"})
 _DCR_SUPPORTED_RESPONSE_TYPES = frozenset({"code"})
 _BASE62_ALPHABET = string.ascii_letters + string.digits
+_OAUTH_NO_STORE_HEADERS = {
+    "Cache-Control": "no-store",
+    "Pragma": "no-cache",
+}
 _last_dcr_cleanup_at: Optional[datetime] = None
 
 _rate_limiter = fastapi_ip_rate_limiter(
@@ -227,7 +231,7 @@ async def authorize_decision(request: Request, decision: AuthorizationDecision) 
             request=request, client=client, decision=decision
         )
         if request_error is not None:
-            return JSONResponse(
+            return _oauth_json_response(
                 {
                     "redirect_to": _with_query_params(
                         decision.redirect_uri,
@@ -237,7 +241,7 @@ async def authorize_decision(request: Request, decision: AuthorizationDecision) 
                 }
             )
         if not decision.approved:
-            return JSONResponse(
+            return _oauth_json_response(
                 {
                     "redirect_to": _with_query_params(
                         decision.redirect_uri,
@@ -262,7 +266,7 @@ async def authorize_decision(request: Request, decision: AuthorizationDecision) 
                 expires_at=now + _AUTHORIZATION_CODE_TTL,
             )
         )
-    return JSONResponse(
+    return _oauth_json_response(
         {
             "redirect_to": _with_query_params(
                 decision.redirect_uri,
@@ -330,20 +334,19 @@ async def register(request: Request) -> JSONResponse:
         metadata = registration.metadata
         if client_ip is not None:
             metadata[_DCR_METADATA_CLIENT_IP_KEY] = client_ip
-        stored_redirect_uris = _registered_https_redirect_uris(registration.redirect_uris)
         session.add(
             models.OAuth2Client(
                 client_id=client_id,
                 name=registration.client_name or "OAuth2 client",
                 logo_uri=registration.logo_uri,
-                redirect_uris=stored_redirect_uris,
+                redirect_uris=registration.redirect_uris,
                 grant_types=registration.grant_types,
                 token_endpoint_auth_method="none",
                 is_first_party=False,
                 metadata_=metadata or None,
             )
         )
-    return JSONResponse(
+    return _oauth_json_response(
         {
             "client_id": client_id,
             "client_name": registration.client_name,
@@ -388,9 +391,19 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
     code_hash = hash_authorization_code(code)
     now = datetime.now(timezone.utc)
     async with request.app.state.db() as session:
+        # A code is single-use: concurrent redemptions must not both mint a grant.
+        # The conditional DELETE ... RETURNING below is the authority — the loser's
+        # delete matches zero rows and returns invalid_grant before any grant is
+        # created. The row lock here makes the loser block early (skipping wasted
+        # PKCE work) rather than racing to that delete. SQLite has no row locks, so
+        # an immediate write transaction stands in for FOR UPDATE; it must be the
+        # first statement in this session, before any implicit read transaction opens.
+        if session.bind is not None and session.bind.dialect.name == "sqlite":
+            await session.execute(sa.text("BEGIN IMMEDIATE"))
         authorization_code = await session.scalar(
             sa.select(models.OAuth2AuthorizationCode)
             .where(models.OAuth2AuthorizationCode.code_hash == code_hash)
+            .with_for_update(of=models.OAuth2AuthorizationCode)
             .options(
                 joinedload(models.OAuth2AuthorizationCode.client),
                 joinedload(models.OAuth2AuthorizationCode.user).joinedload(models.User.role),
@@ -407,6 +420,14 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
             return _oauth_error("invalid_grant")
         if not verify_pkce(code_verifier, authorization_code.code_challenge):
             return _oauth_error("invalid_grant")
+        claimed_code_id = await session.scalar(
+            sa.delete(models.OAuth2AuthorizationCode)
+            .where(models.OAuth2AuthorizationCode.id == authorization_code.id)
+            .returning(models.OAuth2AuthorizationCode.id)
+            .execution_options(synchronize_session=False)
+        )
+        if claimed_code_id is None:
+            return _oauth_error("invalid_grant")
         user = authorization_code.user
         scopes = tuple(authorization_code.scopes or ())
         grant = models.OAuth2Grant(
@@ -419,7 +440,6 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
             revoked_at=None,
         )
         session.add(grant)
-        await session.delete(authorization_code)
         await session.flush()
         grant_id = grant.id
     access_token_expiry = _access_token_expiry(request)
@@ -520,12 +540,6 @@ def _validate_dcr_redirect_uris(
                     "HTTPS redirect URI host is not allowed.",
                 )
     return None
-
-
-def _registered_https_redirect_uris(redirect_uris: list[str]) -> list[str]:
-    return [
-        redirect_uri for redirect_uri in redirect_uris if urlsplit(redirect_uri).scheme == "https"
-    ]
 
 
 async def _new_dcr_client_id(session: AsyncSession) -> str:
@@ -651,7 +665,7 @@ def _authorization_request_error(
     except OAuth2AuthorizationServerError:
         return "invalid_request"
     if request.query_params.get("response_type") != "code":
-        return "invalid_request"
+        return "unsupported_response_type"
     if not request.query_params.get("code_challenge"):
         return "invalid_request"
     if request.query_params.get("code_challenge_method") != "S256":
@@ -676,7 +690,7 @@ def _authorization_decision_error(
     except OAuth2AuthorizationServerError:
         return "invalid_request"
     if decision.response_type != "code":
-        return "invalid_request"
+        return "unsupported_response_type"
     if not decision.code_challenge:
         return "invalid_request"
     if decision.code_challenge_method != "S256":
@@ -802,11 +816,11 @@ def _form_str(form: Any, key: str) -> Optional[str]:
 
 
 def _oauth_error(error: str) -> JSONResponse:
-    return JSONResponse({"error": error}, status_code=400)
+    return _oauth_json_response({"error": error}, status_code=400)
 
 
 def _dcr_error(error: str, description: str, *, status_code: int = 400) -> JSONResponse:
-    return JSONResponse(
+    return _oauth_json_response(
         {"error": error, "error_description": description},
         status_code=status_code,
     )
@@ -817,13 +831,25 @@ def _token_response(
     refresh_token: object,
     access_token_expiry: timedelta,
 ) -> JSONResponse:
-    return JSONResponse(
+    return _oauth_json_response(
         {
             "access_token": str(access_token),
             "token_type": _TOKEN_TYPE,
             "expires_in": int(access_token_expiry.total_seconds()),
             "refresh_token": str(refresh_token),
         }
+    )
+
+
+def _oauth_json_response(
+    content: object,
+    *,
+    status_code: int = 200,
+) -> JSONResponse:
+    return JSONResponse(
+        content,
+        status_code=status_code,
+        headers=_OAUTH_NO_STORE_HEADERS,
     )
 
 
