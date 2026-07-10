@@ -209,6 +209,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-response-handling",
                       "docs/phoenix/evaluation/pre-built-metrics/refusal",
+                      "docs/phoenix/evaluation/pre-built-metrics/user-friction",
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
                       "docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore",

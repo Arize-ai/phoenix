@@ -1,6 +1,6 @@
 # type: ignore
 """
-Tests for the 9 built-in ClassificationEvaluator subclasses.
+Tests for the built-in ClassificationEvaluator subclasses.
 
 Covers:
 - Default behavior (no change from before)
@@ -22,6 +22,7 @@ from phoenix.evals.metrics.refusal import RefusalEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
 from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
 from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
+from phoenix.evals.metrics.user_friction import UserFrictionEvaluator
 
 # ---------------------------------------------------------------------------
 # Shared mock
@@ -45,7 +46,7 @@ class MockLLM:
 
 
 # ---------------------------------------------------------------------------
-# Parametrize over all 9 evaluators (class, required eval_input keys)
+# Parametrize over every evaluator (class, required eval_input keys)
 # ---------------------------------------------------------------------------
 
 ALL_EVALUATORS = [
@@ -88,6 +89,11 @@ ALL_EVALUATORS = [
         ToolResponseHandlingEvaluator,
         {"input": "Q", "tool_call": "C", "tool_result": "R", "output": "A"},
         id="ToolResponseHandlingEvaluator",
+    ),
+    pytest.param(
+        UserFrictionEvaluator,
+        {"conversation": "User: Help me.\nAssistant: What do you need?", "user_message": "Logs."},
+        id="UserFrictionEvaluator",
     ),
     pytest.param(
         HallucinationEvaluator,
