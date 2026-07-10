@@ -11,7 +11,14 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 
-import { Flex, Icon, Icons, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
 import { RoleSelect } from "@phoenix/components/settings/RoleSelect";
 import { LoadMoreRow } from "@phoenix/components/table";
@@ -151,7 +158,9 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 profilePictureUrl={row.original.profilePictureUrl}
                 size={20}
               />
-              <span>{row.original.username}</span>
+              <Link to={`/settings/general/users/${row.original.id}`}>
+                {row.original.username}
+              </Link>
               {row.original.email && (
                 <a
                   href={`mailto:${row.original.email}`}
