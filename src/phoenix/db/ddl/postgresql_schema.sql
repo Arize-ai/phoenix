@@ -20,13 +20,27 @@ CREATE TABLE public.annotation_configs (
 );
 
 
--- Table: deployment_secret
+-- Table: eval_work_cursors
 -- ------------------------
-CREATE TABLE public.deployment_secret (
-    id serial NOT NULL,
-    seed BYTEA NOT NULL,
-    CONSTRAINT pk_deployment_secret PRIMARY KEY (id),
-    CONSTRAINT "ck_deployment_secret_`singleton`" CHECK ((id = 1))
+CREATE TABLE public.eval_work_cursors (
+    id bigserial NOT NULL,
+    grain VARCHAR NOT NULL,
+    consumer_group VARCHAR NOT NULL,
+    produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
+    observed_high_water_id BIGINT,
+    observed_at TIMESTAMP WITH TIME ZONE,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_work_cursors PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_cursors_grain_consumer_group
+        UNIQUE (grain, consumer_group),
+    CHECK (((grain)::text = ANY ((ARRAY[
+            'SPAN'::character varying,
+            'TRACE'::character varying,
+            'SESSION'::character varying
+        ])::text[])))
 );
 
 
@@ -224,15 +238,6 @@ CREATE TABLE public.prompts_prompt_labels (
 
 CREATE INDEX ix_prompts_prompt_labels_prompt_id ON public.prompts_prompt_labels
     USING btree (prompt_id);
-
-
--- Table: system_state
--- -------------------
-CREATE TABLE public.system_state (
-    key VARCHAR NOT NULL,
-    value JSONB NOT NULL,
-    CONSTRAINT pk_system_state PRIMARY KEY (key)
-);
 
 
 -- Table: token_prices
@@ -456,14 +461,13 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
 -- ---------------
 CREATE TABLE public.api_keys (
     id serial NOT NULL,
-    user_id INTEGER NOT NULL,
+    user_id INTEGER,
     name VARCHAR NOT NULL,
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE,
     scopes JSONB,
     audience JSONB,
-    token_hash BYTEA,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users
         FOREIGN KEY (user_id)
@@ -697,9 +701,7 @@ CREATE TABLE public.document_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying,
-            'DECISION'::character varying,
-            'AGENT'::character varying
+            'HUMAN'::character varying
         ])::text[]))),
     CONSTRAINT "ck_document_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1030,9 +1032,7 @@ CREATE TABLE public.experiment_run_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying,
-            'DECISION'::character varying,
-            'AGENT'::character varying
+            'HUMAN'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_run_annotations_experiment_run_id_experiment_runs
         FOREIGN KEY (experiment_run_id)
@@ -1312,10 +1312,9 @@ CREATE INDEX ix_oauth2_grants_user_id ON public.oauth2_grants
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
     id serial NOT NULL,
-    user_id INTEGER NOT NULL,
+    user_id INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    token_hash BYTEA,
     CONSTRAINT pk_password_reset_tokens PRIMARY KEY (id),
     CONSTRAINT fk_password_reset_tokens_user_id_users
         FOREIGN KEY (user_id)
@@ -1327,6 +1326,93 @@ CREATE INDEX ix_password_reset_tokens_expires_at ON public.password_reset_tokens
     USING btree (expires_at);
 CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON public.password_reset_tokens
     USING btree (user_id);
+
+
+-- Table: project_evaluator_criteria
+-- ---------------------------------
+CREATE TABLE public.project_evaluator_criteria (
+    id bigserial NOT NULL,
+    project_id BIGINT NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    annotation_name VARCHAR NOT NULL,
+    filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
+    sampling_rate DOUBLE PRECISION NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
+    CONSTRAINT uq_project_evaluator_criteria_project_id_annotation_name
+        UNIQUE (project_id, annotation_name),
+    CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
+    CONSTRAINT fk_project_evaluator_criteria_evaluator_id_evaluators
+        FOREIGN KEY
+        (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_criteria_project_id_projects
+        FOREIGN KEY
+        (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_project_evaluator_criteria_evaluator_id ON public.project_evaluator_criteria
+    USING btree (evaluator_id);
+CREATE INDEX ix_project_evaluator_criteria_project_id ON public.project_evaluator_criteria
+    USING btree (project_id);
+
+
+-- Table: eval_work_units
+-- ----------------------
+CREATE TABLE public.eval_work_units (
+    id bigserial NOT NULL,
+    span_rowid BIGINT NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    criteria_id BIGINT NOT NULL,
+    config_fingerprint VARCHAR NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint
+        UNIQUE (span_rowid, evaluator_id, config_fingerprint),
+    CHECK (((status)::text = ANY ((ARRAY[
+            'PENDING'::character varying,
+            'RUNNING'::character varying,
+            'DONE'::character varying,
+            'ERROR'::character varying,
+            'EXPIRED'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_eval_work_units_criteria_id_project_evaluator_criteria
+        FOREIGN KEY
+        (criteria_id)
+        REFERENCES public.project_evaluator_criteria (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_work_units_evaluator_id_evaluators FOREIGN KEY
+        (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_work_units_span_rowid_spans FOREIGN KEY
+        (span_rowid)
+        REFERENCES public.spans (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_work_units_claimable ON public.eval_work_units
+    USING btree (status, id) WHERE ((status)::text <> ALL ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE INDEX ix_eval_work_units_criteria_id ON public.eval_work_units
+    USING btree (criteria_id);
+CREATE INDEX ix_eval_work_units_error_attempts ON public.eval_work_units
+    USING btree (attempts) WHERE ((status)::text = 'ERROR'::text);
+CREATE INDEX ix_eval_work_units_evaluator_id ON public.eval_work_units
+    USING btree (evaluator_id);
+CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
 
 
 -- Table: project_session_annotations
@@ -1352,9 +1438,7 @@ CREATE TABLE public.project_session_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying,
-            'DECISION'::character varying,
-            'AGENT'::character varying
+            'HUMAN'::character varying
         ])::text[]))),
     CONSTRAINT "ck_project_session_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1546,7 +1630,6 @@ CREATE TABLE public.refresh_tokens (
     scopes JSONB,
     audience JSONB,
     consumed_at TIMESTAMP WITH TIME ZONE,
-    token_hash BYTEA,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
     CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants
         FOREIGN KEY (oauth2_grant_id)
@@ -1576,7 +1659,6 @@ CREATE TABLE public.access_tokens (
     refresh_token_id INTEGER NOT NULL,
     scopes JSONB,
     audience JSONB,
-    token_hash BYTEA,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
         FOREIGN KEY (refresh_token_id)
@@ -1753,9 +1835,7 @@ CREATE TABLE public.span_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying,
-            'DECISION'::character varying,
-            'AGENT'::character varying
+            'HUMAN'::character varying
         ])::text[]))),
     CONSTRAINT "ck_span_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1819,9 +1899,7 @@ CREATE TABLE public.trace_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying,
-            'DECISION'::character varying,
-            'AGENT'::character varying
+            'HUMAN'::character varying
         ])::text[]))),
     CONSTRAINT "ck_trace_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
