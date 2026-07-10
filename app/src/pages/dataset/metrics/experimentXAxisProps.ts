@@ -1,6 +1,9 @@
-import type { XAxisProps } from "recharts";
+import type { XAxisProps, YAxisProps } from "recharts";
 
-import { compactCategoryXAxisProps } from "@phoenix/components/chart";
+import {
+  compactCategoryXAxisProps,
+  compactYAxisProps,
+} from "@phoenix/components/chart";
 
 import { makeExperimentAxisTick } from "./ExperimentBaselineReference";
 
@@ -16,6 +19,16 @@ export function getExperimentXAxisProps(
   return {
     ...compactCategoryXAxisProps,
     dataKey: "sequenceNumber",
+    scale: "band",
     tick: makeExperimentAxisTick(baselineSequenceNumber),
   };
 }
+
+/**
+ * A fixed y-axis gutter keeps experiment ticks aligned across stacked charts,
+ * regardless of how wide each chart's formatted y-axis values are.
+ */
+export const experimentMetricsYAxisProps: YAxisProps = {
+  ...compactYAxisProps,
+  width: 60,
+};

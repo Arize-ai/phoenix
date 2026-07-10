@@ -15,7 +15,6 @@ import {
   ChartTooltipItem,
   compactChartMargin,
   compactLegendProps,
-  compactYAxisProps,
   defaultCartesianGridProps,
   defaultTooltipProps,
   InteractiveLegend,
@@ -25,13 +24,14 @@ import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import {
-  getExperimentXAxisProps,
-  useExperimentMetricsData,
-} from "./ExperimentMetrics";
 import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import {
+  experimentMetricsYAxisProps,
+  getExperimentXAxisProps,
+} from "./experimentXAxisProps";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
+import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 /**
  * Animation duration (ms) for the chart's marks. Recharts' default line
@@ -83,7 +83,8 @@ export function ExperimentAnnotationScoresChart({
   datasetId,
 }: ExperimentMetricViewProps) {
   const { theme } = useTheme();
-  const { experiments } = useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment } =
+    useExperimentMetricsData(datasetId);
 
   const scoreKeySet = new Set<string>();
   const chartData = experiments.map((experiment) => {
@@ -145,8 +146,10 @@ export function ExperimentAnnotationScoresChart({
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...getExperimentXAxisProps()} />
-          <YAxis {...compactYAxisProps} domain={yDomain} />
+          <XAxis
+            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+          />
+          <YAxis {...experimentMetricsYAxisProps} domain={yDomain} />
           {scoreKeys.map((key) => (
             <Line
               key={key}

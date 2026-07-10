@@ -13,7 +13,6 @@ import {
   InteractiveLegend,
   compactChartMargin,
   compactLegendProps,
-  compactYAxisProps,
   defaultCartesianGridProps,
   defaultTooltipProps,
   useCategoryChartColors,
@@ -29,7 +28,10 @@ import {
   getExperimentBaselineLegendPayload,
 } from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
-import { getExperimentXAxisProps } from "./experimentXAxisProps";
+import {
+  experimentMetricsYAxisProps,
+  getExperimentXAxisProps,
+} from "./experimentXAxisProps";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
@@ -82,7 +84,7 @@ export function ExperimentCostChart({ datasetId }: ExperimentMetricViewProps) {
             {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
           />
           <YAxis
-            {...compactYAxisProps}
+            {...experimentMetricsYAxisProps}
             tickFormatter={(x) => `$${floatShortFormatter(x)}`}
           />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
