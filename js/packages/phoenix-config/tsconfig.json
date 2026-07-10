@@ -1,11 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
     "outDir": "dist",
     "paths": {
-      "@phoenix-config/env-file": ["src/envFile.ts"]
+      "@phoenix-config/env-file": ["./src/envFile.ts"]
     },
     "rootDir": ".",
     "types": ["node"],

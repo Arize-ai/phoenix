@@ -1,7 +1,7 @@
 import pytest
 
 from phoenix.client import AsyncClient, Client
-from phoenix.client.client import _update_headers
+from phoenix.client.client import _update_headers  # pyright: ignore[reportPrivateUsage]
 
 
 @pytest.mark.parametrize(

@@ -1,11 +1,9 @@
 {
   "extends": "../../tsconfig.base.esm.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
     "outDir": "dist/browser",
     "paths": {
-      "@phoenix-config/env-file": ["src/envFile.browser.ts"]
+      "@phoenix-config/env-file": ["./src/envFile.browser.ts"]
     },
     "rootDir": "src",
     "tsBuildInfoFile": "dist/browser/tsconfig.browser.tsbuildinfo"
