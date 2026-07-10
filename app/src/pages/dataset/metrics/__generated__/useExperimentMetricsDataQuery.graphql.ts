@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba0239350255088a1bec39341bd705af>>
+ * @generated SignedSource<<6aa9892e44ef857d5ea91d6b50888881>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,11 +9,11 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentMetricsQuery$variables = {
+export type useExperimentMetricsDataQuery$variables = {
   count: number;
   id: string;
 };
-export type ExperimentMetricsQuery$data = {
+export type useExperimentMetricsDataQuery$data = {
   readonly dataset: {
     readonly metricsExperiments?: {
       readonly edges: ReadonlyArray<{
@@ -43,9 +43,9 @@ export type ExperimentMetricsQuery$data = {
     };
   };
 };
-export type ExperimentMetricsQuery = {
-  response: ExperimentMetricsQuery$data;
-  variables: ExperimentMetricsQuery$variables;
+export type useExperimentMetricsDataQuery = {
+  response: useExperimentMetricsDataQuery$data;
+  variables: useExperimentMetricsDataQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -220,7 +220,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExperimentMetricsQuery",
+    "name": "useExperimentMetricsDataQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -245,7 +245,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ExperimentMetricsQuery",
+    "name": "useExperimentMetricsDataQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -270,16 +270,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "863b199970263512758c39602d1d275d",
+    "cacheID": "6b360fb5c068162984440af6517c09c9",
     "id": null,
     "metadata": {},
-    "name": "ExperimentMetricsQuery",
+    "name": "useExperimentMetricsDataQuery",
     "operationKind": "query",
-    "text": "query ExperimentMetricsQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            averageRunLatencyMs\n            errorRate\n            runCount\n            costSummary {\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n              total {\n                tokens\n                cost\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            averageRunLatencyMs\n            errorRate\n            runCount\n            costSummary {\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n              total {\n                tokens\n                cost\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7d415ce1b143b347b7fe1e9f1ea90d1d";
+(node as any).hash = "6fa512ff5e0c76b004263cb8e8cd6149";
 
 export default node;

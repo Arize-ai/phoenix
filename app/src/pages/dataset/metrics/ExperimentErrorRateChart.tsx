@@ -18,13 +18,11 @@ import {
 } from "@phoenix/components/chart";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import {
-  experimentXAxisProps,
-  useExperimentMetricsData,
-} from "./ExperimentMetrics";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
+import { experimentXAxisProps } from "./experimentXAxisProps";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
+import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 const TooltipContent = makeExperimentMetricsTooltipContent(percentFormatter);
 

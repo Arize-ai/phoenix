@@ -1,17 +1,15 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { XAxisProps } from "recharts";
 
-import { compactCategoryXAxisProps } from "@phoenix/components/chart";
 import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
 
-import type { ExperimentMetricsQuery } from "./__generated__/ExperimentMetricsQuery.graphql";
+import type { useExperimentMetricsDataQuery } from "./__generated__/useExperimentMetricsDataQuery.graphql";
 
 /**
  * One query shared by every experiment metric chart so the whole metrics page
  * resolves from a single network request and Relay store entry.
  */
 export const experimentMetricsQuery = graphql`
-  query ExperimentMetricsQuery($id: ID!, $count: Int!) {
+  query useExperimentMetricsDataQuery($id: ID!, $count: Int!) {
     dataset: node(id: $id) {
       ... on Dataset {
         metricsExperiments: experiments(first: $count) {
@@ -66,7 +64,7 @@ export type ExperimentMetricsDatum = {
 export function useExperimentMetricsData(datasetId: string): {
   experiments: ExperimentMetricsDatum[];
 } {
-  const data = useLazyLoadQuery<ExperimentMetricsQuery>(
+  const data = useLazyLoadQuery<useExperimentMetricsDataQuery>(
     experimentMetricsQuery,
     { id: datasetId, count: EXPERIMENT_METRICS_EXPERIMENT_COUNT },
     { fetchPolicy: "store-or-network" }
@@ -92,15 +90,3 @@ export function useExperimentMetricsData(datasetId: string): {
 
   return { experiments };
 }
-
-/**
- * X axis props shared by every experiment metric chart: one category tick per
- * experiment labeled with its iteration (sequence) number, which stays
- * compact no matter how long the experiment name is. The tooltip carries the
- * full name.
- */
-export const experimentXAxisProps: XAxisProps = {
-  ...compactCategoryXAxisProps,
-  dataKey: "sequenceNumber",
-  tickFormatter: (sequenceNumber: number) => `#${sequenceNumber}`,
-};

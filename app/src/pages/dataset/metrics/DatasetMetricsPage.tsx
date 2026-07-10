@@ -8,7 +8,7 @@ import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants"
 import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
 
 import { getExperimentMetricChart } from "./chartCatalog";
-import { useExperimentMetricsData } from "./ExperimentMetrics";
+import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 /**
  * The charts from the chart catalog shown on the metrics tab, row by row.
@@ -32,7 +32,8 @@ export function DatasetMetricsPage() {
   }
 
   return (
-    <div
+    <section
+      aria-label="Experiment metrics"
       css={css`
         width: 100%;
         height: 100%;
@@ -62,6 +63,6 @@ export function DatasetMetricsPage() {
           </Flex>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
