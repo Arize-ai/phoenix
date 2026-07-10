@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab837f1f7e3b57ec3f8dfff1c0813dcf>>
+ * @generated SignedSource<<ddb860fd1c445262e477a87f6adf9d47>>
  * @lightSyntaxTransform
  */
 
@@ -15,12 +15,6 @@ import { FragmentRefs } from "relay-runtime";
 export type SessionsTable_sessions$data = {
   readonly id: string;
   readonly name: string;
-  readonly sessionFilterVocabulary: ReadonlyArray<{
-    readonly category: string;
-    readonly description: string;
-    readonly name: string;
-    readonly type: string;
-  }>;
   readonly sessions: {
     readonly edges: ReadonlyArray<{
       readonly session: {
@@ -214,39 +208,6 @@ return {
       "args": null,
       "kind": "FragmentSpread",
       "name": "SessionColumnSelector_annotations"
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "FilterVocabularyTerm",
-      "kind": "LinkedField",
-      "name": "sessionFilterVocabulary",
-      "plural": true,
-      "selections": [
-        (v2/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "type",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "description",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "category",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
     },
     {
       "alias": "sessions",
@@ -670,6 +631,6 @@ return {
 };
 })();
 
-(node as any).hash = "62b08b159af3ba97cac4271402cfefbd";
+(node as any).hash = "d6dc3442f38e1f99aeb014f3ea2d4961";
 
 export default node;
