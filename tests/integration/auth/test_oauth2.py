@@ -7,7 +7,8 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 import pytest
 
-from tests.integration._helpers import _MEMBER, _AppInfo, _GetUser, _httpx_client
+from phoenix.server.api.exceptions import Unauthorized
+from tests.integration._helpers import _ADMIN, _MEMBER, _AppInfo, _GetUser, _httpx_client
 
 from .conftest import _active_grants, _OAuthPublicClient
 
@@ -455,6 +456,102 @@ class TestGrantTokenAccess:
         body = response.json()
         assert not body.get("errors")
         assert body["data"]["createProject"]["project"]["id"]
+
+
+class TestAdminGrantOversight:
+    _LIST_GRANTS_QUERY = "query { oauth2Grants { id clientId user { username } } }"
+    _REVOKE_MUTATION = """
+        mutation RevokeOAuth2Grant($id: ID!) {
+          revokeOAuth2Grant(input: { id: $id }) {
+            grantId
+          }
+        }
+    """
+
+    def test_admin_sees_grants_across_users(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        first_user = _get_user(_app, _MEMBER).log_in(_app)
+        second_user = _get_user(_app, _MEMBER).log_in(_app)
+        _oauth_public_client.complete_flow(first_user)
+        _oauth_public_client.complete_flow(second_user)
+        admin = _get_user(_app, _ADMIN).log_in(_app)
+
+        response, _ = admin.gql(_app, self._LIST_GRANTS_QUERY)
+
+        grants = response["data"]["oauth2Grants"]
+        usernames = {
+            grant["user"]["username"]
+            for grant in grants
+            if grant["clientId"] == _oauth_public_client.client_id
+        }
+        assert first_user.profile.username in usernames
+        assert second_user.profile.username in usernames
+
+    def test_member_cannot_list_grants_across_users(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        member = _get_user(_app, _MEMBER).log_in(_app)
+
+        with pytest.raises(Unauthorized):
+            member.gql(_app, self._LIST_GRANTS_QUERY)
+
+    def test_admin_can_revoke_another_users_grant(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        member = _get_user(_app, _MEMBER).log_in(_app)
+        before = {grant["id"] for grant in _active_grants(_app, member)}
+        token_response = _oauth_public_client.complete_flow(member)
+        access_token = token_response["access_token"]
+        new_grants = [grant for grant in _active_grants(_app, member) if grant["id"] not in before]
+        assert len(new_grants) == 1
+        grant_id = new_grants[0]["id"]
+        admin = _get_user(_app, _ADMIN).log_in(_app)
+
+        response, _ = admin.gql(
+            _app,
+            self._REVOKE_MUTATION,
+            variables={"id": grant_id},
+        )
+
+        assert response["data"]["revokeOAuth2Grant"]["grantId"] == grant_id
+        assert grant_id not in {grant["id"] for grant in _active_grants(_app, member)}
+        revoked_read_response = _httpx_client(
+            _app,
+            headers={"authorization": f"Bearer {access_token}"},
+        ).post("graphql", json={"query": "query { viewer { id } }"})
+        assert revoked_read_response.status_code == 401
+
+    def test_member_cannot_revoke_another_users_grant(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        owner = _get_user(_app, _MEMBER).log_in(_app)
+        before = {grant["id"] for grant in _active_grants(_app, owner)}
+        _oauth_public_client.complete_flow(owner)
+        new_grants = [grant for grant in _active_grants(_app, owner) if grant["id"] not in before]
+        assert len(new_grants) == 1
+        grant_id = new_grants[0]["id"]
+        other_member = _get_user(_app, _MEMBER).log_in(_app)
+
+        with pytest.raises(Unauthorized):
+            other_member.gql(
+                _app,
+                self._REVOKE_MUTATION,
+                variables={"id": grant_id},
+            )
+
+        assert grant_id in {grant["id"] for grant in _active_grants(_app, owner)}
 
 
 def _register_client(

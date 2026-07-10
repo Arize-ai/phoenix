@@ -2503,6 +2503,7 @@ interface Node {
 type OAuth2Grant implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
+  user: User!
   clientName: String!
   isFirstParty: Boolean!
   clientId: String!
@@ -3500,6 +3501,7 @@ type Query {
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
+  oauth2Grants: [OAuth2Grant!]!
   systemApiKeys: [SystemApiKey!]!
   projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
   projectsLastUpdatedAt: DateTime

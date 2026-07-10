@@ -12,7 +12,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.types.AuthMethod import AuthMethod
-from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant, can_manage_grant
 from phoenix.server.api.types.UserApiKey import UserApiKey
 
 from .UserRole import UserRole, to_gql_user_role
@@ -128,7 +128,7 @@ class User(Node):
 
     @strawberry.field
     async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
-        if info.context.auth_enabled and info.context.user_id != self.id:
+        if not can_manage_grant(info, self.id):
             raise Unauthorized("User not authorized to access OAuth2 grants")
         async with info.context.db.read() as session:
             grants = await session.scalars(

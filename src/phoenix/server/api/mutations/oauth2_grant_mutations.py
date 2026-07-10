@@ -11,7 +11,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant, can_manage_grant
 from phoenix.server.types import AccessTokenId, RefreshTokenId
 
 
@@ -39,10 +39,6 @@ class OAuth2GrantMutationMixin:
         grant_id = from_global_id_with_expected_type(
             input.id, expected_type_name=OAuth2Grant.__name__
         )
-        user_id = info.context.user_id
-        if user_id is None:
-            raise Unauthorized("User not authenticated")
-
         refresh_token_ids: list[RefreshTokenId] = []
         access_token_ids: list[AccessTokenId] = []
         async with info.context.db() as session:
@@ -51,7 +47,7 @@ class OAuth2GrantMutationMixin:
             )
             if grant is None:
                 raise NotFound(f"OAuth2 grant with id {input.id} not found")
-            if grant.user_id != user_id:
+            if not can_manage_grant(info, grant.user_id):
                 raise Unauthorized("User not authorized to revoke OAuth2 grant")
 
             grant.revoked_at = datetime.now(timezone.utc)

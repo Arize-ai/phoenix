@@ -18,6 +18,7 @@ import type { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__g
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
 import { GlobalRetentionPolicyCard } from "@phoenix/pages/settings/GlobalRetentionPolicyCard";
+import { OAuth2GrantsCard } from "@phoenix/pages/settings/OAuth2GrantsCard";
 import type { settingsGeneralPageLoaderType } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { settingsGeneralPageLoaderGQL } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
@@ -69,6 +70,9 @@ export function SettingsGeneralPage() {
       <IsAdmin>
         <div css={fullWidthCSS}>
           <APIKeysCard />
+        </div>
+        <div css={fullWidthCSS}>
+          <OAuth2GrantsCard />
         </div>
         <div css={fullWidthCSS}>
           <UsersCard />

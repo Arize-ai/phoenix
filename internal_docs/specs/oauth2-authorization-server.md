@@ -454,6 +454,7 @@ Coverage is organized by concern, one class each:
 | `TestTokenLifecycle` | Refresh rotation, replay of rotated tokens, revocation semantics |
 | `TestDynamicClientRegistration` | Registration across all three dial positions, redirect-class rejection, hygiene caps |
 | `TestGrantTokenAccess` | Granted tokens act with the authorizing user's permissions (scope enforcement deferred to the authorization workstream) |
+| `TestAdminGrantOversight` | Admins can list and revoke grants across users; non-admins can do neither |
 
 Separate app fixtures run the suite against `local_only` (rate-limited),
 `enabled`, and `disabled` configurations, since the dial changes both
