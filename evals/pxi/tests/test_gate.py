@@ -9,7 +9,7 @@ from typing import Any
 from evals.pxi import conftest as recorder
 from evals.pxi import gate
 
-VALID_RECORDING = {
+VALID_RECORDING: dict[str, Any] = {
     "expected": False,
     "bootstrapped": False,
     "experiments": 0,
@@ -157,6 +157,19 @@ def test_provider_error_never_enters_behavioral_denominator() -> None:
     assert decision.cells[0]["infra"] == 1
     assert decision.cells[0]["pass_rate"] == 1.0
     assert {item.first["example_id"] for item in decision.infra} == {"provider-error"}
+
+
+def test_missing_evaluator_score_is_counted_as_infra() -> None:
+    missing_score = _row("missing-score", passed=False)
+    missing_score["score"] = None
+
+    artifact = _artifact([_row("pass", passed=True), missing_score])
+    decision = gate.decide(artifact, _policy())
+
+    stats = artifact["datasets"][0]["evaluators"][0]["splits"]["regression"]
+    assert stats["assessed"] == 1
+    assert stats["infra"] == 1
+    assert decision.exit_code == gate.EXIT_OK
 
 
 def test_gating_cell_with_zero_assessable_rows_is_unmeasurable() -> None:

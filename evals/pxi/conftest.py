@@ -12,6 +12,7 @@ on the xdist controller. It never decides pass/fail and never touches
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any, AsyncIterator
@@ -131,7 +132,14 @@ def _empty_tally() -> dict[str, int]:
 
 def _add_row(tally: dict[str, int], row: dict[str, Any]) -> None:
     tally["rows"] += 1
-    if row.get("task_error") or row.get("evaluator_error"):
+    score = row.get("score")
+    if (
+        row.get("task_error")
+        or row.get("evaluator_error")
+        or isinstance(score, bool)
+        or not isinstance(score, (int, float))
+        or not math.isfinite(float(score))
+    ):
         tally["infra"] += 1
         return
     tally["assessed"] += 1
