@@ -304,6 +304,10 @@ throughput.
 
 Defaults to 20000.
 """
+ENV_PHOENIX_ONLINE_EVAL_ENABLED = "PHOENIX_ONLINE_EVAL_ENABLED"
+"""
+Whether to run the online-eval producer daemon. Defaults to false.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -3160,6 +3164,13 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
+
+
+def get_env_online_eval_enabled() -> bool:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_ENABLED environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_ENABLED, False)
 
 
 def get_env_client_headers() -> dict[str, str]:
