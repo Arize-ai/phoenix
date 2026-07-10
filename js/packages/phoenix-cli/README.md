@@ -43,7 +43,7 @@ export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 ```
 
-CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables. For interactive local use, `px auth login` stores a read-only OAuth session in your active profile. API keys still take precedence and are required for mutations and ingest.
+CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables. For interactive local use, `px auth login` stores an OAuth session in your active profile; the session acts with the permissions of the user who logged in. API keys take precedence when both are configured.
 
 | Variable                                 | Description                                   |
 | ---------------------------------------- | --------------------------------------------- |
@@ -663,7 +663,7 @@ px annotation-config get response-quality --format raw --no-progress | jq -r '.i
 
 ### `px auth login`
 
-Log in with the browser-based OAuth flow and store read-only tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions are read-only; creating, modifying, deleting, and ingesting data require an API key configured with `px profile`.
+Log in with the browser-based OAuth flow and store tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in.
 
 ```bash
 px auth login

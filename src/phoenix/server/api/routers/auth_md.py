@@ -23,14 +23,12 @@ async def protected_resource_metadata(request: Request) -> JSONResponse:
     resource = public_origin(request)
     authentication_enabled: bool = getattr(request.app.state, "authentication_enabled", False)
     authorization_servers = [resource] if authentication_enabled else []
-    scopes_supported = ["read_only"] if authentication_enabled else []
     return JSONResponse(
         {
             "resource": resource,
             "resource_name": "Arize Phoenix",
             "authorization_servers": authorization_servers,
             "bearer_methods_supported": ["header"],
-            "scopes_supported": scopes_supported,
             "resource_documentation": f"{resource}/auth.md",
         }
     )
@@ -74,7 +72,7 @@ def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
         ## OAuth2 authorization code flow
 
         Phoenix exposes an OAuth2 authorization server for browser-based login to
-        read-only agent credentials:
+        agent credentials:
 
         - Authorization endpoint: `GET {base_url}/oauth2/authorize`
         - Token endpoint: `POST {base_url}/oauth2/token`
@@ -83,10 +81,10 @@ def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
 
         ## Obtain a credential
 
-        - **OAuth2 access token**: use authorization code with PKCE. Phoenix grants
-          the `read_only` scope for this flow.
+        - **OAuth2 access token**: use authorization code with PKCE. Tokens act
+          with the permissions of the user who approved the authorization.
         - **API key**: created in the Phoenix UI under **Settings → API Keys**. API
-          keys are still recommended for integrations that need write access.
+          keys are recommended for long-lived, non-interactive integrations.
         - **Access token**: `POST {base_url}/auth/login` with JSON body
           `{{"email": "...", "password": "..."}}` sets a `phoenix.access_token`
           cookie usable as a bearer token. Renew an expired token via
@@ -105,9 +103,10 @@ def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
 
         ## Scopes
 
-        OAuth2 authorization-code credentials support `read_only`. Write operations
-        require a credential with write privileges, such as an API key for a user or
-        system role that can perform the requested action.
+        Phoenix does not currently restrict OAuth2 credentials by scope. A token
+        obtained through the authorization code flow carries the permissions of
+        the user who approved it, including write operations permitted by that
+        user's role.
 
         ## Support
 

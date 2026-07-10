@@ -19,7 +19,6 @@ import {
 } from "./settings";
 
 export const OAUTH_CLIENT_ID = "phoenix-cli";
-export const OAUTH_SCOPE = "read_only";
 export const OAUTH_CALLBACK_PATH = "/callback";
 export const OAUTH_LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
 export const OAUTH_REFRESH_BUFFER_MS = 60 * 1000;
@@ -146,7 +145,6 @@ export function buildAuthorizationUrl({
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("code_challenge", codeChallenge);
   authorizationUrl.searchParams.set("code_challenge_method", "S256");
-  authorizationUrl.searchParams.set("scope", OAUTH_SCOPE);
   return authorizationUrl.toString();
 }
 

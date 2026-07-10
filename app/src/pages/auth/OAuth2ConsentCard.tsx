@@ -103,11 +103,6 @@ const titleCSS = css`
   font-weight: 600;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
-
-  .consent-title__scope {
-    color: var(--global-color-info);
-    font-weight: 700;
-  }
 `;
 
 const subtitleCSS = css`
@@ -309,9 +304,7 @@ export function OAuth2ConsentCard({
         </div>
       </div>
       <Heading level={1} css={titleCSS}>
-        {clientName} wants{" "}
-        <span className="consent-title__scope">read-only</span> access to your
-        Phoenix workspace
+        {clientName} wants access to your Phoenix workspace
       </Heading>
       <Text elementType="p" size="S" color="text-700" css={subtitleCSS}>
         Signed in as <b>{signedInAs}</b>
@@ -348,16 +341,16 @@ export function OAuth2ConsentCard({
           </div>
         </li>
         <li css={permItemCSS}>
-          <div css={permTickCSS} data-allowed="false" aria-hidden="true">
-            <Icon svg={<Icons.Close />} />
+          <div css={permTickCSS} data-allowed="true" aria-hidden="true">
+            <Icon svg={<Icons.Checkmark />} />
           </div>
           <div>
             <Text elementType="p" size="S" weight="heavy">
-              No changes, ever
+              Make changes on your behalf
             </Text>
             <Text elementType="p" size="XS" color="text-700">
-              It cannot create, modify, or delete anything, and it cannot reach
-              admin settings.
+              Create, modify, and delete anything your account can — it acts
+              with your permissions.
             </Text>
           </div>
         </li>

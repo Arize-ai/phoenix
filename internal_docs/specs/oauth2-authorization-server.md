@@ -132,7 +132,7 @@ sequenceDiagram
     CLI->>CLI: Verify state, extract code
     CLI->>Phoenix: POST /oauth2/token<br/>(grant_type=authorization_code, code,<br/>code_verifier, client_id, redirect_uri)
     Phoenix->>Phoenix: Verify code hash, PKCE, client and redirect match,<br/>create oauth2_grants row, delete the code
-    Phoenix-->>CLI: { access_token, refresh_token, expires_in, scope }
+    Phoenix-->>CLI: { access_token, refresh_token, expires_in }
     CLI->>CLI: Store tokens in the active profile
 ```
 
@@ -453,7 +453,7 @@ Coverage is organized by concern, one class each:
 | `TestAuthorizationCodeFlow` | Happy path, denial, state/PKCE failures, code single-use |
 | `TestTokenLifecycle` | Refresh rotation, replay of rotated tokens, revocation semantics |
 | `TestDynamicClientRegistration` | Registration across all three dial positions, redirect-class rejection, hygiene caps |
-| `TestReadOnlyClamp` | Enforcement behavior of granted tokens (documented in the authorization workstream) |
+| `TestGrantTokenAccess` | Granted tokens act with the authorizing user's permissions (scope enforcement deferred to the authorization workstream) |
 
 Separate app fixtures run the suite against `local_only` (rate-limited),
 `enabled`, and `disabled` configurations, since the dial changes both

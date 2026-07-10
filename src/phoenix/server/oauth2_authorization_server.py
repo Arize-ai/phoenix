@@ -18,7 +18,6 @@ from starlette.requests import Request
 
 from phoenix.config import ENV_PHOENIX_ROOT_URL, get_env_host_root_path, get_env_root_url
 from phoenix.db import models
-from phoenix.server.types import GRANT_SCOPE_READ_ONLY
 
 _PKCE_VERIFIER_PATTERN = re.compile(r"^[A-Za-z0-9._~-]{43,128}$")
 _PRIVATE_USE_SCHEME_PATTERN = re.compile(r"^[a-z][a-z0-9+.-]*$")
@@ -162,8 +161,15 @@ def validate_state(state: str | None) -> str:
 
 
 def granted_scopes_from_request(scope: str | None) -> tuple[str, ...]:
-    """Return the scopes Phoenix grants for an OAuth2 request."""
-    return (GRANT_SCOPE_READ_ONLY,)
+    """Return the scopes Phoenix grants for an OAuth2 request.
+
+    Phoenix does not yet restrict token capabilities by scope: requested
+    scopes are accepted but none are granted, and tokens act with the
+    permissions of the user who approved the authorization. The scope
+    storage on grants and tokens remains in place so a scope model can be
+    introduced without a schema change.
+    """
+    return ()
 
 
 def validate_redirect_uri(

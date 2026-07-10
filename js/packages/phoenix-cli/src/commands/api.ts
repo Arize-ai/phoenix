@@ -121,13 +121,6 @@ async function apiGraphqlHandler(
     });
 
     if (!response.ok) {
-      if (response.status === 403 && config.credentialSource === "oauth") {
-        writeError({
-          message:
-            "This login is read-only. Mutations require an API key — see px profile --help.",
-        });
-        process.exit(ExitCode.AUTH_REQUIRED);
-      }
       writeError({
         message: `Error: HTTP ${response.status} ${response.statusText} from ${request.url}`,
       });

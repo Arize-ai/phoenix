@@ -54,7 +54,7 @@ class TestProtectedResourceMetadata:
         assert data["resource_name"] == "Arize Phoenix"
         assert data["authorization_servers"] == []
         assert data["bearer_methods_supported"] == ["header"]
-        assert data["scopes_supported"] == []
+        assert "scopes_supported" not in data
         assert data["resource_documentation"] == "http://test/auth.md"
 
 

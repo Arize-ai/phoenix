@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import re
+from secrets import token_hex
 from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
 
-from phoenix.server.types import GRANT_SCOPE_READ_ONLY
 from tests.integration._helpers import _MEMBER, _AppInfo, _GetUser, _httpx_client
 
 from .conftest import _active_grants, _OAuthPublicClient
@@ -23,7 +23,7 @@ class TestDiscovery:
         assert metadata["token_endpoint"].endswith("/oauth2/token")
         assert metadata["revocation_endpoint"].endswith("/oauth2/revoke")
         assert metadata["registration_endpoint"].endswith("/oauth2/register")
-        assert metadata["scopes_supported"] == ["read_only"]
+        assert "scopes_supported" not in metadata
 
     def test_protected_resource_metadata(self, _app: _AppInfo) -> None:
         response = _httpx_client(_app).get(".well-known/oauth-protected-resource")
@@ -32,7 +32,7 @@ class TestDiscovery:
         metadata = response.json()
         assert metadata["resource"] == _app.base_url.rstrip("/")
         assert metadata["authorization_servers"] == [_app.base_url.rstrip("/")]
-        assert metadata["scopes_supported"] == ["read_only"]
+        assert "scopes_supported" not in metadata
 
     def test_auth_md_documents_oauth2_authorization_server(self, _app: _AppInfo) -> None:
         response = _httpx_client(_app).get("auth.md")
@@ -42,8 +42,7 @@ class TestDiscovery:
         assert "/oauth2/authorize" in text
         assert "/oauth2/token" in text
         assert "/oauth2/revoke" in text
-        assert "read_only" in text
-        assert "keys are still recommended" in text
+        assert "permissions of the user who approved" in text
 
 
 class TestAuthorizationCodeFlow:
@@ -59,13 +58,13 @@ class TestAuthorizationCodeFlow:
         token_response = _oauth_public_client.complete_flow(user)
 
         assert token_response["token_type"] == "Bearer"
-        assert token_response["scope"] == GRANT_SCOPE_READ_ONLY
+        assert "scope" not in token_response
         assert token_response["access_token"]
         assert token_response["refresh_token"]
         new_grants = [grant for grant in _active_grants(_app, user) if grant["id"] not in before]
         assert len(new_grants) == 1
         assert new_grants[0]["clientId"] == _oauth_public_client.client_id
-        assert new_grants[0]["scopes"] == [GRANT_SCOPE_READ_ONLY]
+        assert new_grants[0]["scopes"] == []
 
     def test_authorization_code_flow_grant_is_visible_to_viewer_graphql(
         self,
@@ -104,7 +103,7 @@ class TestAuthorizationCodeFlow:
         assert grants[-1]["clientName"] == _oauth_public_client.name
         assert grants[-1]["isFirstParty"] is False
         assert grants[-1]["clientId"] == _oauth_public_client.client_id
-        assert grants[-1]["scopes"] == [GRANT_SCOPE_READ_ONLY]
+        assert grants[-1]["scopes"] == []
         assert grants[-1]["createdAt"]
         assert grants[-1]["expiresAt"]
         assert grants[-1]["lastUsedAt"]
@@ -173,7 +172,7 @@ class TestTokenLifecycle:
 
         assert rotated["access_token"] != token_response["access_token"]
         assert rotated["refresh_token"] != token_response["refresh_token"]
-        assert rotated["scope"] == "read_only"
+        assert "scope" not in rotated
 
     def test_rotated_refresh_token_reuse_is_invalid_grant(
         self,
@@ -394,7 +393,7 @@ class TestDynamicClientRegistration:
         assert register_response.status_code == 403
 
 
-class TestReadOnlyClamp:
+class TestGrantTokenAccess:
     def test_grant_token_can_read_rest_resources(
         self,
         _app: _AppInfo,
@@ -411,7 +410,7 @@ class TestReadOnlyClamp:
 
         assert response.status_code == 200
 
-    def test_grant_token_cannot_write_rest_resources(
+    def test_grant_token_can_write_rest_resources(
         self,
         _app: _AppInfo,
         _get_user: _GetUser,
@@ -423,11 +422,11 @@ class TestReadOnlyClamp:
         response = _httpx_client(
             _app,
             headers={"authorization": f"Bearer {token_response['access_token']}"},
-        ).post("v1/projects", json={"name": "blocked"})
+        ).post("v1/projects", json={"name": f"grant-rest-write-{token_hex(8)}"})
 
-        assert response.status_code == 403
+        assert response.status_code == 200
 
-    def test_grant_token_cannot_run_graphql_mutations(
+    def test_grant_token_can_run_graphql_mutations(
         self,
         _app: _AppInfo,
         _get_user: _GetUser,
@@ -435,6 +434,7 @@ class TestReadOnlyClamp:
     ) -> None:
         user = _get_user(_app, _MEMBER).log_in(_app)
         token_response = _oauth_public_client.complete_flow(user)
+        project_name = f"grant-gql-write-{token_hex(8)}"
 
         response = _httpx_client(
             _app,
@@ -443,15 +443,18 @@ class TestReadOnlyClamp:
             "graphql",
             json={
                 "query": (
-                    'mutation { createProject(input: { name: "blocked" }) { project { id } } }'
-                )
+                    "mutation ($name: String!) {"
+                    " createProject(input: { name: $name }) { project { id } }"
+                    " }"
+                ),
+                "variables": {"name": project_name},
             },
         )
 
         assert response.status_code == 200
-        assert response.json()["errors"][0]["message"] == (
-            "OAuth2 grant-linked tokens cannot perform GraphQL mutations"
-        )
+        body = response.json()
+        assert not body.get("errors")
+        assert body["data"]["createProject"]["project"]["id"]
 
 
 def _register_client(

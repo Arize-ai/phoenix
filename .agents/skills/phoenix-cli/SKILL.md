@@ -62,7 +62,7 @@ export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
 
-For interactive local use, `px auth login` stores a read-only OAuth session in the selected profile. API keys take precedence over OAuth tokens and are required for mutations, deletes, and ingest.
+For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
 
 Always use `--format raw --no-progress` when piping to `jq`.
 
@@ -92,7 +92,7 @@ Both stages tag every artifact with one shared **coding annotation identifier** 
 ## Auth
 
 ```bash
-px auth login                                 # browser-based read-only OAuth login
+px auth login                                 # browser-based OAuth login
 px auth login --no-browser                    # print URL for SSH/headless use
 px auth logout                                # clear OAuth tokens; leaves API keys
 px auth status                                # check connection and authentication
@@ -101,7 +101,7 @@ px auth status --profile staging              # check a named profile's connecti
 px auth status --format raw                   # machine-readable credential source
 ```
 
-`auth status` reports the credential source (`flag`, `env`, `profile-key`, `oauth`, or `none`). OAuth status includes expiry and access level; `read_only` displays as read-only.
+`auth status` reports the credential source (`flag`, `env`, `profile-key`, `oauth`, or `none`). OAuth status includes the token expiry.
 
 ## Profiles
 

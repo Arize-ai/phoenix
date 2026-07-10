@@ -370,7 +370,7 @@ describe("Auth Commands", () => {
       expect(output).toContain("Profile: prod");
     });
 
-    it("reports OAuth access level and expiry", () => {
+    it("reports OAuth expiry", () => {
       const result: FetchViewerResult = {
         status: "success",
         user: {
@@ -398,7 +398,6 @@ describe("Auth Commands", () => {
         }
       );
       expect(output).toContain("Logged in as oauth-user (oauth)");
-      expect(output).toContain("Access: read-only");
       expect(output).toContain("Expires: 2026-01-01T00:10:00.000Z");
     });
 
@@ -469,7 +468,6 @@ describe("px auth login/logout", () => {
               refresh_token: "refresh-token",
               expires_in: 600,
               token_type: "Bearer",
-              scope: "read_only",
             })
           );
           return;
@@ -531,11 +529,9 @@ describe("px auth login/logout", () => {
       const output = JSON.parse(captured(stdoutSpy)) as {
         status: string;
         user: { username: string };
-        accessLevel: string;
       };
       expect(output.status).toBe("authenticated");
       expect(output.user.username).toBe("roger");
-      expect(output.accessLevel).toBe("read-only");
       expect(captured(stderrSpy)).toContain("/oauth2/authorize");
       const saved = readTempSettings(tmpDir);
       expect(saved.activeProfile).toBe("default");

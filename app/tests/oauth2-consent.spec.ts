@@ -17,16 +17,18 @@ function consentUrl(overrides: Record<string, string> = {}) {
 }
 
 test.describe("OAuth2 consent", () => {
-  test("shows read breadth and loopback provenance copy", async ({ page }) => {
+  test("shows access breadth and loopback provenance copy", async ({
+    page,
+  }) => {
     await page.goto(consentUrl());
 
     await expect(
       page.getByRole("heading", {
-        name: "Phoenix CLI wants read-only access to your Phoenix workspace",
+        name: "Phoenix CLI wants access to your Phoenix workspace",
       })
     ).toBeVisible();
     await expect(page.getByText("project data")).toBeVisible();
-    await expect(page.getByText("admin settings")).toBeVisible();
+    await expect(page.getByText("acts with your permissions")).toBeVisible();
     await expect(
       page.getByText("Only approve if you started this yourself")
     ).toBeVisible();

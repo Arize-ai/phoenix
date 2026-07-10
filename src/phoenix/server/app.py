@@ -88,7 +88,6 @@ from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
-from phoenix.server.api.extensions.oauth2_grant_mutation_guard import OAuth2GrantMutationGuard
 from phoenix.server.api.routers import (
     create_agents_router,
     create_auth_router,
@@ -937,11 +936,6 @@ def create_app(
         lambda: QueryDepthLimiter(max_depth=20),
         lambda: MaxAliasesLimiter(max_alias_count=50),
     ]
-    if authentication_enabled:
-        # The guard inspects request.user, which exists only when the
-        # authentication middleware is installed; without authentication there
-        # are no bearer tokens to restrict.
-        graphql_schema_extensions.append(OAuth2GrantMutationGuard)
     graphql_schema_extensions.extend(user_gql_extensions())
 
     if server_instrumentation_is_enabled():

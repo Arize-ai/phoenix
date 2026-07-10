@@ -23,7 +23,6 @@ from phoenix.server.oauth2_authorization_server import (
     validate_state,
     verify_pkce,
 )
-from phoenix.server.types import GRANT_SCOPE_READ_ONLY
 
 
 def test_create_code_challenge_uses_s256_without_padding() -> None:
@@ -186,7 +185,7 @@ def test_validate_state_accepts_minimum_length_value() -> None:
     ],
 )
 def test_granted_scopes_from_request_is_lenient(scope: str | None) -> None:
-    assert granted_scopes_from_request(scope) == (GRANT_SCOPE_READ_ONLY,)
+    assert granted_scopes_from_request(scope) == ()
 
 
 def test_hash_authorization_code_returns_sha256_hex() -> None:

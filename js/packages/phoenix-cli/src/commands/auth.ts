@@ -55,7 +55,6 @@ interface AuthOutput {
   endpoint: string;
   profile?: string;
   credentialSource: NonNullable<PhoenixConfig["credentialSource"]>;
-  accessLevel?: string;
   expiresAt?: string;
   user?: ViewerUser;
   status: "authenticated" | "anonymous" | "unverified" | "logged_out";
@@ -186,7 +185,6 @@ export function formatAuthStatus(
     lines.push(`  - Token: ${obscureApiKey(apiKey)}`);
   }
   if (oauthTokens) {
-    lines.push(`  - Access: ${formatAccessLevel(oauthTokens.scope)}`);
     lines.push(`  - Expires: ${oauthTokens.expiresAt}`);
   }
 
@@ -212,7 +210,6 @@ function buildAuthOutput({
     credentialSource,
     ...(oauthTokens
       ? {
-          accessLevel: formatAccessLevel(oauthTokens.scope),
           expiresAt: oauthTokens.expiresAt,
         }
       : {}),
@@ -246,10 +243,6 @@ function formatCredentialSource(
   }
 }
 
-function formatAccessLevel(scope: string): string {
-  return scope.split(/\s+/).includes("read_only") ? "read-only" : "unknown";
-}
-
 function formatAuthOutput(
   output: AuthOutput,
   format: OutputFormat = "pretty"
@@ -276,9 +269,6 @@ function formatAuthOutput(
     if ("role" in output.user && output.user.role) {
       lines.push(`  - Role: ${output.user.role}`);
     }
-  }
-  if (output.accessLevel) {
-    lines.push(`  - Access: ${output.accessLevel}`);
   }
   if (output.expiresAt) {
     lines.push(`  - Expires: ${output.expiresAt}`);
@@ -476,7 +466,6 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
             endpoint,
             profile: targetProfileName,
             credentialSource: "oauth",
-            accessLevel: formatAccessLevel(oauthTokens.scope),
             expiresAt: oauthTokens.expiresAt,
             user,
             status:
@@ -621,9 +610,7 @@ Examples:
 
 function createAuthLoginCommand(): Command {
   return new Command("login")
-    .description(
-      "Log in to Phoenix with browser-based OAuth.\n\nOAuth CLI sessions are read-only. Mutations require an API key; see `px profile --help`."
-    )
+    .description("Log in to Phoenix with browser-based OAuth.")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("--profile <name>", "Profile to store OAuth tokens in")

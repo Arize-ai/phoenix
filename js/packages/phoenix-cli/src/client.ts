@@ -80,11 +80,6 @@ export function createOAuthRefreshingFetch({
     const firstResponse = await fetchImpl(
       withBearerToken({ input, init, headers, tokens: currentTokens })
     );
-    if (firstResponse.status === 403) {
-      throw new AuthRequiredError(
-        "This login is read-only. Mutations require an API key — see px profile --help."
-      );
-    }
     if (firstResponse.status !== 401) {
       return firstResponse;
     }
@@ -101,11 +96,6 @@ export function createOAuthRefreshingFetch({
     );
     if (retryResponse.status === 401) {
       throw new AuthRequiredError("Session expired. Run: px auth login");
-    }
-    if (retryResponse.status === 403) {
-      throw new AuthRequiredError(
-        "This login is read-only. Mutations require an API key — see px profile --help."
-      );
     }
     return retryResponse;
   };

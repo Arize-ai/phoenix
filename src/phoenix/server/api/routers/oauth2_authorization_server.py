@@ -49,7 +49,6 @@ from phoenix.server.rate_limiters import (
     fastapi_ip_rate_limiter,
 )
 from phoenix.server.types import (
-    GRANT_SCOPE_READ_ONLY,
     AccessTokenClaims,
     AccessTokenId,
     RefreshTokenClaims,
@@ -69,7 +68,6 @@ if get_env_oauth2_consent_origin_check() == "off":
 
 _AUTHORIZATION_CODE_TTL = timedelta(minutes=5)
 _TOKEN_TYPE = "Bearer"
-_READ_ONLY_SCOPE = GRANT_SCOPE_READ_ONLY
 _DCR_CLIENT_ID_PREFIX = "px_dcr_"
 _DCR_CLIENT_ID_RANDOM_LENGTH = 22
 _DCR_CLIENT_NAME_MAX_LENGTH = 200
@@ -258,7 +256,7 @@ async def authorize_decision(request: Request, decision: AuthorizationDecision) 
                 redirect_uri=decision.redirect_uri,
                 code_challenge=decision.code_challenge,
                 code_challenge_method=decision.code_challenge_method,
-                scopes=[_READ_ONLY_SCOPE],
+                scopes=list(granted_scopes_from_request(decision.scope)) or None,
                 resource=None,
                 audience=None,
                 expires_at=now + _AUTHORIZATION_CODE_TTL,
@@ -371,7 +369,6 @@ async def authorization_server_metadata(request: Request) -> JSONResponse:
         "grant_types_supported": ["authorization_code", "refresh_token"],
         "code_challenge_methods_supported": ["S256"],
         "token_endpoint_auth_methods_supported": ["none"],
-        "scopes_supported": [_READ_ONLY_SCOPE],
     }
     if _redirect_uri_dial_position() != RedirectUriDialPosition.DISABLED:
         metadata["registration_endpoint"] = f"{issuer}/oauth2/register"
@@ -411,7 +408,7 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
         if not verify_pkce(code_verifier, authorization_code.code_challenge):
             return _oauth_error("invalid_grant")
         user = authorization_code.user
-        scopes = tuple(authorization_code.scopes or [_READ_ONLY_SCOPE])
+        scopes = tuple(authorization_code.scopes or ())
         grant = models.OAuth2Grant(
             user_id=authorization_code.user_id,
             oauth2_client_id=authorization_code.oauth2_client_id,
@@ -826,7 +823,6 @@ def _token_response(
             "token_type": _TOKEN_TYPE,
             "expires_in": int(access_token_expiry.total_seconds()),
             "refresh_token": str(refresh_token),
-            "scope": _READ_ONLY_SCOPE,
         }
     )
 

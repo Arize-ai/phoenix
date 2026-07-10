@@ -5,7 +5,6 @@ import * as path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createOAuthRefreshingFetch } from "../src/client";
-import { AuthRequiredError } from "../src/exitCodes";
 import {
   buildAuthorizationUrl,
   exchangeAuthorizationCode,
@@ -83,7 +82,7 @@ describe("OAuth PKCE and callback helpers", () => {
     expect(url.pathname).toBe("/oauth2/authorize");
     expect(url.searchParams.get("response_type")).toBe("code");
     expect(url.searchParams.get("client_id")).toBe("phoenix-cli");
-    expect(url.searchParams.get("scope")).toBe("read_only");
+    expect(url.searchParams.get("scope")).toBeNull();
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
   });
 
@@ -443,7 +442,7 @@ describe("OAuth fetch wrapper", () => {
     }
   });
 
-  it("uses the read-only mutation hint on 403", async () => {
+  it("returns 403 responses to the caller", async () => {
     const wrappedFetch = createOAuthRefreshingFetch({
       endpoint: "http://example.test",
       headers: {},
@@ -452,19 +451,13 @@ describe("OAuth fetch wrapper", () => {
         accessToken: "access",
         refreshToken: "refresh",
         expiresAt: "2999-01-01T00:00:00.000Z",
-        scope: "read_only",
+        scope: "",
       },
       fetchImpl: vi
         .fn<typeof fetch>()
         .mockResolvedValue(new Response(null, { status: 403 })),
     });
-    await expect(
-      wrappedFetch("http://example.test/v1/projects")
-    ).rejects.toThrow(AuthRequiredError);
-    await expect(
-      wrappedFetch("http://example.test/v1/projects")
-    ).rejects.toThrow(
-      "This login is read-only. Mutations require an API key — see px profile --help."
-    );
+    const response = await wrappedFetch("http://example.test/v1/projects");
+    expect(response.status).toBe(403);
   });
 });
