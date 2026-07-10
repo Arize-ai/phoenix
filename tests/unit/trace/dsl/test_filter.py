@@ -934,6 +934,33 @@ async def test_filter_annotation_name_uses_python_string_escaping(
             """metadata['café'] == 'yes' and span_annotation_0_label_00000000000000000000000000000000 == 'good'""",
             id="unicode-before-annotation",
         ),
+        pytest.param(
+            """trace_annotations['quality'].score >= 0.5""",
+            "trace_annotation_0_score_00000000000000000000000000000000 >= 0.5",
+            id="trace-annotation-score",
+        ),
+        pytest.param(
+            """trace_annotations['quality'].label == 'good'""",
+            "trace_annotation_0_label_00000000000000000000000000000000 == 'good'",
+            id="trace-annotation-label",
+        ),
+        pytest.param(
+            """trace_annotations['quality']""",
+            "trace_annotation_0_exists_00000000000000000000000000000000",
+            id="bare-trace-annotation-exists",
+        ),
+        pytest.param(
+            """trace_annotations['q'].score > 0.5 and annotations['q'].score < 0.5""",
+            "trace_annotation_0_score_00000000000000000000000000000000 > 0.5 "
+            "and span_annotation_1_score_00000000000000000000000000000000 < 0.5",
+            id="mixed-trace-and-span-annotation",
+        ),
+        pytest.param(
+            """annotations['q'].score < 0.5 and trace_annotations['q'].score > 0.5""",
+            "span_annotation_0_score_00000000000000000000000000000000 < 0.5 "
+            "and trace_annotation_1_score_00000000000000000000000000000000 > 0.5",
+            id="mixed-span-and-trace-annotation",
+        ),
     ],
 )
 def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
@@ -944,6 +971,50 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
     ):
         aliased, _ = _apply_eval_aliasing(filter_condition)
         assert aliased == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("trace_annotations['quality'].score >= 0.5", id="score"),
+        pytest.param("trace_annotations['quality'].label == 'good'", id="label"),
+        pytest.param("trace_annotations['quality']", id="exists"),
+    ],
+)
+async def test_trace_annotation_filter_joins_trace_annotation_relation(
+    db: DbSessionFactory,
+    condition: str,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    span_filter = SpanFilter(condition)
+    assert [relation.kind for relation in span_filter._aliased_annotation_relations] == ["trace"]
+    statement = span_filter(select(models.Span.id))
+    compiled = str(statement)
+    assert "trace_annotations" in compiled
+    assert "span_annotations" not in compiled
+    async with db() as session:
+        await session.execute(statement)
+
+
+async def test_span_and_trace_annotations_join_distinct_relations(
+    db: DbSessionFactory,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    span_filter = SpanFilter(
+        "annotations['quality'].score >= 0.5 and "
+        "trace_annotations['quality'].score >= 0.5"
+    )
+    assert sorted(
+        relation.kind for relation in span_filter._aliased_annotation_relations
+    ) == ["span", "trace"]
+    statement = span_filter(select(models.Span.id))
+    compiled = str(statement)
+    assert "trace_annotations" in compiled
+    assert "span_annotations" in compiled
+    async with db() as session:
+        await session.execute(statement)
 
 
 class TestProjectorValidationGap:
