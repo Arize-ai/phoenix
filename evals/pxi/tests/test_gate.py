@@ -233,6 +233,26 @@ def test_different_evaluator_miss_on_retry_does_not_confirm_first_miss() -> None
     assert decision.confirmed == []
 
 
+def test_incidental_retry_infra_is_still_reported() -> None:
+    first = _artifact(
+        [
+            _row("example", passed=False, evaluator="tools"),
+            _row("example", passed=True, evaluator="args"),
+        ]
+    )
+    retry = _artifact(
+        [
+            _row("example", passed=True, evaluator="tools"),
+            _row("example", passed=False, evaluator="args", evaluator_error="judge crashed"),
+        ]
+    )
+
+    decision = gate.decide(first, _policy(), retry=retry)
+
+    assert decision.exit_code == gate.EXIT_OK
+    assert [item.first["evaluator"] for item in decision.infra] == ["args"]
+
+
 def test_retry_infra_is_visible_but_not_regression_when_cell_remains_measurable() -> None:
     first = _artifact([_row("pass", passed=True), _row("retry-me", passed=False)])
     retry = _artifact(

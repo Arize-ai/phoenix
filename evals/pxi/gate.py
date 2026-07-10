@@ -385,12 +385,21 @@ def decide(
             errors=[f"retry artifact: {error}" for error in retry_errors],
         )
 
-    retry_by_key = {_row_key(row): row for row in _artifact_rows(retry)}
+    retry_rows = _artifact_rows(retry)
+    retry_by_key = {_row_key(row): row for row in retry_rows}
     retryable_keys = {_row_key(row) for row in retryable}
     effective_rows: list[Mapping[str, Any]] = []
     confirmed: list[Evidence] = []
     flaky: list[Evidence] = []
     infra = _infra_evidence(first_rows)
+    # A targeted node reruns all of its evaluators. Surface incidental retry
+    # infrastructure even when that evaluator passed initially and therefore
+    # is not part of reconciliation.
+    infra.extend(
+        item
+        for item in _infra_evidence(retry_rows)
+        if _row_key(item.first) not in retryable_keys and not item.first.get("task_error")
+    )
     for first in first_rows:
         key = _row_key(first)
         if key not in retryable_keys:

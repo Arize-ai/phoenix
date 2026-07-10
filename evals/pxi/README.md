@@ -144,7 +144,9 @@ uv run python -m evals.pxi.gate pxi-eval-results.json --thresholds evals/pxi/thr
 # then reconcile the same evaluator verdict across both attempts.
 uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
   --retry-nodeids-out pxi-eval-retry-nodeids.txt
-mapfile -t retry_nodeids < pxi-eval-retry-nodeids.txt
+retry_nodeids=()
+while IFS= read -r nodeid; do retry_nodeids+=("${nodeid}"); done \
+  < pxi-eval-retry-nodeids.txt
 PXI_EVAL_RESULTS_PATH=pxi-eval-results-retry.json \
   uv run pytest -c evals/pxi/pytest.ini "${retry_nodeids[@]}"
 uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
