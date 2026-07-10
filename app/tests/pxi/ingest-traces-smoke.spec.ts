@@ -77,6 +77,29 @@ test.describe("PXI ingest traces smoke", () => {
     await pxi.open();
     await pxi.acknowledgeConsent();
 
+    if (process.env.PXI_E2E_EXPORT_REMOTE_TRACES === "true") {
+      const exportRemoteTraces = await page.evaluate(() => {
+        const stored = localStorage.getItem("arize-phoenix-assistant");
+        if (!stored) return null;
+        return JSON.parse(stored).state?.observability?.exportRemoteTraces;
+      });
+      expect(exportRemoteTraces).toBe(true);
+    }
+    const relayRemoteExportHeaders: string[] = [];
+    const relayResponseStatuses: number[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/agents/traces")) {
+        relayRemoteExportHeaders.push(
+          request.headers()["x-phoenix-pxi-export-remote-traces"] ?? ""
+        );
+      }
+    });
+    page.on("response", (response) => {
+      if (response.url().includes("/agents/traces")) {
+        relayResponseStatuses.push(response.status());
+      }
+    });
+
     // Drive the chat turn directly without going through the harness's
     // askAndWait, which depends on assistant-message traceId metadata that
     // the new chat route does not yet emit. Wait for the assistant turn to
@@ -156,6 +179,11 @@ test.describe("PXI ingest traces smoke", () => {
 
         expect(chatTrace, "chat trace should be present").toBeDefined();
         expect(summaryTrace, "summary trace should be present").toBeDefined();
+
+        if (process.env.PXI_E2E_EXPORT_REMOTE_TRACES === "true") {
+          expect(relayRemoteExportHeaders).toContain("true");
+          expect(relayResponseStatuses).toContain(200);
+        }
 
         expect(chatTrace!.spans.length).toBeGreaterThanOrEqual(
           MIN_CHAT_SPAN_COUNT

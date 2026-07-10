@@ -44,8 +44,10 @@ function getAssistantProjectName() {
 async function installAgentDefaults({ page }: { page: Page }) {
   const assistantProvider = getAssistantProvider();
   const assistantModel = getAssistantModel();
+  const exportRemoteTraces =
+    process.env.PXI_E2E_EXPORT_REMOTE_TRACES === "true";
   await page.addInitScript(
-    ({ provider, modelName }) => {
+    ({ provider, modelName, exportRemoteTraces }) => {
       localStorage.clear();
       localStorage.setItem(
         "arize-phoenix-feature-flags",
@@ -75,7 +77,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
             },
             observability: {
               storeLocalTraces: true,
-              exportRemoteTraces: false,
+              exportRemoteTraces,
               hasAcknowledgedConsent: false,
             },
             capabilities: {
@@ -92,6 +94,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
     {
       provider: assistantProvider,
       modelName: assistantModel,
+      exportRemoteTraces,
     }
   );
 }
