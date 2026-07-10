@@ -36,7 +36,7 @@
     "@types/node": "^25.9.4",
     "mastra": "^1.18.0",
     "tsx": "^4.22.5",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=22.13.0"
