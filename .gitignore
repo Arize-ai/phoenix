@@ -94,5 +94,8 @@ helm/charts/*.tgz
 .hypothesis
 .claude/worktrees/
 
+# Locally built Phoenix wheel for the Harbor evaluation image
+/evals/harbor/tasks/regression-triage/environment/wheels/
+
 # WebAssembly binaries
 wasm/*.wasm
