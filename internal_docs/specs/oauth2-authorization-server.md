@@ -441,19 +441,19 @@ IPv6), plus grant-claims hydration. These run with auth disabled and no
 server, because the functions under test take strings and return
 classifications.
 
-**Integration** (`tests/integration/auth/oauth2/`): a real server process with
-auth enabled, real HTTP, no mocks. A small `_OAuthPublicClient` helper drives
-the flow the way an external client would — build the authorize URL, follow
-the consent decision, capture the redirect, exchange the code. Coverage is
-organized by concern:
+**Integration** (`tests/integration/auth/test_oauth2.py`): a real server
+process with auth enabled, real HTTP, no mocks. A small `_OAuthPublicClient`
+helper drives the flow the way an external client would — build the authorize
+URL, follow the consent decision, capture the redirect, exchange the code.
+Coverage is organized by concern, one class each:
 
-| File | Covers |
-|------|--------|
-| `test_discovery.py` | Both well-known documents, registration-endpoint advertisement per dial |
-| `test_authorization_code_flow.py` | Happy path, denial, state/PKCE failures, code single-use |
-| `test_token_lifecycle.py` | Refresh rotation, replay of rotated tokens, revocation semantics |
-| `test_dcr.py` | Registration across all three dial positions, redirect-class rejection, hygiene caps |
-| `test_read_only_clamp.py` | Enforcement behavior of granted tokens (documented in the authorization workstream) |
+| Class | Covers |
+|-------|--------|
+| `TestDiscovery` | Both well-known documents, registration-endpoint advertisement per dial |
+| `TestAuthorizationCodeFlow` | Happy path, denial, state/PKCE failures, code single-use |
+| `TestTokenLifecycle` | Refresh rotation, replay of rotated tokens, revocation semantics |
+| `TestDynamicClientRegistration` | Registration across all three dial positions, redirect-class rejection, hygiene caps |
+| `TestReadOnlyClamp` | Enforcement behavior of granted tokens (documented in the authorization workstream) |
 
 Separate app fixtures run the suite against `local_only` (rate-limited),
 `enabled`, and `disabled` configurations, since the dial changes both
