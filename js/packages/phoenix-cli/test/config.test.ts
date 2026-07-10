@@ -1,7 +1,10 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { clearEnvFileCache } from "@arizeai/phoenix-config";
+import {
+  clearEnvFileCache,
+  resetCrossTierEndpointWarningsForTesting,
+} from "@arizeai/phoenix-config";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -149,6 +152,7 @@ describe("Configuration", () => {
       delete process.env.PHOENIX_DISCOVER_CONFIG;
       vi.spyOn(process, "cwd").mockReturnValue(envFileDir);
       clearEnvFileCache();
+      resetCrossTierEndpointWarningsForTesting();
     });
 
     afterEach(() => {
@@ -210,6 +214,27 @@ describe("Configuration", () => {
       const config = resolveConfig({ cliOptions: {} });
       expect(config.apiKey).toBeUndefined();
       expect(config.headers).toEqual({ "X-Custom": "value" });
+    });
+
+    it("warns once while retaining a file endpoint and process credentials", () => {
+      const filePath = path.join(envFileDir, ".env.phoenix");
+      writeEnvFile("PHOENIX_HOST=http://file-host:6006\n");
+      fs.chmodSync(filePath, 0o600);
+      process.env.PHOENIX_API_KEY = "secret-process-key";
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const config = resolveConfig({ cliOptions: {} });
+      resolveConfig({ cliOptions: {} });
+
+      expect(config).toMatchObject({
+        apiKey: "secret-process-key",
+        endpoint: "http://file-host:6006",
+      });
+      expect(warnSpy).toHaveBeenCalledOnce();
+      expect(warnSpy).toHaveBeenCalledWith(
+        `Credentials from the process environment will be sent to PHOENIX_HOST set by ${filePath}.`
+      );
+      expect(warnSpy.mock.calls[0]?.[0]).not.toContain("secret-process-key");
     });
   });
 

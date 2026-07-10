@@ -67,6 +67,14 @@ settings are resolved as groups: when any credential (`PHOENIX_API_KEY`,
 for the whole credential group, so process and file credentials are never mixed.
 Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery entirely.
 
+An endpoint from `.env.phoenix` can still be combined with credentials supplied
+explicitly or by the process environment. Consumers emit a one-time warning in
+that case naming the credential source, endpoint variable, and discovered file;
+credential values are never logged. Source-aware consumers should use
+`getStrFromEnvironmentWithSource()` and
+`getCredentialsFromEnvironmentWithSource()` rather than reconstructing the
+source tier themselves.
+
 Discovery results are cached per working directory for the lifetime of the
 process (including the absence of a file). Long-running processes that create
 the file after the first configuration lookup can call `clearEnvFileCache()` to

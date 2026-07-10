@@ -3,7 +3,8 @@
  * @module
  */
 
-import { readEnvFileValue } from "./envFile";
+import { readEnvFileValueWithPath } from "@phoenix-config/env-file";
+
 import type { Headers } from "./types";
 import { isHeaders } from "./types";
 
@@ -95,8 +96,43 @@ export const PHOENIX_CREDENTIAL_ENV_KEYS = [
  * A value present in the process environment (even an empty string) always
  * wins; the file never overrides anything already set.
  */
+export type EnvironmentValueSource =
+  | { kind: "process" }
+  | { filePath: string; kind: "env-file" };
+
+export interface ResolvedEnvironmentValue {
+  source?: EnvironmentValueSource;
+  value?: string;
+}
+
+export interface ResolvedEnvironmentTier {
+  source?: EnvironmentValueSource;
+  values: Partial<Record<string, string>>;
+}
+
+function getProcessEnvironment(): Partial<Record<string, string | undefined>> {
+  return typeof process === "undefined" ? {} : process.env;
+}
+
+export function getStrFromEnvironmentWithSource(
+  envKey: string
+): ResolvedEnvironmentValue {
+  const processValue = getProcessEnvironment()[envKey];
+  if (processValue !== undefined) {
+    return { source: { kind: "process" }, value: processValue };
+  }
+  const fileValue = readEnvFileValueWithPath(envKey);
+  if (fileValue) {
+    return {
+      source: { filePath: fileValue.filePath, kind: "env-file" },
+      value: fileValue.value,
+    };
+  }
+  return {};
+}
+
 function readEnvValue(envKey: string): string | undefined {
-  return process.env[envKey] ?? readEnvFileValue(envKey);
+  return getStrFromEnvironmentWithSource(envKey).value;
 }
 
 /**
@@ -115,24 +151,72 @@ function readEnvValue(envKey: string): string | undefined {
 export function resolveEnvironmentTier(
   envKeys: readonly string[]
 ): Partial<Record<string, string>> {
+  return resolveEnvironmentTierWithSource(envKeys).values;
+}
+
+/** Resolves a setting group together with the tier that supplied it. */
+export function resolveEnvironmentTierWithSource(
+  envKeys: readonly string[]
+): ResolvedEnvironmentTier {
   const processValues: Partial<Record<string, string>> = {};
+  const processEnvironment = getProcessEnvironment();
   for (const envKey of envKeys) {
-    const value = process.env[envKey];
+    const value = processEnvironment[envKey];
     if (value !== undefined) {
       processValues[envKey] = value;
     }
   }
   if (Object.keys(processValues).length > 0) {
-    return processValues;
+    return { source: { kind: "process" }, values: processValues };
   }
   const fileValues: Partial<Record<string, string>> = {};
+  let filePath: string | undefined;
   for (const envKey of envKeys) {
-    const value = readEnvFileValue(envKey);
-    if (value !== undefined) {
-      fileValues[envKey] = value;
+    const result = readEnvFileValueWithPath(envKey);
+    if (result) {
+      fileValues[envKey] = result.value;
+      filePath = result.filePath;
     }
   }
-  return fileValues;
+  return {
+    source: filePath ? { filePath, kind: "env-file" } : undefined,
+    values: fileValues,
+  };
+}
+
+const warnedCrossTierEndpoints = new Set<string>();
+
+/**
+ * Warns once when higher-priority credentials will be sent to an endpoint
+ * selected by a discovered `.env.phoenix` file.
+ */
+export function warnIfUsingFileEndpointWithCredentials({
+  credentialSource,
+  endpointSource,
+  endpointVariable,
+}: {
+  credentialSource?: string;
+  endpointSource?: EnvironmentValueSource;
+  endpointVariable: string;
+}): void {
+  if (!credentialSource || endpointSource?.kind !== "env-file") {
+    return;
+  }
+  const warningKey = `${endpointSource.filePath}\0${endpointVariable}`;
+  if (warnedCrossTierEndpoints.has(warningKey)) {
+    return;
+  }
+  warnedCrossTierEndpoints.add(warningKey);
+  // eslint-disable-next-line no-console
+  console.warn(
+    `Credentials from ${credentialSource} will be sent to ${endpointVariable} ` +
+      `set by ${endpointSource.filePath}.`
+  );
+}
+
+/** @internal Resets the one-time cross-tier warning latch for tests. */
+export function resetCrossTierEndpointWarningsForTesting(): void {
+  warnedCrossTierEndpoints.clear();
 }
 
 /**
@@ -294,10 +378,23 @@ export function getCredentialsFromEnvironment(): {
   apiKey?: string;
   headers?: Headers;
 } {
-  const values = resolveEnvironmentTier(PHOENIX_CREDENTIAL_ENV_KEYS);
+  const { apiKey, headers } = getCredentialsFromEnvironmentWithSource();
+  return { apiKey, headers };
+}
+
+/** Resolves credentials together with the tier that supplied them. */
+export function getCredentialsFromEnvironmentWithSource(): {
+  apiKey?: string;
+  headers?: Headers;
+  source?: EnvironmentValueSource;
+} {
+  const { source, values } = resolveEnvironmentTierWithSource(
+    PHOENIX_CREDENTIAL_ENV_KEYS
+  );
   return {
     apiKey: values[ENV_PHOENIX_API_KEY] || undefined,
     headers: parseHeaders(values[ENV_PHOENIX_CLIENT_HEADERS]),
+    source,
   };
 }
 

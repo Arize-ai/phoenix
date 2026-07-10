@@ -1,12 +1,12 @@
 import {
-  ENV_PHOENIX_API_KEY,
-  ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_PROJECT_NAME,
-  getCredentialsFromEnvironment,
+  type EnvironmentValueSource,
+  getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
-  getStrFromEnvironment,
+  getStrFromEnvironmentWithSource,
+  warnIfUsingFileEndpointWithCredentials,
 } from "@arizeai/phoenix-config";
 
 import {
@@ -68,14 +68,26 @@ export function getBuiltInDefaults(): PhoenixConfig {
  * are never mixed.
  */
 export function loadConfigFromEnvironment(): PhoenixConfig {
+  return loadConfigFromEnvironmentWithSources().config;
+}
+
+function loadConfigFromEnvironmentWithSources(): {
+  config: PhoenixConfig;
+  credentialSource?: EnvironmentValueSource;
+  endpointSource?: EnvironmentValueSource;
+} {
   const config: PhoenixConfig = {};
 
-  const endpoint = getStrFromEnvironment(ENV_PHOENIX_HOST);
-  if (endpoint) {
-    config.endpoint = endpoint;
+  const endpoint = getStrFromEnvironmentWithSource(ENV_PHOENIX_HOST);
+  if (endpoint.value) {
+    config.endpoint = endpoint.value;
   }
 
-  const { apiKey, headers } = getCredentialsFromEnvironment();
+  const {
+    apiKey,
+    headers,
+    source: credentialSource,
+  } = getCredentialsFromEnvironmentWithSource();
   if (apiKey) {
     config.apiKey = apiKey;
   }
@@ -90,7 +102,11 @@ export function loadConfigFromEnvironment(): PhoenixConfig {
     config.project = project;
   }
 
-  return config;
+  return {
+    config,
+    credentialSource,
+    endpointSource: endpoint.source,
+  };
 }
 
 /**
@@ -107,25 +123,25 @@ export function loadConfigFromEnvironment(): PhoenixConfig {
 function splitEnvironmentConfigTiers(): {
   processEnvConfig: PhoenixConfig;
   envFileConfig: PhoenixConfig;
+  endpointSource?: EnvironmentValueSource;
 } {
-  const merged = loadConfigFromEnvironment();
+  const {
+    config: merged,
+    credentialSource,
+    endpointSource,
+  } = loadConfigFromEnvironmentWithSources();
   const processEnvConfig: PhoenixConfig = {};
   const envFileConfig: PhoenixConfig = {};
 
   const endpointTier =
-    process.env[ENV_PHOENIX_HOST] !== undefined
-      ? processEnvConfig
-      : envFileConfig;
+    endpointSource?.kind === "process" ? processEnvConfig : envFileConfig;
   if (merged.endpoint) {
     endpointTier.endpoint = merged.endpoint;
   }
 
   // Credentials are one group: they all come from the same tier.
   const credentialTier =
-    process.env[ENV_PHOENIX_API_KEY] !== undefined ||
-    process.env[ENV_PHOENIX_CLIENT_HEADERS] !== undefined
-      ? processEnvConfig
-      : envFileConfig;
+    credentialSource?.kind === "process" ? processEnvConfig : envFileConfig;
   if (merged.apiKey) {
     credentialTier.apiKey = merged.apiKey;
   }
@@ -142,7 +158,7 @@ function splitEnvironmentConfigTiers(): {
     projectTier.project = merged.project;
   }
 
-  return { processEnvConfig, envFileConfig };
+  return { endpointSource, processEnvConfig, envFileConfig };
 }
 
 /**
@@ -233,7 +249,8 @@ export function resolveConfig({
 }: ResolveConfigOptions): PhoenixConfig {
   const builtInDefaults = getBuiltInDefaults();
   const profileConfig = loadConfigFromProfile(profileName);
-  const { processEnvConfig, envFileConfig } = splitEnvironmentConfigTiers();
+  const { endpointSource, processEnvConfig, envFileConfig } =
+    splitEnvironmentConfigTiers();
 
   // Commander (and other callers) may include keys with `undefined` values.
   // If we spread those over envConfig we would accidentally clobber env vars.
@@ -241,13 +258,38 @@ export function resolveConfig({
     Object.entries(cliOptions).filter(([, value]) => value !== undefined)
   ) as Partial<PhoenixConfig>;
 
-  return {
+  const config = {
     ...builtInDefaults,
     ...envFileConfig,
     ...profileConfig,
     ...processEnvConfig,
     ...definedCliOptions,
   };
+
+  const usesFileEndpoint =
+    endpointSource?.kind === "env-file" &&
+    definedCliOptions.endpoint === undefined &&
+    processEnvConfig.endpoint === undefined &&
+    profileConfig.endpoint === undefined;
+  const credentialSource =
+    definedCliOptions.apiKey !== undefined ||
+    definedCliOptions.headers !== undefined
+      ? "CLI options"
+      : processEnvConfig.apiKey !== undefined ||
+          processEnvConfig.headers !== undefined
+        ? "the process environment"
+        : profileConfig.apiKey !== undefined ||
+            profileConfig.headers !== undefined
+          ? "the active profile"
+          : undefined;
+  if (usesFileEndpoint) {
+    warnIfUsingFileEndpointWithCredentials({
+      credentialSource,
+      endpointSource,
+      endpointVariable: ENV_PHOENIX_HOST,
+    });
+  }
+  return config;
 }
 
 /**

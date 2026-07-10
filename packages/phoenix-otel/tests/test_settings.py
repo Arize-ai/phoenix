@@ -161,6 +161,34 @@ class TestEnvFileDiscovery:
             assert get_env_phoenix_auth_header() is None
             assert get_env_client_headers() == {"authorization": "process-token"}
 
+    def test_process_endpoint_suppresses_file_grpc_port(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_GRPC_PORT=14317\n")
+        with patch.dict(
+            os.environ,
+            {"PHOENIX_COLLECTOR_ENDPOINT": "http://process-host:6006"},
+            clear=True,
+        ):
+            assert get_env_collector_endpoint() == "http://process-host:6006"
+            assert get_env_grpc_port() == 4317
+
+    def test_warns_while_using_file_endpoint_with_process_credentials(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\n")
+        env_file.chmod(0o600)
+        with patch.dict(os.environ, {"PHOENIX_API_KEY": "secret-process-key"}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() == "http://file-host:6006"
+                assert get_env_collector_endpoint() == "http://file-host:6006"
+
+        warnings = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        assert warnings == [
+            "Credentials from the process environment will be sent to "
+            f"PHOENIX_COLLECTOR_ENDPOINT set by {env_file}."
+        ]
+        assert "secret-process-key" not in warnings[0]
+
     def test_invalid_file_grpc_port_falls_back_to_default(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_GRPC_PORT=not-a-port\n")
         with patch.dict(os.environ, {}, clear=True):

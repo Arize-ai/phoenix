@@ -3,12 +3,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
-    "outDir": "dist/esm",
+    "outDir": "dist/browser",
     "paths": {
-      "@phoenix-config/env-file": ["src/envFile.ts"]
+      "@phoenix-config/env-file": ["src/envFile.browser.ts"]
     },
     "rootDir": "src",
-    "tsBuildInfoFile": "dist/esm/tsconfig.esm.tsbuildinfo"
+    "tsBuildInfoFile": "dist/browser/tsconfig.browser.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "references": []

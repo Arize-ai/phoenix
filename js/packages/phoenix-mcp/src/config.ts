@@ -1,10 +1,12 @@
 import {
   DEFAULT_PHOENIX_BASE_URL,
   ENV_PHOENIX_HOST,
-  getCredentialsFromEnvironment,
+  type EnvironmentValueSource,
+  getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
-  getStrFromEnvironment,
+  getStrFromEnvironmentWithSource,
   type Headers,
+  warnIfUsingFileEndpointWithCredentials,
 } from "@arizeai/phoenix-config";
 
 export const DEFAULT_PHOENIX_ENDPOINT = DEFAULT_PHOENIX_BASE_URL;
@@ -31,15 +33,31 @@ export interface ResolveConfigOptions {
  * process-environment and `.env.phoenix` file credentials are never mixed.
  */
 export function loadConfigFromEnvironment(): PhoenixMcpConfig {
-  const baseUrl = getStrFromEnvironment(ENV_PHOENIX_HOST);
-  const { apiKey, headers } = getCredentialsFromEnvironment();
+  return loadConfigFromEnvironmentWithSources().config;
+}
+
+function loadConfigFromEnvironmentWithSources(): {
+  config: PhoenixMcpConfig;
+  credentialSource?: EnvironmentValueSource;
+  endpointSource?: EnvironmentValueSource;
+} {
+  const baseUrl = getStrFromEnvironmentWithSource(ENV_PHOENIX_HOST);
+  const {
+    apiKey,
+    headers,
+    source: credentialSource,
+  } = getCredentialsFromEnvironmentWithSource();
   const project = getProjectFromEnvironment();
 
   return {
-    baseUrl: baseUrl || DEFAULT_PHOENIX_ENDPOINT,
-    apiKey: apiKey || undefined,
-    headers: headers || undefined,
-    project: project || undefined,
+    config: {
+      baseUrl: baseUrl.value || DEFAULT_PHOENIX_ENDPOINT,
+      apiKey: apiKey || undefined,
+      headers: headers || undefined,
+      project: project || undefined,
+    },
+    credentialSource,
+    endpointSource: baseUrl.source,
   };
 }
 
@@ -72,10 +90,31 @@ function getStringCommandLineOptions(
 export function resolveConfig({
   commandLineOptions,
 }: ResolveConfigOptions): PhoenixMcpConfig {
-  const envConfig = loadConfigFromEnvironment();
+  const {
+    config: envConfig,
+    credentialSource,
+    endpointSource,
+  } = loadConfigFromEnvironmentWithSources();
+  const commandLineConfig = getStringCommandLineOptions(commandLineOptions);
+  const usesFileEndpoint =
+    endpointSource?.kind === "env-file" &&
+    commandLineConfig.baseUrl === undefined;
+  const resolvedCredentialSource =
+    commandLineConfig.apiKey !== undefined
+      ? "command-line options"
+      : credentialSource?.kind === "process"
+        ? "the process environment"
+        : undefined;
+  if (usesFileEndpoint) {
+    warnIfUsingFileEndpointWithCredentials({
+      credentialSource: resolvedCredentialSource,
+      endpointSource,
+      endpointVariable: ENV_PHOENIX_HOST,
+    });
+  }
 
   return {
     ...envConfig,
-    ...getStringCommandLineOptions(commandLineOptions),
+    ...commandLineConfig,
   };
 }

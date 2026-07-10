@@ -36,12 +36,20 @@ const DISCOVERY_OPT_OUT_VALUES = new Set(["false", "0", "no", "off"]);
  */
 const warnedPermissivePaths = new Set<string>();
 
+/** Tracks candidate paths already reported as unusable. */
+const warnedSkippedPaths = new Set<string>();
+
 /**
  * Caches parsed file values per resolved working directory (an empty record
  * when no file exists), so each directory is walked and the file parsed at
  * most once per process.
  */
-const envFileValuesByDir = new Map<string, Partial<Record<string, string>>>();
+interface EnvFileEntry {
+  filePath?: string;
+  values: Partial<Record<string, string>>;
+}
+
+const envFileEntriesByDir = new Map<string, EnvFileEntry>();
 
 /**
  * Whether `.env.phoenix` file discovery is enabled (the default). Disabled by
@@ -67,6 +75,15 @@ function isTrustedEnvFileStats(stats: fs.Stats): boolean {
   return stats.isFile() && isOwnedByCurrentUser;
 }
 
+function warnIfEnvFileSkipped(filePath: string, reason: string): void {
+  if (warnedSkippedPaths.has(filePath)) {
+    return;
+  }
+  warnedSkippedPaths.add(filePath);
+  // eslint-disable-next-line no-console
+  console.warn(`Ignoring ${filePath}: ${reason}.`);
+}
+
 /**
  * Locates the nearest `.env.phoenix` file.
  *
@@ -87,11 +104,20 @@ export function findEnvFile({
   for (;;) {
     const candidate = path.join(currentDir, PHOENIX_ENV_FILE_NAME);
     try {
-      if (isTrustedEnvFileStats(fs.statSync(candidate))) {
+      const stats = fs.statSync(candidate);
+      if (isTrustedEnvFileStats(stats)) {
         return candidate;
       }
-    } catch {
-      // Missing or unreadable candidate — keep walking up.
+      warnIfEnvFileSkipped(
+        candidate,
+        "file must be a regular file owned by the current user"
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error && "code" in error && error.code === "ENOENT")
+      ) {
+        warnIfEnvFileSkipped(candidate, "file could not be inspected");
+      }
     }
     const parentDir = path.dirname(currentDir);
     if (parentDir === currentDir) {
@@ -134,9 +160,9 @@ function warnIfEnvFilePermissive(filePath: string, mode: number): void {
  * exists; call {@link clearEnvFileCache} to re-discover). A file that cannot be
  * read is treated as absent.
  */
-function loadEnvFileValues(): Partial<Record<string, string>> {
+function loadEnvFileEntry(): EnvFileEntry {
   const startDir = path.resolve(process.cwd());
-  const cached = envFileValuesByDir.get(startDir);
+  const cached = envFileEntriesByDir.get(startDir);
   if (cached) {
     return cached;
   }
@@ -152,16 +178,39 @@ function loadEnvFileValues(): Partial<Record<string, string>> {
         if (isTrustedEnvFileStats(stats)) {
           warnIfEnvFilePermissive(filePath, stats.mode);
           values = parseEnvFile(fs.readFileSync(fd, "utf8"));
+        } else {
+          warnIfEnvFileSkipped(
+            filePath,
+            "opened file must be a regular file owned by the current user"
+          );
         }
       } finally {
         fs.closeSync(fd);
       }
     } catch {
-      // Unreadable file — treat as absent.
+      warnIfEnvFileSkipped(filePath, "file could not be read");
     }
   }
-  envFileValuesByDir.set(startDir, values);
-  return values;
+  const entry = { filePath, values };
+  envFileEntriesByDir.set(startDir, entry);
+  return entry;
+}
+
+export interface EnvFileValue {
+  filePath: string;
+  value: string;
+}
+
+/** Reads a file value together with the path that supplied it. */
+export function readEnvFileValueWithPath(
+  envKey: string
+): EnvFileValue | undefined {
+  if (!envKey.startsWith("PHOENIX_") || !isEnvFileDiscoveryEnabled()) {
+    return undefined;
+  }
+  const { filePath, values } = loadEnvFileEntry();
+  const value = values[envKey];
+  return filePath && value !== undefined ? { filePath, value } : undefined;
 }
 
 /**
@@ -175,10 +224,7 @@ function loadEnvFileValues(): Partial<Record<string, string>> {
  * @returns The value from the file, or `undefined` if not available.
  */
 export function readEnvFileValue(envKey: string): string | undefined {
-  if (!envKey.startsWith("PHOENIX_") || !isEnvFileDiscoveryEnabled()) {
-    return undefined;
-  }
-  return loadEnvFileValues()[envKey];
+  return readEnvFileValueWithPath(envKey)?.value;
 }
 
 /**
@@ -191,6 +237,7 @@ export function readEnvFileValue(envKey: string): string | undefined {
  * the file.
  */
 export function clearEnvFileCache(): void {
-  envFileValuesByDir.clear();
+  envFileEntriesByDir.clear();
   warnedPermissivePaths.clear();
+  warnedSkippedPaths.clear();
 }

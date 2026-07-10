@@ -10,9 +10,13 @@ import {
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_PROJECT_NAME,
   getCredentialsFromEnvironment,
+  getCredentialsFromEnvironmentWithSource,
   getIntFromEnvironment,
   getProjectFromEnvironment,
   getStrFromEnvironment,
+  getStrFromEnvironmentWithSource,
+  resetCrossTierEndpointWarningsForTesting,
+  warnIfUsingFileEndpointWithCredentials,
 } from "./env";
 import {
   ENV_PHOENIX_DISCOVER_CONFIG,
@@ -47,6 +51,7 @@ describe("envFile", () => {
     // above the repo) cannot leak into assertions.
     vi.spyOn(process, "cwd").mockReturnValue(tempDir);
     clearEnvFileCache();
+    resetCrossTierEndpointWarningsForTesting();
   });
 
   afterEach(() => {
@@ -128,7 +133,7 @@ describe("envFile", () => {
       expect(findEnvFile({ startDir: nestedDir })).toBe(nearestPath);
     });
 
-    it("ignores files not owned by the current user", () => {
+    it("warns when ignoring files not owned by the current user", () => {
       if (
         process.platform === "win32" ||
         typeof process.getuid !== "function"
@@ -136,9 +141,14 @@ describe("envFile", () => {
         return;
       }
       writeEnvFile(tempDir, "PHOENIX_API_KEY=untrusted\n");
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const currentUid = process.getuid();
       vi.spyOn(process, "getuid").mockReturnValue(currentUid + 1);
       expect(findEnvFile({ startDir: tempDir })).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledOnce();
+      expect(warnSpy.mock.calls[0]?.[0]).toContain(
+        "file must be a regular file owned by the current user"
+      );
     });
   });
 
@@ -228,6 +238,15 @@ describe("envFile", () => {
       });
     });
 
+    it("reports the source that supplied a credential group", () => {
+      const filePath = writeEnvFile(tempDir, "PHOENIX_API_KEY=file-key\n");
+      expect(getCredentialsFromEnvironmentWithSource()).toEqual({
+        apiKey: "file-key",
+        headers: undefined,
+        source: { filePath, kind: "env-file" },
+      });
+    });
+
     it("process client headers suppress a file API key", () => {
       writeEnvFile(tempDir, "PHOENIX_API_KEY=file-key\n");
       process.env[ENV_PHOENIX_CLIENT_HEADERS] = '{"X-Custom": "value"}';
@@ -245,6 +264,38 @@ describe("envFile", () => {
       const credentials = getCredentialsFromEnvironment();
       expect(credentials.apiKey).toBe("process-key");
       expect(credentials.headers).toBeUndefined();
+    });
+  });
+
+  describe("cross-tier endpoint warning", () => {
+    it("states the final credential source, endpoint variable, and file once", () => {
+      const filePath = writeEnvFile(
+        tempDir,
+        "PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\n"
+      );
+      process.env[ENV_PHOENIX_API_KEY] = "secret-process-key";
+      const endpoint = getStrFromEnvironmentWithSource(
+        ENV_PHOENIX_COLLECTOR_ENDPOINT
+      );
+      const credentials = getCredentialsFromEnvironmentWithSource();
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      for (let index = 0; index < 2; index++) {
+        warnIfUsingFileEndpointWithCredentials({
+          credentialSource:
+            credentials.source?.kind === "process"
+              ? "the process environment"
+              : undefined,
+          endpointSource: endpoint.source,
+          endpointVariable: ENV_PHOENIX_COLLECTOR_ENDPOINT,
+        });
+      }
+
+      expect(warnSpy).toHaveBeenCalledOnce();
+      expect(warnSpy).toHaveBeenCalledWith(
+        `Credentials from the process environment will be sent to ${ENV_PHOENIX_COLLECTOR_ENDPOINT} set by ${filePath}.`
+      );
+      expect(warnSpy.mock.calls[0]?.[0]).not.toContain("secret-process-key");
     });
   });
 

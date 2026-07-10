@@ -3,6 +3,7 @@ import {
   OpenInferenceBatchSpanProcessor,
   OpenInferenceSimpleSpanProcessor,
 } from "@arizeai/openinference-vercel";
+import { warnIfUsingFileEndpointWithCredentials } from "@arizeai/phoenix-config";
 import type { DiagLogLevel } from "@opentelemetry/api";
 import {
   context,
@@ -27,7 +28,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
-import { getEnvApiKey, getEnvCollectorURL, getEnvProjectName } from "./config";
+import { getEnvConfig, getEnvProjectName } from "./config";
 
 /**
  * Type definition for HTTP headers used in OTLP communication
@@ -567,14 +568,51 @@ export function getDefaultSpanProcessor({
   RegisterParams,
   "url" | "apiKey" | "batch" | "headers"
 >): SpanProcessor {
+  const envConfig = getEnvConfig();
   const url = ensureCollectorEndpoint(
-    paramsUrl || getEnvCollectorURL() || "http://localhost:6006"
+    paramsUrl || envConfig.endpoint.value || "http://localhost:6006"
   );
-  const apiKey = paramsApiKey || getEnvApiKey();
-  const headers: Headers = Array.isArray(paramsHeaders)
+  const apiKey = paramsApiKey || envConfig.credentials.apiKey;
+  const explicitHeaders: Headers = Array.isArray(paramsHeaders)
     ? Object.fromEntries(paramsHeaders)
-    : paramsHeaders;
-  const configureHeaders = typeof apiKey == "string";
+    : { ...paramsHeaders };
+  const headers: Headers = { ...envConfig.credentials.headers };
+  for (const [key, value] of Object.entries(explicitHeaders)) {
+    const existingKey = Object.keys(headers).find(
+      (header) => header.toLowerCase() === key.toLowerCase()
+    );
+    if (existingKey) {
+      delete headers[existingKey];
+    }
+    headers[key] = value;
+  }
+  const hasExplicitAuthorization = Object.keys(explicitHeaders).some(
+    (key) => key.toLowerCase() === "authorization"
+  );
+  if (typeof paramsApiKey === "string" && !hasExplicitAuthorization) {
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === "authorization") {
+        delete headers[key];
+      }
+    }
+  }
+  const hasExplicitCredentials =
+    typeof paramsApiKey === "string" || Object.keys(explicitHeaders).length > 0;
+  const credentialSource = hasExplicitCredentials
+    ? "explicit arguments"
+    : envConfig.credentials.source?.kind === "process"
+      ? "the process environment"
+      : undefined;
+  if (!paramsUrl) {
+    warnIfUsingFileEndpointWithCredentials({
+      credentialSource,
+      endpointSource: envConfig.endpoint.source,
+      endpointVariable: "PHOENIX_COLLECTOR_ENDPOINT",
+    });
+  }
+  const configureHeaders =
+    typeof apiKey === "string" &&
+    !Object.keys(headers).some((key) => key.toLowerCase() === "authorization");
   if (configureHeaders) {
     headers["authorization"] = `Bearer ${apiKey}`;
   }

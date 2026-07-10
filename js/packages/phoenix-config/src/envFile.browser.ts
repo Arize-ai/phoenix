@@ -6,11 +6,24 @@ export {
   PHOENIX_ENV_FILE_NAME,
 } from "./envFileParser";
 
-export function findEnvFile(): undefined {
+export interface EnvFileValue {
+  filePath: string;
+  value: string;
+}
+
+export function findEnvFile(
+  _options: { startDir?: string } = {}
+): string | undefined {
   return undefined;
 }
 
-export function readEnvFileValue(): undefined {
+export function readEnvFileValue(_envKey: string): string | undefined {
+  return undefined;
+}
+
+export function readEnvFileValueWithPath(
+  _envKey: string
+): EnvFileValue | undefined {
   return undefined;
 }
 

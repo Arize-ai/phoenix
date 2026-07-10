@@ -130,6 +130,24 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, {"PHOENIX_CLIENT_HEADERS": "x-custom=abc"}, clear=True):
             headers = config_module.get_env_client_headers()
             assert "authorization" not in [k.lower() for k in headers]
+            assert get_env_phoenix_api_key() is None
+
+    def test_warns_while_using_file_endpoint_with_process_credentials(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_HOST=file-host\n")
+        env_file.chmod(0o600)
+        with patch.dict(os.environ, {"PHOENIX_API_KEY": "secret-process-key"}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert str(get_base_url()) == "http://file-host:6006"
+                assert str(get_base_url()) == "http://file-host:6006"
+
+        warnings = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        assert warnings == [
+            f"Credentials from the process environment will be sent to PHOENIX_HOST set by {env_file}."
+        ]
+        assert "secret-process-key" not in warnings[0]
 
     def test_invalid_file_port_falls_back_to_default(self, tmp_path: Path) -> None:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_PORT=not-a-port\n")
