@@ -106,25 +106,6 @@ function readExperimentMetricsDatum({
   };
 }
 
-export function mergeExperimentsWithBaseline(
-  windowed: ExperimentMetricsDatum[],
-  baseline: ExperimentMetricsDatum | null
-): {
-  experiments: ExperimentMetricsDatum[];
-  isBaselineOutOfWindow: boolean;
-} {
-  if (baseline == null) {
-    return { experiments: windowed, isBaselineOutOfWindow: false };
-  }
-  const isBaselineOutOfWindow = !windowed.some(
-    (experiment) => experiment.id === baseline.id
-  );
-  const experiments = isBaselineOutOfWindow
-    ? [baseline, ...windowed]
-    : windowed;
-  return { experiments, isBaselineOutOfWindow };
-}
-
 /**
  * Loads the metrics for the dataset's most recent experiments, ordered by
  * ascending sequence number so charts read oldest to newest left to right.
@@ -132,7 +113,6 @@ export function mergeExperimentsWithBaseline(
 export function useExperimentMetricsData(datasetId: string): {
   experiments: ExperimentMetricsDatum[];
   baselineExperiment: ExperimentMetricsDatum | null;
-  isBaselineOutOfWindow: boolean;
 } {
   const data = useLazyLoadQuery<useExperimentMetricsDataQuery>(
     experimentMetricsQuery,
@@ -159,14 +139,9 @@ export function useExperimentMetricsData(datasetId: string): {
         })
     )
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
-  const mergedExperiments = mergeExperimentsWithBaseline(
-    experiments,
-    baselineExperiment
-  );
 
   return {
-    experiments: mergedExperiments.experiments,
+    experiments,
     baselineExperiment,
-    isBaselineOutOfWindow: mergedExperiments.isBaselineOutOfWindow,
   };
 }

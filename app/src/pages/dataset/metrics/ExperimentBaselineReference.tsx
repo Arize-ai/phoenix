@@ -1,10 +1,24 @@
-import type { XAxisTickContentProps } from "recharts";
+import type { LegendPayload, XAxisTickContentProps } from "recharts";
 import { ReferenceLine } from "recharts";
 
 export const BASELINE_COLOR = "var(--global-color-indigo-500)";
 
 const BASELINE_STROKE_DASHARRAY = "4 4";
-const BASELINE_SEPARATOR_STROKE_DASHARRAY = "3 3";
+
+const BASELINE_LEGEND_PAYLOAD: ReadonlyArray<LegendPayload> = [
+  {
+    value: "Baseline",
+    type: "plainline",
+    color: BASELINE_COLOR,
+    payload: { strokeDasharray: BASELINE_STROKE_DASHARRAY },
+  },
+];
+
+export function getExperimentBaselineLegendPayload(
+  value: number | null | undefined
+): ReadonlyArray<LegendPayload> {
+  return typeof value === "number" ? BASELINE_LEGEND_PAYLOAD : [];
+}
 
 export function ExperimentBaselineValueLine({
   value,
@@ -26,21 +40,6 @@ export function ExperimentBaselineValueLine({
       strokeDasharray={BASELINE_STROKE_DASHARRAY}
       strokeWidth={1}
       ifOverflow="extendDomain"
-    />
-  );
-}
-
-export function ExperimentBaselineSeparator({
-  sequenceNumber,
-}: {
-  sequenceNumber: number;
-}) {
-  return (
-    <ReferenceLine
-      x={sequenceNumber}
-      position="end"
-      stroke="var(--chart-axis-stroke-color)"
-      strokeDasharray={BASELINE_SEPARATOR_STROKE_DASHARRAY}
     />
   );
 }

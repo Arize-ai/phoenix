@@ -31,7 +31,7 @@ export const MAX_SELECTED_EXPERIMENT_METRIC_CHARTS = 3;
  * The default metric charts shown above the experiments table.
  */
 export const DEFAULT_EXPERIMENT_METRIC_CHART_KEYS: ExperimentMetricChartKey[] =
-  ["annotation_scores", "latency", "error_rate"];
+  ["annotation_scores", "latency", "cost"];
 
 /**
  * The number of most recent experiments shown in the experiment metric charts.

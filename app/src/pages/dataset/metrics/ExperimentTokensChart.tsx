@@ -25,8 +25,8 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 import {
-  ExperimentBaselineSeparator,
   ExperimentBaselineValueLine,
+  getExperimentBaselineLegendPayload,
 } from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import { getExperimentXAxisProps } from "./experimentXAxisProps";
@@ -42,7 +42,7 @@ const TooltipContent = makeExperimentMetricsTooltipContent(intFormatter);
 export function ExperimentTokensChart({
   datasetId,
 }: ExperimentMetricViewProps) {
-  const { experiments, baselineExperiment, isBaselineOutOfWindow } =
+  const { experiments, baselineExperiment } =
     useExperimentMetricsData(datasetId);
   const chartData = experiments.map((experiment) => ({
     sequenceNumber: experiment.sequenceNumber,
@@ -92,30 +92,29 @@ export function ExperimentTokensChart({
           />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
           <ExperimentBaselineValueLine value={baselineTokens} />
-          {isBaselineOutOfWindow && baselineExperiment && (
-            <ExperimentBaselineSeparator
-              sequenceNumber={baselineExperiment.sequenceNumber}
-            />
-          )}
           <Bar
             dataKey="prompt"
             stackId="a"
             fill={colors.category1}
             hide={isDataKeyHidden("prompt")}
+            legendType="circle"
           />
           <Bar
             dataKey="completion"
             stackId="a"
             fill={colors.category2}
             hide={isDataKeyHidden("completion")}
+            legendType="circle"
             radius={[2, 2, 0, 0]}
           />
           <InteractiveLegend
             {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
-            iconType="circle"
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            supplementalPayload={getExperimentBaselineLegendPayload(
+              baselineTokens
+            )}
           />
         </BarChart>
       </ResponsiveContainer>

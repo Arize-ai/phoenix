@@ -30,9 +30,16 @@ describe("datasetStore", () => {
   describe("experimentsMetricChartKeys", () => {
     it("defaults to the default chart keys when nothing is persisted", () => {
       const store = createStore();
-      expect(store.getState().experimentsMetricChartKeys).toEqual(
-        DEFAULT_EXPERIMENT_METRIC_CHART_KEYS
-      );
+      expect(store.getState().experimentsMetricChartKeys).toEqual([
+        "annotation_scores",
+        "latency",
+        "cost",
+      ]);
+      expect(DEFAULT_EXPERIMENT_METRIC_CHART_KEYS).toEqual([
+        "annotation_scores",
+        "latency",
+        "cost",
+      ]);
     });
 
     it("hydrates a persisted selection", () => {

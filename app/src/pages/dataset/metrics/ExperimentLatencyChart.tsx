@@ -10,17 +10,20 @@ import {
 
 import {
   ChartEmptyStateOverlay,
+  InteractiveLegend,
   compactChartMargin,
+  compactLegendProps,
   compactYAxisProps,
   defaultCartesianGridProps,
   defaultTooltipProps,
+  useInteractiveLegend,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
-  ExperimentBaselineSeparator,
   ExperimentBaselineValueLine,
+  getExperimentBaselineLegendPayload,
 } from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import { getExperimentXAxisProps } from "./experimentXAxisProps";
@@ -29,6 +32,7 @@ import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 const TooltipContent = makeExperimentMetricsTooltipContent(latencyMsFormatter);
+const LATENCY_DATA_KEY = "latency";
 
 /**
  * Average run latency per experiment.
@@ -36,7 +40,7 @@ const TooltipContent = makeExperimentMetricsTooltipContent(latencyMsFormatter);
 export function ExperimentLatencyChart({
   datasetId,
 }: ExperimentMetricViewProps) {
-  const { experiments, baselineExperiment, isBaselineOutOfWindow } =
+  const { experiments, baselineExperiment } =
     useExperimentMetricsData(datasetId);
   const chartData = experiments.map((experiment) => ({
     sequenceNumber: experiment.sequenceNumber,
@@ -47,6 +51,11 @@ export function ExperimentLatencyChart({
   const hasData = chartData.some((datum) => typeof datum.latency === "number");
 
   const { gray300 } = useSequentialChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
+  const baselineLatency = isDataKeyHidden(LATENCY_DATA_KEY)
+    ? null
+    : baselineExperiment?.averageRunLatencyMs;
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
@@ -69,19 +78,22 @@ export function ExperimentLatencyChart({
             tickFormatter={(x) => latencyMsFormatter(x)}
           />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
-          <ExperimentBaselineValueLine
-            value={baselineExperiment?.averageRunLatencyMs}
-          />
-          {isBaselineOutOfWindow && baselineExperiment && (
-            <ExperimentBaselineSeparator
-              sequenceNumber={baselineExperiment.sequenceNumber}
-            />
-          )}
+          <ExperimentBaselineValueLine value={baselineLatency} />
           <Bar
-            dataKey="latency"
+            dataKey={LATENCY_DATA_KEY}
             name="average latency"
             fill={gray300}
+            hide={isDataKeyHidden(LATENCY_DATA_KEY)}
             radius={[2, 2, 0, 0]}
+          />
+          <InteractiveLegend
+            {...compactLegendProps}
+            hiddenDataKeys={hiddenDataKeys}
+            iconSize={8}
+            onToggleDataKey={toggleDataKey}
+            supplementalPayload={getExperimentBaselineLegendPayload(
+              baselineLatency
+            )}
           />
         </BarChart>
       </ResponsiveContainer>

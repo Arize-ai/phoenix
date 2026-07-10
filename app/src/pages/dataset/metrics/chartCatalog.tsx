@@ -41,7 +41,7 @@ const CHART_DEFINITIONS: Record<
 > = {
   annotation_scores: {
     name: "Annotation scores",
-    description: `Annotation scores and latency across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    description: `Annotation scores across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
     chartType: "line",
     Component: ExperimentAnnotationScoresChart,
   },
