@@ -1,0 +1,222 @@
+"""add online eval coordination
+
+Revision ID: a7f1c3e9d2b4
+Revises: d4e5f6a7b8c9
+Create Date: 2026-06-17 00:00:00.000000
+
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+
+_Integer = sa.Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
+# revision identifiers, used by Alembic.
+revision: str = "a7f1c3e9d2b4"
+down_revision: Union[str, None] = "d4e5f6a7b8c9"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "eval_work_cursors",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "grain",
+            sa.String(),
+            sa.CheckConstraint("grain IN ('SPAN', 'TRACE', 'SESSION')", name="valid_grain"),
+            nullable=False,
+        ),
+        sa.Column("consumer_group", sa.String(), nullable=False),
+        sa.Column(
+            "produced_through_id",
+            _Integer,
+            nullable=False,
+            server_default="0",
+        ),
+        sa.Column("observed_high_water_id", _Integer, nullable=True),
+        sa.Column("observed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_by", sa.String(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("grain", "consumer_group"),
+    )
+    op.create_table(
+        "project_evaluator_criteria",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("annotation_name", sa.String(), nullable=False),
+        sa.Column("filter_condition", sa.String(), nullable=False, server_default=""),
+        sa.Column(
+            "sampling_rate",
+            sa.Float(),
+            sa.CheckConstraint(
+                "0.0 <= sampling_rate AND sampling_rate <= 1.0",
+                name="valid_sampling_rate",
+            ),
+            nullable=False,
+        ),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("project_id", "annotation_name"),
+    )
+    op.create_index(
+        "ix_project_evaluator_criteria_project_id",
+        "project_evaluator_criteria",
+        ["project_id"],
+    )
+    op.create_index(
+        "ix_project_evaluator_criteria_evaluator_id",
+        "project_evaluator_criteria",
+        ["evaluator_id"],
+    )
+    op.create_table(
+        "eval_work_units",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "span_rowid",
+            _Integer,
+            sa.ForeignKey("spans.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "criteria_id",
+            _Integer,
+            sa.ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("config_fingerprint", sa.String(), nullable=False),
+        sa.Column(
+            "status",
+            sa.String(),
+            sa.CheckConstraint(
+                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
+                name="valid_eval_work_status",
+            ),
+            nullable=False,
+            server_default="PENDING",
+        ),
+        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_by", sa.String(), nullable=True),
+        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("error", sa.String(), nullable=True),
+        sa.Column("cooldown_until", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
+    )
+    op.create_index(
+        "ix_eval_work_units_claimable",
+        "eval_work_units",
+        ["status", "id"],
+        postgresql_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
+        sqlite_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
+    )
+    op.create_index(
+        "ix_eval_work_units_terminal",
+        "eval_work_units",
+        ["updated_at"],
+        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+    )
+    op.create_index(
+        "ix_eval_work_units_error_attempts",
+        "eval_work_units",
+        ["attempts"],
+        postgresql_where=sa.text("status = 'ERROR'"),
+        sqlite_where=sa.text("status = 'ERROR'"),
+    )
+    op.create_index(
+        "ix_eval_work_units_evaluator_id",
+        "eval_work_units",
+        ["evaluator_id"],
+    )
+    op.create_index(
+        "ix_eval_work_units_criteria_id",
+        "eval_work_units",
+        ["criteria_id"],
+    )
+
+
+def downgrade() -> None:
+    op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_error_attempts", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
+    op.drop_table("eval_work_units")
+    op.drop_index(
+        "ix_project_evaluator_criteria_evaluator_id", table_name="project_evaluator_criteria"
+    )
+    op.drop_index(
+        "ix_project_evaluator_criteria_project_id", table_name="project_evaluator_criteria"
+    )
+    op.drop_table("project_evaluator_criteria")
+    op.drop_table("eval_work_cursors")
