@@ -269,7 +269,9 @@ def earliest_root_span_by_session(
     """
     subquery = _ranked_root_span_values_by_session(
         models.Span.id.label(SPAN_ROWID),
-        order_by=[models.Trace.start_time.asc(), models.Trace.id.asc()],
+        # Span.id breaks ties when a trace has multiple root spans, so the window picks one
+        # root span deterministically (matches SessionIODataLoader).
+        order_by=[models.Trace.start_time.asc(), models.Trace.id.asc(), models.Span.id.asc()],
         keys=keys,
         project_rowids=project_rowids,
         start_time=start_time,
@@ -297,10 +299,10 @@ def root_span_io_value_by_session(
     """
     if kind == "first_input":
         attribute_path = SpanAttributes.INPUT_VALUE.split(".")
-        order_by = [models.Trace.start_time.asc(), models.Trace.id.asc()]
+        order_by = [models.Trace.start_time.asc(), models.Trace.id.asc(), models.Span.id.asc()]
     elif kind == "last_output":
         attribute_path = SpanAttributes.OUTPUT_VALUE.split(".")
-        order_by = [models.Trace.start_time.desc(), models.Trace.id.desc()]
+        order_by = [models.Trace.start_time.desc(), models.Trace.id.desc(), models.Span.id.desc()]
     else:
         raise ValueError(f"Unknown root span IO kind: {kind}")
 

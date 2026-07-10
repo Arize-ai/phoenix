@@ -369,6 +369,7 @@ def _eval_globals(
         "or_": sqlalchemy.or_,
         "nullif": sqlalchemy.func.nullif,
         "cast": sqlalchemy.cast,
+        "nullif": sqlalchemy.func.nullif,
         "Float": sqlalchemy.Float,
         "String": sqlalchemy.String,
         "SafeJsonBoolean": SafeJsonBoolean,
@@ -1379,6 +1380,22 @@ def _cast_as(
     )
 
 
+def _nullif_zero(node: typing.Any) -> ast.Call:
+    """Wrap a division denominator so a zero value compiles to SQL ``NULL``.
+
+    ``x / 0`` diverges by dialect — PostgreSQL raises ``division by zero`` while SQLite yields
+    ``NULL``. Aggregate denominators coalesce to 0 (e.g. ``total_cost`` on a session with no cost
+    config, ``num_traces`` on a retention-orphaned session), so a bare ratio predicate hits this.
+    Routing the denominator through ``nullif(y, 0)`` makes ``y == 0`` yield ``NULL`` on both
+    dialects; the outer comparison is then ``NULL`` and the row is excluded consistently.
+    """
+    return ast.Call(
+        func=ast.Name(id="nullif", ctx=ast.Load()),
+        args=[node, ast.Constant(value=0)],
+        keywords=[],
+    )
+
+
 def _is_string(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Name)
@@ -1749,12 +1766,8 @@ class _FilterTranslator(_ProjectionTranslator):
                 left = _cast_as(type_, left)
             if not _is_float(right, self._bindings):
                 right = _cast_as(type_, right)
-            if isinstance(op, (ast.Div, ast.Mod)):
-                right = ast.Call(
-                    func=ast.Name(id="nullif", ctx=ast.Load()),
-                    args=[right, ast.Constant(value=0)],
-                    keywords=[],
-                )
+            if isinstance(op, (ast.Div, ast.FloorDiv, ast.Mod)):
+                right = _nullif_zero(right)
             return ast.BinOp(left=left, op=op, right=right)
         return _cast_as(type_, ast.BinOp(left=left, op=op, right=right))
 
