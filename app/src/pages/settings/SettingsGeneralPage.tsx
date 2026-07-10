@@ -72,10 +72,10 @@ export function SettingsGeneralPage() {
           <APIKeysCard />
         </div>
         <div css={fullWidthCSS}>
-          <OAuth2GrantsCard />
+          <UsersCard />
         </div>
         <div css={fullWidthCSS}>
-          <UsersCard />
+          <OAuth2GrantsCard />
         </div>
       </IsAdmin>
       <CanManageRetentionPolicy>

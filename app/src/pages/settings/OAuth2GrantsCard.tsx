@@ -25,7 +25,7 @@ export function OAuth2GrantsCard() {
     <Card
       titleSeparator={false}
       title="Authorized Applications"
-      subTitle="Applications users have granted access to via OAuth2. Revoking disables the application's tokens immediately."
+      subTitle="OAuth2 application access granted across the workspace. Revoking disables the application's tokens immediately."
     >
       <Suspense
         fallback={
