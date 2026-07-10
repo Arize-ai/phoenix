@@ -26,12 +26,7 @@ export interface ResolveConfigOptions {
   };
 }
 
-/**
- * Load Phoenix MCP configuration from environment variables.
- *
- * Credentials (API key and client headers) are resolved as one group, so
- * process-environment and `.env.phoenix` file credentials are never mixed.
- */
+/** Load Phoenix MCP configuration from environment variables. */
 export function loadConfigFromEnvironment(): PhoenixMcpConfig {
   return loadConfigFromEnvironmentWithSources().config;
 }

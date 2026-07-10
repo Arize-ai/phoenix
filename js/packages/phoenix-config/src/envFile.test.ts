@@ -184,7 +184,6 @@ describe("envFile", () => {
       expect(warnSpy).toHaveBeenCalledTimes(1);
       const warningMessage = warnSpy.mock.calls[0]?.[0] as string;
       expect(warningMessage).toContain("accessible by other users");
-      // Hygiene: the credential value itself is never logged.
       expect(warningMessage).not.toContain("secret-value");
     });
 
@@ -303,9 +302,7 @@ describe("envFile", () => {
     it("picks up a file created after the first (cached) lookup", () => {
       expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBeUndefined();
       writeEnvFile(tempDir, "PHOENIX_API_KEY=late-key\n");
-      // The no-file result is cached per directory...
       expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBeUndefined();
-      // ...until the cache is cleared.
       clearEnvFileCache();
       expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBe("late-key");
     });

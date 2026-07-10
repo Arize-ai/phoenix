@@ -61,11 +61,8 @@ export function getBuiltInDefaults(): PhoenixConfig {
  * Load configuration from environment variables.
  * Only returns values that are explicitly set in the environment — built-in
  * defaults are NOT included, so callers can apply them at the correct tier.
- *
  * Values may come from the process environment or from a discovered
- * `.env.phoenix` file (process values always win). Credentials (API key and
- * client headers) are resolved as one group, so process and file credentials
- * are never mixed.
+ * `.env.phoenix` file (process values win).
  */
 export function loadConfigFromEnvironment(): PhoenixConfig {
   return loadConfigFromEnvironmentWithSources().config;
@@ -109,17 +106,6 @@ function loadConfigFromEnvironmentWithSources(): {
   };
 }
 
-/**
- * Split the environment-derived configuration into its two tiers: values the
- * user set in the process environment for this invocation, and values that
- * were discovered in a `.env.phoenix` file.
- *
- * The split works field-by-field on the merged config so parsing and
- * group-resolution logic stays single-sourced in `loadConfigFromEnvironment`:
- * a field is process-tier when any of the environment variables it derives
- * from is set in the process environment (which is exactly when the merged
- * getters ignore the file for that field), and file-tier otherwise.
- */
 function splitEnvironmentConfigTiers(): {
   processEnvConfig: PhoenixConfig;
   envFileConfig: PhoenixConfig;
@@ -139,7 +125,6 @@ function splitEnvironmentConfigTiers(): {
     endpointTier.endpoint = merged.endpoint;
   }
 
-  // Credentials are one group: they all come from the same tier.
   const credentialTier =
     credentialSource?.kind === "process" ? processEnvConfig : envFileConfig;
   if (merged.apiKey) {
@@ -237,11 +222,6 @@ export interface ResolveConfigOptions {
  *   3. Active profile (from --profile or settings file)
  *   4. Discovered `.env.phoenix` file values
  *   5. Built-in defaults
- *
- * A `.env.phoenix` file is ambient context discovered from the working
- * directory, not per-invocation user intent, so it ranks below a configured
- * profile — a stray file can never override an explicitly selected
- * `--profile`.
  */
 export function resolveConfig({
   cliOptions,

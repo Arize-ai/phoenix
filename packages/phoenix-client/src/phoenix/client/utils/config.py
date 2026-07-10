@@ -57,14 +57,7 @@ _SERVER_LOCATION_ENV_KEYS = (
 
 
 def _is_env_file_discovery_enabled() -> bool:
-    """
-    Whether ``.env.phoenix`` file discovery is enabled.
-
-    Discovery is on by default and can be disabled by setting
-    ``PHOENIX_DISCOVER_CONFIG`` to "false", "0", "no", or "off" (case-insensitive)
-    in the process environment. The opt-out is intentionally never read from the
-    file itself.
-    """
+    """Whether ``.env.phoenix`` discovery is enabled; the opt-out is process-env only."""
     if (value := os.getenv(ENV_PHOENIX_DISCOVER_CONFIG)) is None:
         return True
     return value.strip().lower() not in ("false", "0", "no", "off")
@@ -77,12 +70,7 @@ def _is_trusted_env_file_stat(stat: os.stat_result) -> bool:
 
 
 def _find_env_file(start_dir: Path) -> Optional[Path]:
-    """
-    Locate the nearest ``.env.phoenix`` file.
-
-    Walks from ``start_dir`` (a resolved directory) up toward the filesystem root
-    and returns the first match, or None if no file is found.
-    """
+    """Locate the nearest ``.env.phoenix`` file, walking up from ``start_dir``."""
     for candidate_dir in (start_dir, *start_dir.parents):
         candidate = candidate_dir / PHOENIX_ENV_FILE_NAME
         try:
@@ -107,14 +95,7 @@ def _warn_if_env_file_skipped(path: Path, reason: str) -> None:
 
 
 def _warn_if_env_file_permissive(path: Path, mode: int) -> None:
-    """
-    Emit a one-time warning (per file) if the file is readable or writable by
-    users other than its owner.
-
-    The file holds credentials, so it should only be accessible by its owner —
-    write access by others is the injection vector for redirecting traffic and
-    credentials. Values are never logged. No-op on non-POSIX platforms.
-    """
+    """Warn once per file if it is accessible by other users; no-op on non-POSIX."""
     if os.name != "posix":
         return
     if str(path) in _warned_env_file_permissions:
@@ -131,14 +112,7 @@ def _warn_if_env_file_permissive(path: Path, mode: int) -> None:
 
 
 def _parse_env_file(text: str) -> dict[str, str]:
-    """
-    Parse dotenv-formatted text, keeping only ``PHOENIX_``-prefixed keys.
-
-    Supports comments (lines starting with ``#``), an optional ``export `` prefix,
-    and values wrapped in single or double quotes. Inline comments are not
-    stripped. Keys without a ``PHOENIX_`` prefix and empty values are ignored: the
-    file is a Phoenix hand-off artifact, not a general dotenv loader.
-    """
+    """Parse dotenv-formatted text, keeping only non-empty ``PHOENIX_``-prefixed keys."""
     values: dict[str, str] = {}
     for raw_line in text.splitlines():
         line = raw_line.strip()
@@ -161,18 +135,9 @@ def _parse_env_file(text: str) -> dict[str, str]:
 
 
 def _load_env_file_entry() -> tuple[Optional[Path], dict[str, str]]:
-    """
-    Load Phoenix settings from the nearest ``.env.phoenix`` file, if any.
-
-    Results are cached per working directory (including the no-file case), so
-    each directory is walked and the file parsed at most once per process; call
-    :func:`clear_env_file_cache` to pick up a file created after the first
-    lookup. Returns no path and an empty dict when discovery is disabled, no
-    file is found, or the file cannot be read.
-    """
+    """Load the nearest ``.env.phoenix`` values, cached per directory (misses included)."""
     if not _is_env_file_discovery_enabled():
         return None, {}
-    # os.getcwd() is already symlink-free, so no resolve() is needed.
     start_dir = Path.cwd()
     if (cached := _env_file_entries_by_dir.get(str(start_dir))) is not None:
         return cached
@@ -181,8 +146,7 @@ def _load_env_file_entry() -> tuple[Optional[Path], dict[str, str]]:
     if path is not None:
         try:
             with open(path, "rb") as env_file:
-                # Re-verify trust on the opened file descriptor so the content
-                # read cannot differ from the file the ownership check saw.
+                # Re-check trust on the opened descriptor, not the pre-open path.
                 stat = os.fstat(env_file.fileno())
                 if _is_trusted_env_file_stat(stat):
                     _warn_if_env_file_permissive(path, stat.st_mode)
@@ -271,14 +235,7 @@ _warned_invalid_env_file_values: set[str] = set()
 
 
 def _reject_invalid_env_value(env_key: str, value: str, message: str) -> None:
-    """
-    Handle an invalid configuration value according to its source tier.
-
-    A value the user explicitly set in the process environment raises (as it
-    always has); a value that only came from a discovered ``.env.phoenix`` file
-    must not break startup, so it is ignored with a one-time warning and the
-    caller falls back to its default.
-    """
+    """Raise for an invalid process-env value; warn once and ignore an env-file value."""
     if os.getenv(env_key) is not None:
         raise ValueError(f"Invalid value for environment variable {env_key}: {value}. {message}")
     if env_key not in _warned_invalid_env_file_values:
@@ -331,9 +288,6 @@ def get_env_host_root_path() -> str:
 
 
 def get_env_client_headers() -> dict[str, str]:
-    # API key and client headers are one credential group: a credential the
-    # user provides via the process environment is never combined with (or
-    # shadowed by) a credential from a discovered file.
     values = _resolve_env_tier(_CREDENTIAL_ENV_KEYS)
     headers = parse_env_headers(values.get(ENV_PHOENIX_CLIENT_HEADERS))
     if (api_key := values.get(ENV_PHOENIX_API_KEY)) and "authorization" not in [
@@ -349,9 +303,6 @@ def get_env_collector_endpoint() -> Optional[str]:
 
 
 def get_base_url(*, credential_source: Optional[str] = None) -> httpx.URL:
-    # Endpoint, host, and port are one server-location group: all of them are
-    # read from the same resolved tier, so a URL is never spliced together from
-    # process and file values.
     values, endpoint_source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
     endpoint_key: Optional[str] = None
     if endpoint := values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT):

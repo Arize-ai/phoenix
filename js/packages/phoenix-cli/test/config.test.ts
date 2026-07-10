@@ -146,9 +146,7 @@ describe("Configuration", () => {
 
     beforeEach(() => {
       envFileDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-env-file-"));
-      // Re-enable discovery (globally disabled in test/setup.ts; the outer
-      // afterEach restores the opt-out) and run "from" the temp dir so only
-      // the file written here is discovered.
+      // Discovery is disabled globally in test/setup.ts; re-enable it here.
       delete process.env.PHOENIX_DISCOVER_CONFIG;
       vi.spyOn(process, "cwd").mockReturnValue(envFileDir);
       clearEnvFileCache();
@@ -204,7 +202,6 @@ describe("Configuration", () => {
       const config = resolveConfig({ cliOptions: {} });
       expect(config.apiKey).toBe("profile-key");
       expect(config.endpoint).toBe("http://process-host:6006");
-      // The profile does not set a project, so the file value flows through.
       expect(config.project).toBe("file-project");
     });
 

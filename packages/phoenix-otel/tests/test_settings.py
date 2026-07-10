@@ -156,8 +156,6 @@ class TestEnvFileDiscovery:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=file-key\n")
         env = {"PHOENIX_CLIENT_HEADERS": "authorization=process-token"}
         with patch.dict(os.environ, env, clear=True):
-            # A file API key must never override (or ride alongside) an
-            # authorization the user supplied via the process environment.
             assert get_env_phoenix_auth_header() is None
             assert get_env_client_headers() == {"authorization": "process-token"}
 
@@ -203,9 +201,7 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, {}, clear=True):
             assert get_env_phoenix_auth_header() is None
             (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=late-key\n")
-            # The no-file result is cached per directory...
             assert get_env_phoenix_auth_header() is None
-            # ...until the cache is cleared.
             settings_module.clear_env_file_cache()
             assert get_env_phoenix_auth_header() == {"authorization": "Bearer late-key"}
 

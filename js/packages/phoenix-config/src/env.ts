@@ -79,23 +79,15 @@ export const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
 export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
 
 /**
- * Environment variables that carry credentials. They are resolved as one tier
- * group (see {@link resolveEnvironmentTier}) so a credential the user provides
- * via the process environment is never combined with (or shadowed by) a
- * credential from a discovered `.env.phoenix` file.
+ * Environment variables that carry credentials, resolved as one tier group
+ * (see {@link resolveEnvironmentTier}).
  */
 export const PHOENIX_CREDENTIAL_ENV_KEYS = [
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
 ] as const;
 
-/**
- * Reads an environment variable from the process environment, falling back to
- * the nearest `.env.phoenix` file for `PHOENIX_`-prefixed keys.
- *
- * A value present in the process environment (even an empty string) always
- * wins; the file never overrides anything already set.
- */
+/** The source tier that supplied a resolved environment value. */
 export type EnvironmentValueSource =
   | { kind: "process" }
   | { filePath: string; kind: "env-file" };
@@ -114,6 +106,10 @@ function getProcessEnvironment(): Partial<Record<string, string | undefined>> {
   return typeof process === "undefined" ? {} : process.env;
 }
 
+/**
+ * Reads an environment variable from the process environment, falling back to
+ * the nearest `.env.phoenix` file for `PHOENIX_`-prefixed keys (process wins).
+ */
 export function getStrFromEnvironmentWithSource(
   envKey: string
 ): ResolvedEnvironmentValue {
@@ -136,14 +132,9 @@ function readEnvValue(envKey: string): string | undefined {
 }
 
 /**
- * Resolves a group of related environment variables as one two-tier unit.
- *
- * When any key of the group is set in the process environment (even to an
- * empty string), only process values are returned; the `.env.phoenix` file
- * tier is consulted for the whole group only when none of the keys are set in
- * the process environment. This prevents mixing process and file values for
- * settings that must be consistent with each other (e.g. credentials, or a
- * project name and its alias).
+ * Resolves a group of related environment variables as one two-tier unit:
+ * the `.env.phoenix` file tier is consulted only when none of the group's
+ * keys are set in the process environment.
  *
  * @param envKeys - the environment variable names forming the group
  * @returns The resolved values, keyed by environment variable name.
@@ -287,8 +278,6 @@ let hasWarnedProjectConflict = false;
  * // Returns "checkout"
  */
 export function getProjectFromEnvironment(): string | undefined {
-  // The canonical name and its alias are one tier group, so a process-level
-  // alias is never trumped by a file canonical (or vice versa).
   const values = resolveEnvironmentTier([
     ENV_PHOENIX_PROJECT,
     ENV_PHOENIX_PROJECT_NAME,
@@ -364,12 +353,7 @@ export function parseHeaders(value: string | undefined): Headers | undefined {
 
 /**
  * Retrieves the Phoenix credentials (API key and client headers) from the
- * environment.
- *
- * The two variables are resolved as one tier group: a credential set in the
- * process environment is never combined with a credential from a discovered
- * `.env.phoenix` file, so a file API key can never override or augment
- * process-supplied headers (and vice versa).
+ * environment, resolved as one tier group.
  *
  * @returns The resolved API key and parsed client headers, each `undefined`
  *   when not configured.
@@ -421,8 +405,6 @@ export function getCredentialsFromEnvironmentWithSource(): {
  * // }
  */
 export function getEnvironmentConfig() {
-  // API key and client headers are resolved as one credential group so that
-  // process and file credentials are never mixed.
   const credentials = getCredentialsFromEnvironment();
   return {
     [ENV_PHOENIX_PORT]: getIntFromEnvironment(ENV_PHOENIX_PORT),

@@ -112,8 +112,6 @@ class TestEnvFileDiscovery:
         (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n")
         with patch.dict(os.environ, {"PHOENIX_HOST": "process-host"}, clear=True):
             assert get_base_url() == "http://process-host:6006"
-            # The server-location group is suppressed as a whole, so the two
-            # public getters agree about the effective endpoint.
             assert get_env_collector_endpoint() is None
 
     def test_process_host_suppresses_file_port(self, tmp_path: Path) -> None:
@@ -121,8 +119,6 @@ class TestEnvFileDiscovery:
             "PHOENIX_PORT=9999\nPHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n"
         )
         with patch.dict(os.environ, {"PHOENIX_HOST": "process-host"}, clear=True):
-            # The base URL is never spliced together from process and file
-            # values: the file port is ignored along with the file endpoint.
             assert get_base_url() == "http://process-host:6006"
 
     def test_process_headers_suppress_file_api_key(self, tmp_path: Path) -> None:
@@ -164,9 +160,7 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, {}, clear=True):
             assert get_env_phoenix_api_key() is None
             (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=late-key\n")
-            # The no-file result is cached per directory...
             assert get_env_phoenix_api_key() is None
-            # ...until the cache is cleared.
             config_module.clear_env_file_cache()
             assert get_env_phoenix_api_key() == "late-key"
 

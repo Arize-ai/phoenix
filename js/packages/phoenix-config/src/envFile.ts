@@ -30,20 +30,9 @@ export {
 
 const DISCOVERY_OPT_OUT_VALUES = new Set(["false", "0", "no", "off"]);
 
-/**
- * Tracks which file paths have already triggered the permissive-permissions
- * warning so it is emitted at most once per file.
- */
 const warnedPermissivePaths = new Set<string>();
-
-/** Tracks candidate paths already reported as unusable. */
 const warnedSkippedPaths = new Set<string>();
 
-/**
- * Caches parsed file values per resolved working directory (an empty record
- * when no file exists), so each directory is walked and the file parsed at
- * most once per process.
- */
 interface EnvFileEntry {
   filePath?: string;
   values: Partial<Record<string, string>>;
@@ -127,13 +116,7 @@ export function findEnvFile({
   }
 }
 
-/**
- * Emits a one-time warning (per file) if the file is readable or writable by
- * users other than its owner. The file holds credentials, so it should only be
- * accessible by its owner — write access by others is the injection vector for
- * redirecting traffic and credentials. Values are never logged. No-op on
- * Windows, where POSIX mode bits are not meaningful.
- */
+/** Warns once per file if it is accessible by other users; no-op on Windows. */
 function warnIfEnvFilePermissive(filePath: string, mode: number): void {
   if (process.platform === "win32") {
     return;
@@ -172,8 +155,7 @@ function loadEnvFileEntry(): EnvFileEntry {
     try {
       const fd = fs.openSync(filePath, "r");
       try {
-        // Re-verify trust on the opened file descriptor so the content read
-        // cannot differ from the file the ownership check saw.
+        // Re-check trust on the opened descriptor, not the pre-open path.
         const stats = fs.fstatSync(fd);
         if (isTrustedEnvFileStats(stats)) {
           warnIfEnvFilePermissive(filePath, stats.mode);
