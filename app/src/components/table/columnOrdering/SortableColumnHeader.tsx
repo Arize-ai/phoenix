@@ -24,7 +24,7 @@ const sortableColumnHeaderCSS = css`
     height: 100vh;
     background-color: var(--global-dnd-drop-target-background-color);
   }
-  .column-drag-handle {
+  .sortable-column-header__handle {
     position: absolute;
     top: 50%;
     right: var(--global-dimension-static-size-50);
@@ -57,7 +57,7 @@ const sortableColumnHeaderCSS = css`
       outline-offset: -1px;
     }
   }
-  &:hover .column-drag-handle {
+  &:hover .sortable-column-header__handle {
     opacity: 1;
   }
 `;
@@ -115,7 +115,7 @@ export function SortableColumnHeader({
         <button
           ref={handleRef}
           type="button"
-          className="button--reset column-drag-handle"
+          className="button--reset sortable-column-header__handle"
           aria-label={`Reorder ${label ?? columnId} column`}
         >
           <Icon svg={<Icons.DragHandle />} />

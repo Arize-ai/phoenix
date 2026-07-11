@@ -43,6 +43,7 @@ import {
   CellWithControlsWrap,
   ColumnOrderingProvider,
   createRowSelectionColumn,
+  expandColumnOrderToLeafIds,
   getLeafIdsByTopLevelId,
   getTopLevelColumnIds,
   LoadMoreRow,
@@ -838,8 +839,9 @@ export function SpansTable(props: SpansTableProps) {
     columnIds: orderableColumnIds,
   });
   const leafIdsByTopLevelId = getLeafIdsByTopLevelId(columns);
-  const leafColumnOrder = topLevelColumnOrder.flatMap(
-    (id) => leafIdsByTopLevelId.get(id) ?? [id]
+  const leafColumnOrder = expandColumnOrderToLeafIds(
+    topLevelColumnOrder,
+    columns
   );
   // Hidden columns render no header, so header drag-and-drop operates on the
   // visible subset and the result is merged back into the full order

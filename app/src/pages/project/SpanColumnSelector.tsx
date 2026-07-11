@@ -79,7 +79,7 @@ function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
   const setColumnOrder = useTracingContext((state) => state.setColumnOrder);
 
   // Full top-level order (minus the pinned checkbox column) in display order
-  const orderedTopLevelIds = mergeColumnOrder({
+  const topLevelColumnOrder = mergeColumnOrder({
     columnOrder,
     columnIds: propsColumns
       .map((column) => column.id)
@@ -89,7 +89,7 @@ function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
   const columnsById = new Map(
     propsColumns.map((column) => [column.id, column])
   );
-  const selectorColumns = orderedTopLevelIds.flatMap((id) => {
+  const selectorColumns = topLevelColumnOrder.flatMap((id) => {
     const column = columnsById.get(id);
     // Group columns (dynamic annotation columns) are managed by the
     // annotation sections below
@@ -108,7 +108,7 @@ function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
   const onColumnOrderChange = (orderedSubset: string[]) => {
     setColumnOrder(
       applySubsetColumnOrder({
-        columnOrder: orderedTopLevelIds,
+        columnOrder: topLevelColumnOrder,
         orderedSubset,
       })
     );
