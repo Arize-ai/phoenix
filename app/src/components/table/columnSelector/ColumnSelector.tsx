@@ -36,8 +36,6 @@ export interface ColumnSelectorMenuProps {
   onColumnVisibilityChange: (columnVisibility: Record<string, boolean>) => void;
   /** When provided, rows get a drag handle; called with the full new column id order. */
   onColumnOrderChange?: (columnIds: string[]) => void;
-  /** @default "columns" */
-  toggleAllLabel?: string;
   /** @default "Search columns..." */
   searchPlaceholder?: string;
   /** Additional sections rendered below the column list. */
@@ -165,7 +163,6 @@ export function ColumnSelectorMenu({
   columnVisibility,
   onColumnVisibilityChange,
   onColumnOrderChange,
-  toggleAllLabel = "columns",
   searchPlaceholder = "Search columns...",
   children,
 }: ColumnSelectorMenuProps) {
@@ -185,24 +182,6 @@ export function ColumnSelectorMenu({
   const isReorderingEnabled =
     onColumnOrderChange != null && filteredColumns.length === columns.length;
 
-  const toggleableColumns = filteredColumns.filter(
-    (column) => !column.isVisibilityToggleDisabled
-  );
-  const allVisible = toggleableColumns.every((column) =>
-    isColumnVisible(columnVisibility, column.id)
-  );
-  const someVisible = toggleableColumns.some((column) =>
-    isColumnVisible(columnVisibility, column.id)
-  );
-
-  const onToggleAll = (isSelected: boolean) => {
-    const newVisibility = { ...columnVisibility };
-    for (const column of toggleableColumns) {
-      newVisibility[column.id] = isSelected;
-    }
-    onColumnVisibilityChange(newVisibility);
-  };
-
   return (
     <div css={columnSelectorMenuCSS}>
       <MenuHeader>
@@ -215,18 +194,6 @@ export function ColumnSelectorMenu({
         />
       </MenuHeader>
       <div css={columnSelectorBodyCSS}>
-        <div css={columnListCSS}>
-          <div css={columnRowCSS}>
-            <Checkbox
-              name="toggle-all"
-              isSelected={allVisible}
-              isIndeterminate={someVisible && !allVisible}
-              onChange={onToggleAll}
-            >
-              {toggleAllLabel}
-            </Checkbox>
-          </div>
-        </div>
         <ColumnOrderingProvider
           columnOrder={columns.map((column) => column.id)}
           onColumnOrderChange={(columnOrder) =>

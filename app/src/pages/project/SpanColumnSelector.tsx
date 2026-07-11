@@ -1,10 +1,8 @@
 import type { Column } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
   Button,
-  Checkbox,
   DialogTrigger,
   Flex,
   Icon,
@@ -14,8 +12,6 @@ import {
 import {
   applySubsetColumnOrder,
   CHECKBOX_COLUMN_ID,
-  columnListCSS,
-  columnRowCSS,
   ColumnSelectorMenu,
   mergeColumnOrder,
 } from "@phoenix/components/table";
@@ -44,7 +40,7 @@ function getColumnDisplayName(column: Column<unknown>): string {
 type SpanColumnSelectorProps = {
   /**
    * All of the top-level columns of the span table (including group columns,
-   * which are filtered out of the checkbox list but participate in ordering)
+   * which represent the visible dynamic annotation columns)
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
@@ -68,8 +64,35 @@ export function SpanColumnSelector(props: SpanColumnSelectorProps) {
   );
 }
 
+/** How a row in the flat column list maps back to tracing store state. */
+type ColumnKind = "column" | "spanAnnotation" | "traceAnnotation";
+
 function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
-  const { columns: propsColumns } = props;
+  const { columns: propsColumns, query } = props;
+
+  const annotationsData = useFragment<SpanColumnSelector_annotations$key>(
+    graphql`
+      fragment SpanColumnSelector_annotations on Project {
+        spanAnnotationNames
+      }
+    `,
+    query
+  );
+  const traceAnnotationsData =
+    useFragment<SpanColumnSelector_traceAnnotations$key>(
+      graphql`
+        fragment SpanColumnSelector_traceAnnotations on Project {
+          traceAnnotationsNames
+        }
+      `,
+      query
+    );
+  const spanAnnotationNames = getNonNoteAnnotationNames(
+    annotationsData.spanAnnotationNames
+  );
+  const traceAnnotationNames = getNonNoteAnnotationNames(
+    traceAnnotationsData.traceAnnotationsNames
+  );
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnVisibility = useTracingContext(
@@ -77,38 +100,109 @@ function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
   );
   const columnOrder = useTracingContext((state) => state.columnOrder);
   const setColumnOrder = useTracingContext((state) => state.setColumnOrder);
-
-  // Full top-level order (minus the pinned checkbox column) in display order
-  const topLevelColumnOrder = mergeColumnOrder({
-    columnOrder,
-    columnIds: propsColumns
-      .map((column) => column.id)
-      .filter((id) => id !== CHECKBOX_COLUMN_ID),
-  });
+  const annotationColumnVisibility = useTracingContext(
+    (state) => state.annotationColumnVisibility
+  );
+  const setAnnotationColumnVisibility = useTracingContext(
+    (state) => state.setAnnotationColumnVisibility
+  );
+  const traceAnnotationColumnVisibility = useTracingContext(
+    (state) => state.traceAnnotationColumnVisibility
+  );
+  const setTraceAnnotationColumnVisibility = useTracingContext(
+    (state) => state.setTraceAnnotationColumnVisibility
+  );
 
   const columnsById = new Map(
     propsColumns.map((column) => [column.id, column])
   );
-  const selectorColumns = topLevelColumnOrder.flatMap((id) => {
-    const column = columnsById.get(id);
-    // Group columns (dynamic annotation columns) are managed by the
-    // annotation sections below
-    if (column == null || column.columns.length > 0) {
-      return [];
-    }
-    return [
-      {
-        id,
-        label: getColumnDisplayName(column),
-        isVisibilityToggleDisabled: UN_HIDABLE_COLUMN_IDS.includes(id),
-      },
-    ];
+  const tableColumnIds = propsColumns
+    .map((column) => column.id)
+    .filter((id) => id !== CHECKBOX_COLUMN_ID);
+  const spanAnnotationIds = new Set(spanAnnotationNames);
+  // A trace annotation whose name collides with a span annotation cannot be
+  // addressed separately (the table derives the same column id for both), so
+  // the span annotation row wins
+  const traceAnnotationIds = new Set(
+    traceAnnotationNames.filter((name) => !spanAnnotationIds.has(name))
+  );
+
+  // One flat order over everything: table columns (visible annotation columns
+  // are already among them as group columns) plus hidden annotation columns,
+  // which keep their persisted position even while not rendered in the table
+  const fullColumnOrder = mergeColumnOrder({
+    columnOrder,
+    columnIds: [
+      ...tableColumnIds,
+      ...spanAnnotationNames,
+      ...traceAnnotationNames,
+    ],
   });
+
+  const kindById = new Map<string, ColumnKind>();
+  const selectorColumns = fullColumnOrder.flatMap((id) => {
+    const column = columnsById.get(id);
+    if (column != null && column.columns.length === 0) {
+      kindById.set(id, "column");
+      return [
+        {
+          id,
+          label: getColumnDisplayName(column),
+          isVisibilityToggleDisabled: UN_HIDABLE_COLUMN_IDS.includes(id),
+        },
+      ];
+    }
+    if (spanAnnotationIds.has(id)) {
+      kindById.set(id, "spanAnnotation");
+      return [{ id, label: id }];
+    }
+    if (traceAnnotationIds.has(id)) {
+      kindById.set(id, "traceAnnotation");
+      return [{ id, label: `${id} (trace)` }];
+    }
+    return [];
+  });
+
+  // Annotation columns default to hidden, unlike regular columns, so their
+  // visibility must be explicit in the merged map
+  const mergedColumnVisibility: Record<string, boolean> = {
+    ...columnVisibility,
+  };
+  for (const name of spanAnnotationIds) {
+    mergedColumnVisibility[name] = annotationColumnVisibility[name] ?? false;
+  }
+  for (const name of traceAnnotationIds) {
+    mergedColumnVisibility[name] =
+      traceAnnotationColumnVisibility[name] ?? false;
+  }
+
+  const onColumnVisibilityChange = (
+    newColumnVisibility: Record<string, boolean>
+  ) => {
+    const columnUpdates: Record<string, boolean> = {};
+    const spanAnnotationUpdates = { ...annotationColumnVisibility };
+    const traceAnnotationUpdates = { ...traceAnnotationColumnVisibility };
+    for (const [id, isVisible] of Object.entries(newColumnVisibility)) {
+      switch (kindById.get(id)) {
+        case "spanAnnotation":
+          spanAnnotationUpdates[id] = isVisible;
+          break;
+        case "traceAnnotation":
+          traceAnnotationUpdates[id] = isVisible;
+          break;
+        default:
+          columnUpdates[id] = isVisible;
+      }
+    }
+    setColumnVisibility(columnUpdates);
+    setAnnotationColumnVisibility(spanAnnotationUpdates);
+    setTraceAnnotationColumnVisibility(traceAnnotationUpdates);
+  };
 
   const onColumnOrderChange = (orderedSubset: string[]) => {
     setColumnOrder(
       applySubsetColumnOrder({
-        columnOrder: topLevelColumnOrder,
+        columnOrder: fullColumnOrder,
         orderedSubset,
       })
     );
@@ -117,177 +211,9 @@ function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
   return (
     <ColumnSelectorMenu
       columns={selectorColumns}
-      columnVisibility={columnVisibility}
-      onColumnVisibilityChange={setColumnVisibility}
+      columnVisibility={mergedColumnVisibility}
+      onColumnVisibilityChange={onColumnVisibilityChange}
       onColumnOrderChange={onColumnOrderChange}
-      toggleAllLabel="span columns"
-    >
-      <EvaluationColumnSelector {...props} />
-      <TraceEvaluationColumnSelector {...props} />
-    </ColumnSelectorMenu>
-  );
-}
-
-function EvaluationColumnSelector({
-  query,
-}: Pick<SpanColumnSelectorProps, "query">) {
-  const data = useFragment<SpanColumnSelector_annotations$key>(
-    graphql`
-      fragment SpanColumnSelector_annotations on Project {
-        spanAnnotationNames
-      }
-    `,
-    query
-  );
-  const annotationColumnVisibility = useTracingContext(
-    (state) => state.annotationColumnVisibility
-  );
-  const setAnnotationColumnVisibility = useTracingContext(
-    (state) => state.setAnnotationColumnVisibility
-  );
-  const filteredSpanAnnotationNames = getNonNoteAnnotationNames(
-    data.spanAnnotationNames
-  );
-
-  const allVisible = useMemo(() => {
-    return filteredSpanAnnotationNames.every((name) => {
-      const stateValue = annotationColumnVisibility[name];
-      return stateValue || false;
-    });
-  }, [filteredSpanAnnotationNames, annotationColumnVisibility]);
-
-  const someVisible = useMemo(() => {
-    return filteredSpanAnnotationNames.some((name) => {
-      const stateValue = annotationColumnVisibility[name];
-      return stateValue || false;
-    });
-  }, [filteredSpanAnnotationNames, annotationColumnVisibility]);
-
-  const onToggleAnnotations = useCallback(() => {
-    const newVisibilityState = filteredSpanAnnotationNames.reduce(
-      (acc, name) => {
-        return { ...acc, [name]: !allVisible };
-      },
-      {}
-    );
-    setAnnotationColumnVisibility(newVisibilityState);
-  }, [filteredSpanAnnotationNames, setAnnotationColumnVisibility, allVisible]);
-
-  if (filteredSpanAnnotationNames.length === 0) {
-    return null;
-  }
-
-  return (
-    <ul css={columnListCSS}>
-      <li css={columnRowCSS}>
-        <Checkbox
-          name="toggle-annotations-all"
-          isSelected={allVisible}
-          isIndeterminate={someVisible && !allVisible}
-          onChange={onToggleAnnotations}
-        >
-          annotations
-        </Checkbox>
-      </li>
-      {filteredSpanAnnotationNames.map((name) => {
-        const isVisible = annotationColumnVisibility[name] ?? false;
-        return (
-          <li key={name} css={columnRowCSS}>
-            <Checkbox
-              name={name}
-              isSelected={isVisible}
-              onChange={(isSelected) =>
-                setAnnotationColumnVisibility({
-                  ...annotationColumnVisibility,
-                  [name]: isSelected,
-                })
-              }
-            >
-              {name}
-            </Checkbox>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function TraceEvaluationColumnSelector({
-  query,
-}: Pick<SpanColumnSelectorProps, "query">) {
-  const data = useFragment<SpanColumnSelector_traceAnnotations$key>(
-    graphql`
-      fragment SpanColumnSelector_traceAnnotations on Project {
-        traceAnnotationsNames
-      }
-    `,
-    query
-  );
-  const traceAnnotationColumnVisibility = useTracingContext(
-    (state) => state.traceAnnotationColumnVisibility
-  );
-  const setTraceAnnotationColumnVisibility = useTracingContext(
-    (state) => state.setTraceAnnotationColumnVisibility
-  );
-  const nonNoteAnnotationNames = getNonNoteAnnotationNames(
-    data.traceAnnotationsNames
-  );
-  const allVisible = useMemo(() => {
-    return nonNoteAnnotationNames.every((name) => {
-      const stateValue = traceAnnotationColumnVisibility[name];
-      return stateValue || false;
-    });
-  }, [nonNoteAnnotationNames, traceAnnotationColumnVisibility]);
-
-  const someVisible = useMemo(() => {
-    return nonNoteAnnotationNames.some((name) => {
-      const stateValue = traceAnnotationColumnVisibility[name];
-      return stateValue || false;
-    });
-  }, [nonNoteAnnotationNames, traceAnnotationColumnVisibility]);
-
-  const onToggleTraceAnnotations = useCallback(() => {
-    const newVisibilityState = nonNoteAnnotationNames.reduce((acc, name) => {
-      return { ...acc, [name]: !allVisible };
-    }, {});
-    setTraceAnnotationColumnVisibility(newVisibilityState);
-  }, [nonNoteAnnotationNames, setTraceAnnotationColumnVisibility, allVisible]);
-
-  if (nonNoteAnnotationNames.length === 0) {
-    return null;
-  }
-
-  return (
-    <ul css={columnListCSS}>
-      <li css={columnRowCSS}>
-        <Checkbox
-          name="toggle-trace-annotations-all"
-          isSelected={allVisible}
-          isIndeterminate={someVisible && !allVisible}
-          onChange={onToggleTraceAnnotations}
-        >
-          trace annotations
-        </Checkbox>
-      </li>
-      {nonNoteAnnotationNames.map((name) => {
-        const isVisible = traceAnnotationColumnVisibility[name] ?? false;
-        return (
-          <li key={name} css={columnRowCSS}>
-            <Checkbox
-              name={name}
-              isSelected={isVisible}
-              onChange={(isSelected) =>
-                setTraceAnnotationColumnVisibility({
-                  ...traceAnnotationColumnVisibility,
-                  [name]: isSelected,
-                })
-              }
-            >
-              {name}
-            </Checkbox>
-          </li>
-        );
-      })}
-    </ul>
+    />
   );
 }

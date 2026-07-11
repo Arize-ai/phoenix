@@ -299,7 +299,6 @@ export const SelectorMenuWithSections: Story = {
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
           onColumnOrderChange={setColumnOrder}
-          toggleAllLabel="span columns"
         >
           <section
             css={css`
