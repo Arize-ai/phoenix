@@ -33,14 +33,12 @@ export type SavePromptSubmitHandler = (
 export type SavePromptFormParams = {
   promptId?: string;
   name: string;
-  description: string;
+  description?: string;
   metadata?: string;
   tags?: string[];
 };
 
-type SavePromptFormValues = Omit<SavePromptFormParams, "description"> & {
-  description?: string;
-};
+type SavePromptFormValues = SavePromptFormParams;
 
 export function SavePromptForm({
   onCreate,
@@ -85,6 +83,7 @@ export function SavePromptForm({
   );
 
   const mode: "create" | "update" = selectedPrompt ? "update" : "create";
+  const isDescriptionRequired = mode === "update";
   const submitButtonText =
     mode === "create" ? "Create Prompt" : "Update Prompt";
 
@@ -128,10 +127,7 @@ export function SavePromptForm({
 
   const onSubmit = useCallback(
     (params: SavePromptFormValues) => {
-      const description = params.description?.trim();
-      if (!description) {
-        return;
-      }
+      const description = params.description?.trim() || undefined;
       const normalizedParams: SavePromptFormParams = {
         ...params,
         description,
@@ -185,11 +181,16 @@ export function SavePromptForm({
             <Controller
               name="description"
               control={control}
-              rules={{
-                required: "Description is required",
-                validate: (value) =>
-                  (value ?? "").trim().length > 0 || "Description is required",
-              }}
+              rules={
+                isDescriptionRequired
+                  ? {
+                      required: "Description is required",
+                      validate: (value) =>
+                        (value ?? "").trim().length > 0 ||
+                        "Description is required",
+                    }
+                  : undefined
+              }
               render={({
                 field: { onChange, onBlur, value },
                 fieldState: { invalid, error },
@@ -200,11 +201,11 @@ export function SavePromptForm({
                   onBlur={onBlur}
                   value={value ?? ""}
                   size="S"
-                  isRequired
+                  isRequired={isDescriptionRequired}
                 >
                   <Label>
                     {mode === "create"
-                      ? "Prompt Description"
+                      ? "Prompt Description (optional)"
                       : "Change Description"}
                   </Label>
                   <TextArea />
