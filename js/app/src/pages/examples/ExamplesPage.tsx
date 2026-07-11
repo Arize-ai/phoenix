@@ -1,8 +1,14 @@
-import { Suspense, useState } from "react";
-import { Outlet, useLoaderData } from "react-router";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import type { BlockerFunction } from "react-router";
+import { Outlet, useBlocker, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
+import { useStore } from "zustand";
 
-import { createEditableTableStore } from "@phoenix/components/table";
+import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
+import {
+  createEditableTableStore,
+  getEditableTableChangeCount,
+} from "@phoenix/components/table";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { ExamplesFilterBar } from "@phoenix/pages/examples/ExamplesFilterBar";
 import { ExamplesFilterProvider } from "@phoenix/pages/examples/ExamplesFilterContext";
@@ -25,10 +31,36 @@ export function ExamplesPage() {
     query: examplesLoaderGql,
     queryRef: loaderData,
   });
+  // An edit session lives only in memory, so leaving the page drops it.
+  const changeCount = useStore(editStore, getEditableTableChangeCount);
+  const shouldBlockNavigation = useCallback<BlockerFunction>(
+    ({ currentLocation, nextLocation }) =>
+      changeCount > 0 && currentLocation.pathname !== nextLocation.pathname,
+    [changeCount]
+  );
+  const blocker = useBlocker(shouldBlockNavigation);
+  // The router only sees navigations within the app; a reload or a closed tab
+  // needs the browser's own guard.
+  useEffect(() => {
+    if (changeCount === 0) {
+      return;
+    }
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [changeCount]);
   return (
     <ExamplesFilterProvider>
       <ExamplesFilterBar editStore={editStore} />
       <ExamplesTable dataset={data.dataset} editStore={editStore} />
+      <ConfirmNavigationDialog
+        blocker={blocker}
+        message={`Leaving this page will discard ${changeCount} unsaved change${
+          changeCount === 1 ? "" : "s"
+        } to the dataset examples.`}
+      />
       <Suspense>
         <Outlet />
       </Suspense>
