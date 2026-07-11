@@ -64,8 +64,8 @@ const createEmptyEditState = <Row extends object>() => ({
 /**
  * Creates a table-scoped sparse edit store.
  *
- * Server rows remain outside this store. Only additions, changed cells,
- * deletions, and validation errors are retained here.
+ * Server rows remain outside this store. Only additions, changed cells, and
+ * deletions are retained here.
  */
 export function createEditableTableStore<Row extends object>({
   getRowId,
@@ -183,7 +183,7 @@ export function createEditableTableStore<Row extends object>({
 
 export function getEditableTableCellValue<
   Row extends object,
-  ColumnId extends keyof Row & string
+  ColumnId extends keyof Row & string,
 >({
   state,
   rowId,

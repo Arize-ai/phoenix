@@ -5,7 +5,7 @@ import { getEditableTableCellValue } from "./editableTableStore";
 
 export function useEditableTableCell<
   Row extends object,
-  ColumnId extends keyof Row & string
+  ColumnId extends keyof Row & string,
 >({
   context,
   columnId,

@@ -323,6 +323,9 @@ class TestPatchDatasetExamples:
         )
 
         assert response.data and not response.errors
+        # The fixture starts with 2 live examples, and this change set adds one and
+        # deletes one — so the count alone proves nothing. Assert which examples
+        # survive, and that the added one is a genuinely new row.
         assert response.data["patchDatasetExamples"]["dataset"]["exampleCount"] == 2
         async with db() as session:
             versions = (
@@ -344,11 +347,19 @@ class TestPatchDatasetExamples:
                 )
             ).all()
 
-        assert {revision.revision_kind for revision in revisions} == {
-            "CREATE",
-            "PATCH",
-            "DELETE",
+        revision_kind_by_example_id = {
+            revision.dataset_example_id: revision.revision_kind for revision in revisions
         }
+        # Example 1 was patched, example 2 deleted, and a brand-new example created.
+        assert revision_kind_by_example_id[1] == "PATCH"
+        assert revision_kind_by_example_id[2] == "DELETE"
+        created_example_ids = [
+            example_id
+            for example_id, revision_kind in revision_kind_by_example_id.items()
+            if revision_kind == "CREATE"
+        ]
+        assert len(created_example_ids) == 1
+        assert created_example_ids[0] not in (1, 2, 3)
         patched_revision = next(
             revision for revision in revisions if revision.revision_kind == "PATCH"
         )
@@ -434,6 +445,66 @@ class TestPatchDatasetExamples:
             "first-added": {"input": "first-added-input"},
             "second-added": {"input": "second-added-input"},
         }
+
+    async def test_a_deleted_examples_custom_id_stays_taken(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        # Deleting an example writes a DELETE revision; the row — and its custom ID
+        # — survives. Reusing that ID is therefore a conflict, and the message has
+        # to say so, or the user sees a collision with an example they cannot find.
+        add = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "additions": [
+                        {
+                            "input": {"input": "value"},
+                            "output": {},
+                            "metadata": {},
+                            "externalId": "case-42",
+                        }
+                    ],
+                }
+            },
+        )
+        assert add.data and not add.errors
+
+        async with db() as session:
+            reused_example_id = await session.scalar(
+                select(models.DatasetExample.id).where(
+                    models.DatasetExample.external_id == "case-42"
+                )
+            )
+        assert reused_example_id is not None
+
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "exampleIdsToDelete": [
+                        str(GlobalID(DatasetExample.__name__, str(reused_example_id)))
+                    ],
+                    "additions": [
+                        {
+                            "input": {"input": "replacement"},
+                            "output": {},
+                            "metadata": {},
+                            "externalId": "case-42",
+                        }
+                    ],
+                }
+            },
+        )
+
+        assert response.errors
+        message = response.errors[0].message
+        assert "already taken" in message
+        assert "deleted example keeps its custom ID" in message
 
     async def test_persists_a_custom_id_for_an_added_example(
         self,
@@ -665,6 +736,14 @@ class TestPatchDatasetExamples:
                 {"exampleIdsToDelete": [str(GlobalID("Dataset", "1"))]},
                 "Received one or more invalid dataset example IDs.",
                 id="example-id-of-the-wrong-type",
+            ),
+            pytest.param(
+                {
+                    "additions": [{"input": {"input": "value"}, "output": {}, "metadata": {}}],
+                    "versionMetadata": ["not", "an", "object"],
+                },
+                "Version metadata must be a JSON object.",
+                id="non-object-version-metadata",
             ),
             pytest.param(
                 {
@@ -933,8 +1012,8 @@ async def test_add_examples_reports_all_conflicting_external_ids(
     assert (errors := response.errors)
     assert len(errors) == 1
     message = errors[0].message
-    assert message.startswith("Examples with custom IDs [")
-    assert message.endswith("] already exist in this dataset.")
+    assert message.startswith("Custom IDs [")
+    assert "are already taken in this dataset" in message
     for conflicting_id in ("a", "b", "c"):
         assert repr(conflicting_id) in message
     assert repr("novel") not in message

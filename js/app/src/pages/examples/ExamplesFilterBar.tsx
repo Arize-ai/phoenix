@@ -124,8 +124,12 @@ export const ExamplesFilterBar = ({
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const mode = useStore(editStore, (state) => state.mode);
   const changeCount = useStore(editStore, getEditableTableChangeCount);
-  // A colliding custom ID is the only pending change the server would reject —
-  // an invalid JSON cell can never be committed in the first place.
+  // Two new examples sharing a custom ID is the one rejection the client can
+  // pin on a specific cell, so it blocks the save here. A custom ID that
+  // collides with an example already in the dataset is caught by the server —
+  // the client only ever holds a page of them, so checking here would miss
+  // collisions rather than prevent them. That save is rejected whole, with the
+  // offending IDs named in the error.
   const duplicateRowIds = useStore(
     editStore,
     useShallow(getDuplicateExternalIdRowIds)
