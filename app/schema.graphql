@@ -972,6 +972,9 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+
+  """The experiment tagged as this dataset's baseline, if one is set."""
+  baselineExperiment: Experiment
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
@@ -3802,6 +3805,7 @@ type SetDatasetLabelsMutationPayload {
 }
 
 type SetExperimentBaselinePayload {
+  dataset: Dataset!
   experiment: Experiment!
   previousBaselineExperiment: Experiment
 }

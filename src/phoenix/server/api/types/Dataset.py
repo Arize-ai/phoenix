@@ -16,6 +16,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
@@ -416,6 +417,31 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field(
+        description="The experiment tagged as this dataset's baseline, if one is set."
+    )  # type: ignore
+    async def baseline_experiment(self, info: Info[Context, None]) -> Optional[Experiment]:
+        row_number = func.row_number().over(order_by=models.Experiment.id).label("row_number")
+        numbered = (
+            select(models.Experiment.id.label("experiment_id"), row_number)
+            .where(models.Experiment.dataset_id == self.id)
+            .where(models.Experiment.is_ephemeral.is_(False))
+            .subquery()
+        )
+        query = (
+            select(models.Experiment, numbered.c.row_number)
+            .join(numbered, numbered.c.experiment_id == models.Experiment.id)
+            .join(models.ExperimentTag, models.ExperimentTag.experiment_id == models.Experiment.id)
+            .where(models.ExperimentTag.dataset_id == self.id)
+            .where(models.ExperimentTag.name == BASELINE_EXPERIMENT_TAG_NAME)
+        )
+        async with info.context.db.read() as session:
+            result = (await session.execute(query)).first()
+        if result is None:
+            return None
+        experiment, sequence_number = result
+        return to_gql_experiment(experiment, sequence_number, is_baseline=True)
 
     @strawberry.field
     async def experiment_jobs(

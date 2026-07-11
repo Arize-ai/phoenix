@@ -11,12 +11,14 @@ import { getExperimentMetricChart } from "./chartCatalog";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 /**
- * The charts from the chart catalog shown on the metrics tab, row by row.
- * This layout, not the catalog key order, determines the display order.
+ * The charts shown on the metrics tab, row by row. Single-chart rows are full
+ * width; the final two-chart row splits the available width evenly.
  */
 const METRIC_PAGE_ROWS: ExperimentMetricChartKey[][] = [
-  ["latency", "error_rate"],
-  ["cost", "tokens"],
+  ["annotation_scores"],
+  ["latency"],
+  ["cost"],
+  ["tokens", "error_rate"],
 ];
 
 export function DatasetMetricsPage() {
