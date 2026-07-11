@@ -235,7 +235,7 @@ export function PlatformVersionStatus() {
     return null;
   }
   return (
-    <Text color="danger" size="XS" data-testid="platform-version-status">
+    <Text color="warning" size="XS" data-testid="platform-version-status">
       A newer version of Phoenix is available (v{latestVersion}).{" "}
       <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
         View release notes
