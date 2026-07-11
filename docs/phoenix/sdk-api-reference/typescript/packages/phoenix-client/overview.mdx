@@ -92,7 +92,7 @@ Use explicit options when you want configuration to live in code or when you nee
 
 ### Refreshable Credentials
 
-When an access token can expire, use `createAuthenticatedFetch` to connect your
+When an access token can expire, use `createAuthFetch` to connect your
 credential provider to every Phoenix client API call. The provider owns secure
 token storage and refresh-token rotation; the fetch wrapper supplies the bearer
 token, shares refresh work across concurrent `401` responses, and retries each
@@ -100,11 +100,11 @@ request once.
 
 ```ts
 import {
-  createAuthenticatedFetch,
+  createAuthFetch,
   createClient,
 } from "@arizeai/phoenix-client";
 
-const authenticatedFetch = createAuthenticatedFetch({
+const authFetch = createAuthFetch({
   getAccessToken: async ({ forceRefresh }) => {
     if (forceRefresh) {
       await refreshAndPersistTokens();
@@ -116,7 +116,7 @@ const authenticatedFetch = createAuthenticatedFetch({
 const client = createClient({
   options: {
     baseUrl: "https://phoenix.example.com",
-    fetch: authenticatedFetch,
+    fetch: authFetch,
   },
 });
 ```

@@ -69,12 +69,9 @@ rotation. Requests that receive a `401` share one refresh operation and are
 retried once.
 
 ```ts
-import {
-  createAuthenticatedFetch,
-  createClient,
-} from "@arizeai/phoenix-client";
+import { createAuthFetch, createClient } from "@arizeai/phoenix-client";
 
-const authenticatedFetch = createAuthenticatedFetch({
+const authFetch = createAuthFetch({
   getAccessToken: async ({ forceRefresh }) => {
     if (forceRefresh) {
       await refreshAndPersistTokens();
@@ -86,7 +83,7 @@ const authenticatedFetch = createAuthenticatedFetch({
 const phoenix = createClient({
   options: {
     baseUrl: "http://localhost:6006",
-    fetch: authenticatedFetch,
+    fetch: authFetch,
   },
 });
 ```

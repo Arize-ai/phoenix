@@ -3,5 +3,5 @@
 "@arizeai/phoenix-cli": patch
 ---
 
-Add a reusable refreshable-credential fetch hook to the Phoenix TypeScript
+Add a reusable refreshable-credential fetch wrapper to the Phoenix TypeScript
 client, and use it for OAuth-authenticated CLI API and PXI requests.

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createAuthenticatedFetch } from "../src/authFetch";
+import { createAuthFetch } from "../src/authFetch";
 
-describe("createAuthenticatedFetch", () => {
+describe("createAuthFetch", () => {
   it("adds the current access token", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValue(new Response(null, { status: 200 }));
-    const authFetch = createAuthenticatedFetch({
+    const authFetch = createAuthFetch({
       getAccessToken: () => "access-token",
       fetch: fetchImpl,
     });
@@ -33,7 +33,7 @@ describe("createAuthenticatedFetch", () => {
       ({ forceRefresh }: { forceRefresh: boolean }) =>
         forceRefresh ? "refreshed-token" : "access-token"
     );
-    const authFetch = createAuthenticatedFetch({
+    const authFetch = createAuthFetch({
       getAccessToken,
       fetch: fetchImpl,
     });
@@ -68,7 +68,7 @@ describe("createAuthenticatedFetch", () => {
         status: token === "Bearer refreshed-token" ? 200 : 401,
       });
     });
-    const authFetch = createAuthenticatedFetch({
+    const authFetch = createAuthFetch({
       getAccessToken,
       fetch: fetchImpl,
     });
@@ -104,7 +104,7 @@ describe("createAuthenticatedFetch", () => {
         return new Response(null, { status: 401 });
       })
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
-    const authFetch = createAuthenticatedFetch({
+    const authFetch = createAuthFetch({
       getAccessToken,
       fetch: fetchImpl,
     });
@@ -121,7 +121,7 @@ describe("createAuthenticatedFetch", () => {
 
   it("calls onUnauthorized after the retry is also rejected", async () => {
     const onUnauthorized = vi.fn();
-    const authFetch = createAuthenticatedFetch({
+    const authFetch = createAuthFetch({
       getAccessToken: ({ forceRefresh }) =>
         forceRefresh ? "refreshed-token" : "access-token",
       fetch: vi

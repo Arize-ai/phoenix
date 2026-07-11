@@ -4,7 +4,7 @@ import {
   type UIMessageChunk,
 } from "ai";
 
-import { createPhoenixAuthenticatedFetch } from "../client";
+import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
@@ -176,13 +176,8 @@ export function createServerAgentTransport({
 
   const transportFetch =
     fetch ??
-    (options.config.oauthTokens && options.config.profileName
-      ? createPhoenixAuthenticatedFetch({
-          endpoint: options.config.endpoint,
-          headers: options.config.headers ?? {},
-          profileName: options.config.profileName,
-          tokens: options.config.oauthTokens,
-        })
+    (hasOAuthCredentials(options.config)
+      ? createOAuthFetch({ config: options.config })
       : undefined);
 
   return new DefaultChatTransport<PxiMessage>({

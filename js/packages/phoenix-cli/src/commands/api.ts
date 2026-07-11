@@ -1,6 +1,6 @@
 import { Command } from "commander";
 
-import { createPhoenixAuthenticatedFetch } from "../client";
+import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import type { PhoenixConfig } from "../config";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { renderCurlCommand } from "../curl";
@@ -115,16 +115,10 @@ async function apiGraphqlHandler(
     }
 
     // 4. POST using Node 22 built-in fetch
-    const fetchImpl =
-      config.oauthTokens && config.profileName
-        ? createPhoenixAuthenticatedFetch({
-            endpoint: config.endpoint,
-            headers: config.headers ?? {},
-            profileName: config.profileName,
-            tokens: config.oauthTokens,
-          })
-        : fetch;
-    const response = await fetchImpl(request.url, {
+    const apiFetch = hasOAuthCredentials(config)
+      ? createOAuthFetch({ config })
+      : fetch;
+    const response = await apiFetch(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.body,

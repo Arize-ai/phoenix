@@ -346,13 +346,17 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
       : getStoredActiveProfile(settingsFile)?.name;
 
   const result = await fetchViewer(config);
+  const oauthTokens = loadCurrentOAuthTokens({
+    config,
+    profileName: activeProfileName,
+  });
   const output = formatAuthStatus(
     config.endpoint,
     result,
     config.apiKey,
     activeProfileName,
     config.credentialSource,
-    config.oauthTokens,
+    oauthTokens,
     options.format
   );
   writeOutput({ message: output });
@@ -361,6 +365,19 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
   if (code !== ExitCode.SUCCESS) {
     process.exit(code);
   }
+}
+
+function loadCurrentOAuthTokens({
+  config,
+  profileName,
+}: {
+  config: PhoenixConfig;
+  profileName?: string;
+}): OAuthTokens | undefined {
+  if (config.credentialSource !== "oauth" || !profileName) {
+    return config.oauthTokens;
+  }
+  return getProfileByName(loadSettings(), profileName)?.entry.oauthTokens;
 }
 
 async function authLoginHandler(options: AuthLoginOptions): Promise<void> {

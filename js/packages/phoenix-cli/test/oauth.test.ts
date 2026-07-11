@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createPhoenixAuthenticatedFetch } from "../src/client";
+import { createOAuthFetch } from "../src/authFetch";
 import {
   buildAuthorizationUrl,
   exchangeAuthorizationCode,
@@ -307,10 +307,8 @@ describe("OAuth fetch wrapper", () => {
       path.join(os.tmpdir(), "phoenix-oauth-test-")
     );
     const settingsPath = path.join(tmpDir, "px", "settings.json");
-    const oldXdgConfigHome = process.env.XDG_CONFIG_HOME;
     let server: Awaited<ReturnType<typeof withServer>> | undefined;
     try {
-      process.env.XDG_CONFIG_HOME = tmpDir;
       saveSettings(
         {
           activeProfile: "prod",
@@ -347,25 +345,22 @@ describe("OAuth fetch wrapper", () => {
         response.end("ok");
       });
 
-      const wrappedFetch = createPhoenixAuthenticatedFetch({
-        endpoint: server.url,
-        headers: {},
-        profileName: "prod",
-        tokens: {
-          accessToken: "old-access",
-          refreshToken: "old-refresh",
-          expiresAt: "2000-01-01T00:00:00.000Z",
-          scope: "read_only",
+      const oauthFetch = createOAuthFetch({
+        config: {
+          endpoint: server.url,
+          profileName: "prod",
+          oauthTokens: {
+            accessToken: "old-access",
+            refreshToken: "old-refresh",
+            expiresAt: "2000-01-01T00:00:00.000Z",
+            scope: "read_only",
+          },
         },
+        settingsPath,
       });
-      const response = await wrappedFetch(`${server.url}/v1/user`);
+      const response = await oauthFetch(`${server.url}/v1/user`);
       expect(response.status).toBe(200);
     } finally {
-      if (oldXdgConfigHome === undefined) {
-        delete process.env.XDG_CONFIG_HOME;
-      } else {
-        process.env.XDG_CONFIG_HOME = oldXdgConfigHome;
-      }
       await server?.close();
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -376,11 +371,9 @@ describe("OAuth fetch wrapper", () => {
       path.join(os.tmpdir(), "phoenix-oauth-test-")
     );
     const settingsPath = path.join(tmpDir, "px", "settings.json");
-    const oldXdgConfigHome = process.env.XDG_CONFIG_HOME;
     let server: Awaited<ReturnType<typeof withServer>> | undefined;
     let protectedRequestCount = 0;
     try {
-      process.env.XDG_CONFIG_HOME = tmpDir;
       saveSettings(
         {
           activeProfile: "prod",
@@ -416,48 +409,46 @@ describe("OAuth fetch wrapper", () => {
         response.writeHead(401);
         response.end();
       });
-      const wrappedFetch = createPhoenixAuthenticatedFetch({
-        endpoint: server.url,
-        headers: {},
-        profileName: "prod",
-        tokens: {
-          accessToken: "access",
-          refreshToken: "refresh",
-          expiresAt: "2999-01-01T00:00:00.000Z",
-          scope: "read_only",
+      const oauthFetch = createOAuthFetch({
+        config: {
+          endpoint: server.url,
+          profileName: "prod",
+          oauthTokens: {
+            accessToken: "access",
+            refreshToken: "refresh",
+            expiresAt: "2999-01-01T00:00:00.000Z",
+            scope: "read_only",
+          },
         },
+        settingsPath,
       });
-      await expect(wrappedFetch(`${server.url}/v1/user`)).rejects.toThrow(
+      await expect(oauthFetch(`${server.url}/v1/user`)).rejects.toThrow(
         "Session expired. Run: px auth login"
       );
       expect(protectedRequestCount).toBe(2);
     } finally {
-      if (oldXdgConfigHome === undefined) {
-        delete process.env.XDG_CONFIG_HOME;
-      } else {
-        process.env.XDG_CONFIG_HOME = oldXdgConfigHome;
-      }
       await server?.close();
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
   it("returns 403 responses to the caller", async () => {
-    const wrappedFetch = createPhoenixAuthenticatedFetch({
-      endpoint: "http://example.test",
-      headers: {},
-      profileName: "prod",
-      tokens: {
-        accessToken: "access",
-        refreshToken: "refresh",
-        expiresAt: "2999-01-01T00:00:00.000Z",
-        scope: "",
+    const oauthFetch = createOAuthFetch({
+      config: {
+        endpoint: "http://example.test",
+        profileName: "prod",
+        oauthTokens: {
+          accessToken: "access",
+          refreshToken: "refresh",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          scope: "",
+        },
       },
-      fetchImpl: vi
+      fetch: vi
         .fn<typeof fetch>()
         .mockResolvedValue(new Response(null, { status: 403 })),
     });
-    const response = await wrappedFetch("http://example.test/v1/projects");
+    const response = await oauthFetch("http://example.test/v1/projects");
     expect(response.status).toBe(403);
   });
 });

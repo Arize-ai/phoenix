@@ -1,4 +1,4 @@
-export interface AccessTokenProviderOptions {
+export interface AuthFetchOptions {
   /**
    * Return an access token for a request.
    *
@@ -9,9 +9,6 @@ export interface AccessTokenProviderOptions {
   getAccessToken: (options: {
     forceRefresh: boolean;
   }) => string | Promise<string>;
-}
-
-export interface CreateAuthenticatedFetchOptions extends AccessTokenProviderOptions {
   /** Fetch implementation used to send requests. Defaults to global fetch. */
   fetch?: typeof fetch;
   /** Called when the request is still unauthorized after one refresh. */
@@ -24,15 +21,20 @@ export interface CreateAuthenticatedFetchOptions extends AccessTokenProviderOpti
  *
  * Refresh calls are coalesced so concurrent unauthorized requests rotate a
  * refresh token only once. Each request is retried at most once.
+ *
+ * @param options - Authentication behavior for the fetch implementation.
+ * @param options.getAccessToken - Returns the current token or refreshes it.
+ * @param options.fetch - Fetch implementation used to send requests.
+ * @param options.onUnauthorized - Handles a second unauthorized response.
  */
-export function createAuthenticatedFetch({
+export function createAuthFetch({
   getAccessToken,
   fetch: fetchImpl = fetch,
   onUnauthorized,
-}: CreateAuthenticatedFetchOptions): typeof fetch {
+}: AuthFetchOptions): typeof fetch {
   let refreshPromise: Promise<string> | undefined;
 
-  const getRefreshedAccessToken = (): Promise<string> => {
+  const refreshAccessToken = (): Promise<string> => {
     if (!refreshPromise) {
       refreshPromise = Promise.resolve(
         getAccessToken({ forceRefresh: true })
@@ -43,11 +45,14 @@ export function createAuthenticatedFetch({
     return refreshPromise;
   };
 
-  return async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+  return async function authFetch(
+    input: Parameters<typeof fetch>[0],
+    init?: RequestInit
+  ) {
     const request = new Request(input, init);
     const retryRequest = request.clone();
     const accessToken = await getAccessToken({ forceRefresh: false });
-    const response = await fetchImpl(withBearerToken({ request, accessToken }));
+    const response = await fetchImpl(addBearerToken({ request, accessToken }));
     if (response.status !== 401) {
       return response;
     }
@@ -57,10 +62,10 @@ export function createAuthenticatedFetch({
     const currentAccessToken = await getAccessToken({ forceRefresh: false });
     const retryAccessToken =
       currentAccessToken === accessToken
-        ? await getRefreshedAccessToken()
+        ? await refreshAccessToken()
         : currentAccessToken;
     const retryResponse = await fetchImpl(
-      withBearerToken({ request: retryRequest, accessToken: retryAccessToken })
+      addBearerToken({ request: retryRequest, accessToken: retryAccessToken })
     );
     if (retryResponse.status === 401) {
       await onUnauthorized?.(retryResponse);
@@ -69,7 +74,7 @@ export function createAuthenticatedFetch({
   };
 }
 
-function withBearerToken({
+function addBearerToken({
   request,
   accessToken,
 }: {

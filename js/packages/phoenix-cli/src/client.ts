@@ -1,13 +1,7 @@
-import {
-  createAuthenticatedFetch,
-  createClient,
-  type PhoenixClient,
-} from "@arizeai/phoenix-client";
+import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
+import { createOAuthFetch, hasOAuthCredentials } from "./authFetch";
 import type { PhoenixConfig } from "./config";
-import { AuthRequiredError } from "./exitCodes";
-import { isOAuthTokenExpiring, refreshOAuthTokensForProfile } from "./oauth";
-import type { OAuthTokens } from "./settings";
 
 export interface CreatePhoenixClientOptions {
   /**
@@ -42,62 +36,11 @@ export function createPhoenixClient({
     options: {
       baseUrl,
       headers,
-      ...(config.oauthTokens && config.profileName
-        ? {
-            fetch: createPhoenixAuthenticatedFetch({
-              endpoint: baseUrl,
-              headers,
-              profileName: config.profileName,
-              tokens: config.oauthTokens,
-            }),
-          }
+      ...(hasOAuthCredentials(config)
+        ? { fetch: createOAuthFetch({ config }) }
         : {}),
     },
   });
-}
-
-export function createPhoenixAuthenticatedFetch({
-  endpoint,
-  headers,
-  profileName,
-  tokens,
-  fetchImpl = fetch,
-}: {
-  endpoint: string;
-  headers: Record<string, string>;
-  profileName: string;
-  tokens: OAuthTokens;
-  fetchImpl?: typeof fetch;
-}): typeof fetch {
-  let currentTokens = tokens;
-  const authenticatedFetch = createAuthenticatedFetch({
-    fetch: fetchImpl,
-    getAccessToken: async ({ forceRefresh }) => {
-      if (forceRefresh || isOAuthTokenExpiring({ tokens: currentTokens })) {
-        currentTokens = await refreshOAuthTokensForProfile({
-          endpoint,
-          profileName,
-          currentTokens,
-          force: forceRefresh,
-          fetchImpl,
-        });
-      }
-      return currentTokens.accessToken;
-    },
-    onUnauthorized: () => {
-      throw new AuthRequiredError("Session expired. Run: px auth login");
-    },
-  });
-  return (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = new Request(input, init);
-    const requestHeaders = new Headers(headers);
-    request.headers.forEach((value, key) => {
-      requestHeaders.set(key, value);
-    });
-    return authenticatedFetch(
-      new Request(request, { headers: requestHeaders })
-    );
-  };
 }
 
 export interface ResolveProjectIdOptions {
