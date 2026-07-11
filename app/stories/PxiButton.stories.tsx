@@ -3,11 +3,11 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import { Button, Flex, Text } from "@phoenix/components";
-import { SolveWithPxiButton } from "@phoenix/components/agent/SolveWithPxiButton";
+import { PxiButton } from "@phoenix/components/agent/PxiButton";
 
 const meta = {
   title: "Agent/Solve with PXI/Button",
-  component: SolveWithPxiButton,
+  component: PxiButton,
   parameters: {
     layout: "centered",
     docs: {
@@ -32,7 +32,7 @@ const meta = {
       options: ["default", "quiet"],
     },
   },
-} satisfies Meta<typeof SolveWithPxiButton>;
+} satisfies Meta<typeof PxiButton>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -51,10 +51,10 @@ function SizesAndVariantsExample({
           Default
         </Text>
         <Flex direction="row" gap="size-200" alignItems="center">
-          <SolveWithPxiButton size="S" shouldFlash={shouldFlash} />
-          <SolveWithPxiButton size="M" shouldFlash={shouldFlash} />
-          <SolveWithPxiButton size="S" isIconOnly shouldFlash={shouldFlash} />
-          <SolveWithPxiButton size="M" isIconOnly shouldFlash={shouldFlash} />
+          <PxiButton size="S" shouldFlash={shouldFlash} />
+          <PxiButton size="M" shouldFlash={shouldFlash} />
+          <PxiButton size="S" isIconOnly shouldFlash={shouldFlash} />
+          <PxiButton size="M" isIconOnly shouldFlash={shouldFlash} />
         </Flex>
       </Flex>
       <Flex direction="column" gap="size-100">
@@ -62,16 +62,8 @@ function SizesAndVariantsExample({
           Quiet
         </Text>
         <Flex direction="row" gap="size-200" alignItems="center">
-          <SolveWithPxiButton
-            size="S"
-            variant="quiet"
-            shouldFlash={shouldFlash}
-          />
-          <SolveWithPxiButton
-            size="M"
-            variant="quiet"
-            shouldFlash={shouldFlash}
-          />
+          <PxiButton size="S" variant="quiet" shouldFlash={shouldFlash} />
+          <PxiButton size="M" variant="quiet" shouldFlash={shouldFlash} />
         </Flex>
       </Flex>
     </Flex>

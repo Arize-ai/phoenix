@@ -15,12 +15,12 @@ export type {
   PxiOutlineRadius,
   PxiOutlineState,
 } from "./PxiOutline";
-export { SolveWithPxiButton } from "./SolveWithPxiButton";
+export { PxiButton } from "./PxiButton";
 export type {
-  SolveWithPxiButtonProps,
-  SolveWithPxiButtonSize,
-  SolveWithPxiButtonVariant,
-} from "./SolveWithPxiButton";
+  PxiButtonProps,
+  PxiButtonSize,
+  PxiButtonVariant,
+} from "./PxiButton";
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 export { Chat } from "./Chat";
 export { AssistantMessage, UserMessage } from "./ChatMessage";

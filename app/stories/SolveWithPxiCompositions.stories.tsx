@@ -15,8 +15,8 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { PxiButton } from "@phoenix/components/agent/PxiButton";
 import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
-import { SolveWithPxiButton } from "@phoenix/components/agent/SolveWithPxiButton";
 
 const meta = {
   title: "Agent/Solve with PXI/Compositions",
@@ -90,7 +90,7 @@ export const ActionCluster = {
           tooltipText="Copy Span ID"
         />
         <TooltipTrigger>
-          <SolveWithPxiButton size="S" isIconOnly />
+          <PxiButton size="S" isIconOnly />
           <Tooltip>Solve with PXI</Tooltip>
         </TooltipTrigger>
       </Flex>

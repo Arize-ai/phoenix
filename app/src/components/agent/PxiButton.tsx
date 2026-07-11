@@ -17,10 +17,10 @@ import {
 
 const pxiGlyphMaskImage = `url("${getPxiGlyphSVGDataUrl({ fill: "black" })}")`;
 
-export type SolveWithPxiButtonSize = "S" | "M";
-export type SolveWithPxiButtonVariant = "default" | "quiet";
+export type PxiButtonSize = "S" | "M";
+export type PxiButtonVariant = "default" | "quiet";
 
-export interface SolveWithPxiButtonProps extends Omit<
+export interface PxiButtonProps extends Omit<
   ButtonProps,
   "children" | "leadingVisual" | "size" | "trailingVisual" | "variant"
 > {
@@ -30,8 +30,8 @@ export interface SolveWithPxiButtonProps extends Omit<
   isIconOnly?: boolean;
   /** Runs the PXI attention glow once when it changes from false to true. */
   shouldFlash?: boolean;
-  size?: SolveWithPxiButtonSize;
-  variant?: SolveWithPxiButtonVariant;
+  size?: PxiButtonSize;
+  variant?: PxiButtonVariant;
   ref?: Ref<HTMLButtonElement>;
 }
 
@@ -60,7 +60,7 @@ const pxiButtonCSS = css`
     animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite;
   }
 
-  .solve-with-pxi-button__glow {
+  .pxi-button__glow {
     ${pxiGlowWipeMaskCSS};
     position: absolute;
     inset: calc(-1 * var(--pxi-glow-bleed));
@@ -69,7 +69,7 @@ const pxiButtonCSS = css`
     pointer-events: none;
   }
 
-  .solve-with-pxi-button__glow::before {
+  .pxi-button__glow::before {
     content: "";
     position: absolute;
     inset: var(--pxi-glow-bleed);
@@ -86,12 +86,12 @@ const pxiButtonCSS = css`
     filter: brightness(0.98);
   }
 
-  &[data-pxi-should-flash="true"] .solve-with-pxi-button__glow {
+  &[data-pxi-should-flash="true"] .pxi-button__glow {
     animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
       var(--pxi-glow-wipe-easing) 1;
   }
 
-  &[data-pxi-should-flash="true"] .solve-with-pxi-button__glow::before {
+  &[data-pxi-should-flash="true"] .pxi-button__glow::before {
     animation:
       ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
       ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
@@ -114,14 +114,14 @@ const pxiButtonCSS = css`
       animation-play-state: paused;
     }
 
-    .solve-with-pxi-button__glyph {
+    .pxi-button__glyph {
       &::before {
         animation: none;
       }
     }
 
-    .solve-with-pxi-button__glow,
-    .solve-with-pxi-button__glow::before {
+    .pxi-button__glow,
+    .pxi-button__glow::before {
       animation: none !important;
     }
   }
@@ -162,7 +162,7 @@ const glyphCSS = css`
   }
 `;
 
-export function SolveWithPxiButton({
+export function PxiButton({
   ref,
   className,
   css: propCSS,
@@ -172,13 +172,13 @@ export function SolveWithPxiButton({
   size = "M",
   variant = "default",
   ...buttonProps
-}: SolveWithPxiButtonProps) {
+}: PxiButtonProps) {
   const isButtonIconOnly = variant === "quiet" || isIconOnly;
   return (
     <Button
       {...buttonProps}
       ref={ref}
-      className={classNames("solve-with-pxi-button", className)}
+      className={classNames("pxi-button", className)}
       size={size}
       variant={variant}
       aria-label={isButtonIconOnly ? label : buttonProps["aria-label"]}
@@ -186,9 +186,9 @@ export function SolveWithPxiButton({
       css={css(pxiButtonCSS, propCSS)}
       leadingVisual={
         <>
-          <span className="solve-with-pxi-button__glow" aria-hidden="true" />
+          <span className="pxi-button__glow" aria-hidden="true" />
           <span
-            className="solve-with-pxi-button__glyph"
+            className="pxi-button__glyph"
             css={glyphCSS}
             data-size={size}
             aria-hidden="true"
