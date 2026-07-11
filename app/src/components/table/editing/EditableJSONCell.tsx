@@ -2,8 +2,10 @@ import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
 import { useState } from "react";
 import { Button as UnstyledButton } from "react-aria-components";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import {
+  Alert,
   Button,
   Dialog,
   Icon,
@@ -12,6 +14,7 @@ import {
   Modal,
   ModalOverlay,
   Text,
+  View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
 import { JSONText } from "@phoenix/components/code/JSONText";
@@ -70,19 +73,6 @@ const footerHintCSS = css`
   gap: var(--global-dimension-size-75);
 `;
 
-// The error lives in the footer's left slot — the same fixed region as the
-// "to save" hint — so surfacing it never shifts the editor surface above.
-const footerErrorCSS = css`
-  margin-right: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-50);
-  color: var(--global-color-danger);
-  .icon-wrap {
-    flex-shrink: 0;
-  }
-`;
-
 // Single-line truncation keeps every row at the virtualizer's fixed height.
 const cellTextCSS = css`
   display: block;
@@ -132,14 +122,6 @@ export function EditableJSONCell<
   const [editorError, setEditorError] = useState<string | null>(null);
   const modifierKey = useModifierKey();
 
-  if (!cell.isEditing || !cell.isEditable) {
-    return (
-      <span css={cellTextCSS}>
-        <JSONText json={cell.value} maxLength={100} />
-      </span>
-    );
-  }
-
   // Set the local (banner) and cell-level (store) errors together so the
   // dialog and the table stay in sync.
   const applyEditorError = (error: string | null) => {
@@ -174,6 +156,23 @@ export function EditableJSONCell<
     setIsOpen(false);
   };
 
+  // Cmd+Enter commits the cell. Scoped to this cell's open dialog — every other
+  // mounted cell keeps its shortcut disabled.
+  useHotkeys("mod+enter", () => saveEditorValue(), {
+    enabled: isOpen,
+    enableOnFormTags: true,
+    enableOnContentEditable: true,
+    preventDefault: true,
+  });
+
+  if (!cell.isEditing || !cell.isEditable) {
+    return (
+      <span css={cellTextCSS}>
+        <JSONText json={cell.value} maxLength={100} />
+      </span>
+    );
+  }
+
   return (
     <>
       <UnstyledButton
@@ -183,7 +182,10 @@ export function EditableJSONCell<
         isDisabled={cell.isSaving}
         onClick={(event) => event.stopPropagation()}
         onPress={openEditor}
-        aria-label={`${title} for ${rowLabel ?? `row ${cellContext.row.id}`}`}
+        // Built from the column, not the dialog title: the title already carries
+        // the row's context ("Edit input · new example"), and reusing it here
+        // would announce that context twice.
+        aria-label={`Edit ${columnId} for ${rowLabel ?? `row ${cellContext.row.id}`}`}
       >
         <span css={cellTextCSS}>
           <JSONText json={cell.value} maxLength={100} />
@@ -208,18 +210,14 @@ export function EditableJSONCell<
                   <DialogCloseButton />
                 </DialogTitleExtra>
               </DialogHeader>
-              <div
-                css={editorContainerCSS}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.metaKey || event.ctrlKey)
-                  ) {
-                    event.preventDefault();
-                    saveEditorValue();
-                  }
-                }}
-              >
+              {editorError ? (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert variant="danger" banner>
+                    {editorError}
+                  </Alert>
+                </View>
+              ) : null}
+              <div css={editorContainerCSS}>
                 <JSONEditor
                   value={editorValue}
                   autoFocus
@@ -232,23 +230,14 @@ export function EditableJSONCell<
                 />
               </div>
               <DialogFooter>
-                {editorError ? (
-                  <span css={footerErrorCSS} role="status">
-                    <Icon svg={<Icons.AlertCircle />} color="danger" />
-                    <Text size="XS" color="danger">
-                      {editorError}
-                    </Text>
-                  </span>
-                ) : (
-                  <span css={footerHintCSS}>
-                    <KeyboardToken variant="quiet">
-                      {modifierKey === "Cmd" ? "⌘" : "Ctrl"} ↵
-                    </KeyboardToken>
-                    <Text size="XS" color="text-500">
-                      to save
-                    </Text>
-                  </span>
-                )}
+                <span css={footerHintCSS}>
+                  <KeyboardToken variant="quiet">
+                    {modifierKey === "Cmd" ? "⌘" : "Ctrl"} ↵
+                  </KeyboardToken>
+                  <Text size="XS" color="text-500">
+                    to save
+                  </Text>
+                </span>
                 <Button variant="default" slot="close">
                   Cancel
                 </Button>

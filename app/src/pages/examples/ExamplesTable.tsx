@@ -17,6 +17,7 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 
 import {
   Button,
@@ -58,6 +59,10 @@ import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQue
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
 import type { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
+import {
+  DUPLICATE_ID_ERROR,
+  getDuplicateExternalIdRowIds,
+} from "./duplicateExternalIds";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
@@ -120,8 +125,6 @@ const newExampleIdInputCSS = css`
   }
 `;
 
-const DUPLICATE_ID_ERROR = "Custom IDs must be unique among new examples.";
-
 /**
  * The ID cell for a newly added example. The ID is optional: leaving it blank
  * lets the server auto-generate one, and typing overrides it with an external
@@ -141,34 +144,11 @@ function NewExampleIdCell({
       ""
   );
   const isSaving = useStore(editStore, (state) => state.mode === "saving");
-  // The server rejects the whole change set if two new examples share a custom
-  // ID, so catch the collision here, where the offending cells can be pointed
-  // at, rather than at the end of the save dialog.
-  const isDuplicate = useStore(editStore, (state) => {
-    const customId = externalId.trim();
-    if (!customId) {
-      return false;
-    }
-    return (
-      state.addedRows.filter(
-        (addedRow) => addedRow.externalId?.trim() === customId
-      ).length > 1
-    );
-  });
-  const error = useStore(
+  const duplicateRowIds = useStore(
     editStore,
-    (state) => state.cellErrors[row.id]?.externalId ?? null
+    useShallow(getDuplicateExternalIdRowIds)
   );
-  useEffect(() => {
-    const nextError = isDuplicate ? DUPLICATE_ID_ERROR : null;
-    if (nextError !== error) {
-      editStore.getState().setCellError({
-        rowId: row.id,
-        columnId: "externalId",
-        error: nextError,
-      });
-    }
-  }, [editStore, error, isDuplicate, row.id]);
+  const isDuplicate = duplicateRowIds.includes(row.id);
   return (
     <input
       css={newExampleIdInputCSS}
@@ -220,6 +200,10 @@ export function ExamplesTable({
   const { exampleId: selectedExampleId } = useParams();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  // The virtualizer reads its scroll element on render, so attaching the ref has
+  // to re-render the table — a bare ref would leave the virtualizer measuring
+  // nothing on the first paint. The element itself is only ever read through
+  // `tableContainerRef`; this state exists purely to trigger that re-render.
   const [, setTableContainerElement] = useState<HTMLDivElement | null>(null);
   const tableContainerCallbackRef = useCallback(
     (element: HTMLDivElement | null) => {

@@ -38,6 +38,7 @@ type ExamplePatch = {
 
 export type EditExampleDialogProps = {
   exampleId: string;
+  datasetId: string;
   currentRevision: ExamplePatch;
   onCompleted: () => void;
 };
@@ -47,7 +48,7 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 export function EditExampleDialog(props: EditExampleDialogProps) {
-  const { exampleId, onCompleted } = props;
+  const { exampleId, datasetId, onCompleted } = props;
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<EditExampleDialogMutation>(graphql`
     mutation EditExampleDialogMutation($input: PatchDatasetExamplesInput!) {
@@ -87,6 +88,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
       commit({
         variables: {
           input: {
+            datasetId,
             patches: [
               {
                 exampleId,
@@ -107,7 +109,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
         },
       });
     },
-    [commit, exampleId, setError, onCompleted]
+    [commit, exampleId, datasetId, setError, onCompleted]
   );
   return (
     <Dialog>

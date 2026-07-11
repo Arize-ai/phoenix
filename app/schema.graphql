@@ -342,15 +342,6 @@ interface ApiKey {
   expiresAt: DateTime
 }
 
-input ApplyDatasetExampleChangesInput {
-  datasetId: ID!
-  additions: [DatasetExampleAddition!]! = []
-  patches: [DatasetExamplePatch!]! = []
-  exampleIdsToDelete: [ID!]! = []
-  versionDescription: String
-  versionMetadata: JSON
-}
-
 enum AuthMethod {
   LOCAL
   OAUTH2
@@ -1096,6 +1087,7 @@ type DatasetExample implements Node {
   id: ID!
   externalId: String
   createdAt: DateTime!
+  dataset: Dataset!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
@@ -2424,7 +2416,6 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
-  applyDatasetExampleChanges(input: ApplyDatasetExampleChangesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
@@ -2651,14 +2642,12 @@ input PatchCodeEvaluatorInput {
 }
 
 input PatchDatasetExamplesInput {
-  patches: [DatasetExamplePatch!]!
+  datasetId: ID!
+  additions: [DatasetExampleAddition!]! = []
+  patches: [DatasetExamplePatch!]! = []
+  exampleIdsToDelete: [ID!]! = []
   versionDescription: String
   versionMetadata: JSON
-
-  """
-  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
-  """
-  datasetId: ID
 }
 
 input PatchDatasetInput {

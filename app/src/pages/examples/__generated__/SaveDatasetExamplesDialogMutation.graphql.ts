@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<43e7cacfbde10647867d94df96905a02>>
+ * @generated SignedSource<<dfa38c295c26d5c5d6ba6051f5dbe92a>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -9,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ApplyDatasetExampleChangesInput = {
+export type PatchDatasetExamplesInput = {
   additions?: ReadonlyArray<DatasetExampleAddition>;
   datasetId: string;
   exampleIdsToDelete?: ReadonlyArray<string>;
@@ -30,10 +29,10 @@ export type DatasetExamplePatch = {
   output?: any | null;
 };
 export type SaveDatasetExamplesDialogMutation$variables = {
-  input: ApplyDatasetExampleChangesInput;
+  input: PatchDatasetExamplesInput;
 };
 export type SaveDatasetExamplesDialogMutation$data = {
-  readonly applyDatasetExampleChanges: {
+  readonly patchDatasetExamples: {
     readonly dataset: {
       readonly exampleCount: number;
       readonly id: string;
@@ -65,7 +64,7 @@ v1 = [
     ],
     "concreteType": "DatasetMutationPayload",
     "kind": "LinkedField",
-    "name": "applyDatasetExampleChanges",
+    "name": "patchDatasetExamples",
     "plural": false,
     "selections": [
       {
@@ -99,32 +98,32 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SaveDatasetExamplesDialogMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SaveDatasetExamplesDialogMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "1a45eb56db5958005a3965de95c6703a",
+    "cacheID": "d288305363838ec485d9665a37feaa6f",
     "id": null,
     "metadata": {},
     "name": "SaveDatasetExamplesDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation SaveDatasetExamplesDialogMutation(\n  $input: ApplyDatasetExampleChangesInput!\n) {\n  applyDatasetExampleChanges(input: $input) {\n    dataset {\n      id\n      exampleCount\n    }\n  }\n}\n"
+    "text": "mutation SaveDatasetExamplesDialogMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    dataset {\n      id\n      exampleCount\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "81f1d24dc029e45a7d242c6c07da0057";
+(node as any).hash = "eeb63ee9ad98972dbc226eaea3abc7cb";
 
 export default node;

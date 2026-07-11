@@ -72,6 +72,13 @@ tests/unit/server/api/
 
 ## Naming
 
+- **Name new mutations after the HTTP verb they are synonymous with**:
+  `createThing`, `patchThing`, `setThing`, `deleteThing` — not `applyThingChanges`
+  or `updateThing`. `patch` covers any partial write to existing resources,
+  including a collection-level write that also adds and removes members in one
+  transaction. The input type takes the same name (`PatchThingInput`). Existing
+  `update*` mutations and `addXToY` linking mutations are not covered by this.
+  See `references/graphql-patterns.md` → "Naming: use the HTTP verb".
 - **Avoid acronyms and single/double-letter abbreviations for local variables.**
   Prefer the full noun: `session` / `project_session` over `ps`, `trace` over `t`,
   `example` / `dataset_example` over `de`. The cost of a longer identifier is trivial; the
