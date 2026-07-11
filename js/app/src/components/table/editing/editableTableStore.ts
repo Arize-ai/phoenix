@@ -59,14 +59,18 @@ export type CreateEditableTableStoreOptions<Row extends object> = {
   areValuesEqual?: (left: unknown, right: unknown) => boolean;
 };
 
-const EMPTY_EDIT_STATE = {
+/**
+ * The pristine edit state. Built fresh on every reset so no two stores — and
+ * no two editing sessions — ever share a collection instance.
+ */
+const createEmptyEditState = <Row extends object>() => ({
   mode: "read" as const,
-  addedRows: [],
+  addedRows: [] as Row[],
   addedRowIds: new Set<string>(),
-  updatedRows: {},
+  updatedRows: {} as EditableTableUpdatedRows<Row>,
   deletedRowIds: new Set<string>(),
-  cellErrors: {},
-};
+  cellErrors: {} as EditableTableCellErrors<Row>,
+});
 
 /**
  * Creates a table-scoped sparse edit store.
@@ -79,12 +83,12 @@ export function createEditableTableStore<Row extends object>({
   areValuesEqual = isEqual,
 }: CreateEditableTableStoreOptions<Row>): EditableTableStore<Row> {
   return createStore<EditableTableStoreState<Row>>()((set, get) => ({
-    ...EMPTY_EDIT_STATE,
+    ...createEmptyEditState<Row>(),
     beginEditing: () => {
       set({ mode: "editing" });
     },
     cancelEditing: () => {
-      set({ ...EMPTY_EDIT_STATE });
+      set(createEmptyEditState<Row>());
     },
     startSaving: () => {
       set({ mode: "saving" });
@@ -93,7 +97,7 @@ export function createEditableTableStore<Row extends object>({
       set({ mode: "editing" });
     },
     finishSaving: () => {
-      set({ ...EMPTY_EDIT_STATE });
+      set(createEmptyEditState<Row>());
     },
     addRow: (row) => {
       const rowId = getRowId(row);
@@ -114,11 +118,15 @@ export function createEditableTableStore<Row extends object>({
         if (state.addedRowIds.has(rowId)) {
           const addedRowIds = new Set(state.addedRowIds);
           addedRowIds.delete(rowId);
+          // The row ceases to exist, so its validation errors go with it.
+          const cellErrors = { ...state.cellErrors };
+          delete cellErrors[rowId];
           return {
             addedRows: state.addedRows.filter(
               (addedRow) => getRowId(addedRow) !== rowId
             ),
             addedRowIds,
+            cellErrors,
           };
         }
         const deletedRowIds = new Set(state.deletedRowIds);
@@ -203,7 +211,7 @@ export function createEditableTableStore<Row extends object>({
 
 export function getEditableTableCellValue<
   Row extends object,
-  ColumnId extends keyof Row & string,
+  ColumnId extends keyof Row & string
 >({
   state,
   rowId,
@@ -247,12 +255,20 @@ export function getEditableTableChangeCount<Row extends object>(
   return added + updated + deleted;
 }
 
+/**
+ * Counts the cells that fail validation. A row pending deletion is not going to
+ * be written, so — like its pending changes — its errors do not count and do not
+ * block a save.
+ */
 export function getEditableTableErrorCount<Row extends object>(
   state: EditableTableStoreState<Row>
 ): number {
-  return Object.values(state.cellErrors).reduce(
-    (errorCount, rowErrors) =>
-      errorCount + (rowErrors ? Object.keys(rowErrors).length : 0),
+  return Object.entries(state.cellErrors).reduce(
+    (errorCount, [rowId, rowErrors]) =>
+      errorCount +
+      (rowErrors && !state.deletedRowIds.has(rowId)
+        ? Object.keys(rowErrors).length
+        : 0),
     0
   );
 }

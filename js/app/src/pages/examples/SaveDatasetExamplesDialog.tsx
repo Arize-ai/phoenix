@@ -107,11 +107,16 @@ export function SaveDatasetExamplesDialog({
       variables: {
         input: {
           datasetId,
-          additions: diff.addedRows.map((row) => ({
-            input: row.input,
-            output: row.output,
-            metadata: row.metadata,
-          })),
+          additions: diff.addedRows.map((row) => {
+            const externalId = row.externalId?.trim();
+            return {
+              input: row.input,
+              output: row.output,
+              metadata: row.metadata,
+              // Omit when blank so the server generates the ID.
+              ...(externalId ? { externalId } : {}),
+            };
+          }),
           patches: diff.updatedRows.map(({ rowId, changes }) => ({
             exampleId: rowId,
             ...(changes.input !== undefined ? { input: changes.input } : {}),
@@ -130,7 +135,9 @@ export function SaveDatasetExamplesDialog({
         onOpenChange(false);
         notifySuccess({
           title: "Dataset version saved",
-          message: `${changeCount} example change${changeCount === 1 ? "" : "s"} committed.`,
+          message: `${changeCount} example change${
+            changeCount === 1 ? "" : "s"
+          } committed.`,
         });
         refreshLatestVersion();
       },
@@ -180,7 +187,10 @@ export function SaveDatasetExamplesDialog({
                 ).map(([label, count, color]) => (
                   <li key={label} data-empty={count === 0}>
                     <Flex justifyContent="space-between" alignItems="center">
-                      <Text size="S" color={count > 0 ? "text-700" : "text-300"}>
+                      <Text
+                        size="S"
+                        color={count > 0 ? "text-700" : "text-300"}
+                      >
                         {label}
                       </Text>
                       <Text color={count > 0 ? color : "text-300"}>
