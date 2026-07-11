@@ -12,6 +12,7 @@ import {
 import { writeError, writeOutput } from "../io";
 import {
   OAUTH_LOGIN_TIMEOUT_MS,
+  type PastedRedirectPrompt,
   buildAuthorizationUrl,
   exchangeAuthorizationCode,
   generatePkcePair,
@@ -22,6 +23,7 @@ import {
   startLoginCallbackServer,
   tokenResponseToOAuthTokens,
   waitForPastedRedirectUrl,
+  withSettingsLock,
   withTimeout,
 } from "../oauth";
 import {
@@ -29,6 +31,7 @@ import {
   type SettingsFile,
   ProfileResolutionError,
   getProfileByName,
+  getSettingsPath,
   getStoredActiveProfile,
   loadSettings,
   saveSettings,
@@ -397,15 +400,20 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
+    const settingsAtLogin = loadSettings({ strict: true });
     const targetProfileName = resolveTargetProfileName(
-      loadSettings({ strict: true }),
+      settingsAtLogin,
       options.profile
+    );
+    const profileHasApiKey = Boolean(
+      settingsAtLogin.profiles[targetProfileName]?.apiKey
     );
     const pkce = generatePkcePair();
     const state = generateState();
     const callbackServer = await startLoginCallbackServer({
       expectedState: state,
     });
+    let pastedRedirectPrompt: PastedRedirectPrompt | undefined;
     try {
       const authorizationUrl = buildAuthorizationUrl({
         endpoint,
@@ -429,14 +437,17 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
         }
       }
 
-      const pastedRedirectPromise =
+      pastedRedirectPrompt =
         options.input !== false && (!browserOpened || options.browser === false)
           ? waitForPastedRedirectUrl({ expectedState: state })
           : undefined;
       const callbackPromise =
-        pastedRedirectPromise === undefined
+        pastedRedirectPrompt === undefined
           ? callbackServer.resultPromise
-          : Promise.race([callbackServer.resultPromise, pastedRedirectPromise]);
+          : Promise.race([
+              callbackServer.resultPromise,
+              pastedRedirectPrompt.resultPromise,
+            ]);
       const callbackResult = await withTimeout({
         promise: callbackPromise,
         timeoutMs: OAUTH_LOGIN_TIMEOUT_MS,
@@ -460,14 +471,18 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
       const oauthTokens = tokenResponseToOAuthTokens({
         response: tokenResponse,
       });
-      saveSettings(
-        persistOAuthTokens({
-          settingsFile: loadSettings({ strict: true }),
-          profileName: targetProfileName,
-          endpoint,
-          oauthTokens,
-        })
-      );
+      // Re-read and write under the settings lock so a token rotation running
+      // in another px process cannot be clobbered by this stale snapshot.
+      await withSettingsLock(getSettingsPath(), async () => {
+        saveSettings(
+          persistOAuthTokens({
+            settingsFile: loadSettings({ strict: true }),
+            profileName: targetProfileName,
+            endpoint,
+            oauthTokens,
+          })
+        );
+      });
 
       const user = await verifyViewerOrExit({
         ...config,
@@ -477,6 +492,13 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
         apiKey: undefined,
         credentialSource: "oauth",
       });
+      if (profileHasApiKey) {
+        writeError({
+          message:
+            `Note: profile "${targetProfileName}" also has an API key, which takes precedence over the OAuth session. ` +
+            "Remove the API key from the profile to use OAuth credentials.",
+        });
+      }
       writeOutput({
         message: formatAuthOutput(
           {
@@ -492,6 +514,9 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
         ),
       });
     } finally {
+      // Release stdin when the loopback callback won the race — an open
+      // readline interface would keep the process alive after success.
+      pastedRedirectPrompt?.close();
       await callbackServer.close();
     }
   } catch (error) {
@@ -532,9 +557,13 @@ async function authLogoutHandler(options: AuthLogoutOptions): Promise<void> {
   );
   const profile = getProfileByName(settingsFile, targetProfileName);
   const refreshToken = profile?.entry.oauthTokens?.refreshToken;
-  if (refreshToken && config.endpoint) {
+  // Revoke against the endpoint stored on the profile — the server that
+  // issued the tokens — never a --endpoint/PHOENIX_HOST override, which would
+  // leak the refresh token to a host that never issued it.
+  const issuingEndpoint = profile?.entry.endpoint;
+  if (refreshToken && issuingEndpoint) {
     try {
-      await revokeOAuthToken({ endpoint: config.endpoint, refreshToken });
+      await revokeOAuthToken({ endpoint: issuingEndpoint, refreshToken });
     } catch (error) {
       writeError({
         message: `Warning: Could not revoke OAuth token: ${
@@ -545,13 +574,23 @@ async function authLogoutHandler(options: AuthLogoutOptions): Promise<void> {
   }
 
   if (profile) {
-    const { oauthTokens: _oauthTokens, ...entryWithoutOAuth } = profile.entry;
-    saveSettings({
-      ...settingsFile,
-      profiles: {
-        ...settingsFile.profiles,
-        [targetProfileName]: entryWithoutOAuth,
-      },
+    // Re-read and write under the settings lock so a token rotation running
+    // in another px process is not clobbered by the pre-revoke snapshot.
+    await withSettingsLock(getSettingsPath(), async () => {
+      const latestSettings = loadSettings({ strict: true });
+      const latestProfile = getProfileByName(latestSettings, targetProfileName);
+      if (!latestProfile) {
+        return;
+      }
+      const { oauthTokens: _oauthTokens, ...entryWithoutOAuth } =
+        latestProfile.entry;
+      saveSettings({
+        ...latestSettings,
+        profiles: {
+          ...latestSettings.profiles,
+          [targetProfileName]: entryWithoutOAuth,
+        },
+      });
     });
   }
 

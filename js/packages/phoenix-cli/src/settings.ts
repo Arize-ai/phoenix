@@ -414,4 +414,7 @@ export function saveSettings(
     encoding: "utf-8",
     mode: 0o600,
   });
+  // writeFileSync only applies `mode` when it creates the file; the file holds
+  // secrets (API keys, OAuth tokens), so tighten a pre-existing permissive mode.
+  fs.chmodSync(filePath, 0o600);
 }

@@ -171,6 +171,45 @@ describe("Configuration", () => {
       expect(cliConfig.oauthTokens).toBeUndefined();
     });
 
+    it("drops profile OAuth tokens when the endpoint is overridden", () => {
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "https://prod.example.com",
+            oauthTokens: {
+              accessToken: "oauth-access",
+              refreshToken: "oauth-refresh",
+              expiresAt: "2026-01-01T00:00:00.000Z",
+              scope: "read_only",
+            },
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+
+      const flagConfig = resolveConfig({
+        cliOptions: { endpoint: "https://staging.example.com" },
+      });
+      expect(flagConfig.credentialSource).toBe("none");
+      expect(flagConfig.oauthTokens).toBeUndefined();
+
+      process.env.PHOENIX_HOST = "https://staging.example.com";
+      const envConfig = resolveConfig({ cliOptions: {} });
+      expect(envConfig.credentialSource).toBe("none");
+      expect(envConfig.oauthTokens).toBeUndefined();
+      delete process.env.PHOENIX_HOST;
+
+      // An override matching the issuing endpoint keeps the tokens.
+      const matchingConfig = resolveConfig({
+        cliOptions: { endpoint: "https://prod.example.com" },
+      });
+      expect(matchingConfig.credentialSource).toBe("oauth");
+      expect(matchingConfig.oauthTokens?.accessToken).toBe("oauth-access");
+    });
+
     it("prefers a profile API key over profile OAuth tokens", () => {
       const settings: SettingsFile = {
         activeProfile: "prod",

@@ -1,6 +1,7 @@
 import {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  getProjectFromEnvironment,
   getStrFromEnvironment,
 } from "@arizeai/phoenix-config";
 
@@ -25,14 +26,12 @@ export function getEnvApiKey(): string | undefined {
 /**
  * Reads the Phoenix project name from the environment.
  *
- * Resolves `PHOENIX_PROJECT` first, then falls back to the supported
- * `PHOENIX_PROJECT_NAME` alias.
+ * Delegates to `@arizeai/phoenix-config` so the `PHOENIX_PROJECT` (canonical) /
+ * `PHOENIX_PROJECT_NAME` (alias) resolution — including precedence and the
+ * one-time conflict warning — lives in a single shared implementation.
  *
  * @returns The resolved project name, or `undefined` if neither variable is set.
  */
 export function getEnvProjectName(): string | undefined {
-  return (
-    getStrFromEnvironment("PHOENIX_PROJECT") ??
-    getStrFromEnvironment("PHOENIX_PROJECT_NAME")
-  );
+  return getProjectFromEnvironment();
 }
