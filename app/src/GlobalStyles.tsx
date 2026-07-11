@@ -1000,6 +1000,12 @@ const inputFieldCSS = (theme: Theme) => css`
 const menuCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
+    /* Menu sizing */
+    --global-menu-min-height: var(--global-dimension-size-3600);
+    --global-menu-max-height-small: var(--global-dimension-size-6000);
+    --global-menu-max-height-large: var(--global-dimension-size-8000);
+
+    /* Menu colors and spacing */
     --global-menu-border-color: var(--global-border-color-default);
     --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
