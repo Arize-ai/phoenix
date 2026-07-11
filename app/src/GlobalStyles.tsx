@@ -61,6 +61,7 @@ export const mediumRootCSS = css`
     --global-dimension-size-4000: 320px;
     --global-dimension-size-4600: 368px;
     --global-dimension-size-5000: 400px;
+    --global-dimension-size-5250: 420px;
     --global-dimension-size-6000: 480px;
     --global-dimension-size-8000: 640px;
     --global-dimension-size-8500: 680px;
@@ -1004,6 +1005,9 @@ const menuCSS = (theme: Theme) => css`
     --global-menu-min-height: var(--global-dimension-size-3600);
     --global-menu-max-height-small: var(--global-dimension-size-6000);
     --global-menu-max-height-large: var(--global-dimension-size-8000);
+    --global-menu-width-xs: var(--global-dimension-size-2500);
+    --global-menu-width-sm: var(--global-dimension-size-4000);
+    --global-menu-width-md: var(--global-dimension-size-5250);
 
     /* Menu colors and spacing */
     --global-menu-border-color: var(--global-border-color-default);

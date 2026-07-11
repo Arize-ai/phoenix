@@ -18,7 +18,7 @@ import { Flex } from "../layout";
 import { Popover } from "../overlay";
 
 const menuCSS = css`
-  --menu-min-width: 250px;
+  --menu-min-width: var(--global-menu-width-xs);
   min-width: var(--menu-min-width);
   display: flex;
   flex-direction: column;
@@ -239,6 +239,8 @@ const menuContainerCss = css`
   flex-direction: column;
 `;
 
+export type MenuContainerSize = "xs" | "sm" | "md";
+
 /**
  * A menu container is a container for a menu.
  * This is the container for the menu items, and should be used in conjunction with MenuTrigger and Menu.
@@ -261,13 +263,15 @@ export const MenuContainer = ({
   placement = "bottom end",
   minHeight = "var(--global-menu-min-height)",
   maxHeight = "var(--global-menu-max-height-large)",
-  maxWidth = 450,
+  size = "md",
+  maxWidth = `var(--global-menu-width-${size})`,
   ...popoverProps
 }: PropsWithChildren &
   Omit<PopoverProps, "maxHeight" | "maxWidth"> & {
     minHeight?: React.CSSProperties["minHeight"];
     maxHeight?: React.CSSProperties["maxHeight"];
     maxWidth?: React.CSSProperties["maxWidth"];
+    size?: MenuContainerSize;
   }) => {
   return (
     <Popover
@@ -282,7 +286,7 @@ export const MenuContainer = ({
           display: flex;
           flex-direction: column;
           height: 100%;
-          min-width: 300px;
+          min-width: var(--global-menu-width-xs);
         `}
       >
         {children}
