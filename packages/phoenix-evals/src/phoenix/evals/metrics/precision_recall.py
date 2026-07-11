@@ -74,8 +74,9 @@ class PrecisionRecallFScore(Evaluator):
           Defaults to 'macro'. Suffixes are only appended to metric names when a non-default
           average is used.
         - positive_label: When set, compute binary precision/recall/F exclusively for this label
-          (one-vs-rest). If None and labels are numeric with unique set {0,1}, the
-          positive label defaults to 1. Otherwise, multi-class averaging is used.
+          (one-vs-rest). If None, `average` is at its default 'macro', and labels are numeric
+          with unique set {0,1}, the positive label defaults to 1. Otherwise, multi-class
+          averaging is used.
         - zero_division: Value to use when a metric is undefined (e.g., 0/0). Defaults to 0.0.
 
     Args:
@@ -170,7 +171,7 @@ class PrecisionRecallFScore(Evaluator):
         counts_by_label = self._compute_counts(expected, output, labels)
 
         # Determine if we are in binary (positive_label) mode
-        pos_label = self._resolve_positive_label(self.positive_label, labels)
+        pos_label = self._resolve_positive_label(self.positive_label, labels, self.average)
 
         if pos_label is not None:
             class_counts = counts_by_label.get(pos_label)
@@ -386,23 +387,35 @@ class PrecisionRecallFScore(Evaluator):
         return self._safe_div(numerator, denominator)
 
     def _resolve_positive_label(
-        self, configured_positive: Optional[Hashable], labels: Sequence[Hashable]
+        self,
+        configured_positive: Optional[Hashable],
+        labels: Sequence[Hashable],
+        average: AverageType,
     ) -> Optional[Hashable]:
         """Decide whether to run in binary mode and which label is positive.
 
         - If a positive label is provided, use it.
-        - Else, if labels are a binary numeric set {0, 1}, use 1 as positive.
+        - Else, if `average` is at its default "macro" and labels are a binary
+          numeric set {0, 1}, use 1 as positive.
         - Otherwise, return None to indicate multi-class averaging mode.
+
+        Auto-detection is gated on the default "macro" average so an explicitly
+        configured "micro"/"weighted" average is never silently overridden by
+        the shape of the data.
 
         Args:
             configured_positive (Optional[Hashable]): The explicitly configured positive label.
             labels (Sequence[Hashable]): The set of all possible labels.
+            average (AverageType): The configured averaging strategy.
 
         Returns:
             Optional[Hashable]: The positive label to use, or None for multi-class mode.
         """
         if configured_positive is not None:
             return configured_positive
+
+        if average != "macro":
+            return None
 
         unique = set(labels)
         if unique.issubset({0, 1}) and len(unique) == 2:

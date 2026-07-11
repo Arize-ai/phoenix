@@ -28,6 +28,7 @@ Phoenix Client provides an interface for interacting with the Phoenix platform v
 - **Prompts** - Create, version, and invoke prompt templates
 - **Datasets** - Create and append to datasets from DataFrames, CSV files, or dictionaries
 - **Experiments** - Run evaluations and track experiment results
+- **Eval CI (pytest)** - Run LLM evals as ordinary pytest tests and record them as Phoenix experiments (`pip install "arize-phoenix-client[pytest]"`)
 - **Spans** - Query and analyze traces with powerful filtering
 - **Annotations** - Add human feedback and automated evaluations
 - **Evaluation Helpers** - Extract span data in formats optimized for RAG evaluation workflows
@@ -61,6 +62,34 @@ export PHOENIX_API_KEY="your-api-key"
 # Customize headers
 export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
 ```
+
+### Credential File Discovery (`.env.phoenix`)
+
+When a setting is not provided by argument or environment variable, the client
+looks for a `.env.phoenix` file in the current working directory — walking up
+toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always take precedence — the file
+never overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to
+disable discovery entirely.
+
+Credentials (`PHOENIX_API_KEY` and `PHOENIX_CLIENT_HEADERS`) and server location
+(`PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `PHOENIX_HOST`, and
+`PHOENIX_PORT`) are each resolved as a group from one source tier. If explicit
+or process credentials are paired with an endpoint from `.env.phoenix`, the
+client warns once and continues without logging credential values.
+
+Discovery results, including a missing file, are cached per working directory
+for the process lifetime. Long-running processes can call
+`phoenix.client.utils.config.clear_env_file_cache()` after creating or changing
+the file.
 
 ### Client Initialization
 
@@ -393,6 +422,64 @@ ran_experiment = client.experiments.get_experiment(experiment_id="my-experiment-
 for run in ran_experiment["task_runs"]:
     print(f"Output: {run['output']}, Error: {run['error']}")
 ```
+
+Beyond the batch `run_experiment` loop, you can post runs and evaluations one at a
+time with `log_run` and `log_evaluation`. These are the incremental primitives the
+pytest plugin builds on, and they are useful for any consumer that produces results
+progressively rather than all at once:
+
+```python
+from datetime import datetime, timezone
+
+# Record a single run against an existing experiment and example
+run = client.experiments.log_run(
+    experiment_id="my-experiment-id",
+    dataset_example_id="my-example-id",
+    output="the task output",
+    start_time=datetime.now(timezone.utc),
+    end_time=datetime.now(timezone.utc),
+)
+
+# Attach an evaluation (annotation) to that run
+client.experiments.log_evaluation(
+    experiment_run_id=run["id"],
+    name="exact_match",
+    annotator_kind="CODE",
+    score=1.0,
+    label="correct",
+)
+```
+
+Both methods are available on `AsyncClient` as awaitable coroutines with the same
+signatures.
+
+### Eval CI (pytest)
+
+Write LLM evals as ordinary pytest tests and record each marked test as a run in a
+Phoenix experiment, so the same suite that gates your pull requests also builds a
+history of results in Phoenix. Install the `pytest` extra and mark tests with
+`@pytest.mark.phoenix`:
+
+```bash
+pip install "arize-phoenix-client[pytest]" pytest
+```
+
+```python
+import pytest
+from phoenix.client.pytest import evaluate, log_evaluation, log_output
+
+
+@pytest.mark.phoenix(dataset="qa-suite")
+@pytest.mark.parametrize("question,expected", [("2+2?", "4")], ids=["arithmetic"])
+def test_answers(question, expected):
+    result = my_app(question)
+    log_output(result)
+    log_evaluation(name="exact_match", score=float(result == expected))
+    assert result == expected
+```
+
+See the [Eval CI with pytest guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest)
+for marker options, environment variables, and a CI recipe.
 
 ### Projects
 

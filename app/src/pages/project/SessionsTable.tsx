@@ -20,6 +20,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -35,6 +36,7 @@ import {
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -57,8 +59,12 @@ import { DEFAULT_PAGE_SIZE } from "./constants";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
+import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
+import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
+import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
+import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
@@ -137,6 +143,11 @@ export function SessionsTable(props: SessionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const { filterIoSubstringOrSessionId } = useSessionSearchContext();
   const { fetchKey } = useStreamState();
+  // Source the time range directly here (rather than only via the preloaded
+  // parent query) so a live window sliding forward refetches with the current
+  // search/filter still applied. The parent query is intentionally not reloaded
+  // on window slides — see the load effect in `ProjectPage` and issue #14216.
+  const { timeRangeISOStrings } = useTimeRange();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -452,11 +463,18 @@ export function SessionsTable(props: SessionsTableProps) {
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstringOrSessionId,
           sessionId: filterIoSubstringOrSessionId,
+          timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterIoSubstringOrSessionId, fetchKey]);
+  }, [
+    sorting,
+    refetch,
+    filterIoSubstringOrSessionId,
+    fetchKey,
+    timeRangeISOStrings,
+  ]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -528,107 +546,132 @@ export function SessionsTable(props: SessionsTableProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
   return (
-    <div css={spansTableCSS}>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-        flex="none"
-      >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <View flex="1 1 auto">
-            <SessionSearchField />
-          </View>
-          <SessionColumnSelector columns={computedColumns} query={data} />
-        </Flex>
-      </View>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-        `}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-        ref={tableContainerRef}
-      >
-        <table
-          css={selectableTableCSS}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
-        >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    colSpan={header.colSpan}
-                    style={{
-                      width: `calc(var(--header-${header.id}-size) * 1px)`,
-                    }}
-                    key={header.id}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
-                          data-sortable={header.column.getCanSort()}
-                          {...{
-                            className: header.column.getCanSort() ? "sort" : "",
-                            onClick: header.column.getToggleSortingHandler(),
-                            style: {
-                              left: header.getStart(),
-                              width: header.getSize(),
-                            },
+    <Group orientation="horizontal" id="sessions-table-layout">
+      <Panel>
+        <TableMetricsChartsPanelGroup view="sessions">
+          <div css={spansTableCSS}>
+            <View
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              borderBottomColor="default"
+              borderBottomWidth="thin"
+              flex="none"
+            >
+              <Flex
+                direction="row"
+                gap="size-100"
+                width="100%"
+                alignItems="center"
+              >
+                <View flex="1 1 auto">
+                  <SessionSearchField />
+                </View>
+                <TableMetricsChartSelector view="sessions" />
+                <SessionColumnSelector columns={computedColumns} query={data} />
+                <TableAsideToggleButton />
+              </Flex>
+            </View>
+            <div
+              css={css`
+                flex: 1 1 auto;
+                overflow: auto;
+              `}
+              onScroll={(e) =>
+                fetchMoreOnBottomReached(e.target as HTMLDivElement)
+              }
+              ref={tableContainerRef}
+            >
+              <table
+                css={selectableTableCSS}
+                style={{
+                  ...columnSizeVars,
+                  width: table.getTotalSize(),
+                  minWidth: "100%",
+                }}
+              >
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th
+                          colSpan={header.colSpan}
+                          style={{
+                            width: `calc(var(--header-${header.id}-size) * 1px)`,
                           }}
+                          key={header.id}
                         >
-                          <Truncate maxWidth="100%">
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                          </Truncate>
-                          {header.column.getIsSorted() ? (
-                            <Icon
-                              className="sort-icon"
-                              svg={
-                                header.column.getIsSorted() === "asc" ? (
-                                  <Icons.CaretUpFilled />
-                                ) : (
-                                  <Icons.CaretDownFilled />
-                                )
-                              }
-                            />
-                          ) : null}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <SessionsTableEmpty />
-          ) : columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody table={table} />
-          ) : (
-            <TableBody table={table} />
-          )}
-        </table>
-      </div>
-    </div>
+                          {header.isPlaceholder ? null : (
+                            <>
+                              <div
+                                data-sortable={header.column.getCanSort()}
+                                {...{
+                                  className: header.column.getCanSort()
+                                    ? "sort"
+                                    : "",
+                                  onClick:
+                                    header.column.getToggleSortingHandler(),
+                                  style: {
+                                    left: header.getStart(),
+                                    width: header.getSize(),
+                                  },
+                                }}
+                              >
+                                <Truncate maxWidth="100%">
+                                  {flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                                </Truncate>
+                                {header.column.getIsSorted() ? (
+                                  <Icon
+                                    className="sort-icon"
+                                    svg={
+                                      header.column.getIsSorted() === "asc" ? (
+                                        <Icons.CaretUpFilled />
+                                      ) : (
+                                        <Icons.CaretDownFilled />
+                                      )
+                                    }
+                                  />
+                                ) : null}
+                              </div>
+                              <div
+                                {...{
+                                  onMouseDown: header.getResizeHandler(),
+                                  onTouchStart: header.getResizeHandler(),
+                                  className: `resizer ${
+                                    header.column.getIsResizing()
+                                      ? "isResizing"
+                                      : ""
+                                  }`,
+                                }}
+                              />
+                            </>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                {isEmpty ? (
+                  <SessionsTableEmpty />
+                ) : columnSizingInfo.isResizingColumn ? (
+                  <MemoizedTableBody table={table} />
+                ) : (
+                  <TableBody table={table} />
+                )}
+              </table>
+            </div>
+          </div>
+        </TableMetricsChartsPanelGroup>
+      </Panel>
+      <TableAsidePanel>
+        <SessionsTableAside
+          filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
+        />
+      </TableAsidePanel>
+    </Group>
   );
 }

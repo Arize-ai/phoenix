@@ -43,9 +43,12 @@ tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
 Here's a simple example using PydanticAI with automatic tracing:
 
 ```python expandable
+import os
+
 from pydantic import BaseModel
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.capabilities import Instrumentation
+from pydantic_ai.models.instrumented import InstrumentationSettings
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -58,8 +61,11 @@ class LocationModel(BaseModel):
     country: str
 
 # Create and configure the agent
-model = OpenAIModel("gpt-4", provider='openai')
-agent = Agent(model, output_type=LocationModel, instrument=True)
+agent = Agent(
+    "openai:gpt-4o",
+    output_type=LocationModel,
+    capabilities=[Instrumentation(InstrumentationSettings(version=2))],
+)
 
 # Run the agent
 result = agent.run_sync("The windy city in the US of A.")
@@ -73,8 +79,8 @@ print(result)
 ```python expandable
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.openai import OpenAIModel
-from typing import List
+from pydantic_ai.capabilities import Instrumentation
+from pydantic_ai.models.instrumented import InstrumentationSettings
 import httpx
 
 class WeatherInfo(BaseModel):
@@ -85,14 +91,14 @@ class WeatherInfo(BaseModel):
 
 # Create an agent with system prompts and tools
 weather_agent = Agent(
-    model=OpenAIModel("gpt-4"),
+    "openai:gpt-4o",
     output_type=WeatherInfo,
-    system_prompt="You are a helpful weather assistant. Always provide accurate weather information.",
-    instrument=True
+    instructions="You are a helpful weather assistant. Always provide accurate weather information.",
+    capabilities=[Instrumentation(InstrumentationSettings(version=2))],
 )
 
 @weather_agent.tool
-async def get_weather_data(ctx: RunContext[None], location: str) -> str:
+async def get_weather_data(ctx: RunContext[object], location: str) -> str:
     """Get current weather data for a location."""
     # Mock weather API call - replace with actual weather service
     async with httpx.AsyncClient() as client:
@@ -132,5 +138,4 @@ The traces will provide detailed insights into your AI agent behaviors, making i
 * [OpenInference PydanticAI package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai)
 
 * [PydanticAI Examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-pydantic-ai/examples)
-
 

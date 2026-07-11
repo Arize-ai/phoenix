@@ -1,12 +1,28 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
+
+vi.mock("@phoenix/components/code", () => ({
+  CodeBlock: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  CodeWrap: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  JSONEditor: () => null,
+}));
+
+vi.mock("@phoenix/components/code/JSONEditor", () => ({
+  JSONEditor: () => null,
+}));
+
+vi.mock("@phoenix/components/markdown", () => ({
+  MarkdownBlock: ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}));
 
 import { getToolPartPreview, ToolPart } from "../ToolPart";
 import type { ToolInvocationPart } from "../toolPartTypes";
@@ -143,6 +159,28 @@ describe("tool disclosure controls", () => {
     ).toBe("https://example.com/docs");
   });
 
+  it("renders read_skill_resource resource names", () => {
+    const part = createToolPart({
+      type: "tool-read_skill_resource",
+      input: {
+        skill_name: "phoenix-graphql",
+        resource_name: "span-fields",
+        args: { entity: "Span" },
+      },
+      output: "field reference content",
+    });
+
+    expect(getToolPartPreview(part)).toBe("span-fields");
+
+    renderToolPart(part);
+
+    expect(container.textContent).toContain("read_skill_resource");
+    expect(container.textContent).toContain("phoenix-graphql");
+    expect(container.textContent).toContain("span-fields");
+    expect(container.textContent).toContain('"entity": "Span"');
+    expect(container.textContent).toContain("field reference content");
+  });
+
   it("allows manually collapsing and expanding an auto-open solo tool part", () => {
     renderToolPart(createAutoOpenToolPart());
     const details = container.querySelector("details.tool-part");
@@ -198,5 +236,51 @@ describe("tool disclosure controls", () => {
     expect(
       container.querySelector("details.tool-part")?.hasAttribute("open")
     ).toBe(true);
+  });
+
+  it("does not render empty subagent message parts under nested tools", () => {
+    renderToolPart(
+      createToolPart({
+        type: "tool-call_subagent",
+        toolCallId: "tool-call-subagent",
+        input: { name: "Phoenix data", task: "Summarize latency" },
+        output: {
+          summary: "Done",
+          message: {
+            id: "subagent-message",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-bash",
+                toolCallId: "tool-call-bash",
+                state: "output-available",
+                input: { command: "echo hi" },
+                output: "hi",
+              },
+              {
+                type: "reasoning",
+                text: "",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "   ",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "Visible answer",
+                state: "done",
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    click(container.querySelector("summary"));
+
+    expect(container.textContent).toContain("Visible answer");
+    expect(container.textContent).not.toContain("(empty)");
   });
 });

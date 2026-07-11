@@ -11,6 +11,7 @@ import wrapt
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import context as otel_context
+from opentelemetry import propagate
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, TracerProvider
 from opentelemetry.sdk.trace.export import (
@@ -35,16 +36,40 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def detached_otel_context() -> Iterator[None]:
-    """Hide the ambient OpenTelemetry context so that spans started inside the
-    block become roots (i.e. they have no parent), rather than children of
-    whatever span happens to be current — typically an ASGI/FastAPI
-    server-request span that is not exported with the Phoenix-agents trace."""
-    token = otel_context.attach(otel_context.Context())
+def detached_otel_context(parent_context: otel_context.Context | None = None) -> Iterator[None]:
+    """Run with a clean OpenTelemetry context or an explicit parent context.
+
+    Spans started inside the block are not parented to the ambient context.
+    """
+    token = otel_context.attach(parent_context or otel_context.Context())
     try:
         yield
     finally:
         otel_context.detach(token)
+
+
+# Phoenix-specific carrier headers sent by the browser alongside the standard
+# W3C ones. Hosting deployments may inject their own client tracing (e.g.
+# Datadog RUM) whose fetch instrumentation rewrites ``traceparent``; preferring
+# these headers keeps PXI spans parented to the browser's ``pxi.turn`` root.
+PHOENIX_TRACEPARENT_HEADER = "x-phoenix-traceparent"
+PHOENIX_TRACESTATE_HEADER = "x-phoenix-tracestate"
+
+
+def extract_otel_context(carrier: dict[str, str]) -> otel_context.Context:
+    """Extract W3C trace context into a clean context.
+
+    Prefers the ``x-phoenix-traceparent`` / ``x-phoenix-tracestate`` headers
+    over the standard W3C ones, falling back to ``traceparent`` /
+    ``tracestate`` for callers that don't send the Phoenix-specific pair.
+    """
+    normalized = {key.lower(): value for key, value in carrier.items()}
+    if phoenix_traceparent := normalized.get(PHOENIX_TRACEPARENT_HEADER):
+        phoenix_carrier = {"traceparent": phoenix_traceparent}
+        if phoenix_tracestate := normalized.get(PHOENIX_TRACESTATE_HEADER):
+            phoenix_carrier["tracestate"] = phoenix_tracestate
+        return propagate.extract(phoenix_carrier, context=otel_context.Context())
+    return propagate.extract(carrier, context=otel_context.Context())
 
 
 class _BufferedSpanExporter(SpanExporter):
@@ -209,7 +234,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         for trace_id in db_spans_by_trace_id:
             db_spans = db_spans_by_trace_id[trace_id]
             db_span_costs = db_span_costs_by_trace_id[trace_id]
-            for db_span, count in zip(db_spans, _get_cumulative_counts(db_spans)):
+            for db_span, count in zip(db_spans, get_cumulative_counts(db_spans)):
                 db_span.cumulative_error_count = count.errors
                 db_span.cumulative_llm_token_count_prompt = count.prompt_tokens
                 db_span.cumulative_llm_token_count_completion = count.completion_tokens
@@ -360,7 +385,7 @@ class CumulativeCount:
     completion_tokens: int
 
 
-def _get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]:
+def get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]:
     """
     Computes cumulative counts.
 
@@ -370,13 +395,17 @@ def _get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount
     root_span_ids: list[str] = []
     parent_to_children_ids: dict[str, list[str]] = {}
     counts_by_span_id: dict[str, CumulativeCount] = {}
+    span_ids = {span.span_id for span in spans}
     for span in spans:
-        if span.parent_id is None:
+        parent_id = span.parent_id
+        # Roots (no parent) and subtree roots (parent outside this batch) both
+        # seed the post-order traversal below.
+        if parent_id is None or parent_id not in span_ids:
             root_span_ids.append(span.span_id)
         else:
-            if span.parent_id not in parent_to_children_ids:
-                parent_to_children_ids[span.parent_id] = []
-            parent_to_children_ids[span.parent_id].append(span.span_id)
+            if parent_id not in parent_to_children_ids:
+                parent_to_children_ids[parent_id] = []
+            parent_to_children_ids[parent_id].append(span.span_id)
         is_llm_span = (span.span_kind or "").upper() == "LLM"
         counts_by_span_id[span.span_id] = CumulativeCount(
             errors=int(span.status_code == "ERROR"),

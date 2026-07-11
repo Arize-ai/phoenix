@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 
 const evaluatorTypeCardCSS = css`
   display: flex;
@@ -388,18 +389,11 @@ export const GlobalEvaluatorsEmptyState = ({
   // Filtered empty state - simple message
   if (hasActiveFilter) {
     return (
-      <View width="100%" paddingY="size-400">
-        <Flex
-          direction="column"
-          width="100%"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <Text size="S" fontStyle="italic" color="text-700">
-            No evaluators found that match the given filter.
-          </Text>
-        </Flex>
-      </View>
+      <CompactEmptyState
+        icon={<Icon svg={<Icons.Scale />} />}
+        description="No evaluators"
+        isFiltered
+      />
     );
   }
 

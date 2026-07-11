@@ -25,11 +25,13 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useSetExperimentBaseline } from "@phoenix/components/experiment/useSetExperimentBaseline";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 interface SelectedExperiment {
   id: string;
+  isBaseline: boolean;
 }
 
 type ExperimentSelectionToolbarProps = {
@@ -61,7 +63,30 @@ export function ExperimentSelectionToolbar(
   } = props;
   const isPlural = selectedExperiments.length !== 1;
   const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+  const { setExperimentBaseline, isSettingExperimentBaseline } =
+    useSetExperimentBaseline();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Setting a baseline only applies to a single selected experiment
+  const singleSelectedExperiment =
+    selectedExperiments.length === 1 ? selectedExperiments[0] : null;
+
+  const handleToggleBaseline = useCallback(() => {
+    if (!singleSelectedExperiment) {
+      return;
+    }
+    setExperimentBaseline({
+      experimentId: singleSelectedExperiment.id,
+      isBaseline: singleSelectedExperiment.isBaseline,
+      onError: (message) => {
+        notifyError({
+          title: "Failed to update baseline",
+          message,
+        });
+      },
+    });
+  }, [singleSelectedExperiment, setExperimentBaseline, notifyError]);
 
   const handleDelete = useCallback(() => {
     deleteExperiments({
@@ -133,6 +158,30 @@ export function ExperimentSelectionToolbar(
           >
             Compare
           </Button>
+          {singleSelectedExperiment ? (
+            <Button
+              size="M"
+              onPress={handleToggleBaseline}
+              isDisabled={isSettingExperimentBaseline}
+              leadingVisual={
+                <Icon
+                  svg={
+                    isSettingExperimentBaseline ? (
+                      <Icons.Loading />
+                    ) : singleSelectedExperiment.isBaseline ? (
+                      <Icons.BookmarkX />
+                    ) : (
+                      <Icons.BookmarkCheck />
+                    )
+                  }
+                />
+              }
+            >
+              {singleSelectedExperiment.isBaseline
+                ? "Remove baseline"
+                : "Mark as baseline"}
+            </Button>
+          ) : null}
           <Button
             variant="danger"
             size="M"

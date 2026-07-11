@@ -70,7 +70,7 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
   const totalSpans = data?.numSpans;
   const totalSpansViewing = spansList.length;
   return (
-    <Flex direction="column" flex="1 1 auto" height="100%">
+    <Flex direction="column" flex="1 1 auto" minHeight={0}>
       {hasNext ? (
         <Alert
           variant="warning"

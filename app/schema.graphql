@@ -213,6 +213,11 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationNameCount {
+  name: String!
+  count: Int!
+}
+
 type AnnotationScoreTimeSeries {
   data: [AnnotationScoreTimeSeriesDataPoint!]!
   names: [String!]!
@@ -241,6 +246,11 @@ type AnnotationSummary {
   meanScore: Float
   scoreCount: Int!
   labelCount: Int!
+}
+
+enum AnnotationTimeRangeField {
+  ANNOTATION_CREATED_AT
+  SOURCE_START_TIME
 }
 
 enum AnnotationType {
@@ -962,6 +972,9 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+
+  """The experiment tagged as this dataset's baseline, if one is set."""
+  baselineExperiment: Experiment
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
@@ -1356,6 +1369,26 @@ type DeleteModelMutationPayload {
   query: Query!
 }
 
+type DeleteProjectAnnotationsByNamePayload {
+  deletedAnnotationCount: Int!
+  query: Query!
+}
+
+input DeleteProjectAnnotationsInput {
+  projectId: ID!
+  annotationName: String!
+
+  """
+  If provided, only annotations whose timestamp falls within this range are deleted. The end of the range is right-exclusive.
+  """
+  timeRange: TimeRange
+
+  """
+  Which timestamp the time range is applied against. Defaults to the annotation's own creation time.
+  """
+  timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
+}
+
 input DeleteProjectTraceRetentionPolicyInput {
   id: ID!
 }
@@ -1667,6 +1700,7 @@ type Experiment implements Node {
   datasetVersion: DatasetVersion!
   dataset: Dataset!
   metadata: JSON!
+  isBaseline: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
 
@@ -2394,6 +2428,7 @@ type Mutation {
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
   reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
   patchExperiment(input: PatchExperimentInput!): PatchExperimentPayload!
+  setExperimentBaseline(experimentId: ID!, baseline: Boolean!): SetExperimentBaselinePayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
@@ -2402,6 +2437,21 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+
+  """
+  Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSpanAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every trace annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectTraceAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
   createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
@@ -2690,6 +2740,26 @@ type Project implements Node {
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
 
   """
+  Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Int!
+
+  """
+  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  averageSessionDurationMs(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+
+  """
+  Average number of traces (e.g. conversation turns) per session, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  averageTracesPerSession(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+
+  """
+  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
+
+  """
   Names of all available annotations for traces. (The list contains no duplicates.)
   """
   traceAnnotationsNames: [String!]!
@@ -2704,10 +2774,30 @@ type Project implements Node {
   """
   sessionAnnotationNames: [String!]!
 
+  """
+  Span annotation names along with the number of span annotations that have been added for each name in this project.
+  """
+  spanAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Trace annotation names along with the number of trace annotations that have been added for each name in this project.
+  """
+  traceAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Session annotation names along with the number of session annotations that have been added for each name in this project.
+  """
+  sessionAnnotationNameCounts: [AnnotationNameCount!]!
+
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
   spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
+
+  """
+  Summary (score and label fractions) of a session annotation across the project's sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
@@ -2950,6 +3040,7 @@ type Prompt implements Node {
   metadata: JSON!
   createdAt: DateTime!
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
+  versionCount: Int!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
@@ -3410,6 +3501,11 @@ type Query {
   node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
+
+  """
+  Search top-level resources (projects, datasets, experiments, and prompts) by name or description.
+  """
+  searchResources(query: String!, limitPerType: Int! = 5): [SearchResult!]!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(
     first: Int = 50
@@ -3618,6 +3714,11 @@ type SandboxProviderCredentialSpec {
   isRequired: Boolean!
 }
 
+"""
+An entity returned by global search. One of the searchable resource types: Project, Dataset, Experiment, or Prompt.
+"""
+union SearchResult = Project | Dataset | Experiment | Prompt
+
 type Secret implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -3701,6 +3802,12 @@ input SetDatasetLabelsInput {
 type SetDatasetLabelsMutationPayload {
   query: Query!
   dataset: Dataset!
+}
+
+type SetExperimentBaselinePayload {
+  dataset: Dataset!
+  experiment: Experiment!
+  previousBaselineExperiment: Experiment
 }
 
 input SetPromptLabelsInput {

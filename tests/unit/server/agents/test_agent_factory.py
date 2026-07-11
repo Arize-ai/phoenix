@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
+from unittest.mock import Mock
 
 import httpx
 import pytest
@@ -17,6 +18,7 @@ from anthropic.types.beta import (
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from jinja2 import Template
+from opentelemetry.trace import NoOpTracerProvider
 from pydantic_ai import RunContext, UserError
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
@@ -25,9 +27,10 @@ from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from typing_extensions import TypeIs, assert_never
 
-from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
+    build_anthropic_prompt_cache_capability,
 )
 from phoenix.server.agents.context import (
     AgentSpanContext,
@@ -42,13 +45,23 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
 )
 from phoenix.server.agents.prompts import AgentPrompts
+from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.types import (
     AgentDependencies,
     ModelProviderAvailability,
     SandboxAvailability,
 )
+from phoenix.server.types import DbSessionFactory
 
 _DEFAULT_PROMPTS = AgentPrompts()
+
+
+def build_agent(**kwargs: Any) -> Any:
+    """Build an agent for factory tests with inert DB-backed tool dependencies."""
+    kwargs.setdefault("db", Mock(spec=DbSessionFactory))
+    kwargs.setdefault("event_queue", Mock())
+    return _build_agent(**kwargs)
+
 
 STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
@@ -134,6 +147,54 @@ def anthropic_model(
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     provider = AnthropicProvider(api_key=anthropic_api_key, http_client=http_client)
     return AnthropicModel("claude-haiku-4-5", provider=provider)
+
+
+@pytest.fixture
+def wrapped_anthropic_model(
+    anthropic_model: AnthropicModel,
+) -> OpenInferenceModelWrapper:
+    """An ``AnthropicModel`` wrapped as production wraps it — ``build_model``
+    always returns an ``OpenInferenceModelWrapper``."""
+    return OpenInferenceModelWrapper(
+        anthropic_model,
+        tracer=NoOpTracerProvider().get_tracer("test"),
+    )
+
+
+class TestPromptCacheCapabilityMounting:
+    """The prompt-cache capability mounts through the production model wrapper."""
+
+    def test_builder_returns_capability_for_bare_anthropic_model(
+        self, anthropic_model: AnthropicModel
+    ) -> None:
+        assert build_anthropic_prompt_cache_capability(anthropic_model) is not None
+
+    def test_builder_returns_capability_through_wrapper(
+        self, wrapped_anthropic_model: OpenInferenceModelWrapper
+    ) -> None:
+        assert build_anthropic_prompt_cache_capability(wrapped_anthropic_model) is not None
+
+    def test_builder_returns_none_for_non_anthropic_model(self) -> None:
+        assert build_anthropic_prompt_cache_capability(TestModel()) is None
+
+    def test_builder_returns_none_for_wrapped_non_anthropic_model(self) -> None:
+        wrapped = OpenInferenceModelWrapper(
+            TestModel(), tracer=NoOpTracerProvider().get_tracer("test")
+        )
+        assert build_anthropic_prompt_cache_capability(wrapped) is None
+
+    async def test_wrapped_model_emits_cache_breakpoint_end_to_end(
+        self,
+        wrapped_anthropic_model: OpenInferenceModelWrapper,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=wrapped_anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
+        assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
 
 
 class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
@@ -1001,6 +1062,7 @@ class TestSkillsCapability:
         assert "<available_skills>" in cached_text
         assert "<name>debug-trace</name>" in cached_text
         assert "<name>annotate-spans</name>" in cached_text
+        assert "<name>span-coding</name>" in cached_text
         assert "<name>playground</name>" not in cached_text
         assert "<name>experiments</name>" not in cached_text
 
@@ -1017,6 +1079,7 @@ class TestSkillsCapability:
         tool_names = _get_tool_names(captured_request.body)
         assert "load_skill" in tool_names
         assert "read_skill_resource" in tool_names
+        assert "write_span_note" in tool_names
 
 
 class TestCodeEvaluatorFormToolGates:

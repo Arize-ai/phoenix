@@ -60,78 +60,67 @@ function SessionDetailsHeader({
       borderBottomWidth={"thin"}
       borderBottomColor="default"
     >
-      <Flex
-        direction="row"
-        gap="size-400"
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        <Flex direction="row" gap="size-400" alignItems="center">
-          {tokenUsage != null ? (
-            <Flex direction={"column"}>
-              <Text elementType={"h3"} color={"text-700"}>
-                Total Tokens
-              </Text>
-              <SessionTokenCount
-                tokenCountTotal={tokenUsage.total}
-                nodeId={sessionId}
-                size="L"
-              />
-            </Flex>
-          ) : null}
-          {costSummary != null ? (
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Total Cost
-              </Text>
-              <TooltipTrigger delay={0}>
-                <TriggerWrap>
-                  <Text size="L">
-                    {costFormatter(costSummary.total?.cost ?? 0)}
-                  </Text>
-                </TriggerWrap>
-                <RichTooltip placement="bottom">
-                  <View width="size-2400">
-                    <Flex direction="column">
-                      <Flex justifyContent="space-between">
-                        <Text>Prompt Cost</Text>
-                        <Text>
-                          {costFormatter(costSummary.prompt?.cost ?? 0)}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Completion Cost</Text>
-                        <Text>
-                          {costFormatter(costSummary.completion?.cost ?? 0)}
-                        </Text>
-                      </Flex>
-                      <Flex justifyContent="space-between">
-                        <Text>Total Cost</Text>
-                        <Text>
-                          {costFormatter(costSummary.total?.cost ?? 0)}
-                        </Text>
-                      </Flex>
+      <Flex direction="row" gap="size-400" alignItems="center">
+        {tokenUsage != null ? (
+          <Flex direction={"column"}>
+            <Text elementType={"h3"} color={"text-700"}>
+              Total Tokens
+            </Text>
+            <SessionTokenCount
+              tokenCountTotal={tokenUsage.total}
+              nodeId={sessionId}
+              size="L"
+            />
+          </Flex>
+        ) : null}
+        {costSummary != null ? (
+          <Flex direction="column" flex="none">
+            <Text elementType="h3" size="S" color="text-700">
+              Total Cost
+            </Text>
+            <TooltipTrigger delay={0}>
+              <TriggerWrap>
+                <Text size="L">
+                  {costFormatter(costSummary.total?.cost ?? 0)}
+                </Text>
+              </TriggerWrap>
+              <RichTooltip placement="bottom">
+                <View width="size-2400">
+                  <Flex direction="column">
+                    <Flex justifyContent="space-between">
+                      <Text>Prompt Cost</Text>
+                      <Text>
+                        {costFormatter(costSummary.prompt?.cost ?? 0)}
+                      </Text>
                     </Flex>
-                  </View>
-                </RichTooltip>
-              </TooltipTrigger>
-            </Flex>
-          ) : null}
-          {latencyP50 != null ? (
-            <Flex direction={"column"}>
-              <Text elementType={"h3"} color={"text-700"}>
-                Latency P50
-              </Text>
-              <LatencyText latencyMs={latencyP50} size="L" />
-            </Flex>
-          ) : null}
-        </Flex>
-        <Flex direction="row" justifyContent="end">
-          <SessionAnnotationSummaryGroupStacks
-            session={session}
-            renderEmptyState={() => null}
-          />
-        </Flex>
+                    <Flex justifyContent="space-between">
+                      <Text>Completion Cost</Text>
+                      <Text>
+                        {costFormatter(costSummary.completion?.cost ?? 0)}
+                      </Text>
+                    </Flex>
+                    <Flex justifyContent="space-between">
+                      <Text>Total Cost</Text>
+                      <Text>{costFormatter(costSummary.total?.cost ?? 0)}</Text>
+                    </Flex>
+                  </Flex>
+                </View>
+              </RichTooltip>
+            </TooltipTrigger>
+          </Flex>
+        ) : null}
+        {latencyP50 != null ? (
+          <Flex direction={"column"}>
+            <Text elementType={"h3"} color={"text-700"}>
+              Latency P50
+            </Text>
+            <LatencyText latencyMs={latencyP50} size="L" />
+          </Flex>
+        ) : null}
+        <SessionAnnotationSummaryGroupStacks
+          session={session}
+          renderEmptyState={() => null}
+        />
       </Flex>
     </View>
   );

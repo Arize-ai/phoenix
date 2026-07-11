@@ -11,7 +11,6 @@ import {
   Icon,
   Icons,
   Popover,
-  SelectChevronUpDownIcon,
   View,
 } from "@phoenix/components";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -51,7 +50,7 @@ type SpanColumnSelectorProps = {
 export function SpanColumnSelector(props: SpanColumnSelectorProps) {
   return (
     <DialogTrigger>
-      <Button trailingVisual={<SelectChevronUpDownIcon />}>
+      <Button>
         <Flex direction="row" alignItems="center" gap="size-100">
           <Icon svg={<Icons.Column />} />
           Columns

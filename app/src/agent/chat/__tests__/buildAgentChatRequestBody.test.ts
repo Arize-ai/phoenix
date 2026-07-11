@@ -29,6 +29,7 @@ describe("buildAgentChatRequestBody", () => {
       observability: {
         storeLocalTraces: true,
         exportRemoteTraces: false,
+        attachUserId: false,
         acknowledgedTraceConsent: null,
       },
       agentsConfig,
@@ -44,6 +45,7 @@ describe("buildAgentChatRequestBody", () => {
     expect(body).toMatchObject({
       existing: true,
       trigger: "submit-message",
+      attachUserId: false,
       editPermission: "manual",
       model: {
         providerType: "builtin",
@@ -74,6 +76,7 @@ describe("buildAgentChatRequestBody", () => {
       observability: {
         storeLocalTraces: false,
         exportRemoteTraces: false,
+        attachUserId: false,
         acknowledgedTraceConsent: null,
       },
       agentsConfig,
@@ -103,6 +106,7 @@ describe("buildAgentChatRequestBody", () => {
       observability: {
         storeLocalTraces: false,
         exportRemoteTraces: false,
+        attachUserId: false,
         acknowledgedTraceConsent: null,
       },
       agentsConfig,
@@ -140,6 +144,7 @@ describe("buildAgentChatRequestBody", () => {
       observability: {
         storeLocalTraces: true,
         exportRemoteTraces: true,
+        attachUserId: false,
         acknowledgedTraceConsent: {
           allowLocalTraces: true,
           allowRemoteExport: true,
@@ -162,5 +167,36 @@ describe("buildAgentChatRequestBody", () => {
 
     expect(body.ingestTraces).toBe(false);
     expect(body.exportRemoteTraces).toBe(true);
+  });
+
+  it("propagates attachUserId opt-in to the request body", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [] as AgentUIMessage[],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: true,
+        exportRemoteTraces: false,
+        attachUserId: true,
+        acknowledgedTraceConsent: {
+          allowLocalTraces: true,
+          allowRemoteExport: false,
+        },
+      },
+      agentsConfig: { ...agentsConfig, allowLocalTraces: true },
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.attachUserId).toBe(true);
+    expect(body.ingestTraces).toBe(true);
   });
 });

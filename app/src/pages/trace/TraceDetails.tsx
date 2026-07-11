@@ -357,7 +357,9 @@ function ScrollingPanelContent({ children }: PropsWithChildren) {
       data-testid="scrolling-panel-content"
       css={css`
         height: 100%;
-        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       `}
     >
       {children}

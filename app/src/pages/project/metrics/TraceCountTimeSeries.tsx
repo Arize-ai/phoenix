@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -11,58 +10,32 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipItem,
   InteractiveLegend,
   TimeRangeChartBrush,
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
+  defaultTooltipProps,
+  compactLegendProps,
   useBinTimeTickFormatter,
   useInteractiveLegend,
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
-import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { CountTimeSeriesTooltipContent } from "@phoenix/pages/project/metrics/CountTimeSeriesTooltipContent";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import {
+  PROJECT_METRICS_CHART_SYNC_ID,
+  useMetricQueryFetchOptions,
+} from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
-
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (active && payload && payload.length) {
-    return (
-      <ChartTooltip>
-        {label && (
-          <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(Number(label))
-          )}`}</Text>
-        )}
-        {payload.map((entry) => {
-          const name = String(entry.dataKey ?? entry.name ?? "unknown");
-          return (
-            <ChartTooltipItem
-              color={entry.color ?? "transparent"}
-              key={name}
-              shape="circle"
-              name={name}
-              value={intFormatter(Number(entry.value))}
-            />
-          );
-        })}
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
 
 export function TraceCountTimeSeries({
   projectId,
@@ -106,7 +79,8 @@ export function TraceCountTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    useMetricQueryFetchOptions()
   );
 
   const chartData = useMemo(
@@ -133,39 +107,31 @@ export function TraceCountTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={55}
+                {...compactYAxisProps}
+                allowDecimals={false}
                 tickFormatter={(x) => intFormatter(x)}
-                label={{
-                  value: "Count",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
               />
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <Tooltip
-                content={TooltipContent}
+                content={CountTimeSeriesTooltipContent}
                 // TODO formalize this
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               <Bar
                 dataKey="error"
@@ -184,7 +150,7 @@ export function TraceCountTimeSeries({
               <InteractiveLegend
                 iconType="circle"
                 iconSize={8}
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 onToggleDataKey={toggleDataKey}
               />

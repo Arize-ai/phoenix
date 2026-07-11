@@ -277,6 +277,13 @@
                     ]
                   }
                 ]
+              },
+              {
+                "group": "Integrations",
+                "pages": [
+                  "docs/phoenix/evaluation/integrations/pytest",
+                  "docs/phoenix/evaluation/integrations/vitest-jest"
+                ]
               }
             ]
           },
@@ -312,7 +319,8 @@
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits"
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest"
                 ]
               }
             ]
@@ -554,6 +562,13 @@
                 ]
               },
               {
+                "group": "OrcaRouter",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/orcarouter",
+                  "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing"
+                ]
+              },
+              {
                 "group": "VertexAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",
@@ -607,7 +622,8 @@
                 "group": "Vercel",
                 "pages": [
                   "docs/phoenix/integrations/typescript/vercel",
-                  "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js"
+                  "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js",
+                  "docs/phoenix/integrations/typescript/vercel/eve-tracing"
                 ]
               }
             ]
@@ -879,7 +895,16 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
+                  {
+                    "group": "CI eval tests",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations"
+                    ]
+                  }
                 ]
               },
               {
@@ -889,6 +914,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification-metrics",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration"
@@ -924,7 +950,11 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations-assigned-to-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/assign-an-annotation-configuration-to-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/unassign-an-annotation-configuration-from-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/replace-the-set-of-annotation-configurations-assigned-to-a-project"
                     ]
                   },
                   {
@@ -1171,6 +1201,7 @@
             "group": "Tracing",
             "icon": "telescope",
             "pages": [
+              "docs/phoenix/cookbook/tracing/identify-high-signal-traces",
               "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
               "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
               "docs/phoenix/cookbook/tracing/structured-data-extraction",
@@ -1248,8 +1279,17 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "07.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
+                ]
+              },
+              {
                 "group": "06.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary",
+                  "docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest",
+                  "docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools",
                   "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
                   "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
                   "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",

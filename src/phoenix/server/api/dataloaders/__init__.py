@@ -38,6 +38,7 @@ from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
+from .experiment_baseline_tags import ExperimentBaselineTagsDataLoader
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_expected_run_counts import ExperimentExpectedRunCountsDataLoader
@@ -64,7 +65,10 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_label_usage_counts import PromptLabelUsageCountsDataLoader
+from .prompt_labels_by_prompt import PromptLabelsByPromptDataLoader
+from .prompt_version_counts import PromptVersionCountDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
+from .prompt_version_tags_by_prompt import PromptVersionTagsByPromptDataLoader
 from .prompt_versions import PromptVersionDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .sandbox_configs_by_provider import SandboxConfigsByProviderDataLoader
@@ -179,6 +183,7 @@ class DataLoaders:
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
+    experiment_baseline_tags: ExperimentBaselineTagsDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_job_fields: TableFieldsDataLoader
@@ -212,9 +217,12 @@ class DataLoaders:
     prompt_fields: TableFieldsDataLoader
     prompt_label_fields: TableFieldsDataLoader
     prompt_label_usage_counts: PromptLabelUsageCountsDataLoader
+    prompt_labels_by_prompt: PromptLabelsByPromptDataLoader
     prompt_versions: PromptVersionDataLoader
+    prompt_version_counts: PromptVersionCountDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     prompt_version_tag_fields: TableFieldsDataLoader
+    prompt_version_tags_by_prompt: PromptVersionTagsByPromptDataLoader
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader
     latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
@@ -324,6 +332,7 @@ def build_data_loaders(
             cache_map=(cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None),
         ),
         experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
+        experiment_baseline_tags=ExperimentBaselineTagsDataLoader(db),
         experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
         experiment_error_rates=ExperimentErrorRatesDataLoader(db),
         experiment_job_fields=TableFieldsDataLoader(db, models.ExperimentJob),
@@ -368,9 +377,12 @@ def build_data_loaders(
         prompt_fields=TableFieldsDataLoader(db, models.Prompt),
         prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
         prompt_label_usage_counts=PromptLabelUsageCountsDataLoader(db),
+        prompt_labels_by_prompt=PromptLabelsByPromptDataLoader(db),
         prompt_versions=PromptVersionDataLoader(db),
+        prompt_version_counts=PromptVersionCountDataLoader(db),
         prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
         prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
+        prompt_version_tags_by_prompt=PromptVersionTagsByPromptDataLoader(db),
         latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
         latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
         project_session_annotation_fields=TableFieldsDataLoader(

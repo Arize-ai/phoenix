@@ -28,8 +28,9 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { useSetExperimentBaseline } from "@phoenix/components/experiment/useSetExperimentBaseline";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotify, useNotifySuccess } from "@phoenix/contexts";
+import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -40,6 +41,7 @@ export enum ExperimentAction {
   VIEW_EXPERIMENT_DETAILS = "VIEW_EXPERIMENT_DETAILS",
   COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
   OPEN_IN_PLAYGROUND = "OPEN_IN_PLAYGROUND",
+  TOGGLE_BASELINE = "TOGGLE_BASELINE",
   STOP_EXPERIMENT = "STOP_EXPERIMENT",
   RESUME_EXPERIMENT = "RESUME_EXPERIMENT",
   DELETE_EXPERIMENT = "DELETE_EXPERIMENT",
@@ -47,25 +49,34 @@ export enum ExperimentAction {
 
 type ExperimentJobStatus = "RUNNING" | "COMPLETED" | "STOPPED" | "ERROR";
 
-type ExperimentActionMenuProps =
+type ExperimentActionMenuBaseProps = {
+  projectId?: string | null;
+  experimentId: string;
+  metadata: unknown;
+  jobStatus?: ExperimentJobStatus | null;
+  size?: ButtonProps["size"];
+} & (
   | {
-      projectId?: string | null;
-      experimentId: string;
-      metadata: unknown;
-      jobStatus?: ExperimentJobStatus | null;
-      canDeleteExperiment: true;
-      size?: ButtonProps["size"];
-      onExperimentDeleted: () => void;
+      canSetBaseline: true;
+      isBaseline: boolean;
     }
   | {
-      projectId?: string | null;
-      experimentId: string;
-      metadata: unknown;
-      jobStatus?: ExperimentJobStatus | null;
-      canDeleteExperiment: false;
-      size?: ButtonProps["size"];
-      onExperimentDeleted?: undefined;
-    };
+      canSetBaseline?: false;
+      isBaseline?: undefined;
+    }
+);
+
+type ExperimentActionMenuProps = ExperimentActionMenuBaseProps &
+  (
+    | {
+        canDeleteExperiment: true;
+        onExperimentDeleted: () => void;
+      }
+    | {
+        canDeleteExperiment: false;
+        onExperimentDeleted?: undefined;
+      }
+  );
 
 export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [commitDeleteExperiment, isDeletingExperiment] = useMutation(graphql`
@@ -107,7 +118,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
   const notify = useNotify();
+  const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
+  const { setExperimentBaseline, isSettingExperimentBaseline } =
+    useSetExperimentBaseline();
   const [error, setError] = useState<string | null>(null);
   const onExperimentDeleted = props.onExperimentDeleted;
 
@@ -196,6 +210,34 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         >
           <Icon svg={<Icons.PlayCircle />} />
           <Text>Open in Playground</Text>
+        </Flex>
+      </MenuItem>
+    );
+  }
+  if (props.canSetBaseline) {
+    menuItems.push(
+      <MenuItem
+        key={ExperimentAction.TOGGLE_BASELINE}
+        id={ExperimentAction.TOGGLE_BASELINE}
+      >
+        <Flex
+          direction="row"
+          gap="size-75"
+          justifyContent="start"
+          alignItems="center"
+        >
+          <Icon
+            svg={
+              props.isBaseline ? <Icons.BookmarkX /> : <Icons.BookmarkCheck />
+            }
+          />
+          <Text>
+            {isSettingExperimentBaseline
+              ? "Updating baseline..."
+              : props.isBaseline
+                ? "Remove baseline"
+                : "Mark as baseline"}
+          </Text>
         </Flex>
       </MenuItem>
     );
@@ -294,6 +336,22 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   navigate(
                     `/playground?experimentId=${encodeURIComponent(props.experimentId)}`
                   );
+                  break;
+                }
+                case ExperimentAction.TOGGLE_BASELINE: {
+                  if (!props.canSetBaseline) {
+                    break;
+                  }
+                  setExperimentBaseline({
+                    experimentId: props.experimentId,
+                    isBaseline: props.isBaseline,
+                    onError: (message) => {
+                      notifyError({
+                        title: "Failed to update baseline",
+                        message,
+                      });
+                    },
+                  });
                   break;
                 }
                 case ExperimentAction.STOP_EXPERIMENT: {

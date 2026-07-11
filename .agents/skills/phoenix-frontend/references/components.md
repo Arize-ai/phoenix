@@ -55,6 +55,10 @@ Name callback props after the **event** (`onProjectCreated`, `onDismiss`), not t
 
 Prefer declarative React and React Aria patterns over imperative `useEffect`. Reach for `useEffect` only when there is no declarative alternative.
 
+For debounced search/filter inputs, compose the shared `DebouncedSearch` field instead of hand-rolling `useEffect` + `setTimeout`.
+
+For expensive context-driven updates (tree filtering, list filtering, global expand/collapse), keep transition policy with the state owner: expose context actions whose provider wraps the underlying state update in `startTransition`, and let consumers call those actions directly.
+
 ## Overlays: Drawer vs. Modal
 
 Phoenix has two overlay components with different purposes. Choosing the wrong one breaks the interaction model.

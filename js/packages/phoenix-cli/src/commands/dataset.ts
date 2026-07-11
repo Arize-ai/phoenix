@@ -11,6 +11,7 @@ import {
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { collectString } from "../optionParsers";
 import {
   type DatasetExamplesData,
   formatDatasetExamplesOutput,
@@ -347,13 +348,6 @@ async function datasetDeleteHandler(
 }
 
 /**
- * Collect multiple --split options into an array
- */
-function collectSplits(value: string, previous: string[]): string[] {
-  return previous.concat([value]);
-}
-
-/**
  * Create the `dataset get` command
  */
 export function createDatasetGetCommand(): Command {
@@ -372,7 +366,7 @@ export function createDatasetGetCommand(): Command {
     .option(
       "--split <name>",
       "Filter by split name (can be used multiple times)",
-      collectSplits,
+      collectString,
       []
     )
     .option("--version <id>", "Fetch from a specific dataset version")

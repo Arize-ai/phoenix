@@ -48,11 +48,11 @@ export const Default = {
 
 export const Gallery = () => (
   <Flex direction="column" gap="size-50" width="600px">
-    <TextField>
+    <TextField defaultValue="Example text">
       <Label>Label</Label>
       <Input type="text" />
     </TextField>
-    <TextField>
+    <TextField defaultValue="Example text">
       <Label>Label</Label>
       <Input type="text" />
       <Text slot="description">Field description</Text>
@@ -63,13 +63,13 @@ export const Gallery = () => (
       <FieldDangerIcon />
       <FieldError>Field error</FieldError>
     </TextField>
-    <TextField>
+    <TextField defaultValue="Example text">
       <Label>Label</Label>
       <Input type="text" />
       <FieldSuccessIcon />
       <Text slot="description">Field success</Text>
     </TextField>
-    <TextField isReadOnly>
+    <TextField isReadOnly defaultValue="Example text">
       <Label>Label</Label>
       <Input type="text" />
       <Text slot="description">This is read only</Text>

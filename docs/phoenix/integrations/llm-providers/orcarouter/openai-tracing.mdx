@@ -1,0 +1,77 @@
+---
+title: "OrcaRouter Tracing"
+description: "Phoenix provides auto-instrumentation for OrcaRouter through the OpenAI Python Library since OrcaRouter provides a fully OpenAI-compatible API endpoint."
+---
+
+## Install
+
+```bash
+pip install openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your OrcaRouter API key as an environment variable:
+
+```bash
+export ORCAROUTER_API_KEY='your_orcarouter_api_key'
+```
+
+Use the register function to connect your application to Phoenix:
+
+```python
+from phoenix.otel import register
+
+# configure the Phoenix tracer
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  auto_instrument=True # Auto-instrument your app based on installed dependencies
+)
+```
+
+## Run OrcaRouter
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.orcarouter.ai/v1",
+    api_key=os.environ["ORCAROUTER_API_KEY"]
+)
+
+response = client.chat.completions.create(
+    model="orcarouter/auto",
+    messages=[{"role": "user", "content": "Write a haiku about observability."}],
+)
+print(response.choices[0].message.content)
+```
+
+`orcarouter/auto` selects an upstream provider per request. You can also target a specific provider model using `<provider>/<model>` format (e.g. `openai/gpt-4.1-mini`, `anthropic/claude-haiku-4-5`). To test without a funded account, use a free model such as `deepseek/deepseek-v4-flash-free`.
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at OrcaRouter will be streamed to your running Phoenix for observability and evaluation.
+
+## What Gets Traced
+
+All OrcaRouter model calls are automatically traced and include:
+
+* Request/response data and timing
+* Model name — the resolved upstream model name (e.g. `deepseek-v4-flash-202505`), not the virtual `orcarouter/auto` identifier
+* Token usage and cost data
+* Error handling and debugging information
+
+## Common Issues
+
+* **API Key**: Use your OrcaRouter API key (`sk-orca-...`), not an OpenAI key
+* **Model Names**: Use `orcarouter/auto` for adaptive routing, or `<provider>/<model>` for a specific upstream. See [OrcaRouter's documentation](https://docs.orcarouter.ai/introduction) for available models
+* **Insufficient balance**: `orcarouter/auto` routes to paid upstream models and requires a funded OrcaRouter wallet. Use `deepseek/deepseek-v4-flash-free` to test without balance
+* **Base URL**: Ensure you're using `https://api.orcarouter.ai/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="OrcaRouter Documentation" href="https://docs.orcarouter.ai/introduction" icon="book" horizontal description="OrcaRouter setup docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

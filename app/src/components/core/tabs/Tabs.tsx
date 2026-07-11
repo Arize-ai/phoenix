@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
+import { useEvent, useResizeObserver } from "@react-aria/utils";
 import type { ComponentProps } from "react";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Tab as AriaTab,
   TabList as AriaTabList,
@@ -14,6 +15,47 @@ import {
 
 import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
+
+/**
+ * Tracks whether a horizontally scrollable tab list has tabs hidden beyond
+ * its start and/or end edges. Used to render a directional fade affordance on
+ * the tab bar, since the scrollbar is hidden and macOS does not show one until
+ * the user actively scrolls.
+ *
+ * Returns a ref to attach to the scroll container plus booleans for whether
+ * content overflows past the start (left) and end (right) edges.
+ */
+function useHorizontalOverflow() {
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const [hasOverflowAtStart, setHasOverflowAtStart] = useState(false);
+  const [hasOverflowAtEnd, setHasOverflowAtEnd] = useState(false);
+
+  const update = () => {
+    const el = elementRef.current;
+    // The fade affordance only applies to horizontal tab lists; skip
+    // measuring vertical ones so they never report horizontal overflow.
+    if (!el || el.getAttribute("data-orientation") !== "horizontal") {
+      return;
+    }
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    // Account for sub-pixel rounding so the fade doesn't linger at the ends.
+    const maxScroll = scrollWidth - clientWidth;
+    setHasOverflowAtStart(scrollLeft > 1);
+    setHasOverflowAtEnd(scrollLeft < maxScroll - 1);
+  };
+
+  useEvent(elementRef, "scroll", update);
+  useResizeObserver({ ref: elementRef, onResize: update });
+  // The resize observer only sees the container's own box, so content-width
+  // changes that don't resize it (tabs added or removed, count badges
+  // updating) would go unnoticed. Those changes all flow through a React
+  // render, so re-measure after every commit.
+  useEffect(() => {
+    update();
+  });
+
+  return { ref: elementRef, hasOverflowAtStart, hasOverflowAtEnd };
+}
 
 const tabsCSS = css`
   display: flex;
@@ -72,10 +114,57 @@ const tabListCSS = css`
   }
 
   &[data-orientation="horizontal"] {
-    border-bottom: 1px solid var(--tab-border-color);
+    // Draw the bottom border as an inset shadow so it stays pinned to the
+    // visible width while tabs scroll beneath it. When the edge fade below is
+    // active the line fades along with the rest of that edge — the whole edge
+    // dissolves together.
+    box-shadow: inset 0 -1px 0 0 var(--tab-border-color);
+    // When there are more tabs than horizontal space, scroll rather than
+    // wrapping tab labels or clipping tabs off the edge.
+    overflow-x: auto;
+    // react-aria scrolls the focused tab just into view on keyboard
+    // navigation and honors scroll-padding, so inset the scroll port to keep
+    // the focused tab from parking underneath the edge fade.
+    scroll-padding-inline: var(--tab-fade-size);
+    // Hide the scrollbar; the overflow is still scrollable via trackpad,
+    // shift-scroll, or keyboard navigation between tabs. A directional fade
+    // (below) signals that more tabs are available since macOS hides the
+    // scrollbar until the user scrolls.
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    // Fade the edge(s) that have tabs hidden beyond them. The fade is
+    // transparent-to-opaque so tabs appear to dissolve off the edge, hinting
+    // that the list can be scrolled. Each side's fade width collapses to 0
+    // when that side has no hidden tabs, and the mask is dropped entirely
+    // when everything fits.
+    --tab-fade-size: var(--global-dimension-static-size-400);
+    --tab-fade-start: 0px;
+    --tab-fade-end: 0px;
+    &[data-overflow-start="true"] {
+      --tab-fade-start: var(--tab-fade-size);
+    }
+    &[data-overflow-end="true"] {
+      --tab-fade-end: var(--tab-fade-size);
+    }
+    &:is([data-overflow-start="true"], [data-overflow-end="true"]) {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        black var(--tab-fade-start),
+        black calc(100% - var(--tab-fade-end)),
+        transparent
+      );
+    }
 
     .react-aria-Tab {
       border-bottom: 3px solid var(--tab-border-color);
+      // Prevent tabs from shrinking or wrapping their labels when the list
+      // runs out of room.
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
   }
 `;
@@ -86,10 +175,14 @@ export function TabList<T extends object>({
   className,
   ...props
 }: AriaTabListProps<T> & StylableProps) {
+  const { ref, hasOverflowAtStart, hasOverflowAtEnd } = useHorizontalOverflow();
   return (
     <AriaTabList
+      ref={ref}
       css={css(tabListCSS, _css)}
       className={classNames("react-aria-TabList", className)}
+      data-overflow-start={hasOverflowAtStart}
+      data-overflow-end={hasOverflowAtEnd}
       {...props}
     >
       {children}

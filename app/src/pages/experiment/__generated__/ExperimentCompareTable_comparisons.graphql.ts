@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<634f4d6768003a793c1077fb8f3d8f7e>>
+ * @generated SignedSource<<41cbc9ac6235b5f1f748e1ad0879ccbb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -105,6 +105,8 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly id: string;
           };
           readonly id: string;
+          readonly isBaseline: boolean;
+          readonly isEphemeral: boolean;
           readonly metadata: any;
           readonly name: string;
           readonly project: {
@@ -657,6 +659,20 @@ return {
                           "name": "sequenceNumber",
                           "storageKey": null
                         },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isBaseline",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isEphemeral",
+                          "storageKey": null
+                        },
                         (v9/*: any*/),
                         {
                           "alias": null,
@@ -857,6 +873,6 @@ return {
 };
 })();
 
-(node as any).hash = "e39cde7e29d3e6099f6e5bbea3a0d875";
+(node as any).hash = "33ea7d0490310d4c56e46aaad74e779c";
 
 export default node;

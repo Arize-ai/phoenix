@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-mcp",
-  "version": "4.0.15",
+  "version": "4.1.1",
   "description": "A MCP server for Arize Phoenix",
   "keywords": [
     "arize-phoenix",
@@ -42,7 +42,7 @@
     "@types/glob": "^9.0.0",
     "@types/minimist": "^1.2.5",
     "@types/node": "^25.9.4",
-    "tsx": "^4.22.4",
+    "tsx": "^4.22.5",
     "vitest": "^4.1.9"
   }
 }

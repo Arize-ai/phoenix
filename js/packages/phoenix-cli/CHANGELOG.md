@@ -1,5 +1,70 @@
 # @arizeai/phoenix-cli
 
+## 1.8.1
+
+### Patch Changes
+
+- c0ab6a9: Add `.env.phoenix` file discovery as a fallback source for Phoenix configuration. When a setting is not present in the process environment, `@arizeai/phoenix-config` walks up from the current working directory to the nearest `.env.phoenix` file and reads `PHOENIX_`-prefixed keys from it (dotenv format). Process environment values take precedence, and related settings (credentials, OTel endpoint/port) are resolved as a group from a single source. Files not owned by the current user are ignored, with one-time warnings for skipped files, for files accessible to other users, and for endpoints paired with credentials from a different source. Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery; call `clearEnvFileCache()` to refresh cached results. Browser builds use a Node-free implementation selected through a conditional package export. `@arizeai/phoenix-cli` ranks discovered values below configured profiles; `@arizeai/phoenix-mcp` and `@arizeai/phoenix-otel` read `.env.phoenix` values through the shared resolution.
+- Updated dependencies [c0ab6a9]
+  - @arizeai/phoenix-config@0.3.0
+  - @arizeai/phoenix-client@6.12.2
+
+## 1.8.0
+
+### Minor Changes
+
+- 1e7d9fc: Unify the project-name environment variable across the TypeScript packages: every surface now reads both `PHOENIX_PROJECT` (canonical) and `PHOENIX_PROJECT_NAME` (supported alias), with `PHOENIX_PROJECT` taking precedence and explicit args/flags still winning over both. When both are set to conflicting values, the canonical value is used and a one-time warning naming both values is emitted. `@arizeai/phoenix-config` is the single home for this resolution: it exposes the shared `getProjectFromEnvironment()` resolver and includes the resolved project in `getEnvironmentConfig()`. `@arizeai/phoenix-cli`, `@arizeai/phoenix-mcp`, and `@arizeai/phoenix-otel` all consume it — `@arizeai/phoenix-otel` now depends on `@arizeai/phoenix-config` and its `register()` falls back to these variables (via the shared resolver) when no `projectName` is passed, rather than duplicating the logic.
+
+### Patch Changes
+
+- Updated dependencies [1e7d9fc]
+  - @arizeai/phoenix-config@0.2.0
+  - @arizeai/phoenix-client@6.12.1
+
+## 1.7.0
+
+### Minor Changes
+
+- d4282c5: Improve PXI tool call rendering in the terminal: each tool call now shows a state glyph (spinner while running, then ✓/✗/?/⊘), a per-tool icon, and a one-line summary of what the tool is doing, derived from its input. Bash calls display the model-written summary, an excerpt of the executing command, and on failure the exit code plus a stderr excerpt; `load_skill` and `read_skill_resource` collapse to quiet one-liners once complete.
+
+## 1.6.2
+
+### Patch Changes
+
+- Updated dependencies [7947440]
+  - @arizeai/phoenix-client@6.12.0
+
+## 1.6.1
+
+### Patch Changes
+
+- 6240c13: fix(cli): improve pxi preflight network errors
+- f3809ed: **PXI:** Add slash command support to the `pxi` terminal client. Type `/clear` to reset the conversation history, `/exit` to quit, or `/help` to list available commands. The input prompt now syntax-highlights command tokens in yellow and shows a live completion list while you type.
+- Updated dependencies [7afa183]
+  - @arizeai/phoenix-client@6.11.2
+
+## 1.6.0
+
+### Minor Changes
+
+- 70246e9: **Beta:** Add the `pxi` terminal client to `@arizeai/phoenix-cli`. Launch an interactive PXI (Phoenix Intelligence) chat from your shell with `npx -y @arizeai/phoenix-cli pxi` (or the `pxi` binary). It connects to a running Phoenix instance's server-agent endpoint — the same agent that powers the in-browser experience — and runs a model preflight on launch so configuration problems surface as a clean error. Configure the endpoint via `PHOENIX_HOST`/`--endpoint` and select a model with `--provider`/`--model` (defaults to Anthropic `claude-opus-4-8`).
+
+  This feature is in beta and may change in a future release.
+
+## 1.5.3
+
+### Patch Changes
+
+- Updated dependencies [a027ada]
+  - @arizeai/phoenix-client@6.11.1
+
+## 1.5.2
+
+### Patch Changes
+
+- Updated dependencies [7efabf6]
+  - @arizeai/phoenix-client@6.11.0
+
 ## 1.5.1
 
 ### Patch Changes

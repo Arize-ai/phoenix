@@ -175,6 +175,48 @@ def process_query(query: str):
         return result
 ```
 
+## Logging pre-built spans via the client (no OpenTelemetry)
+
+When you already have span data — reconstructing a trace from logs, or copying spans
+between projects — POST them directly with `Client.spans.log_spans` instead of running
+the OTel SDK. Spans use Phoenix's simplified structure (the same shape `get_spans`
+returns), so spans read from one project can be logged straight into another.
+
+```python
+from phoenix.client import Client
+from phoenix.client.exceptions import SpanCreationError
+
+client = Client()
+
+spans = [
+    {
+        "name": "answer_question",
+        "span_kind": "AGENT",
+        "context": {"trace_id": "abc123", "span_id": "root01"},
+        "start_time": "2024-01-01T00:00:00Z",
+        "end_time": "2024-01-01T00:00:01Z",
+        "status_code": "OK",
+        "attributes": {"input.value": "What is Phoenix?"},
+    },
+]
+
+try:
+    result = client.spans.log_spans(project_identifier="my-app", spans=spans)
+    print(f"Queued {result['total_queued']} of {result['total_received']} spans")
+except SpanCreationError as e:
+    # All-or-nothing: if any span is invalid or a duplicate, NONE are queued.
+    print(e.invalid_spans, e.duplicate_spans)
+```
+
+Signature: `log_spans(*, project_identifier: str, spans: Sequence[v1.Span], timeout:
+Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS)`, returning a `CreateSpansResponseBody`
+dict with `total_received` / `total_queued` (equal on success). On any invalid or
+duplicate span, no spans are queued and `SpanCreationError` is raised carrying
+`invalid_spans`, `duplicate_spans`, `total_invalid`, and `total_duplicates`. Use
+`client.spans.log_spans_dataframe(project_identifier=..., spans_dataframe=df)` to log
+from a pandas DataFrame. The TypeScript client exposes the same feature as `logSpans`
+(see `instrumentation-manual-typescript.md`).
+
 ## See Also
 
 - **Span attributes:** `span-chain.md`, `span-retriever.md`, `span-tool.md`, `span-llm.md`, `span-agent.md`, `span-embedding.md`, `span-reranker.md`, `span-guardrail.md`, `span-evaluator.md`

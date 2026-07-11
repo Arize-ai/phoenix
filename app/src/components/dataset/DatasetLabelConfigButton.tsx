@@ -21,7 +21,6 @@ import {
   LinkButton,
   Loading,
   Menu,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
@@ -32,6 +31,7 @@ import {
   type Selection,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { UseDatasetLabelMutationsParams } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { useDatasetLabelMutations } from "@phoenix/components/dataset/useDatasetLabelMutations";
@@ -235,7 +235,12 @@ function DatasetLabelList({
               selectionMode="multiple"
               selectedKeys={selected}
               onSelectionChange={onSelectionChange}
-              renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+              renderEmptyState={() => (
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.PriceTags />} />}
+                  description="No labels"
+                />
+              )}
             >
               {({ id, name, color }) => (
                 <MenuItem

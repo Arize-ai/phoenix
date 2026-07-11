@@ -30,7 +30,7 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 - **Simple Setup** - One-line configuration with sensible defaults
 - **Environment Variables** - Automatic configuration from environment variables
 - **Batch Processing** - Built-in batch span processing for production use
-- **OpenInference Helpers Included** - Re-exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, context setters, attribute builders, `OITracer`, and utility helpers
+- **OpenInference Helpers Included** - Re-exports `withSpan`, the span-kind wrappers (`traceChain`, `traceAgent`, `traceTool`, `traceLLM`, `traceRetriever`, `traceReranker`, `traceEmbedding`, `traceGuardrail`, `traceEvaluator`, `tracePrompt`), `observe`, context setters, attribute builders, `OITracer`, and utility helpers
 - **Provider-Swap Safe Wrappers** - The re-exported OpenInference helpers resolve the default tracer when the wrapped function executes, so module-scoped wrappers continue following global provider changes
 - **Agent-Friendly Local Docs** - Ships curated docs and source in `node_modules/@arizeai/phoenix-otel/`
 
@@ -92,6 +92,19 @@ export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
 export PHOENIX_API_KEY="your-api-key"
 ```
+
+When a setting is not provided by argument or environment variable, `register`
+also looks for a `.env.phoenix` file in the current working directory — walking
+up toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format). Environment variables always
+take precedence over the file; set `PHOENIX_DISCOVER_CONFIG=false` to disable
+discovery entirely.
+
+`PHOENIX_API_KEY` and `PHOENIX_CLIENT_HEADERS` are resolved as one credential
+group. Explicit `Authorization` headers are preserved case-insensitively. If an
+explicit or process credential is paired with `PHOENIX_COLLECTOR_ENDPOINT` from
+the file, the exporter warns once and continues without logging credential
+values.
 
 ### Configuration Options
 
@@ -165,7 +178,7 @@ const response = await openai.chat.completions.create({
 
 ### Tracing Helpers
 
-The package includes `withSpan`, `traceChain`, `traceAgent`, and `traceTool` for wrapping functions with OpenInference spans. Each helper automatically records inputs, outputs, errors, and span kind.
+The package includes `withSpan` plus span-kind shorthands — `traceChain`, `traceAgent`, and `traceTool` — for wrapping functions with OpenInference spans. Each helper automatically records inputs, outputs, errors, and span kind.
 
 ```typescript
 import {
@@ -211,6 +224,42 @@ const retrieveDocs = withSpan(
 ```
 
 These helpers resolve the default tracer when the wrapped function runs, so traced functions defined at module scope keep following global provider changes.
+
+#### Additional Span-Kind Wrappers
+
+The full set of OpenInference span kinds is covered by matching wrappers, each a shorthand for `withSpan(fn, { ...options, kind })`. They accept the same options as `traceChain`/`traceAgent`/`traceTool` (everything except `kind`, which is pre-set). These wrappers are marked `@experimental` in `@arizeai/openinference-core`.
+
+| Wrapper          | Span kind   | Use it for                                                                    |
+| ---------------- | ----------- | ----------------------------------------------------------------------------- |
+| `traceLLM`       | `LLM`       | Language-model invocations — chat/text completions and other inference calls  |
+| `traceRetriever` | `RETRIEVER` | Fetching documents from a knowledge base, vector store, or search index (RAG) |
+| `traceReranker`  | `RERANKER`  | Reordering or scoring candidate documents by relevance                        |
+| `traceEmbedding` | `EMBEDDING` | Converting text or data into vector representations                           |
+| `traceGuardrail` | `GUARDRAIL` | Safety, validation, or policy checks (moderation, PII, compliance)            |
+| `traceEvaluator` | `EVALUATOR` | Scoring output quality — relevance, correctness, or LLM-as-a-judge            |
+| `tracePrompt`    | `PROMPT`    | Constructing, rendering, or templating a prompt before a model call           |
+
+```typescript
+import {
+  traceEmbedding,
+  traceEvaluator,
+  traceGuardrail,
+  traceLLM,
+  tracePrompt,
+  traceReranker,
+  traceRetriever,
+} from "@arizeai/phoenix-otel";
+
+const retrieveDocuments = traceRetriever(
+  async (query: string) => vectorStore.similaritySearch(query, 5),
+  { name: "vector-search" }
+);
+
+const evaluateAnswer = traceEvaluator(
+  async (question: string, answer: string) => judge.score({ question, answer }),
+  { name: "answer-evaluation" }
+);
+```
 
 ### Custom Input And Output Processing
 
@@ -522,6 +571,13 @@ import {
   observe,
   traceAgent,
   traceChain,
+  traceEmbedding,
+  traceEvaluator,
+  traceGuardrail,
+  traceLLM,
+  tracePrompt,
+  traceReranker,
+  traceRetriever,
   traceTool,
   withSpan,
 } from "@arizeai/phoenix-otel";

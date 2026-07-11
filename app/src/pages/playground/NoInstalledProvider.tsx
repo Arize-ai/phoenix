@@ -1,6 +1,6 @@
-import { Flex, Text, View } from "@phoenix/components";
+import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { BashBlock } from "@phoenix/components/code";
-import { Empty } from "@phoenix/components/core/Empty";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 
 // The playground is disabled if no LLM provider client is installed on the server.
 // This message is displayed until the user installs a provider for the server to use, and then restarts the server.
@@ -41,7 +41,10 @@ export const NoInstalledProvider = (props: NoInstalledProviderProps) => {
         justifyContent="center"
         gap="size-200"
       >
-        <Empty message={NO_PROVIDER_MESSAGE} />
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.AlertCircle />} />}
+          description={NO_PROVIDER_MESSAGE.trim()}
+        />
         {/* display instructions for installing a provider and a link to the documentation */}
         <Text>The following clients are supported:</Text>
         <BashBlock value={makeInstallString(props.availableProviders)} />

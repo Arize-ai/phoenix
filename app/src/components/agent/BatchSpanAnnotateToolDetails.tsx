@@ -161,7 +161,7 @@ const spanAnnotationTargetCSS = css`
 
 const spanAnnotationTargetLinkCSS = css`
   min-width: 0;
-  font-family: var(--ac-global-font-family-mono);
+  font-family: var(--global-font-family-mono);
   overflow-wrap: anywhere;
 `;
 

@@ -12,7 +12,6 @@ import {
   Input,
   Loading,
   Menu,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuItem,
@@ -22,6 +21,7 @@ import {
   type Selection,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { PromptsLabelMenuQuery } from "@phoenix/pages/prompts/__generated__/PromptsLabelMenuQuery.graphql";
 
@@ -133,7 +133,12 @@ const LabelMenuFilterContent = ({
           aria-label="labels"
           items={labels}
           selectionMode="multiple"
-          renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+          renderEmptyState={() => (
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.PriceTags />} />}
+              description="No labels"
+            />
+          )}
           selectedKeys={selectedLabelIds}
           onSelectionChange={handleSelectionChange}
         >

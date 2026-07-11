@@ -63,13 +63,17 @@ class MaxDaysRule(_MaxDays, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        stmt = (
+        await session.execute(
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
             .where(self.max_days_filter)
-            .returning(Trace.project_rowid)
         )
-        return set(await session.scalars(stmt))
+        # Intentionally returns an empty set: the affected project ids only feed
+        # CacheForDataLoaders invalidation, which is None on every backend except SQLite.
+        # Collecting them via RETURNING buffered the full result set in memory (OOM on large
+        # PostgreSQL deletes, see #13906). On SQLite the unfiltered summary caches may read
+        # stale until their 1h TTL expires, which is acceptable for that single-node path.
+        return set()
 
 
 class MaxCountRule(_MaxCount, BaseModel):
@@ -87,13 +91,13 @@ class MaxCountRule(_MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        stmt = (
+        await session.execute(
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
             .where(self.max_count_filter(project_rowids))
-            .returning(Trace.project_rowid)
         )
-        return set(await session.scalars(stmt))
+        # Empty set by design; see MaxDaysRule.delete_traces for why (avoids #13906 OOM).
+        return set()
 
 
 class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
@@ -111,13 +115,13 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        stmt = (
+        await session.execute(
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
             .where(sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)))
-            .returning(Trace.project_rowid)
         )
-        return set(await session.scalars(stmt))
+        # Empty set by design; see MaxDaysRule.delete_traces for why (avoids #13906 OOM).
+        return set()
 
 
 class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule]]):

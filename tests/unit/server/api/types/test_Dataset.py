@@ -23,6 +23,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -849,6 +850,154 @@ class TestDatasetExperimentsResolver:
             {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
         ]
         assert response.data == {"node": {"experiments": {"edges": edges}}}
+
+
+class TestDatasetBaselineExperimentResolver:
+    QUERY = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            baselineExperiment {
+              id
+              name
+              sequenceNumber
+              isBaseline
+            }
+          }
+        }
+      }
+    """
+
+    async def test_returns_null_when_no_baseline_is_set(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=3)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {"node": {"baselineExperiment": None}}
+
+    async def test_returns_baseline_experiment_with_sequence_number(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=4,
+            baseline_experiment_index=3,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[2]))),
+                    "name": "experiment-3",
+                    "sequenceNumber": 3,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+    async def test_sequence_number_skips_ephemeral_experiments(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=3,
+            baseline_experiment_index=2,
+            create_ephemeral_experiment_first=True,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[1]))),
+                    "name": "experiment-2",
+                    "sequenceNumber": 2,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+
+async def _create_dataset_with_experiments(
+    db: DbSessionFactory,
+    *,
+    experiment_count: int,
+    baseline_experiment_index: int | None = None,
+    create_ephemeral_experiment_first: bool = False,
+) -> tuple[int, list[int]]:
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(name="baseline-test-dataset", metadata_={})
+        )
+        assert dataset_id is not None
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(dataset_id=dataset_id, metadata_={})
+        )
+        assert dataset_version_id is not None
+
+        if create_ephemeral_experiment_first:
+            await session.execute(
+                insert(models.Experiment).values(
+                    dataset_id=dataset_id,
+                    dataset_version_id=dataset_version_id,
+                    name="playground",
+                    is_ephemeral=True,
+                    repetitions=1,
+                    metadata_={},
+                )
+            )
+
+        experiment_ids = list(
+            await session.scalars(
+                insert(models.Experiment).returning(models.Experiment.id),
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": dataset_version_id,
+                        "name": f"experiment-{index + 1}",
+                        "repetitions": 1,
+                        "metadata_": {},
+                    }
+                    for index in range(experiment_count)
+                ],
+            )
+        )
+
+        if baseline_experiment_index is not None:
+            await session.execute(
+                insert(models.ExperimentTag).values(
+                    experiment_id=experiment_ids[baseline_experiment_index - 1],
+                    dataset_id=dataset_id,
+                    name=BASELINE_EXPERIMENT_TAG_NAME,
+                    description=None,
+                )
+            )
+
+    return dataset_id, experiment_ids
 
 
 @pytest.fixture

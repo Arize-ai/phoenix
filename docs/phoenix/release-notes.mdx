@@ -13,6 +13,51 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize-devrel/user-interview).
 </Info>
 
+<ReleaseUpdate label="07.07.2026" href="/docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api" title="Metric Charts, Trace Search, and REST API Expansion">
+**Available in arize-phoenix 17.15.0–17.20.0, arize-phoenix-client 2.12.0+ (Python), @arizeai/phoenix-client 6.12.0+ and @arizeai/phoenix-evals 1.1.0+ (TypeScript)**
+
+Pin metric charts above your data tables, search the trace tree, and script more of Phoenix from the API and CLI.
+
+- **Metric charts above tables** — a resizable, per-table chart strip over spans, traces, and sessions
+- **Trace tree search** — filter the trace tree to jump to the span you need
+- **Dataset labels & annotation-config assignment over REST** — manage both from the API
+- **Classification-metric evaluators in TypeScript** — precision, recall, and F-score code evaluators
+- **`px annotation-config`** CLI commands and **Claude Sonnet 5** in the Playground
+</ReleaseUpdate>
+
+<ReleaseUpdate label="06.30.2026" href="/docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary" title="PXI Terminal Client and Annotation Summary">
+**Available in @arizeai/phoenix-cli 1.6.0+ (beta) and arize-phoenix 17.14.0+**
+
+Run PXI from your shell, review annotations from project settings, and copy trace IDs from experiment trace details.
+
+- **PXI terminal client** — launch an interactive PXI chat with `npx -y @arizeai/phoenix-cli pxi`; it connects to your Phoenix instance and runs a model preflight on startup, with `/clear`, `/exit`, and `/help` slash commands in 1.6.1+
+- **Annotation summary** — project settings list every annotation name by count for spans, traces, and sessions, with bulk delete by name
+- **Copyable trace IDs** — the experiment trace details dialog adds a copy-to-clipboard trace ID badge
+</ReleaseUpdate>
+
+<ReleaseUpdate label="06.26.2026" href="/docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest" title="Evals as Tests — pytest and Vitest/Jest Integrations">
+**Available in arize-phoenix-client 2.10.0+ (Python) and @arizeai/phoenix-client 6.11.1+ (TypeScript, beta)**
+
+Write LLM evaluations as ordinary pytest, Vitest, or Jest tests — each suite becomes a Phoenix dataset and each run a versioned experiment.
+
+- **Familiar DX** — mark tests with `@pytest.mark.phoenix` or import `describe`/`test` from `@arizeai/phoenix-client/vitest`; keep fixtures, parametrization, watch mode, and `.only`/`.skip`
+- **Debug in Phoenix** — every case is traced; LLM-as-judge calls record under their own evaluator span
+- **Metrics beyond pass/fail** — log scores, labels, and explanations and track them across experiments
+- **CI gates** — per-case asserts plus suite-level acceptance criteria on aggregate scores
+- **Reuse evaluators** — pre-built `arize-phoenix-evals` evaluators plug straight into a test case
+</ReleaseUpdate>
+
+<ReleaseUpdate label="06.24.2026" href="/docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools" title="Annotations, Labels, and PXI Server Tools">
+**Available in arize-phoenix 17.9.0+ through 17.11.0+**
+
+A batch of annotation, label, auth, and PXI improvements rolled out across 17.9–17.11.
+
+- **Trace-level annotations** — trace annotation summaries appear in the trace header and project stats panel alongside span annotations
+- **Label management from lists** — filter by label, manage labels inline, and see usage counts on the Prompts and Datasets pages, plus a prompt model column
+- **OAuth2 role overrides** — set `ROLE_RESYNC=false` per IDP to keep manually assigned roles from being overwritten on login
+- **PXI server bash tool** — subagents gain a sandboxed `bash` with `phoenix-gql`, gated network access, and a `PHOENIX_AGENTS_DISABLE_BASH` kill switch
+</ReleaseUpdate>
+
 <ReleaseUpdate label="06.16.2026" href="/docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing" title="Time Range, Metrics, and Sharing Upgrades">
 **Available in arize-phoenix 17.5.0+ through 17.7.0+**
 

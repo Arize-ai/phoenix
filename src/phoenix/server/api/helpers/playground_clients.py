@@ -1388,6 +1388,7 @@ class TogetherStreamingClient(OpenAIBaseStreamingClient):
         "anthropic.claude-fable-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
+        "anthropic.claude-sonnet-5",
         "anthropic.claude-opus-4-6-v1",
         "anthropic.claude-sonnet-4-6",
         "anthropic.claude-opus-4-5-20251101-v1:0",
@@ -1901,6 +1902,9 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 OPENAI_REASONING_MODELS = [
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
     "gpt-5.5",
     "gpt-5.4",
     "gpt-5.4-mini",
@@ -2201,6 +2205,7 @@ def _anthropic_beta_headers_for_tools(
         "claude-fable-5",
         "claude-opus-4-8",
         "claude-opus-4-7",
+        "claude-sonnet-5",
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):

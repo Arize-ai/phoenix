@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e121895d059280fde009adfe520b5fec>>
+ * @generated SignedSource<<d45c3777d024568d40476a068d77db8c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,9 +25,16 @@ export type PromptsTable_prompts$data = {
         readonly name: string;
         readonly version: {
           readonly createdAt: string;
+          readonly id: string;
           readonly modelName: string;
           readonly modelProvider: ModelProvider;
         };
+        readonly versionCount: number;
+        readonly versionTags: ReadonlyArray<{
+          readonly id: string;
+          readonly name: string;
+          readonly promptVersionId: string;
+        }>;
       };
     }>;
   };
@@ -158,6 +165,7 @@ return {
                   "name": "version",
                   "plural": false,
                   "selections": [
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -177,6 +185,33 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "modelProvider",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "versionCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "PromptVersionTag",
+                  "kind": "LinkedField",
+                  "name": "versionTags",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/),
+                    (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "promptVersionId",
                       "storageKey": null
                     }
                   ],
@@ -267,6 +302,6 @@ return {
 };
 })();
 
-(node as any).hash = "d5dd38748ccb61e832bd17f8dab756cd";
+(node as any).hash = "b5fb70bb7de99fce33aaeac3b119d898";
 
 export default node;

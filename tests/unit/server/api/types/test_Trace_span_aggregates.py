@@ -208,7 +208,7 @@ async def test_spans_filter_condition_on_status_code(
         variables={
             "traceId": trace_gid,
             "first": 10,
-            "filter": "status_code == 'ERROR'",
+            "filter": "status_code == 'error'",
         },
     )
     assert not response.errors

@@ -963,12 +963,49 @@ const inputFieldCSS = (theme: Theme) => css`
     --global-input-field-background-color: var(--global-color-gray-100);
     --global-input-field-background-color-hover: var(--global-color-gray-200);
     --global-input-field-background-color-active: var(--global-color-gray-300);
+
+    /* ── Field component semantic tokens ──────────────────────────────
+       The Field styles (components/core/field) reference only these
+       tokens, never raw palette or --global-* values. Retheme fields by
+       remapping here — component CSS stays untouched. */
+
+    /* Default state */
+    --field-background-color: var(--global-input-field-background-color);
+    --field-text-color: var(--global-text-color-900);
+    --field-border-color: var(--global-input-field-border-color);
+    --field-border-color-active: var(--global-input-field-border-color-active);
+    --field-placeholder-color: var(--text-color-placeholder);
+
+    /* Validation & help text */
+    --field-invalid-border-color: var(--global-color-danger);
+    --field-error-text-color: var(--global-color-danger);
+    --field-description-text-color: var(--global-text-color-500);
+
+    /* Read-only state */
+    --field-readonly-background-color: rgba(
+      var(--global-color-gray-900-rgb),
+      0.03
+    );
+    --field-readonly-background-color-hover: var(--global-color-primary-50);
+    --field-readonly-text-color: var(--global-text-color-700);
+    --field-readonly-border-color-focus: var(--global-color-gray-400);
+
+    /* Popover overlay (combobox / select) */
+    --field-popover-background-color: var(--global-menu-background-color);
+    --field-popover-border-color: var(--global-menu-border-color);
+    --field-popover-shadow-color: var(--global-overlay-shadow-color);
   }
 `;
 
 const menuCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
+    /* Menu sizing */
+    --global-menu-min-height: var(--global-dimension-size-3600);
+    --global-menu-max-height-small: var(--global-dimension-size-6000);
+    --global-menu-max-height-large: var(--global-dimension-size-8000);
+
+    /* Menu colors and spacing */
     --global-menu-border-color: var(--global-border-color-default);
     --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
@@ -976,6 +1013,7 @@ const menuCSS = (theme: Theme) => css`
       --global-dimension-static-size-300
     );
     --global-menu-item-gap: var(--global-dimension-static-size-50);
+    --global-menu-item-content-gap: var(--global-dimension-static-size-100);
   }
 `;
 
@@ -1041,8 +1079,8 @@ const cardCSS = (theme: Theme) => css`
       ? "var(--global-color-gray-100)"
       : "var(--global-color-gray-75)"};
     --global-card-header-background-color-hover: ${theme === "light"
-      ? "var(--global-color-gray-200)"
-      : "var(--global-color-gray-100)"};
+      ? "rgba(0, 0, 0, 0.04)"
+      : "rgba(255, 255, 255, 0.07)"};
   }
 `;
 
@@ -1267,7 +1305,7 @@ const appGlobalStylesCSS = css`
   button,
   .theme // We scope it to the theme so we can mount two at the same time
   {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
@@ -1342,6 +1380,9 @@ const appGlobalStylesCSS = css`
     --global-opacity-disabled: 0.4;
 
     /* Text */
+    --global-font-family-sans: "Geist", sans-serif;
+    --global-font-family-mono: "Geist Mono", monospace;
+
     --global-font-size-xxs: 10px;
     --global-font-size-xs: 12px;
     --global-font-size-s: 14px;
@@ -1387,16 +1428,25 @@ const codeMirrorOverridesCSS = css`
   .cm-gutters {
     background-color: var(--code-mirror-gutters-background-color) !important;
   }
+  /* Keep fold arrows subtle so they read as secondary to the code */
+  .cm-foldGutter .cm-gutterElement {
+    color: var(--global-text-color-300);
+    transition: color 200ms ease-in-out;
+    &:hover {
+      color: var(--global-text-color-900);
+    }
+  }
 `;
 
 const chartCSS = css`
   .theme {
+    /* Gridlines are solid and rely on low opacity to stay subtle */
     --chart-cartesian-grid-stroke-color: rgba(
       var(--global-color-gray-500-rgb),
-      0.24
+      0.16
     );
     --chart-axis-stroke-color: var(--global-color-gray-300);
-    --chart-axis-text-color: var(--global-text-color-700);
+    --chart-axis-text-color: var(--global-text-color-500);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
     --chart-time-range-brush-fill-color: var(--global-color-primary-100);
@@ -1404,11 +1454,14 @@ const chartCSS = css`
       var(--global-color-gray-75-rgb),
       0.84
     );
-    --chart-empty-state-text-color: var(--global-text-color-500);
+    --chart-panel-background-color: var(--global-color-gray-75);
+    --chart-panel-border-color: var(--global-border-color-default);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);
-    --chart-empty-state-text-color: var(--global-text-color-700);
+    /* Panels sit on a same-colored background, so a full-strength border
+       reads as a heavy frame in dark mode; soften it */
+    --chart-panel-border-color: rgba(var(--global-color-gray-200-rgb), 0.6);
   }
   .theme--light {
     --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.02);
@@ -1424,12 +1477,12 @@ const chartCSS = css`
 
 const fontFamilyCSS = css`
   .font-default {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-optical-sizing: auto;
   }
   .font-mono,
   pre {
-    font-family: "Geist Mono", monospace;
+    font-family: var(--global-font-family-mono);
     font-optical-sizing: auto;
   }
 `;
