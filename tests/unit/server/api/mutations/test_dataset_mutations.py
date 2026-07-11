@@ -592,6 +592,108 @@ class TestApplyDatasetExampleChanges:
         assert patched_revision.output == {"output": "original-example-1-version-1-output"}
         assert patched_revision.metadata_ == {"metadata": "original-example-1-version-1-metadata"}
 
+    async def test_persists_a_custom_id_for_an_added_example(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "additions": [
+                        {
+                            "input": {"input": "added-input"},
+                            "output": {},
+                            "metadata": {},
+                            "externalId": "my-custom-id",
+                        }
+                    ],
+                }
+            },
+        )
+
+        assert response.data and not response.errors
+        async with db() as session:
+            external_ids = (
+                await session.scalars(
+                    select(models.DatasetExample.external_id).where(
+                        models.DatasetExample.dataset_id == 1
+                    )
+                )
+            ).all()
+        assert "my-custom-id" in external_ids
+
+    async def test_rejects_a_custom_id_that_already_exists_in_the_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        addition = {
+            "input": {"input": "added-input"},
+            "output": {},
+            "metadata": {},
+            "externalId": "my-custom-id",
+        }
+        variables = {
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "additions": [addition],
+            }
+        }
+        first_response = await gql_client.execute(query=self._MUTATION, variables=variables)
+        assert first_response.data and not first_response.errors
+
+        async with db() as session:
+            version_count_before = await session.scalar(
+                select(func.count(models.DatasetVersion.id))
+            )
+            example_count_before = await session.scalar(
+                select(func.count(models.DatasetExample.id))
+            )
+
+        response = await gql_client.execute(query=self._MUTATION, variables=variables)
+
+        assert response.errors
+        assert "my-custom-id" in response.errors[0].message
+        async with db() as session:
+            version_count_after = await session.scalar(select(func.count(models.DatasetVersion.id)))
+            example_count_after = await session.scalar(select(func.count(models.DatasetExample.id)))
+        assert version_count_after == version_count_before
+        assert example_count_after == example_count_before
+
+    async def test_rejects_patching_and_deleting_the_same_example(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        example_id = str(GlobalID(DatasetExample.__name__, "1"))
+        async with db() as session:
+            version_count_before = await session.scalar(
+                select(func.count(models.DatasetVersion.id))
+            )
+
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "patches": [{"exampleId": example_id, "input": {"should": "fail"}}],
+                    "exampleIdsToDelete": [example_id],
+                }
+            },
+        )
+
+        assert response.errors
+        assert "patch and delete" in response.errors[0].message
+        async with db() as session:
+            version_count_after = await session.scalar(select(func.count(models.DatasetVersion.id)))
+        assert version_count_after == version_count_before
+
     async def test_rejects_cross_dataset_ids_without_partial_writes(
         self,
         gql_client: AsyncGraphQLClient,
