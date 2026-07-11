@@ -96,7 +96,7 @@ export function DeleteAPIKeyButton({
             leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
             aria-label={`Actions for ${apiKeyName ?? "API key"}`}
           />
-          <Popover>
+          <Popover placement="bottom end">
             <Menu
               onAction={(action) => {
                 if (action === "delete") {

@@ -4,6 +4,6 @@ export * from "./GeneratePersonalAPIKeyButton";
 export * from "./GenerateSystemAPIKeyButton";
 export * from "./OneTimeAPIKeyDialog";
 export * from "./DeleteAPIKeyButton";
+export * from "./APIKeysList";
 export * from "./AuthGuard";
 export * from "./OAuth2ClientIcon";
-export * from "./oauth2ScopeDisplay";

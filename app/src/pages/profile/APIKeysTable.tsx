@@ -1,28 +1,13 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { startTransition, useCallback, useMemo } from "react";
+import { startTransition } from "react";
 import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
-import { DeleteAPIKeyButton } from "@phoenix/components/auth";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
-import { TextCell } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
-import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { APIKeysList } from "@phoenix/components/auth";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
 import type { APIKeysTableQuery } from "./__generated__/APIKeysTableQuery.graphql";
 
-const TIMESTAMP_CELL_SIZE = 70;
-
 export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
-  "use no memo";
   const [data, refetch] = useRefetchableFragment<
     APIKeysTableQuery,
     APIKeysTableFragment$key
@@ -43,7 +28,7 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
   );
 
   const notifySuccess = useNotifySuccess();
-  const [commit] = useMutation(graphql`
+  const [commit, isCommitting] = useMutation(graphql`
     mutation APIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
       deleteUserApiKey(input: $input) {
         query {
@@ -54,163 +39,36 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
       }
     }
   `);
-  const handleDelete = useCallback(
-    (id: string) => {
-      commit({
-        variables: {
-          input: {
-            id,
-          },
+  const handleDelete = (id: string) => {
+    commit({
+      variables: {
+        input: {
+          id,
         },
-        onCompleted: () => {
-          notifySuccess({
-            title: "API key deleted",
-            message: "The key has been deleted and is no longer active.",
-          });
-          startTransition(() => {
-            refetch(
-              {},
-              {
-                fetchPolicy: "store-and-network",
-              }
-            );
-          });
-        },
-      });
-    },
-    [commit, notifySuccess, refetch]
-  );
-
-  const tableData = useMemo(() => {
-    // ensure we don't have any undefined values in the array
-    // there is some hard to reproduce bug where the apiKeys array is not always populated
-    return data.apiKeys.filter(Boolean);
-  }, [data]);
-
-  type TableRow = (typeof tableData)[number];
-  const columns = useMemo(() => {
-    const cols: ColumnDef<TableRow>[] = [
-      {
-        header: "Name",
-        accessorKey: "name",
-        size: 100,
-        cell: TextCell,
       },
-      {
-        header: "Description",
-        accessorKey: "description",
-        cell: TextCell,
-      },
-      {
-        header: "Created At",
-        accessorKey: "createdAt",
-        size: TIMESTAMP_CELL_SIZE,
-        cell: TimestampCell,
-      },
-      {
-        header: "Expires At",
-        accessorKey: "expiresAt",
-        size: TIMESTAMP_CELL_SIZE,
-        cell: TimestampCell,
-      },
-      {
-        header: "",
-        accessorKey: "id",
-        size: 10,
-        cell: ({ row }) => {
-          return (
-            <Flex direction="row" justifyContent="end" width="100%">
-              <DeleteAPIKeyButton
-                handleDelete={() => {
-                  handleDelete(row.original.id);
-                }}
-              />
-            </Flex>
+      onCompleted: () => {
+        notifySuccess({
+          title: "API key deleted",
+          message: "The key has been deleted and is no longer active.",
+        });
+        startTransition(() => {
+          refetch(
+            {},
+            {
+              fetchPolicy: "store-and-network",
+            }
           );
-        },
-        meta: {
-          textAlign: "right",
-        },
+        });
       },
-    ];
-    return cols;
-  }, [handleDelete]);
-  // eslint-disable-next-line react-hooks-js/incompatible-library
-  const table = useReactTable<TableRow>({
-    columns,
-    data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-  });
-  const rows = table.getRowModel().rows;
-  const isEmpty = table.getRowModel().rows.length === 0;
+    });
+  };
+
   return (
-    <table css={tableCSS}>
-      <thead>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <th colSpan={header.colSpan} key={header.id}>
-                {header.isPlaceholder ? null : (
-                  <div
-                    {...{
-                      className: header.column.getCanSort() ? "sort" : "",
-                      onClick: header.column.getToggleSortingHandler(),
-                      style: {
-                        left: header.getStart(),
-                        width: header.getSize(),
-                      },
-                    }}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                    {header.column.getIsSorted() ? (
-                      <Icon
-                        className="sort-icon"
-                        svg={
-                          header.column.getIsSorted() === "asc" ? (
-                            <Icons.CaretUpFilled />
-                          ) : (
-                            <Icons.CaretDownFilled />
-                          )
-                        }
-                      />
-                    ) : null}
-                  </div>
-                )}
-              </th>
-            ))}
-          </tr>
-        ))}
-      </thead>
-      {isEmpty ? (
-        <TableEmptyWrap>
-          <EmptyState
-            graphic={<EmptyStateGraphic variant="credential" />}
-            description="No API keys"
-          />
-        </TableEmptyWrap>
-      ) : (
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      )}
-    </table>
+    <APIKeysList
+      apiKeys={data.apiKeys.filter(Boolean)}
+      emptyDescription="You have not created any API keys."
+      isDeleting={isCommitting}
+      onDelete={handleDelete}
+    />
   );
 }
