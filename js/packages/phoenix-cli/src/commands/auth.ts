@@ -589,7 +589,7 @@ function persistOAuthTokens({
       ...settingsFile.profiles,
       [profileName]: {
         ...existingProfile,
-        endpoint: existingProfile.endpoint ?? endpoint,
+        endpoint,
         oauthTokens,
       },
     },

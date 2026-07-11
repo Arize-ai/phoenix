@@ -455,6 +455,14 @@ describe("px auth login/logout", () => {
   it("logs in via pasted redirect URL against stubbed endpoints", async () => {
     let server: Awaited<ReturnType<typeof withServer>> | undefined;
     try {
+      writeTempSettings(tmpDir, {
+        activeProfile: "default",
+        profiles: {
+          default: {
+            endpoint: "http://old-phoenix.example.com",
+          },
+        },
+      });
       server = await withServer(async (request, response) => {
         if (request.url === "/oauth2/token" && request.method === "POST") {
           const body = new URLSearchParams(await readRequestBody(request));
@@ -535,6 +543,7 @@ describe("px auth login/logout", () => {
       expect(captured(stderrSpy)).toContain("/oauth2/authorize");
       const saved = readTempSettings(tmpDir);
       expect(saved.activeProfile).toBe("default");
+      expect(saved.profiles.default.endpoint).toBe(server.url);
       expect(saved.profiles.default.oauthTokens?.refreshToken).toBe(
         "refresh-token"
       );

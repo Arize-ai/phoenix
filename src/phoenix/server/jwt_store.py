@@ -168,6 +168,10 @@ class JwtStore:
     ) -> tuple[RefreshToken, RefreshTokenId]:
         return await self._refresh_token_store.create(claim)
 
+    async def consume_refresh_token(self, token_id: RefreshTokenId) -> bool:
+        """Atomically delete a refresh token if it has not already been consumed."""
+        return await self._refresh_token_store.consume(token_id)
+
     async def create_api_key(
         self,
         claim: ApiKeyClaims,
@@ -294,6 +298,15 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         stmt = delete(self._table).where(self._table.id.in_(map(int, token_ids)))
         async with self._db() as session:
             await session.execute(stmt)
+
+    async def consume(self, token_id: _TokenIdT) -> bool:
+        stmt = delete(self._table).where(self._table.id == int(token_id)).returning(self._table.id)
+        async with self._db() as session:
+            deleted_id = await session.scalar(stmt)
+        if deleted_id is None:
+            return False
+        await self.evict(token_id)
+        return True
 
     @abstractmethod
     def _from_db(self, record: _RecordT, role: UserRoleName) -> tuple[_TokenIdT, _ClaimSetT]: ...
