@@ -1,5 +1,19 @@
 # Changelog
 
+## [17.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.25.0...arize-phoenix-v17.26.0) (2026-07-11)
+
+
+### Features
+
+* clarify forced tool choice menus ([#14279](https://github.com/Arize-ai/phoenix/issues/14279)) ([ef40f5e](https://github.com/Arize-ai/phoenix/commit/ef40f5e489f20f367ff11817098143c7f15be2bd))
+
+
+### Bug Fixes
+
+* make span status code filters case insensitive ([#14287](https://github.com/Arize-ai/phoenix/issues/14287)) ([d6b3740](https://github.com/Arize-ai/phoenix/commit/d6b3740c3fe753862562da5aa216155fcb7f9ce0))
+* **ui:** add selected spans to newly created dataset ([#14276](https://github.com/Arize-ai/phoenix/issues/14276)) ([5da578b](https://github.com/Arize-ai/phoenix/commit/5da578bbc5dba55fecb9ae07752ea99a21636d2e))
+* **ui:** constrain action-bar dataset picker height ([#14280](https://github.com/Arize-ai/phoenix/issues/14280)) ([b0e718b](https://github.com/Arize-ai/phoenix/commit/b0e718bbb6ce55554b1bddde7e31f35cff7188a8))
+
 ## [17.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.24.0...arize-phoenix-v17.25.0) (2026-07-11)
 
 
