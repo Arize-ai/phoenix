@@ -13,6 +13,7 @@ from openinference.semconv.trace import (
 )
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -47,6 +48,37 @@ from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 _MAX_REPORTED_EXAMPLE_IDS = 10
+
+
+async def _find_conflicting_external_ids(
+    session: AsyncSession,
+    *,
+    dataset_id: int,
+    external_ids: Sequence[str],
+) -> list[str]:
+    """
+    The custom IDs that already belong to an example in this dataset, capped so a
+    bad bulk write reports a readable sample rather than thousands of IDs.
+    """
+    return [
+        external_id
+        for external_id in (
+            await session.scalars(
+                select(models.DatasetExample.external_id)
+                .where(models.DatasetExample.dataset_id == dataset_id)
+                .where(models.DatasetExample.external_id.in_(external_ids))
+                .limit(_MAX_REPORTED_EXTERNAL_ID_CONFLICTS)
+            )
+        ).all()
+        if external_id is not None
+    ]
+
+
+def _external_id_conflict_message(conflicting_external_ids: Sequence[str]) -> str:
+    return (
+        f"Examples with custom IDs {list(conflicting_external_ids)!r} "
+        "already exist in this dataset."
+    )
 
 
 def _to_global_ids(type_name: str, rowids: Sequence[int]) -> str:
@@ -455,24 +487,30 @@ class DatasetMutationMixin:
         if not (additions or patches or example_ids_to_delete):
             raise BadRequest("Must provide at least one dataset example change.")
 
-        dataset_id = from_global_id_with_expected_type(
-            global_id=input.dataset_id,
-            expected_type_name=Dataset.__name__,
-        )
-        patch_ids = [
-            from_global_id_with_expected_type(
-                global_id=patch.example_id,
-                expected_type_name=DatasetExample.__name__,
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id,
+                expected_type_name=Dataset.__name__,
             )
-            for patch in patches
-        ]
-        delete_ids = [
-            from_global_id_with_expected_type(
-                global_id=example_id,
-                expected_type_name=DatasetExample.__name__,
-            )
-            for example_id in example_ids_to_delete
-        ]
+        except ValueError:
+            raise BadRequest(f"Invalid dataset ID: {input.dataset_id}")
+        try:
+            patch_ids = [
+                from_global_id_with_expected_type(
+                    global_id=patch.example_id,
+                    expected_type_name=DatasetExample.__name__,
+                )
+                for patch in patches
+            ]
+            delete_ids = [
+                from_global_id_with_expected_type(
+                    global_id=example_id,
+                    expected_type_name=DatasetExample.__name__,
+                )
+                for example_id in example_ids_to_delete
+            ]
+        except ValueError:
+            raise BadRequest("Received one or more invalid dataset example IDs.")
         if len(set(patch_ids)) != len(patch_ids):
             raise BadRequest("Cannot patch the same example more than once per mutation.")
         if len(set(delete_ids)) != len(delete_ids):
@@ -481,6 +519,13 @@ class DatasetMutationMixin:
             raise BadRequest("Cannot patch and delete the same example in one mutation.")
         if any(patch.is_empty() for patch in patches):
             raise BadRequest("Received one or more empty patches that contain no fields to update.")
+        if any(
+            not isinstance(value, dict)
+            for patch in patches
+            for value in (patch.input, patch.output, patch.metadata)
+            if value is not UNSET
+        ):
+            raise BadRequest("Patched example input, output, and metadata must be JSON objects.")
         if any(
             not all(
                 isinstance(value, dict)
@@ -585,19 +630,11 @@ class DatasetMutationMixin:
                     )
 
             if external_ids:
-                conflicting_external_ids = (
-                    await session.scalars(
-                        select(models.DatasetExample.external_id)
-                        .where(models.DatasetExample.dataset_id == dataset_id)
-                        .where(models.DatasetExample.external_id.in_(external_ids))
-                        .limit(_MAX_REPORTED_EXTERNAL_ID_CONFLICTS)
-                    )
-                ).all()
+                conflicting_external_ids = await _find_conflicting_external_ids(
+                    session, dataset_id=dataset_id, external_ids=external_ids
+                )
                 if conflicting_external_ids:
-                    raise Conflict(
-                        f"Examples with custom IDs {list(conflicting_external_ids)!r} already "
-                        "exist in this dataset."
-                    )
+                    raise Conflict(_external_id_conflict_message(conflicting_external_ids))
 
             version_id = await session.scalar(
                 insert(models.DatasetVersion)
@@ -625,11 +662,17 @@ class DatasetMutationMixin:
                         await session.flush()
                 except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                     error_message = str(error)
-                    if "dataset_id" in error_message and "external_id" in error_message:
-                        raise Conflict(
-                            f"Examples with custom IDs {external_ids!r} already exist in "
-                            "this dataset."
+                    has_external_id_conflict = (
+                        "dataset_id" in error_message and "external_id" in error_message
+                    )
+                    if has_external_id_conflict and external_ids:
+                        # The savepoint rolled the insert back, so ask which custom
+                        # IDs actually collided rather than blaming every ID sent.
+                        conflicting_external_ids = await _find_conflicting_external_ids(
+                            session, dataset_id=dataset_id, external_ids=external_ids
                         )
+                        if conflicting_external_ids:
+                            raise Conflict(_external_id_conflict_message(conflicting_external_ids))
                     raise
                 await session.execute(
                     insert(models.DatasetExampleRevision),
@@ -810,9 +853,11 @@ def _to_orm_revision(
     """
 
     db_rev = models.DatasetExampleRevision
-    input = patch.input if isinstance(patch.input, dict) else existing_revision.input
-    output = patch.output if isinstance(patch.output, dict) else existing_revision.output
-    metadata = patch.metadata if isinstance(patch.metadata, dict) else existing_revision.metadata_
+    # A field the caller left out falls back to the existing revision. Values that
+    # were sent are validated up front, so anything present here is a JSON object.
+    input = existing_revision.input if patch.input is UNSET else patch.input
+    output = existing_revision.output if patch.output is UNSET else patch.output
+    metadata = existing_revision.metadata_ if patch.metadata is UNSET else patch.metadata
     return {
         str(db_column.key): patch_value
         for db_column, patch_value in (

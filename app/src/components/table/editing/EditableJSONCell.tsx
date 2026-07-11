@@ -122,13 +122,6 @@ export function EditableJSONCell<
   const [editorError, setEditorError] = useState<string | null>(null);
   const modifierKey = useModifierKey();
 
-  // Set the local (banner) and cell-level (store) errors together so the
-  // dialog and the table stay in sync.
-  const applyEditorError = (error: string | null) => {
-    setEditorError(error);
-    cell.setError(error);
-  };
-
   const validateEditorValue = (value: string) => {
     const result = safelyParseJSON(value);
     if (result.parseError) {
@@ -142,13 +135,13 @@ export function EditableJSONCell<
 
   const openEditor = () => {
     setEditorValue(JSON.stringify(cell.value, null, 2) ?? "");
-    applyEditorError(null);
+    setEditorError(null);
     setIsOpen(true);
   };
 
   const saveEditorValue = () => {
     const { error, json } = validateEditorValue(editorValue);
-    applyEditorError(error);
+    setEditorError(error);
     if (error !== null) {
       return;
     }
@@ -195,7 +188,7 @@ export function EditableJSONCell<
         isOpen={isOpen}
         onOpenChange={(nextIsOpen) => {
           if (!nextIsOpen) {
-            applyEditorError(null);
+            setEditorError(null);
           }
           setIsOpen(nextIsOpen);
         }}
@@ -225,7 +218,7 @@ export function EditableJSONCell<
                   maxHeight="60vh"
                   onChange={(nextValue) => {
                     setEditorValue(nextValue);
-                    applyEditorError(validateEditorValue(nextValue).error);
+                    setEditorError(validateEditorValue(nextValue).error);
                   }}
                 />
               </div>

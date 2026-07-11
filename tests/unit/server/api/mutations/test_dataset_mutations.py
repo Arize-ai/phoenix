@@ -356,6 +356,85 @@ class TestPatchDatasetExamples:
         assert patched_revision.output == {"output": "original-example-1-version-1-output"}
         assert patched_revision.metadata_ == {"metadata": "original-example-1-version-1-metadata"}
 
+    async def test_pairs_each_change_with_its_own_example(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        # Patches are supplied in descending example-ID order, and there is more
+        # than one of everything, so a resolver that lines changes up positionally
+        # against a sorted or re-queried list would swap their payloads.
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "additions": [
+                        {
+                            "input": {"input": "first-added-input"},
+                            "output": {},
+                            "metadata": {},
+                            "externalId": "first-added",
+                        },
+                        {
+                            "input": {"input": "second-added-input"},
+                            "output": {},
+                            "metadata": {},
+                            "externalId": "second-added",
+                        },
+                    ],
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "2")),
+                            "input": {"input": "patched-example-2-input"},
+                        },
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                            "input": {"input": "patched-example-1-input"},
+                        },
+                    ],
+                }
+            },
+        )
+
+        assert response.data and not response.errors
+        async with db() as session:
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(models.DatasetExample.dataset_id == 1)
+                )
+            ).all()
+            revisions = (
+                await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.dataset_example_id.in_(
+                            [example.id for example in examples]
+                        )
+                    )
+                )
+            ).all()
+
+        latest_input_by_example_id = {
+            revision.dataset_example_id: revision.input
+            for revision in sorted(revisions, key=lambda revision: revision.id)
+        }
+        external_id_by_example_id = {example.id: example.external_id for example in examples}
+
+        # Each patched example carries its own new input, not its neighbor's.
+        assert latest_input_by_example_id[1] == {"input": "patched-example-1-input"}
+        assert latest_input_by_example_id[2] == {"input": "patched-example-2-input"}
+        # Each added example carries the payload that came with its custom ID.
+        added_input_by_external_id = {
+            external_id_by_example_id[example_id]: revision_input
+            for example_id, revision_input in latest_input_by_example_id.items()
+            if external_id_by_example_id.get(example_id) is not None
+        }
+        assert added_input_by_external_id == {
+            "first-added": {"input": "first-added-input"},
+            "second-added": {"input": "second-added-input"},
+        }
+
     async def test_persists_a_custom_id_for_an_added_example(
         self,
         gql_client: AsyncGraphQLClient,
@@ -557,6 +636,35 @@ class TestPatchDatasetExamples:
                 {"additions": [{"input": "not-an-object", "output": {}, "metadata": {}}]},
                 "Added example input, output, and metadata must be JSON objects.",
                 id="addition-with-non-object-input",
+            ),
+            pytest.param(
+                {
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                            "input": "not-an-object",
+                        }
+                    ]
+                },
+                "Patched example input, output, and metadata must be JSON objects.",
+                id="patch-with-non-object-input",
+            ),
+            pytest.param(
+                {
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                            "output": None,
+                        }
+                    ]
+                },
+                "Patched example input, output, and metadata must be JSON objects.",
+                id="patch-with-null-output",
+            ),
+            pytest.param(
+                {"exampleIdsToDelete": [str(GlobalID("Dataset", "1"))]},
+                "Received one or more invalid dataset example IDs.",
+                id="example-id-of-the-wrong-type",
             ),
             pytest.param(
                 {

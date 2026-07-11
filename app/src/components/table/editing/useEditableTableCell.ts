@@ -36,10 +36,6 @@ export function useEditableTableCell<
       Object.hasOwn(state.updatedRows[rowId] ?? {}, columnId)
     );
   });
-  const error = useStore(
-    editing.store,
-    (state) => state.cellErrors[rowId]?.[columnId] ?? null
-  );
   const isEditable =
     editing.isCellEditable?.({
       row: context.row.original,
@@ -48,7 +44,6 @@ export function useEditableTableCell<
 
   return {
     value,
-    error,
     isDirty,
     isEditable,
     isEditing: mode !== "read",
@@ -59,13 +54,6 @@ export function useEditableTableCell<
         columnId,
         value: nextValue,
         originalValue,
-      });
-    },
-    setError: (nextError: string | null) => {
-      editing.store.getState().setCellError({
-        rowId,
-        columnId,
-        error: nextError,
       });
     },
   };

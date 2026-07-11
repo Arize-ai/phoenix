@@ -36,7 +36,6 @@ import type {
 import {
   getEditableTableChangeCount,
   getEditableTableChangeCounts,
-  getEditableTableErrorCount,
 } from "@phoenix/components/table";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { AddDatasetExampleButton } from "@phoenix/pages/dataset/AddDatasetExampleButton";
@@ -88,7 +87,7 @@ const describeChangeCounts = ({
     .map(([count, label]) => `${count} ${label}`)
     .join(", ");
 
-// Compact invalid-cell indicator — an icon + count rather than a wide prose
+// Compact duplicate-ID indicator — an icon + count rather than a wide prose
 // string, so an error surfacing doesn't jump the toolbar layout.
 const diffStatErrorCSS = css`
   display: flex;
@@ -125,29 +124,32 @@ export const ExamplesFilterBar = ({
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const mode = useStore(editStore, (state) => state.mode);
   const changeCount = useStore(editStore, getEditableTableChangeCount);
-  const cellErrorCount = useStore(editStore, getEditableTableErrorCount);
+  // A colliding custom ID is the only pending change the server would reject —
+  // an invalid JSON cell can never be committed in the first place.
   const duplicateRowIds = useStore(
     editStore,
     useShallow(getDuplicateExternalIdRowIds)
   );
-  // A duplicate custom ID is derived from the added rows rather than stored, so
-  // it is counted alongside the cells that flagged themselves invalid.
-  const errorCount = cellErrorCount + duplicateRowIds.length;
+  const duplicateIdCount = duplicateRowIds.length;
   const { added, updated, deleted } = useStore(
     editStore,
     useShallow(getEditableTableChangeCounts)
   );
   const isEditing = mode !== "read";
   const isSaving = mode === "saving";
-  const canSave = changeCount > 0 && errorCount === 0 && !isSaving;
+  const canSave = changeCount > 0 && duplicateIdCount === 0 && !isSaving;
   // Cmd+S / Ctrl+S opens the save dialog while editing
   useHotkeys(
     "mod+s",
     (event) => {
       // A dialog owns its own shortcuts — a cell's JSON editor saves the cell
-      // with Cmd+Enter — so don't stack the save dialog on top of one.
+      // with Cmd+Enter — so don't stack the save dialog on top of one. The
+      // discard confirmation is an alertdialog, so match both roles.
       const target = event.target;
-      if (target instanceof Element && target.closest('[role="dialog"]')) {
+      if (
+        target instanceof Element &&
+        target.closest('[role="dialog"],[role="alertdialog"]')
+      ) {
         return;
       }
       if (canSave) {
@@ -232,22 +234,22 @@ export const ExamplesFilterBar = ({
                   </Tooltip>
                 </TooltipTrigger>
               )}
-              {errorCount > 0 ? (
+              {duplicateIdCount > 0 ? (
                 <TooltipTrigger>
                   <TriggerWrap>
                     <span
                       css={diffStatErrorCSS}
-                      aria-label={`${errorCount} invalid cell${
-                        errorCount === 1 ? "" : "s"
+                      aria-label={`${duplicateIdCount} duplicate custom ID${
+                        duplicateIdCount === 1 ? "" : "s"
                       }`}
                     >
                       <Icon svg={<Icons.AlertCircle />} color="danger" />
-                      <Text color="danger">{errorCount}</Text>
+                      <Text color="danger">{duplicateIdCount}</Text>
                     </span>
                   </TriggerWrap>
                   <Tooltip>
-                    {`${errorCount} invalid cell${
-                      errorCount === 1 ? "" : "s"
+                    {`${duplicateIdCount} duplicate custom ID${
+                      duplicateIdCount === 1 ? "" : "s"
                     } — fix before saving`}
                   </Tooltip>
                 </TooltipTrigger>
@@ -364,12 +366,16 @@ export const ExamplesFilterBar = ({
           </Dialog>
         </Modal>
       </ModalOverlay>
-      <SaveDatasetExamplesDialog
-        datasetId={datasetId}
-        editStore={editStore}
-        isOpen={isSaveDialogOpen}
-        onOpenChange={setIsSaveDialogOpen}
-      />
+      {/* Mounted only while open, so a failed save's error banner and the version
+          description it was typed with cannot survive into the next save. */}
+      {isSaveDialogOpen ? (
+        <SaveDatasetExamplesDialog
+          datasetId={datasetId}
+          editStore={editStore}
+          isOpen
+          onOpenChange={setIsSaveDialogOpen}
+        />
+      ) : null}
     </View>
   );
 };
