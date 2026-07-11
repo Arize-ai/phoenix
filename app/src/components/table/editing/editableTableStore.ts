@@ -150,6 +150,9 @@ export function createEditableTableStore<Row extends object>({
           const addedRowIndex = state.addedRows.findIndex(
             (addedRow) => getRowId(addedRow) === rowId
           );
+          if (addedRowIndex === -1) {
+            return state;
+          }
           const addedRows = [...state.addedRows];
           addedRows[addedRowIndex] = {
             ...addedRows[addedRowIndex],
