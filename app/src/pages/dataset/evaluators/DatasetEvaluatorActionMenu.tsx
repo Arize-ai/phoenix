@@ -6,9 +6,9 @@ import {
   Icon,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
-  Popover,
   Text,
 } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
@@ -47,7 +47,12 @@ export function DatasetEvaluatorActionMenu({
           aria-label="Evaluator actions"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover placement="bottom right">
+        <MenuContainer
+          size="xs"
+          minHeight={0}
+          placement="bottom right"
+          shouldFlip
+        >
           <Menu
             onAction={(action) => {
               switch (action) {
@@ -83,7 +88,7 @@ export function DatasetEvaluatorActionMenu({
               </Flex>
             </MenuItem>
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       {evaluatorKind === "BUILTIN" ? (
         <EditBuiltInDatasetEvaluatorSlideover

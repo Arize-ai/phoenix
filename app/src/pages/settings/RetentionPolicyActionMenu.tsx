@@ -15,11 +15,11 @@ import {
   Icons,
   Loading,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
   Text,
   View,
 } from "@phoenix/components";
@@ -82,7 +82,7 @@ export const RetentionPolicyActionMenu = ({
           size="S"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover>
+        <MenuContainer size="xs" minHeight={0} shouldFlip>
           <Menu
             disabledKeys={canDelete ? [] : [RetentionPolicyAction.DELETE]}
             onAction={(action) => {
@@ -122,7 +122,7 @@ export const RetentionPolicyActionMenu = ({
               </Flex>
             </MenuItem>
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       {/* Edit Dialog */}
       <DialogTrigger isOpen={showEditDialog} onOpenChange={setShowEditDialog}>

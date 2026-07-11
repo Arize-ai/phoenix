@@ -9,10 +9,9 @@ import {
   Icons,
   Loading,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
-  Popover,
-  PopoverArrow,
   Text,
 } from "@phoenix/components";
 import { DatasetLabelSelectionContent } from "@phoenix/components/dataset/DatasetLabelConfigButton";
@@ -55,7 +54,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
           aria-label="Dataset actions"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover>
+        <MenuContainer size="xs" minHeight={0} shouldFlip>
           <Menu
             onAction={(action) => {
               switch (action) {
@@ -91,19 +90,17 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                   <Text>Label</Text>
                 </Flex>
               </MenuItem>
-              <Popover
+              <MenuContainer
+                size="sm"
+                minHeight={0}
                 placement="start top"
-                css={css`
-                  min-width: 300px;
-                  width: 300px;
-                `}
+                shouldFlip
               >
-                <PopoverArrow />
                 <Suspense
                   fallback={
                     <Loading
                       css={css`
-                        min-width: 300px;
+                        min-width: var(--global-menu-width-xs);
                         min-height: 100px;
                       `}
                     />
@@ -111,7 +108,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                 >
                   <DatasetLabelSelectionContent datasetId={datasetId} />
                 </Suspense>
-              </Popover>
+              </MenuContainer>
             </SubmenuTrigger>
             <MenuItem id={DatasetAction.DELETE}>
               <Flex
@@ -125,7 +122,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
               </Flex>
             </MenuItem>
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
 
       {/* Delete Dataset Dialog */}

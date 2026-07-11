@@ -14,11 +14,11 @@ import {
   Icon,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
   Text,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -116,7 +116,12 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         >
           Examples
         </Button>
-        <Popover placement="bottom end">
+        <MenuContainer
+          size="sm"
+          minHeight={0}
+          placement="bottom end"
+          shouldFlip
+        >
           <Menu
             onAction={(action) => {
               switch (action) {
@@ -142,7 +147,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
               </Flex>
             </MenuItem>
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       <DialogTrigger isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>
         <ModalOverlay isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>

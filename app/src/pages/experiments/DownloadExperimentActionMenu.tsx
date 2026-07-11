@@ -3,9 +3,9 @@ import {
   Icon,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
-  Popover,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -20,7 +20,7 @@ export function DownloadExperimentActionMenu({
     <StopPropagation>
       <MenuTrigger>
         <Button size="S" leadingVisual={<Icon svg={<Icons.Download />} />} />
-        <Popover>
+        <MenuContainer size="xs" minHeight={0} shouldFlip>
           <Menu
             onAction={(action) => {
               if (action === "csv") {
@@ -40,7 +40,7 @@ export function DownloadExperimentActionMenu({
             <MenuItem id="csv">Download CSV</MenuItem>
             <MenuItem id="json">Download JSON</MenuItem>
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
     </StopPropagation>
   );

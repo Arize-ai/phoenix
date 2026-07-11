@@ -9,9 +9,9 @@ import {
   Icon,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
-  Popover,
   Text,
 } from "@phoenix/components";
 import { ExperimentCodeModal } from "@phoenix/components/experiment";
@@ -54,7 +54,12 @@ export function RunDatasetExperimentButton(
         >
           Experiment
         </Button>
-        <Popover placement="bottom end">
+        <MenuContainer
+          size="sm"
+          minHeight={0}
+          placement="bottom end"
+          shouldFlip
+        >
           <Menu
             disabledKeys={
               hasExamples ? [] : [ExperimentAction.RUN_IN_PLAYGROUND]
@@ -89,7 +94,7 @@ export function RunDatasetExperimentButton(
               </Flex>
             </MenuItem>
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       <DialogTrigger
         isOpen={isCodeDialogOpen}

@@ -875,7 +875,7 @@ const CodeEditor = ({
             >
               Templates
             </Button>
-            <MenuContainer placement="bottom end" maxWidth={360}>
+            <MenuContainer size="sm" placement="bottom end">
               <Menu
                 onAction={(key) => {
                   const template = CODE_EVALUATOR_TEMPLATES.find(

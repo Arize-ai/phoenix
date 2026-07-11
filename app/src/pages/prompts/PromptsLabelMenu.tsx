@@ -12,11 +12,11 @@ import {
   Input,
   Loading,
   Menu,
+  MenuContainer,
   MenuFooter,
   MenuHeader,
   MenuItem,
   MenuTrigger,
-  Popover,
   SearchField,
   type Selection,
   useFilter,
@@ -53,12 +53,12 @@ export const PromptsLabelMenu = ({
       >
         Labels
       </Button>
-      <Popover placement="bottom end">
+      <MenuContainer size="sm" minHeight={0} placement="bottom end" shouldFlip>
         <Suspense
           fallback={
             <Loading
               css={css`
-                min-width: 300px;
+                min-width: var(--global-menu-width-xs);
                 min-height: 200px;
               `}
             />
@@ -69,7 +69,7 @@ export const PromptsLabelMenu = ({
             onSelectionChange={onSelectionChange}
           />
         </Suspense>
-      </Popover>
+      </MenuContainer>
     </MenuTrigger>
   );
 };

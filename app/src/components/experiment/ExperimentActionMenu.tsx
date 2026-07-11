@@ -12,11 +12,11 @@ import {
   Icon,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
   Text,
   View,
 } from "@phoenix/components";
@@ -304,7 +304,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           aria-label="Experiment action menu"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover>
+        <MenuContainer size="sm" minHeight={0} shouldFlip>
           <Menu
             disabledKeys={
               projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
@@ -407,7 +407,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           >
             {menuItems}
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       <ModalOverlay
         isDismissable

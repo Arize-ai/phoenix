@@ -8,11 +8,11 @@ import {
   Icon,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
   Text,
   View,
 } from "@phoenix/components";
@@ -119,7 +119,12 @@ export function ProjectActionMenu({
           size="S"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover placement="bottom end">
+        <MenuContainer
+          size="sm"
+          minHeight={0}
+          placement="bottom end"
+          shouldFlip
+        >
           <Menu
             aria-label="Project Actions Menu"
             onAction={(action) => {
@@ -191,7 +196,7 @@ export function ProjectActionMenu({
               </MenuItem>
             ) : null}
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       <ModalOverlay
         isOpen={showDeleteDialog}

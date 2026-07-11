@@ -21,12 +21,11 @@ import {
   LinkButton,
   Loading,
   Menu,
+  MenuContainer,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
-  Popover,
-  PopoverArrow,
   SearchField,
   type Selection,
   useFilter,
@@ -62,17 +61,19 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
       >
         Label
       </Button>
-      <Popover
+      <MenuContainer
+        size="sm"
+        minHeight={0}
         placement="bottom start"
+        shouldFlip
         shouldCloseOnInteractOutside={() => true}
       >
-        <PopoverArrow />
         <Dialog>
           <Suspense fallback={<Loading />}>
             <DatasetLabelSelectionContent datasetId={datasetId} />
           </Suspense>
         </Dialog>
-      </Popover>
+      </MenuContainer>
     </DialogTrigger>
   );
 }

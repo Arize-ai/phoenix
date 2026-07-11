@@ -16,11 +16,10 @@ import {
   Input,
   Loading,
   Menu,
+  MenuContainer,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
-  Popover,
-  PopoverArrow,
   SearchField,
   useFilter,
 } from "@phoenix/components";
@@ -83,8 +82,7 @@ export function TransferTracesButton({
       >
         {isTransferring ? "Transferring" : "Transfer"}
       </Button>
-      <Popover>
-        <PopoverArrow />
+      <MenuContainer size="md" minHeight={0} placement="top end" shouldFlip>
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
@@ -98,7 +96,7 @@ export function TransferTracesButton({
             </Suspense>
           )}
         </Dialog>
-      </Popover>
+      </MenuContainer>
     </DialogTrigger>
   );
 }

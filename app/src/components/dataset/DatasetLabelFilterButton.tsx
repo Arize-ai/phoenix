@@ -11,11 +11,11 @@ import {
   Input,
   Loading,
   Menu,
+  MenuContainer,
   MenuFooter,
   MenuHeader,
   MenuItem,
   MenuTrigger,
-  Popover,
   SearchField,
   type Selection,
   useFilter,
@@ -47,14 +47,14 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
       >
         Labels
       </Button>
-      <Popover placement="bottom end">
+      <MenuContainer size="sm" minHeight={0} placement="bottom end" shouldFlip>
         <Suspense fallback={<Loading />}>
           <DatasetLabelFilterContent
             selectedLabelIds={selectedLabelIds}
             onSelectionChange={onSelectionChange}
           />
         </Suspense>
-      </Popover>
+      </MenuContainer>
     </MenuTrigger>
   );
 }

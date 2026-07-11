@@ -25,10 +25,9 @@ import {
   Icon,
   Icons,
   Loading,
+  MenuContainer,
   Modal,
   ModalOverlay,
-  Popover,
-  PopoverArrow,
   useFilter,
   useNullableTimeRangeContext,
   View,
@@ -245,8 +244,12 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         >
           Annotation
         </Button>
-        <Popover placement="bottom end">
-          <PopoverArrow />
+        <MenuContainer
+          size="md"
+          minHeight={0}
+          placement="bottom end"
+          shouldFlip
+        >
           <Dialog>
             <Suspense fallback={<Loading />}>
               <AnnotationList
@@ -263,7 +266,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
               />
             </Suspense>
           </Dialog>
-        </Popover>
+        </MenuContainer>
       </DialogTrigger>
       {showEditConfigDialog ? (
         <ModalOverlay

@@ -19,12 +19,11 @@ import {
   LinkButton,
   Loading,
   Menu,
+  MenuContainer,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
-  Popover,
-  PopoverArrow,
   SearchField,
   type Selection,
   useFilter,
@@ -55,17 +54,19 @@ export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
         leadingVisual={<Icon svg={<Icons.Settings />} />}
         aria-label="Edit prompt labels"
       />
-      <Popover
+      <MenuContainer
+        size="sm"
+        minHeight={0}
         placement="bottom start"
+        shouldFlip
         shouldCloseOnInteractOutside={() => true}
       >
-        <PopoverArrow />
         <Dialog>
           <Suspense fallback={<Loading />}>
             <PromptLabelSelectionContent promptId={promptId} />
           </Suspense>
         </Dialog>
-      </Popover>
+      </MenuContainer>
     </DialogTrigger>
   );
 }

@@ -10,11 +10,10 @@ import {
   Icons,
   Loading,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
   Modal,
-  Popover,
-  PopoverArrow,
   Text,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
@@ -48,7 +47,7 @@ export function PromptActionMenu({
           aria-label="Prompt actions"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover>
+        <MenuContainer size="xs" minHeight={0} shouldFlip>
           <Menu
             aria-label="Prompt action menu"
             onAction={(action) => {
@@ -71,19 +70,17 @@ export function PromptActionMenu({
                   <Text>Label</Text>
                 </Flex>
               </MenuItem>
-              <Popover
+              <MenuContainer
+                size="sm"
+                minHeight={0}
                 placement="start top"
-                css={css`
-                  min-width: 300px;
-                  width: 300px;
-                `}
+                shouldFlip
               >
-                <PopoverArrow />
                 <Suspense
                   fallback={
                     <Loading
                       css={css`
-                        min-width: 300px;
+                        min-width: var(--global-menu-width-xs);
                         min-height: 100px;
                       `}
                     />
@@ -91,7 +88,7 @@ export function PromptActionMenu({
                 >
                   <PromptLabelSelectionContent promptId={promptId} />
                 </Suspense>
-              </Popover>
+              </MenuContainer>
             </SubmenuTrigger>
             <MenuItem id={PromptAction.DELETE}>
               <Flex
@@ -105,7 +102,7 @@ export function PromptActionMenu({
               </Flex>
             </MenuItem>
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       <DialogTrigger
         isOpen={showDeleteDialog}

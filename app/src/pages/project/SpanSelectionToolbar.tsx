@@ -12,10 +12,9 @@ import {
   Icon,
   IconButton,
   Icons,
+  MenuContainer,
   Modal,
   ModalOverlay,
-  Popover,
-  PopoverArrow,
   Text,
   Toolbar,
   View,
@@ -191,9 +190,13 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             >
               {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
             </Button>
-            <Popover placement="top end">
+            <MenuContainer
+              size="md"
+              minHeight={0}
+              placement="top end"
+              shouldFlip
+            >
               <Suspense>
-                <PopoverArrow />
                 <Dialog>
                   <DatasetSelectorPopoverContent
                     onDatasetSelected={(datasetId) => {
@@ -207,7 +210,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                   />
                 </Dialog>
               </Suspense>
-            </Popover>
+            </MenuContainer>
           </DialogTrigger>
           <TransferTracesButton
             traceIds={traceIds}

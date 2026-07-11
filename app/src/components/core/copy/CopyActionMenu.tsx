@@ -1,11 +1,9 @@
-import { css } from "@emotion/react";
 import copy from "copy-to-clipboard";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "../button";
 import { Icon } from "../icon";
-import { Menu, MenuItem, MenuTrigger } from "../menu";
-import { Popover } from "../overlay";
+import { Menu, MenuContainer, MenuItem, MenuTrigger } from "../menu";
 import type { CopyActionMenuItem } from "./types";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
@@ -60,13 +58,14 @@ export function CopyActionMenu({ items }: CopyActionMenuProps) {
       >
         {copiedItemId != null ? "Copied" : undefined}
       </Button>
-      <Popover placement="bottom end" offset={3}>
-        <Menu
-          onAction={onAction}
-          css={css`
-            --menu-min-width: auto;
-          `}
-        >
+      <MenuContainer
+        size="xs"
+        minHeight={0}
+        placement="bottom end"
+        offset={3}
+        shouldFlip
+      >
+        <Menu onAction={onAction}>
           {items.map((item) => (
             <MenuItem
               key={item.name}
@@ -78,7 +77,7 @@ export function CopyActionMenu({ items }: CopyActionMenuProps) {
             </MenuItem>
           ))}
         </Menu>
-      </Popover>
+      </MenuContainer>
     </MenuTrigger>
   );
 }

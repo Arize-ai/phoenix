@@ -22,6 +22,7 @@ import {
   IconButton,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
   MenuTriggerPlaceholder,
@@ -596,7 +597,7 @@ function ExperimentRunOutputsSidebar() {
                   )}
                   <SelectChevronUpDownIcon />
                 </Button>
-                <Popover>
+                <MenuContainer size="sm" minHeight={0} shouldFlip>
                   <Menu
                     items={annotationSummaries}
                     selectionMode="single"
@@ -624,7 +625,7 @@ function ExperimentRunOutputsSidebar() {
                       </MenuItem>
                     )}
                   </Menu>
-                </Popover>
+                </MenuContainer>
               </MenuTrigger>
               {selectedAnnotation && (
                 <IconButton

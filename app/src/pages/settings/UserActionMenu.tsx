@@ -8,11 +8,11 @@ import {
   Icon,
   Icons,
   Menu,
+  MenuContainer,
   MenuItem,
   MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
@@ -83,7 +83,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           size="S"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
-        <Popover>
+        <MenuContainer size="xs" minHeight={0} shouldFlip>
           <Menu
             aria-label="User Actions"
             onAction={(action) => {
@@ -99,7 +99,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           >
             {actionMenuItems}
           </Menu>
-        </Popover>
+        </MenuContainer>
       </MenuTrigger>
       <DialogTrigger
         isOpen={showDeleteDialog}
