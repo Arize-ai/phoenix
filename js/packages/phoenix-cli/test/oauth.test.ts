@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createOAuthRefreshingFetch } from "../src/client";
+import { createPhoenixAuthenticatedFetch } from "../src/client";
 import {
   buildAuthorizationUrl,
   exchangeAuthorizationCode,
@@ -347,7 +347,7 @@ describe("OAuth fetch wrapper", () => {
         response.end("ok");
       });
 
-      const wrappedFetch = createOAuthRefreshingFetch({
+      const wrappedFetch = createPhoenixAuthenticatedFetch({
         endpoint: server.url,
         headers: {},
         profileName: "prod",
@@ -416,7 +416,7 @@ describe("OAuth fetch wrapper", () => {
         response.writeHead(401);
         response.end();
       });
-      const wrappedFetch = createOAuthRefreshingFetch({
+      const wrappedFetch = createPhoenixAuthenticatedFetch({
         endpoint: server.url,
         headers: {},
         profileName: "prod",
@@ -443,7 +443,7 @@ describe("OAuth fetch wrapper", () => {
   });
 
   it("returns 403 responses to the caller", async () => {
-    const wrappedFetch = createOAuthRefreshingFetch({
+    const wrappedFetch = createPhoenixAuthenticatedFetch({
       endpoint: "http://example.test",
       headers: {},
       profileName: "prod",

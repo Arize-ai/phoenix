@@ -1,4 +1,8 @@
-import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
+import {
+  createAuthenticatedFetch,
+  createClient,
+  type PhoenixClient,
+} from "@arizeai/phoenix-client";
 
 import type { PhoenixConfig } from "./config";
 import { AuthRequiredError } from "./exitCodes";
@@ -40,7 +44,7 @@ export function createPhoenixClient({
       headers,
       ...(config.oauthTokens && config.profileName
         ? {
-            fetch: createOAuthRefreshingFetch({
+            fetch: createPhoenixAuthenticatedFetch({
               endpoint: baseUrl,
               headers,
               profileName: config.profileName,
@@ -52,7 +56,7 @@ export function createPhoenixClient({
   });
 }
 
-export function createOAuthRefreshingFetch({
+export function createPhoenixAuthenticatedFetch({
   endpoint,
   headers,
   profileName,
@@ -66,59 +70,34 @@ export function createOAuthRefreshingFetch({
   fetchImpl?: typeof fetch;
 }): typeof fetch {
   let currentTokens = tokens;
-
-  return async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (isOAuthTokenExpiring({ tokens: currentTokens })) {
-      currentTokens = await refreshOAuthTokensForProfile({
-        endpoint,
-        profileName,
-        currentTokens,
-        fetchImpl,
-      });
-    }
-
-    const firstResponse = await fetchImpl(
-      withBearerToken({ input, init, headers, tokens: currentTokens })
-    );
-    if (firstResponse.status !== 401) {
-      return firstResponse;
-    }
-
-    currentTokens = await refreshOAuthTokensForProfile({
-      endpoint,
-      profileName,
-      currentTokens,
-      force: true,
-      fetchImpl,
-    });
-    const retryResponse = await fetchImpl(
-      withBearerToken({ input, init, headers, tokens: currentTokens })
-    );
-    if (retryResponse.status === 401) {
+  const authenticatedFetch = createAuthenticatedFetch({
+    fetch: fetchImpl,
+    getAccessToken: async ({ forceRefresh }) => {
+      if (forceRefresh || isOAuthTokenExpiring({ tokens: currentTokens })) {
+        currentTokens = await refreshOAuthTokensForProfile({
+          endpoint,
+          profileName,
+          currentTokens,
+          force: forceRefresh,
+          fetchImpl,
+        });
+      }
+      return currentTokens.accessToken;
+    },
+    onUnauthorized: () => {
       throw new AuthRequiredError("Session expired. Run: px auth login");
-    }
-    return retryResponse;
-  };
-}
-
-function withBearerToken({
-  input,
-  init,
-  headers,
-  tokens,
-}: {
-  input: RequestInfo | URL;
-  init?: RequestInit;
-  headers: Record<string, string>;
-  tokens: OAuthTokens;
-}): Request {
-  const request = new Request(input, init);
-  const requestHeaders = new Headers(headers);
-  request.headers.forEach((value, key) => {
-    requestHeaders.set(key, value);
+    },
   });
-  requestHeaders.set("Authorization", `Bearer ${tokens.accessToken}`);
-  return new Request(request, { headers: requestHeaders });
+  return (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    const requestHeaders = new Headers(headers);
+    request.headers.forEach((value, key) => {
+      requestHeaders.set(key, value);
+    });
+    return authenticatedFetch(
+      new Request(request, { headers: requestHeaders })
+    );
+  };
 }
 
 export interface ResolveProjectIdOptions {

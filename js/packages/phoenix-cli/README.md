@@ -665,6 +665,10 @@ px annotation-config get response-quality --format raw --no-progress | jq -r '.i
 
 Log in with the browser-based OAuth flow and store tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in.
 
+The CLI refreshes expiring access tokens automatically for REST, GraphQL, and
+PXI requests. A request rejected with `401` triggers one refresh and retry;
+rotated tokens are persisted back to the selected profile.
+
 ```bash
 px auth login
 px auth login --no-browser

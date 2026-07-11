@@ -63,6 +63,8 @@ export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
 
 For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
+OAuth access tokens are refreshed automatically for REST, GraphQL, and PXI
+requests, and rotated tokens are persisted to the selected profile.
 
 Always use `--format raw --no-progress` when piping to `jq`.
 
