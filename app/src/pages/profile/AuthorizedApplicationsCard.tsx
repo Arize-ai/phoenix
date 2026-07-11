@@ -24,10 +24,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import {
-  getOAuth2ScopeDisplay,
-  OAuth2ClientIcon,
-} from "@phoenix/components/auth";
+import { OAuth2ClientIcon } from "@phoenix/components/auth";
 import {
   DialogCloseButton,
   DialogContent,
@@ -79,8 +76,35 @@ const metadataLabelCSS = css`
   font-size: var(--global-font-size-xs);
 `;
 
+const grantScopesListCSS = css`
+  list-style: none;
+  margin: var(--global-dimension-size-50) 0 0;
+  padding: 0;
+`;
+
 function getClientIdSuffix(clientId: string) {
   return clientId.length > 8 ? clientId.slice(-8) : clientId;
+}
+
+function GrantScopesHelp({ scopes }: { scopes: readonly string[] }) {
+  return (
+    <ContextualHelp variant="info">
+      <Heading weight="heavy" level={4}>
+        Scopes
+      </Heading>
+      {scopes.length > 0 ? (
+        <ul css={grantScopesListCSS}>
+          {scopes.map((scope) => (
+            <li key={scope}>
+              <code>{scope}</code>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Text>Unspecified</Text>
+      )}
+    </ContextualHelp>
+  );
 }
 
 function GrantTimestamp({
@@ -129,7 +153,7 @@ function GrantActionMenu({
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
           aria-label={`Actions for ${clientName}`}
         />
-        <Popover>
+        <Popover placement="bottom end">
           <Menu
             onAction={(action) => {
               if (action === "revoke") {
@@ -270,11 +294,9 @@ export function AuthorizedApplicationsCard({
             Authorized Applications
           </Heading>
           <Text>
-            Applications {userName ? `${userName} has` : "you have"} approved to
-            access Phoenix {userName ? "on their behalf" : "on your behalf"}—
-            for example, the Phoenix CLI after signing in with{" "}
-            <code>px auth login</code>. Revoking an application immediately ends
-            its access.
+            Authorized applications are OAuth 2.0 grants that allow an
+            application to access Phoenix on a user&apos;s behalf. Revoking a
+            grant immediately ends that application&apos;s access.
           </Text>
         </ContextualHelp>
       }
@@ -306,16 +328,7 @@ export function AuthorizedApplicationsCard({
                 <div>
                   <Flex direction="row" gap="size-100" alignItems="center" wrap>
                     <Text weight="heavy">{grant.clientName}</Text>
-                    {grant.scopes.map((scope) => {
-                      const display = getOAuth2ScopeDisplay(scope);
-                      return (
-                        <span key={scope} title={display.description}>
-                          <Badge variant={display.badgeVariant}>
-                            {display.label}
-                          </Badge>
-                        </span>
-                      );
-                    })}
+                    <GrantScopesHelp scopes={grant.scopes} />
                     {isExpired ? (
                       <Badge variant="warning">Expired</Badge>
                     ) : null}

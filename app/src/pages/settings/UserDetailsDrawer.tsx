@@ -1,11 +1,10 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
-  Badge,
   Dialog,
   Drawer,
   Flex,
@@ -18,10 +17,13 @@ import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
+  DialogTitle,
 } from "@phoenix/components/core/dialog";
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { normalizeUserRole } from "@phoenix/constants";
+import { useIsAdmin } from "@phoenix/contexts";
 import { AuthorizedApplicationsCard } from "@phoenix/pages/profile/AuthorizedApplicationsCard";
 import type { UserDetailsDrawerQuery } from "@phoenix/pages/settings/__generated__/UserDetailsDrawerQuery.graphql";
 import { UserAPIKeysCard } from "@phoenix/pages/settings/UserAPIKeysCard";
@@ -76,6 +78,7 @@ function UserDetailsContent({ userId }: { userId: string }) {
     <Dialog aria-label={`User details for ${user.username}`}>
       <DialogContent>
         <DialogHeader>
+          <DialogTitle>User details</DialogTitle>
           <DialogCloseButton slot="close" />
         </DialogHeader>
         <div css={userDetailsBodyCSS}>
@@ -97,9 +100,7 @@ function UserDetailsContent({ userId }: { userId: string }) {
                   Role
                 </Text>
                 <div css={userDetailsValueCSS}>
-                  <Badge variant="default">
-                    {user.role.name.toLowerCase()}
-                  </Badge>
+                  <Text>{normalizeUserRole(user.role.name)}</Text>
                 </div>
               </li>
               <li>
@@ -107,9 +108,7 @@ function UserDetailsContent({ userId }: { userId: string }) {
                   Authentication
                 </Text>
                 <div css={userDetailsValueCSS}>
-                  <Badge variant="default">
-                    {user.authMethod.toLowerCase()}
-                  </Badge>
+                  <Text>{user.authMethod.toLowerCase()}</Text>
                 </div>
               </li>
               <li>
@@ -140,10 +139,15 @@ function UserDetailsContent({ userId }: { userId: string }) {
 export function UserDetailsDrawer() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "settings-user-details",
   });
   invariant(userId, "userId is required");
+
+  if (!isAdmin) {
+    return <Navigate to="/settings/general" replace />;
+  }
 
   return (
     <Drawer
