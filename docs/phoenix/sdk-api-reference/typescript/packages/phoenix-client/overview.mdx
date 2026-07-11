@@ -90,42 +90,6 @@ const client = createClient({
 
 Use explicit options when you want configuration to live in code or when you need to override the environment for a specific client instance.
 
-### Refreshable Credentials
-
-When an access token can expire, use `createAuthFetch` to connect your
-credential provider to every Phoenix client API call. The provider owns secure
-token storage and refresh-token rotation; the fetch wrapper supplies the bearer
-token, shares refresh work across concurrent `401` responses, and retries each
-request once.
-
-```ts
-import {
-  createAuthFetch,
-  createClient,
-} from "@arizeai/phoenix-client";
-
-const authFetch = createAuthFetch({
-  getAccessToken: async ({ forceRefresh }) => {
-    if (forceRefresh) {
-      await refreshAndPersistTokens();
-    }
-    return loadTokens().accessToken;
-  },
-});
-
-const client = createClient({
-  options: {
-    baseUrl: "https://phoenix.example.com",
-    fetch: authFetch,
-  },
-});
-```
-
-The provider is called with `forceRefresh: false` before requests and with
-`forceRefresh: true` only when the token used by a request is rejected. If
-another request has already replaced that token, the newer token is reused
-without rotating the refresh token again.
-
 ### createClient Parameters
 
 | Field | Type | Description |
