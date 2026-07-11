@@ -3,9 +3,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  type TimeRangeVariable,
-  useTimeRangeVariable,
-} from "../useTimeRangeVariable";
+  type TimeRangeGraphQLVariable,
+  useTimeRangeGraphQLVariable,
+} from "../useTimeRangeGraphQLVariable";
 
 const START = new Date("2026-01-01T00:00:00.000Z");
 const START_ISO = "2026-01-01T00:00:00.000Z";
@@ -24,17 +24,17 @@ function Probe({
   onValue,
 }: {
   timeRange: OpenTimeRange;
-  onValue: (value: TimeRangeVariable) => void;
+  onValue: (value: TimeRangeGraphQLVariable) => void;
 }) {
-  const value = useTimeRangeVariable(timeRange);
+  const value = useTimeRangeGraphQLVariable(timeRange);
   onValue(value);
   return null;
 }
 
-describe("useTimeRangeVariable", () => {
+describe("useTimeRangeGraphQLVariable", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let values: TimeRangeVariable[];
+  let values: TimeRangeGraphQLVariable[];
 
   beforeEach(() => {
     container = document.createElement("div");
@@ -50,7 +50,7 @@ describe("useTimeRangeVariable", () => {
     container.remove();
   });
 
-  const onValue = (value: TimeRangeVariable) => {
+  const onValue = (value: TimeRangeGraphQLVariable) => {
     values.push(value);
   };
 

@@ -37,10 +37,7 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import {
-  useTimeRange,
-  useTimeRangeVariable,
-} from "@phoenix/components/datetime";
+import { useTimeRange } from "@phoenix/components/datetime";
 import {
   CellWithControlsWrap,
   createRowSelectionColumn,
@@ -67,6 +64,7 @@ import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -212,7 +210,7 @@ export function SpansTable(props: SpansTableProps) {
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRange } = useTimeRange();
-  const timeRangeVariable = useTimeRangeVariable(timeRange);
+  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
 
   // Advertise the current rootSpansOnly state so the agent's context message
   // reflects whether the toggle is mounted on this tab.
@@ -790,7 +788,7 @@ export function SpansTable(props: SpansTableProps) {
           first: PAGE_SIZE,
           filterCondition,
           rootSpansOnly,
-          timeRange: timeRangeVariable,
+          timeRange: timeRangeGraphQLVariable,
         },
         { fetchPolicy: "store-and-network" }
       );
@@ -801,7 +799,7 @@ export function SpansTable(props: SpansTableProps) {
     filterCondition,
     fetchKey,
     rootSpansOnly,
-    timeRangeVariable,
+    timeRangeGraphQLVariable,
   ]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {

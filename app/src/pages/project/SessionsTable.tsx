@@ -36,10 +36,7 @@ import {
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import {
-  useTimeRange,
-  useTimeRangeVariable,
-} from "@phoenix/components/datetime";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -47,6 +44,7 @@ import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
@@ -151,7 +149,7 @@ export function SessionsTable(props: SessionsTableProps) {
   // search/filter still applied. The parent query is intentionally not reloaded
   // on window slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRange } = useTimeRange();
-  const timeRangeVariable = useTimeRangeVariable(timeRange);
+  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -467,7 +465,7 @@ export function SessionsTable(props: SessionsTableProps) {
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstringOrSessionId,
           sessionId: filterIoSubstringOrSessionId,
-          timeRange: timeRangeVariable,
+          timeRange: timeRangeGraphQLVariable,
         },
         { fetchPolicy: "store-and-network" }
       );
@@ -477,7 +475,7 @@ export function SessionsTable(props: SessionsTableProps) {
     refetch,
     filterIoSubstringOrSessionId,
     fetchKey,
-    timeRangeVariable,
+    timeRangeGraphQLVariable,
   ]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {

@@ -6,7 +6,6 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
-  useMemo,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
@@ -19,6 +18,7 @@ import {
 import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
+import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -129,12 +129,7 @@ function ProjectPageContentBody({
   const treatOrphansAsRoots = useProjectContext(
     (state) => state.treatOrphansAsRoots
   );
-  const timeRangeVariable = useMemo(() => {
-    return {
-      start: timeRange?.start?.toISOString(),
-      end: timeRange?.end?.toISOString(),
-    };
-  }, [timeRange]);
+  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
@@ -150,11 +145,11 @@ function ProjectPageContentBody({
     `,
     {
       id: projectId as string,
-      timeRange: timeRangeVariable,
+      timeRange: timeRangeGraphQLVariable,
     },
     {
       fetchPolicy: "store-and-network",
-      fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
+      fetchKey: `${projectId}-${timeRangeGraphQLVariable.start}-${timeRangeGraphQLVariable.end}`,
     }
   );
   const [tracesQueryReference, loadTracesQuery] =
@@ -189,18 +184,18 @@ function ProjectPageContentBody({
       if (currentTabIndex === TAB_INDEX_MAP.spans) {
         loadSpansQuery({
           id: currentProjectId,
-          timeRange: timeRangeVariable,
+          timeRange: timeRangeGraphQLVariable,
           orphanSpanAsRootSpan: currentTreatOrphansAsRoots,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         loadTracesQuery({
           id: currentProjectId,
-          timeRange: timeRangeVariable,
+          timeRange: timeRangeGraphQLVariable,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
           id: currentProjectId,
-          timeRange: timeRangeVariable,
+          timeRange: timeRangeGraphQLVariable,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.config) {
         loadProjectConfigQuery({

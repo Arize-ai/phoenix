@@ -42,10 +42,7 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import {
-  useTimeRange,
-  useTimeRangeVariable,
-} from "@phoenix/components/datetime";
+import { useTimeRange } from "@phoenix/components/datetime";
 import {
   CellWithControlsWrap,
   createRowSelectionColumn,
@@ -72,6 +69,7 @@ import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -243,7 +241,7 @@ export function TracesTable(props: TracesTableProps) {
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRange } = useTimeRange();
-  const timeRangeVariable = useTimeRangeVariable(timeRange);
+  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -922,14 +920,14 @@ export function TracesTable(props: TracesTableProps) {
           first: PAGE_SIZE,
           filterCondition: filterCondition,
           numDescendants: NUM_DESCENDANTS,
-          timeRange: timeRangeVariable,
+          timeRange: timeRangeGraphQLVariable,
         },
         {
           fetchPolicy: "store-and-network",
         }
       );
     });
-  }, [sorting, refetch, filterCondition, fetchKey, timeRangeVariable]);
+  }, [sorting, refetch, filterCondition, fetchKey, timeRangeGraphQLVariable]);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
