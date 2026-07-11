@@ -11,8 +11,9 @@ cells, append rows, delete rows, review the resulting diff, and commit the whole
 session as one dataset version.
 
 The first consumer is the dataset examples page. Its `input`, `output`, and
-`metadata` columns are editable JSON objects. IDs and split assignments remain
-read-only.
+`metadata` columns are editable JSON objects. Split assignments remain
+read-only, as do the IDs of persisted examples; a new example may carry an
+optional custom ID.
 
 ## Goals
 
@@ -29,7 +30,7 @@ read-only.
 ## Non-goals for the first slice
 
 - Formula evaluation, fill handles, multi-cell paste, or range editing.
-- Editing example IDs or split assignments.
+- Editing the ID of a persisted example, or editing split assignments.
 - Reordering persisted examples.
 - Offline persistence of an edit session.
 - Merging concurrent edits from two users.
@@ -104,10 +105,11 @@ update cost.
 
 Column composition remains explicit:
 
-- ID: normal read-only cell.
+- ID: read-only for a persisted example. A new example instead offers an
+  optional custom ID; leaving it blank lets the server generate one.
 - Splits: normal read-only cell.
 - Input/output/metadata: `EditableJSONCell`.
-- Delete: edit-mode-only row action.
+- Remove/restore: edit-mode-only row action.
 
 Future text, number, enum, and date editors should use the same cell-state hook
 and commit parsed domain values to the store.

@@ -314,6 +314,17 @@ export function ExamplesTable({
     resetKey: tableData,
   });
 
+  // New examples are prepended, so scroll them into view — otherwise pressing
+  // "Add example" while scrolled down looks like it did nothing.
+  const addedRowCount = addedRows.length;
+  const previousAddedRowCount = useRef(addedRowCount);
+  useEffect(() => {
+    if (addedRowCount > previousAddedRowCount.current) {
+      tableContainerRef.current?.scrollTo({ top: 0 });
+    }
+    previousAddedRowCount.current = addedRowCount;
+  }, [addedRowCount]);
+
   const columns = useMemo(() => {
     const cols: ColumnDef<DatasetExampleTableRow>[] = [];
     if (!isEditing) {
