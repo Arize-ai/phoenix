@@ -259,8 +259,8 @@ const menuContainerCss = css`
 export const MenuContainer = ({
   children,
   placement = "bottom end",
-  minHeight = 300,
-  maxHeight = 650,
+  minHeight = "var(--global-menu-min-height)",
+  maxHeight = "var(--global-menu-max-height-large)",
   maxWidth = 450,
   ...popoverProps
 }: PropsWithChildren &
