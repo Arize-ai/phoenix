@@ -151,6 +151,31 @@ class TestEnvFileDiscovery:
             assert config_module.get_env_port() == 6006
             assert get_base_url() == "http://127.0.0.1:6006"
 
+    def test_invalid_file_endpoint_falls_back_to_default(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://x:bad\n")
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() is None
+                assert get_base_url() == "http://127.0.0.1:6006"
+        assert any(
+            "Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT" in record.message
+            for record in caplog.records
+        )
+
+    def test_unavailable_working_directory_skips_discovery(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(config_module.Path, "cwd", lambda: (_ for _ in ()).throw(OSError()))
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_api_key() is None
+
+    def test_oversized_file_is_ignored(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=" + "x" * (64 * 1024))
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_api_key() is None
+
     def test_invalid_process_port_still_raises(self) -> None:
         with patch.dict(os.environ, {"PHOENIX_PORT": "not-a-port"}, clear=True):
             with pytest.raises(ValueError):

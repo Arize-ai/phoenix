@@ -97,6 +97,28 @@ describe("environment-derived OTel configuration", () => {
     }
   });
 
+  it("ignores a malformed endpoint from a discovered file", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-otel-env-"));
+    const filePath = path.join(tempDir, ".env.phoenix");
+    fs.writeFileSync(filePath, "PHOENIX_COLLECTOR_ENDPOINT=http://x:bad\n");
+    fs.chmodSync(filePath, 0o600);
+    delete process.env.PHOENIX_DISCOVER_CONFIG;
+    vi.spyOn(process, "cwd").mockReturnValue(tempDir);
+    clearEnvFileCache();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      getDefaultSpanProcessor({ batch: false });
+
+      expect(exporterState.options?.url).toBe("http://localhost:6006/v1/traces");
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT value from ${filePath}`)
+      );
+    } finally {
+      fs.rmSync(tempDir, { force: true, recursive: true });
+    }
+  });
+
   it("keeps the final endpoint and credential bundle on grouped tiers", () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "phoenix-otel-group-")

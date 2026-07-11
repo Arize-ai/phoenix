@@ -29,6 +29,7 @@ export {
 } from "./envFileParser";
 
 const DISCOVERY_OPT_OUT_VALUES = new Set(["false", "0", "no", "off"]);
+const MAX_ENV_FILE_SIZE_BYTES = 64 * 1024;
 
 const warnedPermissivePaths = new Set<string>();
 const warnedSkippedPaths = new Set<string>();
@@ -73,6 +74,15 @@ function warnIfEnvFileSkipped(filePath: string, reason: string): void {
   console.warn(`Ignoring ${filePath}: ${reason}.`);
 }
 
+/** Returns the current directory, treating an unavailable directory as no discovery. */
+function getCurrentWorkingDirectory(): string | undefined {
+  try {
+    return process.cwd();
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Locates the nearest `.env.phoenix` file.
  *
@@ -85,10 +95,14 @@ function warnIfEnvFileSkipped(filePath: string, reason: string): void {
  * @returns The absolute path of the nearest `.env.phoenix` file, if any.
  */
 export function findEnvFile({
-  startDir = process.cwd(),
+  startDir,
 }: {
   startDir?: string;
 } = {}): string | undefined {
+  startDir ??= getCurrentWorkingDirectory();
+  if (startDir === undefined) {
+    return undefined;
+  }
   let currentDir = path.resolve(startDir);
   for (;;) {
     const candidate = path.join(currentDir, PHOENIX_ENV_FILE_NAME);
@@ -144,7 +158,11 @@ function warnIfEnvFilePermissive(filePath: string, mode: number): void {
  * read is treated as absent.
  */
 function loadEnvFileEntry(): EnvFileEntry {
-  const startDir = path.resolve(process.cwd());
+  const currentWorkingDirectory = getCurrentWorkingDirectory();
+  if (currentWorkingDirectory === undefined) {
+    return { values: {} };
+  }
+  const startDir = path.resolve(currentWorkingDirectory);
   const cached = envFileEntriesByDir.get(startDir);
   if (cached) {
     return cached;
@@ -158,8 +176,26 @@ function loadEnvFileEntry(): EnvFileEntry {
         // Re-check trust on the opened descriptor, not the pre-open path.
         const stats = fs.fstatSync(fd);
         if (isTrustedEnvFileStats(stats)) {
-          warnIfEnvFilePermissive(filePath, stats.mode);
-          values = parseEnvFile(fs.readFileSync(fd, "utf8"));
+          if (stats.size > MAX_ENV_FILE_SIZE_BYTES) {
+            warnIfEnvFileSkipped(
+              filePath,
+              `file exceeds ${MAX_ENV_FILE_SIZE_BYTES} bytes`
+            );
+          } else {
+            warnIfEnvFilePermissive(filePath, stats.mode);
+            const buffer = Buffer.allocUnsafe(MAX_ENV_FILE_SIZE_BYTES + 1);
+            const bytesRead = fs.readSync(fd, buffer, 0, buffer.length, 0);
+            if (bytesRead > MAX_ENV_FILE_SIZE_BYTES) {
+              warnIfEnvFileSkipped(
+                filePath,
+                `file exceeds ${MAX_ENV_FILE_SIZE_BYTES} bytes`
+              );
+            } else {
+              values = parseEnvFile(
+                buffer.subarray(0, bytesRead).toString("utf8")
+              );
+            }
+          }
         } else {
           warnIfEnvFileSkipped(
             filePath,

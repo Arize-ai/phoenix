@@ -163,6 +163,24 @@ describe("envFile", () => {
       expect(readEnvFileValue("OTEL_EXPORTER_OTLP_ENDPOINT")).toBeUndefined();
     });
 
+    it("treats an unavailable working directory as no discovered file", () => {
+      vi.spyOn(process, "cwd").mockImplementation(() => {
+        throw new Error("working directory is unavailable");
+      });
+
+      expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBeUndefined();
+    });
+
+    it("ignores files that exceed the read limit", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      writeEnvFile(tempDir, `PHOENIX_API_KEY=${"x".repeat(64 * 1024)}\n`);
+
+      expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("file exceeds 65536 bytes")
+      );
+    });
+
     it.each(["false", "0", "no", "off", "FALSE", " False "])(
       "returns undefined when discovery is disabled via %j",
       (optOut) => {

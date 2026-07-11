@@ -42,6 +42,7 @@ _warned_cross_tier_endpoints: Set[Tuple[str, str]] = set()
 # file exists), so each directory is walked and parsed at most once per process.
 # Call clear_env_file_cache() to pick up a file created afterwards.
 _env_file_entries_by_dir: Dict[str, Tuple[Optional[Path], Dict[str, str]]] = {}
+_MAX_ENV_FILE_SIZE_BYTES = 64 * 1024
 
 
 class _EnvSource(NamedTuple):
@@ -146,7 +147,10 @@ def _load_env_file_entry() -> Tuple[Optional[Path], Dict[str, str]]:
     """Load the nearest ``.env.phoenix`` values, cached per directory (misses included)."""
     if not _is_env_file_discovery_enabled():
         return None, {}
-    start_dir = Path.cwd()
+    try:
+        start_dir = Path.cwd()
+    except OSError:
+        return None, {}
     if (cached := _env_file_entries_by_dir.get(str(start_dir))) is not None:
         return cached
     values: Dict[str, str] = {}
@@ -157,8 +161,19 @@ def _load_env_file_entry() -> Tuple[Optional[Path], Dict[str, str]]:
                 # Re-check trust on the opened descriptor, not the pre-open path.
                 stat = os.fstat(env_file.fileno())
                 if _is_trusted_env_file_stat(stat):
-                    _warn_if_env_file_permissive(path, stat.st_mode)
-                    values = _parse_env_file(env_file.read().decode("utf-8"))
+                    if stat.st_size > _MAX_ENV_FILE_SIZE_BYTES:
+                        _warn_if_env_file_skipped(
+                            path, f"file exceeds {_MAX_ENV_FILE_SIZE_BYTES} bytes"
+                        )
+                    else:
+                        _warn_if_env_file_permissive(path, stat.st_mode)
+                        contents = env_file.read(_MAX_ENV_FILE_SIZE_BYTES + 1)
+                        if len(contents) > _MAX_ENV_FILE_SIZE_BYTES:
+                            _warn_if_env_file_skipped(
+                                path, f"file exceeds {_MAX_ENV_FILE_SIZE_BYTES} bytes"
+                            )
+                        else:
+                            values = _parse_env_file(contents.decode("utf-8"))
                 else:
                     _warn_if_env_file_skipped(
                         path, "opened file must be a regular file owned by the current user"
@@ -260,11 +275,25 @@ def get_env_collector_endpoint() -> Optional[str]:
     Returns:
         Optional[str]: The collector endpoint URL if found, None otherwise.
     """
-    values = _resolve_env_tier(_SERVER_LOCATION_ENV_KEYS)
+    values, endpoint_source = _resolve_env_tier_with_source(_SERVER_LOCATION_ENV_KEYS)
     credential_values, credential_source = _resolve_env_tier_with_source(_CREDENTIAL_ENV_KEYS)
     if credential_values and credential_source is not None and credential_source.kind == "process":
         warn_if_using_file_endpoint_with_credentials(credential_source="the process environment")
-    return values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(ENV_OTEL_EXPORTER_OTLP_ENDPOINT)
+    endpoint = values.get(ENV_PHOENIX_COLLECTOR_ENDPOINT) or values.get(
+        ENV_OTEL_EXPORTER_OTLP_ENDPOINT
+    )
+    if endpoint and endpoint_source is not None and endpoint_source.kind == "env-file":
+        try:
+            parsed_endpoint = urllib.parse.urlparse(endpoint)
+            if parsed_endpoint.scheme not in ("http", "https") or parsed_endpoint.hostname is None:
+                raise ValueError("URL must include an HTTP(S) scheme and hostname")
+            _ = parsed_endpoint.port
+        except ValueError:
+            _reject_invalid_env_value(
+                ENV_PHOENIX_COLLECTOR_ENDPOINT, endpoint, "Value must be a valid URL."
+            )
+            return None
+    return endpoint
 
 
 _warned_project_conflict = False

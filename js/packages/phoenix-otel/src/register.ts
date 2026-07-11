@@ -569,9 +569,21 @@ export function getDefaultSpanProcessor({
   "url" | "apiKey" | "batch" | "headers"
 >): SpanProcessor {
   const envConfig = getEnvConfig();
-  const url = ensureCollectorEndpoint(
-    paramsUrl || envConfig.endpoint.value || "http://localhost:6006"
-  );
+  const configuredUrl = paramsUrl || envConfig.endpoint.value;
+  let url: string;
+  try {
+    url = ensureCollectorEndpoint(configuredUrl || "http://localhost:6006");
+  } catch (error) {
+    if (!paramsUrl && envConfig.endpoint.source?.kind === "env-file") {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
+      );
+      url = ensureCollectorEndpoint("http://localhost:6006");
+    } else {
+      throw error;
+    }
+  }
   const apiKey = paramsApiKey || envConfig.credentials.apiKey;
   const explicitHeaders: Headers = Array.isArray(paramsHeaders)
     ? Object.fromEntries(paramsHeaders)

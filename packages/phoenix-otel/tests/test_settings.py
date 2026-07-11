@@ -192,6 +192,30 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, {}, clear=True):
             assert get_env_grpc_port() == 4317
 
+    def test_invalid_file_endpoint_is_ignored(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://x:bad\n")
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() is None
+        assert any(
+            "Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT" in record.message
+            for record in caplog.records
+        )
+
+    def test_unavailable_working_directory_skips_discovery(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings_module.Path, "cwd", lambda: (_ for _ in ()).throw(OSError()))
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
+    def test_oversized_file_is_ignored(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=" + "x" * (64 * 1024))
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
     def test_invalid_process_grpc_port_still_raises(self) -> None:
         with patch.dict(os.environ, {"PHOENIX_GRPC_PORT": "not-a-port"}, clear=True):
             with pytest.raises(ValueError):
