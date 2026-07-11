@@ -14,7 +14,6 @@ export interface ColumnHeaderCellProps {
   label?: string;
   colSpan?: number;
   style?: CSSProperties;
-  align?: "left" | "center" | "right";
   children: ReactNode;
 }
 
@@ -29,12 +28,11 @@ export function ColumnHeaderCell({
   label,
   colSpan,
   style,
-  align,
   children,
 }: ColumnHeaderCellProps) {
   if (index < 0) {
     return (
-      <th colSpan={colSpan} style={style} align={align}>
+      <th colSpan={colSpan} style={style}>
         {children}
       </th>
     );
@@ -46,7 +44,6 @@ export function ColumnHeaderCell({
       label={label}
       colSpan={colSpan}
       style={style}
-      align={align}
     >
       {children}
     </SortableColumnHeader>

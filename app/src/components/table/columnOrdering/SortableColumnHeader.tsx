@@ -11,6 +11,11 @@ import {
 
 const sortableColumnHeaderCSS = css`
   position: relative;
+  /* Reserve the trailing edge for the drag handle so it never overlaps the
+     header's own content, which is what a right-aligned label would collide
+     with. Header labels stay leading-aligned; cells keep their own alignment. */
+  padding-right: var(--global-dimension-static-size-300);
+  text-align: left;
   ${dndDragFeedbackCSS}
   /* Keep the lifted copy opaque over the table */
   &[data-dnd-dragging] {
@@ -57,7 +62,6 @@ export interface SortableColumnHeaderProps {
   isReorderingDisabled?: boolean;
   colSpan?: number;
   style?: CSSProperties;
-  align?: "left" | "center" | "right";
   children: ReactNode;
 }
 
@@ -72,7 +76,6 @@ export function SortableColumnHeader({
   isReorderingDisabled = false,
   colSpan,
   style,
-  align,
   children,
 }: SortableColumnHeaderProps) {
   const { ref, handleRef, isDragSource } = useSortable({
@@ -85,7 +88,6 @@ export function SortableColumnHeader({
     <th
       ref={ref}
       colSpan={colSpan}
-      align={align}
       style={{
         ...style,
         // Inline so it survives the top layer the drag feedback renders into

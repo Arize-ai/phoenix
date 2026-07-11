@@ -437,20 +437,12 @@ export function ExperimentsTable({
       const { annotationName, minScore, maxScore } = annotationSummary;
       return {
         header: () => (
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            justifyContent="end"
-          >
+          <Flex direction="row" gap="size-100" alignItems="center">
             <Text>{annotationName}</Text>
             <AnnotationColorSwatch annotationName={annotationName} />
           </Flex>
         ),
         id: `${ANNOTATION_COLUMN_PREFIX}${annotationName}`,
-        meta: {
-          textAlign: "right",
-        },
         cell: ({ row }) => {
           const annotation = row.original.annotationSummaryMap[annotationName];
           if (!annotation || annotation.meanScore == null) {
@@ -482,17 +474,11 @@ export function ExperimentsTable({
     {
       header: "repetitions",
       accessorKey: "repetitions",
-      meta: {
-        textAlign: "right",
-      },
       cell: IntCell,
     },
     {
       header: "run count",
       accessorKey: "runCount",
-      meta: {
-        textAlign: "right",
-      },
       cell: IntCell,
     },
     {
@@ -509,9 +495,6 @@ export function ExperimentsTable({
           header: "job progress",
           id: "experimentJobProgress",
           minSize: 200,
-          meta: {
-            textAlign: "right",
-          },
           cell: ({ row }) => {
             const { runCount, expectedRunCount } = row.original;
             const progressValue =
@@ -540,9 +523,6 @@ export function ExperimentsTable({
     {
       header: "avg latency",
       accessorKey: "averageRunLatencyMs",
-      meta: {
-        textAlign: "right",
-      },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
@@ -554,9 +534,6 @@ export function ExperimentsTable({
     {
       header: "total cost",
       accessorKey: "costSummary.total.cost",
-      meta: {
-        textAlign: "right",
-      },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
         const experimentId = row.original.id;
@@ -571,9 +548,6 @@ export function ExperimentsTable({
     {
       header: "total tokens",
       accessorKey: "costSummary.total.tokens",
-      meta: {
-        textAlign: "right",
-      },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
         const experimentId = row.original.id;
@@ -589,9 +563,6 @@ export function ExperimentsTable({
     {
       header: "error rate",
       accessorKey: "errorRate",
-      meta: {
-        textAlign: "right",
-      },
       cell: ErrorRateCell,
     },
     {
@@ -800,7 +771,6 @@ export function ExperimentsTable({
                         ...getCommonPinningStyles(header.column),
                         width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
                       }}
-                      align={header.column.columnDef?.meta?.textAlign}
                     >
                       {header.isPlaceholder ? null : (
                         <>
