@@ -1,31 +1,13 @@
-import type { DraggableAttributes } from "@dnd-kit/core";
 import { css } from "@emotion/react";
-import React from "react";
+import type { Ref } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
-// This is the type of the listeners object from useSortable
-// However it is not exported from @dnd-kit/core so we have to redefine it here
-// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-type Listeners = Record<string, Function>;
-
-function DragHandle({
-  ref,
-  listeners,
-  attributes,
-}: {
-  listeners?: Listeners;
-  attributes: DraggableAttributes;
-  ref?: React.Ref<HTMLButtonElement>;
-}) {
+function DragHandle({ ref }: { ref?: Ref<HTMLButtonElement> }) {
   return (
     <button
       ref={ref}
-      {...listeners}
-      {...attributes}
-      aria-roledescription="draggable"
-      aria-pressed="false"
-      aria-disabled="false"
+      aria-label="Reorder message"
       className="button--reset drag-handle"
       css={css`
         cursor: grab;

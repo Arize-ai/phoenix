@@ -59,6 +59,36 @@ async function addDatasetExample(
 }
 
 test.describe("Playground", () => {
+  test("reorders prompt messages by dragging the handle", async ({ page }) => {
+    await page.goto("/playground");
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
+
+    const reorderButtons = page.getByRole("button", {
+      name: "Reorder message",
+    });
+    const messageItems = page.locator("li").filter({ has: reorderButtons });
+
+    await expect(reorderButtons).toHaveCount(2);
+    await expect(messageItems).toHaveCount(2);
+    await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
+      "You are a chatbot"
+    );
+    await expect(messageItems.nth(1).getByRole("textbox")).toContainText(
+      "{{question}}"
+    );
+
+    await reorderButtons.first().dragTo(messageItems.nth(1));
+
+    await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
+      "{{question}}"
+    );
+    await expect(messageItems.nth(1).getByRole("textbox")).toContainText(
+      "You are a chatbot"
+    );
+  });
+
   test("preserves prompt selection in the URL across page reloads", async ({
     page,
   }) => {
