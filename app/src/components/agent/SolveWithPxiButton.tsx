@@ -39,6 +39,9 @@ const pxiButtonCSS = css`
   --pxi-treatment-stroke-width: var(--global-border-size-thin);
   position: relative;
   isolation: isolate;
+  &[data-childless="true"] {
+    aspect-ratio: 1 / 1;
+  }
   background-image: linear-gradient(
     135deg,
     color-mix(in srgb, var(--pxi-treatment-color-start) 11%, transparent),

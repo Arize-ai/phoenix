@@ -34,13 +34,13 @@ const OPEN_AGENT_HOTKEY = "mod+i";
 
 const thinkingBorderWipe = keyframes`
   0% {
-    -webkit-mask-position: 200% center;
-    mask-position: 200% center;
+    -webkit-mask-position: 170% center;
+    mask-position: 170% center;
   }
 
   100% {
-    -webkit-mask-position: 0% center;
-    mask-position: 0% center;
+    -webkit-mask-position: -70% center;
+    mask-position: -70% center;
   }
 `;
 
@@ -165,7 +165,8 @@ const thinkingBorderCSS = css`
     opacity: 1;
     -webkit-mask-position: center;
     mask-position: center;
-    animation: ${thinkingBorderWipe} 3s linear infinite both -0.5s;
+    /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
+    animation: ${thinkingBorderWipe} 3600ms linear infinite both -0.5s;
   }
 
   .agent-chat-widget__shimmer::before {

@@ -1041,7 +1041,7 @@ const pxiCSS = (theme: Theme) => css`
     --pxi-conic-spin-duration: 3s;
     --pxi-glow-bleed: 28px;
     --pxi-glow-opacity: 0.95;
-    --pxi-glow-wipe-duration: 2800ms;
+    --pxi-glow-wipe-duration: 3000ms;
     --pxi-glow-wipe-easing: cubic-bezier(0.4, 0.4, 0.65, 1);
     --pxi-treatment-color-start: #9a66ff;
     --pxi-treatment-color-middle: #3480ff;
