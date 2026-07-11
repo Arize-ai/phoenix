@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
 import { useState } from "react";
+import { Button as UnstyledButton } from "react-aria-components";
 
 import {
   Alert,
@@ -8,8 +9,10 @@ import {
   Dialog,
   Icon,
   Icons,
+  KeyboardToken,
   Modal,
   ModalOverlay,
+  Text,
   View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
@@ -22,22 +25,62 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { isPlainObject, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { useEditableTableCell } from "./useEditableTableCell";
 
-const editableJSONCellCSS = css`
+// Fills the entire <td> so the cell itself is the click target and the
+// edit affordance (hover ring, dirty marker) can be drawn at the cell level.
+const cellTriggerCSS = css`
+  appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
   width: 100%;
-  min-width: 0;
-  justify-content: flex-start;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: var(--global-table-cell-padding-y)
+    var(--global-table-cell-padding-x);
+  font: inherit;
+  color: inherit;
   text-align: left;
-  font-family: var(--global-font-family-mono);
-  font-weight: normal;
+  cursor: text;
+  min-width: 0;
 
-  &[data-dirty="true"] {
-    background-color: rgba(var(--global-color-warning-rgb), 0.12);
-    border-color: var(--global-color-warning);
+  &[data-disabled] {
+    cursor: default;
   }
+`;
+
+// Full-bleed editor: flush against the dialog header and footer so the
+// modal reads as a single editing surface.
+const editorContainerCSS = css`
+  .cm-editor {
+    background: transparent;
+  }
+  .cm-content {
+    padding: var(--global-dimension-size-100) 0;
+  }
+`;
+
+const footerHintCSS = css`
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-75);
+`;
+
+// Single-line truncation keeps every row at the virtualizer's fixed height.
+const cellTextCSS = css`
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--global-font-family-mono);
 `;
 
 export type EditableJSONCellProps<
@@ -70,61 +113,70 @@ export function EditableJSONCell<
   const [isOpen, setIsOpen] = useState(false);
   const [editorValue, setEditorValue] = useState("");
   const [editorError, setEditorError] = useState<string | null>(null);
+  const modifierKey = useModifierKey();
 
   if (!cell.isEditing || !cell.isEditable) {
-    return <JSONText json={cell.value} maxLength={100} />;
+    return (
+      <span css={cellTextCSS}>
+        <JSONText json={cell.value} maxLength={100} />
+      </span>
+    );
   }
+
+  // Set the local (banner) and cell-level (store) errors together so the
+  // dialog and the table stay in sync.
+  const applyEditorError = (error: string | null) => {
+    setEditorError(error);
+    cell.setError(error);
+  };
 
   const validateEditorValue = (value: string) => {
     const result = safelyParseJSON(value);
     if (result.parseError) {
-      return "Enter valid JSON before saving this cell.";
+      return { error: "Enter valid JSON before saving this cell." };
     }
     if (requireObject && !isPlainObject(result.json)) {
-      return "This cell must contain a JSON object.";
+      return { error: "This cell must contain a JSON object." };
     }
-    return null;
+    return { error: null, json: result.json };
   };
 
   const openEditor = () => {
     setEditorValue(JSON.stringify(cell.value, null, 2) ?? "");
-    setEditorError(null);
-    cell.setError(null);
+    applyEditorError(null);
     setIsOpen(true);
   };
 
   const saveEditorValue = () => {
-    const error = validateEditorValue(editorValue);
-    setEditorError(error);
-    cell.setError(error);
+    const { error, json } = validateEditorValue(editorValue);
+    applyEditorError(error);
     if (error !== null) {
       return;
     }
-    const result = safelyParseJSON(editorValue);
-    cell.updateValue(result.json as Row[ColumnId]);
+    cell.updateValue(json as Row[ColumnId]);
     setIsOpen(false);
   };
 
   return (
     <>
-      <Button
+      <UnstyledButton
+        data-cell-edit-trigger
         data-dirty={cell.isDirty}
-        variant="quiet"
-        size="S"
-        css={editableJSONCellCSS}
+        css={cellTriggerCSS}
         isDisabled={cell.isSaving}
         onClick={(event) => event.stopPropagation()}
         onPress={openEditor}
         aria-label={`${title} for row ${cellContext.row.id}`}
       >
-        <JSONText json={cell.value} maxLength={100} />
-      </Button>
+        <span css={cellTextCSS}>
+          <JSONText json={cell.value} maxLength={100} />
+        </span>
+      </UnstyledButton>
       <ModalOverlay
         isOpen={isOpen}
         onOpenChange={(nextIsOpen) => {
           if (!nextIsOpen) {
-            setEditorError(null);
-            cell.setError(null);
+            applyEditorError(null);
           }
           setIsOpen(nextIsOpen);
         }}
@@ -146,19 +198,38 @@ export function EditableJSONCell<
                   </Alert>
                 </View>
               ) : null}
-              <View padding="size-200">
+              <div
+                css={editorContainerCSS}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    (event.metaKey || event.ctrlKey)
+                  ) {
+                    event.preventDefault();
+                    saveEditorValue();
+                  }
+                }}
+              >
                 <JSONEditor
                   value={editorValue}
-                  height="400px"
+                  autoFocus
+                  minHeight="240px"
+                  maxHeight="60vh"
                   onChange={(nextValue) => {
                     setEditorValue(nextValue);
-                    const error = validateEditorValue(nextValue);
-                    setEditorError(error);
-                    cell.setError(error);
+                    applyEditorError(validateEditorValue(nextValue).error);
                   }}
                 />
-              </View>
+              </div>
               <DialogFooter>
+                <span css={footerHintCSS}>
+                  <KeyboardToken variant="quiet">
+                    {modifierKey === "Cmd" ? "⌘" : "Ctrl"} ↵
+                  </KeyboardToken>
+                  <Text size="XS" color="text-500">
+                    to save
+                  </Text>
+                </span>
                 <Button variant="default" slot="close">
                   Cancel
                 </Button>
@@ -168,7 +239,7 @@ export function EditableJSONCell<
                   leadingVisual={<Icon svg={<Icons.Save />} />}
                   onPress={saveEditorValue}
                 >
-                  Save cell
+                  Save
                 </Button>
               </DialogFooter>
             </DialogContent>

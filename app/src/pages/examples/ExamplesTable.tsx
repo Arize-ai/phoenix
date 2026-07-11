@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, Updater } from "@tanstack/react-table";
+import type { CellContext, ColumnDef, Updater } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -19,11 +19,10 @@ import { useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
 
 import {
+  Button,
   CopyToClipboardButton,
   Icon,
-  IconButton,
   Icons,
-  Text,
   Tooltip,
   TooltipTrigger,
   Truncate,
@@ -33,6 +32,7 @@ import { Link } from "@phoenix/components/core/Link";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import {
   CellWithControlsWrap,
+  CompactJSONCell,
   createRowSelectionColumn,
   EditableJSONCell,
 } from "@phoenix/components/table";
@@ -42,9 +42,9 @@ import {
   CHECKBOX_COLUMN_PINNING,
 } from "@phoenix/components/table/constants";
 import {
+  editableTableCSS,
   getCommonPinningStyles,
   selectableTableCSS,
-  tableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
@@ -65,6 +65,17 @@ const PAGE_SIZE = 100;
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
+
+const rowActionButtonCSS = css`
+  white-space: nowrap;
+`;
+
+const removeRowButtonCSS = css(
+  rowActionButtonCSS,
+  css`
+    color: var(--global-color-danger);
+  `
+);
 
 export function ExamplesTable({
   dataset,
@@ -224,11 +235,9 @@ export function ExamplesTable({
         };
       }
     );
-    return [
-      ...addedRows,
-      ...baselineRows.filter((row) => !deletedRowIds.has(row.id)),
-    ];
-  }, [addedRows, data, deletedRowIds]);
+    // Deleted rows stay visible (struck through) until the changes are saved.
+    return [...addedRows, ...baselineRows];
+  }, [addedRows, data]);
   const { selectRow } = useShiftClickRowSelection<DatasetExampleTableRow>({
     resetKey: tableData,
   });
@@ -250,8 +259,8 @@ export function ExamplesTable({
         header: "id",
         accessorKey: "id",
         maxSize: 180,
-        size: 30,
-        minSize: 30,
+        size: 120,
+        minSize: 60,
         cell: ({ row }) => {
           const exampleId = row.original.id;
           const displayId = row.original.externalId ?? exampleId;
@@ -278,45 +287,33 @@ export function ExamplesTable({
           );
         },
       },
-      {
-        header: "input",
-        accessorKey: "input",
-        size: 300,
-        cell: (context) => (
-          <EditableJSONCell
-            {...context}
-            columnId="input"
-            requireObject
-            title="Edit input"
-          />
-        ),
-      },
-      {
-        header: "output",
-        accessorKey: "output",
-        size: 300,
-        cell: (context) => (
-          <EditableJSONCell
-            {...context}
-            columnId="output"
-            requireObject
-            title="Edit output"
-          />
-        ),
-      },
-      {
-        header: "metadata",
-        accessorKey: "metadata",
-        size: 250,
-        cell: (context) => (
-          <EditableJSONCell
-            {...context}
-            columnId="metadata"
-            requireObject
-            title="Edit metadata"
-          />
-        ),
-      }
+      ...(
+        [
+          { columnId: "input", size: 300 },
+          { columnId: "output", size: 300 },
+          { columnId: "metadata", size: 250 },
+        ] as const
+      ).map(({ columnId, size }) => ({
+        header: columnId,
+        accessorKey: columnId,
+        size,
+        // In read mode render the subscription-free compact cell; the editable
+        // cell (which subscribes to the edit store) mounts only while editing.
+        cell: isEditing
+          ? (context: CellContext<DatasetExampleTableRow, unknown>) => (
+              <EditableJSONCell
+                {...context}
+                columnId={columnId}
+                requireObject
+                title={
+                  context.row.original.isNew
+                    ? `Edit ${columnId} · new example`
+                    : `Edit ${columnId}`
+                }
+              />
+            )
+          : CompactJSONCell<DatasetExampleTableRow, unknown>,
+      }))
     );
     cols.splice(isEditing ? 1 : 2, 0, {
       header: "splits",
@@ -329,26 +326,43 @@ export function ExamplesTable({
     if (isEditing) {
       cols.push({
         id: "actions",
-        header: () => <Text>Actions</Text>,
-        size: 70,
-        minSize: 70,
-        maxSize: 70,
-        cell: ({ row }) => (
-          <TooltipTrigger>
-            <IconButton
+        header: "",
+        size: 120,
+        minSize: 120,
+        maxSize: 120,
+        cell: ({ row }) => {
+          const isDeleted = deletedRowIds.has(row.original.id);
+          return isDeleted ? (
+            <Button
               size="S"
-              aria-label={`Delete row ${row.id}`}
-              onPress={() => editStore.getState().deleteRow(row.original.id)}
+              variant="quiet"
+              css={rowActionButtonCSS}
+              leadingVisual={<Icon svg={<Icons.RotateCcw />} />}
+              aria-label={`Restore row ${row.id}`}
+              onPress={() => editStore.getState().restoreRow(row.original.id)}
             >
-              <Icon svg={<Icons.Trash />} />
-            </IconButton>
-            <Tooltip>Delete row</Tooltip>
-          </TooltipTrigger>
-        ),
+              Restore
+            </Button>
+          ) : (
+            <TooltipTrigger>
+              <Button
+                size="S"
+                variant="quiet"
+                css={removeRowButtonCSS}
+                leadingVisual={<Icon svg={<Icons.Close />} />}
+                aria-label={`Remove row ${row.id}`}
+                onPress={() => editStore.getState().deleteRow(row.original.id)}
+              >
+                Remove
+              </Button>
+              <Tooltip>Removed when changes are saved</Tooltip>
+            </TooltipTrigger>
+          );
+        },
       });
     }
     return cols;
-  }, [editStore, isEditing, selectRow]);
+  }, [deletedRowIds, editStore, isEditing, selectRow]);
 
   const table = useReactTable<DatasetExampleTableRow>({
     columns,
@@ -356,7 +370,9 @@ export function ExamplesTable({
     state: {
       rowSelection,
       columnSizing,
-      columnPinning: CHECKBOX_COLUMN_PINNING,
+      columnPinning: isEditing
+        ? { right: ["actions"] }
+        : CHECKBOX_COLUMN_PINNING,
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
@@ -369,6 +385,8 @@ export function ExamplesTable({
       editing: {
         store: editStore,
         getRowId: (row) => row.id,
+        // Rows pending deletion are read-only until restored
+        isCellEditable: ({ row }) => !deletedRowIds.has(row.id),
       },
     },
   });
@@ -394,7 +412,7 @@ export function ExamplesTable({
     return colSizes;
     // Disabled lint as per tanstack docs linked above
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState, columns]);
   const rows = table.getRowModel().rows;
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -446,7 +464,7 @@ export function ExamplesTable({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
-        css={isEditing ? tableCSS : selectableTableCSS}
+        css={isEditing ? editableTableCSS : selectableTableCSS}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
@@ -505,10 +523,12 @@ export function ExamplesTable({
               }
               const isSelected =
                 !isEditing && row.original.id === selectedExampleId;
+              const isDeleted = isEditing && deletedRowIds.has(row.original.id);
               return (
                 <tr
                   key={row.id}
                   data-selected={isSelected}
+                  data-deleted={isDeleted}
                   style={{
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${
@@ -526,6 +546,9 @@ export function ExamplesTable({
                     return (
                       <td
                         key={cell.id}
+                        data-row-actions={
+                          cell.column.id === "actions" || undefined
+                        }
                         onClick={(e) => {
                           // prevent the row click event from firing on the select cell
                           if (cell.column.id === CHECKBOX_COLUMN_ID) {
