@@ -70,6 +70,17 @@ const rowActionButtonCSS = css`
   white-space: nowrap;
 `;
 
+/**
+ * Names an example the way a person would, for accessible names. The row's own
+ * ID is a base64 global ID — or a temporary `new-…` ID — and reads as noise.
+ */
+const describeExample = (row: DatasetExampleTableRow): string =>
+  row.isNew
+    ? row.externalId
+      ? `new example ${row.externalId}`
+      : "new example"
+    : `example ${row.externalId ?? row.id}`;
+
 /** Selection is held as a list of example IDs; the table wants a lookup. */
 const toRowSelection = (exampleIds: string[]): Record<string, boolean> =>
   Object.fromEntries(exampleIds.map((exampleId) => [exampleId, true]));
@@ -394,6 +405,7 @@ export function ExamplesTable({
                     ? `Edit ${columnId} · new example`
                     : `Edit ${columnId}`
                 }
+                rowLabel={describeExample(context.row.original)}
               />
             )
           : CompactJSONCell<DatasetExampleTableRow, unknown>,
@@ -422,7 +434,7 @@ export function ExamplesTable({
               variant="quiet"
               css={rowActionButtonCSS}
               leadingVisual={<Icon svg={<Icons.RotateCcw />} />}
-              aria-label={`Restore row ${row.id}`}
+              aria-label={`Restore ${describeExample(row.original)}`}
               onPress={() => editStore.getState().restoreRow(row.original.id)}
             >
               Restore
@@ -434,7 +446,7 @@ export function ExamplesTable({
                 variant="quiet"
                 css={removeRowButtonCSS}
                 leadingVisual={<Icon svg={<Icons.Close />} />}
-                aria-label={`Remove row ${row.id}`}
+                aria-label={`Remove ${describeExample(row.original)}`}
                 onPress={() => editStore.getState().deleteRow(row.original.id)}
               >
                 Remove

@@ -100,6 +100,12 @@ export type EditableJSONCellProps<
   columnId: ColumnId;
   requireObject?: boolean;
   title?: string;
+  /**
+   * Names the row this cell belongs to, for the trigger's accessible name.
+   * Defaults to the row's ID, which is often opaque — pass something a person
+   * would recognize.
+   */
+  rowLabel?: string;
 };
 
 /**
@@ -114,6 +120,7 @@ export function EditableJSONCell<
     columnId,
     requireObject = false,
     title = `Edit ${columnId}`,
+    rowLabel,
     ...cellContext
   } = props;
   const cell = useEditableTableCell({
@@ -176,7 +183,7 @@ export function EditableJSONCell<
         isDisabled={cell.isSaving}
         onClick={(event) => event.stopPropagation()}
         onPress={openEditor}
-        aria-label={`${title} for row ${cellContext.row.id}`}
+        aria-label={`${title} for ${rowLabel ?? `row ${cellContext.row.id}`}`}
       >
         <span css={cellTextCSS}>
           <JSONText json={cell.value} maxLength={100} />
