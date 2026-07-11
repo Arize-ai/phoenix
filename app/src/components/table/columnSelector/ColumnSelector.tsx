@@ -14,7 +14,10 @@ import {
   MenuHeader,
   Popover,
 } from "@phoenix/components";
-import { dndDragFeedbackCSS } from "@phoenix/components/dnd";
+import {
+  dndDragFeedbackCSS,
+  dndHandleAppearanceCSS,
+} from "@phoenix/components/dnd";
 
 import { ColumnOrderingProvider } from "../columnOrdering";
 
@@ -81,34 +84,14 @@ export const columnRowCSS = css`
     min-width: 0;
   }
   .column-selector-row__handle {
+    ${dndHandleAppearanceCSS}
     display: flex;
     align-items: center;
     justify-content: center;
     flex: none;
     width: var(--global-dimension-static-size-225);
     height: var(--global-dimension-static-size-225);
-    border: none;
-    background: none;
-    padding: 0;
-    color: var(--global-dnd-handle-color);
     font-size: var(--global-font-size-m);
-    opacity: 0;
-    cursor: grab;
-    touch-action: none;
-    border-radius: var(--global-rounding-small);
-    transition:
-      opacity 0.12s ease-in-out,
-      color 0.12s ease-in-out,
-      background-color 0.12s ease-in-out;
-    &:hover {
-      color: var(--global-dnd-handle-color-hover);
-      background-color: var(--global-dnd-handle-background-color-hover);
-    }
-    &:focus-visible {
-      opacity: 1;
-      outline: 1px solid var(--global-color-primary);
-      outline-offset: -1px;
-    }
   }
   &:hover {
     background-color: var(--global-color-gray-200);
@@ -202,7 +185,7 @@ export function ColumnSelectorMenu({
   const isReorderingEnabled =
     onColumnOrderChange != null && filteredColumns.length === columns.length;
 
-  const toggleableColumns = columns.filter(
+  const toggleableColumns = filteredColumns.filter(
     (column) => !column.isVisibilityToggleDisabled
   );
   const allVisible = toggleableColumns.every((column) =>

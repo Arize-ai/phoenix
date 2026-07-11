@@ -4,7 +4,10 @@ import { css } from "@emotion/react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
-import { dndDragFeedbackCSS } from "@phoenix/components/dnd";
+import {
+  dndDragFeedbackCSS,
+  dndHandleAppearanceCSS,
+} from "@phoenix/components/dnd";
 
 const sortableColumnHeaderCSS = css`
   position: relative;
@@ -25,6 +28,7 @@ const sortableColumnHeaderCSS = css`
     background-color: var(--global-dnd-drop-target-background-color);
   }
   .sortable-column-header__handle {
+    ${dndHandleAppearanceCSS}
     position: absolute;
     top: 50%;
     right: var(--global-dimension-static-size-50);
@@ -34,28 +38,8 @@ const sortableColumnHeaderCSS = css`
     justify-content: center;
     width: var(--global-dimension-static-size-225);
     height: var(--global-dimension-static-size-225);
-    border: none;
-    border-radius: var(--global-rounding-small);
-    background-color: transparent;
-    color: var(--global-dnd-handle-color);
     font-size: var(--global-font-size-s);
-    opacity: 0;
-    transition:
-      opacity 0.12s ease-in-out,
-      color 0.12s ease-in-out,
-      background-color 0.12s ease-in-out;
-    cursor: grab;
-    touch-action: none;
     z-index: 1;
-    &:hover {
-      color: var(--global-dnd-handle-color-hover);
-      background-color: var(--global-dnd-handle-background-color-hover);
-    }
-    &:focus-visible {
-      opacity: 1;
-      outline: 1px solid var(--global-color-primary);
-      outline-offset: -1px;
-    }
   }
   &:hover .sortable-column-header__handle {
     opacity: 1;
