@@ -39,16 +39,12 @@ import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp"
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import {
-  applySubsetColumnOrder,
   CellWithControlsWrap,
+  ColumnHeaderCell,
   ColumnOrderingProvider,
   createRowSelectionColumn,
-  expandColumnOrderToLeafIds,
-  getLeafIdsByTopLevelId,
-  getTopLevelColumnIds,
   LoadMoreRow,
-  mergeColumnOrder,
-  SortableColumnHeader,
+  useColumnOrder,
 } from "@phoenix/components/table";
 import {
   CHECKBOX_COLUMN_ID,
@@ -828,39 +824,18 @@ export function SpansTable(props: SpansTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
-  // Reconcile the persisted order with the columns that currently exist
-  // (annotation columns come and go), then expand group columns into the
-  // leaf column order that tanstack expects
-  const orderableColumnIds = getTopLevelColumnIds(columns).filter(
-    (id) => id !== CHECKBOX_COLUMN_ID
-  );
-  const topLevelColumnOrder = mergeColumnOrder({
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
     columnOrder: storedColumnOrder,
-    columnIds: orderableColumnIds,
+    onColumnOrderChange: setStoredColumnOrder,
+    columnVisibility,
+    nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],
   });
-  const leafIdsByTopLevelId = getLeafIdsByTopLevelId(columns);
-  const leafColumnOrder = expandColumnOrderToLeafIds(
-    topLevelColumnOrder,
-    columns
-  );
-  // Hidden columns render no header, so header drag-and-drop operates on the
-  // visible subset and the result is merged back into the full order
-  const visibleTopLevelColumnOrder = topLevelColumnOrder.filter((id) =>
-    (leafIdsByTopLevelId.get(id) ?? [id]).some(
-      (leafId) => columnVisibility[leafId] ?? true
-    )
-  );
-  const visibleOrderIndexById = new Map(
-    visibleTopLevelColumnOrder.map((id, index) => [id, index])
-  );
-  const onColumnOrderChange = (orderedSubset: string[]) => {
-    setStoredColumnOrder(
-      applySubsetColumnOrder({
-        columnOrder: topLevelColumnOrder,
-        orderedSubset,
-      })
-    );
-  };
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -991,8 +966,8 @@ export function SpansTable(props: SpansTableProps) {
               ref={tableContainerRef}
             >
               <ColumnOrderingProvider
-                columnOrder={visibleTopLevelColumnOrder}
-                onColumnOrderChange={onColumnOrderChange}
+                columnOrder={visibleColumnOrder}
+                onColumnOrderChange={onVisibleColumnOrderChange}
               >
                 <table
                   css={selectableTableCSS}
@@ -1061,28 +1036,17 @@ export function SpansTable(props: SpansTableProps) {
                                   />
                                 </>
                               );
-                            const sortableIndex =
-                              headerGroupIndex === 0
-                                ? (visibleOrderIndexById.get(
-                                    header.column.id
-                                  ) ?? -1)
-                                : -1;
-                            if (sortableIndex === -1) {
-                              return (
-                                <th
-                                  colSpan={header.colSpan}
-                                  style={headerStyle}
-                                  key={header.id}
-                                >
-                                  {headerContent}
-                                </th>
-                              );
-                            }
                             return (
-                              <SortableColumnHeader
+                              <ColumnHeaderCell
                                 key={header.id}
                                 columnId={header.column.id}
-                                index={sortableIndex}
+                                // Only the top header group is reorderable;
+                                // sub-headers of a group column move with it
+                                index={
+                                  headerGroupIndex === 0
+                                    ? getColumnOrderIndex(header.column.id)
+                                    : -1
+                                }
                                 label={
                                   typeof header.column.columnDef.header ===
                                   "string"
@@ -1093,7 +1057,7 @@ export function SpansTable(props: SpansTableProps) {
                                 style={headerStyle}
                               >
                                 {headerContent}
-                              </SortableColumnHeader>
+                              </ColumnHeaderCell>
                             );
                           })}
                         </tr>

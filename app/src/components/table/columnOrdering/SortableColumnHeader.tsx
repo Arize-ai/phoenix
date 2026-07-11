@@ -57,6 +57,7 @@ export interface SortableColumnHeaderProps {
   isReorderingDisabled?: boolean;
   colSpan?: number;
   style?: CSSProperties;
+  align?: "left" | "center" | "right";
   children: ReactNode;
 }
 
@@ -71,6 +72,7 @@ export function SortableColumnHeader({
   isReorderingDisabled = false,
   colSpan,
   style,
+  align,
   children,
 }: SortableColumnHeaderProps) {
   const { ref, handleRef, isDragSource } = useSortable({
@@ -83,6 +85,7 @@ export function SortableColumnHeader({
     <th
       ref={ref}
       colSpan={colSpan}
+      align={align}
       style={{
         ...style,
         // Inline so it survives the top layer the drag feedback renders into

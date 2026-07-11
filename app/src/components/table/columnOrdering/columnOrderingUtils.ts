@@ -1,7 +1,7 @@
 /** Minimal shape of a tanstack ColumnDef needed to resolve ids and leaf columns, testable without a table instance. */
 export interface OrderableColumnDef {
   id?: string;
-  accessorKey?: string;
+  accessorKey?: string | number;
   header?: unknown;
   columns?: OrderableColumnDef[];
 }
@@ -12,7 +12,7 @@ export function getColumnDefId(def: OrderableColumnDef): string | null {
     return def.id;
   }
   if (def.accessorKey != null) {
-    return def.accessorKey.replaceAll(".", "_");
+    return String(def.accessorKey).replaceAll(".", "_");
   }
   if (typeof def.header === "string") {
     return def.header;
