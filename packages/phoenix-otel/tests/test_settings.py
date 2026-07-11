@@ -207,7 +207,7 @@ class TestEnvFileDiscovery:
     def test_unavailable_working_directory_skips_discovery(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(settings_module.Path, "cwd", lambda: (_ for _ in ()).throw(OSError()))
+        monkeypatch.setattr(Path, "cwd", lambda: (_ for _ in ()).throw(OSError()))
         with patch.dict(os.environ, {}, clear=True):
             assert get_env_phoenix_auth_header() is None
 

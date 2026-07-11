@@ -110,9 +110,13 @@ describe("environment-derived OTel configuration", () => {
     try {
       getDefaultSpanProcessor({ batch: false });
 
-      expect(exporterState.options?.url).toBe("http://localhost:6006/v1/traces");
+      expect(exporterState.options?.url).toBe(
+        "http://localhost:6006/v1/traces"
+      );
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT value from ${filePath}`)
+        expect.stringContaining(
+          `Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT value from ${filePath}`
+        )
       );
     } finally {
       fs.rmSync(tempDir, { force: true, recursive: true });
