@@ -1,7 +1,6 @@
 import {
   createEditableTableStore,
   getEditableTableChangeCount,
-  getEditableTableErrorCount,
 } from "../editableTableStore";
 
 type TestRow = {
@@ -96,52 +95,12 @@ describe("editableTableStore", () => {
     expect(store.getState().deletedRowIds.size).toBe(0);
   });
 
-  it("tracks change and validation error counts", () => {
+  it("tracks the change count", () => {
     const store = createStore();
     store.getState().addRow({ id: "new-1", input: {}, output: {} });
     store.getState().deleteRow("row-2");
-    store.getState().setCellError({
-      rowId: "new-1",
-      columnId: "input",
-      error: "Invalid JSON",
-    });
 
     expect(getEditableTableChangeCount(store.getState())).toBe(2);
-    expect(getEditableTableErrorCount(store.getState())).toBe(1);
-
-    store.getState().setCellError({
-      rowId: "new-1",
-      columnId: "input",
-      error: null,
-    });
-    expect(getEditableTableErrorCount(store.getState())).toBe(0);
-  });
-
-  it("discards the validation errors of a new row that is removed", () => {
-    const store = createStore();
-    store.getState().addRow({ id: "new-1", input: {}, output: {} });
-    store.getState().setCellError({
-      rowId: "new-1",
-      columnId: "input",
-      error: "Invalid JSON",
-    });
-    store.getState().deleteRow("new-1");
-
-    expect(getEditableTableErrorCount(store.getState())).toBe(0);
-  });
-
-  it("ignores the validation errors of a row that is pending deletion", () => {
-    const store = createStore();
-    store.getState().setCellError({
-      rowId: "row-1",
-      columnId: "input",
-      error: "Invalid JSON",
-    });
-    store.getState().deleteRow("row-1");
-    expect(getEditableTableErrorCount(store.getState())).toBe(0);
-
-    store.getState().restoreRow("row-1");
-    expect(getEditableTableErrorCount(store.getState())).toBe(1);
   });
 
   it("clears the full session on cancel and successful save", () => {

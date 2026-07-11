@@ -27,6 +27,7 @@ import {
   Tooltip,
   TooltipTrigger,
   Truncate,
+  VisuallyHidden,
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Link } from "@phoenix/components/core/Link";
@@ -94,6 +95,11 @@ const toRowSelection = (exampleIds: string[]): Record<string, boolean> =>
 // field — a subtle border that brightens on hover/focus — so it's clear the
 // ID can be overridden, while the italic placeholder communicates that an ID
 // will be auto-generated when the field is left untouched.
+//
+// This is a raw input rather than the design system's TextField because the
+// virtualizer pins every row to a fixed height: TextField stacks a label and a
+// validation message around its input, which the row has no space for. The
+// error is announced through `aria-describedby` instead.
 const newExampleIdInputCSS = css`
   appearance: none;
   width: 100%;
@@ -149,27 +155,35 @@ function NewExampleIdCell({
     useShallow(getDuplicateExternalIdRowIds)
   );
   const isDuplicate = duplicateRowIds.includes(row.id);
+  const errorId = `${row.id}-custom-id-error`;
   return (
-    <input
-      css={newExampleIdInputCSS}
-      value={externalId}
-      disabled={isSaving}
-      placeholder="ID auto-generated"
-      aria-label="Example ID (leave blank to auto-generate)"
-      aria-invalid={isDuplicate}
-      title={isDuplicate ? DUPLICATE_ID_ERROR : undefined}
-      // Keep the cell's click from starting row navigation/selection.
-      onClick={(event) => event.stopPropagation()}
-      onChange={(event) => {
-        const nextValue = event.target.value;
-        editStore.getState().updateCell({
-          rowId: row.id,
-          columnId: "externalId",
-          value: nextValue === "" ? null : nextValue,
-          originalValue: null,
-        });
-      }}
-    />
+    <>
+      <input
+        css={newExampleIdInputCSS}
+        value={externalId}
+        disabled={isSaving}
+        placeholder="ID auto-generated"
+        aria-label="Custom ID (leave blank to auto-generate)"
+        aria-invalid={isDuplicate}
+        aria-describedby={isDuplicate ? errorId : undefined}
+        // Keep the cell's click from starting row navigation/selection.
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          editStore.getState().updateCell({
+            rowId: row.id,
+            columnId: "externalId",
+            value: nextValue === "" ? null : nextValue,
+            originalValue: null,
+          });
+        }}
+      />
+      {isDuplicate ? (
+        <VisuallyHidden>
+          <span id={errorId}>{DUPLICATE_ID_ERROR}</span>
+        </VisuallyHidden>
+      ) : null}
+    </>
   );
 }
 

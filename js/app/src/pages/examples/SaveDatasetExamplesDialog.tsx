@@ -168,12 +168,7 @@ export function SaveDatasetExamplesDialog({
   return (
     <ModalOverlay
       isOpen={isOpen}
-      onOpenChange={(nextIsOpen) => {
-        if (nextIsOpen) {
-          setSaveError(null);
-        }
-        onOpenChange(nextIsOpen);
-      }}
+      onOpenChange={onOpenChange}
       isDismissable={!isCommitting}
     >
       <Modal size="M">
