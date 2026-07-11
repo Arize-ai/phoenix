@@ -25,7 +25,7 @@ import {
 
 import {
   ExperimentBaselineValueLine,
-  getExperimentBaselineLegendPayload,
+  getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import {
@@ -109,7 +109,7 @@ export function ExperimentCostChart({ datasetId }: ExperimentMetricViewProps) {
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
-            supplementalPayload={getExperimentBaselineLegendPayload(
+            additionalLegendItems={getExperimentBaselineLegendItems(
               baselineCost
             )}
           />

@@ -160,7 +160,7 @@ describe("InteractiveLegend", () => {
   });
 
   it("renders supplemental entries without data keys as static items", () => {
-    const supplementalPayload: ReadonlyArray<LegendPayload> = [
+    const additionalLegendItems: ReadonlyArray<LegendPayload> = [
       {
         value: "Baseline",
         type: "plainline",
@@ -170,7 +170,7 @@ describe("InteractiveLegend", () => {
     ];
 
     act(() => {
-      root.render(<TestChart legendProps={{ supplementalPayload }} />);
+      root.render(<TestChart legendProps={{ additionalLegendItems }} />);
     });
 
     const baselineItem = Array.from(

@@ -5,7 +5,7 @@ export const BASELINE_COLOR = "var(--global-color-indigo-500)";
 
 const BASELINE_STROKE_DASHARRAY = "4 4";
 
-const BASELINE_LEGEND_PAYLOAD: ReadonlyArray<LegendPayload> = [
+const BASELINE_LEGEND_ITEMS: ReadonlyArray<LegendPayload> = [
   {
     value: "baseline",
     type: "plainline",
@@ -14,10 +14,10 @@ const BASELINE_LEGEND_PAYLOAD: ReadonlyArray<LegendPayload> = [
   },
 ];
 
-export function getExperimentBaselineLegendPayload(
+export function getExperimentBaselineLegendItems(
   value: number | null | undefined
 ): ReadonlyArray<LegendPayload> {
-  return typeof value === "number" ? BASELINE_LEGEND_PAYLOAD : [];
+  return typeof value === "number" ? BASELINE_LEGEND_ITEMS : [];
 }
 
 export function ExperimentBaselineValueLine({

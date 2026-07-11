@@ -48,7 +48,7 @@ type InteractiveLegendContentProps = RechartsLegendContentProps & {
   baseContent?: LegendProps["content"];
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
   onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
-  supplementalPayload?: ReadonlyArray<LegendPayload>;
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
 };
 
 export type InteractiveLegendProps = LegendProps & {
@@ -58,7 +58,7 @@ export type InteractiveLegendProps = LegendProps & {
    * Additional entries appended after Recharts' generated series. Entries
    * without a data key are rendered as static, non-interactive items.
    */
-  supplementalPayload?: ReadonlyArray<LegendPayload>;
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
 };
 
 export type UseInteractiveLegendProps = {
@@ -469,12 +469,12 @@ function InteractiveLegendContent({
   onClick,
   onToggleDataKey,
   payload,
-  supplementalPayload,
+  additionalLegendItems,
   ...contentProps
 }: InteractiveLegendContentProps) {
   const enhancedPayload = getEnhancedPayload({
     hiddenDataKeys,
-    payload: [...(payload ?? []), ...(supplementalPayload ?? [])],
+    payload: [...(payload ?? []), ...(additionalLegendItems ?? [])],
   });
   const onLegendItemClick = (
     entry: LegendPayload,
@@ -538,7 +538,7 @@ export function InteractiveLegend({
   content,
   hiddenDataKeys,
   onToggleDataKey,
-  supplementalPayload,
+  additionalLegendItems,
   ...legendProps
 }: InteractiveLegendProps) {
   return (
@@ -549,7 +549,7 @@ export function InteractiveLegend({
           baseContent={content}
           hiddenDataKeys={hiddenDataKeys}
           onToggleDataKey={onToggleDataKey}
-          supplementalPayload={supplementalPayload}
+          additionalLegendItems={additionalLegendItems}
         />
       }
     />

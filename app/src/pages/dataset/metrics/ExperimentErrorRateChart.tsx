@@ -22,7 +22,7 @@ import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
   ExperimentBaselineValueLine,
-  getExperimentBaselineLegendPayload,
+  getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import {
@@ -101,7 +101,7 @@ export function ExperimentErrorRateChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
-            supplementalPayload={getExperimentBaselineLegendPayload(
+            additionalLegendItems={getExperimentBaselineLegendItems(
               baselineErrorRate
             )}
           />
