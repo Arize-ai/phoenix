@@ -3,6 +3,7 @@ import React, {
   startTransition,
   useEffect,
   useEffectEvent,
+  useMemo,
   useState,
 } from "react";
 import { useSearchParams } from "react-router";
@@ -26,6 +27,7 @@ import {
 
 export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
+  timeRangeISOStrings: TimeRangeISOStrings;
   /**
    * Set the time range with the state write wrapped in a transition so
    * steering interactions (preset picks, pan/zoom) do not block the input
@@ -37,6 +39,12 @@ export type TimeRangeContextType = {
    * a transition so brush-driven updates do not block the input event.
    */
   setCustomTimeRange: (timeRange: TimeRange) => void;
+};
+
+/** ISO 8601 bounds for the active time range. */
+export type TimeRangeISOStrings = {
+  start: string | undefined;
+  end: string | undefined;
 };
 
 export const TimeRangeContext = createContext<TimeRangeContextType | null>(
@@ -124,6 +132,9 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     urlTimeRange ??
     getStoredTimeRange({ storedLastNTimeRangeKey, now: timeRangeNow });
   const timeRangeStartMs = timeRange.start?.getTime();
+  const start = timeRange.start?.toISOString();
+  const end = timeRange.end?.toISOString();
+  const timeRangeISOStrings = useMemo(() => ({ start, end }), [start, end]);
 
   /**
    * Set the active time range and reflect it in the URL.
@@ -199,6 +210,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     <TimeRangeContext.Provider
       value={{
         timeRange,
+        timeRangeISOStrings,
         setTimeRange,
         setCustomTimeRange,
       }}

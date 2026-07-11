@@ -51,7 +51,7 @@ export function AnnotationSummary({
   filterCondition,
 }: AnnotationSummaryProps) {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
+  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
     graphql`
       query AnnotationSummaryQuery(
@@ -73,10 +73,7 @@ export function AnnotationSummary({
     {
       annotationName,
       id: projectId as string,
-      timeRange: {
-        start: timeRange?.start?.toISOString(),
-        end: timeRange?.end?.toISOString(),
-      },
+      timeRange: timeRangeISOStrings,
       filterCondition: filterCondition || null,
     }
   );

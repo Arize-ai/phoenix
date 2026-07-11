@@ -64,7 +64,6 @@ import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -209,8 +208,7 @@ export function SpansTable(props: SpansTableProps) {
   // parent query) so a live window sliding forward refetches with the filter
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
-  const { timeRange } = useTimeRange();
-  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
+  const { timeRangeISOStrings } = useTimeRange();
 
   // Advertise the current rootSpansOnly state so the agent's context message
   // reflects whether the toggle is mounted on this tab.
@@ -788,7 +786,7 @@ export function SpansTable(props: SpansTableProps) {
           first: PAGE_SIZE,
           filterCondition,
           rootSpansOnly,
-          timeRange: timeRangeGraphQLVariable,
+          timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
       );
@@ -799,7 +797,7 @@ export function SpansTable(props: SpansTableProps) {
     filterCondition,
     fetchKey,
     rootSpansOnly,
-    timeRangeGraphQLVariable,
+    timeRangeISOStrings,
   ]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {

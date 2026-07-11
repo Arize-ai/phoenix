@@ -13,12 +13,12 @@ import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
   ConnectedTimeRangeSelector,
+  type TimeRangeISOStrings,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
-import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -66,8 +66,8 @@ const mainCSS = css`
 
 export function ProjectPage() {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
-  const deferredTimeRange = useDeferredValue(timeRange);
+  const { timeRangeISOStrings } = useTimeRange();
+  const deferredTimeRangeISOStrings = useDeferredValue(timeRangeISOStrings);
   return (
     <>
       <TopNavActions>
@@ -77,7 +77,7 @@ export function ProjectPage() {
         <ProjectPageContent
           key={projectId}
           projectId={projectId as string}
-          timeRange={deferredTimeRange}
+          timeRangeISOStrings={deferredTimeRangeISOStrings}
         />
       </Suspense>
     </>
@@ -107,29 +107,31 @@ const TAB_PATH_BY_INDEX = Object.fromEntries(
 
 export function ProjectPageContent({
   projectId,
-  timeRange,
+  timeRangeISOStrings,
 }: {
   projectId: string;
-  timeRange: OpenTimeRange;
+  timeRangeISOStrings: TimeRangeISOStrings;
 }) {
   return (
     <StreamStateProvider>
-      <ProjectPageContentBody projectId={projectId} timeRange={timeRange} />
+      <ProjectPageContentBody
+        projectId={projectId}
+        timeRangeISOStrings={timeRangeISOStrings}
+      />
     </StreamStateProvider>
   );
 }
 
 function ProjectPageContentBody({
   projectId,
-  timeRange,
+  timeRangeISOStrings,
 }: {
   projectId: string;
-  timeRange: OpenTimeRange;
+  timeRangeISOStrings: TimeRangeISOStrings;
 }) {
   const treatOrphansAsRoots = useProjectContext(
     (state) => state.treatOrphansAsRoots
   );
-  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
@@ -145,11 +147,11 @@ function ProjectPageContentBody({
     `,
     {
       id: projectId as string,
-      timeRange: timeRangeGraphQLVariable,
+      timeRange: timeRangeISOStrings,
     },
     {
       fetchPolicy: "store-and-network",
-      fetchKey: `${projectId}-${timeRangeGraphQLVariable.start}-${timeRangeGraphQLVariable.end}`,
+      fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
     }
   );
   const [tracesQueryReference, loadTracesQuery] =
@@ -184,18 +186,18 @@ function ProjectPageContentBody({
       if (currentTabIndex === TAB_INDEX_MAP.spans) {
         loadSpansQuery({
           id: currentProjectId,
-          timeRange: timeRangeGraphQLVariable,
+          timeRange: timeRangeISOStrings,
           orphanSpanAsRootSpan: currentTreatOrphansAsRoots,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         loadTracesQuery({
           id: currentProjectId,
-          timeRange: timeRangeGraphQLVariable,
+          timeRange: timeRangeISOStrings,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
           id: currentProjectId,
-          timeRange: timeRangeGraphQLVariable,
+          timeRange: timeRangeISOStrings,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.config) {
         loadProjectConfigQuery({

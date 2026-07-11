@@ -44,7 +44,6 @@ import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
@@ -148,8 +147,7 @@ export function SessionsTable(props: SessionsTableProps) {
   // parent query) so a live window sliding forward refetches with the current
   // search/filter still applied. The parent query is intentionally not reloaded
   // on window slides — see the load effect in `ProjectPage` and issue #14216.
-  const { timeRange } = useTimeRange();
-  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
+  const { timeRangeISOStrings } = useTimeRange();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -465,7 +463,7 @@ export function SessionsTable(props: SessionsTableProps) {
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstringOrSessionId,
           sessionId: filterIoSubstringOrSessionId,
-          timeRange: timeRangeGraphQLVariable,
+          timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
       );
@@ -475,7 +473,7 @@ export function SessionsTable(props: SessionsTableProps) {
     refetch,
     filterIoSubstringOrSessionId,
     fetchKey,
-    timeRangeGraphQLVariable,
+    timeRangeISOStrings,
   ]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {

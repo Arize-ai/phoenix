@@ -69,7 +69,6 @@ import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { useTimeRangeGraphQLVariable } from "@phoenix/hooks";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -240,8 +239,7 @@ export function TracesTable(props: TracesTableProps) {
   // parent query) so a live window sliding forward refetches with the filter
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
-  const { timeRange } = useTimeRange();
-  const timeRangeGraphQLVariable = useTimeRangeGraphQLVariable(timeRange);
+  const { timeRangeISOStrings } = useTimeRange();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -920,14 +918,14 @@ export function TracesTable(props: TracesTableProps) {
           first: PAGE_SIZE,
           filterCondition: filterCondition,
           numDescendants: NUM_DESCENDANTS,
-          timeRange: timeRangeGraphQLVariable,
+          timeRange: timeRangeISOStrings,
         },
         {
           fetchPolicy: "store-and-network",
         }
       );
     });
-  }, [sorting, refetch, filterCondition, fetchKey, timeRangeGraphQLVariable]);
+  }, [sorting, refetch, filterCondition, fetchKey, timeRangeISOStrings]);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
