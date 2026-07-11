@@ -28,9 +28,7 @@ export interface TracingProps {
    * Map of the column id to the width
    */
   columnSizing: ColumnSizingState;
-  /**
-   * The order of the top-level columns by id. Empty means natural order.
-   */
+  /** Order of top-level columns by id. Empty means natural order. */
   columnOrder: string[];
 }
 

@@ -21,70 +21,43 @@ import { ColumnOrderingProvider } from "../columnOrdering";
 export interface ColumnSelectorColumn {
   id: string;
   label: string;
-  /**
-   * When true, the column is always visible and its checkbox is disabled.
-   * The column can still be reordered.
-   */
+  /** When true, the column is always visible and its checkbox is disabled. Still reorderable. */
   isVisibilityToggleDisabled?: boolean;
 }
 
 export interface ColumnSelectorMenuProps {
-  /**
-   * The selectable columns in their current display order.
-   */
+  /** The selectable columns in their current display order. */
   columns: ColumnSelectorColumn[];
-  /**
-   * Map of column id to visibility. Columns absent from the map are treated
-   * as visible, mirroring tanstack table's `columnVisibility` state.
-   */
+  /** Map of column id to visibility. Absent ids default to visible, like tanstack's `columnVisibility`. */
   columnVisibility: Record<string, boolean>;
   onColumnVisibilityChange: (columnVisibility: Record<string, boolean>) => void;
-  /**
-   * When provided, each column row gets a drag handle and the list can be
-   * reordered. Called with the full new order of column ids.
-   */
+  /** When provided, rows get a drag handle; called with the full new column id order. */
   onColumnOrderChange?: (columnIds: string[]) => void;
-  /**
-   * Label for the toggle-all checkbox.
-   * @default "columns"
-   */
+  /** @default "columns" */
   toggleAllLabel?: string;
-  /**
-   * Placeholder for the search input.
-   * @default "Search columns..."
-   */
+  /** @default "Search columns..." */
   searchPlaceholder?: string;
-  /**
-   * Additional sections rendered below the column list (e.g. dynamic column
-   * groups managed outside of the table's core columns).
-   */
+  /** Additional sections rendered below the column list. */
   children?: ReactNode;
 }
 
-/**
- * Horizontal inset shared by the search field, toggle-all row, column rows,
- * and any child sections so the whole menu reads as one aligned column.
- */
+/** Shared horizontal inset so the whole menu reads as one aligned column. */
 const MENU_INSET = "var(--global-dimension-static-size-50)";
 
 const columnSelectorMenuCSS = css`
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 200px);
+  max-height: var(--global-menu-max-height-small);
   min-width: 240px;
 `;
 
-/**
- * Scrollable body below the fixed search header. The header (a quiet,
- * borderless SearchField in a MenuHeader) stays put while the column list
- * scrolls, matching the other searchable menus in the app.
- */
+/** Scrollable body below the fixed search header. */
 const columnSelectorBodyCSS = css`
   overflow-y: auto;
   padding: ${MENU_INSET} 0;
 `;
 
-const columnListCSS = css`
+export const columnListCSS = css`
   display: flex;
   flex-direction: column;
   padding: 0 ${MENU_INSET};
@@ -92,7 +65,7 @@ const columnListCSS = css`
   margin: 0;
 `;
 
-const columnRowCSS = css`
+export const columnRowCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -304,10 +277,7 @@ export function ColumnSelectorMenu({
 }
 
 export interface ColumnSelectorProps extends ColumnSelectorMenuProps {
-  /**
-   * Label for the trigger button.
-   * @default "Columns"
-   */
+  /** @default "Columns" */
   buttonLabel?: string;
 }
 
@@ -324,7 +294,7 @@ export function ColumnSelector({
       <Button leadingVisual={<Icon svg={<Icons.Column />} />}>
         {buttonLabel}
       </Button>
-      <Popover>
+      <Popover placement="bottom end">
         <ColumnSelectorMenu {...menuProps} />
       </Popover>
     </DialogTrigger>

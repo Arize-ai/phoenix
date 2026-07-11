@@ -63,23 +63,13 @@ const sortableColumnHeaderCSS = css`
 `;
 
 export interface SortableColumnHeaderProps {
-  /**
-   * The id of the column. Must be present in the surrounding
-   * ColumnOrderingProvider's `columnOrder`.
-   */
+  /** Must be present in the surrounding provider's `columnOrder`. */
   columnId: string;
-  /**
-   * The index of the column within the provider's `columnOrder`.
-   */
+  /** Index of the column within the provider's `columnOrder`. */
   index: number;
-  /**
-   * Human-readable column name for the drag handle's accessible label.
-   * Falls back to the column id.
-   */
+  /** Accessible label for the drag handle. Falls back to columnId. */
   label?: string;
-  /**
-   * Disables dragging for this column (e.g. pinned columns).
-   */
+  /** Disables dragging for this column (e.g. pinned columns). */
   isReorderingDisabled?: boolean;
   colSpan?: number;
   style?: CSSProperties;
@@ -87,11 +77,8 @@ export interface SortableColumnHeaderProps {
 }
 
 /**
- * A `<th>` that can be dragged horizontally to reorder its column. Renders a
- * grab handle on hover; while dragging, the header follows the pointer and
- * the destination slot is highlighted as a drop invitation.
- *
- * Must be rendered inside a {@link ColumnOrderingProvider}.
+ * A `<th>` draggable horizontally to reorder its column, with a hover-visible
+ * grab handle. Must be rendered inside a {@link ColumnOrderingProvider}.
  */
 export function SortableColumnHeader({
   columnId,

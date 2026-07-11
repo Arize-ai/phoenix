@@ -116,10 +116,7 @@ function getColumnLabel(def: ColumnDef<Person>): string {
     : (getColumnDefId(def) ?? "");
 }
 
-/**
- * A table whose columns can be reordered by dragging the headers or via the
- * column selector, and shown/hidden via the column selector.
- */
+/** A table whose columns can be reordered and shown/hidden via drag or the column selector. */
 function ReorderableTable({
   columns,
   withSelector = true,
@@ -253,11 +250,7 @@ export default meta;
 
 type Story = StoryObj;
 
-/**
- * Drag the column headers (grab handle appears on hover) to reorder the
- * columns. The column selector supports search, show/hide, and reordering
- * via drag handles.
- */
+/** Drag headers to reorder columns; the selector supports search, show/hide, and reordering. */
 export const Default: Story = {
   render: () => <ReorderableTable columns={baseColumns} />,
 };
@@ -276,12 +269,7 @@ export const HeadersOnly: Story = {
   render: () => <ReorderableTable columns={baseColumns} withSelector={false} />,
 };
 
-/**
- * The column selector menu with extra, non-reorderable sections appended below
- * the core column list (mirrors the span table's annotation sections). The
- * search, toggle-all, column rows, and section rows all share one horizontal
- * inset so the menu reads as a single aligned column.
- */
+/** The column selector menu with extra, non-reorderable sections appended below the column list. */
 export const SelectorMenuWithSections: Story = {
   render: function SelectorMenuWithSectionsStory() {
     const [columnOrder, setColumnOrder] = useState<string[]>(() =>

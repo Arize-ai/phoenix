@@ -1,8 +1,4 @@
-/**
- * Minimal structural view of a tanstack ColumnDef needed to resolve column ids
- * and leaf columns. Kept structural so the utilities are testable without
- * constructing a table instance.
- */
+/** Minimal shape of a tanstack ColumnDef needed to resolve ids and leaf columns, testable without a table instance. */
 export interface OrderableColumnDef {
   id?: string;
   accessorKey?: string;
@@ -10,11 +6,7 @@ export interface OrderableColumnDef {
   columns?: OrderableColumnDef[];
 }
 
-/**
- * Resolves the id of a column def using the same rules as tanstack table:
- * explicit id, then accessorKey with "." replaced by "_", then the header if
- * it is a string.
- */
+/** Resolves a column def's id the same way tanstack table does: id, then accessorKey (dots to underscores), then string header. */
 export function getColumnDefId(def: OrderableColumnDef): string | null {
   if (def.id != null) {
     return def.id;
@@ -28,18 +20,14 @@ export function getColumnDefId(def: OrderableColumnDef): string | null {
   return null;
 }
 
-/**
- * Resolves the ids of the top-level (group or leaf) column defs.
- */
+/** Resolves the ids of the top-level (group or leaf) column defs. */
 export function getTopLevelColumnIds(defs: OrderableColumnDef[]): string[] {
   return defs.map(getColumnDefId).filter((id): id is string => id != null);
 }
 
 /**
  * Reconciles a persisted column order with the columns that currently exist:
- * ids that no longer exist are dropped, and columns that are not in the
- * persisted order are appended at the end in their natural order. Mirrors how
- * tanstack table treats columns missing from `columnOrder`.
+ * drops stale ids, appends new ones at the end in natural order.
  */
 export function mergeColumnOrder({
   columnOrder,
@@ -60,9 +48,8 @@ export function mergeColumnOrder({
 }
 
 /**
- * Expands an order of top-level column ids into the leaf column id order that
- * tanstack table's `columnOrder` state expects. Group columns expand to their
- * leaf column ids so a group always moves as a contiguous block.
+ * Expands top-level column ids into the leaf id order tanstack table's
+ * `columnOrder` expects, so group columns move as one contiguous block.
  */
 export function expandColumnOrderToLeafIds(
   columnOrder: string[],
@@ -72,10 +59,7 @@ export function expandColumnOrderToLeafIds(
   return columnOrder.flatMap((id) => leafIdsByTopLevelId.get(id) ?? [id]);
 }
 
-/**
- * Maps each top-level column def id to the ids of its leaf columns (a leaf
- * def maps to itself).
- */
+/** Maps each top-level column id to its leaf column ids (a leaf def maps to itself). */
 export function getLeafIdsByTopLevelId(
   defs: OrderableColumnDef[]
 ): Map<string, string[]> {
@@ -98,11 +82,9 @@ function getLeafColumnIds(def: OrderableColumnDef): string[] {
 }
 
 /**
- * Applies a reordering of a subset of columns back onto the full column
- * order. Columns not in the subset keep their positions; the subset's slots
- * are refilled in the subset's new order. This lets a filtered view (e.g. a
- * column selector without group columns, or only the visible columns) reorder
- * its slice without disturbing the rest.
+ * Reorders a subset of columns within the full column order, leaving
+ * non-subset columns in place. Lets a filtered view (e.g. only visible
+ * columns) reorder its slice without disturbing the rest.
  */
 export function applySubsetColumnOrder({
   columnOrder,

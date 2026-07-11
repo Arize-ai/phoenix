@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import type { Column } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
@@ -15,6 +14,8 @@ import {
 import {
   applySubsetColumnOrder,
   CHECKBOX_COLUMN_ID,
+  columnListCSS,
+  columnRowCSS,
   ColumnSelectorMenu,
   mergeColumnOrder,
 } from "@phoenix/components/table";
@@ -60,51 +61,12 @@ export function SpanColumnSelector(props: SpanColumnSelectorProps) {
           Columns
         </Flex>
       </Button>
-      <Popover>
+      <Popover placement="bottom end">
         <SpanColumnSelectorMenu {...props} />
       </Popover>
     </DialogTrigger>
   );
 }
-
-/**
- * A section of extra (non-reorderable) columns — annotations, trace
- * annotations — rendered below the core column list. Styled to line up with
- * the {@link ColumnSelectorMenu} rows: same horizontal inset, a hairline
- * divider on top, and a quiet uppercase section label.
- */
-const columnSelectorSectionCSS = css`
-  padding: 0 var(--global-dimension-static-size-50);
-  margin-top: var(--global-dimension-static-size-50);
-  border-top: 1px solid var(--global-border-color-default);
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-`;
-
-const columnSelectorSectionHeaderCSS = css`
-  padding-top: var(--global-dimension-static-size-50);
-`;
-
-const columCheckboxItemCSS = css`
-  display: flex;
-  align-items: center;
-  min-height: var(--global-dimension-static-size-400);
-  padding: 0 var(--global-dimension-static-size-100);
-  border-radius: var(--global-rounding-small);
-  label {
-    flex: 1 1 auto;
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-static-size-100);
-    min-width: 0;
-  }
-  &:hover {
-    background-color: var(--global-color-gray-200);
-  }
-`;
 
 function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
   const { columns: propsColumns } = props;
@@ -216,41 +178,37 @@ function EvaluationColumnSelector({
   }
 
   return (
-    <section css={columnSelectorSectionCSS}>
-      <div css={columnSelectorSectionHeaderCSS}>
-        <div css={columCheckboxItemCSS}>
-          <Checkbox
-            name="toggle-annotations-all"
-            isSelected={allVisible}
-            isIndeterminate={someVisible && !allVisible}
-            onChange={onToggleAnnotations}
-          >
-            annotations
-          </Checkbox>
-        </div>
-      </div>
-      <ul>
-        {filteredSpanAnnotationNames.map((name) => {
-          const isVisible = annotationColumnVisibility[name] ?? false;
-          return (
-            <li key={name} css={columCheckboxItemCSS}>
-              <Checkbox
-                name={name}
-                isSelected={isVisible}
-                onChange={(isSelected) =>
-                  setAnnotationColumnVisibility({
-                    ...annotationColumnVisibility,
-                    [name]: isSelected,
-                  })
-                }
-              >
-                {name}
-              </Checkbox>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+    <ul css={columnListCSS}>
+      <li css={columnRowCSS}>
+        <Checkbox
+          name="toggle-annotations-all"
+          isSelected={allVisible}
+          isIndeterminate={someVisible && !allVisible}
+          onChange={onToggleAnnotations}
+        >
+          annotations
+        </Checkbox>
+      </li>
+      {filteredSpanAnnotationNames.map((name) => {
+        const isVisible = annotationColumnVisibility[name] ?? false;
+        return (
+          <li key={name} css={columnRowCSS}>
+            <Checkbox
+              name={name}
+              isSelected={isVisible}
+              onChange={(isSelected) =>
+                setAnnotationColumnVisibility({
+                  ...annotationColumnVisibility,
+                  [name]: isSelected,
+                })
+              }
+            >
+              {name}
+            </Checkbox>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -300,40 +258,36 @@ function TraceEvaluationColumnSelector({
   }
 
   return (
-    <section css={columnSelectorSectionCSS}>
-      <div css={columnSelectorSectionHeaderCSS}>
-        <div css={columCheckboxItemCSS}>
-          <Checkbox
-            name="toggle-trace-annotations-all"
-            isSelected={allVisible}
-            isIndeterminate={someVisible && !allVisible}
-            onChange={onToggleTraceAnnotations}
-          >
-            trace annotations
-          </Checkbox>
-        </div>
-      </div>
-      <ul>
-        {nonNoteAnnotationNames.map((name) => {
-          const isVisible = traceAnnotationColumnVisibility[name] ?? false;
-          return (
-            <li key={name} css={columCheckboxItemCSS}>
-              <Checkbox
-                name={name}
-                isSelected={isVisible}
-                onChange={(isSelected) =>
-                  setTraceAnnotationColumnVisibility({
-                    ...traceAnnotationColumnVisibility,
-                    [name]: isSelected,
-                  })
-                }
-              >
-                {name}
-              </Checkbox>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+    <ul css={columnListCSS}>
+      <li css={columnRowCSS}>
+        <Checkbox
+          name="toggle-trace-annotations-all"
+          isSelected={allVisible}
+          isIndeterminate={someVisible && !allVisible}
+          onChange={onToggleTraceAnnotations}
+        >
+          trace annotations
+        </Checkbox>
+      </li>
+      {nonNoteAnnotationNames.map((name) => {
+        const isVisible = traceAnnotationColumnVisibility[name] ?? false;
+        return (
+          <li key={name} css={columnRowCSS}>
+            <Checkbox
+              name={name}
+              isSelected={isVisible}
+              onChange={(isSelected) =>
+                setTraceAnnotationColumnVisibility({
+                  ...traceAnnotationColumnVisibility,
+                  [name]: isSelected,
+                })
+              }
+            >
+              {name}
+            </Checkbox>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

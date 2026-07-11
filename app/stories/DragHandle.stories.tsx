@@ -4,10 +4,8 @@ import { Flex, Text, View } from "@phoenix/components";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 
 /**
- * `DragHandle` is the shared grab affordance for dnd-kit sortables. Wire its
- * `ref` to `useSortable`'s `handleRef` and place it on the trailing (right)
- * edge of the draggable row so the handle sits in a predictable spot across
- * lists, cards, and table headers.
+ * Shared grab affordance for dnd-kit sortables. Wire `ref` to `useSortable`'s
+ * `handleRef`.
  */
 const meta: Meta<typeof DragHandle> = {
   title: "DnD/DragHandle",
@@ -25,10 +23,7 @@ export const Default: Story = {
   render: () => <DragHandle />,
 };
 
-/**
- * The handle sits on the right of a row, trailing the row's content — the
- * placement used by the column selector and reorderable lists.
- */
+/** Handle trailing a row's content, the placement used by reorderable lists. */
 export const TrailingInRow: Story = {
   render: () => (
     <View

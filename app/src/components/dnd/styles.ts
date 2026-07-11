@@ -1,12 +1,8 @@
 import { css } from "@emotion/react";
 
 /**
- * Shared drag feedback for dnd-kit sortables, keyed off the `data-dnd-dragging`
- * (flying copy) and `data-dnd-placeholder` (drop slot) attributes dnd-kit sets.
- * Compose into a sortable's CSS and layer element-specific backgrounds on top.
- *
- * The lifted copy keeps its resting shape and only gains a shadow so the FLIP
- * drop reads as a settle, not a shape change; the drop slot is a quiet tint.
+ * Shared drag feedback for dnd-kit sortables: shadow on the dragged copy,
+ * tint on the drop slot. Compose into a sortable's CSS.
  */
 export const dndDragFeedbackCSS = css`
   &[data-dnd-dragging] {
