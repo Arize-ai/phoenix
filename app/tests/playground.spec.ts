@@ -94,8 +94,12 @@ test.describe("Playground", () => {
       { steps: 20 }
     );
     // The dragged item gets an inline z-index while dragging — wait for it so
-    // the drag is registered before releasing
-    await expect(page.locator("li[style*='z-index']")).toHaveCount(1);
+    // the drag is registered before releasing. During the live swap
+    // animation, dnd-kit can briefly apply the style to the item being
+    // swapped as well, so assert at least one rather than exactly one.
+    await expect
+      .poll(async () => page.locator("li[style*='z-index']").count())
+      .toBeGreaterThanOrEqual(1);
     await page.mouse.up();
 
     await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
