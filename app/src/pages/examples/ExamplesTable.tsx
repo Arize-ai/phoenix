@@ -70,6 +70,83 @@ const rowActionButtonCSS = css`
   white-space: nowrap;
 `;
 
+/** Selection is held as a list of example IDs; the table wants a lookup. */
+const toRowSelection = (exampleIds: string[]): Record<string, boolean> =>
+  Object.fromEntries(exampleIds.map((exampleId) => [exampleId, true]));
+
+// A cell-filling text input for a new example's ID. It reads as an editable
+// field — a subtle border that brightens on hover/focus — so it's clear the
+// ID can be overridden, while the italic placeholder communicates that an ID
+// will be auto-generated when the field is left untouched.
+const newExampleIdInputCSS = css`
+  appearance: none;
+  width: 100%;
+  background: var(--global-input-field-background-color);
+  border: var(--global-border-size-thin) solid
+    var(--global-input-field-border-color);
+  border-radius: var(--global-rounding-small);
+  outline: none;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-75);
+  margin: 0;
+  font-family: var(--global-font-family-mono);
+  font-size: var(--global-font-size-s);
+  color: inherit;
+  transition: border-color 0.15s ease-in-out;
+  &:hover,
+  &:focus {
+    border-color: var(--global-input-field-border-color-active);
+  }
+  &::placeholder {
+    color: var(--global-text-color-500);
+    font-family: var(--global-font-family);
+    font-style: italic;
+  }
+  &:disabled {
+    opacity: 0.6;
+  }
+`;
+
+/**
+ * The ID cell for a newly added example. The ID is optional: leaving it blank
+ * lets the server auto-generate one, and typing overrides it with an external
+ * ID.
+ */
+function NewExampleIdCell({
+  row,
+  editStore,
+}: {
+  row: DatasetExampleTableRow;
+  editStore: EditableTableStore<DatasetExampleTableRow>;
+}) {
+  const externalId = useStore(
+    editStore,
+    (state) =>
+      state.addedRows.find((addedRow) => addedRow.id === row.id)?.externalId ??
+      ""
+  );
+  const isSaving = useStore(editStore, (state) => state.mode === "saving");
+  return (
+    <input
+      css={newExampleIdInputCSS}
+      value={externalId}
+      disabled={isSaving}
+      placeholder="ID auto-generated"
+      aria-label="Example ID (leave blank to auto-generate)"
+      // Keep the cell's click from starting row navigation/selection.
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => {
+        const nextValue = event.target.value;
+        editStore.getState().updateCell({
+          rowId: row.id,
+          columnId: "externalId",
+          value: nextValue === "" ? null : nextValue,
+          originalValue: null,
+        });
+      }}
+    />
+  );
+}
+
 const removeRowButtonCSS = css(
   rowActionButtonCSS,
   css`
@@ -163,7 +240,16 @@ export function ExamplesTable({
         {
           fetchPolicy: "store-and-network",
           onComplete: (error) => {
-            if (!error && editStore.getState().mode === "saving") {
+            // A save holds the table in "saving" until the committed rows come
+            // back from the server, so the pending edits never flicker away
+            // before their saved counterparts arrive. If the refetch fails,
+            // hand editing back to the user rather than stranding the table.
+            if (editStore.getState().mode !== "saving") {
+              return;
+            }
+            if (error) {
+              editStore.getState().stopSaving();
+            } else {
               editStore.getState().finishSaving();
             }
           },
@@ -188,33 +274,19 @@ export function ExamplesTable({
         }, {} as ExamplesCache)
     );
   }, [data, selectedExampleIds, setExamplesCache]);
-  const rowSelection = useMemo(() => {
-    return selectedExampleIds.reduce(
-      (acc, id) => {
-        acc[id] = true;
-        return acc;
-      },
-      {} as Record<string, boolean>
-    );
-  }, [selectedExampleIds]);
+  const rowSelection = useMemo(
+    () => toRowSelection(selectedExampleIds),
+    [selectedExampleIds]
+  );
   const setRowSelection = useCallback(
     (rowSelection: Updater<Record<string, boolean>>) => {
-      setSelectedExampleIds((prevSelection) => {
-        if (typeof rowSelection === "function") {
-          return Object.keys(
-            rowSelection(
-              prevSelection.reduce(
-                (acc, id) => {
-                  acc[id] = true;
-                  return acc;
-                },
-                {} as Record<string, boolean>
-              )
-            )
-          );
-        }
-        return Object.keys(rowSelection);
-      });
+      setSelectedExampleIds((prevSelection) =>
+        Object.keys(
+          typeof rowSelection === "function"
+            ? rowSelection(toRowSelection(prevSelection))
+            : rowSelection
+        )
+      );
     },
     [setSelectedExampleIds]
   );
@@ -265,11 +337,12 @@ export function ExamplesTable({
           const exampleId = row.original.id;
           const displayId = row.original.externalId ?? exampleId;
           if (isEditing) {
-            return (
-              <Truncate maxWidth="100%">
-                {row.original.isNew ? "New example" : displayId}
-              </Truncate>
-            );
+            if (row.original.isNew) {
+              return (
+                <NewExampleIdCell row={row.original} editStore={editStore} />
+              );
+            }
+            return <Truncate maxWidth="100%">{displayId}</Truncate>;
           }
           return (
             <CellWithControlsWrap
@@ -480,7 +553,9 @@ export function ExamplesTable({
                   colSpan={header.colSpan}
                   style={{
                     ...getCommonPinningStyles(header.column),
-                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                    width: `calc(var(--header-${makeSafeColumnId(
+                      header.id
+                    )}-size) * 1px)`,
                   }}
                 >
                   {header.isPlaceholder ? null : (
@@ -542,7 +617,9 @@ export function ExamplesTable({
                   }
                 >
                   {row.getVisibleCells().map((cell) => {
-                    const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+                    const colSizeVar = `--col-${makeSafeColumnId(
+                      cell.column.id
+                    )}-size`;
                     return (
                       <td
                         key={cell.id}

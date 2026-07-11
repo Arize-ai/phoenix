@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button as UnstyledButton } from "react-aria-components";
 
 import {
-  Alert,
   Button,
   Dialog,
   Icon,
@@ -13,7 +12,6 @@ import {
   Modal,
   ModalOverlay,
   Text,
-  View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
 import { JSONText } from "@phoenix/components/code/JSONText";
@@ -42,8 +40,7 @@ const cellTriggerCSS = css`
   display: flex;
   align-items: center;
   margin: 0;
-  padding: var(--global-table-cell-padding-y)
-    var(--global-table-cell-padding-x);
+  padding: var(--global-table-cell-padding-y) var(--global-table-cell-padding-x);
   font: inherit;
   color: inherit;
   text-align: left;
@@ -73,6 +70,19 @@ const footerHintCSS = css`
   gap: var(--global-dimension-size-75);
 `;
 
+// The error lives in the footer's left slot — the same fixed region as the
+// "to save" hint — so surfacing it never shifts the editor surface above.
+const footerErrorCSS = css`
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-50);
+  color: var(--global-color-danger);
+  .icon-wrap {
+    flex-shrink: 0;
+  }
+`;
+
 // Single-line truncation keeps every row at the virtualizer's fixed height.
 const cellTextCSS = css`
   display: block;
@@ -85,7 +95,7 @@ const cellTextCSS = css`
 
 export type EditableJSONCellProps<
   Row extends object,
-  ColumnId extends keyof Row & string,
+  ColumnId extends keyof Row & string
 > = CellContext<Row, unknown> & {
   columnId: ColumnId;
   requireObject?: boolean;
@@ -98,7 +108,7 @@ export type EditableJSONCellProps<
  */
 export function EditableJSONCell<
   Row extends object,
-  ColumnId extends keyof Row & string,
+  ColumnId extends keyof Row & string
 >(props: EditableJSONCellProps<Row, ColumnId>) {
   const {
     columnId,
@@ -191,13 +201,6 @@ export function EditableJSONCell<
                   <DialogCloseButton />
                 </DialogTitleExtra>
               </DialogHeader>
-              {editorError ? (
-                <View paddingX="size-200" paddingTop="size-100">
-                  <Alert variant="danger" banner>
-                    {editorError}
-                  </Alert>
-                </View>
-              ) : null}
               <div
                 css={editorContainerCSS}
                 onKeyDown={(event) => {
@@ -222,14 +225,23 @@ export function EditableJSONCell<
                 />
               </div>
               <DialogFooter>
-                <span css={footerHintCSS}>
-                  <KeyboardToken variant="quiet">
-                    {modifierKey === "Cmd" ? "⌘" : "Ctrl"} ↵
-                  </KeyboardToken>
-                  <Text size="XS" color="text-500">
-                    to save
-                  </Text>
-                </span>
+                {editorError ? (
+                  <span css={footerErrorCSS} role="status">
+                    <Icon svg={<Icons.AlertCircle />} color="danger" />
+                    <Text size="XS" color="danger">
+                      {editorError}
+                    </Text>
+                  </span>
+                ) : (
+                  <span css={footerHintCSS}>
+                    <KeyboardToken variant="quiet">
+                      {modifierKey === "Cmd" ? "⌘" : "Ctrl"} ↵
+                    </KeyboardToken>
+                    <Text size="XS" color="text-500">
+                      to save
+                    </Text>
+                  </span>
+                )}
                 <Button variant="default" slot="close">
                   Cancel
                 </Button>

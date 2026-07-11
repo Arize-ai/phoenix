@@ -20,9 +20,15 @@ import {
   Modal,
   ModalOverlay,
   Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
-import type { EditableTableStore } from "@phoenix/components/table";
+import type {
+  EditableTableChangeCounts,
+  EditableTableStore,
+} from "@phoenix/components/table";
 import {
   getEditableTableChangeCount,
   getEditableTableChangeCounts,
@@ -36,6 +42,67 @@ import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
 import { SaveDatasetExamplesDialog } from "./SaveDatasetExamplesDialog";
+
+// A Pierre-style diffstat: a right-aligned, reserved-width slot so the summary
+// renders consistently. Counts grow leftward into the reserved space instead
+// of pushing the action buttons — and the search field — around as the user
+// edits. Monospace + tabular figures keep the numbers from jittering.
+const diffStatCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--global-dimension-size-100);
+  min-width: 110px;
+  white-space: nowrap;
+  font-family: var(--global-font-family-mono);
+  font-size: var(--global-font-size-s);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+`;
+
+const diffStatCountsCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+`;
+
+/** Spells out the diffstat's symbols, e.g. "2 added, 1 deleted". */
+const describeChangeCounts = ({
+  added,
+  updated,
+  deleted,
+}: EditableTableChangeCounts) =>
+  (
+    [
+      [added, "added"],
+      [updated, "updated"],
+      [deleted, "deleted"],
+    ] as const
+  )
+    .filter(([count]) => count > 0)
+    .map(([count, label]) => `${count} ${label}`)
+    .join(", ");
+
+// Compact invalid-cell indicator — an icon + count rather than a wide prose
+// string, so an error surfacing doesn't jump the toolbar layout.
+const diffStatErrorCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-25);
+  color: var(--global-color-danger);
+  .icon-wrap {
+    flex-shrink: 0;
+  }
+`;
+
+// A hairline divider separating the diffstat from the action cluster, the way
+// a modern editor's status bar segments its regions.
+const editActionsDividerCSS = css`
+  width: 1px;
+  align-self: stretch;
+  margin: var(--global-dimension-size-50) 0;
+  background-color: var(--global-border-color-default);
+`;
 
 export const ExamplesFilterBar = ({
   editStore,
@@ -123,30 +190,49 @@ export const ExamplesFilterBar = ({
             alignItems="center"
             flexShrink={0}
           >
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              css={css`
-                white-space: nowrap;
-                font-variant-numeric: tabular-nums;
-              `}
-            >
+            <div css={diffStatCSS}>
               {changeCount === 0 ? (
                 <Text color="text-500">No changes</Text>
               ) : (
-                <>
-                  {added > 0 ? <Text color="success">+{added}</Text> : null}
-                  {updated > 0 ? <Text color="warning">~{updated}</Text> : null}
-                  {deleted > 0 ? <Text color="danger">−{deleted}</Text> : null}
-                </>
+                <TooltipTrigger>
+                  <TriggerWrap>
+                    <span css={diffStatCountsCSS}>
+                      {added > 0 ? <Text color="success">+{added}</Text> : null}
+                      {updated > 0 ? (
+                        <Text color="warning">~{updated}</Text>
+                      ) : null}
+                      {deleted > 0 ? (
+                        <Text color="danger">−{deleted}</Text>
+                      ) : null}
+                    </span>
+                  </TriggerWrap>
+                  <Tooltip>
+                    {describeChangeCounts({ added, updated, deleted })}
+                  </Tooltip>
+                </TooltipTrigger>
               )}
               {errorCount > 0 ? (
-                <Text color="danger">
-                  {errorCount} invalid cell{errorCount === 1 ? "" : "s"}
-                </Text>
+                <TooltipTrigger>
+                  <TriggerWrap>
+                    <span
+                      css={diffStatErrorCSS}
+                      aria-label={`${errorCount} invalid cell${
+                        errorCount === 1 ? "" : "s"
+                      }`}
+                    >
+                      <Icon svg={<Icons.AlertCircle />} color="danger" />
+                      <Text color="danger">{errorCount}</Text>
+                    </span>
+                  </TriggerWrap>
+                  <Tooltip>
+                    {`${errorCount} invalid cell${
+                      errorCount === 1 ? "" : "s"
+                    } — fix before saving`}
+                  </Tooltip>
+                </TooltipTrigger>
               ) : null}
-            </Flex>
+            </div>
+            <div css={editActionsDividerCSS} aria-hidden />
             <Button
               size="M"
               isDisabled={isSaving}
@@ -163,7 +249,7 @@ export const ExamplesFilterBar = ({
                 });
               }}
             >
-              Add row
+              Add example
             </Button>
             <Button
               size="M"
@@ -233,7 +319,9 @@ export const ExamplesFilterBar = ({
               </DialogHeader>
               <View padding="size-200">
                 <Text>
-                  {`This will discard ${changeCount} unsaved change${changeCount === 1 ? "" : "s"} to the dataset examples.`}
+                  {`This will discard ${changeCount} unsaved change${
+                    changeCount === 1 ? "" : "s"
+                  } to the dataset examples.`}
                 </Text>
               </View>
               <View
