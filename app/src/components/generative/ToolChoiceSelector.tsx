@@ -181,7 +181,7 @@ export function ToolChoiceSelector({
               id={`${SPECIFIC_FUNCTION_PREFIX}${toolName}`}
               textValue={toolName}
             >
-              <OptionLabel label={toolName} tokenText="Always" />
+              <OptionLabel label={`Use ${toolName}`} tokenText="always" />
             </SelectItem>
           ))}
         </ListBox>

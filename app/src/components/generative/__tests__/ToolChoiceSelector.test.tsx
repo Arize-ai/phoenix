@@ -38,7 +38,7 @@ describe("ToolChoiceSelector", () => {
     });
   });
 
-  it("labels a forced tool choice as Always", async () => {
+  it("labels a forced tool choice with the action and always token", async () => {
     await act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
@@ -56,8 +56,8 @@ describe("ToolChoiceSelector", () => {
     });
 
     expect(container.querySelector("button")?.textContent).toContain(
-      "get_weather"
+      "Use get_weather"
     );
-    expect(container.querySelector(".token__text")?.textContent).toBe("Always");
+    expect(container.querySelector(".token__text")?.textContent).toBe("always");
   });
 });
