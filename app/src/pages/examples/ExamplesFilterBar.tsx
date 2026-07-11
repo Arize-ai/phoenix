@@ -134,11 +134,21 @@ export const ExamplesFilterBar = ({
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "s") {
-        event.preventDefault();
-        if (canSave) {
-          setIsSaveDialogOpen(true);
-        }
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "s"
+      ) {
+        return;
+      }
+      // A dialog owns its own shortcuts — a cell's JSON editor saves the cell
+      // with Cmd+Enter — so don't stack the save dialog on top of one.
+      const target = event.target;
+      if (target instanceof Element && target.closest('[role="dialog"]')) {
+        return;
+      }
+      event.preventDefault();
+      if (canSave) {
+        setIsSaveDialogOpen(true);
       }
     };
     document.addEventListener("keydown", onKeyDown);
