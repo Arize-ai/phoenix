@@ -15,6 +15,19 @@ const sortableColumnHeaderCSS = css`
   &[data-dnd-dragging] {
     background-color: var(--global-table-header-background-color);
   }
+  /* Drop invitation: extend the placeholder's tint down the full column body
+     so it's clear where the column will land. Static background overlay, so it
+     never changes the header's shape. */
+  &[data-dnd-placeholder]::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 100vh;
+    background-color: var(--global-dnd-drop-target-background-color);
+  }
   .column-drag-handle {
     position: absolute;
     top: 50%;
