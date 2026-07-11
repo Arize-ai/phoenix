@@ -59,6 +59,10 @@ async def _find_conflicting_external_ids(
     """
     The custom IDs that already belong to an example in this dataset, capped so a
     bad bulk write reports a readable sample rather than thousands of IDs.
+
+    Deleting an example only writes a DELETE revision — the example row, and with
+    it the custom ID, survives. So an ID belonging to a deleted example still
+    counts as taken, which the conflict message spells out.
     """
     return [
         external_id
@@ -76,8 +80,9 @@ async def _find_conflicting_external_ids(
 
 def _external_id_conflict_message(conflicting_external_ids: Sequence[str]) -> str:
     return (
-        f"Examples with custom IDs {list(conflicting_external_ids)!r} "
-        "already exist in this dataset."
+        f"Custom IDs {list(conflicting_external_ids)!r} are already taken in this dataset. "
+        "A deleted example keeps its custom ID, so an ID cannot be reused even if the "
+        "example that holds it is no longer in the dataset."
     )
 
 
@@ -391,23 +396,13 @@ class DatasetMutationMixin:
                     "dataset_id" in error_message and "external_id" in error_message
                 )
                 if has_external_id_conflict and input_external_ids:
-                    existing_external_ids = [
-                        external_id
-                        for external_id in (
-                            await session.scalars(
-                                select(models.DatasetExample.external_id)
-                                .where(models.DatasetExample.dataset_id == dataset_rowid)
-                                .where(models.DatasetExample.external_id.in_(input_external_ids))
-                                .limit(_MAX_REPORTED_EXTERNAL_ID_CONFLICTS)
-                            )
-                        ).all()
-                        if external_id is not None
-                    ]
+                    existing_external_ids = await _find_conflicting_external_ids(
+                        session,
+                        dataset_id=dataset_rowid,
+                        external_ids=input_external_ids,
+                    )
                     if existing_external_ids:
-                        raise Conflict(
-                            f"Examples with custom IDs {existing_external_ids!r} "
-                            f"already exist in this dataset."
-                        )
+                        raise Conflict(_external_id_conflict_message(existing_external_ids))
                 raise
             dataset_example_rowids = [example.id for example in dataset_examples]
             assert len(dataset_example_rowids) == len(input.examples)
@@ -547,11 +542,19 @@ class DatasetMutationMixin:
             external_id for external_id in external_id_by_addition if external_id is not None
         ]
         if len(set(external_ids)) != len(external_ids):
-            raise Conflict("Custom IDs for added examples must be unique within the change set.")
+            raise BadRequest("Custom IDs for added examples must be unique within the change set.")
 
         version_description = (
             input.version_description if isinstance(input.version_description, str) else None
         )
+        # `versionMetadata` is a JSON scalar, so anything type-checks at the GraphQL
+        # layer. Reject a non-object rather than quietly storing {} in its place.
+        if (
+            input.version_metadata is not UNSET
+            and input.version_metadata is not None
+            and not isinstance(input.version_metadata, dict)
+        ):
+            raise BadRequest("Version metadata must be a JSON object.")
         version_metadata: dict[str, Any] = (
             input.version_metadata if isinstance(input.version_metadata, dict) else {}
         )

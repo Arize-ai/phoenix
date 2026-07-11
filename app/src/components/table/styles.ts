@@ -160,8 +160,12 @@ export const editableTableCSS = css(
           border-left: 6px solid transparent;
         }
         &[data-deleted="true"] {
+          --table-cell-background-color: rgba(
+            var(--global-color-danger-rgb),
+            0.06
+          );
           & > td {
-            background-color: rgba(var(--global-color-danger-rgb), 0.06);
+            background-color: var(--table-cell-background-color);
           }
           & > td:not([data-row-actions]) {
             text-decoration: line-through;
@@ -207,8 +211,11 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
+    // Deferred through a custom property so a row can restyle its cells — a row
+    // marked for deletion tints every cell, and an inline background here would
+    // otherwise win against the stylesheet and leave the pinned column untinted.
     backgroundColor: isPinned
-      ? "var(--global-table-pinned-column-background-color)"
+      ? "var(--table-cell-background-color, var(--global-table-pinned-column-background-color))"
       : undefined,
   };
 }

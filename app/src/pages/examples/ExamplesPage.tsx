@@ -33,16 +33,21 @@ export function ExamplesPage() {
   });
   // An edit session lives only in memory, so leaving the page drops it.
   const changeCount = useStore(editStore, getEditableTableChangeCount);
+  // A save holds its changes in the store until the committed rows come back, so
+  // they are still counted while saving — but they are no longer unsaved, and
+  // warning about them there would call a successful save "unsaved changes".
+  const isSaving = useStore(editStore, (state) => state.mode === "saving");
+  const hasUnsavedChanges = changeCount > 0 && !isSaving;
   const shouldBlockNavigation = useCallback<BlockerFunction>(
     ({ currentLocation, nextLocation }) =>
-      changeCount > 0 && currentLocation.pathname !== nextLocation.pathname,
-    [changeCount]
+      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+    [hasUnsavedChanges]
   );
   const blocker = useBlocker(shouldBlockNavigation);
   // The router only sees navigations within the app; a reload or a closed tab
   // needs the browser's own guard.
   useEffect(() => {
-    if (changeCount === 0) {
+    if (!hasUnsavedChanges) {
       return;
     }
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -50,7 +55,7 @@ export function ExamplesPage() {
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [changeCount]);
+  }, [hasUnsavedChanges]);
   return (
     <ExamplesFilterProvider>
       <ExamplesFilterBar editStore={editStore} />

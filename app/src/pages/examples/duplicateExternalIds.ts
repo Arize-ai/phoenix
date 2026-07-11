@@ -2,7 +2,8 @@ import type { EditableTableStoreState } from "@phoenix/components/table";
 
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
 
-export const DUPLICATE_ID_ERROR = "Custom IDs must be unique among new examples.";
+export const DUPLICATE_ID_ERROR =
+  "Custom IDs must be unique among new examples.";
 
 /**
  * The new examples whose custom ID collides with another new example's.

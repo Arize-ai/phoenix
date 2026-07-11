@@ -85,7 +85,7 @@ const cellTextCSS = css`
 
 export type EditableJSONCellProps<
   Row extends object,
-  ColumnId extends keyof Row & string
+  ColumnId extends keyof Row & string,
 > = CellContext<Row, unknown> & {
   columnId: ColumnId;
   requireObject?: boolean;
@@ -104,7 +104,7 @@ export type EditableJSONCellProps<
  */
 export function EditableJSONCell<
   Row extends object,
-  ColumnId extends keyof Row & string
+  ColumnId extends keyof Row & string,
 >(props: EditableJSONCellProps<Row, ColumnId>) {
   const {
     columnId,

@@ -68,6 +68,31 @@ import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
+/**
+ * The virtualizer positions rows from this estimate rather than measuring them,
+ * so it has to be the height every row actually occupies.
+ */
+const ROW_HEIGHT = 52;
+
+/**
+ * Holds every row to {@link ROW_HEIGHT}. A row's `height` is only a minimum in
+ * table layout, and cell content wants to wrap — `JSONText` renders a `<pre>`
+ * with `pre-wrap`, and the split chips are a flex row — so a multi-key example
+ * would grow its row past the estimate and drift out from under its
+ * `translateY` position, overlapping its neighbours.
+ */
+const fixedRowHeightCSS = css`
+  tbody:not(.is-empty) > tr > td {
+    height: ${ROW_HEIGHT}px;
+    overflow: hidden;
+  }
+  tbody:not(.is-empty) > tr > td pre {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+`;
+
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
@@ -166,8 +191,6 @@ function NewExampleIdCell({
         aria-label="Custom ID (leave blank to auto-generate)"
         aria-invalid={isDuplicate}
         aria-describedby={isDuplicate ? errorId : undefined}
-        // Keep the cell's click from starting row navigation/selection.
-        onClick={(event) => event.stopPropagation()}
         onChange={(event) => {
           const nextValue = event.target.value;
           editStore.getState().updateCell({
@@ -546,7 +569,7 @@ export function ExamplesTable({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 52,
+    estimateSize: () => ROW_HEIGHT,
     getItemKey: (index) => rows[index]?.id ?? index,
     overscan: 10,
   });
@@ -593,7 +616,10 @@ export function ExamplesTable({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
-        css={isEditing ? editableTableCSS : selectableTableCSS}
+        css={[
+          isEditing ? editableTableCSS : selectableTableCSS,
+          fixedRowHeightCSS,
+        ]}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
