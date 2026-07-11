@@ -57,7 +57,7 @@ Relay cursor pages                  Local edit session
                         |
                  atomic save diff
                         |
-          applyDatasetExampleChanges
+            patchDatasetExamples
             one transaction + version
 ```
 
@@ -151,11 +151,12 @@ rows referenced by local patches until the edit session is saved or cancelled.
 
 ### 5. Atomic dataset save
 
-The existing add, patch, and delete mutations each create their own version.
-The dataset examples editor therefore uses a single GraphQL mutation:
+The add and delete mutations each create their own version. The dataset examples
+editor therefore commits its whole diff through a single GraphQL mutation, named
+for the HTTP verb it mirrors:
 
 ```graphql
-applyDatasetExampleChanges(
+patchDatasetExamples(
   input: {
     datasetId
     additions

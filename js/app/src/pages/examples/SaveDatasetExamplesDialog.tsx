@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import { useState } from "react";
 import { TextArea } from "react-aria-components";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useMutation } from "react-relay";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
@@ -87,9 +88,9 @@ export function SaveDatasetExamplesDialog({
   const [commitChanges, isCommitting] =
     useMutation<SaveDatasetExamplesDialogMutation>(graphql`
       mutation SaveDatasetExamplesDialogMutation(
-        $input: ApplyDatasetExampleChangesInput!
+        $input: PatchDatasetExamplesInput!
       ) {
-        applyDatasetExampleChanges(input: $input) {
+        patchDatasetExamples(input: $input) {
           dataset {
             id
             exampleCount
@@ -98,6 +99,7 @@ export function SaveDatasetExamplesDialog({
       }
     `);
   const changeCount = useStore(editStore, getEditableTableChangeCount);
+  const canSave = changeCount > 0 && !isCommitting;
 
   const saveChanges = () => {
     setSaveError(null);
@@ -139,7 +141,13 @@ export function SaveDatasetExamplesDialog({
             changeCount === 1 ? "" : "s"
           } committed.`,
         });
-        refreshLatestVersion();
+        // The table stays in "saving" until the new version's rows arrive, so the
+        // pending edits never flicker away before their saved counterparts. If we
+        // cannot even fetch the new version, hand editing back rather than
+        // stranding the table with every control disabled.
+        refreshLatestVersion().catch(() => {
+          editStore.getState().stopSaving();
+        });
       },
       onError: (error) => {
         editStore.getState().stopSaving();
@@ -148,6 +156,14 @@ export function SaveDatasetExamplesDialog({
       },
     });
   };
+
+  // Cmd+Enter commits from anywhere in the dialog, including the description
+  // field.
+  useHotkeys("mod+enter", () => saveChanges(), {
+    enabled: isOpen && canSave,
+    enableOnFormTags: true,
+    preventDefault: true,
+  });
 
   return (
     <ModalOverlay
@@ -211,17 +227,6 @@ export function SaveDatasetExamplesDialog({
                     // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                     placeholder="Describe the changes in this version"
-                    onKeyDown={(event) => {
-                      if (
-                        event.key === "Enter" &&
-                        (event.metaKey || event.ctrlKey) &&
-                        changeCount > 0 &&
-                        !isCommitting
-                      ) {
-                        event.preventDefault();
-                        saveChanges();
-                      }
-                    }}
                   />
                   <Text slot="description">Optional</Text>
                 </TextField>

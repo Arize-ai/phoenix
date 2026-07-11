@@ -72,7 +72,7 @@ async def test_create_dataset_with_duplicate_name_returns_conflict(
 
 
 class TestPatchDatasetMutation:
-    MUTATION = """
+    _MUTATION = """
       mutation ($datasetId: ID!, $name: String, $description: String, $metadata: JSON) {
         patchDataset(
           input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
@@ -93,7 +93,7 @@ class TestPatchDatasetMutation:
         dataset_with_a_single_version: None,
     ) -> None:
         response = await gql_client.execute(
-            query=self.MUTATION,
+            query=self._MUTATION,
             variables={
                 "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
                 "name": "patched-dataset-name",
@@ -119,7 +119,7 @@ class TestPatchDatasetMutation:
         dataset_with_a_single_version: None,
     ) -> None:
         response = await gql_client.execute(
-            query=self.MUTATION,
+            query=self._MUTATION,
             variables={
                 "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
                 "name": None,
@@ -145,7 +145,7 @@ class TestPatchDatasetMutation:
         dataset_with_a_single_version: None,
     ) -> None:
         response = await gql_client.execute(
-            query=self.MUTATION,
+            query=self._MUTATION,
             variables={
                 "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
                 "description": "patched-dataset-description",
@@ -280,247 +280,9 @@ async def test_add_span_to_dataset(
 
 
 class TestPatchDatasetExamples:
-    MUTATION = """
+    _MUTATION = """
       mutation ($input: PatchDatasetExamplesInput!) {
         patchDatasetExamples(input: $input) {
-          dataset {
-            examples {
-              edges {
-                example: node {
-                  id
-                  revision {
-                    input
-                    output
-                    metadata
-                    revisionKind
-                  }
-                }
-              }
-            }
-          }
-        }
-      }"""
-
-    async def test_happy_path(
-        self,
-        gql_client: AsyncGraphQLClient,
-        dataset_with_revisions: None,
-    ) -> None:
-        # todo: update this test case to verify that version description and
-        # metadata are updated once a versions resolver has been implemented
-        # https://github.com/Arize-ai/phoenix/issues/3359
-        mutation_input = {
-            "patches": [
-                {
-                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
-                    "input": {"input": "patched-example-1-input"},
-                },
-                {
-                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
-                    "input": {"input": "patched-example-2-input"},
-                    "output": {"output": "patched-example-2-output"},
-                    "metadata": {"metadata": "patched-example-2-metadata"},
-                },
-            ]
-        }
-        expected_examples = [
-            {
-                "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
-                    "revision": {
-                        "input": {"input": "patched-example-1-input"},
-                        "output": {"output": "original-example-1-version-1-output"},
-                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
-                        "revisionKind": "PATCH",
-                    },
-                }
-            },
-            {
-                "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "patched-example-2-input"},
-                        "output": {"output": "patched-example-2-output"},
-                        "metadata": {"metadata": "patched-example-2-metadata"},
-                        "revisionKind": "PATCH",
-                    },
-                }
-            },
-        ]
-        response = await gql_client.execute(
-            query=self.MUTATION,
-            variables={"input": mutation_input},
-        )
-        assert not response.errors
-        assert (data := response.data) is not None
-        actual_examples = data["patchDatasetExamples"]["dataset"]["examples"]["edges"]
-        assert actual_examples == expected_examples
-
-    async def test_matching_dataset_scope_is_accepted(
-        self,
-        gql_client: AsyncGraphQLClient,
-        dataset_with_revisions: None,
-    ) -> None:
-        response = await gql_client.execute(
-            query=self.MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "patches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                            ),
-                            "input": {"input": "patched-example-1-input"},
-                        }
-                    ],
-                }
-            },
-        )
-        assert not response.errors
-
-    async def test_mismatched_dataset_scope_is_rejected(
-        self,
-        gql_client: AsyncGraphQLClient,
-        dataset_with_revisions: None,
-    ) -> None:
-        response = await gql_client.execute(
-            query=self.MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", str(999))),
-                    "patches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                            ),
-                            "input": {"input": "patched-example-1-input"},
-                        }
-                    ],
-                }
-            },
-        )
-        assert response.errors
-        assert "not the specified dataset" in response.errors[0].message
-
-    @pytest.mark.parametrize(
-        "mutation_input, expected_error_message",
-        [
-            pytest.param(
-                {"patches": []},
-                "Must provide examples to patch.",
-                id="empty-example-patches",
-            ),
-            pytest.param(
-                {
-                    "patches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                            ),
-                            "input": {"input": "value"},
-                        },
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                            ),
-                            "input": {"input": "value"},
-                        },
-                    ]
-                },
-                "Cannot patch the same example more than once per mutation.",
-                id="same-example-patched-twice",
-            ),
-            pytest.param(
-                {
-                    "patches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                            ),
-                        },
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(2))
-                            ),
-                            "input": {"input": "value"},
-                        },
-                    ]
-                },
-                "Received one or more empty patches that contain no fields to update.",
-                id="found-patch-with-nothing-to-update",
-            ),
-            pytest.param(
-                {
-                    "patches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(500))
-                            ),
-                            "input": {"input": "value"},
-                        },
-                    ]
-                },
-                "No examples found.",
-                id="invalid-example-id",
-            ),
-            pytest.param(
-                {
-                    "patches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                            ),
-                            "input": {"input": "value"},
-                        },
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(4))
-                            ),
-                            "input": {"input": "value"},
-                        },
-                    ]
-                },
-                "Examples must come from the same dataset.",
-                id="examples-from-different-datasets",
-            ),
-            pytest.param(
-                {
-                    "patches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(3))
-                            ),
-                            "input": {"input": "value"},
-                        },
-                    ]
-                },
-                "1 example(s) could not be found.",
-                id="deleted-example-id",
-            ),
-        ],
-    )
-    async def test_raises_value_error_for_invalid_input(
-        self,
-        mutation_input: dict[str, Any],
-        expected_error_message: str,
-        gql_client: AsyncGraphQLClient,
-        dataset_with_revisions: None,
-        dataset_with_a_single_version: None,
-    ) -> None:
-        response = await gql_client.execute(
-            query=self.MUTATION,
-            variables={"input": mutation_input},
-        )
-        assert (errors := response.errors)
-        assert len(errors) == 1
-        assert errors[0].message == expected_error_message
-
-
-class TestApplyDatasetExampleChanges:
-    _MUTATION = """
-      mutation ($input: ApplyDatasetExampleChangesInput!) {
-        applyDatasetExampleChanges(input: $input) {
           dataset {
             id
             exampleCount
@@ -555,12 +317,13 @@ class TestApplyDatasetExampleChanges:
                     ],
                     "exampleIdsToDelete": [str(GlobalID(DatasetExample.__name__, "2"))],
                     "versionDescription": "Edited examples in the table",
+                    "versionMetadata": {"source": "editable-table"},
                 }
             },
         )
 
         assert response.data and not response.errors
-        assert response.data["applyDatasetExampleChanges"]["dataset"]["exampleCount"] == 2
+        assert response.data["patchDatasetExamples"]["dataset"]["exampleCount"] == 2
         async with db() as session:
             versions = (
                 await session.scalars(
@@ -572,6 +335,7 @@ class TestApplyDatasetExampleChanges:
             assert len(versions) == 3
             saved_version = versions[-1]
             assert saved_version.description == "Edited examples in the table"
+            assert saved_version.metadata_ == {"source": "editable-table"}
             revisions = (
                 await session.scalars(
                     select(models.DatasetExampleRevision).where(
@@ -694,8 +458,29 @@ class TestApplyDatasetExampleChanges:
             version_count_after = await session.scalar(select(func.count(models.DatasetVersion.id)))
         assert version_count_after == version_count_before
 
+    @pytest.mark.parametrize(
+        "cross_dataset_change",
+        [
+            pytest.param(
+                {
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "4")),
+                            "input": {"should": "fail"},
+                        }
+                    ]
+                },
+                id="patched-example-in-another-dataset",
+            ),
+            pytest.param(
+                {"exampleIdsToDelete": [str(GlobalID(DatasetExample.__name__, "4"))]},
+                id="deleted-example-in-another-dataset",
+            ),
+        ],
+    )
     async def test_rejects_cross_dataset_ids_without_partial_writes(
         self,
+        cross_dataset_change: dict[str, Any],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         dataset_with_revisions: None,
@@ -715,27 +500,148 @@ class TestApplyDatasetExampleChanges:
                 "input": {
                     "datasetId": str(GlobalID("Dataset", "1")),
                     "additions": [{"input": {"new": True}, "output": {}, "metadata": {}}],
-                    "patches": [
-                        {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "4")),
-                            "input": {"should": "fail"},
-                        }
-                    ],
+                    **cross_dataset_change,
                 }
             },
         )
 
         assert response.errors
-        assert "specified dataset" in response.errors[0].message
+        assert "could not be found in this dataset" in response.errors[0].message
+        assert str(GlobalID(DatasetExample.__name__, "4")) in response.errors[0].message
         async with db() as session:
             version_count_after = await session.scalar(select(func.count(models.DatasetVersion.id)))
             example_count_after = await session.scalar(select(func.count(models.DatasetExample.id)))
         assert version_count_after == version_count_before
         assert example_count_after == example_count_before
 
+    @pytest.mark.parametrize(
+        "changes, expected_error_message",
+        [
+            pytest.param(
+                {},
+                "Must provide at least one dataset example change.",
+                id="empty-change-set",
+            ),
+            pytest.param(
+                {
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                            "input": {"input": "value"},
+                        },
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                            "input": {"input": "value"},
+                        },
+                    ]
+                },
+                "Cannot patch the same example more than once per mutation.",
+                id="same-example-patched-twice",
+            ),
+            pytest.param(
+                {
+                    "exampleIdsToDelete": [
+                        str(GlobalID(DatasetExample.__name__, "1")),
+                        str(GlobalID(DatasetExample.__name__, "1")),
+                    ]
+                },
+                "Cannot delete the same example more than once per mutation.",
+                id="same-example-deleted-twice",
+            ),
+            pytest.param(
+                {"patches": [{"exampleId": str(GlobalID(DatasetExample.__name__, "1"))}]},
+                "Received one or more empty patches that contain no fields to update.",
+                id="patch-with-nothing-to-update",
+            ),
+            pytest.param(
+                {"additions": [{"input": "not-an-object", "output": {}, "metadata": {}}]},
+                "Added example input, output, and metadata must be JSON objects.",
+                id="addition-with-non-object-input",
+            ),
+            pytest.param(
+                {
+                    "additions": [
+                        {
+                            "input": {"input": "value"},
+                            "output": {},
+                            "metadata": {},
+                            "externalId": "duplicate-custom-id",
+                        },
+                        {
+                            "input": {"input": "value"},
+                            "output": {},
+                            "metadata": {},
+                            "externalId": "duplicate-custom-id",
+                        },
+                    ]
+                },
+                "Custom IDs for added examples must be unique within the change set.",
+                id="duplicate-custom-ids-within-the-change-set",
+            ),
+            pytest.param(
+                {
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "500")),
+                            "input": {"input": "value"},
+                        }
+                    ]
+                },
+                (
+                    f"Examples {GlobalID(DatasetExample.__name__, '500')} "
+                    "could not be found in this dataset."
+                ),
+                id="unknown-example-id",
+            ),
+            pytest.param(
+                {
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "3")),
+                            "input": {"input": "value"},
+                        }
+                    ]
+                },
+                (f"Examples {GlobalID(DatasetExample.__name__, '3')} have already been deleted."),
+                id="already-deleted-example",
+            ),
+        ],
+    )
+    async def test_rejects_invalid_change_sets(
+        self,
+        changes: dict[str, Any],
+        expected_error_message: str,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={"input": {"datasetId": str(GlobalID("Dataset", "1")), **changes}},
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == expected_error_message
+
+    async def test_rejects_an_unknown_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "999")),
+                    "additions": [{"input": {"input": "value"}, "output": {}, "metadata": {}}],
+                }
+            },
+        )
+        assert response.errors
+        assert "Unknown dataset" in response.errors[0].message
+
 
 class TestDeleteDatasetExamplesScope:
-    MUTATION = """
+    _MUTATION = """
       mutation ($input: DeleteDatasetExamplesInput!) {
         deleteDatasetExamples(input: $input) {
           dataset {
@@ -751,7 +657,7 @@ class TestDeleteDatasetExamplesScope:
         dataset_with_revisions: None,
     ) -> None:
         response = await gql_client.execute(
-            query=self.MUTATION,
+            query=self._MUTATION,
             variables={
                 "input": {
                     "datasetId": str(GlobalID("Dataset", str(1))),
@@ -769,7 +675,7 @@ class TestDeleteDatasetExamplesScope:
         dataset_with_revisions: None,
     ) -> None:
         response = await gql_client.execute(
-            query=self.MUTATION,
+            query=self._MUTATION,
             variables={
                 "input": {
                     "datasetId": str(GlobalID("Dataset", str(999))),

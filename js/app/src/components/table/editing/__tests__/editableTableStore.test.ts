@@ -2,7 +2,7 @@ import {
   createEditableTableStore,
   getEditableTableChangeCount,
   getEditableTableErrorCount,
-} from "../editing/editableTableStore";
+} from "../editableTableStore";
 
 type TestRow = {
   id: string;

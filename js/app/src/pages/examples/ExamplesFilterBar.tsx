@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 import { useStore } from "zustand";
@@ -9,11 +10,6 @@ import {
   Button,
   DebouncedSearch,
   Dialog,
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
   Flex,
   Icon,
   Icons,
@@ -25,6 +21,14 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/core/dialog";
 import type {
   EditableTableChangeCounts,
   EditableTableStore,
@@ -41,6 +45,7 @@ import { ExamplesSplitsMenu } from "@phoenix/pages/examples/ExamplesSplitsMenu";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
+import { getDuplicateExternalIdRowIds } from "./duplicateExternalIds";
 import { SaveDatasetExamplesDialog } from "./SaveDatasetExamplesDialog";
 
 // A Pierre-style diffstat: a right-aligned, reserved-width slot so the summary
@@ -120,7 +125,14 @@ export const ExamplesFilterBar = ({
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const mode = useStore(editStore, (state) => state.mode);
   const changeCount = useStore(editStore, getEditableTableChangeCount);
-  const errorCount = useStore(editStore, getEditableTableErrorCount);
+  const cellErrorCount = useStore(editStore, getEditableTableErrorCount);
+  const duplicateRowIds = useStore(
+    editStore,
+    useShallow(getDuplicateExternalIdRowIds)
+  );
+  // A duplicate custom ID is derived from the added rows rather than stored, so
+  // it is counted alongside the cells that flagged themselves invalid.
+  const errorCount = cellErrorCount + duplicateRowIds.length;
   const { added, updated, deleted } = useStore(
     editStore,
     useShallow(getEditableTableChangeCounts)
@@ -129,31 +141,25 @@ export const ExamplesFilterBar = ({
   const isSaving = mode === "saving";
   const canSave = changeCount > 0 && errorCount === 0 && !isSaving;
   // Cmd+S / Ctrl+S opens the save dialog while editing
-  useEffect(() => {
-    if (!isEditing) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        !(event.metaKey || event.ctrlKey) ||
-        event.key.toLowerCase() !== "s"
-      ) {
-        return;
-      }
+  useHotkeys(
+    "mod+s",
+    (event) => {
       // A dialog owns its own shortcuts — a cell's JSON editor saves the cell
       // with Cmd+Enter — so don't stack the save dialog on top of one.
       const target = event.target;
       if (target instanceof Element && target.closest('[role="dialog"]')) {
         return;
       }
-      event.preventDefault();
       if (canSave) {
         setIsSaveDialogOpen(true);
       }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isEditing, canSave]);
+    },
+    {
+      enabled: isEditing,
+      enableOnFormTags: true,
+      preventDefault: true,
+    }
+  );
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
   const datasetName = useDatasetContext((state) => state.datasetName);
@@ -191,6 +197,11 @@ export const ExamplesFilterBar = ({
             onChange={setFilter}
             placeholder="Search examples by input, output, or metadata"
             aria-label="Search examples"
+            // Filtering refetches the baseline rows. An edited or deleted row
+            // that falls out of the new filter would vanish from the table while
+            // still being committed on save, so searching waits until the edit
+            // session ends.
+            isDisabled={isEditing}
           />
         </View>
         {isEditing ? (
@@ -319,7 +330,8 @@ export const ExamplesFilterBar = ({
         isDismissable
       >
         <Modal size="S">
-          <Dialog>
+          {/* A destructive confirmation, not a plain dialog. */}
+          <Dialog role="alertdialog">
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Discard example changes</DialogTitle>
@@ -334,28 +346,20 @@ export const ExamplesFilterBar = ({
                   } to the dataset examples.`}
                 </Text>
               </View>
-              <View
-                paddingEnd="size-200"
-                paddingTop="size-100"
-                paddingBottom="size-100"
-                borderTopColor="default"
-                borderTopWidth="thin"
-              >
-                <Flex direction="row" justifyContent="end" gap="size-100">
-                  <Button variant="default" slot="close">
-                    Keep editing
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onPress={() => {
-                      setIsDiscardDialogOpen(false);
-                      editStore.getState().cancelEditing();
-                    }}
-                  >
-                    Discard changes
-                  </Button>
-                </Flex>
-              </View>
+              <DialogFooter>
+                <Button variant="default" slot="close">
+                  Keep editing
+                </Button>
+                <Button
+                  variant="danger"
+                  onPress={() => {
+                    setIsDiscardDialogOpen(false);
+                    editStore.getState().cancelEditing();
+                  }}
+                >
+                  Discard changes
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </Modal>

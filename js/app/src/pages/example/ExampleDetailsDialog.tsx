@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import invariant from "tiny-invariant";
 
 import type { CardProps } from "@phoenix/components";
 import {
@@ -173,6 +174,9 @@ function ExampleDetailsDialogContent({
           ... on DatasetExample {
             id
             externalId
+            dataset {
+              id
+            }
             revision(datasetVersionId: $datasetVersionId) {
               input
               output
@@ -201,6 +205,10 @@ function ExampleDetailsDialogContent({
     { exampleId: exampleId as string, datasetVersionId: datasetVersionId },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
+  // Optional only because `dataset` is selected through an inline fragment; every
+  // dataset example belongs to a dataset.
+  const datasetId = data.example.dataset?.id;
+  invariant(datasetId, "a dataset example must belong to a dataset");
   const revision = useMemo(() => {
     const rev = data.example.revision;
     return {
@@ -268,6 +276,7 @@ function ExampleDetailsDialogContent({
           />
           <EditExampleButton
             exampleId={exampleId as string}
+            datasetId={datasetId}
             currentRevision={revision}
             onCompleted={() => {
               notifySuccess({

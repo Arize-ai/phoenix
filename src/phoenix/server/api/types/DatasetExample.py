@@ -25,6 +25,7 @@ from phoenix.server.api.types.pagination import (
 )
 
 if TYPE_CHECKING:
+    from .Dataset import Dataset
     from .Span import Span
 
 
@@ -57,6 +58,21 @@ class DatasetExample(Node):
                 (self.id, models.DatasetExample.created_at),
             )
         return val
+
+    @strawberry.field
+    async def dataset(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated["Dataset", strawberry.lazy(".Dataset")]:
+        from .Dataset import Dataset
+
+        if self.db_record:
+            dataset_rowid = self.db_record.dataset_id
+        else:
+            dataset_rowid = await info.context.data_loaders.dataset_example_fields.load(
+                (self.id, models.DatasetExample.dataset_id),
+            )
+        return Dataset(id=dataset_rowid)
 
     @strawberry.field
     async def revision(

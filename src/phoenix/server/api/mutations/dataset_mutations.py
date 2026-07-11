@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Optional, cast
 
@@ -10,7 +11,7 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from sqlalchemy import and_, delete, distinct, func, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import contains_eager
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -29,9 +30,6 @@ from phoenix.server.api.helpers.dataset_helpers import (
 )
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
-from phoenix.server.api.input_types.ApplyDatasetExampleChangesInput import (
-    ApplyDatasetExampleChangesInput,
-)
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
@@ -48,6 +46,20 @@ from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
+_MAX_REPORTED_EXAMPLE_IDS = 10
+
+
+def _to_global_ids(type_name: str, rowids: Sequence[int]) -> str:
+    """
+    Renders row IDs as the global IDs the caller sent us, capped so that a bad
+    bulk write reports a readable sample rather than thousands of IDs.
+    """
+    reported = [
+        str(GlobalID(type_name, str(rowid))) for rowid in rowids[:_MAX_REPORTED_EXAMPLE_IDS]
+    ]
+    remaining = len(rowids) - len(reported)
+    listed = ", ".join(reported)
+    return f"{listed} (and {remaining} more)" if remaining > 0 else listed
 
 
 @strawberry.type
@@ -436,100 +448,6 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: PatchDatasetExamplesInput,
     ) -> DatasetMutationPayload:
-        if not (patches := input.patches):
-            raise BadRequest("Must provide examples to patch.")
-        by_numeric_id = [
-            (
-                from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__),
-                index,
-                patch,
-            )
-            for index, patch in enumerate(patches)
-        ]
-        example_ids, _, patches = map(list, zip(*sorted(by_numeric_id)))
-        if len(set(example_ids)) < len(example_ids):
-            raise BadRequest("Cannot patch the same example more than once per mutation.")
-        if any(patch.is_empty() for patch in patches):
-            raise BadRequest("Received one or more empty patches that contain no fields to update.")
-        version_description = input.version_description or None
-        version_metadata = input.version_metadata
-        async with info.context.db() as session:
-            datasets = (
-                await session.scalars(
-                    select(models.Dataset)
-                    .where(
-                        models.Dataset.id.in_(
-                            select(distinct(models.DatasetExample.dataset_id))
-                            .where(models.DatasetExample.id.in_(example_ids))
-                            .scalar_subquery()
-                        )
-                    )
-                    .limit(2)
-                )
-            ).all()
-            if not datasets:
-                raise NotFound("No examples found.")
-            if len(set(ds.id for ds in datasets)) > 1:
-                raise BadRequest("Examples must come from the same dataset.")
-            dataset = datasets[0]
-            _check_dataset_scope(dataset, input.dataset_id)
-
-            revision_ids = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
-                .group_by(models.DatasetExampleRevision.dataset_example_id)
-                .scalar_subquery()
-            )
-            revisions = (
-                await session.scalars(
-                    select(models.DatasetExampleRevision)
-                    .where(
-                        and_(
-                            models.DatasetExampleRevision.id.in_(revision_ids),
-                            models.DatasetExampleRevision.revision_kind != "DELETE",
-                        )
-                    )
-                    .order_by(
-                        models.DatasetExampleRevision.dataset_example_id
-                    )  # ensure the order of the revisions matches the order of the input patches
-                )
-            ).all()
-            if (num_missing_examples := len(example_ids) - len(revisions)) > 0:
-                raise NotFound(f"{num_missing_examples} example(s) could not be found.")
-
-            version_id = await session.scalar(
-                insert(models.DatasetVersion)
-                .returning(models.DatasetVersion.id)
-                .values(
-                    dataset_id=dataset.id,
-                    description=version_description,
-                    metadata_=version_metadata,
-                    user_id=info.context.user_id,
-                )
-            )
-            assert version_id is not None
-
-            await session.execute(
-                insert(models.DatasetExampleRevision),
-                [
-                    _to_orm_revision(
-                        existing_revision=revision,
-                        patch=patch,
-                        example_id=example_id,
-                        version_id=version_id,
-                    )
-                    for revision, patch, example_id in zip(revisions, patches, example_ids)
-                ],
-            )
-        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
-        return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
-
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def apply_dataset_example_changes(
-        self,
-        info: Info[Context, None],
-        input: ApplyDatasetExampleChangesInput,
-    ) -> DatasetMutationPayload:
         """Commit additions, patches, and deletions as one dataset version."""
         additions = input.additions
         patches = input.patches
@@ -572,10 +490,16 @@ class DatasetMutationMixin:
         ):
             raise BadRequest("Added example input, output, and metadata must be JSON objects.")
 
-        external_ids = [
+        # A blank custom ID means "no custom ID" — normalize once so the conflict
+        # check and the insert below cannot drift apart.
+        external_id_by_addition = [
             addition.external_id
-            for addition in additions
             if isinstance(addition.external_id, str) and addition.external_id
+            else None
+            for addition in additions
+        ]
+        external_ids = [
+            external_id for external_id in external_id_by_addition if external_id is not None
         ]
         if len(set(external_ids)) != len(external_ids):
             raise Conflict("Custom IDs for added examples must be unique within the change set.")
@@ -604,10 +528,22 @@ class DatasetMutationMixin:
                         )
                     )
                 ).all()
-                if len(dataset_examples) != len(existing_example_ids):
-                    raise NotFound("One or more dataset examples could not be found.")
-                if any(example.dataset_id != dataset_id for example in dataset_examples):
-                    raise BadRequest("All examples must belong to the specified dataset.")
+                examples_by_id = {example.id: example for example in dataset_examples}
+                # An example in another dataset is not addressable by a caller who
+                # scoped the write to this one, so it reads as missing rather than
+                # as a malformed request.
+                unreachable_example_ids = [
+                    example_id
+                    for example_id in existing_example_ids
+                    if (example := examples_by_id.get(example_id)) is None
+                    or example.dataset_id != dataset_id
+                ]
+                if unreachable_example_ids:
+                    raise NotFound(
+                        "Examples "
+                        f"{_to_global_ids(DatasetExample.__name__, unreachable_example_ids)} "
+                        "could not be found in this dataset."
+                    )
 
                 latest_revision_ids = (
                     select(func.max(models.DatasetExampleRevision.id))
@@ -627,13 +563,26 @@ class DatasetMutationMixin:
                 latest_revisions_by_example_id = {
                     revision.dataset_example_id: revision for revision in latest_revisions
                 }
-                if len(latest_revisions_by_example_id) != len(existing_example_ids):
-                    raise NotFound("One or more dataset examples have no revision.")
-                if any(
-                    latest_revisions_by_example_id[example_id].revision_kind == "DELETE"
+                if unrevised_example_ids := [
+                    example_id
                     for example_id in existing_example_ids
-                ):
-                    raise Conflict("One or more dataset examples have already been deleted.")
+                    if example_id not in latest_revisions_by_example_id
+                ]:
+                    raise NotFound(
+                        "Examples "
+                        f"{_to_global_ids(DatasetExample.__name__, unrevised_example_ids)} "
+                        "have no revision."
+                    )
+                if deleted_example_ids := [
+                    example_id
+                    for example_id in existing_example_ids
+                    if latest_revisions_by_example_id[example_id].revision_kind == "DELETE"
+                ]:
+                    raise Conflict(
+                        "Examples "
+                        f"{_to_global_ids(DatasetExample.__name__, deleted_example_ids)} "
+                        "have already been deleted."
+                    )
 
             if external_ids:
                 conflicting_external_ids = (
@@ -641,12 +590,13 @@ class DatasetMutationMixin:
                         select(models.DatasetExample.external_id)
                         .where(models.DatasetExample.dataset_id == dataset_id)
                         .where(models.DatasetExample.external_id.in_(external_ids))
+                        .limit(_MAX_REPORTED_EXTERNAL_ID_CONFLICTS)
                     )
                 ).all()
                 if conflicting_external_ids:
                     raise Conflict(
-                        f"Examples with custom IDs {conflicting_external_ids!r} already exist in "
-                        "this dataset."
+                        f"Examples with custom IDs {list(conflicting_external_ids)!r} already "
+                        "exist in this dataset."
                     )
 
             version_id = await session.scalar(
@@ -663,18 +613,24 @@ class DatasetMutationMixin:
 
             if additions:
                 added_examples = [
-                    models.DatasetExample(
-                        dataset_id=dataset_id,
-                        external_id=(
-                            addition.external_id
-                            if isinstance(addition.external_id, str) and addition.external_id
-                            else None
-                        ),
-                    )
-                    for addition in additions
+                    models.DatasetExample(dataset_id=dataset_id, external_id=external_id)
+                    for external_id in external_id_by_addition
                 ]
-                session.add_all(added_examples)
-                await session.flush()
+                try:
+                    # The conflict check above is check-then-insert, so a concurrent
+                    # add can still trip the (dataset_id, external_id) unique
+                    # constraint. Report it as a conflict rather than a server error.
+                    async with session.begin_nested():
+                        session.add_all(added_examples)
+                        await session.flush()
+                except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                    error_message = str(error)
+                    if "dataset_id" in error_message and "external_id" in error_message:
+                        raise Conflict(
+                            f"Examples with custom IDs {external_ids!r} already exist in "
+                            "this dataset."
+                        )
+                    raise
                 await session.execute(
                     insert(models.DatasetExampleRevision),
                     [
