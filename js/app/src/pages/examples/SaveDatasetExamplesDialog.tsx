@@ -3,6 +3,7 @@ import { useState } from "react";
 import { TextArea } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 
 import {
   Alert,
@@ -27,6 +28,10 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import type { EditableTableStore } from "@phoenix/components/table";
+import {
+  getEditableTableChangeCount,
+  getEditableTableChangeCounts,
+} from "@phoenix/components/table";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -49,6 +54,10 @@ const changeSummaryCSS = css`
     border-radius: var(--global-rounding-small);
     background: var(--global-table-header-background-color);
   }
+
+  li[data-empty="true"] {
+    opacity: 0.5;
+  }
 `;
 
 type SaveDatasetExamplesDialogProps = {
@@ -66,18 +75,11 @@ export function SaveDatasetExamplesDialog({
 }: SaveDatasetExamplesDialogProps) {
   const [versionDescription, setVersionDescription] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const additionCount = useStore(editStore, (state) => state.addedRows.length);
-  const updateCount = useStore(
-    editStore,
-    (state) =>
-      Object.keys(state.updatedRows).filter(
-        (rowId) => !state.deletedRowIds.has(rowId)
-      ).length
-  );
-  const deletionCount = useStore(
-    editStore,
-    (state) => state.deletedRowIds.size
-  );
+  const {
+    added: additionCount,
+    updated: updateCount,
+    deleted: deletionCount,
+  } = useStore(editStore, useShallow(getEditableTableChangeCounts));
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
@@ -95,7 +97,7 @@ export function SaveDatasetExamplesDialog({
         }
       }
     `);
-  const changeCount = additionCount + updateCount + deletionCount;
+  const changeCount = useStore(editStore, getEditableTableChangeCount);
 
   const saveChanges = () => {
     setSaveError(null);
@@ -169,30 +171,24 @@ export function SaveDatasetExamplesDialog({
             ) : null}
             <View padding="size-200">
               <ul css={changeSummaryCSS}>
-                <li>
-                  <Flex justifyContent="space-between" alignItems="center">
-                    <Text size="S" color="text-700">
-                      Added
-                    </Text>
-                    <Text>{additionCount}</Text>
-                  </Flex>
-                </li>
-                <li>
-                  <Flex justifyContent="space-between" alignItems="center">
-                    <Text size="S" color="text-700">
-                      Updated
-                    </Text>
-                    <Text>{updateCount}</Text>
-                  </Flex>
-                </li>
-                <li>
-                  <Flex justifyContent="space-between" alignItems="center">
-                    <Text size="S" color="text-700">
-                      Deleted
-                    </Text>
-                    <Text>{deletionCount}</Text>
-                  </Flex>
-                </li>
+                {(
+                  [
+                    ["Added", additionCount, "success"],
+                    ["Updated", updateCount, "warning"],
+                    ["Deleted", deletionCount, "danger"],
+                  ] as const
+                ).map(([label, count, color]) => (
+                  <li key={label} data-empty={count === 0}>
+                    <Flex justifyContent="space-between" alignItems="center">
+                      <Text size="S" color={count > 0 ? "text-700" : "text-300"}>
+                        {label}
+                      </Text>
+                      <Text color={count > 0 ? color : "text-300"}>
+                        {count}
+                      </Text>
+                    </Flex>
+                  </li>
+                ))}
               </ul>
               <View paddingTop="size-200">
                 <TextField
@@ -202,7 +198,20 @@ export function SaveDatasetExamplesDialog({
                   <Label>Version description</Label>
                   <TextArea
                     rows={3}
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
+                    autoFocus
                     placeholder="Describe the changes in this version"
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.metaKey || event.ctrlKey) &&
+                        changeCount > 0 &&
+                        !isCommitting
+                      ) {
+                        event.preventDefault();
+                        saveChanges();
+                      }
+                    }}
                   />
                   <Text slot="description">Optional</Text>
                 </TextField>

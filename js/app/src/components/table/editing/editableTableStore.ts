@@ -221,13 +221,30 @@ export function getEditableTableCellValue<
     : originalValue;
 }
 
+export type EditableTableChangeCounts = {
+  added: number;
+  updated: number;
+  deleted: number;
+};
+
+export function getEditableTableChangeCounts<Row extends object>(
+  state: EditableTableStoreState<Row>
+): EditableTableChangeCounts {
+  const updated = Object.keys(state.updatedRows).filter(
+    (rowId) => !state.deletedRowIds.has(rowId)
+  ).length;
+  return {
+    added: state.addedRows.length,
+    updated,
+    deleted: state.deletedRowIds.size,
+  };
+}
+
 export function getEditableTableChangeCount<Row extends object>(
   state: EditableTableStoreState<Row>
 ): number {
-  const updatedRowCount = Object.keys(state.updatedRows).filter(
-    (rowId) => !state.deletedRowIds.has(rowId)
-  ).length;
-  return state.addedRows.length + updatedRowCount + state.deletedRowIds.size;
+  const { added, updated, deleted } = getEditableTableChangeCounts(state);
+  return added + updated + deleted;
 }
 
 export function getEditableTableErrorCount<Row extends object>(
