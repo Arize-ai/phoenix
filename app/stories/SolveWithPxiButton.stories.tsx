@@ -37,7 +37,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Playground: Story = {};
+export const Default: Story = {};
 
 function SizesAndVariantsExample({
   shouldFlash = false,
@@ -88,18 +88,18 @@ export const Disabled: Story = {
   },
 };
 
-const attentionStoryCSS = css`
+const glowEffectStoryCSS = css`
   min-width: 320px;
 `;
 
-function AttentionFlashExample() {
+function GlowEffectExample() {
   const [flashKey, setFlashKey] = useState(0);
   return (
     <Flex
       direction="column"
       gap="size-300"
       alignItems="center"
-      css={attentionStoryCSS}
+      css={glowEffectStoryCSS}
     >
       <div key={flashKey}>
         <SizesAndVariantsExample shouldFlash />
@@ -111,6 +111,7 @@ function AttentionFlashExample() {
   );
 }
 
-export const AttentionFlash: Story = {
-  render: () => <AttentionFlashExample />,
+export const GlowEffect: Story = {
+  name: "Glow effect",
+  render: () => <GlowEffectExample />,
 };

@@ -85,9 +85,7 @@ export const pxiGlowWipeMaskCSS = css`
   mask-position: 200% center;
 `;
 
-/** A conic-gradient band whose thickness is controlled by the caller. */
-export const pxiConicBandCSS = css`
-  padding: var(--pxi-treatment-stroke-width);
+export const pxiConicGradientCSS = css`
   background: conic-gradient(
     from var(--pxi-conic-angle),
     var(--pxi-treatment-color-start),
@@ -95,6 +93,12 @@ export const pxiConicBandCSS = css`
     var(--pxi-treatment-color-end),
     var(--pxi-treatment-color-start)
   );
+`;
+
+/** A conic-gradient band whose thickness is controlled by the caller. */
+export const pxiConicBandCSS = css`
+  ${pxiConicGradientCSS};
+  padding: var(--pxi-treatment-stroke-width);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);

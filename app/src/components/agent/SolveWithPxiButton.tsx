@@ -4,15 +4,18 @@ import type { Ref } from "react";
 import { Button, type ButtonProps } from "@phoenix/components/core/button";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { PxiGlyph } from "./PxiGlyph";
+import { getPxiGlyphSVGDataUrl } from "./PxiGlyph";
 import {
   pxiConicBandCSS,
+  pxiConicGradientCSS,
   pxiConicSpin,
   pxiGlowBreathe,
   pxiGlowFlashOpacity,
   pxiGlowWipe,
   pxiGlowWipeMaskCSS,
 } from "./pxiStyles";
+
+const pxiGlyphMaskImage = `url("${getPxiGlyphSVGDataUrl({ fill: "black" })}")`;
 
 export type SolveWithPxiButtonSize = "S" | "M";
 export type SolveWithPxiButtonVariant = "default" | "quiet";
@@ -51,8 +54,7 @@ const pxiButtonCSS = css`
     ${pxiConicBandCSS};
     z-index: 1;
     opacity: 0.82;
-    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite
-      paused;
+    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite;
   }
 
   .solve-with-pxi-button__glow {
@@ -75,7 +77,6 @@ const pxiButtonCSS = css`
 
   &[data-hovered]::before {
     opacity: 1;
-    animation-play-state: running;
   }
 
   &[data-pressed] {
@@ -110,6 +111,12 @@ const pxiButtonCSS = css`
       animation-play-state: paused;
     }
 
+    .solve-with-pxi-button__glyph {
+      &::before {
+        animation: none;
+      }
+    }
+
     .solve-with-pxi-button__glow,
     .solve-with-pxi-button__glow::before {
       animation: none !important;
@@ -118,9 +125,38 @@ const pxiButtonCSS = css`
 `;
 
 const glyphCSS = css`
-  display: inline-flex;
+  display: block;
   flex: none;
-  color: var(--pxi-treatment-color-middle);
+  width: 13px;
+  height: 13px;
+  background: color-mix(
+    in srgb,
+    var(--pxi-treatment-color-middle) 78%,
+    var(--pxi-treatment-color-end)
+  );
+  -webkit-mask-image: ${pxiGlyphMaskImage};
+  mask-image: ${pxiGlyphMaskImage};
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+
+  &::before {
+    content: "";
+    ${pxiConicGradientCSS};
+    display: block;
+    width: 100%;
+    height: 100%;
+    opacity: 0.35;
+    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite;
+  }
+
+  &[data-size="S"] {
+    width: 11px;
+    height: 11px;
+  }
 `;
 
 export function SolveWithPxiButton({
@@ -148,9 +184,12 @@ export function SolveWithPxiButton({
       leadingVisual={
         <>
           <span className="solve-with-pxi-button__glow" aria-hidden="true" />
-          <span css={glyphCSS} aria-hidden="true">
-            <PxiGlyph size={size === "S" ? 11 : 13} />
-          </span>
+          <span
+            className="solve-with-pxi-button__glyph"
+            css={glyphCSS}
+            data-size={size}
+            aria-hidden="true"
+          />
         </>
       }
     >
