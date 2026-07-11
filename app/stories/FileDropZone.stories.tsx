@@ -20,9 +20,9 @@ const fileChipCSS = css`
   align-items: center;
   gap: 4px;
   padding: 2px 10px;
-  background: var(--ac-global-color-grey-300);
+  background: var(--global-color-gray-300);
   border-radius: 12px;
-  font-size: var(--ac-global-dimension-font-size-75);
+  font-size: var(--global-dimension-font-size-75);
   list-style: none;
 `;
 
@@ -32,7 +32,7 @@ const fileChipRemoveButtonCSS = css`
   cursor: pointer;
   padding: 0 2px;
   line-height: 1;
-  color: var(--ac-global-text-color-700);
+  color: var(--global-text-color-700);
 `;
 
 const meta: Meta<typeof FileDropZone> = {

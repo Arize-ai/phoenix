@@ -963,6 +963,37 @@ const inputFieldCSS = (theme: Theme) => css`
     --global-input-field-background-color: var(--global-color-gray-100);
     --global-input-field-background-color-hover: var(--global-color-gray-200);
     --global-input-field-background-color-active: var(--global-color-gray-300);
+
+    /* ── Field component semantic tokens ──────────────────────────────
+       The Field styles (components/core/field) reference only these
+       tokens, never raw palette or --global-* values. Retheme fields by
+       remapping here — component CSS stays untouched. */
+
+    /* Default state */
+    --field-background-color: var(--global-input-field-background-color);
+    --field-text-color: var(--global-text-color-900);
+    --field-border-color: var(--global-input-field-border-color);
+    --field-border-color-active: var(--global-input-field-border-color-active);
+    --field-placeholder-color: var(--text-color-placeholder);
+
+    /* Validation & help text */
+    --field-invalid-border-color: var(--global-color-danger);
+    --field-error-text-color: var(--global-color-danger);
+    --field-description-text-color: var(--global-text-color-500);
+
+    /* Read-only state */
+    --field-readonly-background-color: rgba(
+      var(--global-color-gray-900-rgb),
+      0.03
+    );
+    --field-readonly-background-color-hover: var(--global-color-primary-50);
+    --field-readonly-text-color: var(--global-text-color-700);
+    --field-readonly-border-color-focus: var(--global-color-gray-400);
+
+    /* Popover overlay (combobox / select) */
+    --field-popover-background-color: var(--global-menu-background-color);
+    --field-popover-border-color: var(--global-menu-border-color);
+    --field-popover-shadow-color: var(--global-overlay-shadow-color);
   }
 `;
 
@@ -1001,6 +1032,88 @@ const buttonCSS = (theme: Theme) => css`
     --global-button-success-border-color: var(--global-color-success);
     --global-button-kbd-background-color: var(--global-color-gray-300);
     --global-button-primary-kbd-background-color: var(--global-color-gray-700);
+  }
+`;
+
+const pxiCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --pxi-conic-spin-duration: 3s;
+    --pxi-glow-bleed: 28px;
+    --pxi-glow-opacity: 0.95;
+    --pxi-glow-wipe-duration: 3000ms;
+    --pxi-glow-wipe-easing: cubic-bezier(0.4, 0.4, 0.65, 1);
+    --pxi-treatment-color-start: #9a66ff;
+    --pxi-treatment-color-middle: #3480ff;
+    --pxi-treatment-color-end: #2cd8ff;
+    --pxi-glow-box-shadow-fab-rest: ${theme === "dark"
+      ? `
+        0 0 2px 1px rgba(248, 242, 255, 0.78),
+        0 0 4px 2px rgba(154, 102, 255, 0.68),
+        0 0 8px 4px rgba(52, 128, 255, 0.52),
+        0 0 13px 5px rgba(198, 72, 255, 0.4),
+        0 0 17px 6px rgba(44, 216, 255, 0.26)
+      `
+      : `
+        0 0 3px 1px rgba(245, 249, 255, 0.88),
+        0 0 5px 2px rgba(199, 190, 242, 0.56),
+        0 0 9px 4px rgba(88, 152, 255, 0.54),
+        0 0 14px 5px rgba(200, 150, 236, 0.23),
+        0 0 20px 7px rgba(116, 212, 255, 0.17)
+      `};
+    --pxi-glow-box-shadow-fab-strong: ${theme === "dark"
+      ? `
+        0 0 3px 2px rgba(250, 244, 255, 0.88),
+        0 0 7px 3px rgba(160, 108, 255, 0.82),
+        0 0 12px 6px rgba(58, 134, 255, 0.66),
+        0 0 19px 8px rgba(205, 78, 255, 0.52),
+        0 0 26px 10px rgba(50, 220, 255, 0.34)
+      `
+      : `
+        0 0 4px 1px rgba(248, 251, 255, 0.94),
+        0 0 8px 3px rgba(203, 194, 244, 0.68),
+        0 0 13px 5px rgba(96, 159, 255, 0.64),
+        0 0 20px 7px rgba(205, 154, 238, 0.31),
+        0 0 26px 9px rgba(119, 214, 255, 0.22)
+      `};
+    --pxi-glow-box-shadow-rest: ${theme === "dark"
+      ? `
+        0 0 1px 1px rgba(248, 242, 255, 0.78),
+        0 0 3px 1px rgba(154, 102, 255, 0.68),
+        0 0 5px 2px rgba(52, 128, 255, 0.52),
+        0 0 8px 3px rgba(198, 72, 255, 0.4),
+        0 0 11px 4px rgba(44, 216, 255, 0.26)
+      `
+      : `
+        0 0 2px 1px rgba(245, 249, 255, 0.88),
+        0 0 3px 1px rgba(199, 190, 242, 0.56),
+        0 0 6px 2px rgba(88, 152, 255, 0.54),
+        0 0 9px 3px rgba(200, 150, 236, 0.23),
+        0 0 13px 4px rgba(116, 212, 255, 0.17)
+      `};
+    --pxi-glow-box-shadow-strong: ${theme === "dark"
+      ? `
+        0 0 2px 1px rgba(250, 244, 255, 0.88),
+        0 0 4px 2px rgba(160, 108, 255, 0.82),
+        0 0 7px 3px rgba(58, 134, 255, 0.66),
+        0 0 11px 4px rgba(205, 78, 255, 0.52),
+        0 0 16px 6px rgba(50, 220, 255, 0.34)
+      `
+      : `
+        0 0 3px 1px rgba(248, 251, 255, 0.94),
+        0 0 5px 2px rgba(203, 194, 244, 0.68),
+        0 0 8px 3px rgba(96, 159, 255, 0.64),
+        0 0 13px 4px rgba(205, 154, 238, 0.31),
+        0 0 17px 6px rgba(119, 214, 255, 0.22)
+      `};
+    --pxi-glow-box-shadow-contained-rest:
+      inset 0 0 2px rgba(154, 102, 255, 0.36),
+      inset 0 0 5px rgba(52, 128, 255, 0.28),
+      inset 0 0 9px rgba(44, 216, 255, 0.16);
+    --pxi-glow-box-shadow-contained-strong:
+      inset 0 0 3px rgba(154, 102, 255, 0.62),
+      inset 0 0 8px rgba(52, 128, 255, 0.48),
+      inset 0 0 14px rgba(44, 216, 255, 0.28);
   }
 `;
 
@@ -1245,6 +1358,7 @@ export const derivedCSS = (theme: Theme) =>
     inputFieldCSS(theme),
     menuCSS(theme),
     buttonCSS(theme),
+    pxiCSS(theme),
     checkboxCSS(theme),
     disclosureCSS(theme),
     tooltipCSS(theme),
@@ -1263,12 +1377,18 @@ export const derivedCSS = (theme: Theme) =>
   );
 
 const appGlobalStylesCSS = css`
+  @property --pxi-conic-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 45deg;
+  }
+
   body,
   input,
   button,
   .theme // We scope it to the theme so we can mount two at the same time
   {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
@@ -1343,6 +1463,9 @@ const appGlobalStylesCSS = css`
     --global-opacity-disabled: 0.4;
 
     /* Text */
+    --global-font-family-sans: "Geist", sans-serif;
+    --global-font-family-mono: "Geist Mono", monospace;
+
     --global-font-size-xxs: 10px;
     --global-font-size-xs: 12px;
     --global-font-size-s: 14px;
@@ -1437,12 +1560,12 @@ const chartCSS = css`
 
 const fontFamilyCSS = css`
   .font-default {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-optical-sizing: auto;
   }
   .font-mono,
   pre {
-    font-family: "Geist Mono", monospace;
+    font-family: var(--global-font-family-mono);
     font-optical-sizing: auto;
   }
 `;

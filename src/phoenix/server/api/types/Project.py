@@ -678,6 +678,20 @@ class Project(Node):
         filter_io_substring: Optional[str] = UNSET,
         session_id: Optional[str] = UNSET,
     ) -> int:
+        # When there is no substring / session-ID filter, the count depends only on
+        # the project and time range, so it can be batched across projects through
+        # the record_counts dataloader (this is the projects-list / project-card
+        # path, which would otherwise issue one query per project).
+        if not filter_io_substring and not session_id:
+            return await info.context.data_loaders.record_counts.load(
+                (
+                    "session",
+                    self.id,
+                    time_range or None,
+                    None,
+                    None,
+                ),
+            )
         stmt = _apply_project_session_filters(
             select(func.count(models.ProjectSession.id)),
             project_rowid=self.id,

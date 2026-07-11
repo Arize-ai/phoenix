@@ -12,7 +12,8 @@ import {
   Alert,
   Button,
   Card,
-  CopyToClipboardButton,
+  CopyField,
+  CopyInput,
   Flex,
   Icon,
   Icons,
@@ -120,13 +121,10 @@ const nameFieldCSS = css`
 `;
 
 const ReadOnlyNameField = ({ name }: { name: string }) => (
-  <Flex direction="row" gap="size-100" alignItems="end" width="100%">
-    <TextField value={name} isReadOnly css={nameFieldCSS}>
-      <Label>Project Name</Label>
-      <Input />
-    </TextField>
-    <CopyToClipboardButton text={name} size="M" />
-  </Flex>
+  <CopyField value={name} css={nameFieldCSS}>
+    <Label>Project Name</Label>
+    <CopyInput />
+  </CopyField>
 );
 
 const ProjectConfigCard = ({

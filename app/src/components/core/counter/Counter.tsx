@@ -20,7 +20,7 @@ const counterCSS = css`
   line-height: var(--global-line-height-xs);
   text-align: center;
   color: var(--global-text-color-900);
-  font-family: "Geist Mono", monospace;
+  font-family: var(--global-font-family-mono);
   &[data-variant="danger"] {
     background-color: var(--global-color-danger-700);
   }

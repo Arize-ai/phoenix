@@ -27,18 +27,18 @@ const containerCSS = css`
 `;
 
 const storyNoteCSS = css`
-  margin-bottom: var(--ac-global-dimension-size-200);
-  padding: var(--ac-global-dimension-size-150);
-  border: 1px solid var(--ac-global-color-grey-300);
-  border-radius: var(--ac-global-rounding-small);
-  background: var(--ac-global-color-grey-100);
-  color: var(--ac-global-text-color-900);
+  margin-bottom: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-150);
+  border: 1px solid var(--global-color-gray-300);
+  border-radius: var(--global-rounding-small);
+  background: var(--global-color-gray-100);
+  color: var(--global-text-color-900);
   font-size: 12px;
   line-height: 1.5;
 
   strong {
     display: block;
-    margin-bottom: var(--ac-global-dimension-size-50);
+    margin-bottom: var(--global-dimension-size-50);
     font-weight: 600;
   }
 `;

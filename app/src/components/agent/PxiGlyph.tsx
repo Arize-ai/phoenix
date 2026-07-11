@@ -23,6 +23,18 @@ const gridCells = [
   ry: BRAND_CELL_RADIUS,
 }));
 
+export function getPxiGlyphSVGDataUrl({ fill }: { fill: string }) {
+  const rects = gridCells
+    .map(
+      ({ x, y, width, height, rx, ry }) =>
+        `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" ry="${ry}" fill="${fill}"/>`
+    )
+    .join("");
+  const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}">${rects}</svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svgMarkup)}`;
+}
+
 export type PxiGlyphAnimation =
   | "wave-reveal"
   | "orbit-reveal"
@@ -290,8 +302,8 @@ export function PxiGlyph({
       height={dim}
       viewBox={`0 0 ${svgSize} ${svgSize}`}
     >
-      {gridCells.map((cell, i) => (
-        <rect key={i} {...cell} fill={fill} />
+      {gridCells.map((cell, index) => (
+        <rect key={index} {...cell} fill={fill} />
       ))}
     </svg>
   );

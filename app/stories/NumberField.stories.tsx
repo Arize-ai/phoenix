@@ -36,21 +36,21 @@ export const Default = {
 
 export const Gallery = () => (
   <Flex direction="column" gap="size-50" width="600px">
-    <NumberField>
+    <NumberField defaultValue={42}>
       <Label>Label</Label>
       <Input type="text" />
     </NumberField>
-    <NumberField>
+    <NumberField defaultValue={42}>
       <Label>Label</Label>
       <Input type="text" />
       <Text slot="description">Field description</Text>
     </NumberField>
-    <NumberField isInvalid>
+    <NumberField isInvalid defaultValue={42}>
       <Label>Label</Label>
       <Input type="text" />
       <FieldError>Field error</FieldError>
     </NumberField>
-    <NumberField isReadOnly>
+    <NumberField isReadOnly defaultValue={42}>
       <Label>Label</Label>
       <Input type="text" />
       <Text slot="description">This is read only</Text>

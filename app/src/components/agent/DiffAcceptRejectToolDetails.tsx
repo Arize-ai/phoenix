@@ -38,7 +38,7 @@ const diffAcceptRejectToolDetailsCSS = css`
   }
 
   .diff-accept-reject__diff {
-    font-family: var(--ac-global-font-family-sans);
+    font-family: var(--global-font-family-sans);
     white-space: normal;
   }
 `;

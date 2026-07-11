@@ -724,7 +724,7 @@ const traceTreeContainerCSS = css`
   max-height: 500px;
   overflow: auto;
   border-top: 1px solid var(--global-border-color-default);
-  background: var(--ac-global-color-grey-75);
+  background: var(--global-color-gray-75);
 `;
 
 const spanDetailsContainerCSS = css`
