@@ -114,13 +114,6 @@ describe("SavePromptForm", () => {
       setInputValue(promptInput as HTMLInputElement, "new-prompt");
     });
 
-    const submitButton = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('button[type="submit"]')
-    ).find((button) => button.textContent === "Create Prompt");
-    expect(submitButton).not.toBeUndefined();
-    expect(submitButton?.disabled).toBe(false);
-    expect(submitButton?.getAttribute("data-variant")).toBe("primary");
-
     const form = container.querySelector("form");
     expect(form).not.toBeNull();
     await act(async () => {

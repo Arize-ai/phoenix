@@ -105,7 +105,7 @@ export function SavePromptForm({
     handleSubmit,
     setValue,
     getValues,
-    formState: { isValid },
+    formState: { isDirty, isValid },
   } = useForm<SavePromptFormValues>({
     values: {
       promptId: selectedPromptId ?? undefined,
@@ -124,7 +124,6 @@ export function SavePromptForm({
       keepDefaultValues: true,
     },
   });
-  const canSubmit = isValid && !isSubmitting;
 
   const onSubmit = useCallback(
     (params: SavePromptFormValues) => {
@@ -326,9 +325,9 @@ export function SavePromptForm({
         >
           <Flex direction="row" justifyContent="end">
             <Button
-              variant={canSubmit ? "primary" : "default"}
+              variant={isDirty ? "primary" : "default"}
               size="S"
-              isDisabled={!canSubmit}
+              isDisabled={isSubmitting || !isValid}
               type="submit"
             >
               {submitButtonText}
