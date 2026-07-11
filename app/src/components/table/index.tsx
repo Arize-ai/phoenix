@@ -14,6 +14,10 @@ export * from "./JSONCell";
 export * from "./PaddedCell";
 export * from "./IndeterminateCheckboxCell";
 
+// Column ordering + selection
+export * from "./columnOrdering";
+export * from "./columnSelector";
+
 // Row selection
 export * from "./addRowRangeToSelection";
 export * from "./constants";

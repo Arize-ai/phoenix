@@ -11,8 +11,13 @@ import {
   Icon,
   Icons,
   Popover,
-  View,
 } from "@phoenix/components";
+import {
+  applySubsetColumnOrder,
+  CHECKBOX_COLUMN_ID,
+  ColumnSelectorMenu,
+  mergeColumnOrder,
+} from "@phoenix/components/table";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
@@ -37,9 +42,8 @@ function getColumnDisplayName(column: Column<unknown>): string {
 
 type SpanColumnSelectorProps = {
   /**
-   * The columns that can be displayed in the span table
-   * This could be made more generic to support other tables
-   * but for now working on the span tables to figure out the right interface
+   * All of the top-level columns of the span table (including group columns,
+   * which are filtered out of the checkbox list but participate in ordering)
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
@@ -57,115 +61,108 @@ export function SpanColumnSelector(props: SpanColumnSelectorProps) {
         </Flex>
       </Button>
       <Popover>
-        <ColumnSelectorMenu {...props} />
+        <SpanColumnSelectorMenu {...props} />
       </Popover>
     </DialogTrigger>
   );
 }
 
-const columCheckboxItemCSS = css`
-  padding: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100);
-  label {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-static-size-100);
+/**
+ * A section of extra (non-reorderable) columns — annotations, trace
+ * annotations — rendered below the core column list. Styled to line up with
+ * the {@link ColumnSelectorMenu} rows: same horizontal inset, a hairline
+ * divider on top, and a quiet uppercase section label.
+ */
+const columnSelectorSectionCSS = css`
+  padding: 0 var(--global-dimension-static-size-50);
+  margin-top: var(--global-dimension-static-size-50);
+  border-top: 1px solid var(--global-border-color-default);
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 `;
 
-function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
+const columnSelectorSectionHeaderCSS = css`
+  padding-top: var(--global-dimension-static-size-50);
+`;
+
+const columCheckboxItemCSS = css`
+  display: flex;
+  align-items: center;
+  min-height: var(--global-dimension-static-size-400);
+  padding: 0 var(--global-dimension-static-size-100);
+  border-radius: var(--global-rounding-small);
+  label {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-static-size-100);
+    min-width: 0;
+  }
+  &:hover {
+    background-color: var(--global-color-gray-200);
+  }
+`;
+
+function SpanColumnSelectorMenu(props: SpanColumnSelectorProps) {
   const { columns: propsColumns } = props;
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnVisibility = useTracingContext(
     (state) => state.setColumnVisibility
   );
-  const columns = useMemo(() => {
-    return propsColumns.filter((column) => {
-      return !UN_HIDABLE_COLUMN_IDS.includes(column.id);
-    });
-  }, [propsColumns]);
+  const columnOrder = useTracingContext((state) => state.columnOrder);
+  const setColumnOrder = useTracingContext((state) => state.setColumnOrder);
 
-  const allVisible = useMemo(() => {
-    return columns.every((column) => {
-      const stateValue = columnVisibility[column.id];
-      const isVisible = stateValue == null ? true : stateValue;
-      return isVisible;
-    });
-  }, [columns, columnVisibility]);
+  // Full top-level order (minus the pinned checkbox column) in display order
+  const orderedTopLevelIds = mergeColumnOrder({
+    columnOrder,
+    columnIds: propsColumns
+      .map((column) => column.id)
+      .filter((id) => id !== CHECKBOX_COLUMN_ID),
+  });
 
-  const someVisible = useMemo(() => {
-    return columns.some((column) => {
-      const stateValue = columnVisibility[column.id];
-      const isVisible = stateValue == null ? true : stateValue;
-      return isVisible;
-    });
-  }, [columns, columnVisibility]);
-
-  const onCheckboxChange = useCallback(
-    (name: string, isSelected: boolean) => {
-      setColumnVisibility({ ...columnVisibility, [name]: isSelected });
-    },
-    [columnVisibility, setColumnVisibility]
+  const columnsById = new Map(
+    propsColumns.map((column) => [column.id, column])
   );
+  const selectorColumns = orderedTopLevelIds.flatMap((id) => {
+    const column = columnsById.get(id);
+    // Group columns (dynamic annotation columns) are managed by the
+    // annotation sections below
+    if (column == null || column.columns.length > 0) {
+      return [];
+    }
+    return [
+      {
+        id,
+        label: getColumnDisplayName(column),
+        isVisibilityToggleDisabled: UN_HIDABLE_COLUMN_IDS.includes(id),
+      },
+    ];
+  });
 
-  const onToggleAll = useCallback(
-    (isSelected: boolean) => {
-      const newVisibilityState = columns.reduce((acc, column) => {
-        return { ...acc, [column.id]: isSelected };
-      }, {});
-      setColumnVisibility(newVisibilityState);
-    },
-    [columns, setColumnVisibility]
-  );
+  const onColumnOrderChange = (orderedSubset: string[]) => {
+    setColumnOrder(
+      applySubsetColumnOrder({
+        columnOrder: orderedTopLevelIds,
+        orderedSubset,
+      })
+    );
+  };
 
   return (
-    <div
-      css={css`
-        overflow-y: auto;
-        max-height: calc(100vh - 200px);
-      `}
+    <ColumnSelectorMenu
+      columns={selectorColumns}
+      columnVisibility={columnVisibility}
+      onColumnVisibilityChange={setColumnVisibility}
+      onColumnOrderChange={onColumnOrderChange}
+      toggleAllLabel="span columns"
     >
-      <View padding="size-50">
-        <View
-          borderBottomColor="default"
-          borderBottomWidth="thin"
-          paddingBottom="size-50"
-        >
-          <div css={columCheckboxItemCSS}>
-            <Checkbox
-              name="toggle-all"
-              isSelected={allVisible}
-              isIndeterminate={someVisible && !allVisible}
-              onChange={onToggleAll}
-            >
-              span columns
-            </Checkbox>
-          </div>
-        </View>
-        <ul>
-          {columns.map((column) => {
-            const stateValue = columnVisibility[column.id];
-            const isVisible = stateValue == null ? true : stateValue;
-            return (
-              <li key={column.id} css={columCheckboxItemCSS}>
-                <Checkbox
-                  name={column.id}
-                  isSelected={isVisible}
-                  onChange={(isSelected) =>
-                    onCheckboxChange(column.id, isSelected)
-                  }
-                >
-                  {getColumnDisplayName(column)}
-                </Checkbox>
-              </li>
-            );
-          })}
-        </ul>
-        <EvaluationColumnSelector {...props} />
-        <TraceEvaluationColumnSelector {...props} />
-      </View>
-    </div>
+      <EvaluationColumnSelector {...props} />
+      <TraceEvaluationColumnSelector {...props} />
+    </ColumnSelectorMenu>
   );
 }
 
@@ -219,13 +216,8 @@ function EvaluationColumnSelector({
   }
 
   return (
-    <section>
-      <View
-        paddingTop="size-50"
-        paddingBottom="size-50"
-        borderColor="default"
-        borderTopWidth="thin"
-      >
+    <section css={columnSelectorSectionCSS}>
+      <div css={columnSelectorSectionHeaderCSS}>
         <div css={columCheckboxItemCSS}>
           <Checkbox
             name="toggle-annotations-all"
@@ -236,7 +228,7 @@ function EvaluationColumnSelector({
             annotations
           </Checkbox>
         </div>
-      </View>
+      </div>
       <ul>
         {filteredSpanAnnotationNames.map((name) => {
           const isVisible = annotationColumnVisibility[name] ?? false;
@@ -308,13 +300,8 @@ function TraceEvaluationColumnSelector({
   }
 
   return (
-    <section>
-      <View
-        paddingTop="size-50"
-        paddingBottom="size-50"
-        borderColor="default"
-        borderTopWidth="thin"
-      >
+    <section css={columnSelectorSectionCSS}>
+      <div css={columnSelectorSectionHeaderCSS}>
         <div css={columCheckboxItemCSS}>
           <Checkbox
             name="toggle-trace-annotations-all"
@@ -325,7 +312,7 @@ function TraceEvaluationColumnSelector({
             trace annotations
           </Checkbox>
         </div>
-      </View>
+      </div>
       <ul>
         {nonNoteAnnotationNames.map((name) => {
           const isVisible = traceAnnotationColumnVisibility[name] ?? false;
