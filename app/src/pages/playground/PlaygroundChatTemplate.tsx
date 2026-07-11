@@ -2,7 +2,6 @@ import { move } from "@dnd-kit/helpers";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -271,13 +270,13 @@ function SortableMessageItem({
   messageId,
   messageIndex,
   availablePaths,
-}: PropsWithChildren<{
+}: {
   playgroundInstanceId: number;
   messageId: number;
   messageIndex: number;
   templateFormat: TemplateFormat;
   availablePaths: string[] | undefined;
-}>) {
+}) {
   const updateMessage = usePlaygroundContext((state) => state.updateMessage);
   const deleteMessage = usePlaygroundContext((state) => state.deleteMessage);
   const sortable = useSortable({
@@ -441,7 +440,7 @@ function SortableMessageItem({
                 });
               }}
             />
-            <DragHandle ref={sortable.handleRef} />
+            <DragHandle ref={sortable.handleRef} aria-label="Reorder message" />
           </Flex>
         }
       >

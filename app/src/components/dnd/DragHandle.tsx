@@ -3,11 +3,17 @@ import type { Ref } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
-function DragHandle({ ref }: { ref?: Ref<HTMLButtonElement> }) {
+function DragHandle({
+  ref,
+  "aria-label": ariaLabel = "Drag to reorder",
+}: {
+  ref?: Ref<HTMLButtonElement>;
+  "aria-label"?: string;
+}) {
   return (
     <button
       ref={ref}
-      aria-label="Reorder message"
+      aria-label={ariaLabel}
       className="button--reset drag-handle"
       css={css`
         cursor: grab;

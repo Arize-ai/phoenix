@@ -79,7 +79,24 @@ test.describe("Playground", () => {
       "{{question}}"
     );
 
-    await reorderButtons.first().dragTo(messageItems.nth(1));
+    // Drag with explicit stepped mouse moves — dnd-kit tracks the pointer on
+    // animation frames, so a single-step dragTo can release before the drop
+    // target is registered
+    const targetBox = await messageItems.nth(1).boundingBox();
+    if (!targetBox) {
+      throw new Error("target message item is not visible");
+    }
+    await reorderButtons.first().hover();
+    await page.mouse.down();
+    await page.mouse.move(
+      targetBox.x + targetBox.width / 2,
+      targetBox.y + targetBox.height / 2,
+      { steps: 20 }
+    );
+    // The dragged item gets an inline z-index while dragging — wait for it so
+    // the drag is registered before releasing
+    await expect(page.locator("li[style*='z-index']")).toHaveCount(1);
+    await page.mouse.up();
 
     await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
       "{{question}}"
