@@ -4,20 +4,16 @@ import { css } from "@emotion/react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
-import { dndDragFeedbackCSS } from "@phoenix/components/dnd/dndCSS";
+import { dndDragFeedbackCSS } from "@phoenix/components/dnd";
 
 const sortableColumnHeaderCSS = css`
   position: relative;
   ${dndDragFeedbackCSS}
-  /* Keep the lifted copy opaque so it reads clearly over the table, but keep
-     its shape identical to the resting header so the drop is a settle, not a
-     morph. Shape/shadow come from the shared feedback CSS. */
+  /* Keep the lifted copy opaque over the table */
   &[data-dnd-dragging] {
     background-color: var(--global-table-header-background-color);
   }
-  /* Drop invitation: extend the placeholder's tint down the full column body
-     so it's clear where the column will land. Static background overlay, so it
-     never changes the header's shape. */
+  /* Extend the drop tint down the full column body */
   &[data-dnd-placeholder]::after {
     content: "";
     position: absolute;
@@ -118,8 +114,7 @@ export function SortableColumnHeader({
       colSpan={colSpan}
       style={{
         ...style,
-        // Inline so the style survives the popover top layer the drag
-        // feedback element is rendered into
+        // Inline so it survives the top layer the drag feedback renders into
         ...(isDragSource
           ? {
               backgroundColor: "var(--global-table-header-background-color)",

@@ -1073,7 +1073,7 @@ const tooltipCSS = (theme: Theme) => css`
 const dndCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    /* Drag-and-drop feedback (see components/dnd/dndCSS.ts) */
+    /* Drag-and-drop feedback (see components/dnd/styles.ts) */
     /* Soft lift shadow for the copy that follows the pointer. Kept gentle
        so the element settles quietly rather than snapping into place. */
     --global-dnd-drag-shadow: ${theme === "light"

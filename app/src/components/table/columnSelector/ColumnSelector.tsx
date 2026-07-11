@@ -14,7 +14,7 @@ import {
   MenuHeader,
   Popover,
 } from "@phoenix/components";
-import { dndDragFeedbackCSS } from "@phoenix/components/dnd/dndCSS";
+import { dndDragFeedbackCSS } from "@phoenix/components/dnd";
 
 import { ColumnOrderingProvider } from "../columnOrdering";
 
