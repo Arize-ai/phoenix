@@ -373,6 +373,32 @@ class TestTokenLifecycle:
         )
         assert second_refresh.status_code == 200
 
+    def test_concurrent_refresh_token_rotation_has_one_winner(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        token_response = _oauth_public_client.complete_flow(user)
+        form = {
+            "grant_type": "refresh_token",
+            "refresh_token": token_response["refresh_token"],
+            "client_id": _oauth_public_client.client_id,
+        }
+        barrier = Barrier(2)
+
+        def rotate() -> httpx.Response:
+            barrier.wait()
+            return _httpx_client(_app).post("oauth2/token", data=form)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            responses = list(executor.map(lambda _: rotate(), range(2)))
+
+        assert sorted(response.status_code for response in responses) == [200, 400]
+        rejected = next(response for response in responses if response.status_code == 400)
+        assert rejected.json()["error"] == "invalid_grant"
+
     def test_rotated_refresh_token_reuse_is_invalid_grant(
         self,
         _app: _AppInfo,

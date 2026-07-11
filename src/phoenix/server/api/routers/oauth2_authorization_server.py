@@ -504,6 +504,9 @@ async def _exchange_refresh_token(request: Request, form: Any) -> JSONResponse:
         token_ids = [AccessTokenId(id_) for id_ in access_token_ids]
     refresh_token_expiry = _refresh_token_expiry(request, grant_expires_at=grant.expires_at)
     access_token_expiry = _access_token_expiry(request)
+    if not await token_store.consume_refresh_token(refresh_claims.token_id):
+        return _oauth_error("invalid_grant")
+    await token_store.revoke(*token_ids)
     access_token, refresh_token = await create_access_and_refresh_tokens(
         token_store=token_store,
         user=user,
@@ -512,7 +515,6 @@ async def _exchange_refresh_token(request: Request, form: Any) -> JSONResponse:
         grant_id=grant.id,
         scopes=tuple(refresh_claims.attributes.scopes),
     )
-    await token_store.revoke(refresh_claims.token_id, *token_ids)
     return _token_response(access_token, refresh_token, access_token_expiry)
 
 

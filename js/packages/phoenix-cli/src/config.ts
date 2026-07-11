@@ -3,6 +3,7 @@ import {
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
   getHeadersFromEnvironment,
+  getProjectFromEnvironment,
   getStrFromEnvironment,
 } from "@arizeai/phoenix-config";
 
@@ -95,19 +96,12 @@ export function loadConfigFromEnvironment(): PhoenixConfig {
     config.headers = headers;
   }
 
-  const project = getProjectFromEnvironmentForCli();
+  const project = getProjectFromEnvironment();
   if (project) {
     config.project = project;
   }
 
   return config;
-}
-
-function getProjectFromEnvironmentForCli(): string | undefined {
-  return (
-    getStrFromEnvironment("PHOENIX_PROJECT") ??
-    getStrFromEnvironment("PHOENIX_PROJECT_NAME")
-  );
 }
 
 /**
@@ -205,14 +199,28 @@ export function resolveConfig({
     Object.entries(cliOptions).filter(([, value]) => value !== undefined)
   ) as Partial<PhoenixConfig>;
 
+  // OAuth tokens are only valid against the endpoint that issued them. When
+  // --endpoint or PHOENIX_HOST points the command at a different server, drop
+  // the tokens so they are never sent to — or refreshed against — a host that
+  // did not issue them.
+  const resolvedEndpoint =
+    definedCliOptions.endpoint ??
+    envConfig.endpoint ??
+    profileConfig.endpoint ??
+    builtInDefaults.endpoint;
+  const boundProfileConfig =
+    profileConfig.oauthTokens && profileConfig.endpoint !== resolvedEndpoint
+      ? { ...profileConfig, oauthTokens: undefined }
+      : profileConfig;
+
   const credentialSource = getCredentialSource({
     cliOptions: definedCliOptions,
     envConfig,
-    profileConfig,
+    profileConfig: boundProfileConfig,
   });
 
   const oauthTokens =
-    credentialSource === "oauth" ? profileConfig.oauthTokens : undefined;
+    credentialSource === "oauth" ? boundProfileConfig.oauthTokens : undefined;
 
   return {
     ...builtInDefaults,

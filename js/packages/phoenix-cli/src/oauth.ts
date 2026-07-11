@@ -192,8 +192,17 @@ export async function startLoginCallbackServer({
   });
 
   const server = http.createServer((request, response) => {
-    const host = request.headers.host ?? "127.0.0.1";
-    const requestUrl = new URL(request.url ?? "/", `http://${host}`);
+    // Parse against a fixed loopback base: the Host header is untrusted input,
+    // and a malformed value would make the URL constructor throw inside the
+    // request handler, crashing the CLI mid-login.
+    let requestUrl: URL;
+    try {
+      requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+    } catch {
+      response.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end("Bad request");
+      return;
+    }
     if (requestUrl.pathname !== OAUTH_CALLBACK_PATH) {
       response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
       response.end("Not found");
@@ -232,6 +241,16 @@ export async function startLoginCallbackServer({
   };
 }
 
+export interface PastedRedirectPrompt {
+  resultPromise: Promise<CallbackParseResult>;
+  /**
+   * Release stdin. Must be called when the prompt loses the race to the
+   * loopback callback — an open readline interface keeps the event loop
+   * alive and the process would hang after a successful login.
+   */
+  close: () => void;
+}
+
 export function waitForPastedRedirectUrl({
   expectedState,
   input = process.stdin,
@@ -240,10 +259,10 @@ export function waitForPastedRedirectUrl({
   expectedState: string;
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
-}): Promise<CallbackParseResult> {
+}): PastedRedirectPrompt {
   output.write("Paste the full redirect URL and press Enter: ");
   const reader = readline.createInterface({ input, output });
-  return new Promise((resolve) => {
+  const resultPromise = new Promise<CallbackParseResult>((resolve) => {
     reader.once("line", (line) => {
       reader.close();
       resolve(
@@ -254,6 +273,7 @@ export function waitForPastedRedirectUrl({
       );
     });
   });
+  return { resultPromise, close: () => reader.close() };
 }
 
 export function withTimeout<T>({
@@ -454,7 +474,7 @@ export function resolveTargetProfileName(
   return getStoredActiveProfile(settings)?.name ?? "default";
 }
 
-async function withSettingsLock<T>(
+export async function withSettingsLock<T>(
   settingsPath: string,
   action: () => Promise<T>
 ): Promise<T> {
@@ -468,15 +488,29 @@ async function withSettingsLock<T>(
       descriptor = fs.openSync(lockPath, "wx", 0o600);
     } catch (error) {
       if (
-        typeof error === "object" &&
-        error !== null &&
-        (error as NodeJS.ErrnoException).code === "EEXIST" &&
-        Date.now() - startedAt < SETTINGS_LOCK_TIMEOUT_MS
+        typeof error !== "object" ||
+        error === null ||
+        (error as NodeJS.ErrnoException).code !== "EEXIST"
       ) {
-        await sleep(SETTINGS_LOCK_RETRY_MS);
+        throw error;
+      }
+      // A lock left behind by a killed process would otherwise block every
+      // future settings write; steal it once it is older than the timeout.
+      if (isLockStale(lockPath)) {
+        try {
+          fs.unlinkSync(lockPath);
+        } catch {
+          // Another process stole it first; retry the open.
+        }
         continue;
       }
-      throw error;
+      if (Date.now() - startedAt >= SETTINGS_LOCK_TIMEOUT_MS) {
+        throw new Error(
+          `Timed out waiting for the settings lock at ${lockPath}. ` +
+            "If no other px process is running, delete the file and retry."
+        );
+      }
+      await sleep(SETTINGS_LOCK_RETRY_MS);
     }
   }
 
@@ -489,6 +523,17 @@ async function withSettingsLock<T>(
     } catch {
       // Another process may have cleaned up the lock after the refresh was persisted.
     }
+  }
+}
+
+function isLockStale(lockPath: string): boolean {
+  try {
+    return (
+      Date.now() - fs.statSync(lockPath).mtimeMs > SETTINGS_LOCK_TIMEOUT_MS
+    );
+  } catch {
+    // The lock disappeared; the next open attempt will settle it.
+    return false;
   }
 }
 

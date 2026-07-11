@@ -107,4 +107,13 @@ describe("loadSettings / saveSettings", () => {
     const stat = fs.statSync(settingsPath);
     expect(stat.mode & 0o777).toBe(0o600);
   });
+
+  it("tightens the mode of a pre-existing permissive settings file", () => {
+    fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+    fs.writeFileSync(settingsPath, "{}", { mode: 0o644 });
+    fs.chmodSync(settingsPath, 0o644);
+    saveSettings({ activeProfile: null, profiles: {} }, { settingsPath });
+    const stat = fs.statSync(settingsPath);
+    expect(stat.mode & 0o777).toBe(0o600);
+  });
 });
