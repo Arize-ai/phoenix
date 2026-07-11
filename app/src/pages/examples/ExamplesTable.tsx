@@ -115,7 +115,12 @@ const newExampleIdInputCSS = css`
   &:disabled {
     opacity: 0.6;
   }
+  &[aria-invalid="true"] {
+    border-color: var(--global-color-danger);
+  }
 `;
+
+const DUPLICATE_ID_ERROR = "Custom IDs must be unique among new examples.";
 
 /**
  * The ID cell for a newly added example. The ID is optional: leaving it blank
@@ -136,6 +141,34 @@ function NewExampleIdCell({
       ""
   );
   const isSaving = useStore(editStore, (state) => state.mode === "saving");
+  // The server rejects the whole change set if two new examples share a custom
+  // ID, so catch the collision here, where the offending cells can be pointed
+  // at, rather than at the end of the save dialog.
+  const isDuplicate = useStore(editStore, (state) => {
+    const customId = externalId.trim();
+    if (!customId) {
+      return false;
+    }
+    return (
+      state.addedRows.filter(
+        (addedRow) => addedRow.externalId?.trim() === customId
+      ).length > 1
+    );
+  });
+  const error = useStore(
+    editStore,
+    (state) => state.cellErrors[row.id]?.externalId ?? null
+  );
+  useEffect(() => {
+    const nextError = isDuplicate ? DUPLICATE_ID_ERROR : null;
+    if (nextError !== error) {
+      editStore.getState().setCellError({
+        rowId: row.id,
+        columnId: "externalId",
+        error: nextError,
+      });
+    }
+  }, [editStore, error, isDuplicate, row.id]);
   return (
     <input
       css={newExampleIdInputCSS}
@@ -143,6 +176,8 @@ function NewExampleIdCell({
       disabled={isSaving}
       placeholder="ID auto-generated"
       aria-label="Example ID (leave blank to auto-generate)"
+      aria-invalid={isDuplicate}
+      title={isDuplicate ? DUPLICATE_ID_ERROR : undefined}
       // Keep the cell's click from starting row navigation/selection.
       onClick={(event) => event.stopPropagation()}
       onChange={(event) => {
