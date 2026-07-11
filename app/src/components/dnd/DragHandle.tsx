@@ -3,6 +3,10 @@ import type { Ref } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
+/**
+ * A grab handle for dnd-kit sortables. Pass the sortable's `handleRef` as
+ * `ref`; give an `aria-label` naming what is being reordered.
+ */
 function DragHandle({
   ref,
   "aria-label": ariaLabel = "Drag to reorder",
@@ -13,6 +17,7 @@ function DragHandle({
   return (
     <button
       ref={ref}
+      type="button"
       aria-label={ariaLabel}
       className="button--reset drag-handle"
       css={css`

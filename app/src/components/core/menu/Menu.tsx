@@ -336,25 +336,29 @@ export const MenuSectionTitle = ({
 export const MenuHeader = ({ children }: PropsWithChildren) => {
   return (
     <div
+      className="menu-header"
       css={css`
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
 
-        /* Add vertical padding to quiet SearchFields in header */
-        .search-field[data-variant="quiet"] .react-aria-Input,
-        .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+        /* Draw the divider under (and, when stacked, between) quiet
+           SearchFields in the header by re-coloring the field's own border.
+           Scope with the block class (&.menu-header ...) so this wins over the
+           quiet variant's border resets in EVERY interaction state — rest,
+           hover, and focus. Without the extra specificity the variant's
+           :focused reset ties on specificity and wins on source order, so a
+           focused (e.g. autoFocused) search field silently loses its divider.
+           Invalid fields keep their danger border. */
+        &.menu-header
+          .search-field[data-variant="quiet"]
+          .react-aria-Input:not([data-invalid]) {
           border-bottom-color: var(--global-menu-border-color);
         }
-        * + .search-field[data-variant="quiet"] .react-aria-Input,
-        *
+        &.menu-header
+          *
           + .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+          .react-aria-Input:not([data-invalid]) {
           border-top-color: var(--global-menu-border-color);
         }
       `}

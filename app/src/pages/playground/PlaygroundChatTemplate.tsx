@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
-import { DragHandle } from "@phoenix/components/dnd/DragHandle";
+import { DragHandle } from "@phoenix/components/dnd";
 import {
   TemplateEditor,
   TemplateEditorWrap,

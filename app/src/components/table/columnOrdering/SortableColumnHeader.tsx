@@ -1,0 +1,111 @@
+import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers";
+import { useSortable } from "@dnd-kit/react/sortable";
+import { css } from "@emotion/react";
+import type { CSSProperties, ReactNode } from "react";
+
+import { Icon, Icons } from "@phoenix/components";
+import {
+  dndDragFeedbackCSS,
+  dndHandleAppearanceCSS,
+} from "@phoenix/components/dnd";
+
+const sortableColumnHeaderCSS = css`
+  position: relative;
+  ${dndDragFeedbackCSS}
+  /* Keep the lifted copy opaque over the table */
+  &[data-dnd-dragging] {
+    background-color: var(--global-table-header-background-color);
+  }
+  /* Extend the drop tint down the full column body */
+  &[data-dnd-placeholder]::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 100vh;
+    background-color: var(--global-dnd-drop-target-background-color);
+  }
+  .sortable-column-header__handle {
+    ${dndHandleAppearanceCSS}
+    position: absolute;
+    top: 50%;
+    right: var(--global-dimension-static-size-50);
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--global-dimension-static-size-225);
+    height: var(--global-dimension-static-size-225);
+    font-size: var(--global-font-size-s);
+    z-index: 1;
+  }
+  &:hover .sortable-column-header__handle {
+    opacity: 1;
+  }
+`;
+
+export interface SortableColumnHeaderProps {
+  /** Must be present in the surrounding provider's `columnOrder`. */
+  columnId: string;
+  /** Index of the column within the provider's `columnOrder`. */
+  index: number;
+  /** Accessible label for the drag handle. Falls back to columnId. */
+  label?: string;
+  /** Disables dragging for this column (e.g. pinned columns). */
+  isReorderingDisabled?: boolean;
+  colSpan?: number;
+  style?: CSSProperties;
+  children: ReactNode;
+}
+
+/**
+ * A `<th>` draggable horizontally to reorder its column, with a hover-visible
+ * grab handle. Must be rendered inside a {@link ColumnOrderingProvider}.
+ */
+export function SortableColumnHeader({
+  columnId,
+  index,
+  label,
+  isReorderingDisabled = false,
+  colSpan,
+  style,
+  children,
+}: SortableColumnHeaderProps) {
+  const { ref, handleRef, isDragSource } = useSortable({
+    id: columnId,
+    index,
+    disabled: isReorderingDisabled,
+    modifiers: [RestrictToHorizontalAxis],
+  });
+  return (
+    <th
+      ref={ref}
+      colSpan={colSpan}
+      style={{
+        ...style,
+        // Inline so it survives the top layer the drag feedback renders into
+        ...(isDragSource
+          ? {
+              backgroundColor: "var(--global-table-header-background-color)",
+            }
+          : null),
+      }}
+      css={sortableColumnHeaderCSS}
+      data-column-id={columnId}
+    >
+      {isReorderingDisabled ? null : (
+        <button
+          ref={handleRef}
+          type="button"
+          className="button--reset sortable-column-header__handle"
+          aria-label={`Reorder ${label ?? columnId} column`}
+        >
+          <Icon svg={<Icons.DragHandle />} />
+        </button>
+      )}
+      {children}
+    </th>
+  );
+}
