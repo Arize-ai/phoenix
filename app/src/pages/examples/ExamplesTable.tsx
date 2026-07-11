@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   startTransition,
   useCallback,
@@ -15,16 +16,27 @@ import {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
+import { useStore } from "zustand";
 
-import { CopyToClipboardButton, Truncate } from "@phoenix/components";
+import {
+  CopyToClipboardButton,
+  Icon,
+  IconButton,
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  Truncate,
+} from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Link } from "@phoenix/components/core/Link";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import {
   CellWithControlsWrap,
-  CompactJSONCell,
   createRowSelectionColumn,
+  EditableJSONCell,
 } from "@phoenix/components/table";
+import type { EditableTableStore } from "@phoenix/components/table";
 import {
   CHECKBOX_COLUMN_ID,
   CHECKBOX_COLUMN_PINNING,
@@ -32,6 +44,7 @@ import {
 import {
   getCommonPinningStyles,
   selectableTableCSS,
+  tableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
@@ -44,6 +57,7 @@ import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
 import type { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
+import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
@@ -54,8 +68,10 @@ const defaultColumnSettings = {
 
 export function ExamplesTable({
   dataset,
+  editStore,
 }: {
   dataset: examplesLoaderQuery$data["dataset"];
+  editStore: EditableTableStore<DatasetExampleTableRow>;
 }) {
   "use no memo";
   const {
@@ -70,7 +86,19 @@ export function ExamplesTable({
   const { exampleId: selectedExampleId } = useParams();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [, setTableContainerElement] = useState<HTMLDivElement | null>(null);
+  const tableContainerCallbackRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      tableContainerRef.current = element;
+      setTableContainerElement(element);
+    },
+    []
+  );
   const [columnSizing, setColumnSizing] = useState({});
+  const mode = useStore(editStore, (state) => state.mode);
+  const addedRows = useStore(editStore, (state) => state.addedRows);
+  const deletedRowIds = useStore(editStore, (state) => state.deletedRowIds);
+  const isEditing = mode !== "read";
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
@@ -121,10 +149,17 @@ export function ExamplesTable({
           filter,
           splitIds: selectedSplitIds,
         },
-        { fetchPolicy: "store-and-network" }
+        {
+          fetchPolicy: "store-and-network",
+          onComplete: (error) => {
+            if (!error && editStore.getState().mode === "saving") {
+              editStore.getState().finishSaving();
+            }
+          },
+        }
       );
     });
-  }, [latestVersion, filter, refetch, selectedSplitIds]);
+  }, [editStore, latestVersion, filter, refetch, selectedSplitIds]);
   // sync selected examples into cache for later access
   useEffect(() => {
     setExamplesCache(
@@ -173,9 +208,9 @@ export function ExamplesTable({
     [setSelectedExampleIds]
   );
 
-  const tableData = useMemo(
-    () =>
-      data.examples.edges.map((edge) => {
+  const tableData = useMemo(() => {
+    const baselineRows: DatasetExampleTableRow[] = data.examples.edges.map(
+      (edge) => {
         const example = edge.example;
         const revision = example.revision;
         return {
@@ -185,23 +220,32 @@ export function ExamplesTable({
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
+          isNew: false,
         };
-      }),
-    [data]
-  );
-  type TableRow = (typeof tableData)[number];
-  const { selectRow } = useShiftClickRowSelection<TableRow>({
+      }
+    );
+    return [
+      ...addedRows,
+      ...baselineRows.filter((row) => !deletedRowIds.has(row.id)),
+    ];
+  }, [addedRows, data, deletedRowIds]);
+  const { selectRow } = useShiftClickRowSelection<DatasetExampleTableRow>({
     resetKey: tableData,
   });
 
   const columns = useMemo(() => {
-    const cols: ColumnDef<TableRow>[] = [
-      createRowSelectionColumn<TableRow>({
-        selectRow,
-        size: 30,
-        minSize: 30,
-        maxSize: 30,
-      }),
+    const cols: ColumnDef<DatasetExampleTableRow>[] = [];
+    if (!isEditing) {
+      cols.push(
+        createRowSelectionColumn<DatasetExampleTableRow>({
+          selectRow,
+          size: 30,
+          minSize: 30,
+          maxSize: 30,
+        })
+      );
+    }
+    cols.push(
       {
         header: "id",
         accessorKey: "id",
@@ -211,6 +255,13 @@ export function ExamplesTable({
         cell: ({ row }) => {
           const exampleId = row.original.id;
           const displayId = row.original.externalId ?? exampleId;
+          if (isEditing) {
+            return (
+              <Truncate maxWidth="100%">
+                {row.original.isNew ? "New example" : displayId}
+              </Truncate>
+            );
+          }
           return (
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={displayId} />}
@@ -231,22 +282,43 @@ export function ExamplesTable({
         header: "input",
         accessorKey: "input",
         size: 300,
-        cell: CompactJSONCell,
+        cell: (context) => (
+          <EditableJSONCell
+            {...context}
+            columnId="input"
+            requireObject
+            title="Edit input"
+          />
+        ),
       },
       {
         header: "output",
         accessorKey: "output",
         size: 300,
-        cell: CompactJSONCell,
+        cell: (context) => (
+          <EditableJSONCell
+            {...context}
+            columnId="output"
+            requireObject
+            title="Edit output"
+          />
+        ),
       },
       {
         header: "metadata",
         accessorKey: "metadata",
         size: 250,
-        cell: CompactJSONCell,
-      },
-    ];
-    cols.splice(2, 0, {
+        cell: (context) => (
+          <EditableJSONCell
+            {...context}
+            columnId="metadata"
+            requireObject
+            title="Edit metadata"
+          />
+        ),
+      }
+    );
+    cols.splice(isEditing ? 1 : 2, 0, {
       header: "splits",
       accessorKey: "splits",
       maxSize: 150,
@@ -254,10 +326,31 @@ export function ExamplesTable({
       minSize: 30,
       cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
     });
+    if (isEditing) {
+      cols.push({
+        id: "actions",
+        header: () => <Text>Actions</Text>,
+        size: 70,
+        minSize: 70,
+        maxSize: 70,
+        cell: ({ row }) => (
+          <TooltipTrigger>
+            <IconButton
+              size="S"
+              aria-label={`Delete row ${row.id}`}
+              onPress={() => editStore.getState().deleteRow(row.original.id)}
+            >
+              <Icon svg={<Icons.Trash />} />
+            </IconButton>
+            <Tooltip>Delete row</Tooltip>
+          </TooltipTrigger>
+        ),
+      });
+    }
     return cols;
-  }, [selectRow]);
+  }, [editStore, isEditing, selectRow]);
 
-  const table = useReactTable<TableRow>({
+  const table = useReactTable<DatasetExampleTableRow>({
     columns,
     data: tableData,
     state: {
@@ -272,6 +365,12 @@ export function ExamplesTable({
     getCoreRowModel: getCoreRowModel(),
     // ensure row IDs are the example IDs and not the index
     getRowId: (row) => row.id,
+    meta: {
+      editing: {
+        store: editStore,
+        getRowId: (row) => row.id,
+      },
+    },
   });
 
   const { columnSizingInfo, columnSizing: columnSizingState } =
@@ -297,6 +396,24 @@ export function ExamplesTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
   const rows = table.getRowModel().rows;
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 52,
+    getItemKey: (index) => rows[index]?.id ?? index,
+    overscan: 10,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalHeight = rowVirtualizer.getTotalSize();
+  const spacerRowHeight = useMemo(
+    () =>
+      totalHeight -
+      virtualRows.reduce(
+        (renderedHeight, virtualRow) => renderedHeight + virtualRow.size,
+        0
+      ),
+    [totalHeight, virtualRows]
+  );
   const isEmpty = rows.length === 0;
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExamples = selectedRows.map((row) => row.original);
@@ -325,11 +442,11 @@ export function ExamplesTable({
         flex: 1 1 auto;
         overflow: auto;
       `}
-      ref={tableContainerRef}
+      ref={tableContainerCallbackRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
-        css={selectableTableCSS}
+        css={isEditing ? tableCSS : selectableTableCSS}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
@@ -381,13 +498,28 @@ export function ExamplesTable({
           </TableEmptyWrap>
         ) : (
           <tbody>
-            {rows.map((row) => {
-              const isSelected = row.original.id === selectedExampleId;
+            {virtualRows.map((virtualRow, virtualRowIndex) => {
+              const row = rows[virtualRow.index];
+              if (!row) {
+                return null;
+              }
+              const isSelected =
+                !isEditing && row.original.id === selectedExampleId;
               return (
                 <tr
                   key={row.id}
                   data-selected={isSelected}
-                  onClick={() => navigate(`${row.original.id}`)}
+                  style={{
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${
+                      virtualRow.start - virtualRowIndex * virtualRow.size
+                    }px)`,
+                  }}
+                  onClick={
+                    isEditing || row.original.isNew
+                      ? undefined
+                      : () => navigate(`${row.original.id}`)
+                  }
                 >
                   {row.getVisibleCells().map((cell) => {
                     const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
@@ -423,10 +555,16 @@ export function ExamplesTable({
                 </tr>
               );
             })}
+            <tr>
+              <td
+                colSpan={table.getVisibleLeafColumns().length}
+                style={{ height: `${spacerRowHeight}px`, padding: 0 }}
+              />
+            </tr>
           </tbody>
         )}
       </table>
-      {selectedRows.length ? (
+      {!isEditing && selectedRows.length ? (
         <ExampleSelectionToolbar
           selectedExamples={selectedExamples}
           examplesCache={examplesCache}

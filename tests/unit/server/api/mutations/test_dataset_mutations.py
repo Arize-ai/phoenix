@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -515,6 +515,121 @@ class TestPatchDatasetExamples:
         assert (errors := response.errors)
         assert len(errors) == 1
         assert errors[0].message == expected_error_message
+
+
+class TestApplyDatasetExampleChanges:
+    _MUTATION = """
+      mutation ($input: ApplyDatasetExampleChangesInput!) {
+        applyDatasetExampleChanges(input: $input) {
+          dataset {
+            id
+            exampleCount
+          }
+        }
+      }
+    """
+
+    async def test_applies_mixed_changes_as_one_version(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "additions": [
+                        {
+                            "input": {"input": "added-input"},
+                            "output": {"output": "added-output"},
+                            "metadata": {"metadata": "added-metadata"},
+                        }
+                    ],
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                            "input": {"input": "edited-input"},
+                        }
+                    ],
+                    "exampleIdsToDelete": [str(GlobalID(DatasetExample.__name__, "2"))],
+                    "versionDescription": "Edited examples in the table",
+                }
+            },
+        )
+
+        assert response.data and not response.errors
+        assert response.data["applyDatasetExampleChanges"]["dataset"]["exampleCount"] == 2
+        async with db() as session:
+            versions = (
+                await session.scalars(
+                    select(models.DatasetVersion)
+                    .where(models.DatasetVersion.dataset_id == 1)
+                    .order_by(models.DatasetVersion.id)
+                )
+            ).all()
+            assert len(versions) == 3
+            saved_version = versions[-1]
+            assert saved_version.description == "Edited examples in the table"
+            revisions = (
+                await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.dataset_version_id == saved_version.id
+                    )
+                )
+            ).all()
+
+        assert {revision.revision_kind for revision in revisions} == {
+            "CREATE",
+            "PATCH",
+            "DELETE",
+        }
+        patched_revision = next(
+            revision for revision in revisions if revision.revision_kind == "PATCH"
+        )
+        assert patched_revision.input == {"input": "edited-input"}
+        assert patched_revision.output == {"output": "original-example-1-version-1-output"}
+        assert patched_revision.metadata_ == {"metadata": "original-example-1-version-1-metadata"}
+
+    async def test_rejects_cross_dataset_ids_without_partial_writes(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+        dataset_with_a_single_version: None,
+    ) -> None:
+        async with db() as session:
+            version_count_before = await session.scalar(
+                select(func.count(models.DatasetVersion.id))
+            )
+            example_count_before = await session.scalar(
+                select(func.count(models.DatasetExample.id))
+            )
+
+        response = await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "additions": [{"input": {"new": True}, "output": {}, "metadata": {}}],
+                    "patches": [
+                        {
+                            "exampleId": str(GlobalID(DatasetExample.__name__, "4")),
+                            "input": {"should": "fail"},
+                        }
+                    ],
+                }
+            },
+        )
+
+        assert response.errors
+        assert "specified dataset" in response.errors[0].message
+        async with db() as session:
+            version_count_after = await session.scalar(select(func.count(models.DatasetVersion.id)))
+            example_count_after = await session.scalar(select(func.count(models.DatasetExample.id)))
+        assert version_count_after == version_count_before
+        assert example_count_after == example_count_before
 
 
 class TestDeleteDatasetExamplesScope:

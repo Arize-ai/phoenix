@@ -342,6 +342,15 @@ interface ApiKey {
   expiresAt: DateTime
 }
 
+input ApplyDatasetExampleChangesInput {
+  datasetId: ID!
+  additions: [DatasetExampleAddition!]! = []
+  patches: [DatasetExamplePatch!]! = []
+  exampleIdsToDelete: [ID!]! = []
+  versionDescription: String
+  versionMetadata: JSON
+}
+
 enum AuthMethod {
   LOCAL
   OAUTH2
@@ -1092,6 +1101,13 @@ type DatasetExample implements Node {
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
   experimentRepeatedRunGroups(experimentIds: [ID!]!): [ExperimentRepeatedRunGroup!]!
   datasetSplits: [DatasetSplit!]!
+}
+
+input DatasetExampleAddition {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  externalId: String
 }
 
 """A connection to a list of items."""
@@ -2408,6 +2424,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
+  applyDatasetExampleChanges(input: ApplyDatasetExampleChangesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!

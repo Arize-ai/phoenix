@@ -29,6 +29,9 @@ from phoenix.server.api.helpers.dataset_helpers import (
 )
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
+from phoenix.server.api.input_types.ApplyDatasetExampleChangesInput import (
+    ApplyDatasetExampleChangesInput,
+)
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
@@ -518,6 +521,205 @@ class DatasetMutationMixin:
                     for revision, patch, example_id in zip(revisions, patches, example_ids)
                 ],
             )
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
+        return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def apply_dataset_example_changes(
+        self,
+        info: Info[Context, None],
+        input: ApplyDatasetExampleChangesInput,
+    ) -> DatasetMutationPayload:
+        """Commit additions, patches, and deletions as one dataset version."""
+        additions = input.additions
+        patches = input.patches
+        example_ids_to_delete = input.example_ids_to_delete
+        if not (additions or patches or example_ids_to_delete):
+            raise BadRequest("Must provide at least one dataset example change.")
+
+        dataset_id = from_global_id_with_expected_type(
+            global_id=input.dataset_id,
+            expected_type_name=Dataset.__name__,
+        )
+        patch_ids = [
+            from_global_id_with_expected_type(
+                global_id=patch.example_id,
+                expected_type_name=DatasetExample.__name__,
+            )
+            for patch in patches
+        ]
+        delete_ids = [
+            from_global_id_with_expected_type(
+                global_id=example_id,
+                expected_type_name=DatasetExample.__name__,
+            )
+            for example_id in example_ids_to_delete
+        ]
+        if len(set(patch_ids)) != len(patch_ids):
+            raise BadRequest("Cannot patch the same example more than once per mutation.")
+        if len(set(delete_ids)) != len(delete_ids):
+            raise BadRequest("Cannot delete the same example more than once per mutation.")
+        if set(patch_ids) & set(delete_ids):
+            raise BadRequest("Cannot patch and delete the same example in one mutation.")
+        if any(patch.is_empty() for patch in patches):
+            raise BadRequest("Received one or more empty patches that contain no fields to update.")
+        if any(
+            not all(
+                isinstance(value, dict)
+                for value in (addition.input, addition.output, addition.metadata)
+            )
+            for addition in additions
+        ):
+            raise BadRequest("Added example input, output, and metadata must be JSON objects.")
+
+        external_ids = [
+            addition.external_id
+            for addition in additions
+            if isinstance(addition.external_id, str) and addition.external_id
+        ]
+        if len(set(external_ids)) != len(external_ids):
+            raise Conflict("Custom IDs for added examples must be unique within the change set.")
+
+        version_description = (
+            input.version_description if isinstance(input.version_description, str) else None
+        )
+        version_metadata: dict[str, Any] = (
+            input.version_metadata if isinstance(input.version_metadata, dict) else {}
+        )
+        existing_example_ids = patch_ids + delete_ids
+
+        async with info.context.db() as session:
+            dataset = await session.scalar(
+                select(models.Dataset).where(models.Dataset.id == dataset_id)
+            )
+            if dataset is None:
+                raise NotFound(f"Unknown dataset: {input.dataset_id}")
+
+            latest_revisions_by_example_id: dict[int, models.DatasetExampleRevision] = {}
+            if existing_example_ids:
+                dataset_examples = (
+                    await session.scalars(
+                        select(models.DatasetExample).where(
+                            models.DatasetExample.id.in_(existing_example_ids)
+                        )
+                    )
+                ).all()
+                if len(dataset_examples) != len(existing_example_ids):
+                    raise NotFound("One or more dataset examples could not be found.")
+                if any(example.dataset_id != dataset_id for example in dataset_examples):
+                    raise BadRequest("All examples must belong to the specified dataset.")
+
+                latest_revision_ids = (
+                    select(func.max(models.DatasetExampleRevision.id))
+                    .where(
+                        models.DatasetExampleRevision.dataset_example_id.in_(existing_example_ids)
+                    )
+                    .group_by(models.DatasetExampleRevision.dataset_example_id)
+                    .scalar_subquery()
+                )
+                latest_revisions = (
+                    await session.scalars(
+                        select(models.DatasetExampleRevision).where(
+                            models.DatasetExampleRevision.id.in_(latest_revision_ids)
+                        )
+                    )
+                ).all()
+                latest_revisions_by_example_id = {
+                    revision.dataset_example_id: revision for revision in latest_revisions
+                }
+                if len(latest_revisions_by_example_id) != len(existing_example_ids):
+                    raise NotFound("One or more dataset examples have no revision.")
+                if any(
+                    latest_revisions_by_example_id[example_id].revision_kind == "DELETE"
+                    for example_id in existing_example_ids
+                ):
+                    raise Conflict("One or more dataset examples have already been deleted.")
+
+            if external_ids:
+                conflicting_external_ids = (
+                    await session.scalars(
+                        select(models.DatasetExample.external_id)
+                        .where(models.DatasetExample.dataset_id == dataset_id)
+                        .where(models.DatasetExample.external_id.in_(external_ids))
+                    )
+                ).all()
+                if conflicting_external_ids:
+                    raise Conflict(
+                        f"Examples with custom IDs {conflicting_external_ids!r} already exist in "
+                        "this dataset."
+                    )
+
+            version_id = await session.scalar(
+                insert(models.DatasetVersion)
+                .values(
+                    dataset_id=dataset_id,
+                    description=version_description,
+                    metadata_=version_metadata,
+                    user_id=info.context.user_id,
+                )
+                .returning(models.DatasetVersion.id)
+            )
+            assert version_id is not None
+
+            if additions:
+                added_examples = [
+                    models.DatasetExample(
+                        dataset_id=dataset_id,
+                        external_id=(
+                            addition.external_id
+                            if isinstance(addition.external_id, str) and addition.external_id
+                            else None
+                        ),
+                    )
+                    for addition in additions
+                ]
+                session.add_all(added_examples)
+                await session.flush()
+                await session.execute(
+                    insert(models.DatasetExampleRevision),
+                    [
+                        {
+                            models.DatasetExampleRevision.dataset_example_id.key: added_example.id,
+                            models.DatasetExampleRevision.dataset_version_id.key: version_id,
+                            models.DatasetExampleRevision.input.key: addition.input,
+                            models.DatasetExampleRevision.output.key: addition.output,
+                            models.DatasetExampleRevision.metadata_.key: addition.metadata,
+                            models.DatasetExampleRevision.revision_kind.key: "CREATE",
+                        }
+                        for added_example, addition in zip(added_examples, additions)
+                    ],
+                )
+
+            if patches:
+                await session.execute(
+                    insert(models.DatasetExampleRevision),
+                    [
+                        _to_orm_revision(
+                            existing_revision=latest_revisions_by_example_id[example_id],
+                            patch=patch,
+                            example_id=example_id,
+                            version_id=version_id,
+                        )
+                        for example_id, patch in zip(patch_ids, patches)
+                    ],
+                )
+
+            if delete_ids:
+                await session.execute(
+                    insert(models.DatasetExampleRevision),
+                    [
+                        {
+                            models.DatasetExampleRevision.dataset_example_id.key: example_id,
+                            models.DatasetExampleRevision.dataset_version_id.key: version_id,
+                            models.DatasetExampleRevision.input.key: {},
+                            models.DatasetExampleRevision.output.key: {},
+                            models.DatasetExampleRevision.metadata_.key: {},
+                            models.DatasetExampleRevision.revision_kind.key: "DELETE",
+                        }
+                        for example_id in delete_ids
+                    ],
+                )
+
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
