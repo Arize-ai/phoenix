@@ -18,6 +18,7 @@ import {
   getStrFromEnvironment,
   resetProjectConflictWarningForTesting,
 } from "./env";
+import { ENV_PHOENIX_DISCOVER_CONFIG } from "./envFile";
 import type { Headers } from "./types";
 
 /**
@@ -110,6 +111,7 @@ describe("env", () => {
     ENV_PHOENIX_LOG_LEVEL,
     ENV_PHOENIX_PROJECT_NAME,
     ENV_PHOENIX_PROJECT,
+    ENV_PHOENIX_DISCOVER_CONFIG,
   ];
 
   beforeEach(() => {
@@ -118,6 +120,7 @@ describe("env", () => {
       originalEnv[key] = process.env[key];
       delete process.env[key];
     }
+    process.env[ENV_PHOENIX_DISCOVER_CONFIG] = "false";
   });
 
   afterEach(() => {

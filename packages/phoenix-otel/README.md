@@ -179,6 +179,38 @@ def weather(location):
 | `PHOENIX_API_KEY`            | Authentication key   | `your-api-key`                               |
 | `PHOENIX_CLIENT_HEADERS`     | Custom headers       | `Authorization=Bearer token`                 |
 | `PHOENIX_GRPC_PORT`          | gRPC port override   | `4317`                                       |
+| `PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` discovery | `false`        |
+
+### Credential File Discovery (`.env.phoenix`)
+
+When a setting is not provided by argument or environment variable, `register()`
+looks for a `.env.phoenix` file in the current working directory — walking up
+toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always take precedence — the file
+never overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to
+disable discovery entirely.
+
+Credentials (`PHOENIX_API_KEY`, `PHOENIX_CLIENT_HEADERS`, and
+`OTEL_EXPORTER_OTLP_HEADERS`) and server location
+(`PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and
+`PHOENIX_GRPC_PORT`) are each resolved as a group from one source tier. This
+prevents a file-only gRPC port from rewriting a process-provided endpoint. If
+explicit or process credentials are paired with an endpoint from
+`.env.phoenix`, Phoenix OTel warns once and continues without logging credential
+values.
+
+Discovery results, including a missing file, are cached per working directory
+for the process lifetime. Long-running processes can call
+`phoenix.otel.settings.clear_env_file_cache()` after creating or changing the
+file.
 
 ## Coding Agent Skill
 

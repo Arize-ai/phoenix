@@ -43,7 +43,9 @@ class Client:
                 be created.
         """
         if http_client is None:
-            base_url = base_url or get_base_url()
+            if not base_url:
+                credential_source = "explicit arguments" if api_key or headers else None
+                base_url = get_base_url(credential_source=credential_source)
             http_client = _WrappedClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
@@ -157,7 +159,9 @@ class AsyncClient:
                 will be created.
         """
         if http_client is None:
-            base_url = base_url or get_base_url()
+            if not base_url:
+                credential_source = "explicit arguments" if api_key or headers else None
+                base_url = get_base_url(credential_source=credential_source)
             http_client = httpx.AsyncClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
@@ -251,9 +255,11 @@ def _update_headers(
     api_key: Optional[str],
 ) -> dict[str, str]:
     headers = dict(headers or {})
+    header_names = {key.lower() for key in headers}
     for k, v in get_env_client_headers().items():
-        if k not in headers:
+        if k.lower() not in header_names:
             headers[k] = v
+            header_names.add(k.lower())
     if api_key:
         headers = {
             **{k: v for k, v in (headers or {}).items() if k.lower() != "authorization"},

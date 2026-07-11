@@ -3,6 +3,9 @@
  * @module
  */
 
+import { readEnvFileValueWithPath } from "@phoenix-config/env-file";
+
+import type { Headers } from "./types";
 import { isHeaders } from "./types";
 
 /**
@@ -76,7 +79,141 @@ export const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
 export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
 
 /**
- * Retrieves an integer value from an environment variable.
+ * Environment variables that carry credentials, resolved as one tier group
+ * (see {@link resolveEnvironmentTier}).
+ */
+export const PHOENIX_CREDENTIAL_ENV_KEYS = [
+  ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
+] as const;
+
+/** The source tier that supplied a resolved environment value. */
+export type EnvironmentValueSource =
+  | { kind: "process" }
+  | { filePath: string; kind: "env-file" };
+
+export interface ResolvedEnvironmentValue {
+  source?: EnvironmentValueSource;
+  value?: string;
+}
+
+export interface ResolvedEnvironmentTier {
+  source?: EnvironmentValueSource;
+  values: Partial<Record<string, string>>;
+}
+
+function getProcessEnvironment(): Partial<Record<string, string | undefined>> {
+  return typeof process === "undefined" ? {} : process.env;
+}
+
+/**
+ * Reads an environment variable from the process environment, falling back to
+ * the nearest `.env.phoenix` file for `PHOENIX_`-prefixed keys (process wins).
+ */
+export function getStrFromEnvironmentWithSource(
+  envKey: string
+): ResolvedEnvironmentValue {
+  const processValue = getProcessEnvironment()[envKey];
+  if (processValue !== undefined) {
+    return { source: { kind: "process" }, value: processValue };
+  }
+  const fileValue = readEnvFileValueWithPath(envKey);
+  if (fileValue) {
+    return {
+      source: { filePath: fileValue.filePath, kind: "env-file" },
+      value: fileValue.value,
+    };
+  }
+  return {};
+}
+
+function readEnvValue(envKey: string): string | undefined {
+  return getStrFromEnvironmentWithSource(envKey).value;
+}
+
+/**
+ * Resolves a group of related environment variables as one two-tier unit:
+ * the `.env.phoenix` file tier is consulted only when none of the group's
+ * keys are set in the process environment.
+ *
+ * @param envKeys - the environment variable names forming the group
+ * @returns The resolved values, keyed by environment variable name.
+ */
+export function resolveEnvironmentTier(
+  envKeys: readonly string[]
+): Partial<Record<string, string>> {
+  return resolveEnvironmentTierWithSource(envKeys).values;
+}
+
+/** Resolves a setting group together with the tier that supplied it. */
+export function resolveEnvironmentTierWithSource(
+  envKeys: readonly string[]
+): ResolvedEnvironmentTier {
+  const processValues: Partial<Record<string, string>> = {};
+  const processEnvironment = getProcessEnvironment();
+  for (const envKey of envKeys) {
+    const value = processEnvironment[envKey];
+    if (value !== undefined) {
+      processValues[envKey] = value;
+    }
+  }
+  if (Object.keys(processValues).length > 0) {
+    return { source: { kind: "process" }, values: processValues };
+  }
+  const fileValues: Partial<Record<string, string>> = {};
+  let filePath: string | undefined;
+  for (const envKey of envKeys) {
+    const result = readEnvFileValueWithPath(envKey);
+    if (result) {
+      fileValues[envKey] = result.value;
+      filePath = result.filePath;
+    }
+  }
+  return {
+    source: filePath ? { filePath, kind: "env-file" } : undefined,
+    values: fileValues,
+  };
+}
+
+const warnedCrossTierEndpoints = new Set<string>();
+
+/**
+ * Warns once when higher-priority credentials will be sent to an endpoint
+ * selected by a discovered `.env.phoenix` file.
+ */
+export function warnIfUsingFileEndpointWithCredentials({
+  credentialSource,
+  endpointSource,
+  endpointVariable,
+}: {
+  credentialSource?: string;
+  endpointSource?: EnvironmentValueSource;
+  endpointVariable: string;
+}): void {
+  if (!credentialSource || endpointSource?.kind !== "env-file") {
+    return;
+  }
+  const warningKey = `${endpointSource.filePath}\0${endpointVariable}`;
+  if (warnedCrossTierEndpoints.has(warningKey)) {
+    return;
+  }
+  warnedCrossTierEndpoints.add(warningKey);
+  // eslint-disable-next-line no-console
+  console.warn(
+    `Credentials from ${credentialSource} will be sent to ${endpointVariable} ` +
+      `set by ${endpointSource.filePath}.`
+  );
+}
+
+/** @internal Resets the one-time cross-tier warning latch for tests. */
+export function resetCrossTierEndpointWarningsForTesting(): void {
+  warnedCrossTierEndpoints.clear();
+}
+
+/**
+ * Retrieves an integer value from an environment variable, falling back to the
+ * nearest `.env.phoenix` file when the variable is not set in the process
+ * environment.
  *
  * @param envKey - The name of the environment variable to read
  * @returns The parsed integer value, or `undefined` if the variable is not set, empty, or not a valid integer
@@ -86,7 +223,7 @@ export const ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME";
  * // Returns 6006 if PHOENIX_PORT="6006", undefined otherwise
  */
 export function getIntFromEnvironment(envKey: string) {
-  const value = process.env[envKey];
+  const value = readEnvValue(envKey);
   if (!value) {
     return;
   }
@@ -98,7 +235,9 @@ export function getIntFromEnvironment(envKey: string) {
 }
 
 /**
- * Retrieves a string value from an environment variable.
+ * Retrieves a string value from an environment variable, falling back to the
+ * nearest `.env.phoenix` file when the variable is not set in the process
+ * environment.
  *
  * @param envKey - The name of the environment variable to read
  * @returns The string value, or `undefined` if the variable is not set
@@ -108,7 +247,7 @@ export function getIntFromEnvironment(envKey: string) {
  * // Returns "http://localhost:6006" if PHOENIX_HOST="http://localhost:6006"
  */
 export function getStrFromEnvironment(envKey: string) {
-  return process.env[envKey];
+  return readEnvValue(envKey);
 }
 
 /**
@@ -139,8 +278,12 @@ let hasWarnedProjectConflict = false;
  * // Returns "checkout"
  */
 export function getProjectFromEnvironment(): string | undefined {
-  const canonical = getStrFromEnvironment(ENV_PHOENIX_PROJECT);
-  const alias = getStrFromEnvironment(ENV_PHOENIX_PROJECT_NAME);
+  const values = resolveEnvironmentTier([
+    ENV_PHOENIX_PROJECT,
+    ENV_PHOENIX_PROJECT_NAME,
+  ]);
+  const canonical = values[ENV_PHOENIX_PROJECT];
+  const alias = values[ENV_PHOENIX_PROJECT_NAME];
 
   if (canonical && alias && canonical !== alias && !hasWarnedProjectConflict) {
     hasWarnedProjectConflict = true;
@@ -182,7 +325,18 @@ export function resetProjectConflictWarningForTesting(): void {
  * // Returns { Authorization: "Bearer token" }
  */
 export function getHeadersFromEnvironment(envKey: string) {
-  const value = process.env[envKey];
+  return parseHeaders(readEnvValue(envKey));
+}
+
+/**
+ * Parses a JSON-encoded headers value into a headers object.
+ *
+ * @param value - the raw (JSON) headers value, e.g. from an environment
+ *   variable
+ * @returns The parsed headers object, or `undefined` if the value is unset,
+ *   empty, not valid JSON, or not a valid headers object.
+ */
+export function parseHeaders(value: string | undefined): Headers | undefined {
   if (!value) {
     return undefined;
   }
@@ -195,6 +349,37 @@ export function getHeadersFromEnvironment(envKey: string) {
   } catch {
     return;
   }
+}
+
+/**
+ * Retrieves the Phoenix credentials (API key and client headers) from the
+ * environment, resolved as one tier group.
+ *
+ * @returns The resolved API key and parsed client headers, each `undefined`
+ *   when not configured.
+ */
+export function getCredentialsFromEnvironment(): {
+  apiKey?: string;
+  headers?: Headers;
+} {
+  const { apiKey, headers } = getCredentialsFromEnvironmentWithSource();
+  return { apiKey, headers };
+}
+
+/** Resolves credentials together with the tier that supplied them. */
+export function getCredentialsFromEnvironmentWithSource(): {
+  apiKey?: string;
+  headers?: Headers;
+  source?: EnvironmentValueSource;
+} {
+  const { source, values } = resolveEnvironmentTierWithSource(
+    PHOENIX_CREDENTIAL_ENV_KEYS
+  );
+  return {
+    apiKey: values[ENV_PHOENIX_API_KEY] || undefined,
+    headers: parseHeaders(values[ENV_PHOENIX_CLIENT_HEADERS]),
+    source,
+  };
 }
 
 /**
@@ -220,17 +405,16 @@ export function getHeadersFromEnvironment(envKey: string) {
  * // }
  */
 export function getEnvironmentConfig() {
+  const credentials = getCredentialsFromEnvironment();
   return {
     [ENV_PHOENIX_PORT]: getIntFromEnvironment(ENV_PHOENIX_PORT),
     [ENV_PHOENIX_GRPC_PORT]: getIntFromEnvironment(ENV_PHOENIX_GRPC_PORT),
     [ENV_PHOENIX_HOST]: getStrFromEnvironment(ENV_PHOENIX_HOST),
-    [ENV_PHOENIX_CLIENT_HEADERS]: getHeadersFromEnvironment(
-      ENV_PHOENIX_CLIENT_HEADERS
-    ),
+    [ENV_PHOENIX_CLIENT_HEADERS]: credentials.headers,
     [ENV_PHOENIX_COLLECTOR_ENDPOINT]: getStrFromEnvironment(
       ENV_PHOENIX_COLLECTOR_ENDPOINT
     ),
-    [ENV_PHOENIX_API_KEY]: getStrFromEnvironment(ENV_PHOENIX_API_KEY),
+    [ENV_PHOENIX_API_KEY]: credentials.apiKey,
     [ENV_PHOENIX_LOG_LEVEL]: getStrFromEnvironment(ENV_PHOENIX_LOG_LEVEL),
     // Resolves PHOENIX_PROJECT (canonical) then PHOENIX_PROJECT_NAME (alias).
     [ENV_PHOENIX_PROJECT]: getProjectFromEnvironment(),

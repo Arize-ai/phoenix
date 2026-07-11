@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 from urllib.parse import urlparse
@@ -8,7 +9,10 @@ import pytest
 import phoenix.otel.settings as settings_module
 from phoenix.otel.otel import _construct_http_endpoint
 from phoenix.otel.settings import (
+    get_env_client_headers,
     get_env_collector_endpoint,
+    get_env_grpc_port,
+    get_env_phoenix_auth_header,
     get_env_project_name,
     parse_env_headers,
 )
@@ -95,3 +99,255 @@ def test_get_env_project_name_warns_once_on_conflict(
     assert len(warnings) == 1
     assert "PHOENIX_PROJECT_NAME" in warnings[0].message
     assert "PHOENIX_PROJECT" in warnings[0].message
+
+
+class TestEnvFileDiscovery:
+    """Tests for `.env.phoenix` credential file auto-discovery."""
+
+    def test_file_value_used_when_env_unset(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=file-key\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() == {"authorization": "Bearer file-key"}
+
+    def test_process_env_wins_over_file(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=file-key\n")
+        with patch.dict(os.environ, {"PHOENIX_API_KEY": "env-key"}, clear=True):
+            assert get_env_phoenix_auth_header() == {"authorization": "Bearer env-key"}
+
+    def test_walks_up_to_parent_directories(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://parent:6006\n")
+        nested = tmp_path / "a" / "b"
+        nested.mkdir(parents=True)
+        monkeypatch.chdir(nested)
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_collector_endpoint() == "http://parent:6006"
+
+    def test_nearest_file_wins(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://parent:6006\n")
+        nested = tmp_path / "nested"
+        nested.mkdir()
+        (nested / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://nested:6006\n")
+        monkeypatch.chdir(nested)
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_collector_endpoint() == "http://nested:6006"
+
+    def test_otel_process_env_var_beats_file(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://from-file:6006\n")
+        env = {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://from-otel:4318"}
+        with patch.dict(os.environ, env, clear=True):
+            assert get_env_collector_endpoint() == "http://from-otel:4318"
+
+    def test_process_project_alias_beats_file_canonical(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_PROJECT=file-project\n")
+        with patch.dict(os.environ, {"PHOENIX_PROJECT_NAME": "process-project"}, clear=True):
+            assert get_env_project_name() == "process-project"
+
+    def test_process_otel_headers_beat_file_credentials(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text(
+            "PHOENIX_API_KEY=file-key\nPHOENIX_CLIENT_HEADERS=x-file=value\n"
+        )
+        with patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_HEADERS": "x-env=value"}, clear=True):
+            assert get_env_client_headers() is None
+            assert get_env_phoenix_auth_header() is None
+
+    def test_process_client_headers_suppress_file_api_key(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=file-key\n")
+        env = {"PHOENIX_CLIENT_HEADERS": "authorization=process-token"}
+        with patch.dict(os.environ, env, clear=True):
+            assert get_env_phoenix_auth_header() is None
+            assert get_env_client_headers() == {"authorization": "process-token"}
+
+    def test_process_endpoint_suppresses_file_grpc_port(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_GRPC_PORT=14317\n")
+        with patch.dict(
+            os.environ,
+            {"PHOENIX_COLLECTOR_ENDPOINT": "http://process-host:6006"},
+            clear=True,
+        ):
+            assert get_env_collector_endpoint() == "http://process-host:6006"
+            assert get_env_grpc_port() == 4317
+
+    def test_warns_while_using_file_endpoint_with_process_credentials(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\n")
+        env_file.chmod(0o600)
+        with patch.dict(os.environ, {"PHOENIX_API_KEY": "secret-process-key"}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() == "http://file-host:6006"
+                assert get_env_collector_endpoint() == "http://file-host:6006"
+
+        warnings = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        assert warnings == [
+            "Credentials from the process environment will be sent to "
+            f"PHOENIX_COLLECTOR_ENDPOINT set by {env_file}."
+        ]
+        assert "secret-process-key" not in warnings[0]
+
+    def test_invalid_file_grpc_port_falls_back_to_default(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_GRPC_PORT=not-a-port\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_grpc_port() == 4317
+
+    def test_invalid_file_endpoint_is_ignored(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://x:bad\n")
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() is None
+        assert any(
+            "Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT" in record.message
+            for record in caplog.records
+        )
+
+    def test_unavailable_working_directory_skips_discovery(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(Path, "cwd", lambda: (_ for _ in ()).throw(OSError()))
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
+    def test_oversized_file_is_ignored(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=" + "x" * (64 * 1024))
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
+    def test_invalid_process_grpc_port_still_raises(self) -> None:
+        with patch.dict(os.environ, {"PHOENIX_GRPC_PORT": "not-a-port"}, clear=True):
+            with pytest.raises(ValueError):
+                get_env_grpc_port()
+
+    def test_clear_env_file_cache_picks_up_new_file(self, tmp_path: Path) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+            (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=late-key\n")
+            assert get_env_phoenix_auth_header() is None
+            settings_module.clear_env_file_cache()
+            assert get_env_phoenix_auth_header() == {"authorization": "Bearer late-key"}
+
+    def test_non_phoenix_keys_ignored(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text(
+            "OTEL_EXPORTER_OTLP_ENDPOINT=http://from-file:4318\n"
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_collector_endpoint() is None
+
+    @pytest.mark.parametrize("opt_out", ["false", "0", "no", "off", "FALSE", " False "])
+    def test_discovery_can_be_disabled(self, tmp_path: Path, opt_out: str) -> None:
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_API_KEY=file-key\n")
+        with patch.dict(os.environ, {"PHOENIX_DISCOVER_CONFIG": opt_out}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
+    def test_missing_file_falls_back_to_defaults(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+            assert get_env_collector_endpoint() is None
+            assert get_env_grpc_port() == 4317
+
+    def test_file_supports_multiple_values(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_text(
+            "PHOENIX_API_KEY=file-key\nPHOENIX_PROJECT=file-project\nPHOENIX_GRPC_PORT=14317\n"
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() == {"authorization": "Bearer file-key"}
+            assert get_env_project_name() == "file-project"
+            assert get_env_grpc_port() == 14317
+
+    def test_permission_warning_emitted_once(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        if os.name != "posix":
+            pytest.skip("POSIX permission bits are not meaningful on this platform")
+        monkeypatch.setattr(settings_module, "_warned_env_file_permissions", set())
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_API_KEY=secret-value\n")
+        env_file.chmod(0o644)
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_phoenix_auth_header() == {"authorization": "Bearer secret-value"}
+                assert get_env_phoenix_auth_header() == {"authorization": "Bearer secret-value"}
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warnings) == 1
+        assert "accessible by other users" in warnings[0].message
+        # Hygiene: the credential value itself is never logged.
+        assert "secret-value" not in warnings[0].message
+
+    def test_no_permission_warning_for_owner_only_file(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        if os.name != "posix":
+            pytest.skip("POSIX permission bits are not meaningful on this platform")
+        monkeypatch.setattr(settings_module, "_warned_env_file_permissions", set())
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_API_KEY=file-key\n")
+        env_file.chmod(0o600)
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_phoenix_auth_header() == {"authorization": "Bearer file-key"}
+        assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+    def test_invalid_utf8_file_is_ignored(self, tmp_path: Path) -> None:
+        (tmp_path / ".env.phoenix").write_bytes(b"PHOENIX_API_KEY=\xff\n")
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
+    def test_file_owned_by_another_user_is_ignored(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        if not hasattr(os, "getuid"):
+            pytest.skip("file ownership is not available on this platform")
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_API_KEY=untrusted\n")
+        real_stat = Path.stat
+
+        def stat_with_foreign_owner(path: Path, *args: object, **kwargs: object) -> os.stat_result:
+            stat = real_stat(path, *args, **kwargs)
+            if path == env_file:
+                values = list(stat)
+                values[4] = os.getuid() + 1
+                return os.stat_result(values)
+            return stat
+
+        monkeypatch.setattr(Path, "stat", stat_with_foreign_owner)
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        # Simple assignment
+        ("PHOENIX_API_KEY=abc", {"PHOENIX_API_KEY": "abc"}),
+        # Comments and blank lines are skipped
+        ("# comment\n\nPHOENIX_API_KEY=abc\n", {"PHOENIX_API_KEY": "abc"}),
+        # Optional export prefix
+        ("export PHOENIX_API_KEY=abc", {"PHOENIX_API_KEY": "abc"}),
+        # Quoted values are unwrapped
+        ('PHOENIX_API_KEY="abc"', {"PHOENIX_API_KEY": "abc"}),
+        ("PHOENIX_API_KEY='abc'", {"PHOENIX_API_KEY": "abc"}),
+        # Whitespace around key and value is stripped
+        ("  PHOENIX_API_KEY = abc  ", {"PHOENIX_API_KEY": "abc"}),
+        # Values may contain '='
+        ("PHOENIX_CLIENT_HEADERS=x=1,y=2", {"PHOENIX_CLIENT_HEADERS": "x=1,y=2"}),
+        # Non-PHOENIX keys are ignored (allowlist)
+        ("OTHER_KEY=abc\nPHOENIX_API_KEY=def", {"PHOENIX_API_KEY": "def"}),
+        # Empty values are ignored
+        ("PHOENIX_API_KEY=", {}),
+        ("PHOENIX_API_KEY=''", {}),
+        # Malformed lines are skipped
+        ("PHOENIX_API_KEY", {}),
+        ("PHOENIX BAD KEY=abc", {}),
+    ],
+)
+def test_parse_env_file(text: str, expected: dict[str, str]) -> None:
+    assert settings_module._parse_env_file(text) == expected

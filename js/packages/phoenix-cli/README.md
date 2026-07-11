@@ -56,6 +56,14 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
+The CLI also discovers the nearest `.env.phoenix` file at or above the current
+working directory. Configuration precedence is: CLI flags, process environment,
+active profile, `.env.phoenix`, then built-in defaults. Credentials are resolved
+as one group, so a process API key is never combined with file-provided client
+headers. If a higher-priority credential is paired with `PHOENIX_HOST` from the
+file, the CLI warns once and continues. Set
+`PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
+
 ## Profiles
 
 A profile saves the endpoint, project, API key, and headers for a Phoenix instance under a name like `prod` or `staging`. Activate a profile and every `px` command picks up those settings without re-exporting environment variables. Environment variables and CLI flags still override the active profile, so existing scripts keep working.
