@@ -62,6 +62,11 @@ import { SpanAnnotationInput } from "./SpanAnnotationInput";
 
 export const EDIT_ANNOTATION_HOTKEY = "e";
 
+const EMPTY_TIME_RANGE_ISO_STRINGS = {
+  start: undefined,
+  end: undefined,
+};
+
 export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
   projectId: string;
@@ -441,7 +446,8 @@ function SpanAnnotationsList(props: {
   // time range is nullable in this context
   // we only use it to refresh fragments after mutations so it is ok to not have a time range context
   const timeRangeContext = useNullableTimeRangeContext();
-  const timeRange = timeRangeContext?.timeRange;
+  const timeRangeISOStrings =
+    timeRangeContext?.timeRangeISOStrings ?? EMPTY_TIME_RANGE_ISO_STRINGS;
 
   const [commitDeleteAnnotation] =
     useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
@@ -482,10 +488,7 @@ function SpanAnnotationsList(props: {
             variables: {
               spanId: spanNodeId,
               annotationIds: [annotation.id],
-              timeRange: {
-                start: timeRange?.start?.toISOString(),
-                end: timeRange?.end?.toISOString(),
-              },
+              timeRange: timeRangeISOStrings,
               projectId,
               filterUserIds: userFilter,
             },
@@ -508,7 +511,13 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [commitDeleteAnnotation, spanNodeId, timeRange, projectId, userFilter]
+    [
+      commitDeleteAnnotation,
+      spanNodeId,
+      timeRangeISOStrings,
+      projectId,
+      userFilter,
+    ]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
@@ -575,10 +584,7 @@ function SpanAnnotationsList(props: {
                 score: data.score,
                 explanation: data.explanation || null,
                 filterUserIds: userFilter,
-                timeRange: {
-                  start: timeRange?.start?.toISOString(),
-                  end: timeRange?.end?.toISOString(),
-                },
+                timeRange: timeRangeISOStrings,
                 projectId,
               },
               onCompleted: () => {
@@ -598,7 +604,7 @@ function SpanAnnotationsList(props: {
         }
       });
     },
-    [commitEdit, spanNodeId, userFilter, timeRange, projectId]
+    [commitEdit, spanNodeId, userFilter, timeRangeISOStrings, projectId]
   );
 
   const [commitCreateAnnotation] =
@@ -650,10 +656,7 @@ function SpanAnnotationsList(props: {
             name: data.name,
             spanId: spanNodeId,
             filterUserIds: userFilter,
-            timeRange: {
-              start: timeRange?.start?.toISOString(),
-              end: timeRange?.end?.toISOString(),
-            },
+            timeRange: timeRangeISOStrings,
             projectId,
           },
           onCompleted: () => {
@@ -670,7 +673,13 @@ function SpanAnnotationsList(props: {
           },
         });
       }),
-    [commitCreateAnnotation, spanNodeId, timeRange, projectId, userFilter]
+    [
+      commitCreateAnnotation,
+      spanNodeId,
+      timeRangeISOStrings,
+      projectId,
+      userFilter,
+    ]
   );
 
   return (

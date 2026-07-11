@@ -36,6 +36,7 @@ import {
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -142,6 +143,11 @@ export function SessionsTable(props: SessionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const { filterIoSubstringOrSessionId } = useSessionSearchContext();
   const { fetchKey } = useStreamState();
+  // Source the time range directly here (rather than only via the preloaded
+  // parent query) so a live window sliding forward refetches with the current
+  // search/filter still applied. The parent query is intentionally not reloaded
+  // on window slides — see the load effect in `ProjectPage` and issue #14216.
+  const { timeRangeISOStrings } = useTimeRange();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -457,11 +463,18 @@ export function SessionsTable(props: SessionsTableProps) {
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstringOrSessionId,
           sessionId: filterIoSubstringOrSessionId,
+          timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterIoSubstringOrSessionId, fetchKey]);
+  }, [
+    sorting,
+    refetch,
+    filterIoSubstringOrSessionId,
+    fetchKey,
+    timeRangeISOStrings,
+  ]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
