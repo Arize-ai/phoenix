@@ -120,6 +120,34 @@ test.describe("Prompt Management", () => {
       has: page.getByRole("link", { name: promptName }),
     });
     await expect(row).toBeVisible();
+
+    const descriptionHeader = page.getByRole("columnheader", {
+      name: "description",
+    });
+    await expect(descriptionHeader).toBeVisible();
+    await expect(row.getByRole("cell").first()).toHaveCSS(
+      "white-space",
+      "nowrap"
+    );
+
+    await page.getByRole("button", { name: "Columns" }).click();
+    await page
+      .getByLabel("Columns", { exact: true })
+      .getByText("description", { exact: true })
+      .click();
+    await expect(descriptionHeader).not.toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Columns" })).toBeVisible();
+    await expect(descriptionHeader).not.toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          localStorage.getItem("phoenix-prompts-column-visibility:v1")
+        )
+      )
+      .toContain('"description":false');
+
     await row.getByRole("link", { name: promptName }).click();
 
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
