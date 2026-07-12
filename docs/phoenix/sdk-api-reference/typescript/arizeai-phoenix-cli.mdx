@@ -505,6 +505,126 @@ The `text` format outputs prompt content with XML-style role tags, ideal for pip
 <user>{{user_input}}</user>
 ```
 
+### `px annotation-config list`
+
+List annotation configurations defined in your Phoenix instance.
+
+```bash
+px annotation-config list                                            # Table view
+px annotation-config list --limit 10                                 # At most 10 configs
+px annotation-config list --format raw --no-progress | jq -r '.[].name'  # Names as JSON
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of configs | — |
+
+### `px annotation-config get <config-identifier>`
+
+Fetch a single annotation configuration by name or ID.
+
+```bash
+px annotation-config get response-quality                                    # Look up by name
+px annotation-config get response-quality --format raw --no-progress | jq -r '.id'  # Resolve name to ID
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px annotation-config create`
+
+Create a new annotation configuration via `POST /v1/annotation_configs`. Configs come in three types: `CATEGORICAL` (a fixed set of labels, each with an optional numeric score), `CONTINUOUS` (a numeric range), and `FREEFORM` (free text).
+
+```bash
+# Categorical config with scored labels
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --value good=1 --value bad=0 --optimization-direction MAXIMIZE
+
+# Continuous config bounded between 0 and 1
+px annotation-config create --type CONTINUOUS --name confidence --lower-bound 0 --upper-bound 1
+
+# Free-text config
+px annotation-config create --type FREEFORM --name reviewer-notes --description 'Free-form reviewer feedback'
+
+# Categorical labels as a JSON payload (bulk/agent alternative to --value)
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --values '[{"label":"good","score":1},{"label":"bad","score":0}]'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--type <type>` | `CATEGORICAL`, `CONTINUOUS`, or `FREEFORM` (required) | — |
+| `--name <name>` | Annotation config name (required) | — |
+| `--description <description>` | Description | — |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE` | `NONE` |
+| `--value <label[=score]>` | Categorical label (repeatable; CATEGORICAL configs) | — |
+| `--values <json>` | Categorical values as JSON (CATEGORICAL configs) | — |
+| `--lower-bound <number>` | Lower bound (CONTINUOUS/FREEFORM configs) | — |
+| `--upper-bound <number>` | Upper bound (CONTINUOUS/FREEFORM configs) | — |
+| `--threshold <number>` | Threshold (FREEFORM configs) | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+`--value` and `--values` are mutually exclusive. `--type` and `--optimization-direction` are case-insensitive. Invalid input — including flags that don't apply to the chosen type — exits with `INVALID_ARGUMENT`.
+
+### `px annotation-config update <config-identifier>`
+
+Update an annotation configuration by name or ID. Only the fields you pass are changed — the command fetches the existing config, merges your flags, and writes the result back via `PUT /v1/annotation_configs/{id}`. The config `type` is immutable; to change it, delete and recreate the config.
+
+```bash
+# Change only the description
+px annotation-config update response-quality --description 'Pass/fail rating from human review'
+
+# Rename and set optimization direction
+px annotation-config update response-quality --name answer-quality --optimization-direction MAXIMIZE
+
+# Replace the label set of a categorical config
+px annotation-config update response-quality --value good=1 --value acceptable=0.5 --value bad=0
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <name>` | New name | — |
+| `--description <description>` | New description | — |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE` | — |
+| `--value <label[=score]>` | Categorical label (repeatable; CATEGORICAL configs) | — |
+| `--values <json>` | Categorical values as JSON (CATEGORICAL configs) | — |
+| `--lower-bound <number>` | Lower bound (CONTINUOUS/FREEFORM configs) | — |
+| `--upper-bound <number>` | Upper bound (CONTINUOUS/FREEFORM configs) | — |
+| `--threshold <number>` | Threshold (FREEFORM configs) | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+At least one field flag is required. Invalid input — including flags that don't apply to the config's type — exits with `INVALID_ARGUMENT`.
+
+### `px annotation-config delete <config-id>`
+
+Delete an annotation configuration by ID. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed.
+
+```bash
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM=          # Interactive confirmation
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes    # Skip the prompt (scripts/agents)
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
 ### `px api graphql <query>`
 
 Make authenticated GraphQL queries against the Phoenix API. Output is `{"data": {...}}` JSON — pipe with `jq '.data.<field>'` to extract values. Only queries are permitted; mutations and subscriptions are rejected before hitting the server.
