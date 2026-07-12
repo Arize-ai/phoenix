@@ -2,6 +2,7 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
+import { PromptsTableProvider } from "@phoenix/contexts/PromptsTableContext";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { PromptsFilterProvider } from "@phoenix/pages/prompts/PromptsFilterProvider";
 import type { PromptsLoaderType } from "@phoenix/pages/prompts/promptsLoader";
@@ -19,9 +20,11 @@ export function PromptsPage() {
 
   return (
     <PromptsFilterProvider>
-      <Flex direction="column" height="100%">
-        <PromptsTable query={data} />
-      </Flex>
+      <PromptsTableProvider>
+        <Flex direction="column" height="100%">
+          <PromptsTable query={data} />
+        </Flex>
+      </PromptsTableProvider>
     </PromptsFilterProvider>
   );
 }

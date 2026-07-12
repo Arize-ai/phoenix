@@ -8,6 +8,7 @@ import {
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { ColumnSelector, mergeColumnOrder } from "@phoenix/components/table";
+import { usePromptsTableContext } from "@phoenix/contexts/PromptsTableContext";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 import { PromptsLabelMenu } from "@phoenix/pages/prompts/PromptsLabelMenu";
 
@@ -28,11 +29,17 @@ export const PromptsFilterBar = () => {
     filter,
     selectedPromptLabelIds,
     setSelectedPromptLabelIds,
-    columnVisibility,
-    setColumnVisibility,
-    columnOrder,
-    setColumnOrder,
   } = usePromptsFilterContext();
+  const columnVisibility = usePromptsTableContext(
+    (state) => state.columnVisibility
+  );
+  const setColumnVisibility = usePromptsTableContext(
+    (state) => state.setColumnVisibility
+  );
+  const columnOrder = usePromptsTableContext((state) => state.columnOrder);
+  const setColumnOrder = usePromptsTableContext(
+    (state) => state.setColumnOrder
+  );
   const columnsById = new Map(
     PROMPT_COLUMNS.map((column) => [column.id, column])
   );

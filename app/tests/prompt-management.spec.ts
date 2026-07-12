@@ -142,11 +142,9 @@ test.describe("Prompt Management", () => {
     await expect(descriptionHeader).not.toBeVisible();
     await expect
       .poll(() =>
-        page.evaluate(() =>
-          localStorage.getItem("phoenix-prompts-column-visibility:v1")
-        )
+        page.evaluate(() => localStorage.getItem("arize-phoenix-prompts-table"))
       )
-      .toContain('"description":false');
+      .toContain('"columnVisibility":{"description":false}');
 
     await row.getByRole("link", { name: promptName }).click();
 
