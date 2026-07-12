@@ -116,9 +116,9 @@ class Dataset(Node):
             )
         if user_id is None:
             return None
-        from .User import User
+        from .User import to_gql_user
 
-        return User(id=user_id)
+        return to_gql_user(await info.context.data_loaders.users.load(user_id))
 
     @strawberry.field(
         description="The user that last updated the dataset, i.e. the author of its latest version."
