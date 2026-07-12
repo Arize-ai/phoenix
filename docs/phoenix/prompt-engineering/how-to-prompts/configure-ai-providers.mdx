@@ -58,6 +58,7 @@ If the following variables are set in the server environment, they'll be used at
 | Fireworks    | - FIREWORKS\_API\_KEY                                                        | [https://fireworks.ai/](https://fireworks.ai/)                                                                                                    |
 | Groq         | - GROQ\_API\_KEY                                                             | [https://console.groq.com/](https://console.groq.com/)                                                                                           |
 | Moonshot     | - MOONSHOT\_API\_KEY                                                         | [https://platform.moonshot.ai/](https://platform.moonshot.ai/)                                                                                   |
+| MiniMax      | - MINIMAX\_API\_KEY                                                          | [https://platform.minimax.io/docs](https://platform.minimax.io/docs)                                                                              |
 
 <Info>
 For Azure, you can also set the following server-side environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_FEDERATED_TOKEN_FILE` to use [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.workloadidentitycredential?view=azure-python).
@@ -97,6 +98,10 @@ OpenAI Client compatible providers Include
 | Fireworks | [https://api.fireworks.ai/inference/v1](https://api.fireworks.ai/inference/v1) | [https://docs.fireworks.ai/](https://docs.fireworks.ai/) |
 | Groq     | [https://api.groq.com/openai/v1](https://api.groq.com/openai/v1) | [https://console.groq.com/docs/](https://console.groq.com/docs/) |
 | Moonshot | [https://api.moonshot.ai/v1](https://api.moonshot.ai/v1) | [https://platform.moonshot.ai/docs/](https://platform.moonshot.ai/docs/) |
+| MiniMax (Global) | [https://api.minimax.io/v1](https://api.minimax.io/v1) | [https://platform.minimax.io/docs/api-reference/text-openai-api](https://platform.minimax.io/docs/api-reference/text-openai-api) |
+| MiniMax (China) | [https://api.minimaxi.com/v1](https://api.minimaxi.com/v1) | [https://platform.minimaxi.com/docs/api-reference/text-openai-api](https://platform.minimaxi.com/docs/api-reference/text-openai-api) |
+
+The built-in MiniMax provider uses the global endpoint by default. Set `MINIMAX_BASE_URL=https://api.minimaxi.com/v1` to use the China endpoint.
 
 ### Option 2: Server side configuration of the OpenAI base URL
 
