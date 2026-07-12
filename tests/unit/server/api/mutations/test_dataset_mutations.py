@@ -504,7 +504,7 @@ class TestPatchDatasetExamples:
         assert response.errors
         message = response.errors[0].message
         assert "already taken" in message
-        assert "deleted example keeps its custom ID" in message
+        assert "stays taken even after its example is deleted" in message
 
     async def test_persists_a_custom_id_for_an_added_example(
         self,

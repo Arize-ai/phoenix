@@ -81,8 +81,7 @@ async def _find_conflicting_external_ids(
 def _external_id_conflict_message(conflicting_external_ids: Sequence[str]) -> str:
     return (
         f"Custom IDs {list(conflicting_external_ids)!r} are already taken in this dataset. "
-        "A deleted example keeps its custom ID, so an ID cannot be reused even if the "
-        "example that holds it is no longer in the dataset."
+        "A custom ID stays taken even after its example is deleted."
     )
 
 
@@ -368,7 +367,10 @@ class DatasetMutationMixin:
             seen_external_ids: set[str] = set()
             for external_id in input_external_ids:
                 if external_id in seen_external_ids:
-                    raise Conflict(
+                    # A duplicate within one request is a malformed request, not a
+                    # collision with what is already stored — same as in
+                    # patchDatasetExamples.
+                    raise BadRequest(
                         f"Custom ID {external_id!r} appears more than once in the input."
                     )
                 seen_external_ids.add(external_id)
@@ -544,8 +546,11 @@ class DatasetMutationMixin:
         if len(set(external_ids)) != len(external_ids):
             raise BadRequest("Custom IDs for added examples must be unique within the change set.")
 
+        # A blank description is no description — store NULL rather than "".
         version_description = (
-            input.version_description if isinstance(input.version_description, str) else None
+            input.version_description
+            if isinstance(input.version_description, str) and input.version_description
+            else None
         )
         # `versionMetadata` is a JSON scalar, so anything type-checks at the GraphQL
         # layer. Reject a non-object rather than quietly storing {} in its place.
