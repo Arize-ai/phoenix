@@ -20,6 +20,7 @@ async function createDataset(page: Page, datasetName: string) {
   await page.getByLabel("Dataset Name").clear();
   await page.getByLabel("Dataset Name").fill(datasetName);
   await page
+    .getByTestId("dialog")
     .getByLabel("Description")
     .fill("Compiler playground table dataset");
   await page.getByRole("button", { name: "Create Dataset" }).click();

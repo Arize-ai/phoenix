@@ -1974,9 +1974,7 @@ async def dataset_created_and_updated_by_different_users(db: DbSessionFactory) -
         # The latest version's author is the editor, not the dataset's owner.
         for author_id in (owner.id, editor.id):
             session.add(
-                models.DatasetVersion(
-                    dataset_id=collaborative.id, metadata_={}, user_id=author_id
-                )
+                models.DatasetVersion(dataset_id=collaborative.id, metadata_={}, user_id=author_id)
             )
             await session.flush()
 

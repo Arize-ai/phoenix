@@ -39,7 +39,10 @@ test.describe.serial("Server Evaluators", () => {
     // Fill in dataset details in the dialog
     await page.getByLabel("Dataset Name").clear();
     await page.getByLabel("Dataset Name").fill(datasetName);
-    await page.getByLabel("Description").fill("Test dataset for evaluators");
+    await page
+      .getByTestId("dialog")
+      .getByLabel("Description")
+      .fill("Test dataset for evaluators");
 
     // Create the dataset
     await page.getByRole("button", { name: "Create Dataset" }).click();
