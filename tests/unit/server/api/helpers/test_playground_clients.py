@@ -49,6 +49,7 @@ from phoenix.server.api.helpers.playground_clients import (
     AzureOpenAIResponsesClient,
     BedrockClient,
     GoogleClient,
+    MiniMaxClient,
     OpenAIChatCompletionsClient,
     OpenAICompatibleClient,
     OpenAIResponsesClient,
@@ -1263,6 +1264,52 @@ class TestCustomProviderClientSelection:
 
 def _identity_decrypt(value: bytes) -> bytes:
     return value
+
+
+class TestMiniMaxProvider:
+    def test_registry_includes_target_models(self) -> None:
+        assert (
+            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M3")
+            is MiniMaxClient
+        )
+        assert (
+            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M2.7")
+            is MiniMaxClient
+        )
+
+    @pytest.mark.parametrize(
+        ("configured_base_url", "expected_base_url"),
+        [
+            (None, "https://api.minimax.io/v1/"),
+            ("https://api.minimaxi.com/v1", "https://api.minimaxi.com/v1/"),
+        ],
+    )
+    async def test_builtin_client_uses_configured_endpoint(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        configured_base_url: str | None,
+        expected_base_url: str,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        if configured_base_url is None:
+            monkeypatch.delenv("MINIMAX_BASE_URL", raising=False)
+        else:
+            monkeypatch.setenv("MINIMAX_BASE_URL", configured_base_url)
+        async with db() as session:
+            client = await _get_builtin_provider_client(
+                ModelProvider.MINIMAX,
+                "MiniMax-M3",
+                None,
+                None,
+                session,
+                _identity_decrypt,
+            )
+
+        assert isinstance(client, OpenAIChatCompletionsClient)
+        assert client.provider == "minimax"
+        async with client._client_factory() as sdk_client:
+            assert str(sdk_client.base_url) == expected_base_url
 
 
 class TestResolveProviderApiKey:
