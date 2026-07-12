@@ -649,7 +649,7 @@ export function ExperimentsTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const selectorColumns = table.getAllLeafColumns();
+  const selectorColumns = table.getAllColumns();
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
@@ -754,13 +754,19 @@ export function ExperimentsTable({
             }}
           >
             <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
+              {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <ColumnHeaderCell
                       key={header.id}
                       columnId={header.column.id}
-                      index={getColumnOrderIndex(header.column.id)}
+                      // Only the top header group is reorderable; sub-headers
+                      // of a group column move with it
+                      index={
+                        headerGroupIndex === 0
+                          ? getColumnOrderIndex(header.column.id)
+                          : -1
+                      }
                       label={
                         typeof header.column.columnDef.header === "string"
                           ? header.column.columnDef.header

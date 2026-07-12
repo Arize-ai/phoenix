@@ -86,7 +86,10 @@ export function TracingColumnSelector({
   // which keep their persisted position even while not rendered in the table
   const fullColumnOrder = mergeColumnOrder({
     columnOrder,
-    columnIds: [...tableColumnIds, ...claimedNames],
+    columnIds: [
+      ...tableColumnIds,
+      ...[...claimedNames].filter((name) => !columnsById.has(name)),
+    ],
   });
 
   const selectorColumns = fullColumnOrder.flatMap<ColumnSelectorColumn>(

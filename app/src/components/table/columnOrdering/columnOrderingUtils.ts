@@ -37,11 +37,18 @@ export function mergeColumnOrder({
   columnIds: string[];
 }): string[] {
   const existing = new Set(columnIds);
-  const ordered = columnOrder.filter((id) => existing.has(id));
-  const seen = new Set(ordered);
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const id of columnOrder) {
+    if (existing.has(id) && !seen.has(id)) {
+      ordered.push(id);
+      seen.add(id);
+    }
+  }
   for (const id of columnIds) {
     if (!seen.has(id)) {
       ordered.push(id);
+      seen.add(id);
     }
   }
   return ordered;

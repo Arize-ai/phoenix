@@ -48,12 +48,24 @@ export function useColumnOrder({
   nonOrderableColumnIds = [],
 }: UseColumnOrderProps): UseColumnOrderResult {
   const nonOrderable = new Set(nonOrderableColumnIds);
-  const orderableColumnIds = getTopLevelColumnIds(columns).filter(
+  const topLevelColumnIds = getTopLevelColumnIds(columns);
+  const orderableColumnIds = topLevelColumnIds.filter(
     (id) => !nonOrderable.has(id)
   );
   const topLevelColumnOrder = mergeColumnOrder({
     columnOrder,
     columnIds: orderableColumnIds,
+  });
+  // Persisted ids that are temporarily absent from the column defs may be
+  // hidden dynamic columns. Keep them out of the table order, but retain their
+  // positions when a header drag writes the current order back to storage.
+  const topLevelColumnIdSet = new Set(topLevelColumnIds);
+  const absentColumnIds = columnOrder.filter(
+    (id) => !topLevelColumnIdSet.has(id)
+  );
+  const persistedColumnOrder = mergeColumnOrder({
+    columnOrder,
+    columnIds: [...absentColumnIds, ...orderableColumnIds],
   });
   const leafIdsByTopLevelId = getLeafIdsByTopLevelId(columns);
   const leafColumnOrder = expandColumnOrderToLeafIds(
@@ -76,7 +88,7 @@ export function useColumnOrder({
     onVisibleColumnOrderChange: (orderedSubset) => {
       onColumnOrderChange(
         applySubsetColumnOrder({
-          columnOrder: topLevelColumnOrder,
+          columnOrder: persistedColumnOrder,
           orderedSubset,
         })
       );

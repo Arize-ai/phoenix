@@ -64,11 +64,40 @@ export function ExperimentColumnSelector<T extends object>({
     ];
   });
 
+  // The selector and persisted order use top-level ids so grouped columns move
+  // as a unit. Visibility remains a leaf-level TanStack state, so expose one
+  // aggregate value for each group and fan changes back out to all its leaves.
+  const selectorColumnVisibility = { ...columnVisibility };
+  for (const column of selectableColumns) {
+    if (column.columns.length > 0) {
+      selectorColumnVisibility[column.id] = column
+        .getLeafColumns()
+        .some((leafColumn) => columnVisibility[leafColumn.id] ?? true);
+    }
+  }
+
+  const onSelectorColumnVisibilityChange = (
+    newColumnVisibility: Record<string, boolean>
+  ) => {
+    const nextColumnVisibility = { ...columnVisibility };
+    for (const column of selectableColumns) {
+      const isVisible = newColumnVisibility[column.id] ?? true;
+      if (column.columns.length === 0) {
+        nextColumnVisibility[column.id] = isVisible;
+        continue;
+      }
+      for (const leafColumn of column.getLeafColumns()) {
+        nextColumnVisibility[leafColumn.id] = isVisible;
+      }
+    }
+    onColumnVisibilityChange(nextColumnVisibility);
+  };
+
   return (
     <ColumnSelector
       columns={selectorColumns}
-      columnVisibility={columnVisibility}
-      onColumnVisibilityChange={onColumnVisibilityChange}
+      columnVisibility={selectorColumnVisibility}
+      onColumnVisibilityChange={onSelectorColumnVisibilityChange}
       onColumnOrderChange={(orderedSubset) =>
         onColumnOrderChange(
           applySubsetColumnOrder({
