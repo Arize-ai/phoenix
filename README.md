@@ -65,6 +65,35 @@ pip install arize-phoenix
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes. Arize AI also provides cloud instances at [app.phoenix.arize.com](https://app.phoenix.arize.com/).
 
+## Deploy Phoenix
+
+Phoenix is **open source and built to be self-hosted** — run it on your own infrastructure so your traces, evaluations, and prompts never leave your environment. On-prem and private-cloud deployment is a first-class goal, not an afterthought. Deploy the production Docker image to the cloud of your choice with a single click:
+
+<p align="center">
+  <a href="https://railway.app/template/PTHRoq?referralCode=Xe2txW"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="40"></a>
+  &nbsp;
+  <a href="https://render.com/deploy?repo=https://github.com/Arize-ai/phoenix"><img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" height="40"></a>
+  &nbsp;
+  <a href="https://deploy.cloud.run/?git_repo=https://github.com/Arize-ai/phoenix"><img src="https://deploy.cloud.run/button.svg" alt="Run on Google Cloud" height="40"></a>
+  &nbsp;
+  <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FArize-ai%2Fphoenix%2Fmain%2Fazuredeploy.json"><img src="https://aka.ms/deploytoazurebutton" alt="Deploy to Azure" height="40"></a>
+  &nbsp;
+  <a href="https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation"><img src="https://img.shields.io/badge/Deploy%20to-AWS-FF9900?logo=amazonwebservices&logoColor=white&labelColor=232F3E" alt="Deploy to AWS" height="34"></a>
+</p>
+
+| Platform | What gets deployed | Persistence |
+| --- | --- | --- |
+| **[Railway](https://arize.com/docs/phoenix/self-hosting/deployment-options/railway)** | Phoenix container from a prebuilt template | Managed volume / Postgres |
+| **[Render](./render.yaml)** | Phoenix Docker image + managed PostgreSQL | Managed Postgres |
+| **[Google Cloud Run](./app.json)** | Phoenix container on Cloud Run | Add [Cloud SQL](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker) for durable storage |
+| **[Azure](./azuredeploy.json)** | Phoenix on Azure Container Instances + Azure Files | Azure Files volume |
+| **[AWS](https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation)** | Phoenix on ECS Fargate via CloudFormation | Guided setup |
+
+> [!IMPORTANT]
+> **Authentication is enabled by default.** The Render, Google Cloud, Azure, and AWS templates set `PHOENIX_ENABLE_AUTH=true` and provision a strong `PHOENIX_SECRET` for you. On first login, use the default admin account — email **`admin@localhost`**, password **`admin`** — and you'll be prompted to set a new password. See the [authentication guide](https://arize.com/docs/phoenix/self-hosting/features/authentication) to configure OAuth2/SSO, LDAP, and role mapping.
+
+For Docker Compose, Kubernetes/Helm, and other deployment options, see the [self-hosting documentation](https://arize.com/docs/phoenix/self-hosting).
+
 ## Packages
 
 The `arize-phoenix` package includes the entire Phoenix platform. However, if you have deployed the Phoenix platform, there are lightweight Python sub-packages and TypeScript packages that can be used in conjunction with the platform.
