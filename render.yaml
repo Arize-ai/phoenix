@@ -42,6 +42,6 @@ services:
 
 databases:
   - name: phoenix-db
-    plan: basic-256mb
+    plan: basic-1gb
     databaseName: phoenix
     user: phoenix

@@ -84,7 +84,7 @@
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
       ],
       "properties": {
-        "shareQuota": 100
+        "shareQuota": 500
       }
     },
     {
