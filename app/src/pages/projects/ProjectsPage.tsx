@@ -542,7 +542,13 @@ function ProjectItem({
       `}
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
-        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          flex={1}
+          minWidth={0}
+        >
           <GradientCircle
             gradientStartColor={gradientStartColor}
             gradientEndColor={gradientEndColor}
