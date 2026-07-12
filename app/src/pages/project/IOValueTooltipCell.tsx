@@ -194,10 +194,9 @@ function createIOValueTooltipCell<TQuery extends OperationType>({
         preview={preview}
         onOpen={() => {
           if (queryRef == null) {
-            loadQuery(
-              { id: nodeId } as TQuery["variables"],
-              { fetchPolicy: "store-or-network" }
-            );
+            loadQuery({ id: nodeId } as TQuery["variables"], {
+              fetchPolicy: "store-or-network",
+            });
           }
         }}
       >
