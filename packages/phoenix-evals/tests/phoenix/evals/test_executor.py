@@ -712,3 +712,53 @@ async def test_executor_ramps_up_when_target_increases() -> None:
     assert outputs == inputs
     assert max_inflight <= 4
     assert max_inflight >= 3
+
+
+async def test_async_executor_timeout_respects_max_retries():
+    call_count = 0
+
+    async def always_slow(x: int) -> int:
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(10)
+        return x
+
+    executor = AsyncExecutor(
+        always_slow,
+        timeout=1,
+        max_retries=2,
+        concurrency=1,
+        exit_on_error=True,
+        fallback_return_value=-1,
+        enable_dynamic_concurrency=False,
+    )
+    outputs, statuses = await executor.execute([42])
+
+    assert call_count == 3  # 1 initial + 2 retries
+    assert outputs == [-1]
+    assert statuses[0].status == ExecutionStatus.FAILED
+
+
+async def test_async_executor_timeout_exit_on_error_false():
+    call_count = 0
+
+    async def always_slow(x: int) -> int:
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(10)
+        return x
+
+    executor = AsyncExecutor(
+        always_slow,
+        timeout=1,
+        max_retries=1,
+        concurrency=1,
+        exit_on_error=False,
+        fallback_return_value=-1,
+        enable_dynamic_concurrency=False,
+    )
+    outputs, statuses = await executor.execute([1, 2])
+
+    assert call_count == 4  # 2 items x (1 initial + 1 retry)
+    assert outputs == [-1, -1]
+    assert all(s.status == ExecutionStatus.FAILED for s in statuses)

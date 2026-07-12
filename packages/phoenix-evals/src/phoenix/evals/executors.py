@@ -324,7 +324,6 @@ class AsyncExecutor(Executor):
                     marked_done = True
                     continue
                 else:
-                    tqdm.write("Worker timeout, requeuing")
                     # Best-effort cancel the timed-out task without blocking the loop
                     if not generate_task.done():
                         generate_task.cancel()
@@ -332,12 +331,24 @@ class AsyncExecutor(Executor):
                             await asyncio.wait_for(generate_task, timeout=1)
                         except (asyncio.TimeoutError, asyncio.CancelledError):
                             pass
-                    # task timeouts are requeued at the same priority
-                    await queue.put((priority, item))
                     details = cast(ExecutionDetails, execution_details[index])
                     details.log_runtime(task_start_time)
                     if self._concurrency_controller is not None:
                         self._concurrency_controller.record_timeout()
+                    if (retry_count := abs(priority)) < self.max_retries:
+                        tqdm.write(
+                            f"Worker timeout on attempt {retry_count + 1}, requeuing"
+                        )
+                        await queue.put((priority - 1, item))
+                    else:
+                        tqdm.write(
+                            f"Timeout retries exhausted after {retry_count + 1} attempts"
+                        )
+                        details.fail()
+                        if self.exit_on_error:
+                            termination_event.set()
+                        else:
+                            progress_bar.update()
             except Exception as exc:
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)
