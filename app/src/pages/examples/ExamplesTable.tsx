@@ -75,21 +75,34 @@ const PAGE_SIZE = 100;
 const ROW_HEIGHT = 52;
 
 /**
- * Holds every row to {@link ROW_HEIGHT}. A row's `height` is only a minimum in
- * table layout, and cell content wants to wrap — `JSONText` renders a `<pre>`
- * with `pre-wrap`, and the split chips are a flex row — so a multi-key example
- * would grow its row past the estimate and drift out from under its
- * `translateY` position, overlapping its neighbours.
+ * Holds every row to {@link ROW_HEIGHT}.
+ *
+ * The virtualizer never measures a row, so a row that renders taller than the
+ * estimate drifts out from under its `translateY` slot and overlaps its
+ * neighbours. A `height` on a `td` is only a *minimum* in table layout — the
+ * cell grows to fit its content and there is never any overflow to clip — so
+ * the content itself is what has to stay on one line.
+ *
+ * Two things in a cell want to wrap: the JSON preview (`JSONText` with a
+ * `maxLength` renders a bare `<span>`, and the cell allows `overflow-wrap:
+ * anywhere`) and the split chips (a wrapping flex list). Both are clamped to a
+ * single ellipsized line; the full value is one click away in the row's
+ * details, and the editable cell already reads this way.
  */
 const fixedRowHeightCSS = css`
   tbody:not(.is-empty) > tr > td {
     height: ${ROW_HEIGHT}px;
-    overflow: hidden;
   }
-  tbody:not(.is-empty) > tr > td pre {
+  tbody:not(.is-empty) > tr > td > span,
+  tbody:not(.is-empty) > tr > td > pre {
+    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  tbody:not(.is-empty) > tr > td ul {
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
 `;
 
@@ -737,7 +750,9 @@ export function ExamplesTable({
                 </tr>
               );
             })}
-            <tr>
+            {/* Reserves the scroll height of the rows the virtualizer did not
+                render — it is layout, not data, so it stays out of the a11y tree. */}
+            <tr aria-hidden>
               <td
                 colSpan={table.getVisibleLeafColumns().length}
                 style={{ height: `${spacerRowHeight}px`, padding: 0 }}
