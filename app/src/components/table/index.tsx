@@ -13,6 +13,7 @@ export * from "./LargeTextWrap";
 export * from "./JSONCell";
 export * from "./PaddedCell";
 export * from "./IndeterminateCheckboxCell";
+export * from "./UserCell";
 
 // Column ordering + selection
 export * from "./columnOrdering";

@@ -7,7 +7,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
-import { ColumnSelector, mergeColumnOrder } from "@phoenix/components/table";
+import { ColumnSelector, orderColumns } from "@phoenix/components/table";
 import { usePromptsTableContext } from "@phoenix/contexts/PromptsTableContext";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 import { PromptsLabelMenu } from "@phoenix/pages/prompts/PromptsLabelMenu";
@@ -20,6 +20,8 @@ const PROMPT_COLUMNS = [
   { id: "versionCount", label: "versions" },
   { id: "latestVersionId", label: "latest version" },
   { id: "versionTags", label: "version tags" },
+  { id: "createdBy", label: "created by" },
+  { id: "updatedBy", label: "last updated by" },
   { id: "lastUpdatedAt", label: "last updated" },
 ];
 
@@ -40,15 +42,9 @@ export const PromptsFilterBar = () => {
   const setColumnOrder = usePromptsTableContext(
     (state) => state.setColumnOrder
   );
-  const columnsById = new Map(
-    PROMPT_COLUMNS.map((column) => [column.id, column])
-  );
-  const orderedColumns = mergeColumnOrder({
+  const orderedColumns = orderColumns({
+    columns: PROMPT_COLUMNS,
     columnOrder,
-    columnIds: PROMPT_COLUMNS.map((column) => column.id),
-  }).flatMap((columnId) => {
-    const column = columnsById.get(columnId);
-    return column == null ? [] : [column];
   });
 
   return (

@@ -1,7 +1,7 @@
 import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { css } from "@emotion/react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 import {
@@ -51,7 +51,7 @@ const sortableColumnHeaderCSS = css`
   }
 `;
 
-export interface SortableColumnHeaderProps {
+export interface SortableColumnHeaderProps extends ComponentPropsWithoutRef<"th"> {
   /** Must be present in the surrounding provider's `columnOrder`. */
   columnId: string;
   /** Index of the column within the provider's `columnOrder`. */
@@ -60,23 +60,22 @@ export interface SortableColumnHeaderProps {
   label?: string;
   /** Disables dragging for this column (e.g. pinned columns). */
   isReorderingDisabled?: boolean;
-  colSpan?: number;
-  style?: CSSProperties;
   children: ReactNode;
 }
 
 /**
  * A `<th>` draggable horizontally to reorder its column, with a hover-visible
- * grab handle. Must be rendered inside a {@link ColumnOrderingProvider}.
+ * grab handle. Must be rendered inside a {@link ColumnOrderingProvider}. Any
+ * other `<th>` attributes pass through.
  */
 export function SortableColumnHeader({
   columnId,
   index,
   label,
   isReorderingDisabled = false,
-  colSpan,
   style,
   children,
+  ...thProps
 }: SortableColumnHeaderProps) {
   const { ref, handleRef, isDragSource } = useSortable({
     id: columnId,
@@ -87,7 +86,7 @@ export function SortableColumnHeader({
   return (
     <th
       ref={ref}
-      colSpan={colSpan}
+      {...thProps}
       style={{
         ...style,
         // Inline so it survives the top layer the drag feedback renders into

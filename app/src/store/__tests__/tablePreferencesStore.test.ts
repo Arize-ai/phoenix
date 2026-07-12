@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { createPromptsTableStore } from "../promptsTableStore";
+import { createTablePreferencesStore } from "../tablePreferencesStore";
 
-const STORAGE_KEY = "arize-phoenix-prompts-table";
+const STORAGE_KEY = "arize-phoenix-test-table";
 
-describe("promptsTableStore", () => {
+const createStore = () =>
+  createTablePreferencesStore({
+    name: "testTableStore",
+    storageKey: STORAGE_KEY,
+  });
+
+describe("tablePreferencesStore", () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
   it("persists the table preferences together with an independent version", () => {
-    const store = createPromptsTableStore();
+    const store = createStore();
 
     store.getState().setColumnVisibility({ description: false });
     store.getState().setColumnSizing({ name: 320 });
@@ -27,7 +33,7 @@ describe("promptsTableStore", () => {
   });
 
   it("supports functional updates from TanStack Table", () => {
-    const store = createPromptsTableStore();
+    const store = createStore();
 
     store.getState().setColumnSizing({ name: 200 });
     store

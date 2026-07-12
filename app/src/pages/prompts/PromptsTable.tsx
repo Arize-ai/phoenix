@@ -30,11 +30,13 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
+  ACTIONS_COLUMN_ID,
   CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
   TextCell,
   useColumnOrder,
+  UserCell,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -57,7 +59,6 @@ import { PromptsEmpty } from "./PromptsEmpty";
 
 const PAGE_SIZE = 100;
 const PROMPTS_POLL_INTERVAL_MS = 60_000;
-const ACTIONS_COLUMN_ID = "actions";
 
 const defaultColumnSettings = {
   minSize: 120,
@@ -148,6 +149,14 @@ export function PromptsTable(props: PromptsTableProps) {
                 id
                 name
                 description
+                createdBy {
+                  username
+                  profilePictureUrl
+                }
+                updatedBy {
+                  username
+                  profilePictureUrl
+                }
                 version {
                   id
                   createdAt
@@ -302,6 +311,16 @@ export function PromptsTable(props: PromptsTableProps) {
       {
         header: "versions",
         accessorKey: "versionCount",
+        meta: {
+          textAlign: "right" as const,
+        },
+        cell: ({ row }) => (
+          <StopPropagation>
+            <Link to={`${row.original.id}/versions`}>
+              {row.original.versionCount}
+            </Link>
+          </StopPropagation>
+        ),
       },
       {
         header: "latest version",
@@ -344,6 +363,18 @@ export function PromptsTable(props: PromptsTableProps) {
             </ul>
           );
         },
+      },
+      {
+        header: "created by",
+        accessorKey: "createdBy",
+        enableSorting: false,
+        cell: ({ row }) => <UserCell user={row.original.createdBy} />,
+      },
+      {
+        header: "last updated by",
+        accessorKey: "updatedBy",
+        enableSorting: false,
+        cell: ({ row }) => <UserCell user={row.original.updatedBy} />,
       },
       {
         header: "last updated",
@@ -426,7 +457,7 @@ export function PromptsTable(props: PromptsTableProps) {
   const { columnSizingInfo, columnSizing: columnSizingState } =
     table.getState();
   const getFlatHeaders = table.getFlatHeaders;
-  const [columnSizeVars] = useMemo(() => {
+  const columnSizeVars = useMemo(() => {
     const headers = getFlatHeaders();
     const columnSizes: Record<string, number> = {};
     for (const header of headers) {
@@ -435,7 +466,7 @@ export function PromptsTable(props: PromptsTableProps) {
       columnSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
         header.column.getSize();
     }
-    return [columnSizes];
+    return columnSizes;
     // Disabled lint as per TanStack's performant column resizing example.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
