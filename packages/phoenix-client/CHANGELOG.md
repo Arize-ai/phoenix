@@ -1,5 +1,54 @@
 # Changelog
 
+## [2.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.13.0...arize-phoenix-client-v2.8.0) (2026-07-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* Sandboxing and Code Evaluators ([#13290](https://github.com/Arize-ai/phoenix/issues/13290))
+
+### Features
+
+* add direct server agent endpoint ([#13896](https://github.com/Arize-ai/phoenix/issues/13896)) ([6e93f93](https://github.com/Arize-ai/phoenix/commit/6e93f93d0f1c608b2f3f612f9cf9f5abc792cf1e))
+* add playground repetitions tool ([#13656](https://github.com/Arize-ai/phoenix/issues/13656)) ([ad4a659](https://github.com/Arize-ai/phoenix/commit/ad4a65993d83564a47692bb79db494a88112853e))
+* add PXI playground model switching tool ([#13499](https://github.com/Arize-ai/phoenix/issues/13499)) ([ad2013a](https://github.com/Arize-ai/phoenix/commit/ad2013a2103681501d53827417094c0a68cfe03e))
+* **agents:** Add session context ([#13727](https://github.com/Arize-ai/phoenix/issues/13727)) ([031975c](https://github.com/Arize-ai/phoenix/commit/031975ccbe60e50967d8f192b6dfe6ca6de1daa7))
+* **agents:** add span annotation tool ([#13502](https://github.com/Arize-ai/phoenix/issues/13502)) ([4c8262c](https://github.com/Arize-ai/phoenix/commit/4c8262ca60b1abcb19d000f9f8477ba30b6cf5e1))
+* **agents:** Enable provider native web search / fetch when available ([#13333](https://github.com/Arize-ai/phoenix/issues/13333)) ([41eb4fc](https://github.com/Arize-ai/phoenix/commit/41eb4fcb0721107bf22f19ff5c7121a5e7620f67))
+* **agents:** experiment editing & eval skills ([#13704](https://github.com/Arize-ai/phoenix/issues/13704)) ([50b376e](https://github.com/Arize-ai/phoenix/commit/50b376e1d833e69bff2ae4a5e0251d68f33e3af4))
+* **agents:** stamp tool execution environment on tool-call provider metadata ([#13277](https://github.com/Arize-ai/phoenix/issues/13277)) ([ef421e5](https://github.com/Arize-ai/phoenix/commit/ef421e5af20289214b9e77b30d4c45709e0b3da6))
+* **agents:** User invokable skill menu ([#13670](https://github.com/Arize-ai/phoenix/issues/13670)) ([4f6cb6e](https://github.com/Arize-ai/phoenix/commit/4f6cb6e388e8ade433bb2088592aa391916fdb4b))
+* **api:** assign annotation configs to projects over REST ([#14028](https://github.com/Arize-ai/phoenix/issues/14028)) ([83d3cef](https://github.com/Arize-ai/phoenix/commit/83d3cef5e5f4bfef2399ca6cb52f208673b9036b))
+* **client:** add name_contains filter to Python client projects.list() ([#14132](https://github.com/Arize-ai/phoenix/issues/14132)) ([fa79dc0](https://github.com/Arize-ai/phoenix/commit/fa79dc0f249a5a8a205521af79b7c7946d814d9c)), closes [#14034](https://github.com/Arize-ai/phoenix/issues/14034)
+* phoenix env file ([#14188](https://github.com/Arize-ai/phoenix/issues/14188)) ([c0ab6a9](https://github.com/Arize-ai/phoenix/commit/c0ab6a9715bd8050094f8ac4135c7fa5d556c453))
+* **phoenix-client:** add pytest plugin for eval CI ([#13874](https://github.com/Arize-ai/phoenix/issues/13874)) ([6ebe82c](https://github.com/Arize-ai/phoenix/commit/6ebe82cb900d90fdd1fd6d6afc82bf8e76ec82ea))
+* **pxi:** add playground experiment recording tool ([#13678](https://github.com/Arize-ai/phoenix/issues/13678)) ([15912cb](https://github.com/Arize-ai/phoenix/commit/15912cb5787c9fa11ba7e35ade1ea40868139290))
+* **pxi:** add prompt route contexts ([#13834](https://github.com/Arize-ai/phoenix/issues/13834)) ([4524f82](https://github.com/Arize-ai/phoenix/commit/4524f829eea23afb016c8c77e30cd5066a11957f))
+* **pxi:** code-evaluator authoring ([#13397](https://github.com/Arize-ai/phoenix/issues/13397)) ([cef8f13](https://github.com/Arize-ai/phoenix/commit/cef8f131dcca2e3c81b5f83bca403959c0d7b95f))
+* Sandboxing and Code Evaluators ([#13290](https://github.com/Arize-ai/phoenix/issues/13290)) ([e294d93](https://github.com/Arize-ai/phoenix/commit/e294d939fb6c5fbbcca0c3460334dd08f1b3b43e))
+* **sdk:** accept both PHOENIX_PROJECT_NAME and PHOENIX_PROJECT everywhere ([#14167](https://github.com/Arize-ai/phoenix/issues/14167)) ([1e7d9fc](https://github.com/Arize-ai/phoenix/commit/1e7d9fc3cd21aca4f221884b963ab20404c70eaf))
+* **server:** add dataset label REST endpoints ([#14024](https://github.com/Arize-ai/phoenix/issues/14024)) ([67f84ba](https://github.com/Arize-ai/phoenix/commit/67f84ba8e2b65aaa74684a9633167eb4343acbb6))
+* **ui:** add annotation summary to project settings ([#13850](https://github.com/Arize-ai/phoenix/issues/13850)) ([05582a1](https://github.com/Arize-ai/phoenix/commit/05582a132f5400bdaf7451c0e954df286ee09a81))
+
+
+### Bug Fixes
+
+* **client:** drop Google top_k instead of mapping it to OpenAI top_logprobs ([#13640](https://github.com/Arize-ai/phoenix/issues/13640)) ([f98e856](https://github.com/Arize-ai/phoenix/commit/f98e8568164120b44d3983fa3c096b692c560f83))
+* **client:** record and resolve experiment examples by node GlobalID ([#13702](https://github.com/Arize-ai/phoenix/issues/13702)) ([0347f22](https://github.com/Arize-ai/phoenix/commit/0347f2203947d95b6b3ddf66835b256540229fb0))
+* preserve generator inputs in create_dataset and add_examples_to_dataset ([#13791](https://github.com/Arize-ai/phoenix/issues/13791)) ([c629b70](https://github.com/Arize-ai/phoenix/commit/c629b70cd4771918f0b185261793683b16739419))
+* Use same timeout policy for async client ([#13796](https://github.com/Arize-ai/phoenix/issues/13796)) ([fc0e5f8](https://github.com/Arize-ai/phoenix/commit/fc0e5f8f7f7999c1211d5d7fe012bd5270ad9e92))
+
+
+### Documentation
+
+* fill documentation gaps from 2026-06-24→07-01 audit ([#14015](https://github.com/Arize-ai/phoenix/issues/14015)) ([337a622](https://github.com/Arize-ai/phoenix/commit/337a622496ed43aae186b09ce488954c3fb27ad4))
+* **phoenix-client:** correct create_evaluator 2-tuple scorer docs ([#13939](https://github.com/Arize-ai/phoenix/issues/13939)) ([f123759](https://github.com/Arize-ai/phoenix/commit/f123759e80d729102a584759d6f7c2d07fa7b044))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix-client 2.8.0 ([#13390](https://github.com/Arize-ai/phoenix/issues/13390)) ([eff1c2a](https://github.com/Arize-ai/phoenix/commit/eff1c2af08e35f5b3f3f2f9f83039fcdbb3e4bb9))
+
 ## [2.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.12.0...arize-phoenix-client-v2.13.0) (2026-07-12)
 
 
