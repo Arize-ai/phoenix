@@ -553,6 +553,18 @@
 - [Download Dataset Examples As OpenAI Fine-Tuning JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file): GET /v1/datasets/{id}/jsonl/openai_ft — export examples in OpenAI fine-tuning format
 - [Download Dataset Examples As OpenAI Evals JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file): GET /v1/datasets/{id}/jsonl/openai_evals — export examples in OpenAI evals format
 
+### REST API — Dataset Labels
+
+- [List Dataset Labels](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-dataset-labels): GET /v1/dataset_labels — paginate all dataset labels in the system
+- [Create A Dataset Label](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/create-a-dataset-label): POST /v1/dataset_labels — create a reusable dataset label with a name and hex color
+- [Get A Dataset Label By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/get-a-dataset-label-by-id): GET /v1/dataset_labels/{label_id} — fetch a single dataset label
+- [Update A Dataset Label By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/update-a-dataset-label-by-id): PATCH /v1/dataset_labels/{label_id} — modify a dataset label's name or color
+- [Delete A Dataset Label By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/delete-a-dataset-label-by-id): DELETE /v1/dataset_labels/{label_id} — remove a dataset label
+- [List The Labels Applied To A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-the-labels-applied-to-a-dataset): GET /v1/datasets/{dataset_identifier}/labels — list the labels applied to a dataset
+- [Replace The Set Of Labels Applied To A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/replace-the-set-of-labels-applied-to-a-dataset): PUT /v1/datasets/{dataset_identifier}/labels — replace the whole set of labels on a dataset
+- [Apply A Label To A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/apply-a-label-to-a-dataset): PUT /v1/datasets/{dataset_identifier}/labels/{label_id} — apply a single label to a dataset (idempotent)
+- [Remove A Label From A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/remove-a-label-from-a-dataset): DELETE /v1/datasets/{dataset_identifier}/labels/{label_id} — remove a single label from a dataset (idempotent)
+
 ### REST API — Experiments
 
 - [List Experiments By Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset): GET /v1/datasets/{dataset_id}/experiments — list experiments tied to a dataset

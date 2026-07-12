@@ -207,6 +207,17 @@ tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
 If setting `authorization` headers explicitly, ensure that the header field is **lowercased** to ensure compatibility with sending traces via gRPC
 </Info>
 
+## Agent Authentication Discovery
+
+Phoenix serves two discovery endpoints so AI agents can learn how to authenticate against a deployed instance. Both are always available and require no configuration:
+
+- `GET /auth.md` — a human- and agent-readable Markdown guide describing this deployment's auth model. When authentication is disabled it states that all endpoints are public; when enabled it directs the caller to create an API key under **Settings → API Keys** and send an `Authorization: Bearer <token>` header. It follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
+- `GET /.well-known/oauth-protected-resource` — [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) Protected Resource Metadata (JSON), advertising the resource, that bearer tokens are sent in the header, and a link to `/auth.md`.
+
+When authentication is enabled, `401 Unauthorized` responses include a `WWW-Authenticate` header pointing at the Protected Resource Metadata endpoint, giving agents a stable entry point for discovering how to authenticate.
+
+Phoenix issues its own credentials and does **not** implement OAuth token exchange, OAuth scopes, or the agent registration protocol (`/agent/identity`). Credentials are provisioned out of band as [API keys](#api-keys) or access tokens, and access is governed by the role of the user the credential belongs to.
+
 ## Password Recovery
 
 <Info>

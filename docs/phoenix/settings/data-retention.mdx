@@ -68,6 +68,10 @@ Once you have created a policy you can go to the project config and associate th
 </Frame>
 <br></br>
 
+### Automatic Cleanup of Empty Sessions
+
+When a retention policy (or a manual deletion) removes the last traces belonging to a session, the now-empty session is cleaned up automatically. On the same hourly sweep that enforces retention policies, Phoenix deletes sessions that have no remaining traces and whose last activity is more than an hour old. This keeps empty "ghost" sessions from lingering in the sessions UI after their traces age out. Active sessions and in-flight ingestion are never affected, since a session's last-activity time advances with every new trace. No configuration is required.
+
 ## Deleting Traces Manually
 
 You can either delete traces by time or individually. To delete traces older than a certain date, click on the action button on a project and select `remove data`
