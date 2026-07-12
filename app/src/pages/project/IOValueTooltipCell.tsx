@@ -195,9 +195,7 @@ function IOValueTooltipCell({
       </TriggerWrap>
       <RichTooltip placement="bottom start" width="auto" css={tooltipCSS}>
         <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-          <Suspense fallback={<IOValueTooltipSkeleton />}>
-            {children}
-          </Suspense>
+          <Suspense fallback={<IOValueTooltipSkeleton />}>{children}</Suspense>
         </ErrorBoundary>
       </RichTooltip>
     </TooltipTrigger>
