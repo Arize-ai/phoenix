@@ -70,6 +70,7 @@ export function getInvocationFamilyForProvider(
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
       return InvocationFamily.OPENAI;

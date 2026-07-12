@@ -5030,24 +5030,71 @@
       ]
     },
     {
-      "name": "minimax/MiniMax-M3",
-      "name_pattern": "MiniMax-M3",
-      "source": "minimax",
+      "name": "minimax/MiniMax-M2.7",
+      "name_pattern": "MiniMax-M2\\.7",
+      "source": "manual",
+      "provider": "minimax",
       "token_prices": [
         {
-          "base_rate": 6e-7,
+          "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 2.4e-6,
+          "base_rate": 1.2e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 1.2e-7,
+          "base_rate": 6e-8,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "minimax/MiniMax-M3",
+      "name_pattern": "MiniMax-M3",
+      "source": "manual",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 512000,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 512000,
+            "new_rate": 2.4e-6
+          }
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 512000,
+            "new_rate": 1.2e-7
+          }
         }
       ]
     },

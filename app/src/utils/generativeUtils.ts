@@ -19,6 +19,7 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "FIREWORKS" ||
     provider === "GROQ" ||
     provider === "MOONSHOT" ||
+    provider === "MINIMAX" ||
     provider === "PERPLEXITY" ||
     provider === "TOGETHER"
   );
@@ -50,6 +51,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "Groq";
     case "MOONSHOT":
       return "Moonshot";
+    case "MINIMAX":
+      return "MiniMax";
     case "PERPLEXITY":
       return "Perplexity";
     case "TOGETHER":
@@ -90,6 +93,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "groq"; // TODO: Add support for Groq to semantic conventions
     case "MOONSHOT":
       return "moonshot"; // TODO: Add support for Moonshot to semantic conventions
+    case "MINIMAX":
+      return "minimax";
     case "PERPLEXITY":
       return "perplexity"; // TODO: Add support for Perplexity to semantic conventions
     case "TOGETHER":

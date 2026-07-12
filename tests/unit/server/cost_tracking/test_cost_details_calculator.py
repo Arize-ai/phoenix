@@ -3,6 +3,9 @@ from typing import Any, Mapping, NamedTuple, Optional
 import pytest
 
 from phoenix.db import models
+from phoenix.db.types.token_price_customization import (
+    ThresholdBasedTokenPriceCustomization,
+)
 from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
 
 
@@ -773,6 +776,54 @@ class TestSpanCostDetailsCalculator:
                     assert detail.cost_per_token is None, (
                         f"Expected {domain} detail for {token_type} to have no cost per token"
                     )
+
+    @pytest.mark.parametrize(
+        "prompt_tokens,expected_input_rate,expected_output_rate",
+        [
+            (512000, 3e-7, 1.2e-6),
+            (512001, 6e-7, 2.4e-6),
+        ],
+    )
+    def test_threshold_pricing_uses_prompt_token_count(
+        self,
+        prompt_tokens: int,
+        expected_input_rate: float,
+        expected_output_rate: float,
+    ) -> None:
+        threshold = {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 512000,
+        }
+        calculator = SpanCostDetailsCalculator(
+            [
+                models.TokenPrice(
+                    token_type="input",
+                    is_prompt=True,
+                    base_rate=3e-7,
+                    customization=ThresholdBasedTokenPriceCustomization(
+                        **threshold,
+                        new_rate=6e-7,
+                    ),
+                ),
+                models.TokenPrice(
+                    token_type="output",
+                    is_prompt=False,
+                    base_rate=1.2e-6,
+                    customization=ThresholdBasedTokenPriceCustomization(
+                        **threshold,
+                        new_rate=2.4e-6,
+                    ),
+                ),
+            ]
+        )
+
+        details = calculator.calculate_details(
+            {"llm": {"token_count": {"prompt": prompt_tokens, "completion": 100}}}
+        )
+        by_type = {detail.token_type: detail for detail in details}
+        assert by_type["input"].cost_per_token == expected_input_rate
+        assert by_type["output"].cost_per_token == expected_output_rate
 
     def test_missing_token_count_section(self) -> None:
         """

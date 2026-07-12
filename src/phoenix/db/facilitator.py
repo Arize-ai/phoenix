@@ -42,6 +42,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.token_price_customization import TokenPriceCustomizationParser
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
@@ -548,6 +549,9 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                     manifest_token_price["token_type"],
                     manifest_token_price["is_prompt"],
                 )
+                customization = TokenPriceCustomizationParser.parse(
+                    manifest_token_price.get("customization")
+                )
                 # Remove from tracking dict and get existing price (if any)
                 if not (token_price := existing_token_prices.pop(key, None)):
                     # Create new token price if it doesn't exist
@@ -555,13 +559,17 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                         token_type=manifest_token_price["token_type"],
                         is_prompt=manifest_token_price["is_prompt"],
                         base_rate=base_rate,
+                        customization=customization,
                     )
                     model.token_prices.append(token_price)
                     token_prices_changed = True
-                elif token_price.base_rate != base_rate:
-                    # Update existing price if rate has changed
-                    token_price.base_rate = base_rate
-                    token_prices_changed = True
+                else:
+                    if token_price.base_rate != base_rate:
+                        token_price.base_rate = base_rate
+                        token_prices_changed = True
+                    if token_price.customization != customization:
+                        token_price.customization = customization
+                        token_prices_changed = True
 
             # Remove any token prices that are no longer in the manifest
             # These are prices that weren't popped from the token_prices dict above

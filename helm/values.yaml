@@ -175,7 +175,7 @@ server:
 
   # -- Comma-separated list of model provider names to display in the playground UI (PHOENIX_ALLOWED_PROVIDERS)
   # When unset, all providers are shown. Set to "NONE" to hide all providers.
-  # Supported values: OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA, AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER
+  # Supported values: OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA, AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER
   # Example: "OPENAI,ANTHROPIC"
   allowedProviders: ""
 

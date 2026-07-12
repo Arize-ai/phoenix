@@ -3,16 +3,24 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from urllib.request import urlopen
 
 from pydantic import AfterValidator, BaseModel
+
+
+class ThresholdBasedTokenPriceCustomization(BaseModel):
+    type: Literal["threshold_based"]
+    key: str
+    threshold: float
+    new_rate: float
 
 
 class TokenPrice(BaseModel):
     base_rate: float
     is_prompt: bool
     token_type: str
+    customization: ThresholdBasedTokenPriceCustomization | None = None
 
 
 def validate_regular_expression(value: str) -> str:

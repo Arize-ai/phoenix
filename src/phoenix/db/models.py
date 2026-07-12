@@ -2345,7 +2345,7 @@ class TokenPrice(HasId):
     token_type: Mapped[str]
     is_prompt: Mapped[bool]
     base_rate: Mapped[float]
-    customization: Mapped[TokenPriceCustomization] = mapped_column(_TokenCustomization)
+    customization: Mapped[Optional[TokenPriceCustomization]] = mapped_column(_TokenCustomization)
 
     model: Mapped["GenerativeModel"] = relationship(
         "GenerativeModel",

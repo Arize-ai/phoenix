@@ -182,6 +182,7 @@ export function processAttributeToolCalls({
         case "FIREWORKS":
         case "GROQ":
         case "MOONSHOT":
+        case "MINIMAX":
         case "PERPLEXITY":
         case "TOGETHER":
           return {
@@ -1380,6 +1381,7 @@ export const createToolCallForProvider = (
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
       return createOpenAIToolCall();

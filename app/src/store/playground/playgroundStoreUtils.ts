@@ -28,6 +28,7 @@ export const convertMessageToolCallsToProvider = ({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "MINIMAX":
       case "PERPLEXITY":
       case "TOGETHER":
       case "AZURE_OPENAI": {

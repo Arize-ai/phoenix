@@ -1354,6 +1354,7 @@ class MoonshotStreamingClient(OpenAIBaseStreamingClient):
     model_names=[
         PROVIDER_DEFAULT,
         "MiniMax-M3",
+        "MiniMax-M2.7",
     ],
 )
 class MiniMaxStreamingClient(OpenAIBaseStreamingClient):
@@ -3902,6 +3903,46 @@ async def _get_builtin_provider_client(
 
         client_factory = LLMClientFactory(
             create_moonshot_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.MINIMAX:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="MINIMAX_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="MiniMax",
+        )
+        base_url = base_url or getenv("MINIMAX_BASE_URL") or "https://api.minimax.io/v1"
+
+        if not api_key:
+            if base_url == "https://api.minimax.io/v1":
+                raise BadRequest(
+                    "An API key is required for MiniMax models. "
+                    "Set the MINIMAX_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_minimax_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_minimax_client, openai_rate_limit_key(api_key, base_url)
         )
         return OpenAIStreamingClient(
             client_factory=client_factory,

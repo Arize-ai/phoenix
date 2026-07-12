@@ -341,6 +341,12 @@ class TestEnsureModelCosts:
                         "base_rate": 0.000001,
                         "is_prompt": True,
                         "token_type": "input",
+                        "customization": {
+                            "type": "threshold_based",
+                            "key": "llm.token_count.prompt",
+                            "threshold": 1000,
+                            "new_rate": 0.000002,
+                        },
                     },
                     {
                         "base_rate": 0.000002,
@@ -413,6 +419,14 @@ class TestEnsureModelCosts:
         assert actual_prices_1 == expected_prices_1, (
             f"Model 1 token prices mismatch: got {actual_prices_1}, expected {expected_prices_1}"
         )
+        input_price = next(price for price in model1.token_prices if price.token_type == "input")
+        assert input_price.customization is not None
+        assert input_price.customization.model_dump() == {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 1000.0,
+            "new_rate": 0.000002,
+        }
 
         # Verify model 2 details (minimal pricing)
         model2 = built_in_models["test-model-2"]
@@ -532,6 +546,10 @@ class TestEnsureModelCosts:
         assert actual_prices_1_updated == expected_prices_1_updated, (
             f"Model 1 updated prices mismatch: got {actual_prices_1_updated}, expected {expected_prices_1_updated}"
         )
+        updated_input_price = next(
+            price for price in model1_updated.token_prices if price.token_type == "input"
+        )
+        assert updated_input_price.customization is None
 
         # Verify model 2 updates
         model2_updated = built_in_models["test-model-2"]

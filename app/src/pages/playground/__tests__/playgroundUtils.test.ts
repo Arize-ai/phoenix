@@ -891,6 +891,10 @@ describe("getModelProviderFromModelName", () => {
     );
   });
 
+  it("should return MINIMAX for a MiniMax model", () => {
+    expect(getModelProviderFromModelName("MiniMax-M3")).toEqual("MINIMAX");
+  });
+
   it(`should return ${DEFAULT_MODEL_PROVIDER} if the model name does not match any known models`, () => {
     expect(getModelProviderFromModelName("test-my-model")).toEqual(
       DEFAULT_MODEL_PROVIDER
@@ -927,6 +931,7 @@ describe("processAttributeToolCalls", () => {
     FIREWORKS: ["FIREWORKS", testSpanToolCall, expectedTestOpenAIToolCall],
     GROQ: ["GROQ", testSpanToolCall, expectedTestOpenAIToolCall],
     MOONSHOT: ["MOONSHOT", testSpanToolCall, expectedTestOpenAIToolCall],
+    MINIMAX: ["MINIMAX", testSpanToolCall, expectedTestOpenAIToolCall],
     PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
     TOGETHER: ["TOGETHER", testSpanToolCall, expectedTestOpenAIToolCall],
   };
@@ -1530,6 +1535,7 @@ describe("getToolsFromAttributes", () => {
     FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    MINIMAX: ["MINIMAX", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     PERPLEXITY: ["PERPLEXITY", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolCanonical],
   };
