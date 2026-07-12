@@ -541,20 +541,30 @@ function ProjectItem({
         height: 100%;
       `}
     >
-      <Flex direction="row" justifyContent="space-between" alignItems="start">
-        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="start"
+        gap="size-100"
+      >
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          flex={1}
+          minWidth={0}
+        >
           <GradientCircle
             gradientStartColor={gradientStartColor}
             gradientEndColor={gradientEndColor}
           />
-          <Flex direction="column" minWidth={0}>
+          <Flex direction="column" flex={1} minWidth={0}>
             <Heading
               level={2}
               css={css`
                 overflow: hidden;
-                display: -webkit-box;
-                -webkit-box-orient: vertical;
-                -webkit-line-clamp: 1;
+                text-overflow: ellipsis;
+                white-space: nowrap;
               `}
             >
               {project.name}
