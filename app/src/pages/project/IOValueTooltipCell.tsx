@@ -56,11 +56,11 @@ const triggerCSS = css`
 
 const tooltipCSS = css`
   min-width: min(
-    var(--global-dimension-size-3000),
+    var(--global-dimension-size-4000),
     calc(100vw - var(--global-dimension-size-400))
   );
   max-width: min(
-    var(--global-dimension-size-6000),
+    var(--global-dimension-size-5000),
     calc(100vw - var(--global-dimension-size-400))
   );
   max-height: min(480px, calc(100vh - 64px));
