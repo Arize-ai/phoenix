@@ -77,7 +77,10 @@ import type {
 } from "./__generated__/SpansTable_spans.graphql";
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
-import { IOValueTooltipCell } from "./IOValueTooltipCell";
+import {
+  SpanInputValueTooltipCell,
+  SpanOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -627,8 +630,7 @@ export function SpansTable(props: SpansTableProps) {
       header: "input",
       accessorKey: "input.value",
       cell: ({ getValue, row }) => (
-        <IOValueTooltipCell
-          kind="input"
+        <SpanInputValueTooltipCell
           nodeId={row.original.id}
           preview={getValue()}
         />
@@ -639,8 +641,7 @@ export function SpansTable(props: SpansTableProps) {
       header: "output",
       accessorKey: "output.value",
       cell: ({ getValue, row }) => (
-        <IOValueTooltipCell
-          kind="output"
+        <SpanOutputValueTooltipCell
           nodeId={row.original.id}
           preview={getValue()}
         />

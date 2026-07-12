@@ -58,7 +58,10 @@ import {
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
-import { IOValueTooltipCell } from "./IOValueTooltipCell";
+import {
+  SessionInputValueTooltipCell,
+  SessionOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
@@ -370,8 +373,7 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "firstInput.value",
       enableSorting: false,
       cell: ({ getValue, row }) => (
-        <IOValueTooltipCell
-          kind="input"
+        <SessionInputValueTooltipCell
           nodeId={row.original.id}
           preview={getValue()}
         />
@@ -382,8 +384,7 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "lastOutput.value",
       enableSorting: false,
       cell: ({ getValue, row }) => (
-        <IOValueTooltipCell
-          kind="output"
+        <SessionOutputValueTooltipCell
           nodeId={row.original.id}
           preview={getValue()}
         />

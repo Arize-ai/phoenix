@@ -83,7 +83,10 @@ import type {
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
-import { IOValueTooltipCell } from "./IOValueTooltipCell";
+import {
+  SpanInputValueTooltipCell,
+  SpanOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -793,8 +796,7 @@ export function TracesTable(props: TracesTableProps) {
         accessorKey: "input.value",
         enableSorting: false,
         cell: ({ getValue, row }) => (
-          <IOValueTooltipCell
-            kind="input"
+          <SpanInputValueTooltipCell
             nodeId={row.original.id}
             preview={getValue()}
           />
@@ -805,8 +807,7 @@ export function TracesTable(props: TracesTableProps) {
         accessorKey: "output.value",
         enableSorting: false,
         cell: ({ getValue, row }) => (
-          <IOValueTooltipCell
-            kind="output"
+          <SpanOutputValueTooltipCell
             nodeId={row.original.id}
             preview={getValue()}
           />
