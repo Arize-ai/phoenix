@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   DebouncedSearch,
   Flex,
@@ -10,7 +12,7 @@ import { CanModify } from "@phoenix/components/auth";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 import { PromptsLabelMenu } from "@phoenix/pages/prompts/PromptsLabelMenu";
 
-export const PromptsFilterBar = () => {
+export const PromptsFilterBar = ({ children }: { children?: ReactNode }) => {
   const {
     setFilter,
     filter,
@@ -38,6 +40,7 @@ export const PromptsFilterBar = () => {
           placeholder="Search prompts by name"
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+          {children}
           <PromptsLabelMenu
             selectedLabelIds={selectedPromptLabelIds}
             onSelectionChange={setSelectedPromptLabelIds}
