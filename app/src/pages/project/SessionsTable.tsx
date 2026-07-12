@@ -184,10 +184,10 @@ export function SessionsTable(props: SessionsTableProps) {
                 startTime
                 endTime
                 firstInput {
-                  value
+                  value: truncatedValue
                 }
                 lastOutput {
-                  value
+                  value: truncatedValue
                 }
                 tokenUsage {
                   total
