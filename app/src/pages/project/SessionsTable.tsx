@@ -53,12 +53,12 @@ import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
   IntCell,
-  TextCell,
   useColumnOrder,
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { IOValueTooltipCell } from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
@@ -369,13 +369,25 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "first input",
       accessorKey: "firstInput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <IOValueTooltipCell
+          kind="input"
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
     },
     {
       header: "last output",
       accessorKey: "lastOutput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <IOValueTooltipCell
+          kind="output"
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
     },
     ...annotationColumns,
     {
