@@ -42,6 +42,7 @@ import {
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
+import { usePromptsTableContext } from "@phoenix/contexts/PromptsTableContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 import { PromptsFilterBar } from "@phoenix/pages/prompts/PromptsFilterBar";
@@ -89,17 +90,22 @@ type PromptsTableProps = {
 
 export function PromptsTable(props: PromptsTableProps) {
   "use no memo";
-  const {
-    filter,
-    selectedPromptLabelIds,
-    setSelectedPromptLabelIds,
-    columnVisibility,
-    setColumnVisibility,
-    columnSizing,
-    setColumnSizing,
-    columnOrder,
-    setColumnOrder,
-  } = usePromptsFilterContext();
+  const { filter, selectedPromptLabelIds, setSelectedPromptLabelIds } =
+    usePromptsFilterContext();
+  const columnVisibility = usePromptsTableContext(
+    (state) => state.columnVisibility
+  );
+  const setColumnVisibility = usePromptsTableContext(
+    (state) => state.setColumnVisibility
+  );
+  const columnSizing = usePromptsTableContext((state) => state.columnSizing);
+  const setColumnSizing = usePromptsTableContext(
+    (state) => state.setColumnSizing
+  );
+  const columnOrder = usePromptsTableContext((state) => state.columnOrder);
+  const setColumnOrder = usePromptsTableContext(
+    (state) => state.setColumnOrder
+  );
   const navigate = useNavigate();
 
   const toggleLabelFilter = useCallback(
