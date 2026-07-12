@@ -319,7 +319,11 @@ def build_data_loaders(
         dataset_version_fields=TableFieldsDataLoader(db, models.DatasetVersion),
         dataset_labels=DatasetLabelsDataLoader(db),
         dataset_authors=VersionAuthorsDataLoader(
-            db, models.DatasetVersion, models.DatasetVersion.dataset_id
+            db,
+            models.DatasetVersion,
+            models.DatasetVersion.dataset_id,
+            # A dataset owns its creator, so only its last editor comes from its versions.
+            resolve_created_by=False,
         ),
         dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
         dataset_label_usage_counts=DatasetLabelUsageCountsDataLoader(db),
