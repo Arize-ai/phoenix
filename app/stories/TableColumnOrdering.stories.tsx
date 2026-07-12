@@ -10,15 +10,13 @@ import { useState } from "react";
 
 import { Checkbox, Flex, Text, View } from "@phoenix/components";
 import {
-  applySubsetColumnOrder,
+  ColumnHeaderCell,
   ColumnOrderingProvider,
   ColumnSelector,
   ColumnSelectorMenu,
-  expandColumnOrderToLeafIds,
   getColumnDefId,
-  getLeafIdsByTopLevelId,
   getTopLevelColumnIds,
-  SortableColumnHeader,
+  useColumnOrder,
 } from "@phoenix/components/table";
 
 import { tableCSS } from "../src/components/table/styles";
@@ -132,34 +130,28 @@ function ReorderableTable({
     Record<string, boolean>
   >({});
 
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
+    columnOrder,
+    onColumnOrderChange: setColumnOrder,
+    columnVisibility,
+  });
+
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<Person>({
     columns,
     data: mockPeople,
     state: {
-      columnOrder: expandColumnOrderToLeafIds(columnOrder, columns),
+      columnOrder: leafColumnOrder,
       columnVisibility,
     },
     getCoreRowModel: getCoreRowModel(),
   });
-
-  // Only visible columns render headers, so the drag context operates on the
-  // visible subset and merges the result back into the full order
-  const leafIdsByTopLevelId = getLeafIdsByTopLevelId(columns);
-  const visibleColumnOrder = columnOrder.filter((id) =>
-    (leafIdsByTopLevelId.get(id) ?? [id]).some(
-      (leafId) => columnVisibility[leafId] ?? true
-    )
-  );
-
-  const onColumnOrderChange = (orderedSubset: string[]) => {
-    setColumnOrder(
-      applySubsetColumnOrder({
-        columnOrder,
-        orderedSubset,
-      })
-    );
-  };
 
   const selectorColumns = columnOrder.flatMap((id) => {
     const def = columns.find((def) => getColumnDefId(def) === id);
@@ -177,48 +169,36 @@ function ReorderableTable({
           columns={selectorColumns}
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
-          onColumnOrderChange={onColumnOrderChange}
+          onColumnOrderChange={setColumnOrder}
         />
       ) : null}
       <ColumnOrderingProvider
         columnOrder={visibleColumnOrder}
-        onColumnOrderChange={onColumnOrderChange}
+        onColumnOrderChange={onVisibleColumnOrderChange}
       >
         <table css={tableCSS}>
           <thead>
             {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const sortableIndex =
-                    headerGroupIndex === 0
-                      ? visibleColumnOrder.indexOf(header.column.id)
-                      : -1;
-                  if (sortableIndex === -1) {
-                    return (
-                      <th key={header.id} colSpan={header.colSpan}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </th>
-                    );
-                  }
-                  return (
-                    <SortableColumnHeader
-                      key={header.id}
-                      columnId={header.column.id}
-                      index={sortableIndex}
-                      colSpan={header.colSpan}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </SortableColumnHeader>
-                  );
-                })}
+                {headerGroup.headers.map((header) => (
+                  <ColumnHeaderCell
+                    key={header.id}
+                    columnId={header.column.id}
+                    index={
+                      headerGroupIndex === 0
+                        ? getColumnOrderIndex(header.column.id)
+                        : -1
+                    }
+                    colSpan={header.colSpan}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </ColumnHeaderCell>
+                ))}
               </tr>
             ))}
           </thead>

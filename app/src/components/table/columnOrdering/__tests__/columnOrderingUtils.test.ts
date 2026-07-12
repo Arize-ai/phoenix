@@ -31,6 +31,15 @@ describe("mergeColumnOrder", () => {
       mergeColumnOrder({ columnOrder: [], columnIds: ["a", "b"] })
     ).toEqual(["a", "b"]);
   });
+
+  it("deduplicates persisted and available column ids", () => {
+    expect(
+      mergeColumnOrder({
+        columnOrder: ["b", "b"],
+        columnIds: ["a", "b", "a"],
+      })
+    ).toEqual(["b", "a"]);
+  });
 });
 
 describe("expandColumnOrderToLeafIds", () => {

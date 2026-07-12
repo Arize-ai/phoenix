@@ -50,11 +50,19 @@ const columnSelectorMenuCSS = css`
   flex-direction: column;
   max-height: var(--global-menu-max-height-small);
   min-width: 240px;
+
+  /* React Aria caps the popover at the space available on screen. Without
+     this, a long column list overflows that box and paints outside it. */
+  .react-aria-Popover & {
+    max-height: inherit;
+  }
 `;
 
 /** Scrollable body below the fixed search header. */
 const columnSelectorBodyCSS = css`
   overflow-y: auto;
+  /* Let the body shrink below its content height so it, not the menu, scrolls */
+  min-height: 0;
   padding: ${MENU_INSET} 0;
 `;
 
