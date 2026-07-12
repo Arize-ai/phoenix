@@ -33,8 +33,6 @@ import {
   CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
-  ColumnSelector,
-  mergeColumnOrder,
   TextCell,
   useColumnOrder,
 } from "@phoenix/components/table";
@@ -44,7 +42,6 @@ import {
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
-import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 import { PromptsFilterBar } from "@phoenix/pages/prompts/PromptsFilterBar";
@@ -92,19 +89,18 @@ type PromptsTableProps = {
 
 export function PromptsTable(props: PromptsTableProps) {
   "use no memo";
-  const { filter, selectedPromptLabelIds, setSelectedPromptLabelIds } =
-    usePromptsFilterContext();
+  const {
+    filter,
+    selectedPromptLabelIds,
+    setSelectedPromptLabelIds,
+    columnVisibility,
+    setColumnVisibility,
+    columnSizing,
+    setColumnSizing,
+    columnOrder,
+    setColumnOrder,
+  } = usePromptsFilterContext();
   const navigate = useNavigate();
-  const [columnVisibility, setColumnVisibility] = usePersistedState<
-    Record<string, boolean>
-  >("phoenix-prompts-column-visibility:v1", {});
-  const [columnSizing, setColumnSizing] = usePersistedState<
-    Record<string, number>
-  >("phoenix-prompts-column-sizing:v1", {});
-  const [storedColumnOrder, setStoredColumnOrder] = usePersistedState<string[]>(
-    "phoenix-prompts-column-order:v1",
-    []
-  );
 
   const toggleLabelFilter = useCallback(
     (labelId: string) => {
@@ -395,8 +391,8 @@ export function PromptsTable(props: PromptsTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
-    onColumnOrderChange: setStoredColumnOrder,
+    columnOrder,
+    onColumnOrderChange: setColumnOrder,
     columnVisibility,
     nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
   });
@@ -419,32 +415,6 @@ export function PromptsTable(props: PromptsTableProps) {
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-  });
-
-  const selectableColumns = table
-    .getAllLeafColumns()
-    .filter((column) => column.id !== ACTIONS_COLUMN_ID);
-  const selectableColumnsById = new Map(
-    selectableColumns.map((column) => [column.id, column])
-  );
-  const selectorColumns = mergeColumnOrder({
-    columnOrder: storedColumnOrder,
-    columnIds: selectableColumns.map((column) => column.id),
-  }).flatMap((columnId) => {
-    const column = selectableColumnsById.get(columnId);
-    if (column == null) {
-      return [];
-    }
-    return [
-      {
-        id: column.id,
-        label:
-          typeof column.columnDef.header === "string"
-            ? column.columnDef.header
-            : column.id,
-        isVisibilityToggleDisabled: column.id === "name",
-      },
-    ];
   });
 
   const { columnSizingInfo, columnSizing: columnSizingState } =
@@ -477,14 +447,7 @@ export function PromptsTable(props: PromptsTableProps) {
         overflow: hidden;
       `}
     >
-      <PromptsFilterBar>
-        <ColumnSelector
-          columns={selectorColumns}
-          columnVisibility={columnVisibility}
-          onColumnVisibilityChange={setColumnVisibility}
-          onColumnOrderChange={setStoredColumnOrder}
-        />
-      </PromptsFilterBar>
+      <PromptsFilterBar />
       {isEmpty ? (
         <PromptsEmpty />
       ) : (
