@@ -1,7 +1,9 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
+import type { PreloadedQuery } from "react-relay";
 import { graphql, usePreloadedQuery, useQueryLoader } from "react-relay";
+import type { GraphQLTaggedNode, OperationType } from "relay-runtime";
 
 import {
   ErrorBoundary,
@@ -104,50 +106,6 @@ function formatPreview(value: unknown): string {
   return value;
 }
 
-function SpanInputValueTooltipContent({
-  queryRef,
-}: {
-  queryRef: NonNullable<
-    ReturnType<typeof useQueryLoader<IOValueTooltipCellSpanInputQuery>>[0]
-  >;
-}) {
-  const data = usePreloadedQuery(spanInputValueTooltipCellQuery, queryRef);
-  return <DynamicContent value={data.node?.input?.value} />;
-}
-
-function SpanOutputValueTooltipContent({
-  queryRef,
-}: {
-  queryRef: NonNullable<
-    ReturnType<typeof useQueryLoader<IOValueTooltipCellSpanOutputQuery>>[0]
-  >;
-}) {
-  const data = usePreloadedQuery(spanOutputValueTooltipCellQuery, queryRef);
-  return <DynamicContent value={data.node?.output?.value} />;
-}
-
-function SessionInputValueTooltipContent({
-  queryRef,
-}: {
-  queryRef: NonNullable<
-    ReturnType<typeof useQueryLoader<IOValueTooltipCellSessionInputQuery>>[0]
-  >;
-}) {
-  const data = usePreloadedQuery(sessionInputValueTooltipCellQuery, queryRef);
-  return <DynamicContent value={data.node?.firstInput?.value} />;
-}
-
-function SessionOutputValueTooltipContent({
-  queryRef,
-}: {
-  queryRef: NonNullable<
-    ReturnType<typeof useQueryLoader<IOValueTooltipCellSessionOutputQuery>>[0]
-  >;
-}) {
-  const data = usePreloadedQuery(sessionOutputValueTooltipCellQuery, queryRef);
-  return <DynamicContent value={data.node?.lastOutput?.value} />;
-}
-
 function IOValueTooltipSkeleton() {
   return (
     <div css={loadingCSS} aria-label="Loading full value">
@@ -202,118 +160,77 @@ function IOValueTooltipCell({
   );
 }
 
-export function SpanInputValueTooltipCell({
-  nodeId,
-  preview,
+/**
+ * Builds a table cell component that shows a truncated preview and lazily
+ * loads the full IO value into a tooltip on hover/focus. Each variant needs
+ * its own static Relay query, so the query and its value accessor are bound
+ * here while all behavior lives in {@link IOValueTooltipCell}.
+ * @param params - Variant configuration.
+ * @param params.query - Static Relay query fetching the full value by node id.
+ * @param params.getFullValue - Extracts the full value from the query response.
+ */
+function createIOValueTooltipCell<TQuery extends OperationType>({
+  query,
+  getFullValue,
 }: {
-  nodeId: string;
-  preview: unknown;
+  query: GraphQLTaggedNode;
+  getFullValue: (data: TQuery["response"]) => string | null | undefined;
 }) {
-  const [queryRef, loadQuery] =
-    useQueryLoader<IOValueTooltipCellSpanInputQuery>(
-      spanInputValueTooltipCellQuery
+  function TooltipContent({ queryRef }: { queryRef: PreloadedQuery<TQuery> }) {
+    const data = usePreloadedQuery<TQuery>(query, queryRef);
+    return <DynamicContent value={getFullValue(data)} />;
+  }
+
+  return function Cell({
+    nodeId,
+    preview,
+  }: {
+    nodeId: string;
+    preview: unknown;
+  }) {
+    const [queryRef, loadQuery] = useQueryLoader<TQuery>(query);
+    return (
+      <IOValueTooltipCell
+        preview={preview}
+        onOpen={() => {
+          if (queryRef == null) {
+            loadQuery(
+              { id: nodeId } as TQuery["variables"],
+              { fetchPolicy: "store-or-network" }
+            );
+          }
+        }}
+      >
+        {queryRef ? (
+          <TooltipContent queryRef={queryRef} />
+        ) : (
+          <IOValueTooltipSkeleton />
+        )}
+      </IOValueTooltipCell>
     );
-  return (
-    <IOValueTooltipCell
-      preview={preview}
-      onOpen={() => {
-        if (queryRef == null) {
-          loadQuery({ id: nodeId }, { fetchPolicy: "store-or-network" });
-        }
-      }}
-    >
-      {queryRef ? (
-        <SpanInputValueTooltipContent queryRef={queryRef} />
-      ) : (
-        <IOValueTooltipSkeleton />
-      )}
-    </IOValueTooltipCell>
-  );
+  };
 }
 
-export function SpanOutputValueTooltipCell({
-  nodeId,
-  preview,
-}: {
-  nodeId: string;
-  preview: unknown;
-}) {
-  const [queryRef, loadQuery] =
-    useQueryLoader<IOValueTooltipCellSpanOutputQuery>(
-      spanOutputValueTooltipCellQuery
-    );
-  return (
-    <IOValueTooltipCell
-      preview={preview}
-      onOpen={() => {
-        if (queryRef == null) {
-          loadQuery({ id: nodeId }, { fetchPolicy: "store-or-network" });
-        }
-      }}
-    >
-      {queryRef ? (
-        <SpanOutputValueTooltipContent queryRef={queryRef} />
-      ) : (
-        <IOValueTooltipSkeleton />
-      )}
-    </IOValueTooltipCell>
-  );
-}
+export const SpanInputValueTooltipCell =
+  createIOValueTooltipCell<IOValueTooltipCellSpanInputQuery>({
+    query: spanInputValueTooltipCellQuery,
+    getFullValue: (data) => data.node?.input?.value,
+  });
 
-export function SessionInputValueTooltipCell({
-  nodeId,
-  preview,
-}: {
-  nodeId: string;
-  preview: unknown;
-}) {
-  const [queryRef, loadQuery] =
-    useQueryLoader<IOValueTooltipCellSessionInputQuery>(
-      sessionInputValueTooltipCellQuery
-    );
-  return (
-    <IOValueTooltipCell
-      preview={preview}
-      onOpen={() => {
-        if (queryRef == null) {
-          loadQuery({ id: nodeId }, { fetchPolicy: "store-or-network" });
-        }
-      }}
-    >
-      {queryRef ? (
-        <SessionInputValueTooltipContent queryRef={queryRef} />
-      ) : (
-        <IOValueTooltipSkeleton />
-      )}
-    </IOValueTooltipCell>
-  );
-}
+export const SpanOutputValueTooltipCell =
+  createIOValueTooltipCell<IOValueTooltipCellSpanOutputQuery>({
+    query: spanOutputValueTooltipCellQuery,
+    getFullValue: (data) => data.node?.output?.value,
+  });
 
-export function SessionOutputValueTooltipCell({
-  nodeId,
-  preview,
-}: {
-  nodeId: string;
-  preview: unknown;
-}) {
-  const [queryRef, loadQuery] =
-    useQueryLoader<IOValueTooltipCellSessionOutputQuery>(
-      sessionOutputValueTooltipCellQuery
-    );
-  return (
-    <IOValueTooltipCell
-      preview={preview}
-      onOpen={() => {
-        if (queryRef == null) {
-          loadQuery({ id: nodeId }, { fetchPolicy: "store-or-network" });
-        }
-      }}
-    >
-      {queryRef ? (
-        <SessionOutputValueTooltipContent queryRef={queryRef} />
-      ) : (
-        <IOValueTooltipSkeleton />
-      )}
-    </IOValueTooltipCell>
-  );
-}
+export const SessionInputValueTooltipCell =
+  createIOValueTooltipCell<IOValueTooltipCellSessionInputQuery>({
+    query: sessionInputValueTooltipCellQuery,
+    getFullValue: (data) => data.node?.firstInput?.value,
+  });
+
+export const SessionOutputValueTooltipCell =
+  createIOValueTooltipCell<IOValueTooltipCellSessionOutputQuery>({
+    query: sessionOutputValueTooltipCellQuery,
+    getFullValue: (data) => data.node?.lastOutput?.value,
+  });
