@@ -53,12 +53,15 @@ import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
   IntCell,
-  TextCell,
   useColumnOrder,
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SessionInputValueTooltipCell,
+  SessionOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
@@ -184,10 +187,10 @@ export function SessionsTable(props: SessionsTableProps) {
                 startTime
                 endTime
                 firstInput {
-                  value
+                  value: truncatedValue
                 }
                 lastOutput {
-                  value
+                  value: truncatedValue
                 }
                 tokenUsage {
                   total
@@ -369,13 +372,23 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "first input",
       accessorKey: "firstInput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SessionInputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
     },
     {
       header: "last output",
       accessorKey: "lastOutput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SessionOutputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
     },
     ...annotationColumns,
     {

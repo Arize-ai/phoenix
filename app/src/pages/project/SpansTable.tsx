@@ -54,7 +54,6 @@ import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
-import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { TraceTokenCosts } from "@phoenix/components/trace";
@@ -78,6 +77,10 @@ import type {
 } from "./__generated__/SpansTable_spans.graphql";
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SpanInputValueTooltipCell,
+  SpanOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -626,13 +629,23 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "input",
       accessorKey: "input.value",
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SpanInputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
       enableSorting: false,
     },
     {
       header: "output",
       accessorKey: "output.value",
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SpanOutputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
       enableSorting: false,
     },
     {
