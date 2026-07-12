@@ -16,7 +16,7 @@ PHOENIX_DISABLE_AGENT_ASSISTANT=true
 
 ### Sandbox provider allowlist (`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`)
 
-A new optional environment variable, `PHOENIX_ALLOWED_SANDBOX_PROVIDERS`, restricts which sandbox provider families are available for code-evaluator execution. 
+A new optional environment variable, `PHOENIX_ALLOWED_SANDBOX_PROVIDERS`, restricts which sandbox provider families are available for code-evaluator execution.
 
 *When unset, all providers remain available. Set to `NONE` to disable all sandbox providers.*
 
@@ -76,7 +76,7 @@ python -m phoenix.server.main serve --dev --dev-vite-port 5173
 phoenix serve --host 0.0.0.0 --port 6006
 ```
 
-Pass `--database-url` on the subcommand that needs a database (or rely on `PHOENIX_SQL_DATABASE_URL` / the default). 
+Pass `--database-url` on the subcommand that needs a database (or rely on `PHOENIX_SQL_DATABASE_URL` / the default).
 
 ```shell
 python -m phoenix.server.main serve --database-url "postgresql://..."

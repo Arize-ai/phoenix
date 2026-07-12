@@ -53,7 +53,7 @@ nvm alias default <version-that-was-installed>
 npm i -g pnpm@9.15.5
 ```
 
-Then we will build the web app. 
+Then we will build the web app.
 
 Change directory to `app`:
 
