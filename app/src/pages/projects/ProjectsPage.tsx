@@ -596,13 +596,13 @@ function ProjectMetricsLoadingSkeleton() {
     <Flex direction="row" justifyContent="space-between" minHeight="size-600">
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
-          Total Traces
+          Traces
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
-          Total Sessions
+          Sessions
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
@@ -691,7 +691,7 @@ function ProjectMetricsRow({
     >
       <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
-          Total Traces
+          Traces
         </Text>
         <Text size="L" fontFamily="mono">
           {intFormatter(traceCount)}
@@ -699,7 +699,7 @@ function ProjectMetricsRow({
       </Flex>
       <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
-          Total Sessions
+          Sessions
         </Text>
         <Text size="L" fontFamily="mono">
           {intFormatter(sessionCount)}
