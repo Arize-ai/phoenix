@@ -89,6 +89,27 @@ function getLeafColumnIds(def: OrderableColumnDef): string[] {
 }
 
 /**
+ * Sorts a column selector's columns into the persisted column order, dropping
+ * ids that no longer exist and appending columns the order has not seen yet.
+ */
+export function orderColumns<T extends { id: string }>({
+  columns,
+  columnOrder,
+}: {
+  columns: T[];
+  columnOrder: string[];
+}): T[] {
+  const columnsById = new Map(columns.map((column) => [column.id, column]));
+  return mergeColumnOrder({
+    columnOrder,
+    columnIds: columns.map((column) => column.id),
+  }).flatMap((columnId) => {
+    const column = columnsById.get(columnId);
+    return column == null ? [] : [column];
+  });
+}
+
+/**
  * Reorders a subset of columns within the full column order, leaving
  * non-subset columns in place. Lets a filtered view (e.g. only visible
  * columns) reorder its slice without disturbing the rest.

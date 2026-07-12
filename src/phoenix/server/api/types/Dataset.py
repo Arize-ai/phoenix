@@ -39,6 +39,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 if TYPE_CHECKING:
     from .ExperimentJob import ExperimentJob
+    from .User import User
 
 
 @strawberry.type
@@ -101,6 +102,35 @@ class Dataset(Node):
                 (self.id, models.Dataset.created_at),
             )
         return val
+
+    @strawberry.field(description="The user that created the dataset.")  # type: ignore
+    async def created_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.user_id),
+            )
+        if user_id is None:
+            return None
+        from .User import User
+
+        return User(id=user_id)
+
+    @strawberry.field(
+        description="The user that last updated the dataset, i.e. the author of its latest version."
+    )  # type: ignore
+    async def updated_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        authors = await info.context.data_loaders.dataset_authors.load(self.id)
+        from .User import to_gql_user
+
+        return to_gql_user(authors.updated_by)
 
     @strawberry.field
     async def updated_at(

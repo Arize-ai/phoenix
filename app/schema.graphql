@@ -944,6 +944,14 @@ type Dataset implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """The user that created the dataset."""
+  createdBy: User
+
+  """
+  The user that last updated the dataset, i.e. the author of its latest version.
+  """
+  updatedBy: User
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
 
@@ -3039,6 +3047,16 @@ type Prompt implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """
+  The user that created the prompt, i.e. the author of its first version.
+  """
+  createdBy: User
+
+  """
+  The user that last updated the prompt, i.e. the author of its latest version.
+  """
+  updatedBy: User
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionCount: Int!
   versionTags: [PromptVersionTag!]!
