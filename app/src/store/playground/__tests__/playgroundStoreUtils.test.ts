@@ -227,6 +227,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    MINIMAX: [
+      [
+        "return tools as they are for MiniMax",
+        "MINIMAX",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     PERPLEXITY: [
       [
         "return tools as they are for perplexity",

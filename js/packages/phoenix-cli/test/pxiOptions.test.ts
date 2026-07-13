@@ -40,6 +40,19 @@ describe("PXI options", () => {
     });
   });
 
+  it("accepts MiniMax as a built-in provider", () => {
+    const selection = resolveModelSelection({
+      provider: "minimax",
+      model: "MiniMax-M3",
+    });
+
+    expect(selection).toEqual({
+      providerType: "builtin",
+      provider: "MINIMAX",
+      modelName: "MiniMax-M3",
+    });
+  });
+
   it("rejects invalid providers with an actionable error", () => {
     expect(() => resolveModelSelection({ provider: "BAD" })).toThrow(
       "Invalid value for --provider: BAD. Expected one of:"

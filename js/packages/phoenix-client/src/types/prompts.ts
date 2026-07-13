@@ -16,6 +16,7 @@ export type PromptModelProvider =
   | "FIREWORKS"
   | "GROQ"
   | "MOONSHOT"
+  | "MINIMAX"
   | "PERPLEXITY";
 
 /**

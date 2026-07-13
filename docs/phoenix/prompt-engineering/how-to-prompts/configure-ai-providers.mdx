@@ -103,6 +103,17 @@ OpenAI Client compatible providers Include
 
 The built-in MiniMax provider uses the global endpoint by default. Set `MINIMAX_BASE_URL=https://api.minimaxi.com/v1` to use the China endpoint.
 
+### Using the MiniMax Anthropic-compatible API
+
+To use the Anthropic-compatible API, open **Settings**, select **AI Providers**, and create a custom provider with the Anthropic SDK and your MiniMax API key. Set the base URL for the required region, then enter `MiniMax-M3` or `MiniMax-M2.7` in the model menu.
+
+| Region | Base URL | Docs |
+| :----- | :------- | :--- |
+| Global | [https://api.minimax.io/anthropic](https://api.minimax.io/anthropic) | [https://platform.minimax.io/docs/api-reference/text-anthropic-api](https://platform.minimax.io/docs/api-reference/text-anthropic-api) |
+| China | [https://api.minimaxi.com/anthropic](https://api.minimaxi.com/anthropic) | [https://platform.minimaxi.com/docs/api-reference/text-anthropic-api](https://platform.minimaxi.com/docs/api-reference/text-anthropic-api) |
+
+Use the base URL exactly as shown. The Anthropic SDK appends `/v1/messages` when Phoenix sends a request.
+
 ### Option 2: Server side configuration of the OpenAI base URL
 
 Optionally, the server can be configured with the `OPENAI_BASE_URL` environment variable to change target any OpenAI compatible REST API.
