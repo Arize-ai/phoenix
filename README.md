@@ -55,15 +55,12 @@ Phoenix is vendor and language agnostic with out-of-the-box support for popular 
 
 Phoenix runs practically anywhere, including your local machine, a Jupyter notebook, a containerized deployment, or in the cloud.
 
-## Install Locally
+## Run Locally
 
 Install Phoenix via `pip` or `conda` and have a fully functional Phoenix
 
 ```shell
 pip install arize-phoenix
-```
-
-```shell
 phoenix serve
 ```
 
