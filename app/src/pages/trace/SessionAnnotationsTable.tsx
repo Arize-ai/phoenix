@@ -28,7 +28,7 @@ import type {
   SessionAnnotationsTable_annotations$key,
 } from "./__generated__/SessionAnnotationsTable_annotations.graphql";
 import type { SessionAnnotationsTableQuery } from "./__generated__/SessionAnnotationsTableQuery.graphql";
-import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
+import { AnnotationsEmpty } from "./AnnotationsEmpty";
 
 type SessionAnnotation =
   SessionAnnotationsTable_annotations$data["sessionAnnotations"][number];
@@ -292,9 +292,7 @@ export function SessionAnnotationsTable({ sessionId }: { sessionId: string }) {
   const annotations = data.sessionAnnotations;
 
   if (annotations.length === 0) {
-    return (
-      <SpanAnnotationsEmpty description="No annotations for this session" />
-    );
+    return <AnnotationsEmpty description="No annotations for this session" />;
   }
   return <AnnotationsTable annotations={annotations} sessionNodeId={data.id} />;
 }

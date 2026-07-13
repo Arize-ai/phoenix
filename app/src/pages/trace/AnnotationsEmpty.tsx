@@ -4,7 +4,7 @@ import {
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
 
-export function SpanAnnotationsEmpty({
+export function AnnotationsEmpty({
   description = "No annotations for this span",
 }: {
   description?: string;
