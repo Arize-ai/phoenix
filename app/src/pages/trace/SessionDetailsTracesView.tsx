@@ -58,8 +58,6 @@ import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__g
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
-import { SessionViewTabs } from "./SessionViewTabs";
-import type { SessionView } from "./SessionViewTabs";
 import { SpanDetails } from "./SpanDetails";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
@@ -100,14 +98,8 @@ type TraceSelectHandler = ({
 
 export function SessionDetailsTracesView({
   queryRef,
-  sessionView,
-  onSessionViewChange,
-  traceCount,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
-  sessionView: SessionView;
-  onSessionViewChange: (view: SessionView) => void;
-  traceCount: number;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
     sessionDetailsTracesViewQuery,
@@ -280,26 +272,20 @@ export function SessionDetailsTracesView({
     >
       <Panel id="session-traces-list" defaultSize="50%" minSize="20%">
         <div css={tracesListPanelCSS}>
-          <SessionViewTabs
-            sessionView={sessionView}
-            onSessionViewChange={onSessionViewChange}
-            traceCount={traceCount}
-          >
-            <TraceRowList
-              traces={traces}
-              expandedIds={expandedIds}
-              selectedTraceId={selectedTraceId}
-              selectedSpanNodeId={selectedSpanNodeId}
-              onToggleExpanded={toggleExpanded}
-              onTraceSelect={handleTraceSelect}
-              onSpanClick={handleSpanClick}
-              rowRefs={rowRefs}
-              isLoadingNext={isLoadingNext}
-              onScroll={(e) =>
-                throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
-            />
-          </SessionViewTabs>
+          <TraceRowList
+            traces={traces}
+            expandedIds={expandedIds}
+            selectedTraceId={selectedTraceId}
+            selectedSpanNodeId={selectedSpanNodeId}
+            onToggleExpanded={toggleExpanded}
+            onTraceSelect={handleTraceSelect}
+            onSpanClick={handleSpanClick}
+            rowRefs={rowRefs}
+            isLoadingNext={isLoadingNext}
+            onScroll={(e) =>
+              throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
+            }
+          />
         </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />

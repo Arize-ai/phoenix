@@ -4,12 +4,16 @@ import {
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
 
-export function SpanAnnotationsEmpty() {
+export function AnnotationsEmpty({
+  description = "No annotations for this span",
+}: {
+  description?: string;
+} = {}) {
   return (
     <EmptyStateArea>
       <EmptyState
         graphic={<EmptyStateGraphic variant="annotation" />}
-        description="No annotations for this span"
+        description={description}
         action={{
           type: "strip",
           items: [

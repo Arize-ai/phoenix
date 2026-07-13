@@ -7,54 +7,48 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { graphql, useFragment } from "react-relay";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
+import { Alert, Flex, Icon, Icons, Truncate } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { Alert } from "@phoenix/components/core/alert";
-import { Icons } from "@phoenix/components/core/icon";
-import { Icon } from "@phoenix/components/core/icon/Icon";
-import { Flex } from "@phoenix/components/core/layout/Flex";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { PreformattedTextCell } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  tableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
-import { SpanAnnotationActionMenu } from "@phoenix/components/trace/SpanAnnotationActionMenu";
+import { SessionAnnotationDeleteButton } from "@phoenix/components/trace/SessionAnnotationDeleteButton";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import type {
-  SpanFeedback_annotations$data,
-  SpanFeedback_annotations$key,
-} from "./__generated__/SpanFeedback_annotations.graphql";
+  SessionAnnotationsTable_annotations$data,
+  SessionAnnotationsTable_annotations$key,
+} from "./__generated__/SessionAnnotationsTable_annotations.graphql";
+import type { SessionAnnotationsTableQuery } from "./__generated__/SessionAnnotationsTableQuery.graphql";
 import { AnnotationsEmpty } from "./AnnotationsEmpty";
 
-type TableRow = SpanFeedback_annotations$data["spanAnnotations"][number] & {
-  spanNodeId: string;
-};
+type SessionAnnotation =
+  SessionAnnotationsTable_annotations$data["sessionAnnotations"][number];
 
-const spanAnnotationsTableWrapCSS = css`
+const tableWrapCSS = css`
+  flex: 1 1 auto;
   overflow: auto;
 `;
 
-function SpanAnnotationsTable({
+function AnnotationsTable({
   annotations,
-  spanNodeId,
+  sessionNodeId,
 }: {
-  annotations: SpanFeedback_annotations$data["spanAnnotations"];
-  spanNodeId: string;
+  annotations: readonly SessionAnnotation[];
+  sessionNodeId: string;
 }) {
-  const tableData = useMemo<TableRow[]>(() => {
-    return annotations.map((annotation) => ({
-      ...annotation,
-      spanNodeId,
-    }));
-  }, [annotations, spanNodeId]);
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
 
-  const columns: ColumnDef<TableRow>[] = useMemo(
+  const columns = useMemo<ColumnDef<SessionAnnotation>[]>(
     () => [
       {
         header: "name",
@@ -65,10 +59,9 @@ function SpanAnnotationsTable({
         header: "annotator kind",
         accessorKey: "annotatorKind",
         size: 100,
-        cell: ({ row }) => {
-          const annotatorKind = row.original.annotatorKind;
-          return <AnnotatorKindToken kind={annotatorKind} />;
-        },
+        cell: ({ row }) => (
+          <AnnotatorKindToken kind={row.original.annotatorKind} />
+        ),
       },
       {
         header: "user",
@@ -143,23 +136,22 @@ function SpanAnnotationsTable({
       {
         header: "",
         accessorKey: "actions",
-        size: 100,
-        cell: ({ row }) => {
-          return (
-            <SpanAnnotationActionMenu
-              annotationId={row.original.id}
-              spanNodeId={row.original.spanNodeId}
-              annotationName={row.original.name}
-              onSpanAnnotationActionSuccess={notifySuccess}
-              onSpanAnnotationActionError={(error) => {
-                setError(error.message);
-              }}
-            />
-          );
-        },
+        size: 50,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <SessionAnnotationDeleteButton
+            annotationId={row.original.id}
+            sessionNodeId={sessionNodeId}
+            annotationName={row.original.name}
+            onDeleteSuccess={notifySuccess}
+            onDeleteError={(error) => {
+              setError(error.message);
+            }}
+          />
+        ),
       },
     ],
-    [setError, notifySuccess]
+    [sessionNodeId, notifySuccess]
   );
 
   const [sorting, setSorting] = useState<SortingState>([
@@ -168,79 +160,74 @@ function SpanAnnotationsTable({
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
-    data: tableData,
+    data: annotations as SessionAnnotation[],
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     state: {
       sorting,
+      columnPinning: {
+        right: ["actions"],
+      },
     },
   });
   const rows = table.getRowModel().rows;
-  const isEmpty = rows.length === 0;
 
   return (
-    <div css={spanAnnotationsTableWrapCSS}>
+    <div css={tableWrapCSS}>
       {error && <Alert variant="danger">{error}</Alert>}
-      <table css={tableCSS} data-testid="span-annotations-table">
+      <table css={tableCSS} data-testid="session-annotations-table">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={getCommonPinningStyles(header.column)}
+                >
                   {header.isPlaceholder ? null : (
-                    <>
-                      <div
-                        {...{
-                          className: header.column.getCanSort() ? "sort" : "",
-                          onClick: header.column.getToggleSortingHandler(),
-                          style: {
-                            display: "flex",
-                            alignItems: "center",
-                            left: header.getStart(),
-                            width: header.getSize(),
-                          },
-                        }}
-                      >
-                        <Truncate maxWidth="100%">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                        </Truncate>
-                        {header.column.getIsSorted() ? (
-                          <Icon
-                            className="sort-icon"
-                            svg={
-                              header.column.getIsSorted() === "asc" ? (
-                                <Icons.CaretUpFilled />
-                              ) : (
-                                <Icons.CaretDownFilled />
-                              )
-                            }
-                          />
-                        ) : null}
-                      </div>
-                    </>
+                    <div
+                      className={header.column.getCanSort() ? "sort" : ""}
+                      onClick={header.column.getToggleSortingHandler()}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Truncate maxWidth="100%">
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </Truncate>
+                      {header.column.getIsSorted() ? (
+                        <Icon
+                          className="sort-icon"
+                          svg={
+                            header.column.getIsSorted() === "asc" ? (
+                              <Icons.CaretUpFilled />
+                            ) : (
+                              <Icons.CaretDownFilled />
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
                   )}
                 </th>
               ))}
             </tr>
           ))}
         </thead>
-        {isEmpty ? (
+        {rows.length === 0 ? (
           <TableEmpty />
         ) : (
           <tbody>
-            {table.getRowModel().rows.map((row) => (
+            {rows.map((row) => (
               <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    style={{
-                      width: cell.column.getSize(),
-                    }}
-                  >
+                  <td key={cell.id} style={getCommonPinningStyles(cell.column)}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -253,13 +240,29 @@ function SpanAnnotationsTable({
   );
 }
 
-export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
+/**
+ * The annotations view of a session. Fetches and displays every annotation
+ * attached to the session. Mounted only when the annotations tab is selected.
+ */
+export function SessionAnnotationsTable({ sessionId }: { sessionId: string }) {
   "use no memo";
-  const data = useFragment(
+  const queryData = useLazyLoadQuery<SessionAnnotationsTableQuery>(
     graphql`
-      fragment SpanFeedback_annotations on Span {
+      query SessionAnnotationsTableQuery($id: ID!) {
+        session: node(id: $id) {
+          ...SessionAnnotationsTable_annotations
+        }
+      }
+    `,
+    { id: sessionId },
+    { fetchPolicy: "store-and-network" }
+  );
+
+  const data = useFragment<SessionAnnotationsTable_annotations$key>(
+    graphql`
+      fragment SessionAnnotationsTable_annotations on ProjectSession {
         id
-        spanAnnotations {
+        sessionAnnotations {
           id
           name
           label
@@ -279,15 +282,17 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
         }
       }
     `,
-    span
+    queryData.session
   );
 
-  const annotations = data.spanAnnotations;
+  if (data == null) {
+    throw new Error("Session not found");
+  }
 
-  const hasAnnotations = data.spanAnnotations.length > 0;
-  return hasAnnotations ? (
-    <SpanAnnotationsTable annotations={annotations} spanNodeId={data.id} />
-  ) : (
-    <AnnotationsEmpty />
-  );
+  const annotations = data.sessionAnnotations;
+
+  if (annotations.length === 0) {
+    return <AnnotationsEmpty description="No annotations for this session" />;
+  }
+  return <AnnotationsTable annotations={annotations} sessionNodeId={data.id} />;
 }

@@ -5,13 +5,19 @@ import {
   Counter,
   Icon,
   Icons,
+  LazyTabPanel,
   Tab,
   TabList,
-  TabPanel,
   Tabs,
 } from "@phoenix/components";
 
-export type SessionView = "turns" | "traces";
+export type SessionView = "turns" | "traces" | "annotations";
+
+const SESSION_VIEWS: SessionView[] = ["turns", "traces", "annotations"];
+
+export function isSessionView(value: unknown): value is SessionView {
+  return SESSION_VIEWS.includes(value as SessionView);
+}
 
 const tabLabelCSS = css`
   display: inline-flex;
@@ -19,6 +25,10 @@ const tabLabelCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
+/**
+ * The top-level tabs for a session. The tab panels render the content for the
+ * selected view only, so the caller passes the content for the current view.
+ */
 export function SessionViewTabs({
   sessionView,
   onSessionViewChange,
@@ -34,7 +44,7 @@ export function SessionViewTabs({
     <Tabs
       selectedKey={sessionView}
       onSelectionChange={(key) => {
-        if (key === "turns" || key === "traces") {
+        if (isSessionView(key)) {
           onSessionViewChange(key);
         }
       }}
@@ -54,13 +64,18 @@ export function SessionViewTabs({
             <Counter variant="quiet">{traceCount}</Counter>
           </span>
         </Tab>
+        <Tab id="annotations">
+          <span css={tabLabelCSS}>
+            <Icon svg={<Icons.Edit2 />} />
+            Annotations
+          </span>
+        </Tab>
       </TabList>
-      <TabPanel id="turns">
-        {sessionView === "turns" ? children : null}
-      </TabPanel>
-      <TabPanel id="traces">
-        {sessionView === "traces" ? children : null}
-      </TabPanel>
+      {SESSION_VIEWS.map((view) => (
+        <LazyTabPanel key={view} id={view}>
+          {children}
+        </LazyTabPanel>
+      ))}
     </Tabs>
   );
 }

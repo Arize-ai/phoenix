@@ -259,7 +259,8 @@ class TestProjectSession:
     ) -> None:
         project_session = _data.project_sessions[0]
         field = (
-            "sessionAnnotations{id name label score explanation annotatorKind source identifier}"
+            "sessionAnnotations{id name label score explanation annotatorKind source identifier "
+            "createdAt updatedAt}"
         )
         result = await self._node(field, project_session, httpx_client)
 
@@ -285,6 +286,8 @@ class TestProjectSession:
             assert annotation["explanation"] is not None
             assert annotation["source"] in ["APP", "API"]
             assert annotation["identifier"] is not None
+            assert annotation["createdAt"] is not None
+            assert annotation["updatedAt"] is not None
 
     async def test_session_annotation_summaries(
         self,
