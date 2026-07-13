@@ -40,6 +40,20 @@ export const cardCSS = (style?: CSSProperties) => css`
       color: var(--global-text-color-700);
     }
 
+    /* Header layout when the title holds interactive controls */
+    & .card__collapsible-header {
+      display: flex;
+      flex: 1;
+      flex-direction: row;
+      align-items: center;
+      height: 100%;
+
+      & .card__collapsible-button {
+        flex: none;
+        width: auto;
+      }
+    }
+
     /* Collapsible button styles */
     & .card__collapsible-button {
       display: flex;
@@ -73,9 +87,11 @@ export const cardCSS = (style?: CSSProperties) => css`
     line-height: var(--global-line-height-m);
   }
 
-  /* Collapsible behavior */
+  /* Collapsible behavior: highlight the header only when the collapse
+     trigger itself is hovered, so the affordance matches the click target
+     (with interactiveTitle only the arrow button toggles) */
   &[data-collapsible="true"] {
-    & > header:hover {
+    & > header:has(.card__collapsible-button:hover) {
       background-color: var(--global-card-header-background-color-hover);
     }
   }
