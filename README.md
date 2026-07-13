@@ -82,7 +82,7 @@ For Docker Compose, Kubernetes/Helm, and other deployment options, see the [self
   &nbsp;
   <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FArize-ai%2Fphoenix%2Fmain%2Fazuredeploy.json"><img src="https://aka.ms/deploytoazurebutton" alt="Deploy to Azure" height="30"></a>
   &nbsp;
-  <a href="https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation"><img src="https://img.shields.io/badge/Deploy%20to-AWS-FF9900?logo=amazonwebservices&logoColor=white&labelColor=232F3E" alt="Deploy to AWS" height="34"></a>
+  <a href="https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation"><img src="https://img.shields.io/badge/Deploy%20to-AWS-FF9900?logo=amazonwebservices&logoColor=white&labelColor=232F3E" alt="Deploy to AWS" height="30"></a>
 </p>
 
 > [!NOTE]
