@@ -259,6 +259,13 @@ class TestSetExperimentBaselineMutation:
     MUTATION = """
       mutation ($experimentId: ID!, $baseline: Boolean!) {
         setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {
+          dataset {
+            id
+            baselineExperiment {
+              id
+              isBaseline
+            }
+          }
           experiment {
             id
             isBaseline
@@ -294,6 +301,7 @@ class TestSetExperimentBaselineMutation:
         simple_experiments: Any,
     ) -> None:
         experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+        dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
         response = await gql_client.execute(
             query=self.MUTATION,
             variables={"experimentId": experiment_id, "baseline": True},
@@ -301,6 +309,10 @@ class TestSetExperimentBaselineMutation:
         assert not response.errors
         assert response.data == {
             "setExperimentBaseline": {
+                "dataset": {
+                    "id": dataset_id,
+                    "baselineExperiment": {"id": experiment_id, "isBaseline": True},
+                },
                 "experiment": {"id": experiment_id, "isBaseline": True},
                 "previousBaselineExperiment": None,
             }
@@ -320,6 +332,7 @@ class TestSetExperimentBaselineMutation:
     ) -> None:
         first_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
         second_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(2)))
+        dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
         await gql_client.execute(
             query=self.MUTATION,
             variables={"experimentId": first_experiment_id, "baseline": True},
@@ -331,6 +344,13 @@ class TestSetExperimentBaselineMutation:
         assert not response.errors
         assert response.data == {
             "setExperimentBaseline": {
+                "dataset": {
+                    "id": dataset_id,
+                    "baselineExperiment": {
+                        "id": second_experiment_id,
+                        "isBaseline": True,
+                    },
+                },
                 "experiment": {"id": second_experiment_id, "isBaseline": True},
                 "previousBaselineExperiment": {
                     "id": first_experiment_id,
@@ -354,6 +374,7 @@ class TestSetExperimentBaselineMutation:
         simple_experiments: Any,
     ) -> None:
         experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+        dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
         await gql_client.execute(
             query=self.MUTATION,
             variables={"experimentId": experiment_id, "baseline": True},
@@ -366,6 +387,7 @@ class TestSetExperimentBaselineMutation:
             assert not response.errors
             assert response.data == {
                 "setExperimentBaseline": {
+                    "dataset": {"id": dataset_id, "baselineExperiment": None},
                     "experiment": {"id": experiment_id, "isBaseline": False},
                     "previousBaselineExperiment": None,
                 }
@@ -385,6 +407,7 @@ class TestSetExperimentBaselineMutation:
     ) -> None:
         baseline_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
         non_baseline_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(2)))
+        dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
         await gql_client.execute(
             query=self.MUTATION,
             variables={"experimentId": baseline_experiment_id, "baseline": True},
@@ -398,6 +421,13 @@ class TestSetExperimentBaselineMutation:
         assert not response.errors
         assert response.data == {
             "setExperimentBaseline": {
+                "dataset": {
+                    "id": dataset_id,
+                    "baselineExperiment": {
+                        "id": baseline_experiment_id,
+                        "isBaseline": True,
+                    },
+                },
                 "experiment": {"id": non_baseline_experiment_id, "isBaseline": False},
                 "previousBaselineExperiment": None,
             }
@@ -472,6 +502,9 @@ class TestSetExperimentBaselineMutation:
         second_dataset_experiment_id = str(
             GlobalID(type_name="Experiment", node_id=str(second_dataset_experiment_rowid))
         )
+        second_dataset_global_id = str(
+            GlobalID(type_name="Dataset", node_id=str(second_dataset_id))
+        )
 
         first_response = await gql_client.execute(
             query=self.MUTATION,
@@ -486,6 +519,13 @@ class TestSetExperimentBaselineMutation:
         assert not second_response.errors
         assert second_response.data == {
             "setExperimentBaseline": {
+                "dataset": {
+                    "id": second_dataset_global_id,
+                    "baselineExperiment": {
+                        "id": second_dataset_experiment_id,
+                        "isBaseline": True,
+                    },
+                },
                 "experiment": {"id": second_dataset_experiment_id, "isBaseline": True},
                 "previousBaselineExperiment": None,
             }

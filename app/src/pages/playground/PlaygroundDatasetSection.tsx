@@ -1,5 +1,7 @@
+import type { Ref } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
+import type { PanelImperativeHandle } from "react-resizable-panels";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
@@ -17,6 +19,7 @@ import {
 } from "@phoenix/agent/tools/datasetEvaluatorSelection";
 import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
@@ -33,6 +36,12 @@ import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundExperimentToolbar } from "./PlaygroundExperimentToolbar";
 
+/**
+ * Panel config for the experiment (io) section. Shared with the Suspense
+ * fallback in Playground.tsx so the two stay in sync.
+ */
+export const IO_PANEL_PROPS = { id: "io", minSize: "15%" } as const;
+
 export function PlaygroundDatasetSection({
   datasetId,
   splitIds,
@@ -40,6 +49,8 @@ export function PlaygroundDatasetSection({
   onCodeEvaluatorFormOpenChange,
   isLlmEvaluatorFormOpen,
   onLlmEvaluatorFormOpenChange,
+  panelRef,
+  onPanelCollapseChange,
 }: {
   datasetId: string;
   splitIds?: string[];
@@ -47,6 +58,8 @@ export function PlaygroundDatasetSection({
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
   isLlmEvaluatorFormOpen: boolean;
   onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  panelRef?: Ref<PanelImperativeHandle | null>;
+  onPanelCollapseChange?: (collapsed: boolean) => void;
 }) {
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
@@ -243,34 +256,45 @@ export function PlaygroundDatasetSection({
   // We want to re-mount the context when the dataset or the splits change
   const key = `${datasetId}-${splitIds?.join("-")}`;
   return (
-    <Flex direction={"column"} height={"100%"}>
-      <PlaygroundExperimentToolbar
-        datasetId={datasetId}
-        datasetEvaluators={datasetEvaluators}
-        selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
-        onSelectionChange={setSelectedDatasetEvaluatorIds}
-        updateConnectionIds={
-          data.dataset.datasetEvaluators?.__id != null
-            ? [data.dataset.datasetEvaluators.__id]
-            : []
-        }
-        onEvaluatorCreated={onEvaluatorCreated}
-        query={data}
-        isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
-        onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
-        isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
-        onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
-        editingEvaluator={editingEvaluator}
-        onEditingEvaluatorChange={setEditingEvaluator}
-      />
-      <PlaygroundDatasetExamplesTableProvider key={key}>
-        <PlaygroundDatasetExamplesTable
+    <TitledPanel
+      ref={panelRef}
+      resizable
+      headingLevel={2}
+      title="Experiment"
+      extra={
+        <PlaygroundExperimentToolbar
           datasetId={datasetId}
-          splitIds={splitIds}
-          evaluatorMappings={selectedEvaluatorWithInputMapping}
-          evaluatorOutputConfigs={evaluatorOutputConfigs}
+          datasetEvaluators={datasetEvaluators}
+          selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
+          onSelectionChange={setSelectedDatasetEvaluatorIds}
+          updateConnectionIds={
+            data.dataset.datasetEvaluators?.__id != null
+              ? [data.dataset.datasetEvaluators.__id]
+              : []
+          }
+          onEvaluatorCreated={onEvaluatorCreated}
+          query={data}
+          isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+          onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
+          isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+          onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
+          editingEvaluator={editingEvaluator}
+          onEditingEvaluatorChange={setEditingEvaluator}
         />
-      </PlaygroundDatasetExamplesTableProvider>
-    </Flex>
+      }
+      panelProps={IO_PANEL_PROPS}
+      onCollapseChange={onPanelCollapseChange}
+    >
+      <Flex direction={"column"} height={"100%"}>
+        <PlaygroundDatasetExamplesTableProvider key={key}>
+          <PlaygroundDatasetExamplesTable
+            datasetId={datasetId}
+            splitIds={splitIds}
+            evaluatorMappings={selectedEvaluatorWithInputMapping}
+            evaluatorOutputConfigs={evaluatorOutputConfigs}
+          />
+        </PlaygroundDatasetExamplesTableProvider>
+      </Flex>
+    </TitledPanel>
   );
 }

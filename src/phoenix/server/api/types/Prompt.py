@@ -1,6 +1,6 @@
 # Part of the Phoenix PromptHub feature set
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from sqlalchemy import func, select
@@ -26,6 +26,9 @@ from .PromptVersion import (
     to_gql_prompt_version,
 )
 from .PromptVersionTag import PromptVersionTag
+
+if TYPE_CHECKING:
+    from .User import User
 
 
 @strawberry.type
@@ -103,6 +106,30 @@ class Prompt(Node):
                 (self.id, models.Prompt.created_at),
             )
         return val
+
+    @strawberry.field(
+        description="The user that created the prompt, i.e. the author of its first version."
+    )  # type: ignore
+    async def created_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        authors = await info.context.data_loaders.prompt_authors.load(self.id)
+        from .User import to_gql_user
+
+        return to_gql_user(authors.created_by)
+
+    @strawberry.field(
+        description="The user that last updated the prompt, i.e. the author of its latest version."
+    )  # type: ignore
+    async def updated_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        authors = await info.context.data_loaders.prompt_authors.load(self.id)
+        from .User import to_gql_user
+
+        return to_gql_user(authors.updated_by)
 
     @strawberry.field
     async def version(

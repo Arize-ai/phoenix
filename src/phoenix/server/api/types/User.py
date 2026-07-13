@@ -171,3 +171,10 @@ class User(Node):
         if email in initial_admins or email == "admin@localhost":
             return True
         return False
+
+
+def to_gql_user(record: Optional[models.User]) -> Optional[User]:
+    """Resolves a user record, carrying it along so its fields need no further query."""
+    if record is None:
+        return None
+    return User(id=record.id, db_record=record)

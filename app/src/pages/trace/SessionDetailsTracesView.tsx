@@ -725,6 +725,14 @@ const traceTreeContainerCSS = css`
   overflow: auto;
   border-top: 1px solid var(--global-border-color-default);
   background: var(--global-color-gray-75);
+
+  /* The tree renders inside a trace row that is itself selected, so tone the
+   * span selection down a step — the strong list-item selection color stays
+   * on the trace row. */
+  & .span-node-wrap.is-selected {
+    background-color: var(--global-color-gray-100);
+    border-color: var(--global-color-gray-200);
+  }
 `;
 
 const spanDetailsContainerCSS = css`

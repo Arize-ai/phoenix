@@ -76,7 +76,10 @@ async function createDataset(page: Page, datasetName: string) {
   await page.getByRole("tab", { name: "From scratch" }).click();
   await page.getByLabel("Dataset Name").clear();
   await page.getByLabel("Dataset Name").fill(datasetName);
-  await page.getByLabel("Description").fill("label e2e coverage");
+  await page
+    .getByTestId("dialog")
+    .getByLabel("Description")
+    .fill("label e2e coverage");
   await page.getByRole("button", { name: "Create Dataset" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
 }

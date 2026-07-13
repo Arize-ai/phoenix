@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8725c611cf9dbbd996db0d301dcc672b>>
+ * @generated SignedSource<<d36c52a28e101c61173437c27273d90a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -110,10 +110,10 @@ v2 = {
 },
 v3 = [
   {
-    "alias": null,
+    "alias": "value",
     "args": null,
     "kind": "ScalarField",
-    "name": "value",
+    "name": "truncatedValue",
     "storageKey": null
   }
 ],
@@ -614,6 +614,6 @@ return {
 };
 })();
 
-(node as any).hash = "5b3f781dd578f1b1198e7de5a5daf95d";
+(node as any).hash = "69a156077f90546ab0cc28a2b1e7a901";
 
 export default node;

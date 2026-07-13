@@ -1,7 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
 import {
-  Alert,
   ExternalLink,
   Icon,
   IconButton,
@@ -26,6 +25,19 @@ const LOCAL_STORAGE_DISMISSED_UPDATE_VERSION_KEY =
  * Minor releases ship too often for every one to be worth a nav banner.
  */
 const MINOR_VERSIONS_BEHIND_THRESHOLD = 2;
+
+/**
+ * Whether this Phoenix instance is a managed/hosted deployment (e.g. Phoenix
+ * Cloud). Managed deployments inject `window.Config.managementUrl` and upgrade
+ * on their own cadence, which users cannot control — so surfacing an upgrade
+ * notice there is misleading and actionable only by the operator, not the
+ * viewer. We reuse the `managementUrl` heuristic (the same deployment-mode
+ * signal used elsewhere, e.g. the sandbox trust warning) until a dedicated
+ * server flag exists.
+ */
+function isManagedDeployment(): boolean {
+  return Boolean(window.Config.managementUrl);
+}
 
 const versionUpdateNoticeIn = keyframes`
   from {
@@ -174,7 +186,8 @@ export function VersionUpdateNoticeItem({
  * notice stays hidden until the latest release pulls the same threshold ahead
  * of the dismissed version. Renders as an `<li>` so it can sit directly
  * inside the nav link list, or nothing at all when there is no update to
- * show.
+ * show. Never shown on managed deployments (see {@link isManagedDeployment}),
+ * which upgrade on a cadence the viewer cannot control.
  */
 export function VersionUpdateNotice({ isExpanded }: { isExpanded: boolean }) {
   const canSeeVersionUpdates = useViewerCanSeeVersionUpdates();
@@ -199,6 +212,7 @@ export function VersionUpdateNotice({ isExpanded }: { isExpanded: boolean }) {
       minorVersions: MINOR_VERSIONS_BEHIND_THRESHOLD,
     });
   if (
+    isManagedDeployment() ||
     !canSeeVersionUpdates ||
     !isExpanded ||
     !hasSignificantUpdate ||
@@ -224,7 +238,9 @@ export function VersionUpdateNotice({ isExpanded }: { isExpanded: boolean }) {
  * pushing a banner for every minor release. Only admins see this status, for
  * the same reason the nav notice is admin-only: they are the ones who can
  * act on it by upgrading the server. Renders nothing while the latest
- * version is unknown or when the server is up to date.
+ * version is unknown, when the server is up to date, or on managed
+ * deployments (see {@link isManagedDeployment}), which upgrade on a cadence
+ * the viewer cannot control.
  */
 export function PlatformVersionStatus() {
   const canSeeVersionUpdates = useViewerCanSeeVersionUpdates();
@@ -232,20 +248,15 @@ export function PlatformVersionStatus() {
   const isLagging =
     latestVersion != null &&
     isVersionNewer({ current: VERSION, latest: latestVersion });
-  if (!canSeeVersionUpdates || !isLagging) {
+  if (isManagedDeployment() || !canSeeVersionUpdates || !isLagging) {
     return null;
   }
   return (
-    <Alert
-      variant="warning"
-      extra={
-        <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
-          View release notes
-        </ExternalLink>
-      }
-      data-testid="platform-version-status"
-    >
-      A newer version of Phoenix is available (v{latestVersion}).
-    </Alert>
+    <Text color="warning" size="XS" data-testid="platform-version-status">
+      A newer version of Phoenix is available (v{latestVersion}).{" "}
+      <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
+        View release notes
+      </ExternalLink>
+    </Text>
   );
 }

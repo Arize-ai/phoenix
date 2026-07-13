@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c3b7ff4ceca244befbfc6ce358cb9c8a>>
+ * @generated SignedSource<<032328ec45a539b5b4dbe51cd722a4c0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -87,7 +87,24 @@ v3 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v4 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  },
+  (v2/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -141,6 +158,26 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "description",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "createdBy",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "updatedBy",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -298,16 +335,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "200e422ae60402f476b34c8b1e4d53b4",
+    "cacheID": "5714fb10ee8f5c1c17173ac14786201e",
     "id": null,
     "metadata": {},
     "name": "PromptsTablePromptsQuery",
     "operationKind": "query",
-    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n  $labelIds: [ID!] = null\n) {\n  ...PromptsTable_prompts_2FeKoo\n}\n\nfragment PromptsTable_prompts_2FeKoo on Query {\n  prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n  $labelIds: [ID!] = null\n) {\n  ...PromptsTable_prompts_2FeKoo\n}\n\nfragment PromptsTable_prompts_2FeKoo on Query {\n  prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdBy {\n          username\n          profilePictureUrl\n          id\n        }\n        updatedBy {\n          username\n          profilePictureUrl\n          id\n        }\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b5fb70bb7de99fce33aaeac3b119d898";
+(node as any).hash = "0716ae3773a7559b1fc7cc94a404b820";
 
 export default node;

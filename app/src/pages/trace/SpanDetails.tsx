@@ -497,9 +497,7 @@ function SpanInfo({ span }: { span: Span }) {
 
   const statusDescription = useMemo(() => {
     return span.statusMessage ? (
-      <Alert variant="danger" title="Status Description">
-        {span.statusMessage}
-      </Alert>
+      <Alert variant="danger">{span.statusMessage}</Alert>
     ) : null;
   }, [span]);
 

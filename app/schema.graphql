@@ -944,6 +944,14 @@ type Dataset implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """The user that created the dataset."""
+  createdBy: User
+
+  """
+  The user that last updated the dataset, i.e. the author of its latest version.
+  """
+  updatedBy: User
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
 
@@ -972,6 +980,9 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+
+  """The experiment tagged as this dataset's baseline, if one is set."""
+  baselineExperiment: Experiment
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
@@ -3050,6 +3061,16 @@ type Prompt implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """
+  The user that created the prompt, i.e. the author of its first version.
+  """
+  createdBy: User
+
+  """
+  The user that last updated the prompt, i.e. the author of its latest version.
+  """
+  updatedBy: User
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionCount: Int!
   versionTags: [PromptVersionTag!]!
@@ -3826,6 +3847,7 @@ type SetDatasetLabelsMutationPayload {
 }
 
 type SetExperimentBaselinePayload {
+  dataset: Dataset!
   experiment: Experiment!
   previousBaselineExperiment: Experiment
 }

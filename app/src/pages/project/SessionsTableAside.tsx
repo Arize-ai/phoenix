@@ -41,7 +41,7 @@ export function SessionsTableAside(props: {
   const filterIoSubstringOrSessionId =
     props.filterIoSubstringOrSessionId || null;
   const projectId = useTracingContext((state) => state.projectId);
-  const { timeRange } = useTimeRange();
+  const { timeRangeISOStrings } = useTimeRange();
   const { fetchKey } = useStreamState();
   const data = useLazyLoadQuery<SessionsTableAsideQuery>(
     graphql`
@@ -89,10 +89,7 @@ export function SessionsTableAside(props: {
     `,
     {
       id: projectId,
-      timeRange: {
-        start: timeRange?.start?.toISOString(),
-        end: timeRange?.end?.toISOString(),
-      },
+      timeRange: timeRangeISOStrings,
       filterIoSubstring: filterIoSubstringOrSessionId,
       sessionId: filterIoSubstringOrSessionId,
     },

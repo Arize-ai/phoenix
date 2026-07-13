@@ -14,6 +14,9 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
 
+_LONG_FIRST_INPUT = "i" * 110
+_LONG_LAST_OUTPUT = "o" * 110
+
 
 class _Data(NamedTuple):
     spans: list[models.Span]
@@ -68,7 +71,10 @@ class TestProjectSession:
                 await _add_span(
                     session,
                     traces[-1],
-                    attributes={"input": {"value": "123"}, "output": {"value": "321"}},
+                    attributes={
+                        "input": {"value": _LONG_FIRST_INPUT},
+                        "output": {"value": "321"},
+                    },
                     cumulative_llm_token_count_prompt=1,
                     cumulative_llm_token_count_completion=2,
                     llm_token_count_prompt=1,
@@ -88,7 +94,10 @@ class TestProjectSession:
                 await _add_span(
                     session,
                     traces[-1],
-                    attributes={"input": {"value": "1234"}, "output": {"value": "4321"}},
+                    attributes={
+                        "input": {"value": "1234"},
+                        "output": {"value": _LONG_LAST_OUTPUT},
+                    },
                     cumulative_llm_token_count_prompt=3,
                     cumulative_llm_token_count_completion=4,
                     llm_token_count_prompt=3,
@@ -173,9 +182,10 @@ class TestProjectSession:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "firstInput{value mimeType}"
+        field = "firstInput{value truncatedValue mimeType}"
         assert await self._node(field, project_session, httpx_client) == {
-            "value": "123",
+            "value": _LONG_FIRST_INPUT,
+            "truncatedValue": f"{'i' * 97}...",
             "mimeType": "text",
         }
 
@@ -185,9 +195,10 @@ class TestProjectSession:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "lastOutput{value mimeType}"
+        field = "lastOutput{value truncatedValue mimeType}"
         assert await self._node(field, project_session, httpx_client) == {
-            "value": "4321",
+            "value": _LONG_LAST_OUTPUT,
+            "truncatedValue": f"{'o' * 97}...",
             "mimeType": "text",
         }
 

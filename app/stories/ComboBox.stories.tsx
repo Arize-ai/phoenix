@@ -1,6 +1,6 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
-import { Flex, View } from "@phoenix/components";
+import { Flex, Input, Label, TextField, View } from "@phoenix/components";
 import type { ComboBoxProps } from "@phoenix/components/core/combobox/ComboBox";
 import {
   ComboBox,
@@ -81,6 +81,27 @@ export const Default = {
   args: {
     label: "Ice cream flavor",
   },
+};
+
+export const KeyboardNavigation = {
+  render: () => (
+    <View width="300px">
+      <Flex direction="column" gap="size-100">
+        <ComboBox label="Prompt" stopPropagation>
+          <ComboBoxItem textValue="Customer support" key="customer-support">
+            Customer support
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Product summary" key="product-summary">
+            Product summary
+          </ComboBoxItem>
+        </ComboBox>
+        <TextField>
+          <Label>Description</Label>
+          <Input />
+        </TextField>
+      </Flex>
+    </View>
+  ),
 };
 
 export function Gallery() {

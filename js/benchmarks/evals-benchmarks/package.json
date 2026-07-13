@@ -19,7 +19,7 @@
     "@types/node": "^25.9.4",
     "dotenv": "^16.6.1",
     "tsx": "^4.22.5",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.9"
   }
 }

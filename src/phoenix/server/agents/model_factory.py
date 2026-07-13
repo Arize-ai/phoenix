@@ -23,6 +23,7 @@ from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic import ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
+from pydantic_ai.settings import ModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -53,6 +54,20 @@ from phoenix.utilities.env_vars import without_env_vars
 
 class _EncryptedProviderRecord(Protocol):
     config: bytes
+
+
+# Output-token cap policy: a cap that binds mid-tool-call truncates the streamed
+# argument JSON, and the turn dies (reproduced identically on Anthropic, OpenAI, and
+# Google). Per provider:
+#   - Anthropic: the API requires max_tokens and pydantic-ai defaults it to 4096, which
+#     Opus-class models exhaust mid-tool-call (adaptive thinking counts against it) when
+#     emitting bulk tool arguments, e.g. create_dataset examples. All Anthropic models
+#     offered for the assistant support >=64k output, so set the cap well clear of
+#     realistic single-response payloads.
+#   - OpenAI and Google: max_tokens is deliberately left unset. pydantic-ai omits the
+#     field, and both APIs then default to the model's maximum output — any explicit
+#     value could only introduce truncation.
+_ANTHROPIC_MAX_TOKENS = 32_000
 
 
 def _build_openai_model(
@@ -316,7 +331,11 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
                     max_retries=0,
                 )
             )
-        return AnthropicModel(model_name, provider=anthropic_provider)
+        return AnthropicModel(
+            model_name,
+            provider=anthropic_provider,
+            settings=ModelSettings(max_tokens=_ANTHROPIC_MAX_TOKENS),
+        )
     if config.type == "google_genai":
         google_kwargs = config.google_genai_client_kwargs
         http_options = google_kwargs.http_options if google_kwargs else None
@@ -432,7 +451,11 @@ async def _get_pydantic_ai_model_from_builtin_provider(
                 "Set the ANTHROPIC_API_KEY environment variable or store it in Phoenix secrets."
             )
         anthropic_provider = AnthropicProvider(anthropic_client=AsyncAnthropic(api_key=api_key))
-        return AnthropicModel(params.model_name, provider=anthropic_provider)
+        return AnthropicModel(
+            params.model_name,
+            provider=anthropic_provider,
+            settings=ModelSettings(max_tokens=_ANTHROPIC_MAX_TOKENS),
+        )
     if params.provider == ModelProvider.GOOGLE:
         api_key = await _resolve_secret_or_env(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
         if not api_key:

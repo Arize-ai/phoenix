@@ -2799,7 +2799,7 @@ async def test_available_agent_skills_base_catalog(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # No context mounted: only the always-on skills, in catalog order, no gated ones.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql"]
+    assert names == ["debug-trace", "annotate-spans", "span-coding", "phoenix-graphql"]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
     assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
@@ -2816,7 +2816,13 @@ async def test_available_agent_skills_playground_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # Playground context adds the playground skill on top of the always-on base.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "playground"]
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "span-coding",
+        "phoenix-graphql",
+        "playground",
+    ]
 
 
 async def test_available_agent_skills_dataset_context(
@@ -2833,6 +2839,7 @@ async def test_available_agent_skills_dataset_context(
     assert names == [
         "debug-trace",
         "annotate-spans",
+        "span-coding",
         "phoenix-graphql",
         "datasets",
         "experiments",
@@ -2851,7 +2858,13 @@ async def test_available_agent_skills_llm_evaluator_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "span-coding",
+        "phoenix-graphql",
+        "evaluators",
+    ]
 
 
 async def test_available_agent_skills_code_evaluator_context(
@@ -2865,7 +2878,13 @@ async def test_available_agent_skills_code_evaluator_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "span-coding",
+        "phoenix-graphql",
+        "evaluators",
+    ]
 
 
 async def test_node_with_noninteger_payload_returns_bad_request(

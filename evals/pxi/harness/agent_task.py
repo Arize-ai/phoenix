@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
@@ -38,6 +40,20 @@ from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.dml_event import DmlEvent
+from phoenix.server.types import CanPutItem, DbSessionFactory
+
+
+@asynccontextmanager
+async def _unavailable_db_session(_: Any) -> AsyncIterator[Any]:
+    raise RuntimeError("PXI eval harness does not provide a Phoenix database.")
+    yield
+
+
+class _NoOpEventQueue:
+    def put(self, item: DmlEvent) -> None:
+        return None
+
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -46,6 +62,8 @@ ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
 _MAX_ERROR_MESSAGE_LEN = 200
+_OFFLINE_DB = DbSessionFactory(db=_unavailable_db_session, dialect="sqlite")
+_OFFLINE_EVENT_QUEUE: CanPutItem[DmlEvent] = _NoOpEventQueue()
 
 
 def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
@@ -78,7 +96,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=base_url,
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -101,7 +119,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=azure_endpoint_to_base_url(endpoint),
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -121,7 +139,7 @@ async def _build_model() -> PydanticAIModel:
         return AnthropicModel(
             model_name,
             provider=AnthropicProvider(
-                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=0)
+                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=3)
             ),
         )
 
@@ -499,7 +517,13 @@ async def run_pxi_example(
     try:
         user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
-        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=docs_mcp_server,
+            db=_OFFLINE_DB,
+            event_queue=_OFFLINE_EVENT_QUEUE,
+            read_only=True,
+        )
         result = await agent.run(
             user_prompt,
             deps=_build_dependencies(input),

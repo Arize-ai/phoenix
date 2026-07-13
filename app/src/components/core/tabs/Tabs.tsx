@@ -3,6 +3,7 @@ import { useEvent, useResizeObserver } from "@react-aria/utils";
 import type { ComponentProps } from "react";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  SelectionIndicator as AriaSelectionIndicator,
   Tab as AriaTab,
   TabList as AriaTabList,
   type TabListProps as AriaTabListProps,
@@ -104,12 +105,32 @@ export function Tabs({
 const tabListCSS = css`
   display: flex;
 
+  // The sliding selection indicator. react-aria positions it over the
+  // selected tab via translate and animates between tabs; only the
+  // orientation-specific edge placement is styled here.
+  .react-aria-SelectionIndicator {
+    position: absolute;
+    z-index: 1;
+    background: var(--tab-indicator-color, var(--global-color-primary));
+    border-radius: var(--global-rounding-small);
+    transition-property: translate, width, height;
+    transition-duration: 250ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
   &[data-orientation="vertical"] {
     flex-direction: column;
     border-inline-end: 1px solid var(--tab-border-color);
 
-    .react-aria-Tab {
-      border-inline-end: 3px solid var(--tab-border-color, transparent);
+    .react-aria-SelectionIndicator {
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: 3px;
     }
   }
 
@@ -126,6 +147,10 @@ const tabListCSS = css`
     // navigation and honors scroll-padding, so inset the scroll port to keep
     // the focused tab from parking underneath the edge fade.
     scroll-padding-inline: var(--tab-fade-size);
+    // Settle trackpad/touch scrolls on a tab boundary so the list never rests
+    // with a half-clipped tab under the edge fade. Proximity (not mandatory)
+    // keeps long free scrolls through many tabs feeling natural.
+    scroll-snap-type: x proximity;
     // Hide the scrollbar; the overflow is still scrollable via trackpad,
     // shift-scroll, or keyboard navigation between tabs. A directional fade
     // (below) signals that more tabs are available since macOS hides the
@@ -159,12 +184,19 @@ const tabListCSS = css`
       );
     }
 
+    .react-aria-SelectionIndicator {
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 3px;
+    }
+
     .react-aria-Tab {
-      border-bottom: 3px solid var(--tab-border-color);
       // Prevent tabs from shrinking or wrapping their labels when the list
       // runs out of room.
       flex: 0 0 auto;
       white-space: nowrap;
+      scroll-snap-align: start;
     }
   }
 `;
@@ -243,28 +275,45 @@ const tabCSS = css`
   outline: none;
   position: relative;
   color: var(--global-text-color-700);
-  transition: color 200ms;
-  --tab-border-color: transparent;
+  transition: color 150ms ease-out;
   forced-color-adjust: none;
+  -webkit-tap-highlight-color: transparent;
   font-weight: 600;
   line-height: var(--global-line-height-s);
   font-size: var(--global-font-size-s);
 
-  &[data-hovered],
-  &[data-focused] {
-    --tab-border-color: var(--global-color-primary-300);
+  // Hover pill, drawn behind the label and inset from the tab's hit area so
+  // adjacent pills never touch. Kept as a pseudo-element so the tab's own box
+  // (and the selection indicator's measurements) are unaffected.
+  &:before {
+    content: "";
+    position: absolute;
+    inset: var(--global-dimension-size-50);
+    border-radius: var(--global-rounding-small);
+    transition: background 150ms ease-out;
+    z-index: -1;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    &:before {
+      transition: none;
+    }
+  }
+
+  &[data-hovered],
+  &[data-focused],
   &[data-selected] {
-    --tab-border-color: var(--global-color-primary);
     color: var(--global-text-color-900);
+  }
+
+  &[data-hovered]:not([data-selected]):before {
+    background: var(--global-color-primary-100);
   }
 
   &[data-disabled] {
     color: var(--global-text-color-300);
-    &[data-selected] {
-      --tab-border-color: var(--global-text-color-300);
-    }
+    --tab-indicator-color: var(--global-text-color-300);
   }
 
   &[data-focus-visible]:after {
@@ -289,6 +338,7 @@ export function Tab({
       {...props}
     >
       {children}
+      <AriaSelectionIndicator className="react-aria-SelectionIndicator" />
     </AriaTab>
   );
 }

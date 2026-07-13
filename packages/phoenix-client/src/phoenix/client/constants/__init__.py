@@ -19,6 +19,12 @@ ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT"
 # Supported alias for ENV_PHOENIX_PROJECT (the name the Python SDKs historically
 # read). ENV_PHOENIX_PROJECT takes precedence when both are set.
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
+# Set to "false" (or "0" / "no" / "off") to disable .env.phoenix file discovery.
+# Read from the process environment only.
+ENV_PHOENIX_DISCOVER_CONFIG = "PHOENIX_DISCOVER_CONFIG"
+
+# Name of the credential hand-off file discovered at (or above) the working directory.
+PHOENIX_ENV_FILE_NAME = ".env.phoenix"
 
 HOST = "0.0.0.0"
 PORT = 6006

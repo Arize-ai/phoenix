@@ -1,7 +1,11 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  clearEnvFileCache,
+  resetCrossTierEndpointWarningsForTesting,
+} from "@arizeai/phoenix-config";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getConfigErrorMessage,
@@ -234,6 +238,100 @@ describe("Configuration", () => {
       expect(config.credentialSource).toBe("profile-key");
       expect(config.apiKey).toBe("profile-key");
       expect(config.oauthTokens).toBeUndefined();
+    });
+  });
+
+  describe(".env.phoenix precedence", () => {
+    let envFileDir: string;
+
+    beforeEach(() => {
+      envFileDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-env-file-"));
+      // Discovery is disabled globally in test/setup.ts; re-enable it here.
+      delete process.env.PHOENIX_DISCOVER_CONFIG;
+      vi.spyOn(process, "cwd").mockReturnValue(envFileDir);
+      clearEnvFileCache();
+      resetCrossTierEndpointWarningsForTesting();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      clearEnvFileCache();
+      fs.rmSync(envFileDir, { recursive: true, force: true });
+    });
+
+    function writeEnvFile(contents: string): void {
+      fs.writeFileSync(path.join(envFileDir, ".env.phoenix"), contents);
+    }
+
+    function saveProfile(): void {
+      const settings: SettingsFile = {
+        activeProfile: "staging",
+        profiles: {
+          staging: {
+            endpoint: "https://staging.example.com",
+            apiKey: "profile-key",
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+    }
+
+    it("applies file values when nothing else provides them", () => {
+      writeEnvFile(
+        "PHOENIX_API_KEY=file-key\nPHOENIX_HOST=http://file-host:6006\n"
+      );
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.apiKey).toBe("file-key");
+      expect(config.endpoint).toBe("http://file-host:6006");
+    });
+
+    it("never lets file values override an explicitly selected profile", () => {
+      writeEnvFile("PHOENIX_API_KEY=file-key\n");
+      saveProfile();
+      const config = resolveConfig({ cliOptions: {}, profileName: "staging" });
+      expect(config.apiKey).toBe("profile-key");
+      expect(config.endpoint).toBe("https://staging.example.com");
+    });
+
+    it("ranks file values below the active profile but process env above it", () => {
+      writeEnvFile("PHOENIX_API_KEY=file-key\nPHOENIX_PROJECT=file-project\n");
+      saveProfile();
+      process.env.PHOENIX_HOST = "http://process-host:6006";
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.apiKey).toBe("profile-key");
+      expect(config.endpoint).toBe("http://process-host:6006");
+      expect(config.project).toBe("file-project");
+    });
+
+    it("does not mix process credentials with file credentials", () => {
+      writeEnvFile("PHOENIX_API_KEY=file-key\n");
+      process.env.PHOENIX_CLIENT_HEADERS = '{"X-Custom": "value"}';
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.apiKey).toBeUndefined();
+      expect(config.headers).toEqual({ "X-Custom": "value" });
+    });
+
+    it("warns once while retaining a file endpoint and process credentials", () => {
+      const filePath = path.join(envFileDir, ".env.phoenix");
+      writeEnvFile("PHOENIX_HOST=http://file-host:6006\n");
+      fs.chmodSync(filePath, 0o600);
+      process.env.PHOENIX_API_KEY = "secret-process-key";
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const config = resolveConfig({ cliOptions: {} });
+      resolveConfig({ cliOptions: {} });
+
+      expect(config).toMatchObject({
+        apiKey: "secret-process-key",
+        endpoint: "http://file-host:6006",
+      });
+      expect(warnSpy).toHaveBeenCalledOnce();
+      expect(warnSpy).toHaveBeenCalledWith(
+        `Credentials from the process environment will be sent to PHOENIX_HOST set by ${filePath}.`
+      );
+      expect(warnSpy.mock.calls[0]?.[0]).not.toContain("secret-process-key");
     });
   });
 
