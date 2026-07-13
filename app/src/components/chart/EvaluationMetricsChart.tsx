@@ -10,20 +10,13 @@ import {
   YAxis,
 } from "recharts";
 
-import { useTheme } from "@phoenix/contexts";
-import { getWordColor } from "@phoenix/utils/colorUtils";
 import {
   floatFormatter,
-  intFormatter,
   percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
 import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
-import {
-  ChartTooltip,
-  ChartTooltipDivider,
-  ChartTooltipItem,
-} from "./ChartTooltip";
+import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
 import {
   getCategoryChartColor,
   useCategoryChartColors,
@@ -79,10 +72,6 @@ function EvaluationMetricsTooltip({
           />
         );
       })}
-      <ChartTooltipDivider />
-      <ChartTooltipItem name="Count" value={intFormatter(point.count)} />
-      <ChartTooltipItem name="Scores" value={intFormatter(point.scoreCount)} />
-      <ChartTooltipItem name="Labels" value={intFormatter(point.labelCount)} />
     </ChartTooltip>
   );
 }
@@ -102,7 +91,6 @@ export function EvaluationMetricsChart({
   renderTooltipHeader: (point: EvaluationMetricsChartPoint) => ReactNode;
   barChartProps?: ComponentProps<typeof BarChart>;
 }) {
-  const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
   const { gray500 } = useSequentialChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
@@ -171,7 +159,10 @@ export function EvaluationMetricsChart({
                   fill={
                     label === SCORE_ONLY_LABEL
                       ? gray500
-                      : getWordColor({ word: label, theme })
+                      : getCategoryChartColor({
+                          index: index + (series.hasScores ? 1 : 0),
+                          colors: categoryColors,
+                        })
                   }
                   hide={isDataKeyHidden(dataKey)}
                   radius={index === series.labels.length - 1 ? [2, 2, 0, 0] : 0}

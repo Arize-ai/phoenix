@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import {
   ChartPanel,
@@ -26,8 +27,10 @@ const evaluationGridCSS = css`
 
 export function ExperimentEvaluationMetricsGrid({
   datasetId,
+  children,
 }: {
   datasetId: string;
+  children: ReactNode;
 }) {
   const { experiments, baselineExperiment } =
     useExperimentMetricsData(datasetId);
@@ -48,10 +51,6 @@ export function ExperimentEvaluationMetricsGrid({
       })),
     }))
   );
-
-  if (evaluationSeries.length === 0) {
-    return null;
-  }
 
   return (
     <div css={evaluationGridCSS} data-testid="experiment-evaluation-grid">
@@ -79,6 +78,7 @@ export function ExperimentEvaluationMetricsGrid({
           />
         </ChartPanel>
       ))}
+      {children}
     </div>
   );
 }

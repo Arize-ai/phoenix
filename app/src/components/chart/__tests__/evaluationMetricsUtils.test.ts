@@ -131,8 +131,8 @@ describe("normalizeEvaluationMetrics", () => {
     expect(normalizeEvaluationMetrics([{ x: 1, summaries: [] }])).toEqual([]);
   });
 
-  it("retains an empty series for a known evaluation with no chartable values", () => {
-    const [series] = normalizeEvaluationMetrics([
+  it("omits evaluations with no chartable values", () => {
+    const series = normalizeEvaluationMetrics([
       {
         x: 1,
         summaries: [
@@ -148,11 +148,6 @@ describe("normalizeEvaluationMetrics", () => {
       },
     ]);
 
-    expect(series).toMatchObject({
-      name: "explanation-only",
-      hasScores: false,
-      hasLabels: false,
-      labels: [],
-    });
+    expect(series).toEqual([]);
   });
 });

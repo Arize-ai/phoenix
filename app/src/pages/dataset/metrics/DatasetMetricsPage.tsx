@@ -12,13 +12,18 @@ import { ExperimentEvaluationMetricsGrid } from "./ExperimentEvaluationMetricsGr
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 /**
- * The charts shown on the metrics tab, row by row. Single-chart rows are full
- * width; the final two-chart row splits the available width evenly.
+ * The overview charts shown above the per-evaluation grid. Each row is full
+ * width so the existing aggregate metrics remain grouped together.
  */
 const METRIC_PAGE_ROWS: ExperimentMetricChartKey[][] = [
+  ["annotation_scores"],
   ["latency"],
   ["cost"],
-  ["tokens", "error_rate"],
+];
+
+const TRAILING_METRIC_CHARTS: ExperimentMetricChartKey[] = [
+  "tokens",
+  "error_rate",
 ];
 
 export function DatasetMetricsPage() {
@@ -52,11 +57,18 @@ export function DatasetMetricsPage() {
           padding: var(--global-dimension-size-200);
         `}
       >
-        <MetricRow datasetId={datasetId} row={["annotation_scores"]} />
-        <ExperimentEvaluationMetricsGrid datasetId={datasetId} />
         {METRIC_PAGE_ROWS.map((row) => (
           <MetricRow datasetId={datasetId} row={row} key={row.join("+")} />
         ))}
+        <ExperimentEvaluationMetricsGrid datasetId={datasetId}>
+          {TRAILING_METRIC_CHARTS.map((chartKey) => (
+            <MetricPanel
+              key={chartKey}
+              datasetId={datasetId}
+              chartKey={chartKey}
+            />
+          ))}
+        </ExperimentEvaluationMetricsGrid>
       </div>
     </section>
   );
@@ -72,14 +84,29 @@ function MetricRow({
   return (
     <Flex direction="row" gap="size-200">
       {row.map((chartKey) => {
-        const { name, description, Component } =
-          getExperimentMetricChart(chartKey);
         return (
-          <ChartPanel key={chartKey} title={name} subtitle={description}>
-            <Component datasetId={datasetId} />
-          </ChartPanel>
+          <MetricPanel
+            key={chartKey}
+            datasetId={datasetId}
+            chartKey={chartKey}
+          />
         );
       })}
     </Flex>
+  );
+}
+
+function MetricPanel({
+  datasetId,
+  chartKey,
+}: {
+  datasetId: string;
+  chartKey: ExperimentMetricChartKey;
+}) {
+  const { name, description, Component } = getExperimentMetricChart(chartKey);
+  return (
+    <ChartPanel title={name} subtitle={description}>
+      <Component datasetId={datasetId} />
+    </ChartPanel>
   );
 }

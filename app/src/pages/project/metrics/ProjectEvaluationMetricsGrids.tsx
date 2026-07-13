@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Text } from "@phoenix/components";
+import { Loading, Text } from "@phoenix/components";
 import {
   ChartPanel,
   EvaluationMetricsChart,
@@ -12,6 +12,7 @@ import {
   normalizeEvaluationMetrics,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
+import { ErrorBoundary } from "@phoenix/components/exception";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -114,6 +115,16 @@ function ProjectEvaluationMetricsGrid({
 }
 
 export function SpanEvaluationMetricsGrid(props: ProjectMetricViewProps) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<Loading />}>
+        <SpanEvaluationMetricsGridContent {...props} />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+function SpanEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricsGridsSpanQuery>(
@@ -160,6 +171,16 @@ export function SpanEvaluationMetricsGrid(props: ProjectMetricViewProps) {
 }
 
 export function TraceEvaluationMetricsGrid(props: ProjectMetricViewProps) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<Loading />}>
+        <TraceEvaluationMetricsGridContent {...props} />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+function TraceEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricsGridsTraceQuery>(
@@ -206,6 +227,16 @@ export function TraceEvaluationMetricsGrid(props: ProjectMetricViewProps) {
 }
 
 export function SessionEvaluationMetricsGrid(props: ProjectMetricViewProps) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<Loading />}>
+        <SessionEvaluationMetricsGridContent {...props} />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+function SessionEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricsGridsSessionQuery>(

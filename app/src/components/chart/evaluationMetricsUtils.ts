@@ -129,5 +129,6 @@ export function normalizeEvaluationMetrics(
           };
         }),
       };
-    });
+    })
+    .filter(({ hasScores, hasLabels }) => hasScores || hasLabels);
 }
