@@ -2339,6 +2339,65 @@ class TestValidateEnvAllowedSandboxProviders:
             validate_env_allowed_sandbox_providers()
 
 
+class TestGetEnvDefaultModelProvider:
+    def test_unset_returns_none(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_MODEL_PROVIDER", raising=False)
+        from phoenix.config import get_env_default_model_provider
+
+        assert get_env_default_model_provider() is None
+
+    def test_returns_uppercased(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DEFAULT_MODEL_PROVIDER", "anthropic")
+        from phoenix.config import get_env_default_model_provider
+
+        assert get_env_default_model_provider() == "ANTHROPIC"
+
+    def test_strips_whitespace(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DEFAULT_MODEL_PROVIDER", "  OPENAI  ")
+        from phoenix.config import get_env_default_model_provider
+
+        assert get_env_default_model_provider() == "OPENAI"
+
+
+class TestGetEnvDefaultModelName:
+    def test_unset_returns_none(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_MODEL_NAME", raising=False)
+        from phoenix.config import get_env_default_model_name
+
+        assert get_env_default_model_name() is None
+
+    def test_returns_value(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DEFAULT_MODEL_NAME", "claude-opus-4-5-20250929")
+        from phoenix.config import get_env_default_model_name
+
+        assert get_env_default_model_name() == "claude-opus-4-5-20250929"
+
+    def test_strips_whitespace(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DEFAULT_MODEL_NAME", "  gpt-4o  ")
+        from phoenix.config import get_env_default_model_name
+
+        assert get_env_default_model_name() == "gpt-4o"
+
+
+class TestValidateEnvDefaultModelProvider:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_MODEL_PROVIDER", raising=False)
+        from phoenix.config import validate_env_default_model_provider
+
+        validate_env_default_model_provider()  # should not raise
+
+    def test_valid_provider_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DEFAULT_MODEL_PROVIDER", "ANTHROPIC")
+        from phoenix.config import validate_env_default_model_provider
+
+        validate_env_default_model_provider()  # should not raise
+
+    def test_invalid_provider_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DEFAULT_MODEL_PROVIDER", "NOTAPROVIDER")
+        from phoenix.config import validate_env_default_model_provider
+
+        with pytest.raises(ValueError, match="NOTAPROVIDER"):
+            validate_env_default_model_provider()
 class TestValidateEnvWasmBinaryPath:
     def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)

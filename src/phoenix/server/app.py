@@ -76,6 +76,8 @@ from phoenix.config import (
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
+    get_env_default_model_provider,
+    get_env_default_model_name,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
 )
@@ -233,6 +235,11 @@ class AppConfig(NamedTuple):
     """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
+    default_model_provider: Optional[str] = None
+    """ Default playground model provider, from PHOENIX_DEFAULT_MODEL_PROVIDER """
+    default_model_name: Optional[str] = None
+    """ Default playground model name, from PHOENIX_DEFAULT_MODEL_NAME """
+
 
 
 class Static(StaticFiles):
@@ -298,6 +305,8 @@ class Static(StaticFiles):
                     "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
                     "agent_bash_disabled": self._app_config.agent_bash_disabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
+                    "default_model_provider": self._app_config.default_model_provider,
+                    "default_model_name": self._app_config.default_model_name,
                 },
             )
         except Exception as e:
@@ -1112,6 +1121,8 @@ def create_app(
                     agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
+                    default_model_provider=get_env_default_model_provider(),
+                    default_model_name=get_env_default_model_name(),
                 ),
             ),
             name="static",

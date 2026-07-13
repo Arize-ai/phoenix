@@ -145,6 +145,8 @@
               agentAssistantDisabled: Boolean("{{agent_assistant_disabled}}" == "True"),
               agentBashDisabled: Boolean("{{agent_bash_disabled}}" == "True"),
               authErrorMessages: {{auth_error_messages | tojson}},
+              defaultModelProvider: {{default_model_provider | tojson}},
+              defaultModelName: {{default_model_name | tojson}},
           }),
           writable: false
       });

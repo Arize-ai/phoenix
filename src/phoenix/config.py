@@ -365,6 +365,24 @@ Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
 """
 
+ENV_PHOENIX_DEFAULT_MODEL_PROVIDER = "PHOENIX_DEFAULT_MODEL_PROVIDER"
+"""
+Default model provider pre-selected in the playground.
+Provider name should match GenerativeProviderKey enum names:
+OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER.
+Case-insensitive. Defaults to OPENAI when unset.
+Example: PHOENIX_DEFAULT_MODEL_PROVIDER=ANTHROPIC
+"""
+
+ENV_PHOENIX_DEFAULT_MODEL_NAME = "PHOENIX_DEFAULT_MODEL_NAME"
+"""
+Default model name pre-selected in the playground.
+Defaults to gpt-4o when unset.
+Example: PHOENIX_DEFAULT_MODEL_NAME=claude-opus-4-5-20250929
+"""
+
+
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION = "PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION"
 ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS = (
@@ -1215,6 +1233,33 @@ def validate_env_allowed_providers() -> None:
             f"PHOENIX_ALLOWED_PROVIDERS contains unrecognized provider names: "
             f"{', '.join(sorted(invalid))}. "
             f"Valid names are: {', '.join(sorted(valid_names))}"
+        )
+
+
+def get_env_default_model_provider() -> Optional[str]:
+    """Return uppercase provider name from PHOENIX_DEFAULT_MODEL_PROVIDER, or None if unset."""
+    raw = getenv(ENV_PHOENIX_DEFAULT_MODEL_PROVIDER)
+    return raw.strip().upper() if raw else None
+
+
+def get_env_default_model_name() -> Optional[str]:
+    """Return model name from PHOENIX_DEFAULT_MODEL_NAME, or None if unset."""
+    raw = getenv(ENV_PHOENIX_DEFAULT_MODEL_NAME)
+    return raw.strip() if raw else None
+
+
+def validate_env_default_model_provider() -> None:
+    """Validate PHOENIX_DEFAULT_MODEL_PROVIDER contains a recognized provider name."""
+    provider = get_env_default_model_provider()
+    if provider is None:
+        return
+    from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+    valid = {key.name for key in GenerativeProviderKey}
+    if provider not in valid:
+        raise ValueError(
+            f"PHOENIX_DEFAULT_MODEL_PROVIDER '{provider}' is not recognized. "
+            f"Valid values: {', '.join(sorted(valid))}"
         )
 
 
@@ -3465,6 +3510,7 @@ def verify_server_environment_variables() -> None:
     validate_env_support_email()
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()
+    validate_env_default_model_provider()
     validate_env_wasm_binary_path()
 
     # Notify users about deprecated environment variables if they are being used.
