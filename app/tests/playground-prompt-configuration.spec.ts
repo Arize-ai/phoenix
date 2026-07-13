@@ -387,7 +387,7 @@ async function savePromptWithUniqueName(
   await page.getByRole("button", { name: "Save Prompt" }).click();
   await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
   await page
-    .getByLabel("Prompt Description")
+    .getByLabel("Description (optional)")
     .fill("invocation parameters round-trip test");
   await page.getByRole("button", { name: "Create Prompt" }).click();
   await expect(page).toHaveURL(/promptId=/);
