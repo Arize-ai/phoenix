@@ -70,6 +70,7 @@ from typing_extensions import TypeIs, assert_never
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
+    get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
@@ -901,6 +902,25 @@ def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bo
     return contexts.dataset is not None or contexts.llm_evaluator is not None
 
 
+def _resolve_trace_recording(
+    *,
+    ingest_traces: bool,
+    export_remote_traces: bool,
+    allow_local_traces: bool,
+    allow_remote_export: bool,
+) -> tuple[bool, bool]:
+    if get_env_phoenix_agents_force_tracing():
+        return True, True
+    return (
+        ingest_traces and allow_local_traces,
+        export_remote_traces and allow_remote_export,
+    )
+
+
+def _resolve_attach_user_id(attach_user_id: bool) -> bool:
+    return get_env_phoenix_agents_force_tracing() or attach_user_id
+
+
 class _SubagentMessageChunksClosed:
     """Sentinel marking the subagent message chunk queue as closed."""
 
@@ -1134,8 +1154,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
 
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        ingest_traces, export_remote_traces = _resolve_trace_recording(
+            ingest_traces=body.ingest_traces,
+            export_remote_traces=body.export_remote_traces,
+            allow_local_traces=recording.allow_local_traces,
+            allow_remote_export=recording.allow_remote_export,
+        )
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
@@ -1245,9 +1269,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=403, detail="Agents are disabled")
         body = request_body.root
         request_received_at = datetime.now(timezone.utc)
+        attach_user_id = _resolve_attach_user_id(body.attach_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        ingest_traces, export_remote_traces = _resolve_trace_recording(
+            ingest_traces=body.ingest_traces,
+            export_remote_traces=body.export_remote_traces,
+            allow_local_traces=recording.allow_local_traces,
+            allow_remote_export=recording.allow_remote_export,
+        )
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
@@ -1453,7 +1482,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 with (
                     detached_otel_context(parent_context),
                     using_session(session_id=session_id),
-                    _maybe_using_user(body.attach_user_id, phoenix_user_email),
+                    _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
                     raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
@@ -1526,7 +1555,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 else (str(stream_error) or type(stream_error).__name__)
                             ),
                             end_time=datetime.now(timezone.utc),
-                            user_email=phoenix_user_email if body.attach_user_id else None,
+                            user_email=phoenix_user_email if attach_user_id else None,
                         )
                     tracer.tracer_provider.force_flush()
                     if ingest_traces:
@@ -1557,9 +1586,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
+        attach_user_id = _resolve_attach_user_id(body.attach_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        ingest_traces, export_remote_traces = _resolve_trace_recording(
+            ingest_traces=body.ingest_traces,
+            export_remote_traces=body.export_remote_traces,
+            allow_local_traces=recording.allow_local_traces,
+            allow_remote_export=recording.allow_remote_export,
+        )
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
@@ -1595,7 +1629,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             with (
                 detached_otel_context(parent_context),
                 using_metadata({"session_id": session_id}),
-                _maybe_using_user(body.attach_user_id, phoenix_user_email),
+                _maybe_using_user(attach_user_id, phoenix_user_email),
             ):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:

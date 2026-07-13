@@ -111,6 +111,11 @@ type AgentsConfig {
   assistantProjectName: String!
 
   """
+  Whether PXI tracing and remote export are forced for all users by the PHOENIX_AGENTS_FORCE_TRACING environment variable.
+  """
+  forceTracing: Boolean!
+
+  """
   Whether PXI can expose native web search and web fetch capabilities. False when external resources are disabled or PHOENIX_AGENTS_DISABLE_WEB_ACCESS is true.
   """
   webAccessEnabled: Boolean!

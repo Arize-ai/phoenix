@@ -20,6 +20,7 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_collector_endpoint,
+    get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
     getenv,
 )
@@ -1620,13 +1621,15 @@ class Query:
     def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
         agent_assistant_enabled = info.context.settings.agent_assistant_enabled
         trace_recording = info.context.settings.agent_trace_recording
+        force_tracing = get_env_phoenix_agents_force_tracing()
         return AgentsConfig(
             collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
             assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
+            force_tracing=force_tracing,
             web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
             assistant_enabled=agent_assistant_enabled.enabled,
-            allow_local_traces=trace_recording.allow_local_traces,
-            allow_remote_export=trace_recording.allow_remote_export,
+            allow_local_traces=force_tracing or trace_recording.allow_local_traces,
+            allow_remote_export=force_tracing or trace_recording.allow_remote_export,
         )
 
     @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore

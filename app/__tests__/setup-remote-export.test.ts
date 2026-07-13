@@ -35,6 +35,7 @@ describe("setup-remote-export", () => {
             "https://example.com/collector",
           ],
           ["PHOENIX_AGENTS_COLLECTOR_API_KEY", "secret"],
+          ["PHOENIX_AGENTS_FORCE_TRACING", "true"],
         ]),
       })
     ).toBe(
@@ -43,6 +44,7 @@ describe("setup-remote-export", () => {
         "export OTHER=value",
         "export PHOENIX_AGENTS_COLLECTOR_ENDPOINT='https://example.com/collector'",
         "export PHOENIX_AGENTS_COLLECTOR_API_KEY='secret'",
+        "export PHOENIX_AGENTS_FORCE_TRACING='true'",
         "",
       ].join("\n")
     );
