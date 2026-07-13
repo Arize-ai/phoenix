@@ -1,0 +1,182 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Deploys Arize Phoenix to Azure Container Instances with authentication enabled by default and an Azure Files share for persistent storage."
+  },
+  "parameters": {
+    "containerGroupName": {
+      "type": "string",
+      "defaultValue": "phoenix",
+      "metadata": {
+        "description": "Name of the Azure Container Instances container group."
+      }
+    },
+    "imageTag": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "Tag of the arizephoenix/phoenix image to deploy."
+      }
+    },
+    "phoenixSecret": {
+      "type": "securestring",
+      "defaultValue": "[concat(uniqueString(resourceGroup().id, 'phoenix-secret'), uniqueString(subscription().subscriptionId, 'phoenix'), uniqueString(deployment().name, 'secret'), 'a1b2')]",
+      "metadata": {
+        "description": "Secret used to sign authentication tokens (at least 32 characters with a digit and a lowercase letter). A strong value is generated automatically; override it to supply your own."
+      }
+    },
+    "adminInitialPassword": {
+      "type": "securestring",
+      "defaultValue": "admin",
+      "metadata": {
+        "description": "Initial password for the default admin account (email: admin@localhost). Only applied on first startup. If left as 'admin', you will be required to change it on first login."
+      }
+    },
+    "cpuCores": {
+      "type": "int",
+      "defaultValue": 2,
+      "metadata": {
+        "description": "Number of CPU cores to allocate to the Phoenix container."
+      }
+    },
+    "memoryInGb": {
+      "type": "int",
+      "defaultValue": 4,
+      "metadata": {
+        "description": "Amount of memory (in GB) to allocate to the Phoenix container."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources."
+      }
+    }
+  },
+  "variables": {
+    "storageAccountName": "[concat('phx', uniqueString(resourceGroup().id))]",
+    "fileShareName": "phoenix-data",
+    "dnsNameLabel": "[concat('phoenix-', uniqueString(resourceGroup().id))]",
+    "image": "[concat('docker.io/arizephoenix/phoenix:', parameters('imageTag'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-01-01",
+      "name": "[format('{0}/default/{1}', variables('storageAccountName'), variables('fileShareName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "shareQuota": 500
+      }
+    },
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('containerGroupName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', variables('storageAccountName'), 'default', variables('fileShareName'))]"
+      ],
+      "properties": {
+        "osType": "Linux",
+        "restartPolicy": "OnFailure",
+        "ipAddress": {
+          "type": "Public",
+          "dnsNameLabel": "[variables('dnsNameLabel')]",
+          "ports": [
+            {
+              "protocol": "TCP",
+              "port": 6006
+            }
+          ]
+        },
+        "volumes": [
+          {
+            "name": "phoenix-data",
+            "azureFile": {
+              "shareName": "[variables('fileShareName')]",
+              "storageAccountName": "[variables('storageAccountName')]",
+              "storageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value]"
+            }
+          }
+        ],
+        "containers": [
+          {
+            "name": "phoenix",
+            "properties": {
+              "image": "[variables('image')]",
+              "ports": [
+                {
+                  "protocol": "TCP",
+                  "port": 6006
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": "[parameters('cpuCores')]",
+                  "memoryInGB": "[parameters('memoryInGb')]"
+                }
+              },
+              "volumeMounts": [
+                {
+                  "name": "phoenix-data",
+                  "mountPath": "/mnt/phoenix"
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "PHOENIX_PORT",
+                  "value": "6006"
+                },
+                {
+                  "name": "PHOENIX_WORKING_DIR",
+                  "value": "/mnt/phoenix"
+                },
+                {
+                  "name": "PHOENIX_ENABLE_AUTH",
+                  "value": "true"
+                },
+                {
+                  "name": "PHOENIX_SECRET",
+                  "secureValue": "[parameters('phoenixSecret')]"
+                },
+                {
+                  "name": "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD",
+                  "secureValue": "[parameters('adminInitialPassword')]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "phoenixUrl": {
+      "type": "string",
+      "value": "[concat('http://', reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerGroupName'))).ipAddress.fqdn, ':6006')]"
+    },
+    "adminEmail": {
+      "type": "string",
+      "value": "admin@localhost"
+    }
+  }
+}
