@@ -13,7 +13,13 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry import context as otel_context
 from opentelemetry import propagate
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, SpanProcessor, TracerProvider
+from opentelemetry.sdk.trace import (
+    Event,
+    ReadableSpan,
+    SpanLimits,
+    SpanProcessor,
+    TracerProvider,
+)
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
     SimpleSpanProcessor,
@@ -295,6 +301,8 @@ def build_synthetic_readable_span(
     status: Status,
     resource: Resource,
     kind: SpanKind = SpanKind.CLIENT,
+    events: Sequence[Event] = (),
+    instrumentation_scope: InstrumentationScope | None = None,
 ) -> ReadableSpan:
     """Build a sampled span whose identity and timestamps are supplied explicitly."""
     trace_flags = TraceFlags(TraceFlags.SAMPLED)
@@ -320,13 +328,13 @@ def build_synthetic_readable_span(
         parent=parent,
         resource=resource,
         attributes=dict(attributes),
-        events=(),
+        events=tuple(events),
         links=(),
         kind=kind,
         status=status,
         start_time=int(start_time.timestamp() * 1e9),
         end_time=int(end_time.timestamp() * 1e9),
-        instrumentation_scope=InstrumentationScope("phoenix.server.pxi"),
+        instrumentation_scope=instrumentation_scope,
     )
 
 

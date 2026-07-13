@@ -153,6 +153,88 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
     assert tool.attributes["tool"]["name"] == "open_page"
 
 
+def test_error_parts_record_exception_events() -> None:
+    now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
+    turn_trace_context = TurnTraceContext(
+        trace_id="3" * 32,
+        root_span_id="4" * 16,
+        started_at=now,
+    )
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
+    tracer = Tracer(span_cost_calculator=MagicMock())
+    messages = [
+        UIMessage.model_validate(
+            {
+                "id": "user-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "Use the tool"}],
+            }
+        ),
+        UIMessage.model_validate(
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-open_page",
+                        "toolCallId": "call-1",
+                        "state": "output-error",
+                        "input": {"url": "/traces"},
+                        "errorText": "tool exploded",
+                        "callProviderMetadata": {
+                            "phoenix": {
+                                "tool_execution_environment": "client",
+                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
+                            }
+                        },
+                    }
+                ],
+            }
+        ),
+    ]
+    received_at = now + timedelta(seconds=5)
+
+    _synthesize_client_tool_spans(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        messages=messages,
+        received_at=received_at,
+        session_id="session-1",
+    )
+    _emit_turn_root_span(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        session_id="session-1",
+        input_text="Use the tool",
+        output_text=None,
+        error_message="turn failed",
+        end_time=received_at,
+        user_email=None,
+    )
+
+    db_traces = tracer.get_db_traces(project_id=1)
+    assert len(db_traces) == 1
+    spans_by_name = {span.name: span for span in db_traces[0].spans}
+    tool = spans_by_name["open_page"]
+    assert tool.status_code == "ERROR"
+    assert tool.events == [
+        {
+            "name": "exception",
+            "timestamp": received_at.isoformat(),
+            "attributes": {"exception.message": "tool exploded"},
+        }
+    ]
+    root = spans_by_name["pxi.turn"]
+    assert root.status_code == "ERROR"
+    assert root.events == [
+        {
+            "name": "exception",
+            "timestamp": received_at.isoformat(),
+            "attributes": {"exception.message": "turn failed"},
+        }
+    ]
+
+
 async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFactory) -> None:
     trace_id = "541221e156495558c48e177a21f84891"
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)

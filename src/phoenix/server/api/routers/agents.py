@@ -20,9 +20,11 @@ from openinference.instrumentation import using_metadata, using_session, using_u
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace as trace_api
 from opentelemetry.context import Context
+from opentelemetry.sdk.trace import Event, SpanProcessor
 from opentelemetry.sdk.trace import Span as SDKSpan
-from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
+from opentelemetry.sdk.util.instrumentation import InstrumentationScope
+from opentelemetry.semconv.attributes.exception_attributes import EXCEPTION_MESSAGE
 from opentelemetry.trace import (
     NonRecordingSpan,
     SpanContext,
@@ -122,6 +124,8 @@ from phoenix.tracers import (
 )
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+
+_PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
 ToolExecutionEnvironment = Literal["client", "server"]
 
@@ -517,6 +521,16 @@ def _get_last_user_text(messages: Iterable[UIMessage]) -> str | None:
     return None
 
 
+def _build_exception_event(*, message: str, timestamp: datetime) -> Event:
+    """OTel semconv ``exception`` event for a synthetic error span. Client
+    failures surface as bare messages, so no type or stacktrace is recorded."""
+    return Event(
+        name="exception",
+        attributes={EXCEPTION_MESSAGE: message},
+        timestamp=int(timestamp.timestamp() * 1e9),
+    )
+
+
 def _emit_turn_root_span(
     *,
     tracer: Tracer,
@@ -545,6 +559,12 @@ def _emit_turn_root_span(
         if error_message is not None
         else Status(StatusCode.OK)
     )
+    span_end_time = max(end_time, turn_ids.started_at)
+    events = (
+        (_build_exception_event(message=error_message, timestamp=span_end_time),)
+        if error_message is not None
+        else ()
+    )
     tracer.record_readable_span(
         build_synthetic_readable_span(
             name="pxi.turn",
@@ -552,10 +572,12 @@ def _emit_turn_root_span(
             span_id=turn_ids.root_span_id,
             parent_span_id=None,
             start_time=turn_ids.started_at,
-            end_time=max(end_time, turn_ids.started_at),
+            end_time=span_end_time,
             attributes=attributes,
             status=status,
+            events=events,
             resource=tracer.resource,
+            instrumentation_scope=_PXI_INSTRUMENTATION_SCOPE,
         )
     )
 
@@ -616,15 +638,15 @@ def _synthesize_client_tool_spans(
             timings = _extract_client_tool_timings(part.call_provider_metadata)
             if timings is None:
                 continue
-            bracket_start = _clamp_datetime(
+            earliest_start_time = _clamp_datetime(
                 timings.emitted_at,
                 turn_ids.started_at,
                 received_at,
             )
             start_time = (
-                _clamp_datetime(timings.client_started_at, bracket_start, received_at)
+                _clamp_datetime(timings.client_started_at, earliest_start_time, received_at)
                 if timings.client_started_at is not None
-                else bracket_start
+                else earliest_start_time
             )
             end_time = (
                 _clamp_datetime(timings.client_ended_at, start_time, received_at)
@@ -637,8 +659,10 @@ def _synthesize_client_tool_spans(
                     part,
                     (DynamicToolOutputAvailablePart, DynamicToolOutputErrorPart),
                 )
-                else part.type[5:]
+                else part.type.removeprefix("tool-")
             )
+            # Later requests may repeat earlier tool parts; deterministic
+            # span IDs make persistence and remote ingestion idempotent.
             span_id = (
                 int.from_bytes(
                     hashlib.sha256(
@@ -656,10 +680,12 @@ def _synthesize_client_tool_spans(
                 SpanAttributes.INPUT_MIME_TYPE: "application/json",
                 SpanAttributes.SESSION_ID: session_id,
             }
+            events: tuple[Event, ...] = ()
             if isinstance(part, (ToolOutputErrorPart, DynamicToolOutputErrorPart)):
                 attributes[SpanAttributes.OUTPUT_VALUE] = part.error_text
                 attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "text/plain"
                 status = Status(StatusCode.ERROR, part.error_text)
+                events = (_build_exception_event(message=part.error_text, timestamp=end_time),)
             else:
                 attributes[SpanAttributes.OUTPUT_VALUE] = json.dumps(part.output)
                 attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "application/json"
@@ -674,7 +700,9 @@ def _synthesize_client_tool_spans(
                     end_time=end_time,
                     attributes=attributes,
                     status=status,
+                    events=events,
                     resource=tracer.resource,
+                    instrumentation_scope=_PXI_INSTRUMENTATION_SCOPE,
                 )
             )
 
@@ -1415,8 +1443,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             stream_error: BaseException | None = None
             try:
                 if tracer is not None and body.turn_trace_context is not None:
-                    # Later requests may repeat earlier tool parts; deterministic
-                    # span IDs make persistence and remote ingestion idempotent.
                     _synthesize_client_tool_spans(
                         tracer=tracer,
                         turn_ids=turn_ids,
