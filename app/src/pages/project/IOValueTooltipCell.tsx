@@ -148,7 +148,10 @@ function IOValueTooltipCell({
         }
       }}
     >
-      <TriggerWrap css={triggerCSS}>
+      <TriggerWrap
+        css={triggerCSS}
+        onPress={(event) => event.continuePropagation()}
+      >
         <span>{previewText}</span>
       </TriggerWrap>
       <RichTooltip placement="bottom start" width="auto" css={tooltipCSS}>
