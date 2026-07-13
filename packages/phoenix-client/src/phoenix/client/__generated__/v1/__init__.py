@@ -943,7 +943,7 @@ class TraceSpanData(TypedDict):
     end_time: str
 
 
-class TurnTraceEnvelope(TypedDict):
+class TurnTraceContext(TypedDict):
     traceId: str
     rootSpanId: str
     startedAt: str
@@ -1597,7 +1597,7 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
 class AssistantMessageMetadata(TypedDict):
     sessionId: str
     trace: NotRequired[AssistantMessageMetadataTraceIds]
-    turn: NotRequired[TurnTraceEnvelope]
+    turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
 
 
@@ -1663,7 +1663,7 @@ class ChatRegenerateMessage(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
-    turnTrace: NotRequired[TurnTraceEnvelope]
+    turnTraceContext: NotRequired[TurnTraceContext]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1696,7 +1696,7 @@ class ChatSubmitMessage(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
-    turnTrace: NotRequired[TurnTraceEnvelope]
+    turnTraceContext: NotRequired[TurnTraceContext]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):

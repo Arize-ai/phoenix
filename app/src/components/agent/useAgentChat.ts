@@ -20,9 +20,9 @@ import {
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import {
-  createTurnEnvelopeManager,
-  type TurnEnvelopeManager,
-} from "@phoenix/agent/chat/turnTraceEnvelope";
+  createTurnTraceContextManager,
+  type TurnTraceContextManager,
+} from "@phoenix/agent/chat/turnTraceContext";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
@@ -49,7 +49,7 @@ import {
 } from "./useGenerateSessionSummary";
 
 type TurnClientState = {
-  turnEnvelope: TurnEnvelopeManager;
+  turnTraceContext: TurnTraceContextManager;
   toolTimings: ClientToolTimingRecorder;
 };
 
@@ -112,11 +112,11 @@ export function useAgentChat({
             // be recreated without losing visible conversation history.
             const initialMessages =
               store.getState().sessionMap[sessionId]?.messages ?? [];
-            const turnEnvelope = createTurnEnvelopeManager();
+            const turnTraceContext = createTurnTraceContextManager();
             const toolTimings = createClientToolTimingRecorder();
             const turnCompletionGate = createTurnCompletionGate({
               endTurn: async () => {
-                turnEnvelope.clear();
+                turnTraceContext.clear();
                 toolTimings.clear();
               },
               finalize: ({ finalMessages, message }) => {
@@ -154,7 +154,7 @@ export function useAgentChat({
                   messageId,
                 }) => {
                   // The gate may clear state for a stale completed turn before
-                  // this request reads the active envelope.
+                  // this request reads the active turn trace context.
                   turnCompletionGate.beginTurn();
                   return {
                     body: buildAgentChatRequestBody({
@@ -169,7 +169,7 @@ export function useAgentChat({
                       permissions: store.getState().permissions,
                       contexts: selectActiveContexts(store.getState()),
                       modelSelection: modelSelectionRef.current,
-                      turnTrace: turnEnvelope.getActive(),
+                      turnTraceContext: turnTraceContext.getActive(),
                       toolTimings,
                     }),
                   };
@@ -215,11 +215,13 @@ export function useAgentChat({
                 turnCompletionGate.fail(error);
               },
               onFinish: ({ messages: finalMessages, message }) => {
-                turnEnvelope.captureFromMetadata(message.metadata?.turn);
+                turnTraceContext.captureFromMetadata(
+                  message.metadata?.turnTraceContext
+                );
                 turnCompletionGate.handleFinish({ finalMessages, message });
               },
             });
-            turnClientStateByChat.set(chat, { turnEnvelope, toolTimings });
+            turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
             return chat;
           },
         });
@@ -308,7 +310,7 @@ export function useAgentChat({
     });
     if (chatInstance) {
       const turnClientState = turnClientStateByChat.get(chatInstance);
-      turnClientState?.turnEnvelope.clear();
+      turnClientState?.turnTraceContext.clear();
       turnClientState?.toolTimings.clear();
     }
     setMessages(removeInterruptedToolInputParts);

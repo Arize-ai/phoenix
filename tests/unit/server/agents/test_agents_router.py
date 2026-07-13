@@ -9,7 +9,7 @@ from sqlalchemy.exc import SAWarning
 
 from phoenix.db import models
 from phoenix.server.api.routers.agents import (
-    TurnTraceEnvelope,
+    TurnTraceContext,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -29,7 +29,7 @@ def test_message_metadata_can_use_propagated_root_span_context() -> None:
 
     metadata_chunk = _build_message_metadata_chunk(
         span_context=_get_span_context(parent_context),
-        turn=None,
+        turn_trace_context=None,
         session_id="session-1",
         usage=RunUsage(input_tokens=1, output_tokens=2),
     )
@@ -41,14 +41,14 @@ def test_message_metadata_can_use_propagated_root_span_context() -> None:
     assert metadata.trace.root_span_id == root_span_id
 
 
-def test_turn_envelope_is_clamped_and_used_for_metadata() -> None:
+def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
     now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
-    envelope = TurnTraceEnvelope(
+    turn_trace_context = TurnTraceContext(
         trace_id="1" * 32,
         root_span_id="2" * 16,
         started_at=now - timedelta(days=3),
     )
-    turn_ids = _resolve_turn_trace_ids(envelope, now=now)
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
     assert turn_ids.started_at == now - timedelta(hours=24)
     span_context = _get_span_context(_turn_parent_context(turn_ids))
     assert span_context is not None
@@ -56,21 +56,21 @@ def test_turn_envelope_is_clamped_and_used_for_metadata() -> None:
 
     metadata = _build_message_metadata_chunk(
         span_context=None,
-        turn=envelope,
+        turn_trace_context=turn_trace_context,
         session_id="session-1",
         usage=RunUsage(),
     ).message_metadata
     assert metadata is not None
-    assert metadata.turn == envelope
+    assert metadata.turn_trace_context == turn_trace_context
     assert metadata.trace is not None
-    assert metadata.trace.trace_id == envelope.trace_id
-    assert metadata.trace.root_span_id == envelope.root_span_id
+    assert metadata.trace.trace_id == turn_trace_context.trace_id
+    assert metadata.trace.root_span_id == turn_trace_context.root_span_id
 
 
 def test_zero_turn_ids_are_replaced() -> None:
     now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
     turn_ids = _resolve_turn_trace_ids(
-        TurnTraceEnvelope(trace_id="0" * 32, root_span_id="0" * 16, started_at=now),
+        TurnTraceContext(trace_id="0" * 32, root_span_id="0" * 16, started_at=now),
         now=now,
     )
     assert turn_ids.trace_id != 0
@@ -79,12 +79,12 @@ def test_zero_turn_ids_are_replaced() -> None:
 
 def test_synthesizes_root_and_clamped_client_tool_span() -> None:
     now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
-    envelope = TurnTraceEnvelope(
+    turn_trace_context = TurnTraceContext(
         trace_id="1" * 32,
         root_span_id="2" * 16,
         started_at=now,
     )
-    turn_ids = _resolve_turn_trace_ids(envelope, now=now)
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
     tracer = Tracer(span_cost_calculator=MagicMock())
     messages = [
         UIMessage.model_validate(
@@ -143,10 +143,10 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
     spans_by_name = {span.name: span for span in db_traces[0].spans}
     root = spans_by_name["pxi.turn"]
     tool = spans_by_name["open_page"]
-    assert root.span_id == envelope.root_span_id
+    assert root.span_id == turn_trace_context.root_span_id
     assert root.parent_id is None
     assert root.status_code == "OK"
-    assert tool.parent_id == envelope.root_span_id
+    assert tool.parent_id == turn_trace_context.root_span_id
     assert tool.start_time == now + timedelta(seconds=1)
     assert tool.end_time == received_at
     assert tool.status_code == "OK"

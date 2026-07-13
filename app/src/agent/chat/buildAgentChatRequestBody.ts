@@ -13,7 +13,7 @@ import {
 import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
-import type { TurnTraceEnvelope } from "./turnTraceEnvelope";
+import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
 
 type BuildAgentChatRequestBodyOptions = {
@@ -39,7 +39,7 @@ type BuildAgentChatRequestBodyOptions = {
   /** Provider + model selection for this turn. */
   modelSelection: AgentModelSelection;
   /** Server-minted identity echoed on continuation requests. */
-  turnTrace?: TurnTraceEnvelope | null;
+  turnTraceContext?: TurnTraceContext | null;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
 };
@@ -119,7 +119,7 @@ export function buildAgentChatRequestBody({
   permissions,
   contexts,
   modelSelection,
-  turnTrace = null,
+  turnTraceContext = null,
   toolTimings = null,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
@@ -145,7 +145,7 @@ export function buildAgentChatRequestBody({
     editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,
-    turnTrace: turnTrace ?? undefined,
+    turnTraceContext: turnTraceContext ?? undefined,
   };
 }
 

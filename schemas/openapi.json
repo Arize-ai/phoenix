@@ -8047,10 +8047,10 @@
               }
             ]
           },
-          "turn": {
+          "turnTraceContext": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TurnTraceEnvelope"
+                "$ref": "#/components/schemas/TurnTraceContext"
               },
               {
                 "type": "null"
@@ -8563,10 +8563,10 @@
               }
             }
           },
-          "turnTrace": {
+          "turnTraceContext": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TurnTraceEnvelope"
+                "$ref": "#/components/schemas/TurnTraceContext"
               },
               {
                 "type": "null"
@@ -8681,10 +8681,10 @@
               }
             }
           },
-          "turnTrace": {
+          "turnTraceContext": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TurnTraceEnvelope"
+                "$ref": "#/components/schemas/TurnTraceContext"
               },
               {
                 "type": "null"
@@ -17180,7 +17180,7 @@
         ],
         "title": "TraceSpanData"
       },
-      "TurnTraceEnvelope": {
+      "TurnTraceContext": {
         "properties": {
           "traceId": {
             "type": "string",
@@ -17204,8 +17204,7 @@
           "rootSpanId",
           "startedAt"
         ],
-        "title": "TurnTraceEnvelope",
-        "description": "Server-minted identity of a logical PXI turn echoed by the browser."
+        "title": "TurnTraceContext"
       },
       "UIMessage": {
         "properties": {

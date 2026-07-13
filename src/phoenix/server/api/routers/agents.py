@@ -139,11 +139,7 @@ class ToolCallProviderMetadata(BaseModel):
     Phoenix server (everything else, e.g. MCP tools and function tools)."""
 
     tool_input_emitted_at: str | None = None
-    """RFC3339 server timestamp for a client tool-call chunk.
-
-    The browser returns this value in ``callProviderMetadata`` and may add
-    ``client_started_at`` and ``client_ended_at`` in the same namespace.
-    """
+    """RFC3339 server timestamp for a client tool-call chunk."""
 
 
 def _get_updated_provider_metadata(
@@ -203,9 +199,7 @@ class AssistantMessageMetadataTraceIds(_CamelModel):
     root_span_id: str
 
 
-class TurnTraceEnvelope(_CamelModel):
-    """Server-minted identity of a logical PXI turn echoed by the browser."""
-
+class TurnTraceContext(_CamelModel):
     trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
     started_at: datetime
@@ -216,7 +210,7 @@ class AssistantMessageMetadata(_CamelModel):
 
     session_id: str
     trace: AssistantMessageMetadataTraceIds | None = None
-    turn: TurnTraceEnvelope | None = None
+    turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
 
 
@@ -270,7 +264,7 @@ class _ChatMessageMixin(_ObservabilityMixin):
     )
     messages: list[AssistantMetadataUIMessage]
     model: AgentModelSelection
-    turn_trace: TurnTraceEnvelope | None = Field(default=None, alias="turnTrace")
+    turn_trace_context: TurnTraceContext | None = Field(default=None, alias="turnTraceContext")
 
 
 class ChatSubmitMessage(_ChatMessageMixin, SubmitMessage):
@@ -390,19 +384,19 @@ class _TurnTraceIds:
 
 
 def _resolve_turn_trace_ids(
-    envelope: TurnTraceEnvelope | None,
+    turn_trace_context: TurnTraceContext | None,
     *,
     now: datetime,
 ) -> _TurnTraceIds:
-    """Adopt a valid echoed envelope or mint a new turn identity."""
-    if envelope is not None:
-        trace_id = int(envelope.trace_id, 16)
-        root_span_id = int(envelope.root_span_id, 16)
+    """Adopt a valid echoed turn trace context or mint a new turn identity."""
+    if turn_trace_context is not None:
+        trace_id = int(turn_trace_context.trace_id, 16)
+        root_span_id = int(turn_trace_context.root_span_id, 16)
         if trace_id and root_span_id:
-            envelope_started_at = envelope.started_at
-            if envelope_started_at.tzinfo is None:
-                envelope_started_at = envelope_started_at.replace(tzinfo=timezone.utc)
-            started_at = min(max(envelope_started_at, now - timedelta(hours=24)), now)
+            echoed_started_at = turn_trace_context.started_at
+            if echoed_started_at.tzinfo is None:
+                echoed_started_at = echoed_started_at.replace(tzinfo=timezone.utc)
+            started_at = min(max(echoed_started_at, now - timedelta(hours=24)), now)
             return _TurnTraceIds(
                 trace_id=trace_id,
                 root_span_id=root_span_id,
@@ -429,17 +423,17 @@ def _turn_parent_context(ids: _TurnTraceIds) -> Context:
 def _build_message_metadata_chunk(
     *,
     span_context: SpanContext | None,
-    turn: TurnTraceEnvelope | None,
+    turn_trace_context: TurnTraceContext | None,
     session_id: str,
     usage: RunUsage,
 ) -> MessageMetadataChunk:
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     trace_ids = (
         AssistantMessageMetadataTraceIds(
-            trace_id=turn.trace_id,
-            root_span_id=turn.root_span_id,
+            trace_id=turn_trace_context.trace_id,
+            root_span_id=turn_trace_context.root_span_id,
         )
-        if turn is not None
+        if turn_trace_context is not None
         else (
             AssistantMessageMetadataTraceIds(
                 trace_id=format_trace_id(span_context.trace_id),
@@ -453,7 +447,7 @@ def _build_message_metadata_chunk(
         message_metadata=AssistantMessageMetadata(
             session_id=session_id,
             trace=trace_ids,
-            turn=turn,
+            turn_trace_context=turn_trace_context,
             usage=_build_usage_payload(usage),
         )
     )
@@ -1140,7 +1134,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             yield _build_message_metadata_chunk(
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
-                turn=None,
+                turn_trace_context=None,
                 session_id=session_id,
                 usage=result.usage,
             )
@@ -1351,7 +1345,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model_provider_availability=model_provider_availability,
         )
 
-        turn_ids = _resolve_turn_trace_ids(body.turn_trace, now=request_received_at)
+        turn_ids = _resolve_turn_trace_ids(body.turn_trace_context, now=request_received_at)
         parent_context = _turn_parent_context(turn_ids)
         request_parent_span_context = _get_span_context(parent_context)
 
@@ -1370,8 +1364,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             )
             yield _build_message_metadata_chunk(
                 span_context=span_context,
-                turn=(
-                    TurnTraceEnvelope(
+                turn_trace_context=(
+                    TurnTraceContext(
                         trace_id=format_trace_id(turn_ids.trace_id),
                         root_span_id=format_span_id(turn_ids.root_span_id),
                         started_at=turn_ids.started_at,
@@ -1387,7 +1381,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             stream_error: BaseException | None = None
             try:
-                if tracer is not None and body.turn_trace is not None:
+                if tracer is not None and body.turn_trace_context is not None:
                     # Later requests may repeat earlier tool parts; deterministic
                     # span IDs make persistence and remote ingestion idempotent.
                     _synthesize_client_tool_spans(

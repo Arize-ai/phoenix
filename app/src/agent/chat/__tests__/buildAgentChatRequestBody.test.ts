@@ -22,8 +22,8 @@ const agentsConfig = {
 };
 
 describe("buildAgentChatRequestBody", () => {
-  it("echoes the active turn envelope", () => {
-    const turnTrace = {
+  it("echoes the active turn trace context", () => {
+    const turnTraceContext = {
       traceId: "1".repeat(32),
       rootSpanId: "2".repeat(16),
       startedAt: "2026-07-10T12:00:00Z",
@@ -49,10 +49,10 @@ describe("buildAgentChatRequestBody", () => {
         provider: "OPENAI",
         modelName: "gpt-4o-mini",
       },
-      turnTrace,
+      turnTraceContext,
     });
 
-    expect(body.turnTrace).toEqual(turnTrace);
+    expect(body.turnTraceContext).toEqual(turnTraceContext);
   });
 
   it("merges the transport body with PXI chat metadata and omits client-supplied prompt overrides", () => {

@@ -1682,7 +1682,7 @@ export interface components {
             /** Sessionid */
             sessionId: string;
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
-            turn?: components["schemas"]["TurnTraceEnvelope"] | null;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
         };
         /** AssistantMessageMetadataTraceIds */
@@ -1845,7 +1845,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            turnTrace?: components["schemas"]["TurnTraceEnvelope"] | null;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1899,7 +1899,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            turnTrace?: components["schemas"]["TurnTraceEnvelope"] | null;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5467,11 +5467,8 @@ export interface components {
              */
             end_time: string;
         };
-        /**
-         * TurnTraceEnvelope
-         * @description Server-minted identity of a logical PXI turn echoed by the browser.
-         */
-        TurnTraceEnvelope: {
+        /** TurnTraceContext */
+        TurnTraceContext: {
             /** Traceid */
             traceId: string;
             /** Rootspanid */
