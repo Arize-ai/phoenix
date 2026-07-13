@@ -9,7 +9,12 @@ import {
   DEFAULT_JUDGE_MODEL,
 } from "./constants";
 import type { PxiTurn } from "./types";
-import { expectOK, getSpanToolName, getUiMessageToolNames } from "./utils";
+import {
+  expectOK,
+  getSpanToolName,
+  getUiMessageToolCalls,
+  getUiMessageToolNames,
+} from "./utils";
 
 export type { PxiTurn } from "./types";
 
@@ -41,11 +46,17 @@ function getAssistantProjectName() {
   );
 }
 
-async function installAgentDefaults({ page }: { page: Page }) {
+async function installAgentDefaults({
+  page,
+  editPermission,
+}: {
+  page: Page;
+  editPermission: "manual" | "bypass";
+}) {
   const assistantProvider = getAssistantProvider();
   const assistantModel = getAssistantModel();
   await page.addInitScript(
-    ({ provider, modelName }) => {
+    ({ provider, modelName, editPermission }) => {
       localStorage.clear();
       localStorage.setItem(
         "arize-phoenix-feature-flags",
@@ -84,6 +95,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
               "session.storeSessions": false,
               "web.access": false,
             },
+            permissions: { edits: editPermission },
           },
           version: 0,
         })
@@ -92,6 +104,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
     {
       provider: assistantProvider,
       modelName: assistantModel,
+      editPermission,
     }
   );
 }
@@ -112,9 +125,15 @@ export class PxiDriver {
     this.request = request;
   }
 
-  async open() {
-    await installAgentDefaults({ page: this.page });
-    await this.page.goto("/projects");
+  async open({
+    editPermission = "manual",
+    path = "/projects",
+  }: {
+    editPermission?: "manual" | "bypass";
+    path?: string;
+  } = {}) {
+    await installAgentDefaults({ page: this.page, editPermission });
+    await this.page.goto(path);
     await this.page.getByRole("button", { name: "Open assistant" }).click();
     await expect(
       this.page.getByRole("heading", {
@@ -203,9 +222,11 @@ export class PxiDriver {
     };
     const calledTools = await this.getToolNamesForTrace(turn.traceId);
     const uiCalledTools = getUiMessageToolNames(turn.parts);
+    const toolCalls = getUiMessageToolCalls(turn.parts);
     return {
       ...turn,
       calledTools: [...new Set([...calledTools, ...uiCalledTools])],
+      toolCalls,
     };
   }
 
@@ -252,15 +273,20 @@ export class PxiDriver {
 
   private async getToolNamesForTrace(traceId: string): Promise<string[]> {
     const projectName = encodeURIComponent(getAssistantProjectName());
-    const response = await expectOK(
-      await this.request.get(`/v1/projects/${projectName}/spans`, {
+    const response = await this.request.get(
+      `/v1/projects/${projectName}/spans`,
+      {
         params: {
           trace_id: traceId,
           span_kind: "TOOL",
         },
-      })
+      }
     );
-    const spans = response.data;
+    if (response.status() === 404) {
+      return [];
+    }
+    const body = await expectOK(response);
+    const spans = body.data;
     if (!Array.isArray(spans)) {
       return [];
     }

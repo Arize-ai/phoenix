@@ -3,6 +3,10 @@ import type { UIMessage } from "ai";
 import { z } from "zod";
 
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
+import {
+  evaluatorDraftPreviewInputSchema,
+  evaluatorMappingSourceSchema,
+} from "@phoenix/agent/tools/evaluatorDraftPreview";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   CODE_EVALUATOR_LANGUAGES,
@@ -114,30 +118,10 @@ const inputMappingSchema = z
     literalMapping: value.literalMapping ?? {},
   }));
 
-const testPayloadSchema = z
-  .preprocess(
-    (input) =>
-      normalizeAliases(input, {
-        input: ["inputs"],
-        output: ["outputs"],
-      }),
-    z.object({
-      input: z.record(z.string(), z.unknown()).optional(),
-      output: z.record(z.string(), z.unknown()).optional(),
-      reference: z.record(z.string(), z.unknown()).optional(),
-      metadata: z.record(z.string(), z.unknown()).optional(),
-    })
-  )
-  .transform((value) => ({
-    input: value.input ?? {},
-    output: value.output ?? {},
-    reference: value.reference ?? {},
-    metadata: value.metadata ?? {},
-  }));
-
 export const readCodeEvaluatorDraftInputSchema = emptyToolInputSchema;
 
-export const testCodeEvaluatorDraftInputSchema = emptyToolInputSchema;
+export const testCodeEvaluatorDraftInputSchema =
+  evaluatorDraftPreviewInputSchema;
 
 const setSourceCodeOperationSchema = z.object({
   type: z.literal("set_source_code"),
@@ -161,7 +145,7 @@ const setInputMappingOperationSchema = z.object({
 
 const setTestPayloadOperationSchema = z.object({
   type: z.literal("set_test_payload"),
-  testPayload: testPayloadSchema,
+  testPayload: evaluatorMappingSourceSchema,
 });
 
 const setDescriptionOperationSchema = z.object({

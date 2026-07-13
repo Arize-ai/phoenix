@@ -73,12 +73,12 @@ export const editCodeEvaluatorDraftAgentTool = defineClientActionTool<
   },
 });
 
-/** Runs the mounted code-evaluator draft against its test payload. */
+/** Runs the mounted code-evaluator draft against its form payload or named overrides. */
 export const testCodeEvaluatorDraftAgentTool =
   defineClientActionTool<TestCodeEvaluatorDraftInput>({
     name: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
     parseInput: parseTestCodeEvaluatorDraftInput,
-    invalidInputErrorText: `Invalid ${TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME} input.`,
+    invalidInputErrorText: `Invalid ${TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected {} or { cases: [{ id, testPayload }] }.`,
     notMountedErrorText:
       "The code-evaluator test section is not mounted; cannot test the draft.",
     defaultSuccessOutput: "Code-evaluator draft tested.",
