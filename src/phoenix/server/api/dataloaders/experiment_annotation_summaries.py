@@ -2,7 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
@@ -20,6 +20,7 @@ class ExperimentAnnotationSummary:
     error_count: int
     score_count: int
     label_count: int
+    label_fractions: list[tuple[str, float]]
 
 
 ExperimentID: TypeAlias = int
@@ -39,6 +40,10 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
         summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
+        label_counts_by_summary: defaultdict[tuple[ExperimentID, str], list[tuple[str, int]]] = (
+            defaultdict(list)
+        )
+        result_counts_by_summary: defaultdict[tuple[ExperimentID, str], int] = defaultdict(int)
         repetition_mean_scores_by_example_subquery = (
             select(
                 models.ExperimentRun.experiment_id.label("experiment_id"),
@@ -121,8 +126,55 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
+        label_counts_query = (
+            select(
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                models.ExperimentRunAnnotation.label.label("label"),
+                func.count().label("count"),
+            )
+            .select_from(models.ExperimentRunAnnotation)
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+            )
+            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+            .where(models.ExperimentRunAnnotation.error.is_(None))
+            .where(
+                or_(
+                    models.ExperimentRunAnnotation.score.is_not(None),
+                    models.ExperimentRunAnnotation.label.is_not(None),
+                )
+            )
+            .group_by(
+                models.ExperimentRun.experiment_id,
+                models.ExperimentRunAnnotation.name,
+                models.ExperimentRunAnnotation.label,
+            )
+            .order_by(
+                models.ExperimentRun.experiment_id,
+                models.ExperimentRunAnnotation.name,
+                models.ExperimentRunAnnotation.label,
+            )
+        )
         async with self._db.read() as session:
+            async for label_count_row in await session.stream(label_counts_query):
+                summary_key = (
+                    label_count_row.experiment_id,
+                    label_count_row.annotation_name,
+                )
+                label_count = int(label_count_row[3])
+                result_counts_by_summary[summary_key] += label_count
+                if label_count_row.label is not None:
+                    label_counts_by_summary[summary_key].append(
+                        (label_count_row.label, label_count)
+                    )
             async for scores_tuple in await session.stream(run_scores_query):
+                summary_key = (
+                    scores_tuple.experiment_id,
+                    scores_tuple.annotation_name,
+                )
+                result_count = result_counts_by_summary[summary_key]
                 summaries[scores_tuple.experiment_id].append(
                     ExperimentAnnotationSummary(
                         annotation_name=scores_tuple.annotation_name,
@@ -133,6 +185,12 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                         error_count=scores_tuple.error_count,
                         score_count=scores_tuple.score_count,
                         label_count=scores_tuple.label_count,
+                        label_fractions=[
+                            (label, count / result_count)
+                            for label, count in label_counts_by_summary[summary_key]
+                        ]
+                        if result_count
+                        else [],
                     )
                 )
         return [

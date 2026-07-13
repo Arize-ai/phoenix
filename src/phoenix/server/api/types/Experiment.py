@@ -22,6 +22,7 @@ from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.LabelFraction import LabelFraction
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -317,6 +318,10 @@ class Experiment(Node):
                 error_count=summary.error_count,
                 score_count=summary.score_count,
                 label_count=summary.label_count,
+                label_fractions=[
+                    LabelFraction(label=label, fraction=fraction)
+                    for label, fraction in summary.label_fractions
+                ],
             )
             for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
                 experiment_id

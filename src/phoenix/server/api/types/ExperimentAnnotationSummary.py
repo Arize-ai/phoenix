@@ -2,6 +2,8 @@ from typing import Optional
 
 import strawberry
 
+from phoenix.server.api.types.LabelFraction import LabelFraction
+
 
 @strawberry.type
 class ExperimentAnnotationSummary:
@@ -13,3 +15,4 @@ class ExperimentAnnotationSummary:
     error_count: int
     score_count: int
     label_count: int
+    label_fractions: list[LabelFraction]

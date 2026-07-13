@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc7eb94b6e4fdc81d582b2fef31c8029>>
+ * @generated SignedSource<<8bd329b2c6baa8dbed6d04a4fade2dc4>>
  * @lightSyntaxTransform
  */
 
@@ -129,7 +129,53 @@ v5 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
+        "name": "count",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "scoreCount",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "labelCount",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
         "name": "meanScore",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "LabelFraction",
+        "kind": "LinkedField",
+        "name": "labelFractions",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "label",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "fraction",
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ],
@@ -347,12 +393,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c2e5ffc009c7ad3a489cd73b22eeaa24",
+    "cacheID": "75f949d81ff80a9f1ecec04602b93f46",
     "id": null,
     "metadata": {},
     "name": "useExperimentMetricsDataQuery",
     "operationKind": "query",
-    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
+    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    count\n    scoreCount\n    labelCount\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
   }
 };
 })();

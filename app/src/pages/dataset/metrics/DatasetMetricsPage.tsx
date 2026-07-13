@@ -8,6 +8,7 @@ import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants"
 import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
 
 import { getExperimentMetricChart } from "./chartCatalog";
+import { ExperimentEvaluationMetricsGrid } from "./ExperimentEvaluationMetricsGrid";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 /**
@@ -15,7 +16,6 @@ import { useExperimentMetricsData } from "./useExperimentMetricsData";
  * width; the final two-chart row splits the available width evenly.
  */
 const METRIC_PAGE_ROWS: ExperimentMetricChartKey[][] = [
-  ["annotation_scores"],
   ["latency"],
   ["cost"],
   ["tokens", "error_rate"],
@@ -47,24 +47,39 @@ export function DatasetMetricsPage() {
         css={css`
           display: flex;
           flex-direction: column;
+          container-type: inline-size;
           gap: var(--global-dimension-size-200);
           padding: var(--global-dimension-size-200);
         `}
       >
+        <MetricRow datasetId={datasetId} row={["annotation_scores"]} />
+        <ExperimentEvaluationMetricsGrid datasetId={datasetId} />
         {METRIC_PAGE_ROWS.map((row) => (
-          <Flex direction="row" gap="size-200" key={row.join("+")}>
-            {row.map((chartKey) => {
-              const { name, description, Component } =
-                getExperimentMetricChart(chartKey);
-              return (
-                <ChartPanel key={chartKey} title={name} subtitle={description}>
-                  <Component datasetId={datasetId} />
-                </ChartPanel>
-              );
-            })}
-          </Flex>
+          <MetricRow datasetId={datasetId} row={row} key={row.join("+")} />
         ))}
       </div>
     </section>
+  );
+}
+
+function MetricRow({
+  datasetId,
+  row,
+}: {
+  datasetId: string;
+  row: ExperimentMetricChartKey[];
+}) {
+  return (
+    <Flex direction="row" gap="size-200">
+      {row.map((chartKey) => {
+        const { name, description, Component } =
+          getExperimentMetricChart(chartKey);
+        return (
+          <ChartPanel key={chartKey} title={name} subtitle={description}>
+            <Component datasetId={datasetId} />
+          </ChartPanel>
+        );
+      })}
+    </Flex>
   );
 }
