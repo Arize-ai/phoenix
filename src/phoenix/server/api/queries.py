@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -17,7 +18,6 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
-    get_env_database_schema,
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_collector_endpoint,
     get_env_phoenix_agents_web_access_enabled,
@@ -28,6 +28,7 @@ from phoenix.db.helpers import (
     SupportedSQLDialect,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
+    pg_table_sizes_stmt,
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
@@ -148,6 +149,8 @@ from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
+
+logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
@@ -1585,24 +1588,15 @@ class Query:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            stmt = text("""\
-                SELECT c.relname, pg_total_relation_size(c.oid)
-                FROM pg_class as c
-                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
-                WHERE c.relkind = 'r'
-                AND n.nspname = :nspname;
-            """)
             try:
                 async with info.context.db.read() as session:
-                    nspname = get_env_database_schema() or await session.scalar(
-                        text("SELECT current_schema()")
-                    )
                     stats = type_cast(
                         Iterable[tuple[str, int]],
-                        await session.execute(stmt.bindparams(nspname=nspname)),
+                        await session.execute(pg_table_sizes_stmt()),
                     )
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
+                logger.exception("Failed to query PostgreSQL table sizes for db table stats")
                 return []
         else:
             assert_never(info.context.db.dialect)

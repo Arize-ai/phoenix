@@ -459,8 +459,7 @@ async def test_compare_experiments_validation_errors(
     assert response.errors[0].message == expected_error
 
 
-@pytest.mark.skip(reason="TODO: re-enable this test after we figure out the issue with sqlite")
-async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
+async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> None:
     query = """
       query {
         dbTableStats {
@@ -472,7 +471,15 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     response = await gql_client.execute(query=query)
     assert not response.errors
     assert (data := response.data) is not None
-    assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
+    stats = data["dbTableStats"]
+    assert all(s["numBytes"] >= 0 for s in stats)
+    if dialect == "sqlite":
+        # the sqlite resolver reports a single aggregate row for the whole file
+        assert [s["tableName"] for s in stats] == ["SQLite"]
+    else:
+        assert {s["tableName"] for s in stats} >= {
+            table.name for table in models.Base.metadata.tables.values()
+        }
 
 
 async def test_agents_config_returns_env_values(

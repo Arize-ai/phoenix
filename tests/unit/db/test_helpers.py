@@ -8,6 +8,7 @@ import pytest
 import sqlalchemy as sa
 from faker import Faker
 from sqlalchemy import Select, func, literal, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.sql import CompoundSelect
 from typing_extensions import assert_never
 
@@ -18,6 +19,8 @@ from phoenix.db.helpers import (
     create_experiment_examples_snapshot_insert,
     date_trunc,
     get_dataset_example_revisions,
+    pg_table_sizes_stmt,
+    pg_total_table_size_stmt,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -1632,3 +1635,73 @@ class TestCreateExperimentExamplesSnapshotInsert:
             with pytest.raises(Exception):
                 await session.execute(insert_stmt2)
                 await session.flush()
+
+
+@pytest.mark.postgres_only
+class TestPgTableSizeStmts:
+    async def test_falls_back_to_current_schema_when_env_schema_unset(
+        self,
+        postgresql_engine: AsyncEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
+        async with AsyncSession(postgresql_engine) as session:
+            rows = (await session.execute(pg_table_sizes_stmt())).all()
+            total = await session.scalar(pg_total_table_size_stmt())
+        table_names = {name for name, _ in rows}
+        assert table_names >= {table.name for table in models.Base.metadata.tables.values()}
+        assert total is not None and float(total) > 0
+
+    async def test_follows_search_path_when_env_schema_unset(
+        self,
+        postgresql_engine: AsyncEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Regression test: tables live in a non-public schema by way of a
+        # role- or database-level search_path, with no schema env var set.
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
+        schema = f"schema_{token_hex(4)}"
+        async with AsyncSession(postgresql_engine) as session:
+            await session.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
+            await session.execute(sa.text(f'SET search_path TO "{schema}"'))
+            await session.execute(sa.text("CREATE TABLE widgets (id integer)"))
+            await session.execute(sa.text("INSERT INTO widgets VALUES (1)"))
+            rows = (await session.execute(pg_table_sizes_stmt())).all()
+            total = await session.scalar(pg_total_table_size_stmt())
+        assert {name for name, _ in rows} == {"widgets"}
+        assert total is not None and float(total) > 0
+
+    async def test_env_schema_takes_precedence_over_search_path(
+        self,
+        postgresql_engine: AsyncEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        schema_from_env = f"schema_{token_hex(4)}"
+        schema_from_search_path = f"schema_{token_hex(4)}"
+        # get_env_database_schema() ignores the schema env var unless the
+        # connection string is non-sqlite
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "postgresql://localhost/postgres")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", schema_from_env)
+        async with AsyncSession(postgresql_engine) as session:
+            for schema in (schema_from_env, schema_from_search_path):
+                await session.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
+            await session.execute(
+                sa.text(f'CREATE TABLE "{schema_from_env}".from_env (id integer)')
+            )
+            await session.execute(
+                sa.text(f'CREATE TABLE "{schema_from_search_path}".from_search_path (id integer)')
+            )
+            await session.execute(sa.text(f'SET search_path TO "{schema_from_search_path}"'))
+            rows = (await session.execute(pg_table_sizes_stmt())).all()
+        assert {name for name, _ in rows} == {"from_env"}
+
+    async def test_total_size_is_zero_not_null_when_no_tables_match(
+        self,
+        postgresql_engine: AsyncEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "postgresql://localhost/postgres")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", f"nonexistent_{token_hex(4)}")
+        async with AsyncSession(postgresql_engine) as session:
+            total = await session.scalar(pg_total_table_size_stmt())
+        assert total == 0
