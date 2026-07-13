@@ -307,8 +307,9 @@ export const CodeEvaluatorTestSection = ({
         runEvaluatorPreview({ testPayload, shouldUpdateUi }),
     };
   };
-  const createPreviewRunner: EvaluatorPreviewRunnerFactory = () =>
-    buildPreviewRunner({ shouldUpdateUi: false });
+  const createPreviewRunner: EvaluatorPreviewRunnerFactory = ({
+    shouldUpdateUi = false,
+  } = {}) => buildPreviewRunner({ shouldUpdateUi });
   const createPreviewRunnerRef = useRef(createPreviewRunner);
   createPreviewRunnerRef.current = createPreviewRunner;
 
@@ -320,7 +321,8 @@ export const CodeEvaluatorTestSection = ({
       TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
       createTestCodeEvaluatorDraftClientAction({
         isDraftMounted,
-        createPreviewRunner: () => createPreviewRunnerRef.current(),
+        createPreviewRunner: (options) =>
+          createPreviewRunnerRef.current(options),
       })
     );
     return () => {

@@ -44,8 +44,16 @@ async function runPreviewCase({
       return { id: previewCase.id, error: preview.error, latencyMs };
     }
     const evaluatorError = getEvaluatorPreviewError(preview.output);
+    // Keep `result` attached even when an evaluator-level error is present:
+    // a case can have multiple output configs, and one erroring must not
+    // discard the successful annotations for the others.
     return evaluatorError
-      ? { id: previewCase.id, error: evaluatorError, latencyMs }
+      ? {
+          id: previewCase.id,
+          error: evaluatorError,
+          latencyMs,
+          result: preview.output,
+        }
       : { id: previewCase.id, result: preview.output, latencyMs };
   } catch (error) {
     return {
@@ -69,17 +77,26 @@ export async function runEvaluatorPreviewCases({
   getNow?: () => number;
 }): Promise<EvaluatorPreviewBatchOutput> {
   const boundedConcurrency = Math.max(1, Math.floor(concurrency));
-  const orderedResults: EvaluatorPreviewCaseResult[] = [];
-  for (let offset = 0; offset < cases.length; offset += boundedConcurrency) {
-    const resultChunk = await Promise.all(
-      cases
-        .slice(offset, offset + boundedConcurrency)
-        .map((previewCase) =>
-          runPreviewCase({ previewCase, runPreview, getNow })
-        )
-    );
-    orderedResults.push(...resultChunk);
+  const orderedResults: EvaluatorPreviewCaseResult[] = new Array(
+    cases.length
+  );
+  // A bounded worker pool, not fixed-size sequential waves: each worker pulls
+  // the next case as soon as it frees up, so one slow case doesn't stall an
+  // otherwise-idle concurrency slot until its whole wave finishes.
+  let nextIndex = 0;
+  async function runWorker(): Promise<void> {
+    while (nextIndex < cases.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      orderedResults[index] = await runPreviewCase({
+        previewCase: cases[index],
+        runPreview,
+        getNow,
+      });
+    }
   }
+  const workerCount = Math.min(boundedConcurrency, cases.length);
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
   const failed = orderedResults.filter((result) => "error" in result).length;
   return {
     summary: {

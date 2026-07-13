@@ -149,6 +149,43 @@ describe("evaluator draft preview execution", () => {
     expect(cases).toEqual(before);
   });
 
+  it("refills a freed concurrency slot immediately instead of waiting for the whole wave", async () => {
+    // "slow" and "fast-1" occupy the two concurrency slots first. A
+    // fixed-size-wave implementation only starts "fast-2" once the whole
+    // wave (both "slow" and "fast-1") settles -- i.e. only after the slow
+    // case is released. A worker pool starts "fast-2" as soon as "fast-1"'s
+    // slot frees up, well before the slow case is released.
+    const cases = [makeCase("slow"), makeCase("fast-1"), makeCase("fast-2")];
+    let slowReleased = false;
+    let fastTwoStartedBeforeSlowReleased = false;
+    let releaseSlow: () => void = () => {};
+    const slowGate = new Promise<void>((resolve) => {
+      releaseSlow = resolve;
+    });
+    const runPromise = runEvaluatorPreviewCases({
+      cases,
+      concurrency: 2,
+      runPreview: async (payload) => {
+        const id = payload?.input.id as string;
+        if (id === "slow") {
+          await slowGate;
+        } else if (id === "fast-2" && !slowReleased) {
+          fastTwoStartedBeforeSlowReleased = true;
+        }
+        return { ok: true, output: { label: id } };
+      },
+    });
+    // Give "fast-1" (and, with a true worker pool, "fast-2") room to run
+    // before releasing the slow case.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    slowReleased = true;
+    releaseSlow();
+    await runPromise;
+    expect(fastTwoStartedBeforeSlowReleased).toBe(true);
+  });
+
   it("promotes an evaluator result error to an isolated case error", async () => {
     const result = await runEvaluatorPreviewCases({
       cases: [makeCase("provider-error"), makeCase("success")],
@@ -172,8 +209,36 @@ describe("evaluator draft preview execution", () => {
       id: "provider-error",
       error: "rate limited",
       latencyMs: 0,
+      result: {
+        results: [{ evaluatorName: "judge", error: "rate limited" }],
+      },
     });
     expect(result.cases[1]).toMatchObject({ id: "success" });
+  });
+
+  it("preserves successful output configs when a sibling output config errors on the same case", async () => {
+    const mixedOutput = {
+      results: [
+        { evaluatorName: "correctness", annotation: { label: "pass" } },
+        { evaluatorName: "safety", error: "missing credentials" },
+      ],
+    };
+    const result = await runEvaluatorPreviewCases({
+      cases: [makeCase("mixed")],
+      concurrency: 1,
+      getNow: () => 0,
+      runPreview: async () => ({ ok: true, output: mixedOutput }),
+    });
+    expect(result.summary).toEqual({ total: 1, succeeded: 0, failed: 1 });
+    // The case is still classified as failed (one config errored), but the
+    // successful "correctness" annotation must survive on `result` instead
+    // of being discarded in favor of only the error string.
+    expect(result.cases[0]).toEqual({
+      id: "mixed",
+      error: "missing credentials",
+      latencyMs: 0,
+      result: mixedOutput,
+    });
   });
 
   it("fails the whole call when the mounted draft cannot produce a snapshot", async () => {
@@ -189,6 +254,60 @@ describe("evaluator draft preview execution", () => {
       ok: false,
       error: "Draft has no output configuration",
     });
+  });
+
+  it("reports ok:false when every case in a batch fails", async () => {
+    const result = await runEvaluatorDraftPreviewClientAction({
+      input: { cases: [makeCase("one"), makeCase("two")] },
+      createPreviewRunner: () => ({
+        ok: true,
+        output: async () => ({ ok: false, error: "sandbox unreachable" }),
+      }),
+      concurrency: 2,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/all 2 preview case\(s\) failed/i);
+    expect(result.error).toMatch(/sandbox unreachable/);
+  });
+
+  it("still reports ok:true when only some cases in a batch fail", async () => {
+    const result = await runEvaluatorDraftPreviewClientAction({
+      input: { cases: [makeCase("ok"), makeCase("bad")] },
+      createPreviewRunner: () => ({
+        ok: true,
+        output: async (payload) =>
+          payload?.input.id === "bad"
+            ? { ok: false, error: "provider failed" }
+            : { ok: true, output: { label: "pass" } },
+      }),
+      concurrency: 2,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("only updates the form's own preview UI for the legacy single-payload path", async () => {
+    const shouldUpdateUiByCall: Array<boolean | undefined> = [];
+    const createPreviewRunner: Parameters<
+      typeof runEvaluatorDraftPreviewClientAction
+    >[0]["createPreviewRunner"] = (options) => {
+      shouldUpdateUiByCall.push(options?.shouldUpdateUi);
+      return {
+        ok: true,
+        output: async () => ({ ok: true, output: {} }),
+      };
+    };
+    await runEvaluatorDraftPreviewClientAction({
+      input: {},
+      createPreviewRunner,
+      concurrency: 1,
+    });
+    await runEvaluatorDraftPreviewClientAction({
+      input: { cases: [makeCase("one")] },
+      createPreviewRunner,
+      concurrency: 1,
+    });
+    expect(shouldUpdateUiByCall).toEqual([true, false]);
   });
 
   it("returns equivalent code and LLM batch envelopes", async () => {

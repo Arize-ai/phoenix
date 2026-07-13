@@ -307,8 +307,9 @@ export const EvaluatorOutputPreview = () => {
       };
     }
   };
-  const createPreviewRunner: EvaluatorPreviewRunnerFactory = () =>
-    buildPreviewRunner({ shouldUpdateUi: false });
+  const createPreviewRunner: EvaluatorPreviewRunnerFactory = ({
+    shouldUpdateUi = false,
+  } = {}) => buildPreviewRunner({ shouldUpdateUi });
   const createPreviewRunnerRef = useRef(createPreviewRunner);
   createPreviewRunnerRef.current = createPreviewRunner;
 
@@ -324,7 +325,8 @@ export const EvaluatorOutputPreview = () => {
       TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
       createTestLlmEvaluatorDraftClientAction({
         isDraftMounted: () => true,
-        createPreviewRunner: () => createPreviewRunnerRef.current(),
+        createPreviewRunner: (options) =>
+          createPreviewRunnerRef.current(options),
       })
     );
     return () => {

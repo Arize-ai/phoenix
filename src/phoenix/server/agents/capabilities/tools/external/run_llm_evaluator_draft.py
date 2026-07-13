@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 
 from jinja2 import Template
@@ -25,7 +26,11 @@ DESCRIPTION = (
     "update an evaluator."
 )
 
-PARAMETERS = PREVIEW_PARAMETERS
+
+# Deep-copied so this tool's schema is independent of run_code_evaluator_draft's
+# -- the two previously aliased the same dict object, which would let an
+# in-place mutation of one tool's schema silently corrupt the other's.
+PARAMETERS = deepcopy(PREVIEW_PARAMETERS)
 
 TOOL_DEFINITION = ToolDefinition(
     name=NAME,

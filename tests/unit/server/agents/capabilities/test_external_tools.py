@@ -201,6 +201,10 @@ def test_evaluator_draft_preview_tools_share_a_bounded_named_case_contract() -> 
     llm_schema = run_llm_evaluator_draft.TOOL_DEFINITION.parameters_json_schema
 
     assert code_schema == llm_schema
+    # Equal in content, but independently owned: mutating one tool's schema
+    # must never silently corrupt the other's.
+    assert code_schema is not llm_schema
+    assert code_schema["properties"]["cases"] is not llm_schema["properties"]["cases"]
     assert code_schema.get("required", []) == []
     assert set(code_schema["properties"]) == {"cases"}
     assert code_schema["additionalProperties"] is False
