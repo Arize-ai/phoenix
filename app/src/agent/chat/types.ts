@@ -17,14 +17,10 @@ export type AgentUIMessage = UIMessage<
   AssistantMessageMetadata | UserMessageMetadata
 >;
 
-/**
- * Narrow a message's metadata to the assistant shape. The assistant shape is
- * the only one with a required `sessionId`, so its presence discriminates the
- * union.
- */
+/** Narrow a message's metadata to the assistant shape. */
 export function getAssistantMessageMetadata(
   message: AgentUIMessage
 ): AssistantMessageMetadata | undefined {
   const metadata = message.metadata;
-  return metadata != null && "sessionId" in metadata ? metadata : undefined;
+  return metadata?.type === "assistant" ? metadata : undefined;
 }
