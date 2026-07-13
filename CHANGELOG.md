@@ -1,5 +1,18 @@
 # Changelog
 
+## [17.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.28.0...arize-phoenix-v17.29.0) (2026-07-13)
+
+
+### Features
+
+* **agents:** move PXI tracing server-side ([#14215](https://github.com/Arize-ai/phoenix/issues/14215)) ([ea40aea](https://github.com/Arize-ai/phoenix/commit/ea40aea40a1ad8f0a5abe1b9c2172973aa339aa3))
+* **pxi:** add remote export setup command ([#14333](https://github.com/Arize-ai/phoenix/issues/14333)) ([cb765a3](https://github.com/Arize-ai/phoenix/commit/cb765a385717ae31d7ac9162254e4bc8e32f10d5))
+
+
+### Documentation
+
+* add tracing video to README ([#14334](https://github.com/Arize-ai/phoenix/issues/14334)) ([277ae55](https://github.com/Arize-ai/phoenix/commit/277ae55e18bf59e98d0c26f0166b3cca768d6fdc))
+
 ## [17.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.27.0...arize-phoenix-v17.28.0) (2026-07-13)
 
 
