@@ -1031,6 +1031,13 @@ class FieldSummarizeResponse(TypedDict):
     summary: str
 
 
+class ToolCallCallbackProviderMetadata(TypedDict):
+    tool_execution_environment: Literal["client", "server"]
+    tool_input_emitted_at: NotRequired[str]
+    client_started_at: NotRequired[str]
+    client_ended_at: NotRequired[str]
+
+
 class ToolCallProviderMetadata(TypedDict):
     tool_execution_environment: Literal["client", "server"]
     tool_input_emitted_at: NotRequired[str]

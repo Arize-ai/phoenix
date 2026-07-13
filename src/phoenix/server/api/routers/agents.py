@@ -142,6 +142,19 @@ class ToolCallProviderMetadata(BaseModel):
     """RFC3339 server timestamp for a client tool-call chunk."""
 
 
+@register_openapi_schema
+class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
+    """Shape of the ``phoenix`` namespace the browser returns in
+    ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
+    plus browser-recorded execution timings."""
+
+    client_started_at: str | None = None
+    """RFC3339 browser timestamp taken when client tool execution started."""
+
+    client_ended_at: str | None = None
+    """RFC3339 browser timestamp taken when client tool execution ended."""
+
+
 def _get_updated_provider_metadata(
     *,
     provider_metadata: ProviderMetadata,
@@ -547,6 +560,36 @@ def _emit_turn_root_span(
     )
 
 
+@dataclass
+class _ClientToolTimings:
+    """Usable timestamps recovered from an echoed ``phoenix`` tool-call
+    namespace (wire contract: ``ToolCallCallbackProviderMetadata``)."""
+
+    emitted_at: datetime
+    client_started_at: datetime | None
+    client_ended_at: datetime | None
+
+
+def _extract_client_tool_timings(provider_metadata: object) -> _ClientToolTimings | None:
+    """Leniently pull client-tool execution timings out of returned
+    ``callProviderMetadata``."""
+    if not isinstance(provider_metadata, dict):
+        return None
+    phoenix_metadata = provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+    if not isinstance(phoenix_metadata, dict):
+        return None
+    if phoenix_metadata.get("tool_execution_environment") != "client":
+        return None
+    emitted_at = _parse_rfc3339(phoenix_metadata.get("tool_input_emitted_at"))
+    if emitted_at is None:
+        return None
+    return _ClientToolTimings(
+        emitted_at=emitted_at,
+        client_started_at=_parse_rfc3339(phoenix_metadata.get("client_started_at")),
+        client_ended_at=_parse_rfc3339(phoenix_metadata.get("client_ended_at")),
+    )
+
+
 def _synthesize_client_tool_spans(
     *,
     tracer: Tracer,
@@ -570,32 +613,22 @@ def _synthesize_client_tool_spans(
         for part in message.parts:
             if not isinstance(part, resolved_tool_types):
                 continue
-            provider_metadata = part.call_provider_metadata
-            if not isinstance(provider_metadata, dict):
-                continue
-            phoenix_metadata = provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
-            if not isinstance(phoenix_metadata, dict):
-                continue
-            if phoenix_metadata.get("tool_execution_environment") != "client":
-                continue
-            emitted_at = _parse_rfc3339(phoenix_metadata.get("tool_input_emitted_at"))
-            if emitted_at is None:
+            timings = _extract_client_tool_timings(part.call_provider_metadata)
+            if timings is None:
                 continue
             bracket_start = _clamp_datetime(
-                emitted_at,
+                timings.emitted_at,
                 turn_ids.started_at,
                 received_at,
             )
-            client_started_at = _parse_rfc3339(phoenix_metadata.get("client_started_at"))
             start_time = (
-                _clamp_datetime(client_started_at, bracket_start, received_at)
-                if client_started_at is not None
+                _clamp_datetime(timings.client_started_at, bracket_start, received_at)
+                if timings.client_started_at is not None
                 else bracket_start
             )
-            client_ended_at = _parse_rfc3339(phoenix_metadata.get("client_ended_at"))
             end_time = (
-                _clamp_datetime(client_ended_at, start_time, received_at)
-                if client_ended_at is not None
+                _clamp_datetime(timings.client_ended_at, start_time, received_at)
+                if timings.client_ended_at is not None
                 else received_at
             )
             tool_name = (

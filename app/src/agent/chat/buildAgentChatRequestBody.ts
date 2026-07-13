@@ -46,6 +46,16 @@ type BuildAgentChatRequestBodyOptions = {
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
 
+/**
+ * Browser-recorded execution timings added to the `phoenix` namespace of
+ * `callProviderMetadata` on resolved client-tool parts. Picked from the
+ * generated wire contract so a server-side rename fails compilation here.
+ */
+type ClientToolTimingMetadata = Pick<
+  components["schemas"]["ToolCallCallbackProviderMetadata"],
+  "client_started_at" | "client_ended_at"
+>;
+
 export type AgentChatRequestBodyPatch = Pick<
   BuildAgentChatRequestBodyResult,
   "requestedSkills"
@@ -174,14 +184,17 @@ export function enrichMessagesWithClientToolTimings({
         return part;
       }
       hasChangedPart = true;
+      const timingMetadata: ClientToolTimingMetadata = {
+        client_started_at: timing.startedAt,
+        client_ended_at: timing.endedAt,
+      };
       return {
         ...part,
         callProviderMetadata: {
           ...part.callProviderMetadata,
           phoenix: {
             ...part.callProviderMetadata?.phoenix,
-            client_started_at: timing.startedAt,
-            client_ended_at: timing.endedAt,
+            ...timingMetadata,
           },
         },
       };
