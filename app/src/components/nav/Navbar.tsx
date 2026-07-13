@@ -25,12 +25,8 @@ const topNavCSS = css`
   align-items: center;
   gap: var(--global-dimension-static-size-100);
 
-  /* The PXI pill's decorative glow (.agent-chat-widget__hover-shimmer,
-     inset: -28px) extends past the nav's right padding. Clip horizontal
-     paint overflow — without creating a scroll container — so it does not
-     add scrollable overflow (a horizontal scrollbar) to the surrounding
-     layout panel. Vertical overflow stays visible for the pill's streaming
-     height bleed (see pillWrapperCSS in agent/AgentChatTopNavButton.tsx). */
+  /* Clip the PXI button's decorative glow without creating a scroll
+     container or horizontal scrollbar in the surrounding layout panel. */
   overflow-x: clip;
 
   /* The breadcrumb trail (an <ol> from the Breadcrumbs component) is the

@@ -15,7 +15,10 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { PxiButton } from "@phoenix/components/agent/PxiButton";
+import {
+  PxiButton,
+  type PxiButtonVariant,
+} from "@phoenix/components/agent/PxiButton";
 import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
 
 const meta = {
@@ -65,8 +68,14 @@ export const MenuAction = {
   ),
 };
 
-export const ActionCluster = {
-  render: () => (
+function ActionClusterExample({
+  isPxiButtonIconOnly,
+  pxiButtonVariant,
+}: {
+  isPxiButtonIconOnly: boolean;
+  pxiButtonVariant: PxiButtonVariant;
+}) {
+  return (
     <Flex
       direction="row"
       justifyContent="space-between"
@@ -90,10 +99,29 @@ export const ActionCluster = {
           tooltipText="Copy Span ID"
         />
         <TooltipTrigger>
-          <PxiButton size="S" isIconOnly />
+          <PxiButton
+            size="S"
+            isIconOnly={isPxiButtonIconOnly}
+            variant={pxiButtonVariant}
+          />
           <Tooltip>Solve with PXI</Tooltip>
         </TooltipTrigger>
       </Flex>
     </Flex>
+  );
+}
+
+export const ActionCluster = {
+  render: () => (
+    <ActionClusterExample isPxiButtonIconOnly pxiButtonVariant="default" />
+  ),
+};
+
+export const QuietActionCluster = {
+  render: () => (
+    <ActionClusterExample
+      isPxiButtonIconOnly={false}
+      pxiButtonVariant="quiet"
+    />
   ),
 };

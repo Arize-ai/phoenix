@@ -4,10 +4,12 @@ import type { Ref } from "react";
 import { Button, type ButtonProps } from "@phoenix/components/core/button";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { getPxiGlyphSVGDataUrl } from "./PxiGlyph";
+import {
+  PxiAnimatedGlyph,
+  type PxiAnimatedGlyphSize,
+} from "./PxiAnimatedGlyph";
 import {
   pxiConicBandCSS,
-  pxiConicGradientCSS,
   pxiConicSpin,
   pxiGlowBreathe,
   pxiGlowFlashOpacity,
@@ -15,9 +17,7 @@ import {
   pxiGlowWipeMaskCSS,
 } from "./pxiStyles";
 
-const pxiGlyphMaskImage = `url("${getPxiGlyphSVGDataUrl({ fill: "black" })}")`;
-
-export type PxiButtonSize = "S" | "M";
+export type PxiButtonSize = PxiAnimatedGlyphSize;
 export type PxiButtonVariant = "default" | "quiet";
 
 export interface PxiButtonProps extends Omit<
@@ -26,7 +26,7 @@ export interface PxiButtonProps extends Omit<
 > {
   /** Visible label, or accessible name when icon-only. */
   label?: string;
-  /** Collapses the default variant to a square icon button. */
+  /** Collapses the button to a square icon button. */
   isIconOnly?: boolean;
   /** Runs the PXI attention glow once when it changes from false to true. */
   shouldFlash?: boolean;
@@ -37,21 +37,27 @@ export interface PxiButtonProps extends Omit<
 
 const pxiButtonCSS = css`
   --pxi-treatment-stroke-width: var(--global-border-size-thin);
+  --pxi-button-background-color-hover: color-mix(
+    in srgb,
+    var(--pxi-treatment-color-middle) 6%,
+    transparent
+  );
   position: relative;
   isolation: isolate;
   &[data-childless="true"] {
     aspect-ratio: 1 / 1;
   }
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--pxi-treatment-color-start) 11%, transparent),
-    color-mix(in srgb, var(--pxi-treatment-color-end) 7%, transparent)
-  );
+  background-color: transparent;
+  background-image: none;
+
+  &:hover:not([disabled]) {
+    background-color: var(--pxi-button-background-color-hover);
+  }
 
   &::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: calc(-1 * var(--pxi-treatment-stroke-width));
     border-radius: inherit;
     pointer-events: none;
     ${pxiConicBandCSS};
@@ -98,14 +104,16 @@ const pxiButtonCSS = css`
   }
 
   &[data-variant="quiet"] {
-    background-image: none;
+    &:hover:not([disabled]) {
+      background-color: var(--pxi-button-background-color-hover);
+    }
 
     &::before {
       opacity: 0;
     }
 
     &[data-hovered]::before {
-      opacity: 0.9;
+      opacity: 1;
     }
   }
 
@@ -114,51 +122,10 @@ const pxiButtonCSS = css`
       animation-play-state: paused;
     }
 
-    .pxi-button__glyph {
-      &::before {
-        animation: none;
-      }
-    }
-
     .pxi-button__glow,
     .pxi-button__glow::before {
       animation: none !important;
     }
-  }
-`;
-
-const glyphCSS = css`
-  display: block;
-  flex: none;
-  width: 13px;
-  height: 13px;
-  background: color-mix(
-    in srgb,
-    var(--pxi-treatment-color-middle) 78%,
-    var(--pxi-treatment-color-end)
-  );
-  -webkit-mask-image: ${pxiGlyphMaskImage};
-  mask-image: ${pxiGlyphMaskImage};
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-
-  &::before {
-    content: "";
-    ${pxiConicGradientCSS};
-    display: block;
-    width: 100%;
-    height: 100%;
-    opacity: 0.35;
-    animation: ${pxiConicSpin} var(--pxi-conic-spin-duration) linear infinite;
-  }
-
-  &[data-size="S"] {
-    width: 11px;
-    height: 11px;
   }
 `;
 
@@ -173,7 +140,7 @@ export function PxiButton({
   variant = "default",
   ...buttonProps
 }: PxiButtonProps) {
-  const isButtonIconOnly = variant === "quiet" || isIconOnly;
+  const isButtonIconOnly = isIconOnly;
   return (
     <Button
       {...buttonProps}
@@ -187,12 +154,7 @@ export function PxiButton({
       leadingVisual={
         <>
           <span className="pxi-button__glow" aria-hidden="true" />
-          <span
-            className="pxi-button__glyph"
-            css={glyphCSS}
-            data-size={size}
-            aria-hidden="true"
-          />
+          <PxiAnimatedGlyph size={size} />
         </>
       }
     >

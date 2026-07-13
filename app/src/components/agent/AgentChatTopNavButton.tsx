@@ -15,53 +15,33 @@ import {
   useActiveModalPortalContainerElement,
 } from "@phoenix/hooks/useHasOpenModal";
 
-import {
-  AgentChatWidgetButton,
-  AgentChatWidgetTooltip,
-  OPEN_AGENT_HOTKEY,
-} from "./AgentChatWidget";
+import { AgentChatWidgetTooltip, OPEN_AGENT_HOTKEY } from "./AgentChatWidget";
+import { PxiButton } from "./PxiButton";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
-// Keep these in sync with topNavCSS in components/nav/Navbar.tsx: the nav has
-// `padding: static-size-100` (8px) and `padding-right: static-size-200`
-// (16px), so the detached pill rendered at these fixed offsets appears to
-// stay exactly where the in-flow pill was. The detached wrapper contains the
-// same fixed-height pill wrapper as the in-flow pill, so aligning it with the
-// nav's top padding reproduces the in-flow position exactly.
-const NAV_PILL_TOP_PX = 8;
-const NAV_PILL_RIGHT_PX = 16;
-// Gap between the pill and an open drawer's left edge.
+// Keep these in sync with topNavCSS in components/nav/Navbar.tsx so the
+// detached button stays exactly where the in-flow button was.
+const NAV_BUTTON_TOP_PX = 8;
+const NAV_BUTTON_RIGHT_PX = 16;
+// Gap between the button and an open drawer's left edge.
 const DRAWER_EDGE_GAP_PX = 12;
 // Keep at least this much room at the left viewport edge so an extremely wide
-// drawer cannot push the pill off screen.
+// drawer cannot push the button off screen.
 const MIN_VIEWPORT_RIGHT_GAP_PX = 96;
 
-// Height of the nav's natural content row (a size-S control is 30px), NOT the
-// pill's rendered height. The resting pill (36px, see FAB_RESTING_SIZE in
-// agentFabPositioning.ts) and the streaming state (40px,
-// FAB_STREAMING_SIZE.height) are both taller; pinning the wrapper to the
-// nav's natural content height with visible overflow lets the pill bleed
-// into the nav's 8px vertical padding without inflating the nav row —
-// toggling the pill in and out of the nav must not shift the layout.
-const NAV_PILL_WRAPPER_HEIGHT_PX = 30;
-
-// Fixed-height, centered wrapper so neither the pill's resting size nor its
-// height animation (resting 36px <-> streaming 40px) changes the wrapper's
-// box and reflows the surrounding layout. The wrapper keeps its intrinsic
-// size when the nav gets tight; the breadcrumb is the nav's designated
-// shrinking region (see topNavCSS in Navbar.tsx).
-const pillWrapperCSS = css`
+// Keep the control at the nav's natural size-S row height. The wrapper keeps
+// its intrinsic size when the nav gets tight; the breadcrumb is the nav's
+// designated shrinking region (see topNavCSS in Navbar.tsx).
+const buttonWrapperCSS = css`
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: ${NAV_PILL_WRAPPER_HEIGHT_PX}px;
-  overflow: visible;
 `;
 
-const detachedPillCSS = css`
+const detachedButtonCSS = css`
   position: fixed;
-  top: ${NAV_PILL_TOP_PX}px;
+  top: ${NAV_BUTTON_TOP_PX}px;
   z-index: ${NON_MODAL_FLOATING_Z_INDEX};
   &[data-layer="modal"] {
     z-index: ${MODAL_FLOATING_UI_Z_INDEX};
@@ -71,7 +51,7 @@ const detachedPillCSS = css`
   }
 `;
 
-type DrawerPillPosition = {
+type DrawerButtonPosition = {
   rightPx: number;
   /**
    * Animate only the initial travel to the drawer's edge. Subsequent updates
@@ -86,14 +66,14 @@ type DrawerPillPosition = {
  * drawer's left edge, tracking drawer resizes. Mount only while a drawer is
  * open; position state resets when it unmounts.
  */
-function DrawerAnchoredPill({
+function DrawerAnchoredButton({
   drawer,
   children,
 }: {
   drawer: HTMLElement;
   children: ReactNode;
 }) {
-  const [position, setPosition] = useState<DrawerPillPosition | null>(null);
+  const [position, setPosition] = useState<DrawerButtonPosition | null>(null);
 
   useEffect(() => {
     let isFirstUpdate = true;
@@ -123,8 +103,8 @@ function DrawerAnchoredPill({
 
   return createPortal(
     <div
-      css={detachedPillCSS}
-      style={{ right: position?.rightPx ?? NAV_PILL_RIGHT_PX }}
+      css={detachedButtonCSS}
+      style={{ right: position?.rightPx ?? NAV_BUTTON_RIGHT_PX }}
       data-animate={(position?.animate ?? true) ? "true" : "false"}
     >
       {children}
@@ -138,7 +118,7 @@ function DrawerAnchoredPill({
  *
  * Renders inline in the nav flow so it never overlaps page content. Because
  * drawers (slideovers) are fixed to the right viewport edge and cover the top
- * nav's right side, the pill detaches while one is open and slides left to
+ * nav's right side, the button detaches while one is open and slides left to
  * rest just outside the drawer's edge, tracking drawer resizes. While a modal
  * is open it portals into the modal layer so it stays interactive above the
  * backdrop.
@@ -170,17 +150,19 @@ export function AgentChatTopNavButton() {
     [isAssistantAgentEnabled, toggleOpen]
   );
 
-  if (!isAssistantAgentEnabled) {
+  if (!isAssistantAgentEnabled || isOpen) {
     return null;
   }
 
   const button = (
-    <div css={pillWrapperCSS}>
+    <div css={buttonWrapperCSS}>
       <TooltipTrigger delay={1000} closeDelay={0}>
-        <AgentChatWidgetButton
-          ariaLabel="Open assistant"
+        <PxiButton
+          label="Ask PXI"
+          size="S"
+          variant="quiet"
           aria-expanded={isOpen}
-          isStreaming={isStreaming}
+          shouldFlash={isStreaming}
           onPress={() => toggleOpen()}
         />
         <AgentChatWidgetTooltip />
@@ -189,12 +171,12 @@ export function AgentChatTopNavButton() {
   );
 
   // Modals cover the whole viewport with a backdrop; portal into the modal
-  // layer (like the floating FAB does) so the pill stays interactive.
+  // layer (like the floating FAB does) so the button stays interactive.
   if (modalContainer) {
     return createPortal(
       <div
-        css={detachedPillCSS}
-        style={{ right: NAV_PILL_RIGHT_PX }}
+        css={detachedButtonCSS}
+        style={{ right: NAV_BUTTON_RIGHT_PX }}
         data-layer="modal"
       >
         {button}
@@ -204,7 +186,9 @@ export function AgentChatTopNavButton() {
   }
 
   if (drawer) {
-    return <DrawerAnchoredPill drawer={drawer}>{button}</DrawerAnchoredPill>;
+    return (
+      <DrawerAnchoredButton drawer={drawer}>{button}</DrawerAnchoredButton>
+    );
   }
 
   return button;
