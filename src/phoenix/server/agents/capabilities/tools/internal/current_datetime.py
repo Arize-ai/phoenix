@@ -1,11 +1,3 @@
-"""Server-side tool that reads the browser clock stamped on the newest user message.
-
-The clock is deliberately surfaced through a tool instead of the system prompt:
-a per-turn timestamp in the instructions changes the request prefix every turn
-and defeats provider prompt caching, while a tool result lands at the tail of
-the message history and replays byte-stable.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
