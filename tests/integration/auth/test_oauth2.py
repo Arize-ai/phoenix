@@ -12,7 +12,7 @@ import pytest
 from phoenix.server.api.exceptions import Unauthorized
 from tests.integration._helpers import _ADMIN, _MEMBER, _AppInfo, _GetUser, _httpx_client
 
-from .conftest import _active_grants, _OAuthPublicClient
+from .conftest import _SHORT_GRANT_EXPIRY_SECONDS, _active_grants, _OAuthPublicClient
 
 
 class TestDiscovery:
@@ -323,6 +323,37 @@ class TestAuthorizationCodeFlow:
 
 
 class TestTokenLifecycle:
+    def test_token_lifetimes_are_clamped_to_the_grant_ceiling(
+        self,
+        _app_short_grant: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        # Nothing sweeps a grant when it reaches expires_at; the ceiling is only consulted
+        # when a token is redeemed. A token minted to outlive its grant would therefore go on
+        # authenticating past the ceiling, because its bearer never has to come back to have
+        # it checked. Clamping at mint time is what makes the ceiling a deadline.
+        app = _app_short_grant
+        client = _register_client(app, redirect_uri="http://127.0.0.1:8765/callback")
+        user = _get_user(app, _MEMBER).log_in(app)
+
+        token_response = client.complete_flow(user)
+
+        # The default access-token lifetime is far longer than this grant, so a lifetime at
+        # or under the ceiling can only be the clamp doing the work.
+        assert 0 < token_response["expires_in"] <= _SHORT_GRANT_EXPIRY_SECONDS
+
+        # Rotation must not mint a fresh full-length token and escape the ceiling that way.
+        refresh_response = _httpx_client(app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": token_response["refresh_token"],
+                "client_id": client.client_id,
+            },
+        )
+        refresh_response.raise_for_status()
+        assert 0 < refresh_response.json()["expires_in"] <= _SHORT_GRANT_EXPIRY_SECONDS
+
     def test_refresh_token_rotation_lifecycle(
         self,
         _app: _AppInfo,

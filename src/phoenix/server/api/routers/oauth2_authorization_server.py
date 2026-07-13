@@ -443,7 +443,7 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
         session.add(grant)
         await session.flush()
         grant_id = grant.id
-    access_token_expiry = _access_token_expiry(request)
+    access_token_expiry = _access_token_expiry(request, grant_expires_at=grant.expires_at)
     refresh_token_expiry = _refresh_token_expiry(request, grant_expires_at=grant.expires_at)
     token_store: TokenStore = request.app.state.get_token_store()
     access_token, refresh_token = await create_access_and_refresh_tokens(
@@ -505,7 +505,7 @@ async def _exchange_refresh_token(request: Request, form: Any) -> JSONResponse:
         )
         token_ids = [AccessTokenId(id_) for id_ in access_token_ids]
     refresh_token_expiry = _refresh_token_expiry(request, grant_expires_at=grant.expires_at)
-    access_token_expiry = _access_token_expiry(request)
+    access_token_expiry = _access_token_expiry(request, grant_expires_at=grant.expires_at)
     if not await token_store.consume_refresh_token(refresh_claims.token_id):
         return _oauth_error("invalid_grant")
     await token_store.revoke(*token_ids)
@@ -931,16 +931,28 @@ def _oauth_json_response(
     )
 
 
-def _access_token_expiry(request: Request) -> timedelta:
+def _clamped_to_grant(expiry: timedelta, grant_expires_at: Optional[datetime]) -> timedelta:
+    """Cap a token's lifetime at whatever life the grant has left.
+
+    Nothing sweeps grants when they reach expires_at — the ceiling is only consulted when a
+    token is redeemed. A token minted with a lifetime that overruns the grant would therefore
+    keep authenticating past the ceiling, since the bearer never has to come back to have it
+    checked. Clamping at mint time is what turns the grant ceiling into a real deadline
+    rather than one that is merely asked about.
+    """
+    if grant_expires_at is None:
+        return expiry
+    remaining = grant_expires_at - datetime.now(timezone.utc)
+    if remaining <= timedelta(0):
+        return timedelta(seconds=1)
+    return min(expiry, remaining)
+
+
+def _access_token_expiry(request: Request, *, grant_expires_at: Optional[datetime]) -> timedelta:
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
-    return access_token_expiry
+    return _clamped_to_grant(access_token_expiry, grant_expires_at)
 
 
 def _refresh_token_expiry(request: Request, *, grant_expires_at: Optional[datetime]) -> timedelta:
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
-    if grant_expires_at is None:
-        return refresh_token_expiry
-    remaining = grant_expires_at - datetime.now(timezone.utc)
-    if remaining <= timedelta(0):
-        return timedelta(seconds=1)
-    return min(refresh_token_expiry, remaining)
+    return _clamped_to_grant(refresh_token_expiry, grant_expires_at)

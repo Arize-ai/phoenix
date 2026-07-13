@@ -205,7 +205,7 @@ grant behind (the unredeemed code expires and is swept).
 |--------|------|---------|
 | `user_id`, `oauth2_client_id` | FK, CASCADE | Grant identity |
 | `scopes`, `audience` | JSON, nullable | Granted values copied onto every token; currently scopes are empty and audience is unset |
-| `expires_at` | timestamp, nullable | Grant ceiling (default 90 days); refresh-token lifetimes are clamped to it |
+| `expires_at` | timestamp, nullable | Grant ceiling (default 90 days); both access- and refresh-token lifetimes are clamped to it at mint time |
 | `last_used_at` | timestamp | Touched on every refresh — feeds DCR client-cleanup and future session UI |
 | `revoked_at` | timestamp, nullable | Soft revocation; refresh redemption checks it |
 
@@ -402,8 +402,14 @@ not implemented.
 ### Refresh rotation with replay detection
 
 Redeeming a refresh token mints a new pair and revokes the old refresh token
-*and every access token minted under it*. Refresh lifetimes are clamped to the
-grant's `expires_at`, so a grant ceiling is a hard ceiling.
+*and every access token minted under it*.
+
+Both tokens are clamped to the grant's remaining life at mint time, on the
+initial code exchange and on every rotation. Nothing sweeps a grant when it
+reaches `expires_at` — the ceiling is only consulted when a token is redeemed —
+so a token minted to outlive its grant would go on authenticating past the
+ceiling, because its bearer never has to come back to have it checked. Clamping
+is what makes the ceiling a deadline rather than a question asked at redemption.
 
 Rotation spends the old token by stamping `consumed_at` rather than deleting the
 row. Presenting a spent token afterwards means two parties held it: whoever

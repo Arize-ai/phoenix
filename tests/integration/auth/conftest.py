@@ -1120,6 +1120,34 @@ def _app_dcr_enabled(
         yield app
 
 
+_SHORT_GRANT_EXPIRY_SECONDS = 120
+
+
+@pytest.fixture
+def _app_short_grant(
+    _ports: Iterator[int],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[_AppInfo]:
+    """An app whose grant ceiling is shorter than its default token lifetimes.
+
+    Grants default to 90 days and access tokens to 10 minutes, so token lifetimes never
+    reach the ceiling and clamping is unobservable. Squeezing the ceiling below both makes
+    it the binding constraint.
+    """
+    port = next(_ports)
+    env = _oauth2_app_env(
+        port=port,
+        grpc_port=next(_ports),
+        database=str(tmp_path_factory.mktemp("oauth2_short_grant") / "phoenix.db"),
+        extra={
+            "PHOENIX_DISABLE_RATE_LIMIT": "true",
+            "PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS": str(_SHORT_GRANT_EXPIRY_SECONDS / 86400),
+        },
+    )
+    with _server(_AppInfo(env)) as app:
+        yield app
+
+
 @pytest.fixture
 def _app_dcr_disabled(
     _ports: Iterator[int],
