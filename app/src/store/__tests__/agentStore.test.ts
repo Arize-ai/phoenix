@@ -6,6 +6,7 @@ import {
 
 import {
   createAgentStore,
+  getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
@@ -614,6 +615,12 @@ describe("agentStore", () => {
       ).toEqual({ ingestTraces: true, exportRemoteTraces: true });
       expect(
         hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
+      expect(
+        getEffectiveAttachUserId({
           agentsConfig: store.getState().agentsConfig,
           observability: store.getState().observability,
         })

@@ -24,6 +24,7 @@ from phoenix.server.api.routers.agents import (
     _load_sandbox_availability,
     _maybe_using_user,
     _persist_db_traces_and_emit_event,
+    _resolve_attach_user_id,
     _resolve_trace_recording,
     _SubagentMessageChunksClosed,
 )
@@ -64,6 +65,14 @@ def test_resolve_trace_recording_forced_by_debug_agents(
         allow_local_traces=False,
         allow_remote_export=False,
     ) == (True, True)
+
+
+def test_resolve_attach_user_id_forced_by_debug_agents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_DEBUG_AGENTS", "true")
+
+    assert _resolve_attach_user_id(False) is True
 
 
 class TestPersistDbTracesAndEmitEvent:

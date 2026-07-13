@@ -261,6 +261,16 @@ export function getEffectiveTraceRecordingSettings({
   };
 }
 
+export function getEffectiveAttachUserId({
+  agentsConfig,
+  observability,
+}: {
+  agentsConfig: AgentServerConfig;
+  observability: AgentObservabilitySettings;
+}): boolean {
+  return agentsConfig.debugAgents || observability.attachUserId;
+}
+
 /**
  * Serializable properties that define the agent's state.
  * These are the values persisted to local storage.

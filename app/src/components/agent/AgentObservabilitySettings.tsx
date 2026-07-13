@@ -4,7 +4,10 @@ import type { ReactNode } from "react";
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
-import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
+import {
+  getEffectiveAttachUserId,
+  getEffectiveTraceRecordingSettings,
+} from "@phoenix/store/agentStore";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
@@ -116,13 +119,17 @@ export function AgentObservabilitySettings({
   });
   const isTracingEnabled =
     effectiveRecording.ingestTraces || effectiveRecording.exportRemoteTraces;
+  const effectiveAttachUserId = getEffectiveAttachUserId({
+    agentsConfig,
+    observability,
+  });
 
   return (
     <div css={settingsContainerCSS}>
       {isTracingForced ? (
         <Text color="text-500" size="S">
-          Tracing and remote export are enabled for all users by this Phoenix
-          deployment.
+          Tracing, remote export, and user attribution are enabled for all users
+          by this Phoenix deployment.
         </Text>
       ) : !isOnSettingsPage ? (
         <Text color="text-500" size="S">
@@ -203,8 +210,8 @@ export function AgentObservabilitySettings({
         ) : null}
         <li css={settingRowCSS}>
           <Switch
-            isSelected={observability.attachUserId}
-            isDisabled={!isTracingEnabled}
+            isSelected={effectiveAttachUserId}
+            isDisabled={!isTracingEnabled || isTracingForced}
             onChange={(attachUserId) => {
               setObservability({ attachUserId });
             }}

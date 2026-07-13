@@ -129,7 +129,7 @@ export function SettingsAgentsAdminSettingsSection() {
     <Flex direction="column" gap="size-150">
       <Text color="text-500">
         {debugAgents
-          ? "PXI tracing and remote export are enabled for all users by PHOENIX_DEBUG_AGENTS."
+          ? "PXI tracing, remote export, and user attribution are enabled for all users by PHOENIX_DEBUG_AGENTS."
           : "Applies to all users. When a system setting is off, the matching personal setting is unavailable."}
       </Text>
       <ul css={settingsListCSS}>
