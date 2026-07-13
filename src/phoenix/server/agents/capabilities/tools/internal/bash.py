@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import posixpath
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional
@@ -33,8 +32,6 @@ from typing_extensions import Literal, TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
-
-logger = logging.getLogger(__name__)
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
@@ -289,6 +286,7 @@ class GraphQLAliasCollisionError(ValueError):
 
 
 def _selects_field(selection_set: SelectionSetNode, field_name: str) -> bool:
+    """Check whether the selection set includes ``field_name`` without an alias."""
     return any(
         isinstance(selection, FieldNode)
         and selection.alias is None
@@ -298,11 +296,7 @@ def _selects_field(selection_set: SelectionSetNode, field_name: str) -> bool:
 
 
 def _aliases_other_field_as(selection_set: SelectionSetNode, field_name: str) -> bool:
-    """Return whether a selection aliases a different field as ``field_name``.
-
-    Such an alias collides with an injected bare ``field_name``: both would share
-    a response key while resolving different fields, failing GraphQL validation.
-    """
+    """Check whether adding ``field_name`` would conflict with an existing alias."""
     for selection in selection_set.selections:
         if not isinstance(selection, FieldNode) or selection.alias is None:
             continue
@@ -346,13 +340,7 @@ def _inject_id_and_typename(query: str, graphql_core_schema: GraphQLSchema) -> s
                 return None
             return SelectionSetNode(selections=tuple(node.selections) + tuple(additions))
 
-    try:
-        injected_document = visit(document, TypeInfoVisitor(type_info, _SelectionInjector()))
-    except GraphQLAliasCollisionError:
-        raise
-    except Exception:
-        logger.warning("phoenix-gql id/__typename injection failed", exc_info=True)
-        return query
+    injected_document = visit(document, TypeInfoVisitor(type_info, _SelectionInjector()))
     return print_graphql_ast(injected_document)
 
 
@@ -363,7 +351,7 @@ def create_phoenix_gql_builtin(
     allow_mutations: bool,
     on_graphql_result: Optional[OnGraphQLResult] = None,
 ) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
-    """Build the server-side ``phoenix-gql`` custom shell command."""
+    """Build the ``phoenix-gql`` custom shell command."""
     allowed_operation_types = (
         {OperationType.QUERY, OperationType.MUTATION} if allow_mutations else {OperationType.QUERY}
     )
@@ -409,21 +397,18 @@ def create_phoenix_gql_builtin(
                 payload["errors"] = [error.formatted for error in errors]
 
             if on_graphql_result is not None and result.data is not None:
-                try:
-                    await on_graphql_result(
-                        PhoenixGQLResult(
-                            query=executed_query,
-                            variables=variables,
-                            payload=payload,
-                            operation_type=(
-                                "mutation"
-                                if GraphQLOperationType.MUTATION in operation_types
-                                else "query"
-                            ),
-                        )
+                await on_graphql_result(
+                    PhoenixGQLResult(
+                        query=executed_query,
+                        variables=variables,
+                        payload=payload,
+                        operation_type=(
+                            "mutation"
+                            if GraphQLOperationType.MUTATION in operation_types
+                            else "query"
+                        ),
                     )
-                except Exception:
-                    logger.exception("phoenix-gql on_graphql_result callback failed")
+                )
             graphql_error_text = (
                 _format_graphql_errors([error.message for error in errors]) if errors else ""
             )

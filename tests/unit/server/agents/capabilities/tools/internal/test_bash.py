@@ -386,7 +386,7 @@ async def test_on_graphql_result_skipped_when_response_has_no_data() -> None:
     assert recorded == []
 
 
-async def test_on_graphql_result_callback_failure_does_not_fail_the_command() -> None:
+async def test_on_graphql_result_callback_failure_fails_the_command() -> None:
     async def explode(graphql_result: PhoenixGQLResult) -> None:
         raise RuntimeError("callback exploded")
 
@@ -394,8 +394,8 @@ async def test_on_graphql_result_callback_failure_does_not_fail_the_command() ->
 
     result = await run_bash("phoenix-gql '{ hello }'")
 
-    assert result["exit_code"] == 0
-    assert json.loads(result["stdout"])["data"]["hello"] == "world"
+    assert result["exit_code"] == 1
+    assert result["stderr"] == "callback exploded\n"
 
 
 async def test_no_injection_without_callback(run_bash: RunBash) -> None:
