@@ -58,6 +58,42 @@ def _canonical_tools(
     )
 
 
+@pytest.fixture
+async def dataset_code_evaluator(
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> models.CodeEvaluator:
+    output_config = CategoricalOutputConfig(
+        type="CATEGORICAL",
+        name="correctness",
+        description="Whether the output is correct",
+        optimization_direction=OptimizationDirection.MAXIMIZE,
+        values=[
+            CategoricalAnnotationValue(label="correct", score=1.0),
+            CategoricalAnnotationValue(label="incorrect", score=0.0),
+        ],
+    )
+    async with db() as session:
+        evaluator = models.CodeEvaluator(
+            name=IdentifierModel(f"dataset-code-evaluator-{token_hex(4)}"),
+            description="A code evaluator for dataset assignment tests",
+            language="PYTHON",
+            sandbox_config_id=sandbox_config.id,
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={"output": "$.output"}),
+            output_configs=[output_config],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.CodeEvaluatorVersion(
+                code_evaluator_id=evaluator.id,
+                source_code="def evaluate(output): return 'correct'",
+            )
+        )
+        await session.flush()
+    return evaluator
+
+
 class TestDatasetLLMEvaluatorMutations:
     _MUTATION = """
       mutation($input: CreateDatasetLLMEvaluatorInput!) {
@@ -2014,6 +2050,141 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert len(prompt_versions.all()) == 2
+
+
+class TestCreateDatasetCodeEvaluatorMutation:
+    _MUTATION = """
+      mutation($input: CreateDatasetCodeEvaluatorInput!) {
+        createDatasetCodeEvaluator(input: $input) {
+          evaluator {
+            id
+            name
+            evaluator {
+              ... on CodeEvaluator {
+                id
+                name
+                kind
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    async def _create(self, gql_client: AsyncGraphQLClient, **input_fields: Any) -> Any:
+        input_fields.setdefault("inputMapping", {"literalMapping": {}, "pathMapping": {}})
+        return await gql_client.execute(self._MUTATION, {"input": input_fields})
+
+    async def test_create_dataset_code_evaluator(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        dataset_code_evaluator: models.CodeEvaluator,
+    ) -> None:
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        evaluator_id = str(GlobalID("CodeEvaluator", str(dataset_code_evaluator.id)))
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=evaluator_id,
+            name="assigned-code-evaluator",
+            description="Dataset-specific description",
+            inputMapping={
+                "literalMapping": {"threshold": 0.5},
+                "pathMapping": {"output": "$.context.output"},
+            },
+            outputConfigs=[
+                {
+                    "categorical": {
+                        "name": "correctness",
+                        "description": "Dataset-specific correctness",
+                        "optimizationDirection": "MAXIMIZE",
+                        "values": [
+                            {"label": "correct", "score": 1.0},
+                            {"label": "incorrect", "score": 0.0},
+                        ],
+                    }
+                }
+            ],
+        )
+
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetCodeEvaluator"]["evaluator"]
+        assert dataset_evaluator["name"] == "assigned-code-evaluator"
+        assert dataset_evaluator["evaluator"] == {
+            "id": evaluator_id,
+            "name": dataset_code_evaluator.name.root,
+            "kind": "CODE",
+        }
+
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+        async with db() as session:
+            assignment = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert assignment is not None
+            assert assignment.dataset_id == empty_dataset.id
+            assert assignment.evaluator_id == dataset_code_evaluator.id
+            assert assignment.description == "Dataset-specific description"
+            assert assignment.input_mapping == InputMapping(
+                literal_mapping={"threshold": 0.5},
+                path_mapping={"output": "$.context.output"},
+            )
+            assert assignment.output_configs is not None
+            assert len(assignment.output_configs) == 1
+            assert assignment.output_configs[0].name == "correctness"
+
+            evaluator = await session.get(models.CodeEvaluator, assignment.evaluator_id)
+            assert evaluator is not None
+            assert evaluator.sandbox_config_id == dataset_code_evaluator.sandbox_config_id
+
+    async def test_create_dataset_code_evaluator_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        dataset_code_evaluator: models.CodeEvaluator,
+    ) -> None:
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        evaluator_id = str(GlobalID("CodeEvaluator", str(dataset_code_evaluator.id)))
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=str(GlobalID("BuiltInEvaluator", str(dataset_code_evaluator.id))),
+            name="invalid-kind",
+        )
+        assert result.errors and "must be a code evaluator" in result.errors[0].message
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=str(GlobalID("CodeEvaluator", "999999")),
+            name="missing-evaluator",
+        )
+        assert result.errors and "not found" in result.errors[0].message.lower()
+
+        result = await self._create(
+            gql_client,
+            datasetId=str(GlobalID("Dataset", "999999")),
+            evaluatorId=evaluator_id,
+            name="missing-dataset",
+        )
+        assert result.errors and "Dataset with id" in result.errors[0].message
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=evaluator_id,
+            name="duplicate-code-assignment",
+        )
+        assert result.data and not result.errors
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=evaluator_id,
+            name="duplicate-code-assignment",
+        )
+        assert result.errors and "already exists" in result.errors[0].message.lower()
 
 
 class TestCreateDatasetBuiltinEvaluatorMutation:
