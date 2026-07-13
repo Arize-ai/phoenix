@@ -12,7 +12,7 @@ export const authenticatedRootLoaderQueryNode = graphql`
     agentsConfig {
       collectorEndpoint
       assistantProjectName
-      debugAgents
+      forceTracing
       webAccessEnabled
       assistantEnabled
       allowLocalTraces

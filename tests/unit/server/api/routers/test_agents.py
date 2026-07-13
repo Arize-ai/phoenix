@@ -44,7 +44,7 @@ class _EventQueue:
 def test_resolve_trace_recording_respects_request_and_workspace_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("PHOENIX_DEBUG_AGENTS", raising=False)
+    monkeypatch.delenv("PHOENIX_AGENTS_FORCE_TRACING", raising=False)
 
     assert _resolve_trace_recording(
         ingest_traces=True,
@@ -54,10 +54,10 @@ def test_resolve_trace_recording_respects_request_and_workspace_settings(
     ) == (False, True)
 
 
-def test_resolve_trace_recording_forced_by_debug_agents(
+def test_resolve_trace_recording_forced_by_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("PHOENIX_DEBUG_AGENTS", "true")
+    monkeypatch.setenv("PHOENIX_AGENTS_FORCE_TRACING", "true")
 
     assert _resolve_trace_recording(
         ingest_traces=False,
@@ -67,10 +67,10 @@ def test_resolve_trace_recording_forced_by_debug_agents(
     ) == (True, True)
 
 
-def test_resolve_attach_user_id_forced_by_debug_agents(
+def test_resolve_attach_user_id_forced_by_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("PHOENIX_DEBUG_AGENTS", "true")
+    monkeypatch.setenv("PHOENIX_AGENTS_FORCE_TRACING", "true")
 
     assert _resolve_attach_user_id(False) is True
 

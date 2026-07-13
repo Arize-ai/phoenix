@@ -15,7 +15,7 @@ import type { AgentUIMessage } from "../types";
 const agentsConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
-  debugAgents: false,
+  forceTracing: false,
   webAccessEnabled: false,
   assistantEnabled: true,
   allowLocalTraces: false,
@@ -252,7 +252,7 @@ describe("buildAgentChatRequestBody", () => {
         attachUserId: false,
         acknowledgedTraceConsent: null,
       },
-      agentsConfig: { ...agentsConfig, debugAgents: true },
+      agentsConfig: { ...agentsConfig, forceTracing: true },
       permissions: { edits: "manual" },
       contexts: [],
       modelSelection: {

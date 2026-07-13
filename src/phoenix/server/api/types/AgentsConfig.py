@@ -17,10 +17,10 @@ class AgentsConfig:
             "Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable."
         ),
     )
-    debug_agents: bool = strawberry.field(
+    force_tracing: bool = strawberry.field(
         description=(
             "Whether PXI tracing and remote export are forced for all users by the "
-            "PHOENIX_DEBUG_AGENTS environment variable."
+            "PHOENIX_AGENTS_FORCE_TRACING environment variable."
         ),
     )
     web_access_enabled: bool = strawberry.field(

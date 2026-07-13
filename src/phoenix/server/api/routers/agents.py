@@ -70,8 +70,8 @@ from typing_extensions import TypeIs, assert_never
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
+    get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
-    get_env_phoenix_debug_agents,
 )
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -909,7 +909,7 @@ def _resolve_trace_recording(
     allow_local_traces: bool,
     allow_remote_export: bool,
 ) -> tuple[bool, bool]:
-    if get_env_phoenix_debug_agents():
+    if get_env_phoenix_agents_force_tracing():
         return True, True
     return (
         ingest_traces and allow_local_traces,
@@ -918,7 +918,7 @@ def _resolve_trace_recording(
 
 
 def _resolve_attach_user_id(attach_user_id: bool) -> bool:
-    return get_env_phoenix_debug_agents() or attach_user_id
+    return get_env_phoenix_agents_force_tracing() or attach_user_id
 
 
 class _SubagentMessageChunksClosed:

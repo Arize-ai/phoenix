@@ -18,7 +18,7 @@ const ENV_PATH = path.resolve(
 const COLLECTOR_ENDPOINT = "PHOENIX_AGENTS_COLLECTOR_ENDPOINT";
 const COLLECTOR_API_KEY = "PHOENIX_AGENTS_COLLECTOR_API_KEY";
 const ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME";
-const DEBUG_AGENTS = "PHOENIX_DEBUG_AGENTS";
+const FORCE_TRACING = "PHOENIX_AGENTS_FORCE_TRACING";
 
 class SecretOutput extends Writable {
   isMuted = false;
@@ -150,7 +150,7 @@ async function main() {
         [COLLECTOR_ENDPOINT, endpoint],
         [COLLECTOR_API_KEY, nextApiKey],
         [ASSISTANT_PROJECT_NAME, projectName],
-        [DEBUG_AGENTS, "true"],
+        [FORCE_TRACING, "true"],
       ]),
     });
 

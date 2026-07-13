@@ -80,7 +80,7 @@ ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NA
 """
 Project name used for assistant agent traces.
 """
-ENV_PHOENIX_DEBUG_AGENTS = "PHOENIX_DEBUG_AGENTS"
+ENV_PHOENIX_AGENTS_FORCE_TRACING = "PHOENIX_AGENTS_FORCE_TRACING"
 """
 Forces local tracing and remote export for all PXI agent requests.
 """
@@ -1358,8 +1358,8 @@ def get_env_phoenix_agents_assistant_project_name() -> str:
     return getenv(ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME, "assistant_agent")
 
 
-def get_env_phoenix_debug_agents() -> bool:
-    return _bool_val(ENV_PHOENIX_DEBUG_AGENTS, False)
+def get_env_phoenix_agents_force_tracing() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_FORCE_TRACING, False)
 
 
 def get_env_phoenix_agents_disable_web_access() -> bool:

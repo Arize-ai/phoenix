@@ -542,7 +542,7 @@ describe("agentStore", () => {
         agentsConfig: {
           collectorEndpoint: "https://collector.example.com",
           assistantProjectName: "assistant_agent",
-          debugAgents: false,
+          forceTracing: false,
           webAccessEnabled: false,
           assistantEnabled: true,
           allowLocalTraces: true,
@@ -593,7 +593,7 @@ describe("agentStore", () => {
         agentsConfig: {
           collectorEndpoint: "https://collector.example.com",
           assistantProjectName: "assistant_agent",
-          debugAgents: true,
+          forceTracing: true,
           webAccessEnabled: false,
           assistantEnabled: true,
           allowLocalTraces: false,

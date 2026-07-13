@@ -106,7 +106,7 @@ export function AgentObservabilitySettings({
   const setObservability = useAgentContext((state) => state.setObservability);
   const isAdmin = useIsAdmin();
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
-  const isTracingForced = agentsConfig.debugAgents;
+  const isTracingForced = agentsConfig.forceTracing;
 
   const localTracesOffInSystemSettings = !agentsConfig.allowLocalTraces;
   const remoteExportOffInSystemSettings = !agentsConfig.allowRemoteExport;
