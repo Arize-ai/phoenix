@@ -4,6 +4,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
+import sqlalchemy
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
@@ -1325,6 +1326,48 @@ class TestDatasetsEvaluatorsResolver:
         assert edges[0]["node"]["evaluator"]["kind"] == "LLM"
         assert edges[1]["node"]["evaluator"]["name"] == "evaluator-2"
         assert edges[1]["node"]["evaluator"]["kind"] == "LLM"
+
+    async def test_sort_by_kind_uses_only_base_evaluator_table(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_evaluators: Any,
+    ) -> None:
+        statements: list[str] = []
+
+        @sqlalchemy.event.listens_for(sqlalchemy.engine.Engine, "before_cursor_execute")
+        def capture_statement(conn, cursor, statement, parameters, context, executemany):  # type: ignore[no-untyped-def]
+            if statement.lstrip().upper().startswith("SELECT"):
+                statements.append(statement)
+
+        try:
+            response = await gql_client.execute(
+                query="""
+                  query ($datasetId: ID!) {
+                    node(id: $datasetId) {
+                      ... on Dataset {
+                        datasetEvaluators(sort: {col: kind, dir: asc}) {
+                          edges { node { name } }
+                        }
+                      }
+                    }
+                  }
+                """,
+                variables={"datasetId": str(GlobalID("Dataset", "1"))},
+            )
+        finally:
+            sqlalchemy.event.remove(
+                sqlalchemy.engine.Engine,
+                "before_cursor_execute",
+                capture_statement,
+            )
+
+        assert response.data and not response.errors
+        assert [
+            edge["node"]["name"] for edge in response.data["node"]["datasetEvaluators"]["edges"]
+        ] == ["evaluator-1", "evaluator-2"]
+        assert not any("llm_evaluators" in statement for statement in statements)
+        assert not any("code_evaluators" in statement for statement in statements)
+        assert not any("builtin_evaluators" in statement for statement in statements)
 
 
 @pytest.fixture

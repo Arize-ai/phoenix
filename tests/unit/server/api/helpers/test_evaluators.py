@@ -7,6 +7,7 @@ from typing import Any, Optional
 import httpx
 import pytest
 import respx
+import sqlalchemy
 from openai import AsyncOpenAI
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -3927,21 +3928,36 @@ class TestGetEvaluators:
             await session.flush()
 
             input_ids = [de_levenshtein.id, de_json_distance.id, de_contains.id]
+            statements: list[str] = []
 
-            evaluators = await get_evaluators(
-                dataset_evaluator_ids=input_ids,
-                session=session,
-                decrypt=lambda x: x,
-                experiment_id=0,
-                credentials=None,
-                sandbox_session_manager=SandboxSessionManager(),
-            )
+            @sqlalchemy.event.listens_for(sqlalchemy.engine.Engine, "before_cursor_execute")
+            def capture_statement(conn, cursor, statement, parameters, context, executemany):  # type: ignore[no-untyped-def]
+                if statement.lstrip().upper().startswith("SELECT"):
+                    statements.append(statement)
+
+            try:
+                evaluators = await get_evaluators(
+                    dataset_evaluator_ids=input_ids,
+                    session=session,
+                    decrypt=lambda x: x,
+                    experiment_id=0,
+                    credentials=None,
+                    sandbox_session_manager=SandboxSessionManager(),
+                )
+            finally:
+                sqlalchemy.event.remove(
+                    sqlalchemy.engine.Engine,
+                    "before_cursor_execute",
+                    capture_statement,
+                )
 
         assert len(evaluators) == 3
         assert all(isinstance(e, BuiltInEvaluator) for e in evaluators)
         assert evaluators[0].name == "levenshtein_distance"
         assert evaluators[1].name == "json_distance"
         assert evaluators[2].name == "contains"
+        assert not any("llm_evaluators" in statement for statement in statements)
+        assert not any("code_evaluators" in statement for statement in statements)
 
 
 @pytest.fixture

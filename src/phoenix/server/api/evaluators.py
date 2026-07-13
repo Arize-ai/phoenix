@@ -20,7 +20,7 @@ from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_t
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.orm import selectin_polymorphic
 from strawberry.relay import GlobalID
 from typing_extensions import NotRequired, TypedDict, assert_never
 
@@ -763,18 +763,20 @@ async def get_evaluators(
     if not dataset_evaluator_ids:
         return []
 
-    # Join subclass tables so BuiltinEvaluator.key / LLM columns are loaded (see with_polymorphic).
-    PolymorphicEvaluator = with_polymorphic(
-        models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
-    )
     dataset_evaluators_result = (
         await session.execute(
-            select(models.DatasetEvaluators, PolymorphicEvaluator)
+            select(models.DatasetEvaluators, models.Evaluator)
             .join(
-                PolymorphicEvaluator,
-                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+                models.Evaluator,
+                models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
             )
             .where(models.DatasetEvaluators.id.in_(dataset_evaluator_ids))
+            .options(
+                selectin_polymorphic(
+                    models.Evaluator,
+                    [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+                )
+            )
         )
     ).all()
     dataset_evaluators_by_id: dict[int, tuple[models.DatasetEvaluators, models.Evaluator]] = {

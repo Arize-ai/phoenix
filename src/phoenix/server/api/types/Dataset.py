@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Annotated, Optional, cast
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
-from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.sqltypes import String
 from strawberry import UNSET
@@ -594,16 +593,8 @@ class Dataset(Node):
             before=before if isinstance(before, CursorString) else None,
         )
 
-        PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
-        )
-        stmt = (
-            select(models.DatasetEvaluators)
-            .outerjoin(
-                PolymorphicEvaluator,
-                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
-            )
-            .where(models.DatasetEvaluators.dataset_id == self.id)
+        stmt = select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.dataset_id == self.id
         )
         if filter:
             column = getattr(models.DatasetEvaluators, filter.col.value)
@@ -612,7 +603,11 @@ class Dataset(Node):
             stmt = stmt.where(column.ilike(f"%{filter.value}%"))
         if sort:
             if sort.col.value == "kind":
-                sort_col = PolymorphicEvaluator.kind
+                stmt = stmt.join(
+                    models.Evaluator,
+                    models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                )
+                sort_col = models.Evaluator.kind
             else:
                 sort_col = getattr(models.DatasetEvaluators, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
@@ -622,10 +617,6 @@ class Dataset(Node):
         async with info.context.db.read() as session:
             result = await session.scalars(stmt)
             data: list[DatasetEvaluator] = [DatasetEvaluator(id=record.id) for record in result]
-        # TODO: we need to handle sorting for builtin evaluators as their "kind"
-        # (and other evaluator fields) are not part of the polymorphic table
-        # re-sort the final results by kind, this is necessary because builtin evaluators are not
-        #  part of the polymorphic table
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
