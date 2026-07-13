@@ -6,7 +6,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 import phoenix.trace.dsl.filter
 from phoenix.db import models
@@ -14,7 +14,7 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import (
     Projector,
     SpanFilter,
-    _apply_eval_aliasing,
+    _apply_annotation_aliasing,
     _get_attribute_keys_list,
 )
 
@@ -272,31 +272,6 @@ async def test_filter_translated(
             id="distinct-mixed-quoted-eval-names",
         ),
         pytest.param(
-            """evals["Hallucination].label is not None""",
-            """evals["Hallucination].label is not None""",
-            id="missing-right-quotation-mark",
-        ),
-        pytest.param(
-            """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",
-            """span_annotation_0_label_00000000000000000000000000000000 == 'correct' orevals["Hallucination"].score < 0.5""",
-            id="no-word-boundary-on-the-left",
-        ),
-        pytest.param(
-            """evals["Hallucination"].scoreq < 0.5""",
-            """evals["Hallucination"].scoreq < 0.5""",
-            id="no-word-boundary-on-the-right",
-        ),
-        pytest.param(
-            """0.5 <evals["Hallucination"].score""",
-            """0.5 <span_annotation_0_score_00000000000000000000000000000000""",
-            id="left-word-boundary-without-space",
-        ),
-        pytest.param(
-            """evals["Hallucination"].score< 0.5""",
-            """span_annotation_0_score_00000000000000000000000000000000< 0.5""",
-            id="right-word-boundary-without-space",
-        ),
-        pytest.param(
             """annotations["Q&A Correctness"].label is not None""",
             "span_annotation_0_label_00000000000000000000000000000000 is not None",
             id="double-quoted-annotation-name",
@@ -339,20 +314,20 @@ async def test_filter_translated(
         ),
         pytest.param(
             """annotations['q'].score < 0.5 and trace_annotations['q'].score > 0.5""",
-            "span_annotation_1_score_00000000000000000000000000000000 < 0.5 "
-            "and trace_annotation_0_score_00000000000000000000000000000000 > 0.5",
+            "span_annotation_0_score_00000000000000000000000000000000 < 0.5 "
+            "and trace_annotation_1_score_00000000000000000000000000000000 > 0.5",
             id="mixed-span-and-trace-annotation",
         ),
     ],
 )
-def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
+def test_apply_annotation_aliasing(filter_condition: str, expected: str) -> None:
     with patch.object(
         phoenix.trace.dsl.filter,
         "uuid4",
         return_value=UUID(hex="00000000000000000000000000000000"),
     ):
-        aliased, _ = _apply_eval_aliasing(filter_condition)
-        assert aliased == expected
+        expression, _ = _apply_annotation_aliasing(ast.parse(filter_condition, mode="eval"))
+        assert ast.unparse(expression) == expected
 
 
 @pytest.mark.parametrize(
@@ -360,6 +335,7 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
     [
         pytest.param("trace_annotations['quality'].score >= 0.5", id="score"),
         pytest.param("trace_annotations['quality'].label == 'good'", id="label"),
+        pytest.param("'clear' in trace_annotations['quality'].explanation", id="explanation"),
         pytest.param("trace_annotations['quality']", id="exists"),
     ],
 )
@@ -369,16 +345,79 @@ async def test_trace_annotation_filter_joins_trace_annotation_relation(
     default_project: Any,
     abc_project: Any,
 ) -> None:
-    """A `trace_annotations[...]` reference joins the `trace_annotation` table
-    on the span's trace, and the resulting statement compiles and executes."""
+    """A trace annotation condition returns every span from the annotated trace."""
     f = SpanFilter(condition)
     assert [relation.kind for relation in f._aliased_annotation_relations] == ["trace"]
-    stmt = f(select(models.Span.id))
+    stmt = f(select(models.Span.id)).order_by(models.Span.id)
     compiled = str(stmt)
     assert "trace_annotations" in compiled
     assert "span_annotations" not in compiled
     async with db() as session:
-        await session.execute(stmt)
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(models.Trace.trace_id == "0123")
+        )
+        assert trace_rowid is not None
+        expected = list(
+            await session.scalars(
+                select(models.Span.id)
+                .where(models.Span.trace_rowid == trace_rowid)
+                .order_by(models.Span.id)
+            )
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_rowid,
+                name="quality",
+                label="good",
+                score=0.75,
+                explanation="clear rationale",
+                metadata_={},
+                annotator_kind="LLM",
+                identifier="",
+                source="APP",
+                user_id=None,
+            )
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_rowid,
+                name="quality",
+                label="good",
+                score=0.9,
+                explanation="clear secondary rationale",
+                metadata_={},
+                annotator_kind="LLM",
+                identifier="secondary",
+                source="APP",
+                user_id=None,
+            )
+        )
+        assert list(await session.scalars(stmt)) == expected
+
+
+async def test_annotation_syntax_in_string_literal_is_not_aliased(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    condition = '''name == "trace_annotations['quality'].score"'''
+    span_filter = SpanFilter(condition)
+    assert not span_filter._aliased_annotation_relations
+    async with db() as session:
+        await session.execute(span_filter(select(models.Span.id)))
+
+
+def test_trace_annotation_name_with_escaped_quote() -> None:
+    span_filter = SpanFilter(r'trace_annotations["reviewer \"A\""].score >= 0.5')
+    assert [relation.name for relation in span_filter._aliased_annotation_relations] == [
+        'reviewer "A"'
+    ]
+
+
+def test_trace_annotation_name_is_not_validated_as_span_annotation_name() -> None:
+    SpanFilter(
+        "trace_annotations['trace quality'].score >= 0.5",
+        valid_eval_names=["span quality"],
+    )
 
 
 async def test_span_and_trace_annotations_join_distinct_relations(

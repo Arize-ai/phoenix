@@ -196,7 +196,7 @@ The `annotations` keyword is an alias for `evals` and works the same way.
 
 #### Filtering Spans by Trace-Level Annotations
 
-Annotations attached to a whole trace (rather than an individual span) are referenced with the `trace_annotations` keyword, which supports the same `score`, `label`, and existence syntax. Spans are returned when the trace they belong to carries a matching annotation.
+Annotations attached to a whole trace (rather than an individual span) are referenced with the `trace_annotations` keyword, which supports the same `score`, `label`, `explanation`, and existence syntax. Spans are returned when the trace they belong to carries a matching annotation.
 
 ```python
 query = SpanQuery().where(
