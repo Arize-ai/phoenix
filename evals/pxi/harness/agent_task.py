@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
+from openinference.instrumentation import OITracer, TraceConfig
+from opentelemetry.trace import TracerProvider
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
@@ -39,6 +41,7 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
+from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -64,6 +67,78 @@ ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
 _MAX_ERROR_MESSAGE_LEN = 200
 _OFFLINE_DB = DbSessionFactory(db=_unavailable_db_session, dialect="sqlite")
 _OFFLINE_EVENT_QUEUE: CanPutItem[DmlEvent] = _NoOpEventQueue()
+
+# Fallback project for any agent span created outside a test's CHAIN span
+# context. Spans created inside a test are relabeled to the experiment's
+# project by the phoenix-client pytest plugin's ``capture_spans`` modifier
+# (Resource.merge gives the experiment resource precedence), so under normal
+# operation nothing lands here.
+_STRAY_SPAN_PROJECT = "pxi-evals"
+
+_tracer_provider: TracerProvider | None = None
+_tracer_provider_built = False
+
+
+def _get_tracer_provider() -> TracerProvider | None:
+    """Build (once per process) the OTel provider for agent telemetry.
+
+    ``build_agent`` defaults to a no-op tracer provider, which is why pytest
+    experiment runs previously showed no LLM telemetry (and therefore no
+    cost). This provider exports to the same Phoenix collector the pytest
+    plugin uses (``PHOENIX_COLLECTOR_ENDPOINT`` / ``PHOENIX_API_KEY``); the
+    plugin's CHAIN span is current during the test body, so agent spans nest
+    under the test's trace and attach to the experiment.
+
+    Returns ``None`` (agent runs untraced, exactly the previous behavior)
+    when no collector endpoint is configured or setup fails -- telemetry must
+    never fail an eval run.
+    """
+    global _tracer_provider, _tracer_provider_built
+    if _tracer_provider_built:
+        return _tracer_provider
+    _tracer_provider_built = True
+    if not os.getenv("PHOENIX_COLLECTOR_ENDPOINT"):
+        return None
+    try:
+        from phoenix.otel import register
+
+        _tracer_provider = register(
+            project_name=_STRAY_SPAN_PROJECT,
+            batch=True,
+            set_global_tracer_provider=False,
+            verbose=False,
+            # Without an explicit protocol, a bare collector endpoint is
+            # rewritten to gRPC on port 4317 -- wrong for both a local
+            # instance on a custom port and the remote Phoenix CI exports to.
+            # HTTP hits ``<PHOENIX_COLLECTOR_ENDPOINT>/v1/traces``, the same
+            # transport the pytest plugin's suite tracer uses.
+            protocol="http/protobuf",
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(
+            f"warning: PXI eval agent tracing disabled ({type(exc).__name__}: {exc})",
+            file=sys.stderr,
+        )
+    return _tracer_provider
+
+
+def flush_agent_telemetry(timeout_millis: int = 30_000) -> None:
+    """Force-flush buffered agent spans (batch exporter) before process exit.
+
+    Called from ``conftest.pytest_sessionfinish`` on every process (xdist
+    workers included) so spans are not lost to a teardown race. Safe no-op
+    when tracing never initialized.
+    """
+    provider = _tracer_provider
+    if provider is None:
+        return
+    force_flush = getattr(provider, "force_flush", None)
+    if force_flush is None:
+        return
+    try:
+        force_flush(timeout_millis)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
@@ -517,9 +592,23 @@ async def run_pxi_example(
     try:
         user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
+        tracer_provider = _get_tracer_provider()
+        if tracer_provider is not None:
+            # Mirror ``model_factory.build_model``: LLM spans (and therefore
+            # token counts / cost) come from the model wrapper, which the
+            # production router applies before ``build_agent``. Without it
+            # only tool-execution spans would trace.
+            model = OpenInferenceModelWrapper(
+                model,
+                tracer=OITracer(
+                    tracer_provider.get_tracer("phoenix.server.agents"),
+                    config=TraceConfig(),
+                ),
+            )
         agent = build_agent(
             model=model,
             docs_mcp_server=docs_mcp_server,
+            tracer_provider=tracer_provider,
             db=_OFFLINE_DB,
             event_queue=_OFFLINE_EVENT_QUEUE,
             read_only=True,
