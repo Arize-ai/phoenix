@@ -1671,6 +1671,28 @@ class TestPgTableSizeStmts:
         assert {name for name, _ in rows} == {"widgets"}
         assert total is not None and float(total) > 0
 
+    async def test_resolves_tables_behind_leading_search_path_entry(
+        self,
+        postgresql_engine: AsyncEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Regression test: current_schema() is where CREATE would target (the
+        # first existing entry in search_path), not where existing tables
+        # resolve from. Phoenix tables live in public, but search_path gained
+        # a leading empty schema after they were created — stats must still
+        # count the phoenix tables, not the empty schema.
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
+        schema = f"schema_{token_hex(4)}"
+        async with AsyncSession(postgresql_engine) as session:
+            await session.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
+            await session.execute(sa.text(f'SET search_path TO "{schema}", public'))
+            assert await session.scalar(sa.text("SELECT current_schema()")) == schema
+            rows = (await session.execute(pg_table_sizes_stmt())).all()
+            total = await session.scalar(pg_total_table_size_stmt())
+        table_names = {name for name, _ in rows}
+        assert table_names >= {table.name for table in models.Base.metadata.tables.values()}
+        assert total == sum(size for _, size in rows) > 0
+
     async def test_env_schema_takes_precedence_over_search_path(
         self,
         postgresql_engine: AsyncEngine,

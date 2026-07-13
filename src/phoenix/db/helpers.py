@@ -1282,15 +1282,29 @@ def token_counts_by_trace(keys: Collection[int]) -> Select[Any]:
     )
 
 
-# Ordinary tables in the schema Phoenix's ORM actually reads and writes:
-# `models.Base.metadata.schema` comes from the same env var (read at import
-# time), and when it's unset table names are unqualified, so they resolve
-# through the connection's search_path — i.e. current_schema().
-_PG_TABLES_IN_PHOENIX_SCHEMA = """\
+# Ordinary tables in the schema Phoenix's ORM actually reads and writes.
+# Resolution chain:
+#   1. The schema env var (`models.Base.metadata.schema` is set from the same
+#      var at import time, so when set it is authoritative).
+#   2. The schema an unqualified reference to the `projects` table resolves
+#      from on this connection (`to_regclass` follows search_path the same way
+#      the ORM's unqualified queries do). This is NOT always current_schema():
+#      CREATE targets the first *existing* schema in search_path, but reads
+#      resolve from the first schema *containing* the table, e.g. when
+#      search_path gained a leading entry after the tables were created.
+#   3. current_schema(), for a fresh database where no tables exist yet.
+_PG_TABLES_IN_PHOENIX_SCHEMA = f"""\
 FROM pg_class AS c
 JOIN pg_namespace AS n ON n.oid = c.relnamespace
 WHERE c.relkind = 'r'
-AND n.nspname = coalesce(cast(:nspname AS text), current_schema())
+AND n.nspname = coalesce(
+    cast(:nspname AS text),
+    (SELECT pn.nspname
+     FROM pg_class AS pc
+     JOIN pg_namespace AS pn ON pn.oid = pc.relnamespace
+     WHERE pc.oid = to_regclass('{models.Project.__tablename__}')),
+    current_schema()
+)
 """
 
 
