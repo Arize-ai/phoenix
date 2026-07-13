@@ -8047,6 +8047,16 @@
               }
             ]
           },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "usage": {
             "anyOf": [
               {
@@ -8552,6 +8562,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -8660,6 +8680,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -17150,6 +17180,32 @@
         ],
         "title": "TraceSpanData"
       },
+      "TurnTraceContext": {
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Traceid"
+          },
+          "rootSpanId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Rootspanid"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "traceId",
+          "rootSpanId",
+          "startedAt"
+        ],
+        "title": "TurnTraceContext"
+      },
       "UIMessage": {
         "properties": {
           "id": {
@@ -17761,6 +17817,61 @@
         ],
         "title": "_SummarizeResponse"
       },
+      "ToolCallCallbackProviderMetadata": {
+        "additionalProperties": false,
+        "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
+        "properties": {
+          "tool_execution_environment": {
+            "enum": [
+              "client",
+              "server"
+            ],
+            "title": "Tool Execution Environment",
+            "type": "string"
+          },
+          "tool_input_emitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Input Emitted At"
+          },
+          "client_started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Started At"
+          },
+          "client_ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Ended At"
+          }
+        },
+        "required": [
+          "tool_execution_environment"
+        ],
+        "title": "ToolCallCallbackProviderMetadata",
+        "type": "object"
+      },
       "ToolCallProviderMetadata": {
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
@@ -17772,6 +17883,18 @@
             ],
             "title": "Tool Execution Environment",
             "type": "string"
+          },
+          "tool_input_emitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Input Emitted At"
           }
         },
         "required": [
