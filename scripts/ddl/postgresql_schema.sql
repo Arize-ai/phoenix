@@ -61,6 +61,7 @@ CREATE TABLE public.oauth2_clients (
     token_endpoint_auth_method VARCHAR NOT NULL,
     is_first_party BOOLEAN NOT NULL DEFAULT false,
     metadata_ JSONB,
+    registration_client_ip VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_oauth2_clients PRIMARY KEY (id)
@@ -68,6 +69,8 @@ CREATE TABLE public.oauth2_clients (
 
 CREATE UNIQUE INDEX ix_oauth2_clients_client_id ON public.oauth2_clients
     USING btree (client_id);
+CREATE INDEX ix_oauth2_clients_registration_client_ip ON public.oauth2_clients
+    USING btree (registration_client_ip, created_at);
 
 
 -- Table: project_trace_retention_policies
@@ -1165,6 +1168,8 @@ CREATE TABLE public.oauth2_authorization_codes (
 
 CREATE UNIQUE INDEX ix_oauth2_authorization_codes_code_hash ON public.oauth2_authorization_codes
     USING btree (code_hash);
+CREATE INDEX ix_oauth2_authorization_codes_expires_at ON public.oauth2_authorization_codes
+    USING btree (expires_at);
 
 
 -- Table: oauth2_grants
@@ -1426,6 +1431,7 @@ CREATE TABLE public.refresh_tokens (
     oauth2_grant_id BIGINT,
     scopes JSONB,
     audience JSONB,
+    consumed_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
     CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants FOREIGN KEY
         (oauth2_grant_id)

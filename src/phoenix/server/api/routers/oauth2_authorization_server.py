@@ -72,7 +72,6 @@ _DCR_CLIENT_ID_PREFIX = "px_dcr_"
 _DCR_CLIENT_ID_RANDOM_LENGTH = 22
 _DCR_CLIENT_NAME_MAX_LENGTH = 200
 _DCR_LOGO_URI_MAX_LENGTH = 2048
-_DCR_METADATA_CLIENT_IP_KEY = "registration_client_ip"
 _DCR_SUPPORTED_GRANT_TYPES = frozenset({"authorization_code", "refresh_token"})
 _DCR_SUPPORTED_RESPONSE_TYPES = frozenset({"code"})
 _BASE62_ALPHABET = string.ascii_letters + string.digits
@@ -332,8 +331,6 @@ async def register(request: Request) -> JSONResponse:
             raise HTTPException(status_code=429, detail="Too Many Requests")
         client_id = await _new_dcr_client_id(session)
         metadata = registration.metadata
-        if client_ip is not None:
-            metadata[_DCR_METADATA_CLIENT_IP_KEY] = client_ip
         session.add(
             models.OAuth2Client(
                 client_id=client_id,
@@ -343,7 +340,11 @@ async def register(request: Request) -> JSONResponse:
                 grant_types=registration.grant_types,
                 token_endpoint_auth_method="none",
                 is_first_party=False,
+                # metadata_ holds only the client's own unrecognized fields, none of which
+                # are validated. The observed address goes in its own column so a request
+                # body cannot pass off a forged value as something the server saw.
                 metadata_=metadata or None,
+                registration_client_ip=client_ip,
             )
         )
     return _oauth_json_response(
@@ -475,6 +476,7 @@ async def _exchange_refresh_token(request: Request, form: Any) -> JSONResponse:
         or refresh_claims.attributes.scopes is None
         or refresh_claims.status is not ClaimSetStatus.VALID
     ):
+        await _revoke_grant_on_refresh_replay(request, raw_refresh_token)
         return _oauth_error("invalid_grant")
     now = datetime.now(timezone.utc)
     async with request.app.state.db() as session:
@@ -560,20 +562,26 @@ async def _has_too_many_unconsumed_dcr_clients(
     now: datetime,
 ) -> bool:
     since = now - timedelta(days=1)
-    clients = await session.scalars(
-        sa.select(models.OAuth2Client)
-        .where(
-            models.OAuth2Client.client_id.like(f"{_DCR_CLIENT_ID_PREFIX}%"),
-            models.OAuth2Client.created_at >= since,
-        )
-        .options(selectinload(models.OAuth2Client.grants))
+    # Counted in the database rather than by loading rows: this runs on every registration,
+    # and registration spam is exactly what inflates the set being counted. Filtering on
+    # the indexed registration_client_ip confines the scan to one address's own recent
+    # registrations. Only dynamically registered clients carry that column, so it also
+    # stands in for the client_id prefix test.
+    has_grant = (
+        sa.select(models.OAuth2Grant.id)
+        .where(models.OAuth2Grant.oauth2_client_id == models.OAuth2Client.id)
+        .exists()
     )
-    count = 0
-    for client in clients:
-        metadata = client.metadata_ or {}
-        if metadata.get(_DCR_METADATA_CLIENT_IP_KEY) == client_ip and not client.grants:
-            count += 1
-    return count >= get_env_oauth2_dcr_max_unconsumed_per_ip_per_day()
+    count = await session.scalar(
+        sa.select(sa.func.count())
+        .select_from(models.OAuth2Client)
+        .where(
+            models.OAuth2Client.registration_client_ip == client_ip,
+            models.OAuth2Client.created_at >= since,
+            ~has_grant,
+        )
+    )
+    return (count or 0) >= get_env_oauth2_dcr_max_unconsumed_per_ip_per_day()
 
 
 async def _cleanup_abandoned_dcr_clients(session: AsyncSession, *, now: datetime) -> None:
@@ -776,6 +784,52 @@ async def _revoke_grant(request: Request, grant_id: int) -> None:
         grant = await session.get(models.OAuth2Grant, grant_id)
         if grant is not None and grant.revoked_at is None:
             grant.revoked_at = datetime.now(timezone.utc)
+
+
+async def _revoke_grant_on_refresh_replay(request: Request, raw_refresh_token: str) -> None:
+    """Revoke the whole grant when a refresh token that was already rotated away is used.
+
+    Rotation spends a refresh token and issues a replacement. Presenting the spent token
+    afterwards means it was held by two parties: whoever redeemed it first now holds the
+    replacement, and whoever is presenting it now does not. Which of the two is legitimate
+    is not knowable from the request, so RFC 9700 Section 4.14.2 requires revoking the
+    entire token family rather than guessing. The grant is that family, and the spent
+    token's tombstone still names it.
+
+    Tokens that are merely unknown, expired, or unrelated to a grant leave no tombstone
+    and fall through here without effect.
+    """
+    token_store: TokenStore = request.app.state.get_token_store()
+    grant_id = await token_store.consumed_refresh_token_grant_id(Token(raw_refresh_token))
+    if grant_id is None:
+        return
+    logger.warning(
+        "Refresh token replay detected for OAuth2 grant %d; revoking the grant.",
+        grant_id,
+    )
+    refresh_token_ids: list[RefreshTokenId] = []
+    access_token_ids: list[AccessTokenId] = []
+    async with request.app.state.db() as session:
+        grant = await session.get(models.OAuth2Grant, grant_id)
+        if grant is None:
+            return
+        if grant.revoked_at is None:
+            grant.revoked_at = datetime.now(timezone.utc)
+        token_rows = await session.execute(
+            sa.select(models.RefreshToken.id, models.AccessToken.id)
+            .select_from(models.RefreshToken)
+            .join(
+                models.AccessToken,
+                models.AccessToken.refresh_token_id == models.RefreshToken.id,
+                isouter=True,
+            )
+            .where(models.RefreshToken.oauth2_grant_id == grant_id)
+        )
+        for refresh_token_id, access_token_id in token_rows:
+            refresh_token_ids.append(RefreshTokenId(refresh_token_id))
+            if access_token_id is not None:
+                access_token_ids.append(AccessTokenId(access_token_id))
+    await token_store.revoke(*refresh_token_ids, *access_token_ids)
 
 
 def _redirect_uri_dial_position() -> RedirectUriDialPosition:

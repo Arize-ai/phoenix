@@ -65,6 +65,7 @@ def upgrade() -> None:
             server_default=sa.false(),
         ),
         sa.Column("metadata_", JSON_, nullable=True),
+        sa.Column("registration_client_ip", sa.String(), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -80,6 +81,11 @@ def upgrade() -> None:
         sqlite_autoincrement=True,
     )
     op.create_index("ix_oauth2_clients_client_id", "oauth2_clients", ["client_id"], unique=True)
+    op.create_index(
+        "ix_oauth2_clients_registration_client_ip",
+        "oauth2_clients",
+        ["registration_client_ip", "created_at"],
+    )
 
     op.create_table(
         "oauth2_grants",
@@ -149,6 +155,11 @@ def upgrade() -> None:
         ["code_hash"],
         unique=True,
     )
+    op.create_index(
+        "ix_oauth2_authorization_codes_expires_at",
+        "oauth2_authorization_codes",
+        ["expires_at"],
+    )
 
     # table_kwargs preserves AUTOINCREMENT on SQLite, whose batch mode rebuilds
     # the table; without it, deleted primary keys could be reused.
@@ -166,6 +177,10 @@ def upgrade() -> None:
         )
         batch_op.add_column(sa.Column("scopes", JSON_, nullable=True))
         batch_op.add_column(sa.Column("audience", JSON_, nullable=True))
+        # A rotated refresh token is retained as a tombstone rather than deleted, so a
+        # later presentation of it is distinguishable from an unknown token. The row
+        # still carries oauth2_grant_id, which identifies the token family to revoke.
+        batch_op.add_column(sa.Column("consumed_at", sa.TIMESTAMP(timezone=True), nullable=True))
         batch_op.create_index("ix_refresh_tokens_oauth2_grant_id", ["oauth2_grant_id"])
 
     with op.batch_alter_table(
@@ -189,15 +204,24 @@ def downgrade() -> None:
         table_kwargs={"sqlite_autoincrement": True},
     ) as batch_op:
         batch_op.drop_index("ix_refresh_tokens_oauth2_grant_id")
+        batch_op.drop_column("consumed_at")
         batch_op.drop_column("audience")
         batch_op.drop_column("scopes")
         batch_op.drop_column("oauth2_grant_id")
 
+    op.drop_index(
+        "ix_oauth2_authorization_codes_expires_at",
+        table_name="oauth2_authorization_codes",
+    )
     op.drop_index(
         "ix_oauth2_authorization_codes_code_hash",
         table_name="oauth2_authorization_codes",
     )
     op.drop_table("oauth2_authorization_codes")
     op.drop_table("oauth2_grants")
+    op.drop_index(
+        "ix_oauth2_clients_registration_client_ip",
+        table_name="oauth2_clients",
+    )
     op.drop_index("ix_oauth2_clients_client_id", table_name="oauth2_clients")
     op.drop_table("oauth2_clients")

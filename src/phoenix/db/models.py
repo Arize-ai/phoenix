@@ -2251,6 +2251,10 @@ class OAuth2Client(HasId):
     token_endpoint_auth_method: Mapped[str] = mapped_column(String, nullable=False)
     is_first_party: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     metadata_: Mapped[Optional[dict[str, Any]]] = mapped_column("metadata_", JSON_, nullable=True)
+    # Server-observed peer address at registration. Kept out of metadata_, which holds
+    # unvalidated client-supplied fields, so no request body can forge this provenance.
+    # NULL for clients that were seeded rather than dynamically registered.
+    registration_client_ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -2261,7 +2265,16 @@ class OAuth2Client(HasId):
     authorization_codes: Mapped[list["OAuth2AuthorizationCode"]] = relationship(
         "OAuth2AuthorizationCode", back_populates="client", cascade="all, delete-orphan"
     )
-    __table_args__ = (dict(sqlite_autoincrement=True),)
+    __table_args__ = (
+        # Bounds the per-IP registration rate-limit count to one address's own recent
+        # registrations instead of scanning every client registered in the window.
+        Index(
+            "ix_oauth2_clients_registration_client_ip",
+            "registration_client_ip",
+            "created_at",
+        ),
+        dict(sqlite_autoincrement=True),
+    )
 
 
 class OAuth2Grant(HasId):
@@ -2285,7 +2298,7 @@ class OAuth2Grant(HasId):
     )
     client: Mapped["OAuth2Client"] = relationship("OAuth2Client", back_populates="grants")
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
-    audience: Mapped[Optional[list[Any]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     last_used_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
@@ -2322,9 +2335,9 @@ class OAuth2AuthorizationCode(HasId):
     code_challenge_method: Mapped[str] = mapped_column(String, nullable=False)
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     resource: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    audience: Mapped[Optional[list[Any]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2346,7 +2359,12 @@ class RefreshToken(HasId):
         "OAuth2Grant", back_populates="refresh_tokens"
     )
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
-    audience: Mapped[Optional[list[Any]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    # Set when the token is spent in a rotation. NULL means live; a timestamp means the
+    # row is a tombstone, retained until expiry so that presenting the token again is
+    # recognizable as a replay rather than an unknown token. A consumed row must never
+    # authenticate: every read path filters on consumed_at IS NULL.
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2365,7 +2383,7 @@ class AccessToken(HasId):
         unique=True,
     )
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
-    audience: Mapped[Optional[list[Any]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 

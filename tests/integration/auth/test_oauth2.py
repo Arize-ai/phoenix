@@ -399,26 +399,100 @@ class TestTokenLifecycle:
         rejected = next(response for response in responses if response.status_code == 400)
         assert rejected.json()["error"] == "invalid_grant"
 
-    def test_rotated_refresh_token_reuse_is_invalid_grant(
+    def test_replayed_refresh_token_revokes_the_whole_grant(
         self,
         _app: _AppInfo,
         _get_user: _GetUser,
         _oauth_public_client: _OAuthPublicClient,
     ) -> None:
+        # A refresh token presented after it was already rotated away was held by two
+        # parties. Rejecting only the replayed token is not enough: whoever redeemed it
+        # first still holds a working replacement, so a thief who wins the race keeps a
+        # live credential while the honest client quietly re-authenticates. The whole
+        # family has to die, and the grant is the family.
         user = _get_user(_app, _MEMBER).log_in(_app)
         before = {grant["id"] for grant in _active_grants(_app, user)}
         token_response = _oauth_public_client.complete_flow(user)
+        replayed_refresh_token = token_response["refresh_token"]
+
+        rotate_response = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": replayed_refresh_token,
+                "client_id": _oauth_public_client.client_id,
+            },
+        )
+        rotate_response.raise_for_status()
+        replacement = rotate_response.json()
+        granted = [grant for grant in _active_grants(_app, user) if grant["id"] not in before]
+        assert len(granted) == 1
+
+        replay_response = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": replayed_refresh_token,
+                "client_id": _oauth_public_client.client_id,
+            },
+        )
+        assert replay_response.status_code == 400
+        assert replay_response.json()["error"] == "invalid_grant"
+
+        # The grant itself is revoked, not merely the token that was replayed.
+        assert not [grant for grant in _active_grants(_app, user) if grant["id"] not in before]
+
+        # The replacement refresh token, held by whoever redeemed first, can no longer rotate.
+        replacement_refresh = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": replacement["refresh_token"],
+                "client_id": _oauth_public_client.client_id,
+            },
+        )
+        assert replacement_refresh.status_code == 400
+        assert replacement_refresh.json()["error"] == "invalid_grant"
+
+        # ...and neither does the access token that was issued alongside it.
+        replacement_read = _httpx_client(
+            _app,
+            headers={"authorization": f"Bearer {replacement['access_token']}"},
+        ).post("graphql", json={"query": "query { viewer { id } }"})
+        assert replacement_read.status_code == 401
+
+    def test_unknown_refresh_token_does_not_revoke_a_grant(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        # Replay revocation keys on the tombstone a rotation leaves behind, not on the mere
+        # absence of a token. A token that was never issued leaves no tombstone, so it must
+        # be rejected without taking a live grant down with it — otherwise anyone able to
+        # post garbage to the token endpoint could log other users out.
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        before = {grant["id"] for grant in _active_grants(_app, user)}
+        token_response = _oauth_public_client.complete_flow(user)
+        granted = [grant for grant in _active_grants(_app, user) if grant["id"] not in before]
+        assert len(granted) == 1
+
         response = _httpx_client(_app).post(
             "oauth2/token",
             data={
                 "grant_type": "refresh_token",
-                "refresh_token": token_response["refresh_token"],
+                "refresh_token": "not-a-real-refresh-token",
                 "client_id": _oauth_public_client.client_id,
             },
         )
-        response.raise_for_status()
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_grant"
 
-        reuse_response = _httpx_client(_app).post(
+        # The grant is untouched, and its refresh token still rotates.
+        assert [
+            grant["id"] for grant in _active_grants(_app, user) if grant["id"] not in before
+        ] == [granted[0]["id"]]
+        rotate_response = _httpx_client(_app).post(
             "oauth2/token",
             data={
                 "grant_type": "refresh_token",
@@ -426,11 +500,7 @@ class TestTokenLifecycle:
                 "client_id": _oauth_public_client.client_id,
             },
         )
-
-        assert reuse_response.status_code == 400
-        assert reuse_response.json()["error"] == "invalid_grant"
-        new_grants = [grant for grant in _active_grants(_app, user) if grant["id"] not in before]
-        assert len(new_grants) == 1
+        assert rotate_response.status_code == 200
 
     def test_refresh_token_is_bound_to_its_client(
         self,

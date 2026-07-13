@@ -186,7 +186,8 @@ token tables. All JSON columns are JSONB on PostgreSQL.
 | `grant_types` | JSON | Subset of `authorization_code`, `refresh_token` |
 | `token_endpoint_auth_method` | string | `none` — public clients only in this iteration |
 | `is_first_party` | bool | Seeded Phoenix clients get verified consent copy; DCR clients get a caution notice |
-| `metadata_` | JSON, nullable | Unrecognized RFC 7591 fields, plus the registering IP for DCR hygiene |
+| `metadata_` | JSON, nullable | Unrecognized RFC 7591 fields, verbatim and unvalidated — client-supplied data only |
+| `registration_client_ip` | string, nullable, indexed with `created_at` | Address Phoenix observed at registration. NULL for seeded clients. Held in its own column, not in `metadata_`, so a request body cannot forge it; the per-IP registration limit counts against this index rather than scanning and filtering JSON |
 
 The `phoenix-cli` first-party client is seeded idempotently at startup
 (`facilitator.py`) with `http://127.0.0.1/callback`. Loopback comparison ignores
@@ -220,12 +221,20 @@ grant behind (the unredeemed code expires and is swept).
 
 ### Token-table extensions
 
-`refresh_tokens` gains `oauth2_grant_id` (FK, CASCADE, indexed), `scopes`, and
-`audience`; `access_tokens` gains `scopes` and `audience`. The claims cache
-hydrates exclusively from these rows, so a grant-minted token carries its
-snapshot through cache rebuilds and server restarts — there is no mint-time
-state that exists only in memory. Web-session logins leave all of these NULL,
-which is how the two token populations are distinguished.
+`refresh_tokens` gains `oauth2_grant_id` (FK, CASCADE, indexed), `scopes`,
+`audience`, and `consumed_at`; `access_tokens` gains `scopes` and `audience`.
+The claims cache hydrates exclusively from these rows, so a grant-minted token
+carries its snapshot through cache rebuilds and server restarts — there is no
+mint-time state that exists only in memory. Web-session logins leave all of
+these NULL, which is how the two token populations are distinguished.
+
+`consumed_at` is what makes replay detection possible. Rotation marks the spent
+refresh row instead of deleting it, so the token remains attributable to its
+grant after it stops being usable; the sweeper deletes the tombstone once the
+token would have expired anyway. Every read path filters `consumed_at IS NULL`,
+including the access-token join — retention would otherwise keep a rotated-away
+token authenticating, and keep its paired access token alive past the rotation
+that used to kill it by deleting the row out from under the join.
 
 ---
 
@@ -311,7 +320,10 @@ structural rather than optional:
 
 - **Rate limit**: 10 registrations/hour per IP (default)
 - **Unconsumed cap**: at most 50 clients per IP per day that have never been
-  used in a completed grant (registering IP recorded in `metadata_`)
+  used in a completed grant, counted in SQL against the indexed
+  `registration_client_ip` — the check runs on every registration, and
+  registration spam is precisely what inflates the set being counted, so it must
+  not scan the whole recent population to answer
 - **Zero-grant TTL**: DCR clients that never complete a grant are deleted
   after 7 days
 - **Dead-grant TTL**: DCR clients whose grants are all revoked/expired are
@@ -387,14 +399,34 @@ redemptions cannot both create grants. PKCE comparison uses
 `hmac.compare_digest`. S256 is the only accepted challenge method; `plain` is
 not implemented.
 
-### Refresh rotation without replay-family detection
+### Refresh rotation with replay detection
 
-Redeeming a refresh token mints a new pair and then revokes the old refresh
-token *and every access token minted under it*. A replayed old refresh token
-fails with `invalid_grant`. Refresh lifetimes are clamped to the grant's
-`expires_at`, so a grant ceiling is a hard ceiling. (Automatic reuse-*detection*
-— revoking the whole grant when a rotated-out token is replayed — is noted as
-future hardening; rotation itself ships now.)
+Redeeming a refresh token mints a new pair and revokes the old refresh token
+*and every access token minted under it*. Refresh lifetimes are clamped to the
+grant's `expires_at`, so a grant ceiling is a hard ceiling.
+
+Rotation spends the old token by stamping `consumed_at` rather than deleting the
+row. Presenting a spent token afterwards means two parties held it: whoever
+redeemed it first now holds the replacement, and whoever is presenting it now
+does not. Nothing in the request says which of the two is the legitimate client,
+so guessing is not an option — Phoenix revokes the entire token family, which is
+the grant: `revoked_at` is stamped and every refresh and access token under the
+grant is deleted. This is the RFC 9700 §4.14.2 requirement for public clients,
+and it is what makes theft *cost* the thief something; rejecting only the
+replayed token would leave a thief who redeems first holding a live credential
+while the honest client silently re-authenticates.
+
+The signal is the tombstone, not the absence of a row. An unknown token, an
+expired-and-swept one, or a web-session token that belongs to no grant leaves no
+tombstone and is rejected with `invalid_grant` without touching any grant —
+otherwise anyone able to POST garbage to the token endpoint could revoke other
+users' sessions.
+
+The cost is the false positive RFC 9700 accepts: a client that crashes after the
+server rotated but before it persisted the new pair will retry with the spent
+token and lose its grant, forcing a re-login. `consumed_at` is also what would
+make the standard mitigation (a brief grace window that re-issues the same pair)
+implementable later; deleting the row forecloses it.
 
 ### Revocation ends the session as a unit
 
@@ -511,7 +543,7 @@ configuration — grant tokens are the same tokens.
 | RFC 8252 (OAuth for Native Apps) | Loopback (§7.3, arbitrary ports) and private-use schemes (§7.2) per the redirect model above |
 | RFC 9728 (Protected Resource Metadata) | Implemented; PRM points at this deployment as its own AS |
 | RFC 8707 (Resource Indicators) | Accepted and validated against the single deployment resource; `invalid_target` on mismatch; authorization-to-token resource binding remains future work |
-| OAuth 2.1 (draft) | Partially aligned: code+PKCE only, no implicit grant, registered redirect matching, and refresh rotation; replay-family detection remains future work |
+| OAuth 2.1 (draft) | Partially aligned: code+PKCE only, no implicit grant, registered redirect matching, and refresh rotation with replay detection; scope and resource enforcement remain future work |
 | Client ID Metadata Documents (draft) | Not implemented; noted as the likely successor to DCR for agent platforms as the draft and client support mature |
 
 ## Appendix: Lessons Learned

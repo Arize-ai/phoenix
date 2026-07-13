@@ -12,7 +12,7 @@ from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 from pydantic import SecretStr
-from sqlalchemy import Select, delete, select
+from sqlalchemy import Select, delete, select, update
 
 from phoenix.auth import (
     JWT_ALGORITHM,
@@ -99,16 +99,33 @@ class JwtStore:
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
         await gather(*(s.__aexit__(*args, **kwargs) for s in self._stores))
 
-    async def read(self, token: Token) -> Optional[ClaimSet]:
+    def _parse_token_id(self, token: Token) -> Optional[TokenId]:
         try:
             decoded = jwt.decode(str(token), OctKey.import_key(self._secret.get_secret_value()))
         except JoseError:
             return None
         if (jti := decoded.claims.get("jti")) is None:
             return None
-        if (token_id := TokenId.parse(jti)) is None:
+        return TokenId.parse(jti)
+
+    async def read(self, token: Token) -> Optional[ClaimSet]:
+        if (token_id := self._parse_token_id(token)) is None:
             return None
         return await self._get(token_id)
+
+    async def consumed_refresh_token_grant_id(self, token: Token) -> Optional[int]:
+        """Return the grant of a refresh token that was already spent in a rotation.
+
+        Rotation retains the spent token as a tombstone instead of deleting it, so a token
+        that is presented after it was exchanged is still recognizable, and the row still
+        names the grant it belonged to. Returns None for anything that is not such a
+        tombstone — an unknown token, an expired one already swept, or a web-session token
+        that belongs to no grant.
+        """
+        token_id = self._parse_token_id(token)
+        if not isinstance(token_id, RefreshTokenId):
+            return None
+        return await self._refresh_token_store.consumed_grant_id(token_id)
 
     @singledispatchmethod
     async def _get(self, _: TokenId) -> Optional[ClaimSet]:
@@ -416,6 +433,11 @@ class _AccessTokenStore(
         # Join the paired refresh token so grant linkage (oauth2_grant_id) is
         # available without a second query. Access-token rows do not store
         # oauth2_grant_id themselves — only the denormalized scopes snapshot.
+        #
+        # The join is also what ends an access token's life when its refresh token is
+        # spent: rotation retains the spent refresh row as a tombstone, so the join alone
+        # would still match it. Requiring the refresh token to be live keeps an access
+        # token from outliving the refresh token it was minted alongside.
         return (
             select(
                 self._table,
@@ -428,6 +450,7 @@ class _AccessTokenStore(
                 models.RefreshToken,
                 models.RefreshToken.id == self._table.refresh_token_id,
             )
+            .where(models.RefreshToken.consumed_at.is_(None))
         )
 
     async def get(self, token_id: AccessTokenId) -> Optional[AccessTokenClaims]:
@@ -535,6 +558,47 @@ class _RefreshTokenStore(
             oauth2_grant_id=claims.attributes.grant_id,
             scopes=list(claims.attributes.scopes) if claims.attributes.scopes is not None else None,
         )
+
+    @cached_property
+    def _update_stmt(self) -> Select[Any]:
+        # A consumed row is a tombstone, not a credential. Excluding it here is what makes
+        # retention safe: without this filter a rotated-away token would keep hydrating
+        # into the claims cache and would go on authenticating indefinitely.
+        return (
+            select(self._table, models.UserRole.name)
+            .join_from(self._table, models.User)
+            .join_from(models.User, models.UserRole)
+            .where(self._table.consumed_at.is_(None))
+        )
+
+    async def consume(self, token_id: RefreshTokenId) -> bool:
+        # Mark the row spent rather than deleting it, so that a later presentation of the
+        # same token is still attributable to its grant. The condition on consumed_at is
+        # what makes this single-use: concurrent redemptions both reach the UPDATE, but
+        # only the one that observes a live row matches and returns an id.
+        stmt = (
+            update(self._table)
+            .where(
+                self._table.id == int(token_id),
+                self._table.consumed_at.is_(None),
+            )
+            .values(consumed_at=datetime.now(timezone.utc))
+            .returning(self._table.id)
+        )
+        async with self._db() as session:
+            consumed_id = await session.scalar(stmt)
+        if consumed_id is None:
+            return False
+        await self.evict(token_id)
+        return True
+
+    async def consumed_grant_id(self, token_id: RefreshTokenId) -> Optional[int]:
+        stmt = select(self._table.oauth2_grant_id).where(
+            self._table.id == int(token_id),
+            self._table.consumed_at.is_not(None),
+        )
+        async with self._db() as session:
+            return await session.scalar(stmt)
 
     async def _update(self) -> None:
         await super()._update()

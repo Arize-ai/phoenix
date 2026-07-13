@@ -302,6 +302,7 @@ class CanLogOutUser(Protocol):
 
 class TokenStore(CanReadToken, CanRevokeTokens, CanLogOutUser, Protocol):
     async def consume_refresh_token(self, token_id: RefreshTokenId) -> bool: ...
+    async def consumed_refresh_token_grant_id(self, token: Token) -> Optional[int]: ...
     async def create_password_reset_token(
         self,
         claims: PasswordResetTokenClaims,
