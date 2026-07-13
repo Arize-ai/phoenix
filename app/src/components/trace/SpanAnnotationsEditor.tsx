@@ -52,6 +52,7 @@ import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/se
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
 import type { Mutable } from "@phoenix/typeUtils";
 import { isStringArray } from "@phoenix/typeUtils";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
@@ -60,7 +61,7 @@ import type { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated_
 import type { AnnotationFormData } from "./SpanAnnotationInput";
 import { SpanAnnotationInput } from "./SpanAnnotationInput";
 
-export const EDIT_ANNOTATION_HOTKEY = "e";
+export { EDIT_ANNOTATION_HOTKEY };
 
 const EMPTY_TIME_RANGE_ISO_STRINGS = {
   start: undefined,

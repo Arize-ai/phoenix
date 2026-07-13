@@ -64,4 +64,31 @@ describe("SessionViewTabs", () => {
 
     expect(onSessionViewChange).toHaveBeenCalledWith("traces");
   });
+
+  it("emits a view change when the annotations tab is clicked", () => {
+    const onSessionViewChange = vi.fn();
+
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark">
+          <SessionViewTabs
+            sessionView="turns"
+            onSessionViewChange={onSessionViewChange}
+            traceCount={12}
+          >
+            <div>Session content</div>
+          </SessionViewTabs>
+        </ThemeProvider>
+      );
+    });
+
+    const tabs = container.querySelectorAll('[role="tab"]');
+    expect(tabs).toHaveLength(3);
+
+    act(() => {
+      tabs[2]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onSessionViewChange).toHaveBeenCalledWith("annotations");
+  });
 });

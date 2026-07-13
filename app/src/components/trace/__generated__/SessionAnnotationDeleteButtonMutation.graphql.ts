@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1df6be24d0f7ea93f15e881466abcbc0>>
+ * @generated SignedSource<<06cf8485094b80fcf3217a139eddf6c2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,25 +10,12 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type AnnotationSource = "API" | "APP";
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type CreateProjectSessionAnnotationInput = {
-  annotatorKind?: AnnotatorKind;
-  explanation?: string | null;
-  identifier?: string | null;
-  label?: string | null;
-  metadata: any;
-  name: string;
-  projectSessionId: string;
-  score?: number | null;
-  source?: AnnotationSource;
-};
-export type SessionAnnotationsEditorCreateAnnotationMutation$variables = {
-  input: CreateProjectSessionAnnotationInput;
+export type SessionAnnotationDeleteButtonMutation$variables = {
+  annotationId: string;
   sessionId: string;
 };
-export type SessionAnnotationsEditorCreateAnnotationMutation$data = {
-  readonly createProjectSessionAnnotations: {
+export type SessionAnnotationDeleteButtonMutation$data = {
+  readonly deleteProjectSessionAnnotation: {
     readonly query: {
       readonly node: {
         readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationSummaryGroup" | "SessionAnnotationsEditor_sessionAnnotations" | "SessionAnnotationsTable_annotations">;
@@ -36,9 +23,9 @@ export type SessionAnnotationsEditorCreateAnnotationMutation$data = {
     };
   };
 };
-export type SessionAnnotationsEditorCreateAnnotationMutation = {
-  response: SessionAnnotationsEditorCreateAnnotationMutation$data;
-  variables: SessionAnnotationsEditorCreateAnnotationMutation$variables;
+export type SessionAnnotationDeleteButtonMutation = {
+  response: SessionAnnotationDeleteButtonMutation$data;
+  variables: SessionAnnotationDeleteButtonMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -46,7 +33,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "input"
+    "name": "annotationId"
   },
   {
     "defaultValue": null,
@@ -57,8 +44,8 @@ var v0 = [
 v1 = [
   {
     "kind": "Variable",
-    "name": "input",
-    "variableName": "input"
+    "name": "id",
+    "variableName": "annotationId"
   }
 ],
 v2 = [
@@ -108,14 +95,14 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SessionAnnotationsEditorCreateAnnotationMutation",
+    "name": "SessionAnnotationDeleteButtonMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
         "concreteType": "ProjectSessionAnnotationMutationPayload",
         "kind": "LinkedField",
-        "name": "createProjectSessionAnnotations",
+        "name": "deleteProjectSessionAnnotation",
         "plural": false,
         "selections": [
           {
@@ -173,14 +160,14 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SessionAnnotationsEditorCreateAnnotationMutation",
+    "name": "SessionAnnotationDeleteButtonMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
         "concreteType": "ProjectSessionAnnotationMutationPayload",
         "kind": "LinkedField",
-        "name": "createProjectSessionAnnotations",
+        "name": "deleteProjectSessionAnnotation",
         "plural": false,
         "selections": [
           {
@@ -466,16 +453,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4378dda3d1399a6b378a8db00bafa6e9",
+    "cacheID": "8f2806f17510bc6754e95a80e7e5ce36",
     "id": null,
     "metadata": {},
-    "name": "SessionAnnotationsEditorCreateAnnotationMutation",
+    "name": "SessionAnnotationDeleteButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationsEditorCreateAnnotationMutation(\n  $input: CreateProjectSessionAnnotationInput!\n  $sessionId: ID!\n) {\n  createProjectSessionAnnotations(input: $input) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SessionAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $sessionId: ID!\n) {\n  deleteProjectSessionAnnotation(id: $annotationId) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "36625d7c0582274d9f7dbffd0b77cc9c";
+(node as any).hash = "fcc671f32287f8bef9e6a95ed3342afb";
 
 export default node;

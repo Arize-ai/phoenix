@@ -29,6 +29,7 @@ import {
   ModalOverlay,
   Popover,
   PopoverArrow,
+  Text,
   useFilter,
   View,
 } from "@phoenix/components";
@@ -37,7 +38,7 @@ import type {
   AnnotationConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
-import { Empty } from "@phoenix/components/core/Empty";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import type { SessionAnnotationsEditor_sessionAnnotations$key } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditor_sessionAnnotations.graphql";
 import type { SessionAnnotationsEditorAddAnnotationConfigToProjectMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorAddAnnotationConfigToProjectMutation.graphql";
@@ -46,9 +47,10 @@ import type { SessionAnnotationsEditorCreateAnnotationMutation } from "@phoenix/
 import type { SessionAnnotationsEditorDeleteAnnotationMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorDeleteAnnotationMutation.graphql";
 import type { SessionAnnotationsEditorEditAnnotationMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorEditAnnotationMutation.graphql";
 import type { SessionAnnotationsEditorSessionAnnotationsListQuery } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorSessionAnnotationsListQuery.graphql";
+import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
 import type { AnnotationFormMutationResult } from "@phoenix/components/trace/AnnotationFormProvider";
 import { AnnotationFormProvider } from "@phoenix/components/trace/AnnotationFormProvider";
-import { SessionAnnotationConfigList } from "@phoenix/components/trace/SessionAnnotationConfigList";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
@@ -57,8 +59,6 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { AnnotationFormData } from "./SpanAnnotationInput";
 import { SpanAnnotationInput } from "./SpanAnnotationInput";
-
-const EDIT_ANNOTATION_HOTKEY = "e";
 
 export type SessionAnnotationsEditorProps = {
   sessionNodeId: string;
@@ -83,9 +83,12 @@ export function SessionAnnotationsEditor(props: SessionAnnotationsEditorProps) {
           <Flex
             direction="row"
             alignItems="center"
-            justifyContent="end"
+            justifyContent="space-between"
             width="100%"
           >
+            <Text elementType="h3" size="S" weight="heavy">
+              Annotate Session
+            </Text>
             <NewAnnotationButton
               projectId={projectId}
               sessionNodeId={sessionNodeId}
@@ -265,10 +268,7 @@ function AnnotationList(props: AnnotationListProps) {
 
   return (
     <Autocomplete filter={contains}>
-      <SessionAnnotationConfigList
-        projectId={projectId}
-        refetchKey={refetchKey}
-      />
+      <AnnotationConfigList projectId={projectId} refetchKey={refetchKey} />
 
       <View padding="size-100" borderTopWidth="thin" borderTopColor="default">
         <Button
@@ -426,6 +426,7 @@ function SessionAnnotationsList(props: {
             node(id: $sessionId) {
               ... on ProjectSession {
                 ...SessionAnnotationsEditor_sessionAnnotations
+                ...SessionAnnotationsTable_annotations
                 ...SessionAnnotationSummaryGroup
               }
             }
@@ -491,6 +492,7 @@ function SessionAnnotationsList(props: {
             node(id: $sessionId) {
               ... on ProjectSession {
                 ...SessionAnnotationsEditor_sessionAnnotations
+                ...SessionAnnotationsTable_annotations
                 ...SessionAnnotationSummaryGroup
               }
             }
@@ -545,6 +547,7 @@ function SessionAnnotationsList(props: {
             node(id: $sessionId) {
               ... on ProjectSession {
                 ...SessionAnnotationsEditor_sessionAnnotations
+                ...SessionAnnotationsTable_annotations
                 ...SessionAnnotationSummaryGroup
               }
             }
@@ -601,7 +604,10 @@ function SessionAnnotationsList(props: {
           justifyContent="center"
           height="100%"
         >
-          <Empty message="No annotation configurations for this project." />
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Settings />} />}
+            description="No annotation configurations for this project."
+          />
         </Flex>
       )}
       {!!annotationConfigsLength && (

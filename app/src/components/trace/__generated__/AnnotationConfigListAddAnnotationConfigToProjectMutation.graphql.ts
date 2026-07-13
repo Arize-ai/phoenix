@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a675a33102db9a1be9c7440fd88f3f4>>
+ * @generated SignedSource<<c01a7c4bf9fdb1ec369987d5566873a6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,23 +10,23 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation$variables = {
+export type AnnotationConfigListAddAnnotationConfigToProjectMutation$variables = {
   annotationConfigId: string;
   projectId: string;
 };
-export type SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation$data = {
-  readonly removeAnnotationConfigFromProject: {
+export type AnnotationConfigListAddAnnotationConfigToProjectMutation$data = {
+  readonly addAnnotationConfigToProject: {
     readonly query: {
       readonly projectNode: {
         readonly id?: string;
-        readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationConfigListProjectAnnotationConfigFragment">;
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationConfigListProjectAnnotationConfigFragment">;
       };
     };
   };
 };
-export type SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation = {
-  response: SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation$data;
-  variables: SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation$variables;
+export type AnnotationConfigListAddAnnotationConfigToProjectMutation = {
+  response: AnnotationConfigListAddAnnotationConfigToProjectMutation$data;
+  variables: AnnotationConfigListAddAnnotationConfigToProjectMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -101,14 +101,14 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation",
+    "name": "AnnotationConfigListAddAnnotationConfigToProjectMutation",
     "selections": [
       {
         "alias": null,
         "args": (v2/*: any*/),
-        "concreteType": "RemoveAnnotationConfigFromProjectPayload",
+        "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
-        "name": "removeAnnotationConfigFromProject",
+        "name": "addAnnotationConfigToProject",
         "plural": false,
         "selections": [
           {
@@ -134,7 +134,7 @@ return {
                       {
                         "args": null,
                         "kind": "FragmentSpread",
-                        "name": "SessionAnnotationConfigListProjectAnnotationConfigFragment"
+                        "name": "AnnotationConfigListProjectAnnotationConfigFragment"
                       }
                     ],
                     "type": "Project",
@@ -160,14 +160,14 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation",
+    "name": "AnnotationConfigListAddAnnotationConfigToProjectMutation",
     "selections": [
       {
         "alias": null,
         "args": (v2/*: any*/),
-        "concreteType": "RemoveAnnotationConfigFromProjectPayload",
+        "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
-        "name": "removeAnnotationConfigFromProject",
+        "name": "addAnnotationConfigToProject",
         "plural": false,
         "selections": [
           {
@@ -341,16 +341,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "54572d069a0005147af6152731d9a132",
+    "cacheID": "0c4bc852b7c0f03eed790fccbc28aca3",
     "id": null,
     "metadata": {},
-    "name": "SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation",
+    "name": "AnnotationConfigListAddAnnotationConfigToProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationConfigListRemoveAnnotationConfigFromProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...SessionAnnotationConfigListProjectAnnotationConfigFragment\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation AnnotationConfigListAddAnnotationConfigToProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  addAnnotationConfigToProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...AnnotationConfigListProjectAnnotationConfigFragment\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "651ce5d620b9dcd649febbb3433e8444";
+(node as any).hash = "9c40db99f4c057a2ffa74ed0d6b160d4";
 
 export default node;
