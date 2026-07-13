@@ -1283,16 +1283,19 @@ def token_counts_by_trace(keys: Collection[int]) -> Select[Any]:
 
 
 # Ordinary tables in the schema Phoenix's ORM actually reads and writes.
-# Resolution chain:
+# Resolution:
 #   1. The schema env var (`models.Base.metadata.schema` is set from the same
 #      var at import time, so when set it is authoritative).
 #   2. The schema an unqualified reference to the `projects` table resolves
 #      from on this connection (`to_regclass` follows search_path the same way
-#      the ORM's unqualified queries do). This is NOT always current_schema():
-#      CREATE targets the first *existing* schema in search_path, but reads
-#      resolve from the first schema *containing* the table, e.g. when
-#      search_path gained a leading entry after the tables were created.
-#   3. current_schema(), for a fresh database where no tables exist yet.
+#      the ORM's unqualified queries do). This is NOT current_schema(): CREATE
+#      targets the first *existing* schema in search_path, but reads resolve
+#      from the first schema *containing* the table, e.g. when search_path
+#      gained a leading entry after the tables were created.
+# If neither resolves (pre-migration database), the filter matches nothing and
+# usage reports zero: when the ORM can't see the tables, there is no Phoenix
+# usage to report — deliberately not current_schema(), which could count an
+# unrelated application's tables in a shared schema.
 _PG_TABLES_IN_PHOENIX_SCHEMA = f"""\
 FROM pg_class AS c
 JOIN pg_namespace AS n ON n.oid = c.relnamespace
@@ -1302,8 +1305,7 @@ AND n.nspname = coalesce(
     (SELECT pn.nspname
      FROM pg_class AS pc
      JOIN pg_namespace AS pn ON pn.oid = pc.relnamespace
-     WHERE pc.oid = to_regclass('{models.Project.__tablename__}')),
-    current_schema()
+     WHERE pc.oid = to_regclass('{models.Project.__tablename__}'))
 )
 """
 

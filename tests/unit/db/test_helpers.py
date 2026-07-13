@@ -1639,58 +1639,34 @@ class TestCreateExperimentExamplesSnapshotInsert:
 
 @pytest.mark.postgres_only
 class TestPgTableSizeStmts:
-    async def test_falls_back_to_current_schema_when_env_schema_unset(
+    async def test_resolves_tables_from_schema_containing_projects(
         self,
         postgresql_engine: AsyncEngine,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        # Regression test: with no env var, the schema must be resolved the
+        # way the ORM resolves unqualified table names — from the first
+        # search_path entry *containing* the tables. A hardcoded 'public'
+        # would count the template database's phoenix tables; current_schema()
+        # would count the empty leading schema.
         monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
+        leading_schema = f"schema_{token_hex(4)}"
+        phoenix_schema = f"schema_{token_hex(4)}"
         async with AsyncSession(postgresql_engine) as session:
+            for schema in (leading_schema, phoenix_schema):
+                await session.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
+            await session.execute(sa.text(f'CREATE TABLE "{phoenix_schema}".projects (id integer)'))
+            await session.execute(sa.text(f'INSERT INTO "{phoenix_schema}".projects VALUES (1)'))
+            await session.execute(
+                sa.text(f'CREATE TABLE "{phoenix_schema}".other_table (id integer)')
+            )
+            await session.execute(
+                sa.text(f'SET search_path TO "{leading_schema}", "{phoenix_schema}", public')
+            )
+            assert await session.scalar(sa.text("SELECT current_schema()")) == leading_schema
             rows = (await session.execute(pg_table_sizes_stmt())).all()
             total = await session.scalar(pg_total_table_size_stmt())
-        table_names = {name for name, _ in rows}
-        assert table_names >= {table.name for table in models.Base.metadata.tables.values()}
-        assert total is not None and float(total) > 0
-
-    async def test_follows_search_path_when_env_schema_unset(
-        self,
-        postgresql_engine: AsyncEngine,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        # Regression test: tables live in a non-public schema by way of a
-        # role- or database-level search_path, with no schema env var set.
-        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
-        schema = f"schema_{token_hex(4)}"
-        async with AsyncSession(postgresql_engine) as session:
-            await session.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
-            await session.execute(sa.text(f'SET search_path TO "{schema}"'))
-            await session.execute(sa.text("CREATE TABLE widgets (id integer)"))
-            await session.execute(sa.text("INSERT INTO widgets VALUES (1)"))
-            rows = (await session.execute(pg_table_sizes_stmt())).all()
-            total = await session.scalar(pg_total_table_size_stmt())
-        assert {name for name, _ in rows} == {"widgets"}
-        assert total is not None and float(total) > 0
-
-    async def test_resolves_tables_behind_leading_search_path_entry(
-        self,
-        postgresql_engine: AsyncEngine,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        # Regression test: current_schema() is where CREATE would target (the
-        # first existing entry in search_path), not where existing tables
-        # resolve from. Phoenix tables live in public, but search_path gained
-        # a leading empty schema after they were created — stats must still
-        # count the phoenix tables, not the empty schema.
-        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
-        schema = f"schema_{token_hex(4)}"
-        async with AsyncSession(postgresql_engine) as session:
-            await session.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
-            await session.execute(sa.text(f'SET search_path TO "{schema}", public'))
-            assert await session.scalar(sa.text("SELECT current_schema()")) == schema
-            rows = (await session.execute(pg_table_sizes_stmt())).all()
-            total = await session.scalar(pg_total_table_size_stmt())
-        table_names = {name for name, _ in rows}
-        assert table_names >= {table.name for table in models.Base.metadata.tables.values()}
+        assert {name for name, _ in rows} == {"projects", "other_table"}
         assert total == sum(size for _, size in rows) > 0
 
     async def test_env_schema_takes_precedence_over_search_path(
@@ -1722,8 +1698,20 @@ class TestPgTableSizeStmts:
         postgresql_engine: AsyncEngine,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        # env var pointing at a schema with no tables
         monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "postgresql://localhost/postgres")
         monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", f"nonexistent_{token_hex(4)}")
         async with AsyncSession(postgresql_engine) as session:
-            total = await session.scalar(pg_total_table_size_stmt())
-        assert total == 0
+            assert await session.scalar(pg_total_table_size_stmt()) == 0
+        # no env var and no phoenix tables visible on search_path (the
+        # pre-migration state): the filter matches nothing rather than
+        # counting whatever lives in current_schema()
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA")
+        schema = f"schema_{token_hex(4)}"
+        async with AsyncSession(postgresql_engine) as session:
+            await session.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
+            await session.execute(sa.text(f'SET search_path TO "{schema}"'))
+            await session.execute(sa.text("CREATE TABLE not_phoenix (id integer)"))
+            await session.execute(sa.text("INSERT INTO not_phoenix VALUES (1)"))
+            assert await session.scalar(pg_total_table_size_stmt()) == 0
+            assert (await session.execute(pg_table_sizes_stmt())).all() == []
