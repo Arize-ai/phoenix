@@ -73,6 +73,7 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
             "ZAI",
@@ -110,6 +111,7 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
             "ZAI",
@@ -194,6 +196,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptMoonshotInvocationParameters(
                 type="moonshot",
                 moonshot=v1.PromptMoonshotInvocationParametersContent(),
+            )
+        elif model_provider == "MINIMAX":
+            self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=v1.PromptOpenAIInvocationParametersContent(),
             )
         elif model_provider == "PERPLEXITY":
             self._invocation_parameters = v1.PromptPerplexityInvocationParameters(
@@ -530,6 +537,7 @@ def _to_sdk(
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
@@ -558,6 +566,8 @@ def _to_sdk(
     if model_provider == "GROQ":
         return "openai"
     if model_provider == "MOONSHOT":
+        return "openai"
+    if model_provider == "MINIMAX":
         return "openai"
     if model_provider == "PERPLEXITY":
         return "openai"

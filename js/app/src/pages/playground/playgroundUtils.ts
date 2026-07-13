@@ -169,6 +169,7 @@ const OPENAI_COMPATIBLE_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
   "FIREWORKS",
   "GROQ",
   "MOONSHOT",
+  "MINIMAX",
   "PERPLEXITY",
   "TOGETHER",
   "ZAI",
@@ -1450,6 +1451,7 @@ export const createToolCallForProvider = (
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
     case "ZAI":
@@ -1923,7 +1925,7 @@ export function getToolDefinitionDisplay(
     };
   }
   // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
-  // FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER, ZAI
+  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI
   return {
     type: "function",
     function: {

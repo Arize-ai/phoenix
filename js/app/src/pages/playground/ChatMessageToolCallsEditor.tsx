@@ -98,6 +98,7 @@ export function ChatMessageToolCallsEditor({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "MINIMAX":
       case "PERPLEXITY":
       case "TOGETHER":
       case "ZAI":
