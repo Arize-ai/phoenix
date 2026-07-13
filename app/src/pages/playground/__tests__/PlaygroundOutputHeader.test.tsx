@@ -1,8 +1,9 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store";
 
 import { PlaygroundOutputHeader } from "../PlaygroundOutputHeader";
@@ -12,6 +13,14 @@ describe("PlaygroundOutputHeader", () => {
   let root: Root;
 
   beforeEach(() => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })
+    );
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -22,6 +31,7 @@ describe("PlaygroundOutputHeader", () => {
       root.unmount();
     });
     container.remove();
+    vi.unstubAllGlobals();
   });
 
   it("shows completed run errors after the experiment finishes", () => {
@@ -52,9 +62,11 @@ describe("PlaygroundOutputHeader", () => {
 
     act(() => {
       root.render(
-        <PlaygroundContext.Provider value={playgroundStore}>
-          <PlaygroundOutputHeader instanceId={instance.id} index={0} />
-        </PlaygroundContext.Provider>
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <PlaygroundContext.Provider value={playgroundStore}>
+            <PlaygroundOutputHeader instanceId={instance.id} index={0} />
+          </PlaygroundContext.Provider>
+        </ThemeProvider>
       );
     });
 
@@ -76,9 +88,11 @@ describe("PlaygroundOutputHeader", () => {
 
     act(() => {
       root.render(
-        <PlaygroundContext.Provider value={playgroundStore}>
-          <PlaygroundOutputHeader instanceId={instance.id} index={0} />
-        </PlaygroundContext.Provider>
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <PlaygroundContext.Provider value={playgroundStore}>
+            <PlaygroundOutputHeader instanceId={instance.id} index={0} />
+          </PlaygroundContext.Provider>
+        </ThemeProvider>
       );
     });
 
