@@ -12,6 +12,7 @@
   <pairing_condition_with_root_spans_only>
     - The freeform filter only matches inside the currently selected root/all scope. When narrowing by a `span_kind` other than CHAIN or AGENT (LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL), pair the condition with `rootSpansOnly: false` — those kinds are almost always nested under a CHAIN/AGENT root, so `rootSpansOnly: true` would yield zero results.
     - Same applies when filtering by anything that targets nested spans (specific tool names, `status_code == 'ERROR'` on inner calls, annotations attached to leaf spans).
+    - Trace annotations apply to every span in the annotated trace. Use `rootSpansOnly: true` to show one row per matching trace, or `rootSpansOnly: false` to inspect all spans belonging to those traces.
     - The `rootSpansOnly` toggle only takes visible effect when the spans table is mounted (Spans tab); on other tabs only `condition` applies, but you must still send `rootSpansOnly`.
   </pairing_condition_with_root_spans_only>
   <dsl_reference>
@@ -19,7 +20,8 @@
     - Numeric fields: `latency_ms`, `cumulative_token_count.{prompt,completion,total}`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
     - Datetime fields: `start_time`, `end_time`. Resolve relative phrases like "last week" or "past 5 days" against the value returned by the `get_current_datetime` tool — call it first. Never guess the current date from prior knowledge.
     - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
-    - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
+    - Span annotations: `annotations['Name'].label`, `annotations['Name'].score`, `annotations['Name'].explanation`, or bare `annotations['Name']` to test existence.
+    - Trace annotations: `trace_annotations['Name'].label`, `trace_annotations['Name'].score`, `trace_annotations['Name'].explanation`, or bare `trace_annotations['Name']`. A matching trace annotation selects spans belonging to that trace.
     - Substring search: `'needle' in input.value` (works on any string field).
     - Combine clauses with `and`, `or`, `not`.
   </dsl_reference>
@@ -35,6 +37,7 @@
     - "Slow LLM calls" → condition `span_kind == 'LLM' and latency_ms >= 5000`, rootSpansOnly: false.
     - "Top-level traces only" → condition `''`, rootSpansOnly: true.
     - "Hallucinations" → condition `annotations['Hallucination'].label == 'hallucinated'`, rootSpansOnly: false.
+    - "Traces rated as poor quality" → condition `trace_annotations['quality'].label == 'poor'`, rootSpansOnly: true.
     - "Spans mentioning agent in input" → condition `'agent' in input.value`, rootSpansOnly: false.
     - "Reset to default view" → condition `''`, rootSpansOnly: true.
   </examples>

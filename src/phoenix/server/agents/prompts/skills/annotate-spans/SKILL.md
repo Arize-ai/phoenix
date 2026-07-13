@@ -11,7 +11,7 @@ An annotation is durable, structured feedback attached to a span or trace: a `na
 
 A good annotation earns its place by being useful *later*:
 
-- **Filterable** — `annotations['answer_relevance'].label == 'fail'` returns the spans you meant.
+- **Filterable** — `annotations['answer_relevance'].label == 'fail'` returns matching spans; `trace_annotations['task_success'].label == 'fail'` returns spans belonging to matching traces.
 - **Aggregatable** — counting labels across spans yields a failure rate that tells the user where to focus.
 - **Auditable** — months later, the explanation still justifies the judgment without rerunning anything.
 - **Curatable** — failing spans can be pulled into a dataset to drive evals or fixes.

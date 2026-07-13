@@ -44,7 +44,7 @@ These apply to every entity:
 - **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. OpenTelemetry hex IDs come from `Span.spanId` and `Trace.traceId` — use those for OTel lookups and `/redirects/spans/<spanId>` / `/redirects/traces/<traceId>` links. Note a `Span` has **no** `traceId` field; read it via the nested `trace { traceId }`. Never mix global IDs with OTel IDs.
 - **`TimeRange`** input: `{ start: DateTime, end: DateTime }` — ISO 8601 strings; `end` is exclusive; both optional.
 - **`SpanSort`** input: `{ col: SpanColumn, dir: SortDir }`, e.g. `{ col: startTime, dir: desc }`. Useful `SpanColumn` values: `startTime`, `latencyMs`, `tokenCountTotal`, `cumulativeTokenCountTotal`, `tokenCostTotal`.
-- **`filterCondition`** is a Python-like DSL string over span fields, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `latency_ms > 1000`, `'timeout' in output.value`, `evals['Hallucination'].label == 'hallucinated'`, `annotations['note'].score < 0.5`. Combine with `and`/`or`.
+- **`filterCondition`** is a Python-like DSL string over span fields, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `latency_ms > 1000`, `'timeout' in output.value`, `annotations['Hallucination'].label == 'hallucinated'`, or `trace_annotations['quality'].score < 0.5`. `annotations[...]` references annotations on an individual span; `trace_annotations[...]` matches every span belonging to an annotated trace. Combine clauses with `and`/`or`.
 
 ### Efficiency rules
 
