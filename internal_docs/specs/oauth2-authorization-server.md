@@ -291,11 +291,16 @@ time, and DCR time, so the three checkpoints cannot drift apart.
 ### The Policy Dial
 
 `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` = `disabled` | **`local_only`
-(default)** | `enabled`. The dial governs both registration and which redirect
-classes validate:
+(default)** | `enabled`. The dial answers two separate questions — *who may
+register a client* and *where an authorization code may be delivered* — and the
+delivery rule applies to every client, seeded ones included:
 
 - **`disabled`** — no `/oauth2/register`, metadata omits
-  `registration_endpoint`, and only admin-seeded clients work.
+  `registration_endpoint`, and only admin-seeded clients work. Delivery falls
+  back to the `local_only` classes rather than to nothing: the seeded CLI
+  redirects to loopback, so refusing loopback whenever registration is off would
+  leave no client able to complete a flow, including the one Phoenix seeds
+  itself. Turning registration off must not turn login off.
 - **`local_only`** — anyone may register, but only loopback and private-use
   redirects validate. Whatever a registrant claims, the authorization code is
   ultimately delivered to a process on the approving user's own machine or an

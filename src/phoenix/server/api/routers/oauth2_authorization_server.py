@@ -305,7 +305,7 @@ async def revoke(request: Request) -> Response:
 
 @oauth2_router.post("/register", dependencies=_dcr_rate_limit_dependencies)
 async def register(request: Request) -> JSONResponse:
-    dial_position = _redirect_uri_dial_position()
+    dial_position = _dcr_policy()
     if dial_position == RedirectUriDialPosition.DISABLED:
         return _dcr_error(
             "invalid_client_metadata",
@@ -374,7 +374,7 @@ async def authorization_server_metadata(request: Request) -> JSONResponse:
         "code_challenge_methods_supported": ["S256"],
         "token_endpoint_auth_methods_supported": ["none"],
     }
-    if _redirect_uri_dial_position() != RedirectUriDialPosition.DISABLED:
+    if _dcr_policy() != RedirectUriDialPosition.DISABLED:
         metadata["registration_endpoint"] = f"{issuer}/oauth2/register"
     return JSONResponse(metadata)
 
@@ -854,8 +854,25 @@ async def _revoke_grant_on_refresh_replay(request: Request, raw_refresh_token: s
     await token_store.revoke(*refresh_token_ids, *access_token_ids)
 
 
-def _redirect_uri_dial_position() -> RedirectUriDialPosition:
+def _dcr_policy() -> RedirectUriDialPosition:
+    """The registration policy: who, if anyone, may register a client."""
     return RedirectUriDialPosition(get_env_oauth2_dynamic_client_registration())
+
+
+def _redirect_uri_dial_position() -> RedirectUriDialPosition:
+    """The delivery policy: where an authorization code may be sent.
+
+    Registration and delivery are separate questions that share one setting. Turning
+    registration off says nothing about where an already-registered client's code may go,
+    and answering DISABLED here would strand every client the server itself seeded — the
+    first-party CLI redirects to loopback, so disabling registration would disable login.
+    Delivery therefore falls back to the local classes, which is the policy that holds when
+    nobody may register: codes reach the approving user's own machine, and nowhere else.
+    """
+    dial = _dcr_policy()
+    if dial is RedirectUriDialPosition.DISABLED:
+        return RedirectUriDialPosition.LOCAL_ONLY
+    return dial
 
 
 def _redirect_with_oauth_error(

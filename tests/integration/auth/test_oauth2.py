@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 import pytest
 
+from phoenix.db.facilitator import PHOENIX_CLI_OAUTH2_CLIENT_ID
 from phoenix.server.api.exceptions import Unauthorized
 from tests.integration._helpers import _ADMIN, _MEMBER, _AppInfo, _GetUser, _httpx_client
 
@@ -854,6 +855,29 @@ class TestDynamicClientRegistration:
         metadata_response.raise_for_status()
         assert "registration_endpoint" not in metadata_response.json()
         assert register_response.status_code == 403
+
+    def test_disabled_registration_still_lets_the_seeded_client_log_in(
+        self,
+        _app_dcr_disabled: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        # Turning registration off must not turn login off. Who may register and where a
+        # code may be delivered are separate questions sharing one setting, and the seeded
+        # first-party client redirects to loopback -- so a server that refused loopback
+        # delivery whenever registration was off would have no client left able to complete
+        # a flow, including the one it seeds itself.
+        user = _get_user(_app_dcr_disabled, _MEMBER).log_in(_app_dcr_disabled)
+        seeded_cli = _OAuthPublicClient(
+            client_id=PHOENIX_CLI_OAUTH2_CLIENT_ID,
+            name="phoenix-cli",
+            redirect_uri="http://127.0.0.1:8765/callback",
+            app=_app_dcr_disabled,
+        )
+
+        token_response = seeded_cli.complete_flow(user)
+
+        assert token_response["access_token"]
+        assert token_response["refresh_token"]
 
 
 class TestGrantTokenAccess:
