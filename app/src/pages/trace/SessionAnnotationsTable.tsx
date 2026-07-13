@@ -11,11 +11,6 @@ import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Flex, Icon, Icons, Truncate } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import {
-  EmptyState,
-  EmptyStateArea,
-  EmptyStateGraphic,
-} from "@phoenix/components/core/empty";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -33,6 +28,7 @@ import type {
   SessionAnnotationsTable_annotations$key,
 } from "./__generated__/SessionAnnotationsTable_annotations.graphql";
 import type { SessionAnnotationsTableQuery } from "./__generated__/SessionAnnotationsTableQuery.graphql";
+import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
 
 type SessionAnnotation =
   SessionAnnotationsTable_annotations$data["sessionAnnotations"][number];
@@ -41,27 +37,6 @@ const tableWrapCSS = css`
   flex: 1 1 auto;
   overflow: auto;
 `;
-
-function SessionAnnotationsEmpty() {
-  return (
-    <EmptyStateArea>
-      <EmptyState
-        graphic={<EmptyStateGraphic variant="annotation" />}
-        description="No annotations for this session"
-        action={{
-          type: "strip",
-          items: [
-            {
-              kind: "link",
-              label: "How to Annotate",
-              href: "https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui",
-            },
-          ],
-        }}
-      />
-    </EmptyStateArea>
-  );
-}
 
 function AnnotationsTable({
   annotations,
@@ -317,7 +292,9 @@ export function SessionAnnotationsTable({ sessionId }: { sessionId: string }) {
   const annotations = data.sessionAnnotations;
 
   if (annotations.length === 0) {
-    return <SessionAnnotationsEmpty />;
+    return (
+      <SpanAnnotationsEmpty description="No annotations for this session" />
+    );
   }
   return <AnnotationsTable annotations={annotations} sessionNodeId={data.id} />;
 }

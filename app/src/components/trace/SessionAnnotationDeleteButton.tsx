@@ -1,7 +1,6 @@
 import { startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import type { ButtonProps } from "@phoenix/components";
 import {
   Button,
   Dialog,
@@ -19,14 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@phoenix/components/core/dialog";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { NotificationHookParams } from "@phoenix/contexts/NotificationContext";
 
 import type { SessionAnnotationDeleteButtonMutation } from "./__generated__/SessionAnnotationDeleteButtonMutation.graphql";
 
 type SessionAnnotationDeleteButtonProps = {
-  buttonVariant?: ButtonProps["variant"];
-  buttonSize?: ButtonProps["size"];
   annotationId: string;
   sessionNodeId: string;
   annotationName: string;
@@ -46,8 +42,6 @@ export function SessionAnnotationDeleteButton(
     annotationName,
     onDeleteSuccess,
     onDeleteError,
-    buttonVariant = "quiet",
-    buttonSize = "S",
   } = props;
   const [deleting, setDeleting] = useState(false);
   const [commitDelete] = useMutation<SessionAnnotationDeleteButtonMutation>(
@@ -102,8 +96,8 @@ export function SessionAnnotationDeleteButton(
   return (
     <DialogTrigger isOpen={deleting} onOpenChange={setDeleting}>
       <Button
-        size={buttonSize}
-        variant={buttonVariant}
+        size="S"
+        variant="quiet"
         aria-label={`Delete annotation ${annotationName}`}
         leadingVisual={<Icon svg={<Icons.Trash />} />}
       />
@@ -128,15 +122,8 @@ export function SessionAnnotationDeleteButton(
                   borderTopWidth="thin"
                 >
                   <Flex direction="row" justifyContent="end" gap="size-200">
-                    <StopPropagation>
-                      <Button onPress={close}>Cancel</Button>
-                    </StopPropagation>
-                    <Button
-                      variant="danger"
-                      onPress={() => {
-                        handleDelete();
-                      }}
-                    >
+                    <Button onPress={close}>Cancel</Button>
+                    <Button variant="danger" onPress={handleDelete}>
                       Delete Annotation
                     </Button>
                   </Flex>

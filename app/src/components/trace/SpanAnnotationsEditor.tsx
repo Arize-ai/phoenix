@@ -61,8 +61,6 @@ import type { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated_
 import type { AnnotationFormData } from "./SpanAnnotationInput";
 import { SpanAnnotationInput } from "./SpanAnnotationInput";
 
-export { EDIT_ANNOTATION_HOTKEY };
-
 const EMPTY_TIME_RANGE_ISO_STRINGS = {
   start: undefined,
   end: undefined,

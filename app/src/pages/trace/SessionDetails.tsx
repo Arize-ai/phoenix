@@ -154,19 +154,17 @@ function SessionDetailsHeader({
             />
           </Flex>
         </Flex>
-        <Flex direction="row" gap="size-200" alignItems="center">
-          {projectId != null ? (
-            <ToggleButton
-              size="S"
-              isSelected={isAnnotating}
-              onPress={() => onIsAnnotatingChange(!isAnnotating)}
-              aria-label="Annotate Session"
-              leadingVisual={<Icon svg={<Icons.Edit2 />} />}
-            >
-              Annotate Session
-            </ToggleButton>
-          ) : null}
-        </Flex>
+        {projectId != null ? (
+          <ToggleButton
+            size="S"
+            isSelected={isAnnotating}
+            onPress={() => onIsAnnotatingChange(!isAnnotating)}
+            aria-label="Annotate Session"
+            leadingVisual={<Icon svg={<Icons.Edit2 />} />}
+          >
+            Annotate Session
+          </ToggleButton>
+        ) : null}
       </Flex>
     </View>
   );
@@ -392,7 +390,6 @@ export function SessionDetails(props: SessionDetailsProps) {
           <>
             <Separator
               css={compactResizeHandleCSS}
-              disabled={!isAnnotating}
               style={isAnnotating ? undefined : { display: "none" }}
             />
             <Panel
@@ -408,12 +405,15 @@ export function SessionDetails(props: SessionDetailsProps) {
                 }
               }}
             >
-              <Suspense fallback={<Loading />}>
-                <SessionAnnotationsEditor
-                  sessionNodeId={sessionId}
-                  projectId={projectId}
-                />
-              </Suspense>
+              {/* Mount lazily: the editor fetches configs and annotations */}
+              {isAnnotating ? (
+                <Suspense fallback={<Loading />}>
+                  <SessionAnnotationsEditor
+                    sessionNodeId={sessionId}
+                    projectId={projectId}
+                  />
+                </Suspense>
+              ) : null}
             </Panel>
           </>
         ) : null}

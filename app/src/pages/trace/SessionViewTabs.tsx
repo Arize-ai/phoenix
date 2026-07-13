@@ -5,9 +5,9 @@ import {
   Counter,
   Icon,
   Icons,
+  LazyTabPanel,
   Tab,
   TabList,
-  TabPanel,
   Tabs,
 } from "@phoenix/components";
 
@@ -72,9 +72,9 @@ export function SessionViewTabs({
         </Tab>
       </TabList>
       {SESSION_VIEWS.map((view) => (
-        <TabPanel key={view} id={view}>
-          {sessionView === view ? children : null}
-        </TabPanel>
+        <LazyTabPanel key={view} id={view}>
+          {children}
+        </LazyTabPanel>
       ))}
     </Tabs>
   );

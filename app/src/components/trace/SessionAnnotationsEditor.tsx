@@ -91,7 +91,6 @@ export function SessionAnnotationsEditor(props: SessionAnnotationsEditorProps) {
             </Text>
             <NewAnnotationButton
               projectId={projectId}
-              sessionNodeId={sessionNodeId}
               refetchKey={refetchKey}
               onRefetchKeyChange={setRefetchKey}
             />
@@ -111,13 +110,12 @@ export function SessionAnnotationsEditor(props: SessionAnnotationsEditorProps) {
 
 type NewAnnotationButtonProps = {
   projectId: string;
-  sessionNodeId: string;
   refetchKey: number;
   onRefetchKeyChange: (updater: (prev: number) => number) => void;
 };
 
 function NewAnnotationButton(props: NewAnnotationButtonProps) {
-  const { projectId, sessionNodeId, refetchKey, onRefetchKeyChange } = props;
+  const { projectId, refetchKey, onRefetchKeyChange } = props;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [showEditConfigDialog, setShowEditConfigDialog] = useState(false);
 
@@ -143,7 +141,6 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         mutation SessionAnnotationsEditorAddAnnotationConfigToProjectMutation(
           $projectId: ID!
           $annotationConfigId: ID!
-          $sessionId: ID!
         ) {
           addAnnotationConfigToProject(
             input: {
@@ -152,10 +149,10 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
             }
           ) {
             query {
-              node(id: $sessionId) {
-                ... on ProjectSession {
+              projectNode: node(id: $projectId) {
+                ... on Project {
                   id
-                  ...SessionAnnotationsEditor_sessionAnnotations
+                  ...AnnotationConfigListProjectAnnotationConfigFragment
                 }
               }
             }
@@ -192,7 +189,6 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
               variables: {
                 projectId,
                 annotationConfigId,
-                sessionId: sessionNodeId,
               },
               onCompleted: () => {
                 onRefetchKeyChange((prev) => prev + 1);

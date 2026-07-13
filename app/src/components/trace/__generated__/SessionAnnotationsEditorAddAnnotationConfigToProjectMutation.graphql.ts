@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7028d7c5b7cad7208fcdd08f19739812>>
+ * @generated SignedSource<<5e68d818fb1188fa5454f29662fc8d8f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,14 +13,13 @@ import { FragmentRefs } from "relay-runtime";
 export type SessionAnnotationsEditorAddAnnotationConfigToProjectMutation$variables = {
   annotationConfigId: string;
   projectId: string;
-  sessionId: string;
 };
 export type SessionAnnotationsEditorAddAnnotationConfigToProjectMutation$data = {
   readonly addAnnotationConfigToProject: {
     readonly query: {
-      readonly node: {
+      readonly projectNode: {
         readonly id?: string;
-        readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationsEditor_sessionAnnotations">;
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationConfigListProjectAnnotationConfigFragment">;
       };
     };
   };
@@ -41,12 +40,7 @@ v1 = {
   "kind": "LocalArgument",
   "name": "projectId"
 },
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "sessionId"
-},
-v3 = [
+v2 = [
   {
     "fields": [
       {
@@ -64,26 +58,46 @@ v3 = [
     "name": "input"
   }
 ],
-v4 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "sessionId"
+    "variableName": "projectId"
   }
 ],
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v1/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -91,7 +105,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
         "name": "addAnnotationConfigToProject",
@@ -106,8 +120,8 @@ return {
             "plural": false,
             "selections": [
               {
-                "alias": null,
-                "args": (v4/*: any*/),
+                "alias": "projectNode",
+                "args": (v3/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -116,14 +130,14 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v5/*: any*/),
+                      (v4/*: any*/),
                       {
                         "args": null,
                         "kind": "FragmentSpread",
-                        "name": "SessionAnnotationsEditor_sessionAnnotations"
+                        "name": "AnnotationConfigListProjectAnnotationConfigFragment"
                       }
                     ],
-                    "type": "ProjectSession",
+                    "type": "Project",
                     "abstractKey": null
                   }
                 ],
@@ -143,15 +157,14 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v1/*: any*/),
-      (v0/*: any*/),
-      (v2/*: any*/)
+      (v0/*: any*/)
     ],
     "kind": "Operation",
     "name": "SessionAnnotationsEditorAddAnnotationConfigToProjectMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
         "name": "addAnnotationConfigToProject",
@@ -166,96 +179,144 @@ return {
             "plural": false,
             "selections": [
               {
-                "alias": null,
-                "args": (v4/*: any*/),
+                "alias": "projectNode",
+                "args": (v3/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
                   (v5/*: any*/),
+                  (v4/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "ProjectSessionAnnotation",
+                        "concreteType": "AnnotationConfigConnection",
                         "kind": "LinkedField",
-                        "name": "sessionAnnotations",
-                        "plural": true,
+                        "name": "annotationConfigs",
+                        "plural": false,
                         "selections": [
-                          (v5/*: any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "annotatorKind",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "score",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "label",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "explanation",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "createdAt",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "User",
+                            "concreteType": "AnnotationConfigEdge",
                             "kind": "LinkedField",
-                            "name": "user",
-                            "plural": false,
+                            "name": "edges",
+                            "plural": true,
                             "selections": [
-                              (v5/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
-                                "kind": "ScalarField",
-                                "name": "username",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "profilePictureUrl",
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "node",
+                                "plural": false,
+                                "selections": [
+                                  (v5/*: any*/),
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v4/*: any*/)
+                                    ],
+                                    "type": "Node",
+                                    "abstractKey": "__isNode"
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v6/*: any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "annotationType",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "description",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "AnnotationConfigBase",
+                                    "abstractKey": "__isAnnotationConfigBase"
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "CategoricalAnnotationValue",
+                                        "kind": "LinkedField",
+                                        "name": "values",
+                                        "plural": true,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "label",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "score",
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "CategoricalAnnotationConfig",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "lowerBound",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "upperBound",
+                                        "storageKey": null
+                                      },
+                                      (v7/*: any*/)
+                                    ],
+                                    "type": "ContinuousAnnotationConfig",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v6/*: any*/),
+                                      (v7/*: any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "threshold",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "FreeformAnnotationConfig",
+                                    "abstractKey": null
+                                  }
+                                ],
                                 "storageKey": null
                               }
                             ],
@@ -265,7 +326,7 @@ return {
                         "storageKey": null
                       }
                     ],
-                    "type": "ProjectSession",
+                    "type": "Project",
                     "abstractKey": null
                   }
                 ],
@@ -280,16 +341,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "238b7e32a7d5cf83d87dc9374ac8afb5",
+    "cacheID": "f911f2348249778ae9c04aa120fc7dbb",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationsEditorAddAnnotationConfigToProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationsEditorAddAnnotationConfigToProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n  $sessionId: ID!\n) {\n  addAnnotationConfigToProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          id\n          ...SessionAnnotationsEditor_sessionAnnotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SessionAnnotationsEditorAddAnnotationConfigToProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  addAnnotationConfigToProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...AnnotationConfigListProjectAnnotationConfigFragment\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b258417e88e91e03a9bc71e34ddfa033";
+(node as any).hash = "9c922f26ce8c3ddd0601b8fc1ca2c71b";
 
 export default node;
