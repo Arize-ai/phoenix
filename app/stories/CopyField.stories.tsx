@@ -20,7 +20,7 @@ Use this for displaying values that users need to copy, such as URLs, API endpoi
 \`\`\`tsx
 <CopyField>
   <Label>API Endpoint</Label>
-  <CopyInput defaultValue="https://api.example.com/v1" />
+  <CopyInput defaultValue="https://phoenix.example.com" />
   <Text slot="description">Your API endpoint</Text>
 </CopyField>
 \`\`\`
@@ -33,9 +33,9 @@ Use this for displaying values that users need to copy, such as URLs, API endpoi
 export default meta;
 
 const Template: StoryFn<CopyFieldProps> = (args) => (
-  <CopyField {...args}>
-    <Label>API Endpoint</Label>
-    <CopyInput defaultValue="https://api.example.com/v1" />
+  <CopyField value="https://phoenix.example.com" {...args}>
+    <Label>Hostname</Label>
+    <CopyInput />
     <Text slot="description">Click the copy icon to copy to clipboard</Text>
   </CopyField>
 );
@@ -46,57 +46,63 @@ export const Default = {
 };
 
 export const WithLongValue: StoryFn = () => (
-  <CopyField>
+  <CopyField value="pip install arize-phoenix[evals,llama-index,openai] && phoenix serve --port 6006">
     <Label>Install Command</Label>
-    <CopyInput defaultValue="pip install arize-phoenix[evals,llama-index,openai] && phoenix serve --port 6006" />
+    <CopyInput />
     <Text slot="description">Copy and paste into your terminal</Text>
   </CopyField>
 );
 
 export const Gallery: StoryFn = () => (
   <Flex direction="column" gap="size-200" width="600px">
-    <CopyField>
-      <Label>API Endpoint</Label>
-      <CopyInput defaultValue="https://api.example.com/v1" />
+    <CopyField value="https://phoenix.example.com">
+      <Label>Hostname</Label>
+      <CopyInput />
       <Text slot="description">Click the copy icon to copy to clipboard</Text>
     </CopyField>
 
-    <CopyField>
+    <CopyField value="UHJvamVjdDoxMjM0NTY3ODkw">
       <Label>Project ID</Label>
-      <CopyInput defaultValue="proj_abc123def456" />
+      <CopyInput />
     </CopyField>
 
-    <CopyField>
+    <CopyField value="pip install arize-phoenix[evals,llama-index,openai] && phoenix serve --port 6006">
       <Label>Install Command</Label>
-      <CopyInput defaultValue="pip install arize-phoenix[evals,llama-index,openai] && phoenix serve --port 6006" />
+      <CopyInput />
       <Text slot="description">Copy and paste into your terminal</Text>
     </CopyField>
 
-    <CopyField size="S">
-      <Label>Small Copy Field</Label>
-      <CopyInput defaultValue="small-value" />
+    <CopyField size="S" value="11.12.0">
+      <Label>Platform Version</Label>
+      <CopyInput />
     </CopyField>
 
-    <CopyField size="L">
-      <Label>Large Copy Field</Label>
-      <CopyInput defaultValue="large-value-example" />
+    <CopyField
+      size="L"
+      value="OTLPSpanExporter(endpoint=PHOENIX_COLLECTOR_ENDPOINT)"
+    >
+      <Label>Exporter Configuration</Label>
+      <CopyInput />
     </CopyField>
   </Flex>
 );
 
 export const DifferentSizes: StoryFn = () => (
   <Flex direction="column" gap="size-200" width="600px">
-    <CopyField size="S">
+    <CopyField size="S" value="11.12.0">
       <Label>Size S</Label>
-      <CopyInput defaultValue="size-s-value" />
+      <CopyInput />
     </CopyField>
-    <CopyField size="M">
+    <CopyField size="M" value="https://phoenix.example.com">
       <Label>Size M (default)</Label>
-      <CopyInput defaultValue="size-m-value" />
+      <CopyInput />
     </CopyField>
-    <CopyField size="L">
+    <CopyField
+      size="L"
+      value="OTLPSpanExporter(endpoint=PHOENIX_COLLECTOR_ENDPOINT)"
+    >
       <Label>Size L</Label>
-      <CopyInput defaultValue="size-l-value" />
+      <CopyInput />
     </CopyField>
   </Flex>
 );

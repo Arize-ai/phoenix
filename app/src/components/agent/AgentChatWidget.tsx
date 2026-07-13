@@ -496,6 +496,11 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
     },
     {
       enabled: isAssistantAgentEnabled,
+      // Keep the hotkey live while focus is inside the agent chat's textarea
+      // (or any form field) so pressing the shortcut again toggles the popover
+      // closed rather than being swallowed by the focused input.
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
       preventDefault: true,
     },
     [isAssistantAgentEnabled, toggleOpen]

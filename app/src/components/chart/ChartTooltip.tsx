@@ -41,9 +41,11 @@ type ChartTooltipItemProps = {
    */
   shape?: ColorPreviewShape;
   /**
-   * The color of the preview item
+   * The color of the preview item. Recharts payload entries may omit the
+   * color, in which case the preview swatch renders transparent.
+   * @default "transparent"
    */
-  color: string;
+  color?: string;
   name: string;
   value: string;
 };
@@ -68,7 +70,10 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
           align-items: center;
         `}
       >
-        <PreviewShape color={props.color} shape={props.shape ?? "line"} />
+        <PreviewShape
+          color={props.color ?? "transparent"}
+          shape={props.shape ?? "line"}
+        />
         <Text title={props.name}>
           <Truncate maxWidth="120px">{props.name}</Truncate>
         </Text>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d45c3777d024568d40476a068d77db8c>>
+ * @generated SignedSource<<72f7ab27e678659406e868d09c901a77>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,10 @@ export type PromptsTable_prompts$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
       readonly prompt: {
+        readonly createdBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
         readonly description: string | null;
         readonly id: string;
         readonly labels: ReadonlyArray<{
@@ -23,6 +27,10 @@ export type PromptsTable_prompts$data = {
           readonly name: string;
         }>;
         readonly name: string;
+        readonly updatedBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
         readonly version: {
           readonly createdAt: string;
           readonly id: string;
@@ -64,7 +72,23 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -155,6 +179,26 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "description",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "createdBy",
+                  "plural": false,
+                  "selections": (v3/*: any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "updatedBy",
+                  "plural": false,
+                  "selections": (v3/*: any*/),
                   "storageKey": null
                 },
                 {
@@ -302,6 +346,6 @@ return {
 };
 })();
 
-(node as any).hash = "b5fb70bb7de99fce33aaeac3b119d898";
+(node as any).hash = "0716ae3773a7559b1fc7cc94a404b820";
 
 export default node;

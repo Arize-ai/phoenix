@@ -48,6 +48,7 @@ import {
   DashboardsEmptyPage,
   DashboardsRoot,
   datasetLoader,
+  DatasetMetricsPage,
   DatasetPage,
   DatasetsPage,
   datasetVersionsLoader,
@@ -222,7 +223,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Traces",
                     description:
-                      "Inspect project traces in the trace table and open trace details.",
+                      "Inspect project traces in the trace table and open trace details. Supports configurable metric charts shown above the table.",
                   },
                 }}
               >
@@ -245,7 +246,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Spans",
                     description:
-                      "Inspect the project span table and filter spans for a project.",
+                      "Inspect the project span table and filter spans for a project. Supports configurable metric charts shown above the table.",
                   },
                 }}
               >
@@ -268,7 +269,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Sessions",
                     description:
-                      "Browse user or application sessions and the session list for a project.",
+                      "Browse user or application sessions and the session list for a project. Supports configurable metric charts shown above the table, with a stats side panel showing session count, average session duration, and session annotation summaries.",
                   },
                 }}
               >
@@ -432,6 +433,17 @@ export const appRouteObjects = createRoutesFromElements(
                     label: "Dataset Versions",
                     description:
                       "View dataset versions, dataset history, and version records.",
+                  },
+                }}
+              />
+              <Route
+                path="metrics"
+                element={<DatasetMetricsPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Dataset Experiment Metrics",
+                    description:
+                      "View annotation scores, run latency, cost, token usage, and error rate charts across a dataset's recent experiments.",
                   },
                 }}
               />

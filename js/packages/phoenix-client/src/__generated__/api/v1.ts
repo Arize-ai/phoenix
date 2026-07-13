@@ -1682,6 +1682,7 @@ export interface components {
             /** Sessionid */
             sessionId: string;
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
         };
         /** AssistantMessageMetadataTraceIds */
@@ -1844,6 +1845,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1897,6 +1899,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5464,6 +5467,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** TurnTraceContext */
+        TurnTraceContext: {
+            /** Traceid */
+            traceId: string;
+            /** Rootspanid */
+            rootSpanId: string;
+            /**
+             * Startedat
+             * Format: date-time
+             */
+            startedAt: string;
+        };
         /**
          * UIMessage
          * @description A message as displayed in the UI by Vercel AI Elements.
@@ -5705,6 +5720,34 @@ export interface components {
             summary: string;
         };
         /**
+         * ToolCallCallbackProviderMetadata
+         * @description Shape of the ``phoenix`` namespace the browser returns in
+         *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
+         *     plus browser-recorded execution timings.
+         */
+        ToolCallCallbackProviderMetadata: {
+            /**
+             * Tool Execution Environment
+             * @enum {string}
+             */
+            tool_execution_environment: "client" | "server";
+            /**
+             * Tool Input Emitted At
+             * @default null
+             */
+            tool_input_emitted_at?: string | null;
+            /**
+             * Client Started At
+             * @default null
+             */
+            client_started_at?: string | null;
+            /**
+             * Client Ended At
+             * @default null
+             */
+            client_ended_at?: string | null;
+        };
+        /**
          * ToolCallProviderMetadata
          * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
          *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
@@ -5716,6 +5759,11 @@ export interface components {
              * @enum {string}
              */
             tool_execution_environment: "client" | "server";
+            /**
+             * Tool Input Emitted At
+             * @default null
+             */
+            tool_input_emitted_at?: string | null;
         };
     };
     responses: never;

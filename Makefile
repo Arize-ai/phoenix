@@ -30,7 +30,7 @@ NC := \033[0m # No Color
 #=============================================================================
 
 .PHONY: help check-tools \
-	setup install-python install-node \
+	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui codegen-python-client codegen-ts-client codegen-ts-app \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
@@ -58,6 +58,7 @@ help: ## Show this help message
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
+	@echo -e "  setup-remote-export   - Configure PXI remote trace export"
 	@echo -e "  check-tools            - Verify required tools are installed"
 	@echo -e "  install-python         - Install Python dependencies"
 	@echo -e "  install-node           - Install Node.js dependencies"
@@ -153,6 +154,9 @@ setup: check-tools install-python install-node ## Complete development environme
 	@echo -e "  1. Activate Python virtualenv: source .venv/bin/activate"
 	@echo -e "  2. Start development: make dev"
 	@echo -e ""
+
+setup-remote-export: ## Configure PXI remote trace export
+	@$(NODE) --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON $(APP_DIR)/scripts/setup-remote-export.ts
 
 #=============================================================================
 # Schema Generation

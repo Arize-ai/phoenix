@@ -397,6 +397,63 @@ export const Calendar = () => (
   </svg>
 );
 
+// @src: lucide chart-bar-decreasing
+export const ChartBarDecreasing = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M3 3v16a2 2 0 0 0 2 2h16" />
+    <path fill="none" d="M7 11h8" />
+    <path fill="none" d="M7 16h3" />
+    <path fill="none" d="M7 6h12" />
+  </svg>
+);
+
+// @src: lucide chart-no-axes-column
+export const ChartNoAxesColumn = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M5 21v-6" />
+    <path fill="none" d="M12 21V3" />
+    <path fill="none" d="M19 21V9" />
+  </svg>
+);
+
+// @src: lucide chart-line
+export const ChartLine = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M3 3v16a2 2 0 0 0 2 2h16" />
+    <path fill="none" d="m19 9-5 5-4-4-3 3" />
+  </svg>
+);
+
 export const ChevronUpDownSmall = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

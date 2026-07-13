@@ -101,10 +101,16 @@ const alertCSS = css`
     flex-direction: row;
 
     .icon-wrap {
-      margin-top: 4px;
-      margin-right: var(--global-dimension-static-size-200);
-      font-size: var(--global-font-size-l);
+      margin-right: var(--global-dimension-static-size-100);
+      font-size: var(--global-font-size-m);
+      display: flex;
+      align-items: center;
+      height: var(--global-line-height-s);
     }
+  }
+
+  &[data-has-title="true"] .alert__icon-title-wrap .icon-wrap {
+    height: var(--global-line-height-m);
   }
 `;
 
@@ -157,11 +163,11 @@ export const Alert = ({
         {icon}
         <div>
           {title ? (
-            <Text elementType="h5" size="L" weight="heavy" color="inherit">
+            <Text elementType="h5" size="M" weight="heavy" color="inherit">
               {title}
             </Text>
           ) : null}
-          <Text color="inherit" size="M">
+          <Text color="inherit" size="S">
             {children}
           </Text>
         </div>

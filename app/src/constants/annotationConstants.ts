@@ -8,3 +8,8 @@ export const ANNOTATOR_KINDS = [
   "HUMAN",
   "CODE",
 ] as const satisfies readonly AnnotatorKind[];
+
+/**
+ * Hotkey that focuses the annotation editor.
+ */
+export const EDIT_ANNOTATION_HOTKEY = "e";

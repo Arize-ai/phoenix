@@ -48,6 +48,14 @@ e.g. a server-filtered table that tracks its own filter string:
 Do not gate `isFiltered` on `items.length` — with zero items that never flips,
 so a search in an empty list wrongly stays on the topical state.
 
+## Never render a bare `Text` as an empty state
+
+Any `renderEmptyState` — menus, comboboxes, and command palettes must
+render `CompactEmptyState`, never a lone `<Text>No results</Text>`. Bare text
+skips the topical/search icon, the subtle theme-aware color, the centering, and
+the faint glow, so it reads as a stray label rather than a considered empty
+state and drifts from every other empty surface.
+
 # Empty-State Graphics
 
 `EmptyStateGraphic` renders the illustration shown above an `EmptyState`.

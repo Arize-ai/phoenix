@@ -12,6 +12,7 @@ export * from "./alert";
 export * from "./badge";
 export * from "./disclosure";
 export * from "./combobox";
+export * from "./commandpalette";
 export * from "./button";
 export * from "./icon";
 export * from "./view";

@@ -82,10 +82,12 @@ export const WithError: StoryFn = () => (
 );
 
 export const ReadOnly: StoryFn = () => (
-  <CredentialField isReadOnly>
-    <Label>API Key</Label>
-    <CredentialInput defaultValue="sk-readonly-key-1234" />
-    <Text slot="description">This key is read-only</Text>
+  <CredentialField isReadOnly value="sk-prod-5f8a2c1b0e4d9a7c6b3f">
+    <Label>Production API Key</Label>
+    <CredentialInput />
+    <Text slot="description">
+      Managed by workspace settings and shown here for confirmation
+    </Text>
   </CredentialField>
 );
 
@@ -121,6 +123,14 @@ export const Gallery: StoryFn = () => (
       <Label>Required Secret</Label>
       <CredentialInput />
       <Text slot="description">This field is required</Text>
+    </CredentialField>
+
+    <CredentialField isReadOnly value="sk-prod-5f8a2c1b0e4d9a7c6b3f">
+      <Label>Production API Key</Label>
+      <CredentialInput />
+      <Text slot="description">
+        Managed by workspace settings and shown here for confirmation
+      </Text>
     </CredentialField>
 
     <CredentialField size="S">

@@ -1,9 +1,12 @@
 import {
-  ENV_PHOENIX_API_KEY,
-  ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
-  getHeadersFromEnvironment,
-  getStrFromEnvironment,
+  ENV_PHOENIX_PROJECT,
+  ENV_PHOENIX_PROJECT_NAME,
+  type EnvironmentValueSource,
+  getCredentialsFromEnvironmentWithSource,
+  getProjectFromEnvironment,
+  getStrFromEnvironmentWithSource,
+  warnIfUsingFileEndpointWithCredentials,
 } from "@arizeai/phoenix-config";
 
 import {
@@ -58,32 +61,89 @@ export function getBuiltInDefaults(): PhoenixConfig {
  * Load configuration from environment variables.
  * Only returns values that are explicitly set in the environment — built-in
  * defaults are NOT included, so callers can apply them at the correct tier.
+ * Values may come from the process environment or from a discovered
+ * `.env.phoenix` file (process values win).
  */
 export function loadConfigFromEnvironment(): PhoenixConfig {
+  return loadConfigFromEnvironmentWithSources().config;
+}
+
+function loadConfigFromEnvironmentWithSources(): {
+  config: PhoenixConfig;
+  credentialSource?: EnvironmentValueSource;
+  endpointSource?: EnvironmentValueSource;
+} {
   const config: PhoenixConfig = {};
 
-  const endpoint = getStrFromEnvironment(ENV_PHOENIX_HOST);
-  if (endpoint) {
-    config.endpoint = endpoint;
+  const endpoint = getStrFromEnvironmentWithSource(ENV_PHOENIX_HOST);
+  if (endpoint.value) {
+    config.endpoint = endpoint.value;
   }
 
-  const apiKey = getStrFromEnvironment(ENV_PHOENIX_API_KEY);
+  const {
+    apiKey,
+    headers,
+    source: credentialSource,
+  } = getCredentialsFromEnvironmentWithSource();
   if (apiKey) {
     config.apiKey = apiKey;
   }
-
-  const headers = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
   if (headers) {
     config.headers = headers;
   }
 
-  // Also check for PHOENIX_PROJECT env var
-  const project = getStrFromEnvironment("PHOENIX_PROJECT");
+  // Resolve the project from PHOENIX_PROJECT (canonical) or the
+  // PHOENIX_PROJECT_NAME alias.
+  const project = getProjectFromEnvironment();
   if (project) {
     config.project = project;
   }
 
-  return config;
+  return {
+    config,
+    credentialSource,
+    endpointSource: endpoint.source,
+  };
+}
+
+function splitEnvironmentConfigTiers(): {
+  processEnvConfig: PhoenixConfig;
+  envFileConfig: PhoenixConfig;
+  endpointSource?: EnvironmentValueSource;
+} {
+  const {
+    config: merged,
+    credentialSource,
+    endpointSource,
+  } = loadConfigFromEnvironmentWithSources();
+  const processEnvConfig: PhoenixConfig = {};
+  const envFileConfig: PhoenixConfig = {};
+
+  const endpointTier =
+    endpointSource?.kind === "process" ? processEnvConfig : envFileConfig;
+  if (merged.endpoint) {
+    endpointTier.endpoint = merged.endpoint;
+  }
+
+  const credentialTier =
+    credentialSource?.kind === "process" ? processEnvConfig : envFileConfig;
+  if (merged.apiKey) {
+    credentialTier.apiKey = merged.apiKey;
+  }
+  if (merged.headers) {
+    credentialTier.headers = merged.headers;
+  }
+
+  const projectTier =
+    process.env[ENV_PHOENIX_PROJECT] !== undefined ||
+    process.env[ENV_PHOENIX_PROJECT_NAME] !== undefined
+      ? processEnvConfig
+      : envFileConfig;
+  if (merged.project) {
+    projectTier.project = merged.project;
+  }
+
+  return { endpointSource, processEnvConfig, envFileConfig };
 }
 
 /**
@@ -160,7 +220,8 @@ export interface ResolveConfigOptions {
  *   1. CLI flags
  *   2. Explicitly set environment variables
  *   3. Active profile (from --profile or settings file)
- *   4. Built-in defaults
+ *   4. Discovered `.env.phoenix` file values
+ *   5. Built-in defaults
  */
 export function resolveConfig({
   cliOptions,
@@ -168,7 +229,8 @@ export function resolveConfig({
 }: ResolveConfigOptions): PhoenixConfig {
   const builtInDefaults = getBuiltInDefaults();
   const profileConfig = loadConfigFromProfile(profileName);
-  const envConfig = loadConfigFromEnvironment();
+  const { endpointSource, processEnvConfig, envFileConfig } =
+    splitEnvironmentConfigTiers();
 
   // Commander (and other callers) may include keys with `undefined` values.
   // If we spread those over envConfig we would accidentally clobber env vars.
@@ -176,12 +238,38 @@ export function resolveConfig({
     Object.entries(cliOptions).filter(([, value]) => value !== undefined)
   ) as Partial<PhoenixConfig>;
 
-  return {
+  const config = {
     ...builtInDefaults,
+    ...envFileConfig,
     ...profileConfig,
-    ...envConfig,
+    ...processEnvConfig,
     ...definedCliOptions,
   };
+
+  const usesFileEndpoint =
+    endpointSource?.kind === "env-file" &&
+    definedCliOptions.endpoint === undefined &&
+    processEnvConfig.endpoint === undefined &&
+    profileConfig.endpoint === undefined;
+  const credentialSource =
+    definedCliOptions.apiKey !== undefined ||
+    definedCliOptions.headers !== undefined
+      ? "CLI options"
+      : processEnvConfig.apiKey !== undefined ||
+          processEnvConfig.headers !== undefined
+        ? "the process environment"
+        : profileConfig.apiKey !== undefined ||
+            profileConfig.headers !== undefined
+          ? "the active profile"
+          : undefined;
+  if (usesFileEndpoint) {
+    warnIfUsingFileEndpointWithCredentials({
+      credentialSource,
+      endpointSource,
+      endpointVariable: ENV_PHOENIX_HOST,
+    });
+  }
+  return config;
 }
 
 /**

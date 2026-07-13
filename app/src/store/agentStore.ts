@@ -14,6 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingAnnotationConfigWrite } from "@phoenix/agent/tools/annotationConfig";
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
@@ -167,16 +168,16 @@ const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
 
 const MAX_STORED_AGENT_SESSIONS = 3;
 
-/** Prefix applied to a forked session's summary to denote its origin. */
-const FORK_SUMMARY_PREFIX = "(fork) ";
+/** Prefix applied to a branched session's summary to denote its origin. */
+const FORK_SUMMARY_PREFIX = "(branch) ";
 
 /** Max length for a derived (non-LLM) fork summary before truncation. */
 const FORK_SUMMARY_MAX_LENGTH = 50;
 
 /**
- * Builds the summary for a session forked from `source`. Reuses the source's
+ * Builds the summary for a session branched from `source`. Reuses the source's
  * LLM-generated summary when available, otherwise derives a short label from
- * its first user message, then prefixes it with `(fork)`. Seeding a non-empty
+ * its first user message, then prefixes it with `(branch)`. Seeding a non-empty
  * summary here also prevents the async summarizer from overwriting it.
  */
 function buildForkSummary(source: AgentSession): string {
@@ -196,7 +197,7 @@ function buildForkSummary(source: AgentSession): string {
         : text
       : "";
   }
-  // Avoid stacking "(fork) (fork) ..." when forking a fork.
+  // Avoid stacking "(branch) (branch) ..." when branching from a branch.
   if (base.startsWith(FORK_SUMMARY_PREFIX)) {
     return base;
   }
@@ -425,6 +426,13 @@ export interface AgentState extends AgentProps {
   setPendingDatasetWrite: (
     toolCallId: string,
     pending: PendingDatasetWrite | null
+  ) => void;
+  pendingAnnotationConfigWritesByToolCallId: Partial<
+    Record<string, PendingAnnotationConfigWrite>
+  >;
+  setPendingAnnotationConfigWrite: (
+    toolCallId: string,
+    pending: PendingAnnotationConfigWrite | null
   ) => void;
   pendingPatchExperimentsByToolCallId: Partial<
     Record<string, PendingPatchExperiment>
@@ -688,6 +696,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
+    pendingAnnotationConfigWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
@@ -1255,6 +1264,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingDatasetWrite" }
+      );
+    },
+    setPendingAnnotationConfigWrite: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingAnnotationConfigWritesByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingAnnotationConfigWritesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingAnnotationConfigWrite" }
       );
     },
     setPendingBatchSpanAnnotate: (toolCallId, annotation) => {

@@ -48,12 +48,21 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 | Variable                                 | Description                                   |
 | ---------------------------------------- | --------------------------------------------- |
 | `PHOENIX_HOST`                           | Phoenix API endpoint                          |
-| `PHOENIX_PROJECT`                        | Project name or ID                            |
+| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                |
+| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)          |
 | `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
 | `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
 | `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+The CLI also discovers the nearest `.env.phoenix` file at or above the current
+working directory. Configuration precedence is: CLI flags, process environment,
+active profile, `.env.phoenix`, then built-in defaults. Credentials are resolved
+as one group, so a process API key is never combined with file-provided client
+headers. If a higher-priority credential is paired with `PHOENIX_HOST` from the
+file, the CLI warns once and continues. Set
+`PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
 ## Profiles
 
