@@ -14,7 +14,9 @@ services:
     runtime: image
     image:
       url: docker.io/arizephoenix/phoenix:latest
-    plan: starter
+    # Phoenix needs more than the 512MB starter instance — heavy span queries
+    # will OOM the process, and Render serves 404s while it restarts.
+    plan: standard
     autoDeploy: false
     healthCheckPath: /healthz
     envVars:
