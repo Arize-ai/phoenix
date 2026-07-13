@@ -151,6 +151,32 @@ async def test_async_executor_can_continue_on_error():
     assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
+async def test_async_executor_timeout_counts_toward_max_retries():
+    call_count = 0
+
+    async def slow_fn(payload: int) -> int:
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(1)
+        return payload
+
+    executor = AsyncExecutor(
+        slow_fn,
+        concurrency=1,
+        timeout=0.01,
+        max_retries=2,
+        exit_on_error=True,
+        fallback_return_value=52,
+        enable_dynamic_concurrency=False,
+    )
+
+    outputs, statuses = await executor.execute([1])
+
+    assert call_count == 3
+    assert outputs == [52]
+    assert [status.status for status in statuses] == [ExecutionStatus.FAILED]
+
+
 async def test_async_executor_marks_completed_with_retries_status():
     retry_counter = 0
 
