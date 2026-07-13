@@ -129,7 +129,7 @@ describe("SavePromptForm", () => {
     });
   });
 
-  it("requires a change description when updating a prompt", async () => {
+  it("updates a prompt without a change description", async () => {
     const onUpdate = vi.fn();
 
     await act(async () => {
@@ -159,7 +159,11 @@ describe("SavePromptForm", () => {
       );
     });
 
-    expect(onUpdate).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Description is required");
+    expect(onUpdate).toHaveBeenCalledOnce();
+    expect(onUpdate.mock.calls[0]?.[0]).toMatchObject({
+      promptId: "prompt-1",
+      name: "existing-prompt",
+      description: undefined,
+    });
   });
 });

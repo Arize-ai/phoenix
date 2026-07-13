@@ -83,7 +83,6 @@ export function SavePromptForm({
   );
 
   const mode: "create" | "update" = selectedPrompt ? "update" : "create";
-  const isDescriptionRequired = mode === "update";
   const submitButtonText =
     mode === "create" ? "Create Prompt" : "Update Prompt";
 
@@ -181,43 +180,20 @@ export function SavePromptForm({
             <Controller
               name="description"
               control={control}
-              rules={
-                isDescriptionRequired
-                  ? {
-                      required: "Description is required",
-                      validate: (value) =>
-                        (value ?? "").trim().length > 0 ||
-                        "Description is required",
-                    }
-                  : undefined
-              }
-              render={({
-                field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
+              render={({ field: { onChange, onBlur, value } }) => (
                 <TextField
-                  isInvalid={invalid}
                   onChange={onChange}
                   onBlur={onBlur}
                   value={value ?? ""}
                   size="S"
-                  isRequired={isDescriptionRequired}
                 >
-                  <Label>
-                    {mode === "create"
-                      ? "Prompt Description (optional)"
-                      : "Change Description"}
-                  </Label>
+                  <Label>Description (optional)</Label>
                   <TextArea />
-                  {error ? (
-                    <FieldError>{error.message}</FieldError>
-                  ) : (
-                    <Text slot="description">
-                      {mode === "create"
-                        ? "A short description of this prompt"
-                        : "A short description of the changes in this version"}
-                    </Text>
-                  )}
+                  <Text slot="description">
+                    {mode === "create"
+                      ? "A short description of this prompt"
+                      : "A short description of the changes in this version"}
+                  </Text>
                 </TextField>
               )}
             />
