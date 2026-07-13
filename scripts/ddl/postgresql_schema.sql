@@ -1425,7 +1425,7 @@ CREATE INDEX ix_llm_evaluators_prompt_version_tag_id ON public.llm_evaluators
 -- ---------------------
 CREATE TABLE public.refresh_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     oauth2_grant_id BIGINT,
@@ -1455,10 +1455,10 @@ CREATE INDEX ix_refresh_tokens_user_id ON public.refresh_tokens
 -- --------------------
 CREATE TABLE public.access_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    refresh_token_id INTEGER,
+    refresh_token_id INTEGER NOT NULL,
     scopes JSONB,
     audience JSONB,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),

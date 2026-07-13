@@ -591,9 +591,31 @@ async def _cleanup_abandoned_dcr_clients(session: AsyncSession, *, now: datetime
     _last_dcr_cleanup_at = now
     zero_grant_cutoff = now - get_env_oauth2_dcr_zero_grant_ttl()
     dead_grant_cutoff = now - get_env_oauth2_dcr_dead_grant_ttl()
+    # Narrow to deletion candidates in SQL instead of walking every client ever registered.
+    # Neither rule can delete a client that still has a usable grant, and neither can delete
+    # one younger than the later of the two cutoffs, since a client is always older than the
+    # grants hanging off it. Both conditions are therefore necessary and cheap to test, which
+    # leaves roughly the set about to be deleted to load — the clients that survive cleanup
+    # are exactly the ones that accumulate, so the unfiltered scan grew without bound.
+    has_live_grant = (
+        sa.select(models.OAuth2Grant.id)
+        .where(
+            models.OAuth2Grant.oauth2_client_id == models.OAuth2Client.id,
+            models.OAuth2Grant.revoked_at.is_(None),
+            sa.or_(
+                models.OAuth2Grant.expires_at.is_(None),
+                models.OAuth2Grant.expires_at > now,
+            ),
+        )
+        .exists()
+    )
     clients = await session.scalars(
         sa.select(models.OAuth2Client)
-        .where(models.OAuth2Client.client_id.like(f"{_DCR_CLIENT_ID_PREFIX}%"))
+        .where(
+            models.OAuth2Client.client_id.like(f"{_DCR_CLIENT_ID_PREFIX}%"),
+            models.OAuth2Client.created_at <= max(zero_grant_cutoff, dead_grant_cutoff),
+            ~has_live_grant,
+        )
         .options(selectinload(models.OAuth2Client.grants))
     )
     for client in clients:

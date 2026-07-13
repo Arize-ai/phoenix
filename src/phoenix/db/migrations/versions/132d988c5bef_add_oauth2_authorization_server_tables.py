@@ -161,6 +161,15 @@ def upgrade() -> None:
         ["expires_at"],
     )
 
+    # The ORM has always declared these columns as non-nullable, so no code path can write
+    # a NULL, but the tables were created without the constraint. The token tables are
+    # already being rebuilt here; tightening them now costs nothing, whereas doing it later
+    # would need a migration of its own. A token belonging to no user cannot authenticate
+    # anything — the claims query inner-joins users — so any such row is unusable and is
+    # removed rather than blocking the constraint.
+    op.execute("DELETE FROM access_tokens WHERE user_id IS NULL OR refresh_token_id IS NULL")
+    op.execute("DELETE FROM refresh_tokens WHERE user_id IS NULL")
+
     # table_kwargs preserves AUTOINCREMENT on SQLite, whose batch mode rebuilds
     # the table; without it, deleted primary keys could be reused.
     with op.batch_alter_table(
@@ -181,6 +190,7 @@ def upgrade() -> None:
         # later presentation of it is distinguishable from an unknown token. The row
         # still carries oauth2_grant_id, which identifies the token family to revoke.
         batch_op.add_column(sa.Column("consumed_at", sa.TIMESTAMP(timezone=True), nullable=True))
+        batch_op.alter_column("user_id", existing_type=_Integer, nullable=False)
         batch_op.create_index("ix_refresh_tokens_oauth2_grant_id", ["oauth2_grant_id"])
 
     with op.batch_alter_table(
@@ -189,6 +199,8 @@ def upgrade() -> None:
     ) as batch_op:
         batch_op.add_column(sa.Column("scopes", JSON_, nullable=True))
         batch_op.add_column(sa.Column("audience", JSON_, nullable=True))
+        batch_op.alter_column("user_id", existing_type=_Integer, nullable=False)
+        batch_op.alter_column("refresh_token_id", existing_type=_Integer, nullable=False)
 
 
 def downgrade() -> None:
@@ -196,6 +208,8 @@ def downgrade() -> None:
         "access_tokens",
         table_kwargs={"sqlite_autoincrement": True},
     ) as batch_op:
+        batch_op.alter_column("refresh_token_id", existing_type=_Integer, nullable=True)
+        batch_op.alter_column("user_id", existing_type=_Integer, nullable=True)
         batch_op.drop_column("audience")
         batch_op.drop_column("scopes")
 
@@ -203,6 +217,7 @@ def downgrade() -> None:
         "refresh_tokens",
         table_kwargs={"sqlite_autoincrement": True},
     ) as batch_op:
+        batch_op.alter_column("user_id", existing_type=_Integer, nullable=True)
         batch_op.drop_index("ix_refresh_tokens_oauth2_grant_id")
         batch_op.drop_column("consumed_at")
         batch_op.drop_column("audience")
