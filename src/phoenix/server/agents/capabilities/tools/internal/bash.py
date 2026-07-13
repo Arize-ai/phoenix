@@ -273,6 +273,21 @@ class PhoenixGQLResult:
 OnGraphQLResult = Callable[[PhoenixGQLResult], Awaitable[None]]
 
 
+class GraphQLAliasCollisionError(ValueError):
+    """An alias in the query collides with a field the injector would add.
+
+    The message is written for the model: it surfaces on stderr with a non-zero
+    exit code so the model rewrites the query and retries.
+    """
+
+    def __init__(self, field_name: str) -> None:
+        super().__init__(
+            f"phoenix-gql automatically adds `{field_name}` to selection sets, but this "
+            f"query aliases a different field as `{field_name}`, which conflicts with the "
+            f"added selection. Rename that alias and run the command again."
+        )
+
+
 def _selects_field(selection_set: SelectionSetNode, field_name: str) -> bool:
     return any(
         isinstance(selection, FieldNode)
@@ -280,6 +295,23 @@ def _selects_field(selection_set: SelectionSetNode, field_name: str) -> bool:
         and selection.name.value == field_name
         for selection in selection_set.selections
     )
+
+
+def _aliases_other_field_as(selection_set: SelectionSetNode, field_name: str) -> bool:
+    """Return whether a selection aliases a different field as ``field_name``.
+
+    Such an alias collides with an injected bare ``field_name``: both would share
+    a response key while resolving different fields, failing GraphQL validation.
+    """
+    for selection in selection_set.selections:
+        if not isinstance(selection, FieldNode) or selection.alias is None:
+            continue
+        alias_name = selection.alias.value
+        aliased_field_name = selection.name.value
+        # A redundant alias (`id: id`) merges cleanly with an injected bare `id`.
+        if alias_name == field_name and aliased_field_name != field_name:
+            return True
+    return False
 
 
 def _inject_id_and_typename(query: str, graphql_core_schema: GraphQLSchema) -> str:
@@ -299,12 +331,16 @@ def _inject_id_and_typename(query: str, graphql_core_schema: GraphQLSchema) -> s
                 return None
             additions: list[FieldNode] = []
             if not _selects_field(node, "__typename"):
+                if _aliases_other_field_as(node, "__typename"):
+                    raise GraphQLAliasCollisionError("__typename")
                 additions.append(FieldNode(name=NameNode(value="__typename")))
             parent_has_id_field = (
                 isinstance(parent_type, (GraphQLObjectType, GraphQLInterfaceType))
                 and "id" in parent_type.fields
             )
             if parent_has_id_field and not _selects_field(node, "id"):
+                if _aliases_other_field_as(node, "id"):
+                    raise GraphQLAliasCollisionError("id")
                 additions.append(FieldNode(name=NameNode(value="id")))
             if not additions:
                 return None
@@ -312,6 +348,8 @@ def _inject_id_and_typename(query: str, graphql_core_schema: GraphQLSchema) -> s
 
     try:
         injected_document = visit(document, TypeInfoVisitor(type_info, _SelectionInjector()))
+    except GraphQLAliasCollisionError:
+        raise
     except Exception:
         logger.warning("phoenix-gql id/__typename injection failed", exc_info=True)
         return query
@@ -331,14 +369,7 @@ def create_phoenix_gql_builtin(
     )
     graphql_core_schema: Optional[GraphQLSchema] = None
     if on_graphql_result is not None:
-        try:
-            graphql_core_schema = build_schema(schema.as_str())
-        except Exception:
-            logger.warning(
-                "Failed to build a graphql-core schema for phoenix-gql id/__typename "
-                "injection; responses may not merge cleanly into the client store",
-                exc_info=True,
-            )
+        graphql_core_schema = build_schema(schema.as_str())
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:
         try:

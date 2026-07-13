@@ -12,6 +12,7 @@ from pydantic_ai.usage import RunUsage
 
 from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashToolset,
+    GraphQLAliasCollisionError,
     OnGraphQLResult,
     PhoenixGQLResult,
     _inject_id_and_typename,
@@ -452,3 +453,30 @@ def test_inject_returns_unparseable_query_unchanged() -> None:
         _inject_id_and_typename("this is not graphql", build_schema(_INJECTION_SDL))
         == "this is not graphql"
     )
+
+
+def test_inject_adds_bare_id_alongside_aliased_id_field() -> None:
+    injected = _inject_id_and_typename("{ project { myId: id } }", build_schema(_INJECTION_SDL))
+
+    assert len(re.findall(r"\bid\b", injected)) == 2
+
+
+def test_inject_raises_when_alias_shadows_id() -> None:
+    with pytest.raises(GraphQLAliasCollisionError, match="aliases a different field as `id`"):
+        _inject_id_and_typename("{ project { id: name } }", build_schema(_INJECTION_SDL))
+
+
+def test_inject_raises_when_alias_shadows_typename() -> None:
+    with pytest.raises(GraphQLAliasCollisionError, match="`__typename`"):
+        _inject_id_and_typename("{ project { __typename: name } }", build_schema(_INJECTION_SDL))
+
+
+async def test_alias_collision_asks_the_model_to_retry() -> None:
+    run_bash, recorded = _build_recording_run_bash()
+
+    result = await run_bash("phoenix-gql '{ project { id: name } }'")
+
+    assert result["exit_code"] == 1
+    assert result["stdout"] == ""
+    assert "Rename that alias and run the command again" in result["stderr"]
+    assert recorded == []
