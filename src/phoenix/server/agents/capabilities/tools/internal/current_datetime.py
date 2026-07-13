@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Literal
 
+from pydantic import BaseModel, Field
 from pydantic_ai import RunContext, Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 
@@ -29,27 +31,36 @@ _GET_CURRENT_DATETIME_DESCRIPTION = (
 )
 
 
+class CurrentDatetimeToolResult(BaseModel):
+    """Current time returned to the model."""
+
+    current_date_time: str = Field(serialization_alias="currentDateTime")
+    time_zone: str = Field(serialization_alias="timeZone")
+    source: Literal["browser", "server"]
+    as_of: str = Field(serialization_alias="asOf")
+
+
 class GetCurrentDatetimeToolset(FunctionToolset[AgentDependencies]):
     """Toolset exposing the server-side browser-clock reader."""
 
     def __init__(self) -> None:
         async def get_current_datetime(
             ctx: RunContext[AgentDependencies],
-        ) -> dict[str, str]:
+        ) -> CurrentDatetimeToolResult:
             app_context = ctx.deps.contexts.app
             if app_context is not None:
-                return {
-                    "currentDateTime": app_context.current_date_time,
-                    "timeZone": app_context.time_zone,
-                    "source": "browser",
-                    "asOf": "when the user sent their most recent message",
-                }
-            return {
-                "currentDateTime": datetime.now(timezone.utc).isoformat(),
-                "timeZone": "UTC",
-                "source": "server",
-                "asOf": "now, from the server clock; the user's local timezone is unknown",
-            }
+                return CurrentDatetimeToolResult(
+                    current_date_time=app_context.current_date_time,
+                    time_zone=app_context.time_zone,
+                    source="browser",
+                    as_of="when the user sent their most recent message",
+                )
+            return CurrentDatetimeToolResult(
+                current_date_time=datetime.now(timezone.utc).isoformat(),
+                time_zone="UTC",
+                source="server",
+                as_of="now, from the server clock; the user's local timezone is unknown",
+            )
 
         super().__init__(
             tools=[
