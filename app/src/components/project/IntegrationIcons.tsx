@@ -956,6 +956,26 @@ export const OpenRouterSVG = () => (
   </svg>
 );
 
+// Generic placeholder mark for Requesty (brand asset not bundled in this repo).
+// Mirrors the inline-SVG approach used for other OpenAI-compatible providers.
+export const RequestySVG = () => (
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+    <g clipPath="url(#requesty-clip)">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 L16 2 Z M16 5.3 L6.8 10.6 L6.8 21.4 L16 26.7 L25.2 21.4 L25.2 10.6 L16 5.3 Z M16 10 L21.5 13.2 L21.5 18.8 L16 22 L10.5 18.8 L10.5 13.2 L16 10 Z"
+        fill="currentColor"
+      />
+    </g>
+    <defs>
+      <clipPath id="requesty-clip">
+        <rect width="32" height="32" fill="white" />
+      </clipPath>
+    </defs>
+  </svg>
+);
+
 export const RubyLLMSVG = () => (
   <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
     <g clipPath="url(#rubyllm-clip)">
@@ -1308,6 +1328,7 @@ export const INTEGRATION_ICONS: Record<string, () => React.JSX.Element> = {
   OpenRouterSVG,
   PortkeySVG,
   PydanticAISVG,
+  RequestySVG,
   RubyLLMSVG,
   StrandsAgentsSVG,
   TanStackAISVG,

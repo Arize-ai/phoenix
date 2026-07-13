@@ -27,6 +27,7 @@ import {
   OpenRouterSVG,
   PortkeySVG,
   PydanticAISVG,
+  RequestySVG,
   StrandsAgentsSVG,
   TanStackAISVG,
   TraceLoopSVG,
@@ -60,6 +61,8 @@ import {
   getOpenRouterCodeTypescript,
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
+  getRequestyCodePython,
+  getRequestyCodeTypescript,
   getStrandsAgentsCodePython,
   getTanStackAiCodeTypescript,
   getPerplexityCodePython,
@@ -81,6 +84,9 @@ const ANTHROPIC_ENV: readonly EnvVar[] = [
 ];
 const OPENROUTER_ENV: readonly EnvVar[] = [
   { name: "OPENROUTER_API_KEY", value: "<your-openrouter-api-key>" },
+];
+const REQUESTY_ENV: readonly EnvVar[] = [
+  { name: "REQUESTY_API_KEY", value: "<your-requesty-api-key>" },
 ];
 const CEREBRAS_ENV: readonly EnvVar[] = [
   { name: "CEREBRAS_API_KEY", value: "<your-cerebras-api-key>" },
@@ -666,6 +672,39 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         envVars: OPENROUTER_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "requesty",
+    name: "Requesty",
+    icon: <RequestySVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getRequestyCodePython,
+        envVars: REQUESTY_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/requesty/openai-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getRequestyCodeTypescript,
+        envVars: REQUESTY_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/requesty/openai-tracing",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
       },

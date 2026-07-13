@@ -569,6 +569,13 @@
                 ]
               },
               {
+                "group": "Requesty",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/requesty",
+                  "docs/phoenix/integrations/llm-providers/requesty/openai-tracing"
+                ]
+              },
+              {
                 "group": "VertexAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",
