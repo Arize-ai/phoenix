@@ -989,12 +989,69 @@ async def test_trace_annotation_filter_joins_trace_annotation_relation(
 ) -> None:
     span_filter = SpanFilter(condition)
     assert [relation.kind for relation in span_filter._aliased_annotation_relations] == ["trace"]
-    statement = span_filter(select(models.Span.id))
+    statement = span_filter(select(models.Span.id)).order_by(models.Span.id)
     compiled = str(statement)
     assert "trace_annotations" in compiled
     assert "span_annotations" not in compiled
     async with db() as session:
-        await session.execute(statement)
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(models.Trace.trace_id == "0123")
+        )
+        assert trace_rowid is not None
+        expected = list(
+            await session.scalars(
+                select(models.Span.id)
+                .where(models.Span.trace_rowid == trace_rowid)
+                .order_by(models.Span.id)
+            )
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_rowid,
+                name="quality",
+                label="good",
+                score=0.75,
+                explanation="clear rationale",
+                metadata_={},
+                annotator_kind="LLM",
+                identifier="",
+                source="APP",
+                user_id=None,
+            )
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_rowid,
+                name="quality",
+                label="good",
+                score=0.9,
+                explanation="clear secondary rationale",
+                metadata_={},
+                annotator_kind="LLM",
+                identifier="secondary",
+                source="APP",
+                user_id=None,
+            )
+        )
+        assert list(await session.scalars(statement)) == expected
+
+
+async def test_annotation_syntax_in_string_literal_is_not_aliased(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    condition = '''name == "trace_annotations['quality'].score"'''
+    span_filter = SpanFilter(condition)
+    assert not span_filter._aliased_annotation_relations
+    async with db() as session:
+        await session.execute(span_filter(select(models.Span.id)))
+
+
+def test_trace_annotation_name_with_escaped_quote() -> None:
+    span_filter = SpanFilter(r'trace_annotations["reviewer \"A\""].score >= 0.5')
+    assert [relation.name for relation in span_filter._aliased_annotation_relations] == [
+        'reviewer "A"'
+    ]
 
 
 async def test_span_and_trace_annotations_join_distinct_relations(

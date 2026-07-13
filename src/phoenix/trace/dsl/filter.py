@@ -947,21 +947,47 @@ class SpanFilter:
         parent_exists = (
             sqlalchemy.select(1).where(parent_span.span_id == models.Span.parent_id).exists()
         )
-        stmt = _join_annotations(select, SPAN_BINDINGS, self._aliased_annotation_relations)
-        return stmt.where(
-            eval(
-                self.compiled,
-                _eval_globals(
-                    SPAN_BINDINGS,
-                    self._aliased_annotation_attributes,
-                    {
-                        **self._literal_bindings,
-                        _PARENT_IS_NULL: ~parent_exists,
-                        _PARENT_IS_NOT_NULL: parent_exists,
-                    },
+        predicate = eval(
+            self.compiled,
+            _eval_globals(
+                SPAN_BINDINGS,
+                self._aliased_annotation_attributes,
+                {
+                    **self._literal_bindings,
+                    _PARENT_IS_NULL: ~parent_exists,
+                    _PARENT_IS_NOT_NULL: parent_exists,
+                },
+            ),
+        )
+        if not self._aliased_annotation_relations:
+            return select.where(predicate)
+        return select.where(self._annotation_predicate_exists(predicate))
+
+    def _annotation_predicate_exists(
+        self, predicate: ColumnElement[bool]
+    ) -> ColumnElement[bool]:
+        """Evaluate annotation predicates without duplicating spans.
+
+        The one-row seed preserves outer-join semantics for missing annotations.
+        The correlated ``EXISTS`` prevents annotations with multiple identifiers
+        from duplicating spans in the outer query.
+        """
+        seed = sqlalchemy.select(literal(True).label("seed")).subquery()
+        statement = sqlalchemy.select(literal(True)).select_from(seed)
+        for annotation_relation in self._aliased_annotation_relations:
+            aliased_annotation = annotation_relation.table
+            if annotation_relation.kind == "trace":
+                foreign_key_clause = aliased_annotation.trace_rowid == models.Span.trace_rowid
+            else:
+                foreign_key_clause = aliased_annotation.span_rowid == models.Span.id
+            statement = statement.outerjoin(
+                aliased_annotation,
+                onclause=sqlalchemy.and_(
+                    foreign_key_clause,
+                    aliased_annotation.name == annotation_relation.name,
                 ),
             )
-        )
+        return statement.where(predicate).correlate(models.Span).exists()
 
     def to_dict(self) -> dict[str, typing.Any]:
         return {"condition": self.condition}
