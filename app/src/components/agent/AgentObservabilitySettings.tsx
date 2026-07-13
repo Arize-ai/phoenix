@@ -103,6 +103,7 @@ export function AgentObservabilitySettings({
   const setObservability = useAgentContext((state) => state.setObservability);
   const isAdmin = useIsAdmin();
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
+  const isTracingForced = agentsConfig.debugAgents;
 
   const localTracesOffInSystemSettings = !agentsConfig.allowLocalTraces;
   const remoteExportOffInSystemSettings = !agentsConfig.allowRemoteExport;
@@ -118,17 +119,21 @@ export function AgentObservabilitySettings({
 
   return (
     <div css={settingsContainerCSS}>
-      {/* The settings page already scopes its personal section to the browser. */}
-      {!isOnSettingsPage && (
+      {isTracingForced ? (
+        <Text color="text-500" size="S">
+          Tracing and remote export are enabled for all users by this Phoenix
+          deployment.
+        </Text>
+      ) : !isOnSettingsPage ? (
         <Text color="text-500" size="S">
           These settings apply only to this browser.
         </Text>
-      )}
+      ) : null}
       <ul css={settingsListCSS}>
         <li css={settingRowCSS}>
           <Switch
             isSelected={effectiveRecording.ingestTraces}
-            isDisabled={localTracesOffInSystemSettings}
+            isDisabled={localTracesOffInSystemSettings || isTracingForced}
             onChange={(storeLocalTraces) => {
               setObservability({ storeLocalTraces });
             }}
@@ -163,7 +168,7 @@ export function AgentObservabilitySettings({
           <li css={settingRowCSS}>
             <Switch
               isSelected={effectiveRecording.exportRemoteTraces}
-              isDisabled={remoteExportOffInSystemSettings}
+              isDisabled={remoteExportOffInSystemSettings || isTracingForced}
               onChange={(exportRemoteTraces) => {
                 setObservability({ exportRemoteTraces });
               }}

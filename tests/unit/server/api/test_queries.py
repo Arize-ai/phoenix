@@ -481,6 +481,7 @@ async def test_agents_config_returns_env_values(
 ) -> None:
     monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "http://collector.example:4318")
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "custom_assistant")
+    monkeypatch.setenv("PHOENIX_DEBUG_AGENTS", "true")
     monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
     monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", "false")
     query = """
@@ -488,7 +489,10 @@ async def test_agents_config_returns_env_values(
         agentsConfig {
           collectorEndpoint
           assistantProjectName
+          debugAgents
           webAccessEnabled
+          allowLocalTraces
+          allowRemoteExport
         }
       }
     """
@@ -498,7 +502,10 @@ async def test_agents_config_returns_env_values(
     assert data["agentsConfig"] == {
         "collectorEndpoint": "http://collector.example:4318",
         "assistantProjectName": "custom_assistant",
+        "debugAgents": True,
         "webAccessEnabled": True,
+        "allowLocalTraces": True,
+        "allowRemoteExport": True,
     }
 
 
@@ -508,6 +515,7 @@ async def test_agents_config_defaults_when_env_unset(
 ) -> None:
     monkeypatch.delenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", raising=False)
     monkeypatch.delenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", raising=False)
+    monkeypatch.delenv("PHOENIX_DEBUG_AGENTS", raising=False)
     monkeypatch.delenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", raising=False)
     monkeypatch.delenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", raising=False)
     query = """
@@ -515,6 +523,7 @@ async def test_agents_config_defaults_when_env_unset(
         agentsConfig {
           collectorEndpoint
           assistantProjectName
+          debugAgents
           webAccessEnabled
         }
       }
@@ -525,6 +534,7 @@ async def test_agents_config_defaults_when_env_unset(
     assert data["agentsConfig"] == {
         "collectorEndpoint": None,
         "assistantProjectName": "assistant_agent",
+        "debugAgents": False,
         "webAccessEnabled": True,
     }
 

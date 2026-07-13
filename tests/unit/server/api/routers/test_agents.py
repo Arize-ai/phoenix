@@ -6,6 +6,7 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import pytest
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from sqlalchemy import func, select
@@ -23,6 +24,7 @@ from phoenix.server.api.routers.agents import (
     _load_sandbox_availability,
     _maybe_using_user,
     _persist_db_traces_and_emit_event,
+    _resolve_trace_recording,
     _SubagentMessageChunksClosed,
 )
 from phoenix.server.bearer_auth import PhoenixUser
@@ -36,6 +38,32 @@ class _EventQueue:
 
     def put(self, item: DmlEvent) -> None:
         self.events.append(item)
+
+
+def test_resolve_trace_recording_respects_request_and_workspace_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PHOENIX_DEBUG_AGENTS", raising=False)
+
+    assert _resolve_trace_recording(
+        ingest_traces=True,
+        export_remote_traces=True,
+        allow_local_traces=False,
+        allow_remote_export=True,
+    ) == (False, True)
+
+
+def test_resolve_trace_recording_forced_by_debug_agents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_DEBUG_AGENTS", "true")
+
+    assert _resolve_trace_recording(
+        ingest_traces=False,
+        export_remote_traces=False,
+        allow_local_traces=False,
+        allow_remote_export=False,
+    ) == (True, True)
 
 
 class TestPersistDbTracesAndEmitEvent:

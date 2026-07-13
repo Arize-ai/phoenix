@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b2dc46bcc3064ee53938f5dfab5873fe>>
+ * @generated SignedSource<<b547d3d770c717049adcddaecc2af73a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type authenticatedRootLoaderQuery$data = {
     readonly assistantEnabled: boolean;
     readonly assistantProjectName: string;
     readonly collectorEndpoint: string | null;
+    readonly debugAgents: boolean;
     readonly webAccessEnabled: boolean;
   };
   readonly viewer: {
@@ -54,6 +55,13 @@ var v0 = {
       "args": null,
       "kind": "ScalarField",
       "name": "assistantProjectName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "debugAgents",
       "storageKey": null
     },
     {
@@ -247,16 +255,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c4d76dc1d6016faf2d55d3694b970ece",
+    "cacheID": "84ef739d54667f2eecd41f720e815878",
     "id": null,
     "metadata": {},
     "name": "authenticatedRootLoaderQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    webAccessEnabled\n    assistantEnabled\n    allowLocalTraces\n    allowRemoteExport\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    debugAgents\n    webAccessEnabled\n    assistantEnabled\n    allowLocalTraces\n    allowRemoteExport\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e66d05013f311a15863e40c44d7bb33f";
+(node as any).hash = "eb588a594c1bc9d53bedd22e872dc559";
 
 export default node;

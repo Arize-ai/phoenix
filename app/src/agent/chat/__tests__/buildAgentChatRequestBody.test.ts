@@ -15,6 +15,7 @@ import type { AgentUIMessage } from "../types";
 const agentsConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
+  debugAgents: false,
   webAccessEnabled: false,
   assistantEnabled: true,
   allowLocalTraces: false,

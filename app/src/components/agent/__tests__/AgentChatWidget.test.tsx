@@ -146,6 +146,7 @@ describe("AgentChatWidget", () => {
               agentsConfig={{
                 collectorEndpoint: null,
                 assistantProjectName: "assistant_agent",
+                debugAgents: false,
                 webAccessEnabled: false,
                 assistantEnabled: true,
                 allowLocalTraces: true,
@@ -430,6 +431,7 @@ describe("AgentChatWidget", () => {
               agentsConfig={{
                 collectorEndpoint: null,
                 assistantProjectName: "assistant_agent",
+                debugAgents: false,
                 webAccessEnabled: false,
                 assistantEnabled: true,
                 allowLocalTraces: true,

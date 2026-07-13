@@ -6,6 +6,7 @@ import {
 
 import {
   createAgentStore,
+  getEffectiveTraceRecordingSettings,
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
 } from "../agentStore";
@@ -540,6 +541,7 @@ describe("agentStore", () => {
         agentsConfig: {
           collectorEndpoint: "https://collector.example.com",
           assistantProjectName: "assistant_agent",
+          debugAgents: false,
           webAccessEnabled: false,
           assistantEnabled: true,
           allowLocalTraces: true,
@@ -583,6 +585,39 @@ describe("agentStore", () => {
           observability: store.getState().observability,
         })
       ).toBe(false);
+    });
+
+    it("forces tracing and bypasses consent when agent debugging is enabled", () => {
+      const store = createAgentStore({
+        agentsConfig: {
+          collectorEndpoint: "https://collector.example.com",
+          assistantProjectName: "assistant_agent",
+          debugAgents: true,
+          webAccessEnabled: false,
+          assistantEnabled: true,
+          allowLocalTraces: false,
+          allowRemoteExport: false,
+        },
+        observability: {
+          storeLocalTraces: false,
+          exportRemoteTraces: false,
+          attachUserId: false,
+          acknowledgedTraceConsent: null,
+        },
+      });
+
+      expect(
+        getEffectiveTraceRecordingSettings({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toEqual({ ingestTraces: true, exportRemoteTraces: true });
+      expect(
+        hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
     });
   });
 

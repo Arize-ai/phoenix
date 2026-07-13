@@ -18,6 +18,7 @@ const ENV_PATH = path.resolve(
 const COLLECTOR_ENDPOINT = "PHOENIX_AGENTS_COLLECTOR_ENDPOINT";
 const COLLECTOR_API_KEY = "PHOENIX_AGENTS_COLLECTOR_API_KEY";
 const ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME";
+const DEBUG_AGENTS = "PHOENIX_DEBUG_AGENTS";
 
 class SecretOutput extends Writable {
   isMuted = false;
@@ -149,12 +150,13 @@ async function main() {
         [COLLECTOR_ENDPOINT, endpoint],
         [COLLECTOR_API_KEY, nextApiKey],
         [ASSISTANT_PROJECT_NAME, projectName],
+        [DEBUG_AGENTS, "true"],
       ]),
     });
 
     await writeEnvFile({ path: ENV_PATH, contents: updatedContents });
     process.stdout.write(
-      "\nPXI remote export environment configured. Restart Phoenix, then enable remote export in Assistant system and personal settings.\n"
+      "\nPXI remote export and tracing configured. Restart Phoenix to apply the changes.\n"
     );
   } finally {
     prompt.close();

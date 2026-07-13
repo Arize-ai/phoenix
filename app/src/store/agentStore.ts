@@ -52,6 +52,8 @@ export type AgentServerConfig = {
   collectorEndpoint: string | null;
   /** Local Phoenix project used for PXI trace persistence. */
   assistantProjectName: string;
+  /** Whether tracing and remote export are forced by the Phoenix instance. */
+  debugAgents: boolean;
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
   assistantEnabled: boolean;
@@ -149,6 +151,7 @@ const DEFAULT_MODEL_CONFIG: ModelConfig = {
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
+  debugAgents: false,
   webAccessEnabled: false,
   assistantEnabled: false,
   allowLocalTraces: false,
@@ -221,6 +224,9 @@ export function hasAcknowledgedCurrentTraceConsent({
   agentsConfig: AgentServerConfig;
   observability: AgentObservabilitySettings;
 }): boolean {
+  if (agentsConfig.debugAgents) {
+    return true;
+  }
   const acknowledgedTraceConsent = observability.acknowledgedTraceConsent;
   if (!acknowledgedTraceConsent) {
     return false;
@@ -241,6 +247,12 @@ export function getEffectiveTraceRecordingSettings({
   agentsConfig: AgentServerConfig;
   observability: AgentObservabilitySettings;
 }): AgentTraceRecordingSettings {
+  if (agentsConfig.debugAgents) {
+    return {
+      ingestTraces: true,
+      exportRemoteTraces: true,
+    };
+  }
   const ceiling = getCurrentTraceConsentSettings(agentsConfig);
   return {
     ingestTraces: ceiling.allowLocalTraces && observability.storeLocalTraces,
