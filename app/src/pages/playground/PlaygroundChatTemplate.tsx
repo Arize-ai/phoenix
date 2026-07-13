@@ -342,6 +342,8 @@ function SortableMessageItem({
     <li ref={sortable.ref} style={dragAndDropLiStyles}>
       <Card
         collapsible
+        interactiveTitle
+        collapseButtonLabel={`${message.role} message`}
         {...messageCardStyles}
         title={
           <MessageRoleSelect

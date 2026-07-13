@@ -1173,6 +1173,10 @@ const tableCSS = (theme: Theme) => css`
 
     --global-table-cell-padding-y: var(--global-dimension-size-100);
     --global-table-cell-padding-x: var(--global-dimension-size-200);
+    /* height of a table header row, including its bottom border. Panels that sit
+       beside a table (e.g. TitledPanel headers) use this so their headers line up
+       with the table's header row. */
+    --global-table-header-height: 37px;
     --global-table-pagination-padding: var(--global-dimension-size-100);
     --global-table-pagination-gap: var(--global-dimension-size-50);
 
