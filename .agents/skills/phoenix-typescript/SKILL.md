@@ -116,6 +116,10 @@ const map: Partial<Record<string, string>> = {};
 const value = map["missing"]; // typed as string | undefined
 ```
 
+## Imports
+
+- Import lodash utilities via path imports so bundles only carry what's used: `import debounce from "lodash/debounce"`, not `import { debounce } from "lodash"` — the barrel import defeats tree shaking.
+
 ## Reuse
 
 Existing shared utilities must be checked before writing inline helpers. Duplicated logic should be extracted to a shared module. When working in `js/packages/`, check sibling packages for existing utilities before adding new dependencies or reimplementing.

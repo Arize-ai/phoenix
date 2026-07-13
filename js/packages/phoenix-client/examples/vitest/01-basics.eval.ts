@@ -3,7 +3,7 @@
  *
  * Run the whole example suite offline (nothing is synced to Phoenix):
  *   cd js/packages/phoenix-client
- *   PHOENIX_TEST_TRACING=false pnpm exec vitest run \
+ *   PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
  *     --config examples/vitest/phoenix.vitest.config.ts
  */
 import * as px from "@arizeai/phoenix-client/vitest";

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e121895d059280fde009adfe520b5fec>>
+ * @generated SignedSource<<72f7ab27e678659406e868d09c901a77>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,10 @@ export type PromptsTable_prompts$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
       readonly prompt: {
+        readonly createdBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
         readonly description: string | null;
         readonly id: string;
         readonly labels: ReadonlyArray<{
@@ -23,11 +27,22 @@ export type PromptsTable_prompts$data = {
           readonly name: string;
         }>;
         readonly name: string;
+        readonly updatedBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
         readonly version: {
           readonly createdAt: string;
+          readonly id: string;
           readonly modelName: string;
           readonly modelProvider: ModelProvider;
         };
+        readonly versionCount: number;
+        readonly versionTags: ReadonlyArray<{
+          readonly id: string;
+          readonly name: string;
+          readonly promptVersionId: string;
+        }>;
       };
     }>;
   };
@@ -57,7 +72,23 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -153,11 +184,32 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "createdBy",
+                  "plural": false,
+                  "selections": (v3/*: any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "updatedBy",
+                  "plural": false,
+                  "selections": (v3/*: any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "PromptVersion",
                   "kind": "LinkedField",
                   "name": "version",
                   "plural": false,
                   "selections": [
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -177,6 +229,33 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "modelProvider",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "versionCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "PromptVersionTag",
+                  "kind": "LinkedField",
+                  "name": "versionTags",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/),
+                    (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "promptVersionId",
                       "storageKey": null
                     }
                   ],
@@ -267,6 +346,6 @@ return {
 };
 })();
 
-(node as any).hash = "d5dd38748ccb61e832bd17f8dab756cd";
+(node as any).hash = "0716ae3773a7559b1fc7cc94a404b820";
 
 export default node;

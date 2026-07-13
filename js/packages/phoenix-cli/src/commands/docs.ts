@@ -4,6 +4,7 @@ import { Command } from "commander";
 
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
+import { collectString } from "../optionParsers";
 
 const LLMS_TXT_URL = "https://arize.com/docs/phoenix/llms.txt";
 const PHOENIX_DOCS_PREFIX = "https://arize.com/docs/phoenix/";
@@ -415,7 +416,7 @@ function addDocsOptions(command: Command): Command {
     .option(
       "--workflow <name>",
       `Filter by workflow category (repeatable) [possible values: ${VALID_WORKFLOWS.join(", ")}, all] [default: ${DEFAULT_WORKFLOWS.join(", ")}]`,
-      (value: string, previous: string[]) => previous.concat([value]),
+      collectString,
       [] as string[]
     )
     .option(

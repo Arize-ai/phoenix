@@ -10,9 +10,10 @@ import {
   CompositeField,
   Flex,
   LazyTabPanel,
+  Icon,
+  Icons,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -24,6 +25,7 @@ import {
   Text,
   Token,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -296,7 +298,12 @@ export function PromptSelector({
             selectionMode="single"
             selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
             items={promptItems}
-            renderEmptyState={() => <MenuEmpty>No prompts found</MenuEmpty>}
+            renderEmptyState={() => (
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.Edit />} />}
+                description="No prompts"
+              />
+            )}
             onAction={(key) => {
               onSelectPrompt(String(key));
             }}
@@ -416,7 +423,10 @@ export function PromptVersionSelector({
               <Menu
                 items={versionItems}
                 renderEmptyState={() => (
-                  <MenuEmpty>No versions found</MenuEmpty>
+                  <CompactEmptyState
+                    icon={<Icon svg={<Icons.GitBranch />} />}
+                    description="No versions"
+                  />
                 )}
                 selectionMode="single"
                 selectedKeys={
@@ -432,18 +442,11 @@ export function PromptVersionSelector({
                     textValue={`${id}\n${description ?? ""}\n${createdAt}`}
                   >
                     <Flex direction="column" gap="size-100">
-                      <Truncate
-                        maxLines={2}
-                        title={description ?? "No change description"}
-                      >
-                        {description ? (
+                      {description ? (
+                        <Truncate maxLines={2} title={description}>
                           <Text>{description}</Text>
-                        ) : (
-                          <Text fontStyle="italic" color="text-300">
-                            No change description
-                          </Text>
-                        )}
-                      </Truncate>
+                        </Truncate>
+                      ) : null}
                       <Flex alignItems="center" gap="size-100">
                         <IdTruncate id={id} textProps={{ size: "S" }} />
                         {isLatest && (
@@ -473,7 +476,12 @@ export function PromptVersionSelector({
               </MenuHeader>
               <Menu
                 items={tagItems}
-                renderEmptyState={() => <MenuEmpty>No tags found</MenuEmpty>}
+                renderEmptyState={() => (
+                  <CompactEmptyState
+                    icon={<Icon svg={<Icons.PriceTags />} />}
+                    description="No tags"
+                  />
+                )}
                 selectionMode="single"
                 selectedKeys={selectedTagName ? [selectedTagName] : []}
                 onAction={(key) => {

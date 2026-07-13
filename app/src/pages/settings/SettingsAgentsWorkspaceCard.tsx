@@ -58,6 +58,9 @@ export function SettingsAgentsAdminSettingsSection() {
   const allowRemoteExport = useAgentContext(
     (state) => state.agentsConfig.allowRemoteExport
   );
+  const forceTracing = useAgentContext(
+    (state) => state.agentsConfig.forceTracing
+  );
   const store = useAgentStore();
 
   const [setAgentAssistantEnabled, isUpdatingEnabled] =
@@ -125,8 +128,9 @@ export function SettingsAgentsAdminSettingsSection() {
   return (
     <Flex direction="column" gap="size-150">
       <Text color="text-500">
-        Applies to all users. When a system setting is off, the matching
-        personal setting is unavailable.
+        {forceTracing
+          ? "PXI tracing, remote export, and user attribution are enabled for all users by PHOENIX_AGENTS_FORCE_TRACING."
+          : "Applies to all users. When a system setting is off, the matching personal setting is unavailable."}
       </Text>
       <ul css={settingsListCSS}>
         <li css={settingRowCSS}>
@@ -146,7 +150,7 @@ export function SettingsAgentsAdminSettingsSection() {
             onChange={(allowLocalTraces) =>
               handleTraceRecordingChange({ allowLocalTraces })
             }
-            isDisabled={isBusy}
+            isDisabled={isBusy || forceTracing}
           />
         </li>
         {isRemoteCollectorConfigured ? (
@@ -158,7 +162,7 @@ export function SettingsAgentsAdminSettingsSection() {
               onChange={(allowRemoteExport) =>
                 handleTraceRecordingChange({ allowRemoteExport })
               }
-              isDisabled={isBusy}
+              isDisabled={isBusy || forceTracing}
             />
           </li>
         ) : null}

@@ -230,6 +230,21 @@ export const CATEGORICAL_CHART_COLORS = Object.keys(
   CategoryChartLightColors
 ) as CategoricalChartColor[];
 
+/**
+ * Returns a categorical color for an item index, cycling through the palette
+ * when the index exceeds the number of categories.
+ *
+ * @param index - item index that will be mapped into a color
+ * @param colors - the colors to use, typically the result of useCategoryChartColors()
+ */
+export const getCategoryChartColor = ({
+  index,
+  colors,
+}: {
+  index: number;
+  colors: Record<CategoricalChartColor, string>;
+}) => colors[CATEGORICAL_CHART_COLORS[index % CATEGORICAL_CHART_COLORS.length]];
+
 type GrayscaleCategoricalColor = "gray1" | "gray2" | "gray3" | "gray4";
 
 const GrayscaleCategoricalLightColors: Record<

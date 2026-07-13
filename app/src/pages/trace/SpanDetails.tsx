@@ -61,6 +61,7 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -141,8 +142,6 @@ const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 400;
 const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
-const EDIT_ANNOTATION_HOTKEY = "e";
-
 export function SpanDetails({
   spanNodeId,
 }: {
@@ -391,7 +390,7 @@ export function SpanDetails({
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
-              <View overflow="auto">
+              <View height="100%" overflow="auto">
                 <Suspense fallback={<Loading />}>
                   <SpanEventsList spanId={span.id} />
                 </Suspense>
@@ -497,9 +496,7 @@ function SpanInfo({ span }: { span: Span }) {
 
   const statusDescription = useMemo(() => {
     return span.statusMessage ? (
-      <Alert variant="danger" title="Status Description">
-        {span.statusMessage}
-      </Alert>
+      <Alert variant="danger">{span.statusMessage}</Alert>
     ) : null;
   }, [span]);
 

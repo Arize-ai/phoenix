@@ -1,177 +1,29 @@
 import { css } from "@emotion/react";
-import React, { memo, Suspense, useMemo, useRef } from "react";
+import { memo } from "react";
 import { useParams } from "react-router";
 
-import {
-  Flex,
-  Heading,
-  Loading,
-  Text,
-  useTimeRange,
-  View,
-} from "@phoenix/components";
-import { ErrorBoundary } from "@phoenix/components/exception";
-import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
-import { TopModelsByCost } from "@phoenix/pages/project/metrics/TopModelsByCost";
-import { TopModelsByToken } from "@phoenix/pages/project/metrics/TopModelsByToken";
+import { Flex, useTimeRange } from "@phoenix/components";
+import { ChartPanel } from "@phoenix/components/chart";
+import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
 
-import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
-import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
-import { SessionAnnotationScoreTimeSeries } from "./SessionAnnotationScoreTimeSeries";
-import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
-import { ToolSpanCountTimeSeries } from "./ToolSpanCountTimeSeries";
-import { ToolSpanErrorsTimeSeries } from "./ToolSpanErrorsTimeSeries";
-import { TraceAnnotationScoreTimeSeries } from "./TraceAnnotationScoreTimeSeries";
-import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
-import { TraceLatencyPercentilesTimeSeries } from "./TraceLatencyPercentilesTimeSeries";
-import { TraceTokenCostTimeSeries } from "./TraceTokenCostTimeSeries";
-import {
-  TraceCompletionTokenDetailsTimeSeries,
-  TracePromptTokenDetailsTimeSeries,
-  TraceTokenCountTimeSeries,
-} from "./TraceTokenCountTimeSeries";
-
-interface MetricPanelHeaderProps {
-  title: string;
-  subtitle?: string;
-}
-
-function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
-  return (
-    <div
-      css={css`
-        padding: var(--global-dimension-size-100)
-          var(--global-dimension-size-200) 0 var(--global-dimension-size-200);
-
-        display: flex;
-        flex-direction: row;
-        gap: var(--global-dimension-size-100);
-      `}
-      className="dashboard-panel-header"
-    >
-      <Flex direction="column">
-        <Heading>{title}</Heading>
-        {subtitle && (
-          <Text size="XS" color="gray-600">
-            {subtitle}
-          </Text>
-        )}
-      </Flex>
-    </div>
-  );
-}
-
-interface MetricPanelProps extends MetricPanelHeaderProps {
-  children: React.ReactNode;
-}
-
-export function MetricPanel({
-  ref,
-  title,
-  subtitle,
-  children,
-}: MetricPanelProps & { ref?: React.Ref<HTMLDivElement> }) {
-  return (
-    <View
-      borderWidth="thin"
-      borderColor="gray-200"
-      borderRadius="medium"
-      height="100%"
-      width="100%"
-      data-testid={`dashboard-panel`}
-      backgroundColor="gray-75"
-      ref={ref}
-    >
-      <div
-        css={css`
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        `}
-      >
-        <MetricPanelHeader title={title} subtitle={subtitle} />
-        <div
-          css={css`
-            flex: 1 1 auto;
-            padding: var(--global-dimension-size-200);
-            height: 190px;
-            overflow: auto;
-          `}
-        >
-          <ErrorBoundary>
-            <Suspense fallback={<Loading />}>{children}</Suspense>
-          </ErrorBoundary>
-        </div>
-      </div>
-    </View>
-  );
-}
-
-type EpochTimeRange = {
-  start: number;
-  end: number;
-};
+import { getProjectMetricChart } from "./chartCatalog";
+import { useClosedTimeRange } from "./useClosedTimeRange";
 
 /**
- * Hook that converts an open time range from context into a closed time range.
- * If the time range is already closed, it returns it as-is.
- * If it's open, it fills in missing start/end values based on a frozen "now" timestamp.
- *
- * The "now" timestamp is frozen and only updates when the context time range actually changes,
- * preventing unnecessary recalculations on every render.
+ * The charts from the chart catalog shown on the metrics page, row by row.
  */
-function useClosedTimeRange(): EpochTimeRange {
-  const { timeRange: contextTimeRange } = useTimeRange();
-
-  // Extract and memoize timestamps to get stable primitive values
-  const startMs = useMemo(
-    () => (contextTimeRange.start ? contextTimeRange.start.getTime() : null),
-    [contextTimeRange.start]
-  );
-  const endMs = useMemo(
-    () => (contextTimeRange.end ? contextTimeRange.end.getTime() : null),
-    [contextTimeRange.end]
-  );
-
-  // Use a ref to freeze "now" until the context time range actually changes
-  const lastTimestampsRef = useRef({ startMs, endMs });
-  // eslint-disable-next-line react-hooks/purity
-  const frozenNowMsRef = useRef<number>(Date.now());
-
-  // Only update frozen "now" when timestamps actually change
-  if (
-    lastTimestampsRef.current.startMs !== startMs ||
-    lastTimestampsRef.current.endMs !== endMs
-  ) {
-    lastTimestampsRef.current = { startMs, endMs };
-    // eslint-disable-next-line react-hooks/purity
-    frozenNowMsRef.current = Date.now();
-  }
-
-  const frozenNowMs = frozenNowMsRef.current;
-
-  const epochTimeRange = useMemo<EpochTimeRange>(() => {
-    let start = startMs;
-    let end = endMs;
-    if (start !== null && end !== null) {
-      // closed range from context
-      return { start, end };
-    } else if (start === null && end !== null) {
-      return { start: end - ONE_MONTH_MS, end };
-    } else if (start !== null && end === null) {
-      // If start is in the past, close at "now"; else, one month after start
-      end = start < frozenNowMs ? frozenNowMs : start + ONE_MONTH_MS;
-      return { start, end };
-    } else {
-      // both null → last month to now
-      end = frozenNowMs;
-      start = end - ONE_MONTH_MS;
-      return { start, end };
-    }
-  }, [startMs, endMs, frozenNowMs]);
-
-  return epochTimeRange;
-}
+const METRIC_PAGE_ROWS: ProjectMetricChartKey[][] = [
+  ["traces"],
+  ["latency"],
+  ["cost", "top_models_by_cost"],
+  ["tokens", "top_models_by_tokens"],
+  ["prompt_token_details", "completion_token_details"],
+  ["llm_spans", "llm_span_errors"],
+  ["tool_spans", "tool_span_errors"],
+  ["span_annotations"],
+  ["trace_annotations"],
+  ["session_annotations"],
+];
 
 export function ProjectMetricsPage() {
   const { projectId } = useParams();
@@ -179,7 +31,7 @@ export function ProjectMetricsPage() {
     throw new Error("projectId is required");
   }
 
-  const epochTimeRange = useClosedTimeRange();
+  const timeRange = useClosedTimeRange();
   const { setCustomTimeRange } = useTimeRange();
 
   return (
@@ -193,7 +45,7 @@ export function ProjectMetricsPage() {
     >
       <MetricPanels
         projectId={projectId}
-        epochTimeRange={epochTimeRange}
+        timeRange={timeRange}
         onTimeRangeSelected={setCustomTimeRange}
       />
     </main>
@@ -201,20 +53,13 @@ export function ProjectMetricsPage() {
 }
 const MetricPanels = memo(function MetricPanels({
   projectId,
-  epochTimeRange,
+  timeRange,
   onTimeRangeSelected,
 }: {
   projectId: string;
-  epochTimeRange: EpochTimeRange;
+  timeRange: TimeRange;
   onTimeRangeSelected: (timeRange: TimeRange) => void;
 }) {
-  const timeRange = useMemo(
-    () => ({
-      start: new Date(epochTimeRange.start),
-      end: new Date(epochTimeRange.end),
-    }),
-    [epochTimeRange]
-  );
   return (
     <div
       css={css`
@@ -224,150 +69,23 @@ const MetricPanels = memo(function MetricPanels({
         padding: var(--global-dimension-size-200);
       `}
     >
-      <Flex direction="row" gap="size-200">
-        <MetricPanel
-          title="Traces over time"
-          subtitle="Overall volume of traces"
-        >
-          <TraceCountTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
-          <TraceLatencyPercentilesTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel title="Cost" subtitle="Estimated cost in USD">
-          <TraceTokenCostTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-        <MetricPanel title="Top models by cost">
-          <TopModelsByCost projectId={projectId} timeRange={timeRange} />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel
-          title="Token usage"
-          subtitle="Token usage by prompt and completion"
-        >
-          <TraceTokenCountTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-        <MetricPanel title="Top models by tokens">
-          <TopModelsByToken projectId={projectId} timeRange={timeRange} />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel
-          title="Prompt token details"
-          subtitle="Prompt tokens by input, cache, and audio parts"
-        >
-          <TracePromptTokenDetailsTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-        <MetricPanel
-          title="Completion token details"
-          subtitle="Completion tokens by output, reasoning, and audio parts"
-        >
-          <TraceCompletionTokenDetailsTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel title="LLM spans" subtitle="LLM span count over time">
-          <LLMSpanCountTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-        <MetricPanel
-          title="LLM spans with errors"
-          subtitle="LLM spans with errors over time"
-        >
-          <LLMSpanErrorsTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel title="Tool spans" subtitle="Tool span count over time">
-          <ToolSpanCountTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-        <MetricPanel
-          title="Tool spans with errors"
-          subtitle="Tool spans with errors over time"
-        >
-          <ToolSpanErrorsTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel
-          title="Span annotation scores"
-          subtitle="Average span annotation scores"
-        >
-          <SpanAnnotationScoreTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel
-          title="Trace annotation scores"
-          subtitle="Average trace annotation scores"
-        >
-          <TraceAnnotationScoreTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
-      <Flex direction="row" gap="size-200">
-        <MetricPanel
-          title="Session annotation scores"
-          subtitle="Average session annotation scores"
-        >
-          <SessionAnnotationScoreTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-      </Flex>
+      {METRIC_PAGE_ROWS.map((row) => (
+        <Flex direction="row" gap="size-200" key={row.join("+")}>
+          {row.map((chartKey) => {
+            const { name, description, Component } =
+              getProjectMetricChart(chartKey);
+            return (
+              <ChartPanel key={chartKey} title={name} subtitle={description}>
+                <Component
+                  projectId={projectId}
+                  timeRange={timeRange}
+                  onTimeRangeSelected={onTimeRangeSelected}
+                />
+              </ChartPanel>
+            );
+          })}
+        </Flex>
+      ))}
     </div>
   );
 });

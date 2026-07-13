@@ -6,6 +6,8 @@ import {
 
 import {
   createAgentStore,
+  getEffectiveAttachUserId,
+  getEffectiveTraceRecordingSettings,
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
 } from "../agentStore";
@@ -274,7 +276,7 @@ describe("agentStore", () => {
       expect(forked.context).toEqual(["span:123"]);
     });
 
-    it("stages restored input for the forked session", () => {
+    it("stages restored input as the forked session draft", () => {
       const store = createAgentStore();
       const sourceId = store.getState().createSession();
 
@@ -284,12 +286,10 @@ describe("agentStore", () => {
         restoredInput: "edit me",
       });
 
-      expect(store.getState().consumePendingInput(forkId!)).toBe("edit me");
-      // Consuming clears the staged input.
-      expect(store.getState().consumePendingInput(forkId!)).toBeNull();
+      expect(store.getState().draftInputBySessionId[forkId!]).toBe("edit me");
     });
 
-    it("prefixes the source summary with (fork)", () => {
+    it("prefixes the source summary with (branch)", () => {
       const store = createAgentStore();
       const sourceId = store.getState().createSession();
       store.getState().updateSessionSummary(sourceId, "Debugging traces");
@@ -300,7 +300,7 @@ describe("agentStore", () => {
       });
 
       expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
-        "(fork) Debugging traces"
+        "(branch) Debugging traces"
       );
     });
 
@@ -333,15 +333,15 @@ describe("agentStore", () => {
         messages: [],
       });
       expect(store.getState().sessionMap[refork!].shortSummary).toBe(
-        "(fork) How do I trace OpenAI?"
+        "(branch) How do I trace OpenAI?"
       );
       expect(forkId).not.toBeNull();
     });
 
-    it("does not stack the (fork) prefix when forking a fork", () => {
+    it("does not stack the (branch) prefix when branching from a branch", () => {
       const store = createAgentStore();
       const sourceId = store.getState().createSession();
-      store.getState().updateSessionSummary(sourceId, "(fork) Original");
+      store.getState().updateSessionSummary(sourceId, "(branch) Original");
 
       const forkId = store.getState().forkSession({
         sourceSessionId: sourceId,
@@ -349,7 +349,7 @@ describe("agentStore", () => {
       });
 
       expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
-        "(fork) Original"
+        "(branch) Original"
       );
     });
 
@@ -367,19 +367,85 @@ describe("agentStore", () => {
     });
   });
 
-  describe("pending input", () => {
-    it("sets and consumes pending input once", () => {
+  describe("draft input", () => {
+    it("sets and clears draft input", () => {
       const store = createAgentStore();
-      store.getState().setPendingInput("session-1", "hello");
-      expect(store.getState().consumePendingInput("session-1")).toBe("hello");
-      expect(store.getState().consumePendingInput("session-1")).toBeNull();
+      store.getState().setDraftInput("session-1", "hello");
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe("hello");
+
+      store.getState().setDraftInput("session-1", "");
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe(
+        undefined
+      );
     });
 
-    it("clears pending input when set to null", () => {
+    it("clears draft input when set to null", () => {
       const store = createAgentStore();
-      store.getState().setPendingInput("session-1", "hello");
-      store.getState().setPendingInput("session-1", null);
-      expect(store.getState().consumePendingInput("session-1")).toBeNull();
+      store.getState().setDraftInput("session-1", "hello");
+      store.getState().setDraftInput("session-1", null);
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe(
+        undefined
+      );
+    });
+
+    it("drops a session draft when that session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setDraftInput(sessionId, "hello");
+
+      store.getState().deleteSession(sessionId);
+
+      expect(store.getState().draftInputBySessionId[sessionId]).toBeUndefined();
+    });
+
+    it("clears all drafts when all sessions are cleared", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setDraftInput(sessionId, "hello");
+
+      store.getState().clearAllSessions();
+
+      expect(store.getState().draftInputBySessionId).toEqual({});
+    });
+
+    it("prunes drafts owned by sessions dropped on retention", () => {
+      const store = createAgentStore();
+      const firstSessionId = store.getState().createSession();
+      store.getState().setDraftInput(firstSessionId, "old draft");
+
+      const secondSessionId = store.getState().createSession();
+      store.getState().setDraftInput(secondSessionId, "new draft");
+
+      expect(
+        store.getState().draftInputBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
+        "new draft"
+      );
+    });
+
+    it("prunes inactive drafts when recent session storage is disabled", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
+      const firstSessionId = store.getState().createSession();
+      store.getState().setDraftInput(firstSessionId, "old draft");
+      const secondSessionId = store.getState().createSession();
+      store.getState().setDraftInput(secondSessionId, "new draft");
+
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: false,
+      });
+
+      expect(
+        store.getState().draftInputBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
+        "new draft"
+      );
     });
   });
 
@@ -476,6 +542,7 @@ describe("agentStore", () => {
         agentsConfig: {
           collectorEndpoint: "https://collector.example.com",
           assistantProjectName: "assistant_agent",
+          forceTracing: false,
           webAccessEnabled: false,
           assistantEnabled: true,
           allowLocalTraces: true,
@@ -519,6 +586,45 @@ describe("agentStore", () => {
           observability: store.getState().observability,
         })
       ).toBe(false);
+    });
+
+    it("forces tracing and bypasses consent when agent debugging is enabled", () => {
+      const store = createAgentStore({
+        agentsConfig: {
+          collectorEndpoint: "https://collector.example.com",
+          assistantProjectName: "assistant_agent",
+          forceTracing: true,
+          webAccessEnabled: false,
+          assistantEnabled: true,
+          allowLocalTraces: false,
+          allowRemoteExport: false,
+        },
+        observability: {
+          storeLocalTraces: false,
+          exportRemoteTraces: false,
+          attachUserId: false,
+          acknowledgedTraceConsent: null,
+        },
+      });
+
+      expect(
+        getEffectiveTraceRecordingSettings({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toEqual({ ingestTraces: true, exportRemoteTraces: true });
+      expect(
+        hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
+      expect(
+        getEffectiveAttachUserId({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
     });
   });
 

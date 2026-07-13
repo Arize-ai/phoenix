@@ -1374,11 +1374,11 @@ const typeFooterCSS = css`
 
   & .cm-editor {
     height: 100% !important;
-    background-color: var(--ac-global-color-grey-100);
+    background-color: var(--global-color-gray-100);
   }
 
   & .cm-gutters {
-    background-color: var(--ac-global-color-grey-100);
+    background-color: var(--global-color-gray-100);
   }
 
   & .cm-scroller {

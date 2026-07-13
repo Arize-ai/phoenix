@@ -23,9 +23,19 @@ With Projects, you can:
 
 Projects act as containers that keep related traces and conversations together while preventing them from interfering with unrelated work. This organization becomes increasingly valuable as you scale - allowing you to easily switch between contexts without losing your place or mixing data.
 
-You can customize each project with a **description** and **gradient colors** from the Project Settings tab, making it easier to identify and differentiate projects at a glance.
+You can customize each project with a **description** and **gradient colors** from the Project Settings tab, making it easier to identify and differentiate projects at a glance. Project Settings also surfaces an **annotation summary** for the project and lets an admin bulk-delete annotations by name (see [Annotation summary and bulk delete](#annotation-summary-and-bulk-delete) below).
 
 The Project structure also enables comparative analysis across different implementations, models, or time periods. You can run parallel versions of your application in separate projects, then analyze the differences to identify improvements or regressions.
+
+## Annotation summary and bulk delete
+
+The Project Settings tab includes an **annotation summary** that lists every annotation name in the project alongside how many span, trace, and session annotations carry that name. It gives you an at-a-glance view of which annotations exist and how heavily each is used.
+
+From the same summary, an admin can **bulk-delete every annotation with a given name** across the project in a single action — useful for cleaning up a mislabeled or deprecated annotation without deleting rows one at a time. The delete can optionally be scoped to a **time range** so you only remove annotations created within a specific window.
+
+<Warning>
+Bulk deletion is **destructive and cannot be undone**, and is restricted to admins (when authentication is enabled). For removing individual annotations instead, use the per-row delete in the table view under the `Annotations` tab.
+</Warning>
 
 <Tip>
 **Try it out!** Explore a live demo project to see how traces are organized in Phoenix.

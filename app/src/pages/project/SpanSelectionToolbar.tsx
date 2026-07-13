@@ -247,6 +247,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                       </DialogTitleExtra>
                     </DialogHeader>
                     <CreateDatasetForm
+                      submitButtonText="Create and add"
                       onDatasetCreateError={(error) => {
                         const formattedError =
                           getErrorMessagesFromRelayMutationError(error);
@@ -256,11 +257,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                       }}
                       onDatasetCreated={(dataset) => {
                         setIsCreatingDataset(false);
-                        notifySuccess({
-                          title: "Dataset created",
-                          message: `${dataset.name} has been successfully created.`,
-                        });
-                        setIsDatasetPopoverOpen(true);
+                        onAddSpansToDataset(dataset.id);
                       }}
                     />
                   </DialogContent>

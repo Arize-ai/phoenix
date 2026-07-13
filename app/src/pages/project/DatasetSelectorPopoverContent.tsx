@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { startTransition, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 
@@ -8,18 +9,22 @@ import {
   Icons,
   Input,
   Menu,
-  MenuEmpty,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
   SearchField,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 
 import type { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
 import type { DatasetSelectorPopoverContentDatasetsQuery } from "./__generated__/DatasetSelectorPopoverContentDatasetsQuery.graphql";
 import type { DatasetSelectorPopoverContentQuery } from "./__generated__/DatasetSelectorPopoverContentQuery.graphql";
+
+const datasetMenuCSS = css`
+  max-height: var(--global-menu-max-height-small);
+`;
 
 export type DatasetSelectorPopoverContentProps = {
   onCreateNewDataset: () => void;
@@ -109,10 +114,16 @@ function DatasetsList(props: {
         </SearchField>
       </MenuHeader>
       <Menu
+        css={datasetMenuCSS}
         aria-label="datasets"
         items={items}
         selectionMode="single"
-        renderEmptyState={() => <MenuEmpty>No datasets found</MenuEmpty>}
+        renderEmptyState={() => (
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Database />} />}
+            description="No datasets"
+          />
+        )}
         onSelectionChange={(selection) => {
           if (typeof selection === "object") {
             const selectedDatasetIds = Array.from(selection);

@@ -97,7 +97,7 @@ standard Phoenix env vars.
 | `PHOENIX_HOST` | Phoenix base URL |
 | `PHOENIX_API_KEY` | Bearer token for Phoenix |
 | `PHOENIX_CLIENT_HEADERS` | Optional JSON headers forwarded to the Phoenix client and tracer |
-| `PHOENIX_TEST_TRACING=false` | Disable sync to Phoenix for the current run (tracing is on by default) |
+| `PHOENIX_TEST_TRACKING=false` | Disable sync to Phoenix for the current run (tracking is on by default) |
 | `PHOENIX_TEST_REPETITIONS` | Default number of times to run each test |
 | `PHOENIX_TEST_REPORTER=verbose` | Show every test row plus per-test `output:` detail (default is the compact view) |
 | `PHOENIX_TEST_REPORTER_MAX_ROWS` | Max test rows shown per suite in compact mode (default `10`; failures are never hidden) |
@@ -123,7 +123,7 @@ Dry-run executes test bodies (and tracing, when a tracer is attached) but
 creates no dataset, experiment, run, or annotations in Phoenix. The
 reporter still prints a local summary.
 
-- **Whole process** — `PHOENIX_TEST_TRACING=false`.
+- **Whole process** — `PHOENIX_TEST_TRACKING=false`.
 - **One suite** — `describe(name, fn, { dryRun: true })`.
 - **One test** — `test(name, { input, dryRun: true }, fn)`; that case runs
   as an ordinary local test, with no dataset example and nothing uploaded,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa97cb2ce61df2aef89a2a29183d34e2>>
+ * @generated SignedSource<<099332042e1ac661bbec8e395064e4a1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -66,7 +66,24 @@ v4 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v5 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  },
+  (v3/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -163,11 +180,32 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "createdBy",
+                            "plural": false,
+                            "selections": (v5/*: any*/),
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "updatedBy",
+                            "plural": false,
+                            "selections": (v5/*: any*/),
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "PromptVersion",
                             "kind": "LinkedField",
                             "name": "version",
                             "plural": false,
                             "selections": [
+                              (v3/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -188,8 +226,34 @@ return {
                                 "kind": "ScalarField",
                                 "name": "modelProvider",
                                 "storageKey": null
-                              },
-                              (v3/*: any*/)
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "versionCount",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersionTag",
+                            "kind": "LinkedField",
+                            "name": "versionTags",
+                            "plural": true,
+                            "selections": [
+                              (v3/*: any*/),
+                              (v4/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "promptVersionId",
+                                "storageKey": null
+                              }
                             ],
                             "storageKey": null
                           },
@@ -294,12 +358,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f98bcfbed3d7b46df48d0ca35974cd02",
+    "cacheID": "896f815566d1395619b8e695d26b618e",
     "id": null,
     "metadata": {},
     "name": "DeletePromptDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeletePromptDialogMutation(\n  $promptId: ID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          modelName\n          modelProvider\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeletePromptDialogMutation(\n  $promptId: ID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdBy {\n          username\n          profilePictureUrl\n          id\n        }\n        updatedBy {\n          username\n          profilePictureUrl\n          id\n        }\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

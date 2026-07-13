@@ -44,16 +44,18 @@ import {
   View,
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ConnectedTimeRangeSelector,
+  type TimeRangeISOStrings,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
@@ -102,7 +104,7 @@ const useProjectSortQueryParams = () => {
 };
 
 export function ProjectsPage() {
-  const { timeRange } = useTimeRange();
+  const { timeRangeISOStrings } = useTimeRange();
   const _queryParams = useProjectSortQueryParams();
   // we only want to trigger the initial query when the component mounts
   // so we want to cache the initial state of the query params
@@ -133,17 +135,20 @@ export function ProjectsPage() {
         <ConnectedTimeRangeSelector size="S" />
       </TopNavActions>
       <Suspense fallback={<Loading />}>
-        <ProjectsPageContent timeRange={timeRange} query={data} />
+        <ProjectsPageContent
+          timeRangeISOStrings={timeRangeISOStrings}
+          query={data}
+        />
       </Suspense>
     </>
   );
 }
 
 export function ProjectsPageContent({
-  timeRange,
+  timeRangeISOStrings,
   query,
 }: {
-  timeRange: OpenTimeRange;
+  timeRangeISOStrings: TimeRangeISOStrings;
   query: ProjectsPageProjectsFragment$key;
 }) {
   "use no memo";
@@ -153,14 +158,6 @@ export function ProjectsPageContent({
   const sortQueryParams = useProjectSortQueryParams();
   const [filter, setFilter] = useState<string>("");
   const notifySuccess = useNotifySuccess();
-  // Convert the time range to a variable that can be used in the query
-  const timeRangeVariable = useMemo(() => {
-    return {
-      start: timeRange?.start?.toISOString(),
-      end: timeRange?.end?.toISOString(),
-    };
-  }, [timeRange]);
-
   const {
     data: projectsData,
     loadNext,
@@ -234,7 +231,7 @@ export function ProjectsPageContent({
 
   useInterval(() => refetch({}), PROJECTS_POLL_INTERVAL_MS);
 
-  const projects = projectsData?.projects.edges.map((p) => p.project);
+  const projects = projectsData?.projects?.edges?.map((p) => p.project);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
@@ -386,7 +383,7 @@ export function ProjectsPageContent({
             onDelete={onDelete}
             onClear={onClear}
             onRemove={onRemove}
-            timeRangeVariable={timeRangeVariable}
+            timeRangeISOStrings={timeRangeISOStrings}
             hasNext={hasNext}
             loadNext={loadNextWithArgs}
             isLoadingNext={isLoadingNext}
@@ -406,7 +403,7 @@ export function ProjectsPageContent({
             onDelete={onDelete}
             onClear={onClear}
             onRemove={onRemove}
-            timeRangeVariable={timeRangeVariable}
+            timeRangeISOStrings={timeRangeISOStrings}
             hasNext={hasNext}
             loadNext={loadNextWithArgs}
             isLoadingNext={isLoadingNext}
@@ -423,10 +420,7 @@ type ProjectViewComponentProps = {
   onDelete: (projectName: string) => void;
   onClear: (projectName: string) => void;
   onRemove: (projectName: string) => void;
-  timeRangeVariable: {
-    start: string | undefined;
-    end: string | undefined;
-  };
+  timeRangeISOStrings: TimeRangeISOStrings;
   hasNext: boolean;
   loadNext: () => void;
   isLoadingNext: boolean;
@@ -438,7 +432,7 @@ function ProjectsGrid({
   onDelete,
   onClear,
   onRemove,
-  timeRangeVariable,
+  timeRangeISOStrings,
   hasNext,
   loadNext,
   isLoadingNext,
@@ -479,7 +473,7 @@ function ProjectsGrid({
             >
               <ProjectItem
                 project={project}
-                timeRange={timeRangeVariable}
+                timeRange={timeRangeISOStrings}
                 onProjectDelete={() => onDelete(project.name)}
                 onProjectClear={() => onClear(project.name)}
                 onProjectRemoveData={() => onRemove(project.name)}
@@ -547,20 +541,30 @@ function ProjectItem({
         height: 100%;
       `}
     >
-      <Flex direction="row" justifyContent="space-between" alignItems="start">
-        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="start"
+        gap="size-100"
+      >
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          flex={1}
+          minWidth={0}
+        >
           <GradientCircle
             gradientStartColor={gradientStartColor}
             gradientEndColor={gradientEndColor}
           />
-          <Flex direction="column" minWidth={0}>
+          <Flex direction="column" flex={1} minWidth={0}>
             <Heading
               level={2}
               css={css`
                 overflow: hidden;
-                display: -webkit-box;
-                -webkit-box-orient: vertical;
-                -webkit-line-clamp: 1;
+                text-overflow: ellipsis;
+                white-space: nowrap;
               `}
             >
               {project.name}
@@ -590,6 +594,7 @@ const PROJECT_METRICS_QUERY = graphql`
     project: node(id: $id) {
       ... on Project {
         traceCount(timeRange: $timeRange)
+        sessionCount(timeRange: $timeRange)
         latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)
       }
     }
@@ -601,7 +606,13 @@ function ProjectMetricsLoadingSkeleton() {
     <Flex direction="row" justifyContent="space-between" minHeight="size-600">
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
-          Total Traces
+          Traces
+        </Text>
+        <Skeleton width={60} height={20} animation="wave" />
+      </Flex>
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Sessions
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
@@ -679,7 +690,7 @@ function ProjectMetricsRow({
   flexProps?: Partial<FlexProps>;
 }) {
   const {
-    project: { traceCount, latencyMsP50 },
+    project: { traceCount, sessionCount, latencyMsP50 },
   } = project;
   return (
     <Flex
@@ -690,10 +701,18 @@ function ProjectMetricsRow({
     >
       <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
-          Total Traces
+          Traces
         </Text>
         <Text size="L" fontFamily="mono">
           {intFormatter(traceCount)}
+        </Text>
+      </Flex>
+      <Flex direction="column">
+        <Text elementType="h3" size="S" color="text-700">
+          Sessions
+        </Text>
+        <Text size="L" fontFamily="mono">
+          {intFormatter(sessionCount)}
         </Text>
       </Flex>
       <Flex direction="column">
@@ -717,7 +736,7 @@ function ProjectsTable({
   onDelete,
   onClear,
   onRemove,
-  timeRangeVariable,
+  timeRangeISOStrings,
   hasNext,
   loadNext,
   isLoadingNext,
@@ -773,7 +792,7 @@ function ProjectsTable({
                   rowGap: "size-100",
                 }}
                 projectId={row.original.id}
-                timeRange={timeRangeVariable}
+                timeRange={timeRangeISOStrings}
               />
             </div>
           );
@@ -802,7 +821,7 @@ function ProjectsTable({
       });
     }
     return cols;
-  }, [timeRangeVariable, onClear, onDelete, onRemove, canModify]);
+  }, [timeRangeISOStrings, onClear, onDelete, onRemove, canModify]);
   const sortQueryParams = useProjectSortQueryParams();
   const { setProjectSortOrder } = usePreferencesContext((state) => ({
     setProjectSortOrder: state.setProjectSortOrder,
@@ -921,7 +940,12 @@ function ProjectsTable({
             ))}
           </thead>
           {isEmpty ? (
-            <TableEmpty />
+            <TableEmptyWrap>
+              <EmptyState
+                graphic={<EmptyStateGraphic variant="project" />}
+                description="No projects found"
+              />
+            </TableEmptyWrap>
           ) : (
             <tbody>
               {table.getRowModel().rows.map((row) => (

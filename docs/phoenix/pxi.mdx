@@ -53,6 +53,93 @@ experiments, authors evaluators, annotates spans, and navigates Phoenix for you.
   </Step>
 </Steps>
 
+## Use PXI from the terminal
+
+PXI is also available as an interactive terminal chat, shipped with the
+[Phoenix CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli)
+(`@arizeai/phoenix-cli`). It is the same server-side agent that powers the
+in-browser experience — the CLI connects to a running Phoenix instance, so model
+credentials, skills, and permissions are configured on the server exactly as
+described under [Setup](#setup).
+
+Run it without installing:
+
+```bash
+npx -y @arizeai/phoenix-cli pxi
+```
+
+Or install the CLI globally and use the `pxi` command directly:
+
+```bash
+npm install -g @arizeai/phoenix-cli
+pxi
+```
+
+Point it at your Phoenix instance with the `PHOENIX_HOST` (and `PHOENIX_API_KEY`
+if your deployment requires auth) environment variables, or pass `--endpoint` /
+`--api-key` flags:
+
+```bash
+export PHOENIX_HOST=http://localhost:6006
+pxi
+```
+
+Pick the model with `--provider` and `--model` (defaults to Anthropic
+`claude-opus-4-8`):
+
+```bash
+pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
+```
+
+<Note>
+The terminal client talks to the same `/agents/server` endpoint as the browser
+agent, so it requires a running Phoenix server with a configured model provider.
+On launch it runs a preflight check against the server's model catalog and
+credentials, surfacing configuration problems as a clean error before the chat
+opens.
+</Note>
+
+| Flag | Effect |
+| --- | --- |
+| `--endpoint <url>` | Phoenix endpoint URL (overrides `PHOENIX_HOST`). |
+| `--api-key <key>` | Phoenix API key (overrides `PHOENIX_API_KEY`). |
+| `--profile <name>` | Use a saved Phoenix CLI profile. |
+| `--provider <provider>` | Built-in model provider (e.g. `ANTHROPIC`, `OPENAI`, `GOOGLE`). |
+| `--model <model>` | Model name (defaults to `claude-opus-4-8`). |
+| `--custom-provider-id <id>` | Use a custom provider configured under **Settings → Models** (requires `--model`). |
+| `--bypass-edits` | Apply edits without manual approval (see [You stay in control](#you-stay-in-control)). |
+| `--enable-web-access` | Allow PXI to consult the web for grounding. |
+| `--enable-subagents` | Allow the server to attach subagents (including the server-side bash tool). |
+| `--enable-graphql-mutations` | Allow PXI to run state-changing GraphQL mutations. |
+| `--ingest-traces` | Persist this session's PXI traces locally in Phoenix. |
+| `--export-remote-traces` | Export this session's PXI traces to a configured remote collector. |
+| `--attach-user-id` | Attach the authenticated Phoenix user to PXI traces (opt-in; see the **Privacy, safety & configuration** section below). |
+| `--skip-model-preflight` | Skip the model catalog and credential checks before launch. |
+
+Each capability flag is still subject to the server's own settings — for
+example, `--enable-subagents` has no effect when
+`PHOENIX_AGENTS_DISABLE_BASH=true`, and `--export-remote-traces` requires a
+configured collector and an administrator who has allowed export.
+
+## Slash commands
+
+Inside the terminal chat, lines beginning with `/` are handled locally by the
+client and never sent to the model.
+
+| Command | Effect |
+| --- | --- |
+| `/help` | List the available slash commands. |
+| `/clear` | Clear the conversation history and start a fresh session. |
+| `/exit` | Exit the terminal client. |
+
+## Status line
+
+While a turn streams, PXI shows a live **thinking indicator** and, once the
+response arrives, a bottom-right **token-usage line** — the total tokens for the
+turn, preceded by a cache-activity summary when the provider reports cache
+reads or writes. The active model name is shown next to the input prompt so you
+always know which provider and model the session is talking to.
+
 ## What it does
 
 - **Drives the product** — navigates, filters, and pivots through your Phoenix
@@ -240,11 +327,23 @@ present, so it does not offer an action that cannot succeed on your current page
   with `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME`). When recording is enabled, tool
   inputs and outputs are recorded on the corresponding spans, so you can audit
   what PXI did and evaluate it like any other agent in Phoenix.
+
+  **Attach your identity (opt-in).** Session traces are anonymous by default. If
+  you want to associate a session with the signed-in user — for example to
+  attribute recorded sessions to a specific person — enable **Attach your email
+  to session traces** under **Settings → Assistant → Personal settings**. From
+  the terminal client the same opt-in is the `--attach-user-id` flag. It is off
+  unless you turn it on.
   </Accordion>
 
   <Accordion title="Safety limits">
   - **Verify before you act.** PXI can apply filters, edit prompts, and run
     bash. Review proposed changes — especially prompt edits — before accepting.
+  - **Two bash surfaces.** Beyond the browser-side sandbox shown above, the
+    server can attach a subagent that carries a **server-side** bash tool. Set
+    `PHOENIX_AGENTS_DISABLE_BASH=true` to disable that server-side tool (and hide
+    the subagents toggle in **Settings → Assistant**) without disabling PXI
+    entirely; the browser sandbox is unaffected.
   - **Don't point it at sensitive production data without controls.** PXI sees
     whatever the signed-in user can see.
   - **Treat outputs as suggestions.** PXI hallucinates, especially on long
@@ -257,6 +356,8 @@ present, so it does not offer an action that cannot succeed on your current page
   | `PHOENIX_DISABLE_AGENT_ASSISTANT=true` | Disable PXI for the whole deployment (requires restart). |
   | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups. |
   | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
+  | `PHOENIX_AGENTS_DISABLE_BASH=true` | Disable PXI's **server-side** bash tool by preventing subagents from being attached to the assistant. The subagents toggle is also hidden from **Settings → Assistant**. The browser-side bash sandbox is unaffected; to turn PXI off entirely use `PHOENIX_DISABLE_AGENT_ASSISTANT`. |
+  | `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local PXI tracing, remote trace export, and signed-in user email attribution for every user, regardless of workspace or browser settings. Configure the remote collector variables below before enabling it. |
   | `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
   | `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |
   | `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project name for locally recorded assistant traces (default `assistant_agent`). |

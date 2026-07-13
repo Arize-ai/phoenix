@@ -11,7 +11,6 @@ import invariant from "tiny-invariant";
 
 import {
   Card,
-  Empty,
   Flex,
   Icon,
   Icons,
@@ -19,7 +18,9 @@ import {
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
+  View,
 } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -321,7 +322,12 @@ export function CustomProvidersCard({
     <ErrorBoundary>
       <Card title="Custom AI Providers" extra={<NewCustomProviderButton />}>
         {isEmpty ? (
-          <Empty message="No custom AI providers configured yet." />
+          <View padding="size-500">
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="genericAdd" />}
+              description="No custom AI providers configured yet."
+            />
+          </View>
         ) : (
           <table css={tableCSS}>
             <thead>

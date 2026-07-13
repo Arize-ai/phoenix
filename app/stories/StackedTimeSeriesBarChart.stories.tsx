@@ -17,7 +17,7 @@ import {
   ChartTooltipItem,
   InteractiveLegend,
   SEQUENTIAL_CHART_COLORS,
-  defaultBarChartTooltipProps,
+  defaultTooltipProps,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -242,7 +242,7 @@ function StackedBarChart({
           />
 
           <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-          <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
+          <Tooltip {...defaultTooltipProps} content={TooltipContent} />
           <Bar
             dataKey="error"
             stackId="a"

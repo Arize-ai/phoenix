@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from inspect import Signature, signature
-from typing import Any, Callable, Literal, TypeAlias
+from typing import Any, Callable, Literal, overload
 
 import pydantic
 from openinference.instrumentation import (
@@ -14,11 +14,7 @@ from openinference.instrumentation import (
     get_span_kind_attributes,
     safe_json_dumps,
 )
-from openinference.semconv.trace import (
-    OpenInferenceMimeTypeValues,
-    SpanAttributes,
-    ToolCallAttributes,
-)
+from openinference.semconv.trace import OpenInferenceMimeTypeValues
 from opentelemetry.trace import Status, StatusCode, Tracer
 from opentelemetry.util.types import AttributeValue
 from pydantic_ai.agent.abstract import AbstractAgent
@@ -55,12 +51,12 @@ from pydantic_ai.run import AgentRun
 from pydantic_ai.tools import AgentDepsT
 from typing_extensions import assert_never
 
-from phoenix.server.agents.capabilities.tools.external import get_external_tool_definition
-
-ToolCallId: TypeAlias = str
-
-_MODEL_MESSAGE_ADAPTER: pydantic.TypeAdapter[ModelMessage] = pydantic.TypeAdapter(
-    ModelMessage,
+_MODEL_REQUEST_PARTS_ADAPTER: pydantic.TypeAdapter[list[ModelRequestPart]] = pydantic.TypeAdapter(
+    list[ModelRequestPart],
+    config=pydantic.ConfigDict(ser_json_bytes="base64"),
+)
+_MODEL_RESPONSE_PARTS_ADAPTER: pydantic.TypeAdapter[list[ModelResponsePart]] = pydantic.TypeAdapter(
+    list[ModelResponsePart],
     config=pydantic.ConfigDict(ser_json_bytes="base64"),
 )
 
@@ -73,18 +69,23 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
     ``run_sync``, ``run_stream``, ``run_stream_events``) ultimately delegates
     through ``iter`` in ``AbstractAgent``, so a single seam captures all
     execution paths.
+
+    ``span_name`` overrides the default ``{agent name}.iter`` span name.
     """
 
     tracer: Tracer
+    span_name: str | None
 
     def __init__(
         self,
         wrapped: AbstractAgent[AgentDepsT, OutputDataT],
         *,
         tracer: Tracer,
+        span_name: str | None = None,
     ) -> None:
         super().__init__(wrapped)
         self.tracer = tracer
+        self.span_name = span_name
 
     @asynccontextmanager
     async def iter(
@@ -99,84 +100,11 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
             message_history=message_history,
             kwargs=kwargs,
         ) as set_result:
-            # TODO(https://github.com/Arize-ai/phoenix/issues/13173): remove
-            # once the frontend emits TOOL spans for external tools at
-            # execution time. Until then, backfill TOOL spans for the
-            # previous turn's external tool calls by replaying the trailing
-            # tool returns in the inbound history.
-            self._emit_resolved_external_tool_spans(message_history=message_history)
             async with super().iter(
                 user_prompt, message_history=message_history, **kwargs
             ) as agent_run:
                 yield agent_run
                 set_result(agent_run)
-
-    def _emit_resolved_external_tool_spans(
-        self,
-        *,
-        message_history: Sequence[ModelMessage] | None,
-    ) -> None:
-        """Emit TOOL spans for external tools resolved since the previous turn.
-
-        External tools are not instrumented at execution time. Their results
-        arrive on trailing ``ModelRequest`` messages as ``ToolReturnPart``s —
-        possibly alongside a fresh ``UserPromptPart`` when the user submits a
-        new turn in the same request. Replay each such ``ToolReturnPart`` as
-        a synthetic TOOL span parented to the current AGENT span.
-        """
-        if not message_history:
-            return
-        messages = list(message_history)
-        trailing_tool_return_parts, first_trailing_request_index = (
-            _collect_trailing_tool_return_parts(messages)
-        )
-        if not trailing_tool_return_parts:
-            return
-        tool_call_parts_by_call_id = _get_tool_call_parts_by_id(
-            messages[:first_trailing_request_index]
-        )
-        for tool_return_part in trailing_tool_return_parts:
-            matching_tool_call_part = tool_call_parts_by_call_id.get(tool_return_part.tool_call_id)
-            self._emit_tool_span(
-                tool_return_part=tool_return_part,
-                tool_call_part=matching_tool_call_part,
-            )
-
-    def _emit_tool_span(
-        self,
-        *,
-        tool_return_part: ToolReturnPart,
-        tool_call_part: ToolCallPart | None,
-    ) -> None:
-        tool_arguments = tool_call_part.args_as_dict() if tool_call_part is not None else {}
-        tool_name = tool_return_part.tool_name
-        attributes: dict[str, Any] = {
-            **get_span_kind_attributes("tool"),
-            SpanAttributes.TOOL_NAME: tool_name,
-            **get_input_attributes(tool_arguments, mime_type=OpenInferenceMimeTypeValues.JSON),
-            **get_output_attributes(tool_return_part.content),
-            ToolCallAttributes.TOOL_CALL_ID: tool_return_part.tool_call_id,
-        }
-
-        tool_def = get_external_tool_definition(tool_name)
-        if tool_def is not None:
-            attributes[SpanAttributes.TOOL_PARAMETERS] = safe_json_dumps(
-                tool_def.parameters_json_schema
-            )
-            if tool_def.description is not None:
-                attributes[SpanAttributes.TOOL_DESCRIPTION] = tool_def.description
-        with self.tracer.start_as_current_span(name=tool_name, attributes=attributes) as span:
-            outcome = tool_return_part.outcome
-            if outcome == "success":
-                span.set_status(Status(StatusCode.OK))
-            else:
-                error_message = (
-                    str(tool_return_part.content)
-                    if tool_return_part.content is not None
-                    else outcome
-                )
-                span.record_exception(Exception(error_message))
-                span.set_status(Status(StatusCode.ERROR, f"tool {outcome}: {error_message}"))
 
     @contextmanager
     def _span(
@@ -200,7 +128,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
         )
         metadata: dict[str, Any] = {"input": iter_method_arguments}
         attributes.update(get_metadata_attributes(metadata=metadata))
-        span_name = f"{self.name or type(self.wrapped).__name__}.iter"
+        span_name = self.span_name or f"{self.name or type(self.wrapped).__name__}.iter"
         with self.tracer.start_as_current_span(
             name=span_name,
             attributes=attributes,
@@ -216,36 +144,6 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
 
             yield set_result
             span.set_status(Status(StatusCode.OK))
-
-
-def _collect_trailing_tool_return_parts(
-    messages: Sequence[ModelMessage],
-) -> tuple[list[ToolReturnPart], int]:
-    """Collect ``ToolReturnPart``s from the trailing run of ``ModelRequest``s."""
-    trailing_tool_return_parts: list[ToolReturnPart] = []
-    first_trailing_request_index = len(messages)
-    for index, message in reversed(list(enumerate(messages))):
-        if not isinstance(message, ModelRequest):
-            break
-        return_parts_in_message = [p for p in message.parts if isinstance(p, ToolReturnPart)]
-        if not return_parts_in_message:
-            break
-        trailing_tool_return_parts.extend(return_parts_in_message)
-        first_trailing_request_index = index
-    return trailing_tool_return_parts, first_trailing_request_index
-
-
-def _get_tool_call_parts_by_id(
-    messages: Sequence[ModelMessage],
-) -> dict[ToolCallId, ToolCallPart]:
-    tool_calls_by_call_id: dict[ToolCallId, ToolCallPart] = {}
-    for model_response in reversed(messages):
-        if not isinstance(model_response, ModelResponse):
-            break
-        for part in model_response.parts:
-            if isinstance(part, ToolCallPart):
-                tool_calls_by_call_id[part.tool_call_id] = part
-    return tool_calls_by_call_id
 
 
 def _get_last_input_message(
@@ -283,13 +181,7 @@ def _get_message_io_attributes(
     message: ModelMessage,
     role: Literal["input", "output"],
 ) -> dict[str, AttributeValue]:
-    text = _get_text_content_from_model_message(message)
-    if text is not None:
-        value: str = text
-        mime_type = OpenInferenceMimeTypeValues.TEXT
-    else:
-        value = _MODEL_MESSAGE_ADAPTER.dump_json(message).decode("utf-8")
-        mime_type = OpenInferenceMimeTypeValues.JSON
+    value, mime_type = _get_message_io_value(message)
     if role == "input":
         return get_input_attributes(value, mime_type=mime_type)
     elif role == "output":
@@ -297,23 +189,68 @@ def _get_message_io_attributes(
     assert_never(role)
 
 
-def _get_text_content_from_model_message(message: ModelMessage) -> str | None:
-    """Concatenated text if the message has only text-bearing parts; else ``None``."""
+def _get_message_io_value(message: ModelMessage) -> tuple[str, OpenInferenceMimeTypeValues]:
+    """Return the display value and MIME type for a turn-level message."""
     if isinstance(message, ModelRequest):
-        return _get_text_content_from_model_request(message)
+        request_parts = _get_parts_with_non_empty_content(message)
+        text = _get_single_text_content(request_parts)
+        if text is not None:
+            return text, OpenInferenceMimeTypeValues.TEXT
+        return _dump_model_request_parts_json(request_parts), OpenInferenceMimeTypeValues.JSON
     if isinstance(message, ModelResponse):
-        return _get_text_content_from_model_response(message)
+        response_parts = _get_parts_with_non_empty_content(message)
+        text = _get_single_text_content(response_parts)
+        if text is not None:
+            return text, OpenInferenceMimeTypeValues.TEXT
+        return _dump_model_response_parts_json(response_parts), OpenInferenceMimeTypeValues.JSON
     assert_never(message)
 
 
-def _get_text_content_from_model_request(message: ModelRequest) -> str | None:
-    texts: list[str] = []
-    for part in message.parts:
-        text = _get_text_content_from_model_request_part(part)
-        if text is None:
-            return None
-        texts.append(text)
-    return "\n".join(texts)
+@overload
+def _get_parts_with_non_empty_content(message: ModelRequest) -> list[ModelRequestPart]: ...
+
+
+@overload
+def _get_parts_with_non_empty_content(message: ModelResponse) -> list[ModelResponsePart]: ...
+
+
+def _get_parts_with_non_empty_content(
+    message: ModelMessage,
+) -> list[ModelRequestPart] | list[ModelResponsePart]:
+    """Return message parts worth displaying in turn-level input/output."""
+    if isinstance(message, ModelRequest):
+        return list(message.parts)
+    if isinstance(message, ModelResponse):
+        return [
+            part
+            for part in message.parts
+            if not (isinstance(part, ThinkingPart) and not part.has_content())
+        ]
+    assert_never(message)
+
+
+def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePart]) -> str | None:
+    """Return plain text only when exactly one text-bearing part remains."""
+    if len(parts) != 1:
+        return None
+    (part,) = parts
+    if isinstance(part, TextPart):
+        return part.content
+    if isinstance(part, (SystemPromptPart, UserPromptPart, ToolReturnPart, RetryPromptPart)):
+        return _get_text_content_from_model_request_part(part)
+    if isinstance(
+        part,
+        (
+            ToolCallPart,
+            NativeToolCallPart,
+            NativeToolReturnPart,
+            ThinkingPart,
+            CompactionPart,
+            FilePart,
+        ),
+    ):
+        return None
+    assert_never(part)
 
 
 def _get_text_content_from_model_request_part(part: ModelRequestPart) -> str | None:
@@ -351,29 +288,22 @@ def _get_text_content_from_user_content_item(item: UserContent) -> str | None:
     assert_never(item)
 
 
-def _get_text_content_from_model_response(message: ModelResponse) -> str | None:
-    texts: list[str] = []
-    for part in message.parts:
-        text = _get_text_content_from_model_response_part(part)
-        if text is None:
-            return None
-        texts.append(text)
-    return "\n".join(texts) if texts else None
+def _dump_model_request_parts_json(parts: list[ModelRequestPart]) -> str:
+    """Serialize request parts as a top-level JSON array without null-valued fields."""
+    payload = _MODEL_REQUEST_PARTS_ADAPTER.dump_python(parts, mode="json")
+    return safe_json_dumps(_drop_none_fields(payload))
 
 
-def _get_text_content_from_model_response_part(part: ModelResponsePart) -> str | None:
-    if isinstance(part, TextPart):
-        return part.content
-    if isinstance(
-        part,
-        (
-            ToolCallPart,
-            NativeToolCallPart,
-            NativeToolReturnPart,
-            ThinkingPart,
-            CompactionPart,
-            FilePart,
-        ),
-    ):
-        return None
-    assert_never(part)
+def _dump_model_response_parts_json(parts: list[ModelResponsePart]) -> str:
+    """Serialize response parts as a top-level JSON array without null-valued fields."""
+    payload = _MODEL_RESPONSE_PARTS_ADAPTER.dump_python(parts, mode="json")
+    return safe_json_dumps(_drop_none_fields(payload))
+
+
+def _drop_none_fields(value: Any) -> Any:
+    """Recursively remove mapping entries whose value is ``None``."""
+    if isinstance(value, dict):
+        return {key: _drop_none_fields(item) for key, item in value.items() if item is not None}
+    if isinstance(value, list):
+        return [_drop_none_fields(item) for item in value]
+    return value

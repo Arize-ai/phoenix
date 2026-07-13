@@ -549,7 +549,11 @@ class _RegexStr(TypeDecorator[re.Pattern[str]]):
         return re.compile(value)
 
 
-_HEX_COLOR_PATTERN = re.compile(r"^#([0-9a-f]{6})$")
+# Regex for a lowercase six-digit hex color (e.g. '#00cc88'). Shared with API
+# request validation (see `HexColor` in `phoenix.server.api.routers.v1.utils`)
+# so invalid colors are rejected before reaching the database.
+HEX_COLOR_REGEX = r"^#([0-9a-f]{6})$"
+_HEX_COLOR_PATTERN = re.compile(HEX_COLOR_REGEX)
 
 
 class _HexColor(TypeDecorator[str]):

@@ -204,7 +204,7 @@ describe("overview", () => {
         suite([result("a", "passed", 1)], {
           name: "alpha",
           trackingDisabled: true,
-          trackingDisabledReason: "PHOENIX_TEST_TRACING is disabled",
+          trackingDisabledReason: "PHOENIX_TEST_TRACKING is disabled",
         }),
         suite([result("b", "passed", 1)], {
           name: "beta",
@@ -214,7 +214,7 @@ describe("overview", () => {
       COMPACT
     );
     expect(out).toContain("tracking disabled (local only)");
-    expect(out).not.toContain("PHOENIX_TEST_TRACING");
+    expect(out).not.toContain("PHOENIX_TEST_TRACKING");
   });
 
   it("emits no ANSI when color is off and aligns columns", () => {

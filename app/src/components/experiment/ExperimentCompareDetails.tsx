@@ -14,6 +14,7 @@ import {
   CopyToClipboardButton,
   Dialog,
   DialogTrigger,
+  DisclosureArrow,
   Empty,
   Flex,
   Heading,
@@ -709,13 +710,9 @@ function ExperimentSidebarItem({
             onPress={() => setIsCollapsed(!isCollapsed)}
             css={css`
               flex: none;
-              .icon-wrap {
-                transform: ${isCollapsed ? "rotate(0deg)" : "rotate(90deg)"};
-                transition: all 0.1s ease-in-out;
-              }
             `}
           >
-            <Icon svg={<Icons.ChevronRightSmall />} />
+            <DisclosureArrow isExpanded={!isCollapsed} />
           </IconButton>
         )}
         <Checkbox

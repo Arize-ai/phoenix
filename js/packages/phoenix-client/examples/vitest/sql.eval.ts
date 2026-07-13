@@ -4,7 +4,7 @@
  *
  * Run with:
  *   cd js/packages/phoenix-client
- *   OPENAI_API_KEY= PHOENIX_TEST_TRACING=false pnpm exec vitest run \
+ *   OPENAI_API_KEY= PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
  *     --config examples/vitest/phoenix.vitest.config.ts examples/vitest/sql.eval.ts
  *
  * Expected env vars (when tracking to a Phoenix server):
@@ -13,7 +13,7 @@
  *   OPENAI_API_KEY=...
  *
  * Without those, the suite still runs locally using a deterministic stand-in;
- * sync to Phoenix is skipped when `PHOENIX_TEST_TRACING=false`.
+ * sync to Phoenix is skipped when `PHOENIX_TEST_TRACKING=false`.
  *
  * NOTE: this file demonstrates the API only — the imports below are not
  * dependencies of `@arizeai/phoenix-client` itself. Install whichever LLM

@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
 from pydantic_ai.agent import AgentRunResult
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -38,6 +40,20 @@ from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.dml_event import DmlEvent
+from phoenix.server.types import CanPutItem, DbSessionFactory
+
+
+@asynccontextmanager
+async def _unavailable_db_session(_: Any) -> AsyncIterator[Any]:
+    raise RuntimeError("PXI eval harness does not provide a Phoenix database.")
+    yield
+
+
+class _NoOpEventQueue:
+    def put(self, item: DmlEvent) -> None:
+        return None
+
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -46,6 +62,8 @@ ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
 _MAX_ERROR_MESSAGE_LEN = 200
+_OFFLINE_DB = DbSessionFactory(db=_unavailable_db_session, dialect="sqlite")
+_OFFLINE_EVENT_QUEUE: CanPutItem[DmlEvent] = _NoOpEventQueue()
 
 
 def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
@@ -78,7 +96,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=base_url,
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -101,7 +119,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=azure_endpoint_to_base_url(endpoint),
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -121,7 +139,7 @@ async def _build_model() -> PydanticAIModel:
         return AnthropicModel(
             model_name,
             provider=AnthropicProvider(
-                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=0)
+                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=3)
             ),
         )
 
@@ -137,7 +155,7 @@ def should_build_docs_mcp_server() -> bool:
     return not get_env_disable_agent_assistant() and get_env_allow_external_resources()
 
 
-def build_shared_docs_mcp_server() -> MCPServerStreamableHTTP | None:
+def build_shared_docs_mcp_server() -> MCPToolset[Any] | None:
     """Build a single docs-MCP toolset to share across all eval task runs.
 
     The production server constructs this once at startup and enters its
@@ -435,7 +453,7 @@ def _example_input(example: dict[str, Any]) -> dict[str, Any]:
 
 
 def make_task(
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPToolset[Any] | None = None,
 ) -> Any:
     """Build a Phoenix experiment task callable bound to a shared toolset.
 
@@ -473,7 +491,7 @@ async def run_pxi_example(
     input: dict[str, Any],
     *,
     stable_example_id: str | None = None,
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPToolset[Any] | None = None,
 ) -> dict[str, Any]:
     """Run a single PXI agent turn imperatively.
 
@@ -487,7 +505,7 @@ async def run_pxi_example(
     example ID for the row.
 
     ``docs_mcp_server`` should be a single shared, already-entered
-    :class:`MCPServerStreamableHTTP` (built via
+    :class:`MCPToolset` (built via
     :func:`build_shared_docs_mcp_server` at the top of an async run, then
     entered with ``async with``). Pass ``None`` to skip the docs toolset.
 
@@ -499,7 +517,13 @@ async def run_pxi_example(
     try:
         user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
-        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=docs_mcp_server,
+            db=_OFFLINE_DB,
+            event_queue=_OFFLINE_EVENT_QUEUE,
+            read_only=True,
+        )
         result = await agent.run(
             user_prompt,
             deps=_build_dependencies(input),

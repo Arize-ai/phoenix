@@ -14,6 +14,8 @@ import invariant from "tiny-invariant";
 
 import {
   Flex,
+  Icon,
+  Icons,
   LinkButton,
   Loading,
   RichTooltip,
@@ -306,6 +308,7 @@ function TraceHeader({
             <LinkButton
               size="S"
               variant="primary"
+              leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
               to={{
                 pathname: `/projects/${projectId}/sessions/${sessionId}`,
                 search: sessionSearch,
@@ -357,7 +360,9 @@ function ScrollingPanelContent({ children }: PropsWithChildren) {
       data-testid="scrolling-panel-content"
       css={css`
         height: 100%;
-        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       `}
     >
       {children}

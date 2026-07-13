@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7d6ad60dafc43e4e54680c626aac0f1f>>
+ * @generated SignedSource<<bf96aaa7066da27e652925aac74c80cf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type ExperimentComparePage_selectedCompareExperiments$data = {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
           readonly id: string;
+          readonly isBaseline: boolean;
           readonly name: string;
           readonly sequenceNumber: number;
         };
@@ -118,6 +119,13 @@ const node: ReaderFragment = {
                           "kind": "ScalarField",
                           "name": "name",
                           "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isBaseline",
+                          "storageKey": null
                         }
                       ],
                       "storageKey": null
@@ -140,6 +148,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "b5df65e12b1459113045210e14fd9bc4";
+(node as any).hash = "72c91a00a829a761ba031bce6ef4d6c7";
 
 export default node;

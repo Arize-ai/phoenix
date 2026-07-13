@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5d9f3410b4b6309b11bc9169ff7f6cb6>>
+ * @generated SignedSource<<d6228807980a90180acee36c94642c04>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -97,7 +97,24 @@ v3 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v4 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  },
+  (v2/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -165,6 +182,33 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "createdBy",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "updatedBy",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -271,16 +315,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9df01fa59001c105742e8dd32aea0fdc",
+    "cacheID": "8f9d98be7d85bb6d0058618af30f5ef1",
     "id": null,
     "metadata": {},
     "name": "DatasetsTableDatasetsQuery",
     "operationKind": "query",
-    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $filter: DatasetFilter = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_3JsJJ3\n}\n\nfragment DatasetsTable_datasets_3JsJJ3 on Query {\n  datasets(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        evaluatorCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $filter: DatasetFilter = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_3JsJJ3\n}\n\nfragment DatasetsTable_datasets_3JsJJ3 on Query {\n  datasets(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        updatedAt\n        createdBy {\n          username\n          profilePictureUrl\n          id\n        }\n        updatedBy {\n          username\n          profilePictureUrl\n          id\n        }\n        exampleCount\n        experimentCount\n        evaluatorCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fc083cc2fa596e206fe47bd613f159aa";
+(node as any).hash = "f6284715bde2acfc500452eafcbda4fa";
 
 export default node;

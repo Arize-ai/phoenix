@@ -8,13 +8,13 @@ import {
   Keyboard,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuItem,
   MenuTrigger,
   Text,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { AgentSession } from "@phoenix/store/agentStore";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
@@ -102,7 +102,12 @@ export function SessionListMenu({
             />
           ))}
         </Menu>
-        {sessions.length === 0 && <MenuEmpty>No sessions yet</MenuEmpty>}
+        {sessions.length === 0 && (
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.History />} />}
+            description="No sessions yet"
+          />
+        )}
       </MenuContainer>
     </MenuTrigger>
   );

@@ -71,7 +71,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
       prompt: "Find critical issues in my traces.",
     },
     {
-      icon: <Icons.Funnel />,
+      icon: <Icons.ListFilter />,
       label: "Filter to errors",
       prompt: "Filter the spans to show only the ones with errors.",
     },

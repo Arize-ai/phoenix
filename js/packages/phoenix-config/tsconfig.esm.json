@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.base.esm.json",
   "compilerOptions": {
     "outDir": "dist/esm",
+    "paths": {
+      "@phoenix-config/env-file": ["./src/envFile.ts"]
+    },
     "rootDir": "src",
     "tsBuildInfoFile": "dist/esm/tsconfig.esm.tsbuildinfo"
   },

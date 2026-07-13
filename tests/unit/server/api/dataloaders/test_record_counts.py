@@ -40,8 +40,27 @@ async def test_record_counts(
                 s.connection(),
             )
         )
-    expected = trace_df.loc[:, "count"].to_list() + span_df.loc[:, "count"].to_list()
-    kinds: list[Literal["span", "trace"]] = ["trace", "span"]
+        session_pid = models.ProjectSession.project_id
+        session_df = await session.run_sync(
+            lambda s: pd.read_sql_query(
+                # sessions use interval-overlap time-range semantics: a session
+                # counts iff [start_time, end_time] intersects [start, end)
+                select(session_pid, func.count().label("count"))
+                .group_by(session_pid)
+                .order_by(session_pid)
+                .where(start_time <= models.ProjectSession.end_time)
+                .where(models.ProjectSession.start_time < end_time),
+                s.connection(),
+            )
+        )
+    # some projects may have zero matching sessions in the time window, unlike
+    # traces/spans which are dense enough to always have at least one match
+    session_counts_by_pid = dict(zip(session_df["project_id"], session_df["count"]))
+    session_counts = [session_counts_by_pid.get(id_ + 1, 0) for id_ in range(10)]
+    expected = (
+        trace_df.loc[:, "count"].to_list() + span_df.loc[:, "count"].to_list() + session_counts
+    )
+    kinds: list[Literal["span", "trace", "session"]] = ["trace", "span", "session"]
     session_filter_condition = None
     keys: list[Key] = [
         (

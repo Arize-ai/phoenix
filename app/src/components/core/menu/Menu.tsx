@@ -16,7 +16,6 @@ import { Heading, Text } from "../content";
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
 import { Popover } from "../overlay";
-import { View } from "../view";
 
 const menuCSS = css`
   --menu-min-width: 250px;
@@ -28,10 +27,11 @@ const menuCSS = css`
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--global-menu-item-gap);
+  /* The menu container itself takes focus when opened before focus moves to an
+     item. Suppress the container-level focus ring — keyboard focus is already
+     indicated on the focused item — so the whole menu doesn't get outlined. */
   &:focus-visible {
-    border-radius: var(--global-rounding-small);
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: 0px;
+    outline: none;
   }
   &[data-empty] {
     align-items: center;
@@ -102,6 +102,7 @@ const menuItemCss = css`
   outline: none;
   cursor: default;
   color: var(--global-text-color-900);
+  text-decoration: none;
   position: relative;
   display: flex;
 
@@ -221,7 +222,7 @@ const MenuItemContent = ({
       `}
     >
       {leadingContent ? (
-        <Flex alignItems="center" gap="var(--global-menu-item-gap)">
+        <Flex alignItems="center" gap="var(--global-menu-item-content-gap)">
           {leadingContent} {children}
         </Flex>
       ) : (
@@ -258,8 +259,8 @@ const menuContainerCss = css`
 export const MenuContainer = ({
   children,
   placement = "bottom end",
-  minHeight = 300,
-  maxHeight = 650,
+  minHeight = "var(--global-menu-min-height)",
+  maxHeight = "var(--global-menu-max-height-large)",
   maxWidth = 450,
   ...popoverProps
 }: PropsWithChildren &
@@ -335,25 +336,29 @@ export const MenuSectionTitle = ({
 export const MenuHeader = ({ children }: PropsWithChildren) => {
   return (
     <div
+      className="menu-header"
       css={css`
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
 
-        /* Add vertical padding to quiet SearchFields in header */
-        .search-field[data-variant="quiet"] .react-aria-Input,
-        .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+        /* Draw the divider under (and, when stacked, between) quiet
+           SearchFields in the header by re-coloring the field's own border.
+           Scope with the block class (&.menu-header ...) so this wins over the
+           quiet variant's border resets in EVERY interaction state — rest,
+           hover, and focus. Without the extra specificity the variant's
+           :focused reset ties on specificity and wins on source order, so a
+           focused (e.g. autoFocused) search field silently loses its divider.
+           Invalid fields keep their danger border. */
+        &.menu-header
+          .search-field[data-variant="quiet"]
+          .react-aria-Input:not([data-invalid]) {
           border-bottom-color: var(--global-menu-border-color);
         }
-        * + .search-field[data-variant="quiet"] .react-aria-Input,
-        *
+        &.menu-header
+          *
           + .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+          .react-aria-Input:not([data-invalid]) {
           border-top-color: var(--global-menu-border-color);
         }
       `}
@@ -450,24 +455,6 @@ export const MenuFooter = ({ children }: PropsWithChildren) => {
     >
       {children}
     </div>
-  );
-};
-
-/**
- * A component to render a consistent empty state message inside a Menu.
- * Use this with the `renderEmptyState` prop on Menu or ListBox components.
- * @example
- * <Menu renderEmptyState={() => <MenuEmpty>No items found</MenuEmpty>}>
- *   ...
- * </Menu>
- */
-export const MenuEmpty = ({ children }: PropsWithChildren) => {
-  return (
-    <View padding="size-200">
-      <Text color="text-700" size="S">
-        {children}
-      </Text>
-    </View>
   );
 };
 

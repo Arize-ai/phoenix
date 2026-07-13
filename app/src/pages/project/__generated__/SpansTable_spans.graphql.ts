@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7fcae1904d9688333785289f13ea1d45>>
+ * @generated SignedSource<<7e68925fc47aa9bedf39fda12b65ad44>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -62,6 +62,7 @@ export type SpansTable_spans$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
+        readonly statusMessage: string;
         readonly tokenCountTotal?: number | null;
         readonly trace: {
           readonly costSummary?: {
@@ -350,6 +351,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "statusMessage",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "startTime",
                   "storageKey": null
                 },
@@ -628,6 +636,6 @@ return {
 };
 })();
 
-(node as any).hash = "453f087b57550ce764bfba3c2054d946";
+(node as any).hash = "7a6b7fc962a099a5847db8f15ab8c73d";
 
 export default node;

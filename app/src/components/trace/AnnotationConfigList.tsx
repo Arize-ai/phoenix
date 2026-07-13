@@ -9,9 +9,10 @@ import {
 
 import {
   Autocomplete,
+  Icon,
+  Icons,
   Input,
   Menu,
-  MenuEmpty,
   MenuHeader,
   MenuItem,
   SearchField,
@@ -20,16 +21,23 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
+import type { AnnotationConfigListAddAnnotationConfigToProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListAddAnnotationConfigToProjectMutation.graphql";
 import type { AnnotationConfigListAssociateAnnotationConfigWithProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListAssociateAnnotationConfigWithProjectMutation.graphql";
 import type { AnnotationConfigListProjectAnnotationConfigFragment$key } from "@phoenix/components/trace/__generated__/AnnotationConfigListProjectAnnotationConfigFragment.graphql";
 import type { AnnotationConfigListQuery } from "@phoenix/components/trace/__generated__/AnnotationConfigListQuery.graphql";
 import type { AnnotationConfigListRemoveAnnotationConfigFromProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListRemoveAnnotationConfigFromProjectMutation.graphql";
+import type { AnnotationConfigListRemoveAnnotationConfigFromProjectOnlyMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListRemoveAnnotationConfigFromProjectOnlyMutation.graphql";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 export function AnnotationConfigList(props: {
   projectId: string;
-  spanId: string;
+  /**
+   * When provided, associating/dissociating a config also refreshes the span's
+   * annotations. Omit for surfaces that do not edit span annotations (e.g. sessions).
+   */
+  spanId?: string;
   refetchKey?: number;
 }) {
   const { projectId, spanId, refetchKey = 0 } = props;
@@ -183,9 +191,67 @@ export function AnnotationConfigList(props: {
       `
     );
 
+  // mutations for surfaces without a span to refresh
+  const [addAnnotationConfigToProjectOnlyMutation] =
+    useMutation<AnnotationConfigListAddAnnotationConfigToProjectMutation>(
+      graphql`
+        mutation AnnotationConfigListAddAnnotationConfigToProjectMutation(
+          $projectId: ID!
+          $annotationConfigId: ID!
+        ) {
+          addAnnotationConfigToProject(
+            input: {
+              projectId: $projectId
+              annotationConfigId: $annotationConfigId
+            }
+          ) {
+            query {
+              projectNode: node(id: $projectId) {
+                ... on Project {
+                  id
+                  ...AnnotationConfigListProjectAnnotationConfigFragment
+                }
+              }
+            }
+          }
+        }
+      `
+    );
+  const [removeAnnotationConfigFromProjectOnlyMutation] =
+    useMutation<AnnotationConfigListRemoveAnnotationConfigFromProjectOnlyMutation>(
+      graphql`
+        mutation AnnotationConfigListRemoveAnnotationConfigFromProjectOnlyMutation(
+          $projectId: ID!
+          $annotationConfigId: ID!
+        ) {
+          removeAnnotationConfigFromProject(
+            input: {
+              projectId: $projectId
+              annotationConfigId: $annotationConfigId
+            }
+          ) {
+            query {
+              projectNode: node(id: $projectId) {
+                ... on Project {
+                  id
+                  ...AnnotationConfigListProjectAnnotationConfigFragment
+                }
+              }
+            }
+          }
+        }
+      `
+    );
+
   const addAnnotationConfigToProject = useCallback(
     (annotationConfigId: string) => {
       startTransition(() => {
+        if (spanId == null) {
+          addAnnotationConfigToProjectOnlyMutation({
+            variables: { projectId, annotationConfigId },
+          });
+          return;
+        }
         addAnnotationConfigToProjectMutation({
           variables: {
             projectId,
@@ -196,11 +262,25 @@ export function AnnotationConfigList(props: {
         });
       });
     },
-    [projectId, addAnnotationConfigToProjectMutation, spanId, viewerId]
+    [
+      projectId,
+      addAnnotationConfigToProjectMutation,
+      addAnnotationConfigToProjectOnlyMutation,
+      spanId,
+      viewerId,
+    ]
   );
 
   const removeAnnotationConfigFromProject = useCallback(
     (annotationConfigId: string) => {
+      if (spanId == null) {
+        startTransition(() => {
+          removeAnnotationConfigFromProjectOnlyMutation({
+            variables: { projectId, annotationConfigId },
+          });
+        });
+        return;
+      }
       removeAnnotationConfigFromProjectMutation({
         variables: {
           projectId,
@@ -210,7 +290,13 @@ export function AnnotationConfigList(props: {
         },
       });
     },
-    [projectId, removeAnnotationConfigFromProjectMutation, spanId, viewerId]
+    [
+      projectId,
+      removeAnnotationConfigFromProjectMutation,
+      removeAnnotationConfigFromProjectOnlyMutation,
+      spanId,
+      viewerId,
+    ]
   );
 
   const allAnnotationConfigs = useMemo(
@@ -271,7 +357,10 @@ export function AnnotationConfigList(props: {
         selectedKeys={annotationConfigIdsInProject}
         onSelectionChange={handleSelectionChange}
         renderEmptyState={() => (
-          <MenuEmpty>No annotation configs found.</MenuEmpty>
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.List />} />}
+            description="No annotation configs"
+          />
         )}
       >
         {({ id, name, annotationType }) => (

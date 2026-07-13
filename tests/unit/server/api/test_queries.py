@@ -459,8 +459,7 @@ async def test_compare_experiments_validation_errors(
     assert response.errors[0].message == expected_error
 
 
-@pytest.mark.skip(reason="TODO: re-enable this test after we figure out the issue with sqlite")
-async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
+async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> None:
     query = """
       query {
         dbTableStats {
@@ -472,7 +471,15 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     response = await gql_client.execute(query=query)
     assert not response.errors
     assert (data := response.data) is not None
-    assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
+    stats = data["dbTableStats"]
+    assert all(s["numBytes"] >= 0 for s in stats)
+    if dialect == "sqlite":
+        # the sqlite resolver reports a single aggregate row for the whole file
+        assert [s["tableName"] for s in stats] == ["SQLite"]
+    else:
+        assert {s["tableName"] for s in stats} >= {
+            table.name for table in models.Base.metadata.tables.values()
+        }
 
 
 async def test_agents_config_returns_env_values(
@@ -481,6 +488,7 @@ async def test_agents_config_returns_env_values(
 ) -> None:
     monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "http://collector.example:4318")
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "custom_assistant")
+    monkeypatch.setenv("PHOENIX_AGENTS_FORCE_TRACING", "true")
     monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
     monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", "false")
     query = """
@@ -488,7 +496,10 @@ async def test_agents_config_returns_env_values(
         agentsConfig {
           collectorEndpoint
           assistantProjectName
+          forceTracing
           webAccessEnabled
+          allowLocalTraces
+          allowRemoteExport
         }
       }
     """
@@ -498,7 +509,10 @@ async def test_agents_config_returns_env_values(
     assert data["agentsConfig"] == {
         "collectorEndpoint": "http://collector.example:4318",
         "assistantProjectName": "custom_assistant",
+        "forceTracing": True,
         "webAccessEnabled": True,
+        "allowLocalTraces": True,
+        "allowRemoteExport": True,
     }
 
 
@@ -508,6 +522,7 @@ async def test_agents_config_defaults_when_env_unset(
 ) -> None:
     monkeypatch.delenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", raising=False)
     monkeypatch.delenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", raising=False)
+    monkeypatch.delenv("PHOENIX_AGENTS_FORCE_TRACING", raising=False)
     monkeypatch.delenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", raising=False)
     monkeypatch.delenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", raising=False)
     query = """
@@ -515,6 +530,7 @@ async def test_agents_config_defaults_when_env_unset(
         agentsConfig {
           collectorEndpoint
           assistantProjectName
+          forceTracing
           webAccessEnabled
         }
       }
@@ -525,6 +541,7 @@ async def test_agents_config_defaults_when_env_unset(
     assert data["agentsConfig"] == {
         "collectorEndpoint": None,
         "assistantProjectName": "assistant_agent",
+        "forceTracing": False,
         "webAccessEnabled": True,
     }
 
@@ -2799,7 +2816,7 @@ async def test_available_agent_skills_base_catalog(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # No context mounted: only the always-on skills, in catalog order, no gated ones.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql"]
+    assert names == ["debug-trace", "annotate-spans", "span-coding", "phoenix-graphql"]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
     assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
@@ -2816,7 +2833,13 @@ async def test_available_agent_skills_playground_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # Playground context adds the playground skill on top of the always-on base.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "playground"]
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "span-coding",
+        "phoenix-graphql",
+        "playground",
+    ]
 
 
 async def test_available_agent_skills_dataset_context(
@@ -2833,6 +2856,7 @@ async def test_available_agent_skills_dataset_context(
     assert names == [
         "debug-trace",
         "annotate-spans",
+        "span-coding",
         "phoenix-graphql",
         "datasets",
         "experiments",
@@ -2851,7 +2875,13 @@ async def test_available_agent_skills_llm_evaluator_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "span-coding",
+        "phoenix-graphql",
+        "evaluators",
+    ]
 
 
 async def test_available_agent_skills_code_evaluator_context(
@@ -2865,7 +2895,13 @@ async def test_available_agent_skills_code_evaluator_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "span-coding",
+        "phoenix-graphql",
+        "evaluators",
+    ]
 
 
 async def test_node_with_noninteger_payload_returns_bad_request(
@@ -2879,3 +2915,160 @@ async def test_node_with_noninteger_payload_returns_bad_request(
     assert response.data is None
     assert response.errors
     assert f"Invalid node id: {bad_id}" in response.errors[0].message
+
+
+@pytest.fixture
+async def resources_for_search(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Seed projects, datasets, experiments, and prompts where some match the
+    term "chatbot" by name, some by description, and some not at all.
+    """
+    async with db() as session:
+        session.add(models.Project(name="chatbot-project"))
+        session.add(models.Project(name="other-project", description="A chatbot playground"))
+        session.add(models.Project(name="unrelated-project", description="nothing to see"))
+
+        dataset_matching_by_name = models.Dataset(name="chatbot-dataset", metadata_={})
+        dataset_matching_by_description = models.Dataset(
+            name="golden-questions",
+            description="Examples for the CHATBOT",
+            metadata_={},
+        )
+        unmatched_dataset = models.Dataset(name="other-dataset", metadata_={})
+        session.add(dataset_matching_by_name)
+        session.add(dataset_matching_by_description)
+        session.add(unmatched_dataset)
+        await session.flush()
+
+        dataset_version = models.DatasetVersion(
+            dataset_id=dataset_matching_by_name.id, metadata_={}
+        )
+        session.add(dataset_version)
+        await session.flush()
+
+        session.add(
+            models.Experiment(
+                dataset_id=dataset_matching_by_name.id,
+                dataset_version_id=dataset_version.id,
+                name="chatbot-experiment",
+                repetitions=1,
+                metadata_={},
+            )
+        )
+        session.add(
+            models.Experiment(
+                dataset_id=dataset_matching_by_name.id,
+                dataset_version_id=dataset_version.id,
+                name="chatbot-ephemeral-experiment",
+                repetitions=1,
+                is_ephemeral=True,
+                metadata_={},
+            )
+        )
+
+        session.add(models.Prompt(name=Identifier(root="chatbot_prompt"), metadata_={}))
+        session.add(
+            models.Prompt(
+                name=Identifier(root="agent_prompt"),
+                description="Prompt for the chatbot",
+                metadata_={},
+            )
+        )
+        session.add(models.Prompt(name=Identifier(root="unrelated_prompt"), metadata_={}))
+
+
+class TestSearchResources:
+    _QUERY = """
+      query ($query: String!, $limitPerType: Int! = 5) {
+        searchResources(query: $query, limitPerType: $limitPerType) {
+          __typename
+          ... on Project { name }
+          ... on Dataset { name }
+          ... on Experiment { name }
+          ... on Prompt { promptName: name }
+        }
+      }
+    """
+
+    async def test_matches_name_and_description_across_types(
+        self,
+        gql_client: AsyncGraphQLClient,
+        resources_for_search: None,
+    ) -> None:
+        response = await gql_client.execute(query=self._QUERY, variables={"query": "chatbot"})
+        assert response.data and not response.errors
+        results = response.data["searchResources"]
+        by_type: dict[str, list[str]] = {}
+        for result in results:
+            name = result.get("name") or result["promptName"]
+            by_type.setdefault(result["__typename"], []).append(name)
+        # Name matches rank before description-only matches within each type
+        assert by_type["Project"] == ["chatbot-project", "other-project"]
+        assert by_type["Dataset"] == ["chatbot-dataset", "golden-questions"]
+        # Ephemeral (playground) experiments are excluded
+        assert by_type["Experiment"] == ["chatbot-experiment"]
+        assert by_type["Prompt"] == ["chatbot_prompt", "agent_prompt"]
+
+    async def test_search_is_case_insensitive(
+        self,
+        gql_client: AsyncGraphQLClient,
+        resources_for_search: None,
+    ) -> None:
+        response = await gql_client.execute(query=self._QUERY, variables={"query": "CHATBOT"})
+        assert response.data and not response.errors
+        assert len(response.data["searchResources"]) == 7
+
+    async def test_blank_query_returns_no_results(
+        self,
+        gql_client: AsyncGraphQLClient,
+        resources_for_search: None,
+    ) -> None:
+        response = await gql_client.execute(query=self._QUERY, variables={"query": "   "})
+        assert response.data and not response.errors
+        assert response.data["searchResources"] == []
+
+    async def test_limit_per_type_caps_each_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+        resources_for_search: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self._QUERY, variables={"query": "chatbot", "limitPerType": 1}
+        )
+        assert response.data and not response.errors
+        names = [
+            result.get("name") or result["promptName"]
+            for result in response.data["searchResources"]
+        ]
+        # One result per type, and the name match wins over the description match
+        assert names == [
+            "chatbot-project",
+            "chatbot-dataset",
+            "chatbot-experiment",
+            "chatbot_prompt",
+        ]
+
+    async def test_like_wildcards_are_matched_literally(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            session.add(models.Project(name="a_b metrics"))
+            session.add(models.Project(name="axb metrics"))
+            session.add(models.Project(name="100% coverage"))
+            session.add(models.Project(name="fifty coverage"))
+
+        # "_" must not act as a single-character wildcard
+        response = await gql_client.execute(query=self._QUERY, variables={"query": "a_b"})
+        assert response.data and not response.errors
+        names = [result["name"] for result in response.data["searchResources"]]
+        assert names == ["a_b metrics"]
+
+        # "%" must not act as a multi-character wildcard
+        response = await gql_client.execute(query=self._QUERY, variables={"query": "100%"})
+        assert response.data and not response.errors
+        names = [result["name"] for result in response.data["searchResources"]]
+        assert names == ["100% coverage"]

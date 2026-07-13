@@ -91,7 +91,7 @@ These evaluators will run by default when an experiment is performed using the d
 
 Metaphorically speaking, datasets now define a workbench. When you load a particular dataset into the prompt playground, it automatically sets up the evaluators, which form a metaphorical "unit" testing suite.
 
-### Project Evaluators (e.g. online evals)
+### Project Evaluators
 
 As a user of Phoenix, once I start production tracing, I want certain segments of my data to be automatically evaluated at or after ingestion so that I can monitor and triage critical or potential failures. Project evaluators are the use of the above evaluation methodologies but with an associated automation. An example of a project evaluator definition might be:
 
