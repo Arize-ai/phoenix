@@ -286,6 +286,17 @@ class TestEnsureModelCosts:
         """Extract token prices as a comparable dictionary."""
         return {(tp.token_type, tp.is_prompt): tp.base_rate for tp in model.token_prices}
 
+    def _extract_token_price_customizations(
+        self, model: models.GenerativeModel
+    ) -> dict[tuple[str, bool], dict[str, Any] | None]:
+        """Extract token price customizations as a comparable dictionary."""
+        return {
+            (tp.token_type, tp.is_prompt): (
+                tp.customization.model_dump() if tp.customization else None
+            )
+            for tp in model.token_prices
+        }
+
     async def _get_deleted_model_names(self, db: DbSessionFactory) -> set[str]:
         """Get names of soft-deleted built-in models."""
         async with db() as session:
@@ -301,6 +312,74 @@ class TestEnsureModelCosts:
         import json
 
         manifest_path.write_text(json.dumps({"models": models}, indent=2))
+
+    async def test_ensure_model_costs_syncs_token_price_customization(
+        self,
+        _patch_manifest: Path,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+
+        self._update_manifest(
+            _patch_manifest,
+            [
+                {
+                    "name": "threshold-model",
+                    "name_pattern": r"(?i)^(threshold-model)$",
+                    "token_prices": [
+                        {
+                            "base_rate": 0.000001,
+                            "is_prompt": True,
+                            "token_type": "input",
+                            "customization": {
+                                "type": "threshold_based",
+                                "key": "llm.token_count.prompt",
+                                "threshold": 200000.0,
+                                "new_rate": 0.000002,
+                            },
+                        },
+                    ],
+                },
+            ],
+        )
+
+        await _ensure_model_costs(db)
+
+        built_in_models = await self._get_models(db, is_built_in=True)
+        customizations = self._extract_token_price_customizations(
+            built_in_models["threshold-model"]
+        )
+        assert customizations[("input", True)] == {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000002,
+        }
+
+        self._update_manifest(
+            _patch_manifest,
+            [
+                {
+                    "name": "threshold-model",
+                    "name_pattern": r"(?i)^(threshold-model)$",
+                    "token_prices": [
+                        {
+                            "base_rate": 0.000001,
+                            "is_prompt": True,
+                            "token_type": "input",
+                        },
+                    ],
+                },
+            ],
+        )
+
+        await _ensure_model_costs(db)
+
+        built_in_models = await self._get_models(db, is_built_in=True)
+        customizations = self._extract_token_price_customizations(
+            built_in_models["threshold-model"]
+        )
+        assert customizations[("input", True)] is None
 
     async def test_ensure_model_costs(
         self,

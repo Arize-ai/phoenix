@@ -3,16 +3,25 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from urllib.request import urlopen
 
+from openinference.semconv.trace import SpanAttributes
 from pydantic import AfterValidator, BaseModel
+
+
+class ThresholdBasedTokenPriceCustomization(BaseModel):
+    type: Literal["threshold_based"] = "threshold_based"
+    key: str
+    threshold: float
+    new_rate: float
 
 
 class TokenPrice(BaseModel):
     base_rate: float
     is_prompt: bool
     token_type: str
+    customization: ThresholdBasedTokenPriceCustomization | None = None
 
 
 def validate_regular_expression(value: str) -> str:
@@ -52,6 +61,26 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "perplexity/": None,
     "together_ai/": "together",
 }
+
+TOKEN_PRICE_FIELDS: dict[str, tuple[str, bool]] = {
+    "input_cost_per_token": ("input", True),
+    "output_cost_per_token": ("output", False),
+    "cache_read_input_token_cost": ("cache_read", True),
+    "cache_creation_input_token_cost": ("cache_write", True),
+    "input_cost_per_audio_token": ("audio", True),
+    "output_cost_per_audio_token": ("audio", False),
+}
+
+THRESHOLD_BASED_TOKEN_PRICE_FIELDS = {
+    "input_cost_per_token",
+    "output_cost_per_token",
+    "cache_read_input_token_cost",
+    "cache_creation_input_token_cost",
+}
+
+THRESHOLD_FIELD_PATTERN = re.compile(
+    r"^(?P<base_field>.+)_above_(?P<threshold_in_thousands>\d+)k_tokens$"
+)
 
 
 def parse_provider_prefix(model_id: str) -> tuple[bool, str | None, str]:
@@ -135,6 +164,49 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
+def extract_threshold_based_customization(
+    model_info: dict[str, Any],
+    base_field: str,
+) -> ThresholdBasedTokenPriceCustomization | None:
+    if base_field not in THRESHOLD_BASED_TOKEN_PRICE_FIELDS:
+        return None
+
+    customizations: list[ThresholdBasedTokenPriceCustomization] = []
+    for field, value in model_info.items():
+        match = THRESHOLD_FIELD_PATTERN.match(field)
+        if not match or match.group("base_field") != base_field:
+            continue
+        if new_rate := float(value or 0):
+            customizations.append(
+                ThresholdBasedTokenPriceCustomization(
+                    key=SpanAttributes.LLM_TOKEN_COUNT_PROMPT,
+                    threshold=float(match.group("threshold_in_thousands")) * 1000,
+                    new_rate=new_rate,
+                )
+            )
+
+    if not customizations:
+        return None
+    if len(customizations) > 1:
+        raise ValueError(f"Multiple threshold-based rates found for {base_field}")
+    return customizations[0]
+
+
+def token_price_from_litellm_field(
+    model_info: dict[str, Any],
+    field: str,
+) -> TokenPrice | None:
+    if not (base_rate := float(model_info.get(field, 0))):
+        return None
+    token_type, is_prompt = TOKEN_PRICE_FIELDS[field]
+    return TokenPrice(
+        token_type=token_type,
+        base_rate=base_rate,
+        is_prompt=is_prompt,
+        customization=extract_threshold_based_customization(model_info, field),
+    )
+
+
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
@@ -157,59 +229,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
 
         token_prices: list[TokenPrice] = []
 
-        if input_cost := float(model_info.get("input_cost_per_token", 0)):
-            token_prices.append(
-                TokenPrice(
-                    token_type="input",
-                    base_rate=input_cost,
-                    is_prompt=True,
-                )
-            )
-
-        if output_cost := float(model_info.get("output_cost_per_token", 0)):
-            token_prices.append(
-                TokenPrice(
-                    token_type="output",
-                    base_rate=output_cost,
-                    is_prompt=False,
-                )
-            )
-
-        if cache_read_cost := float(model_info.get("cache_read_input_token_cost", 0)):
-            token_prices.append(
-                TokenPrice(
-                    token_type="cache_read",
-                    base_rate=cache_read_cost,
-                    is_prompt=True,
-                )
-            )
-
-        if cache_creation_cost := float(model_info.get("cache_creation_input_token_cost", 0)):
-            token_prices.append(
-                TokenPrice(
-                    token_type="cache_write",
-                    base_rate=cache_creation_cost,
-                    is_prompt=True,
-                )
-            )
-
-        if input_audio_cost := float(model_info.get("input_cost_per_audio_token", 0)):
-            token_prices.append(
-                TokenPrice(
-                    token_type="audio",
-                    base_rate=input_audio_cost,
-                    is_prompt=True,
-                )
-            )
-
-        if output_audio_cost := float(model_info.get("output_cost_per_audio_token", 0)):
-            token_prices.append(
-                TokenPrice(
-                    token_type="audio",
-                    base_rate=output_audio_cost,
-                    is_prompt=False,
-                )
-            )
+        for field in TOKEN_PRICE_FIELDS:
+            if token_price := token_price_from_litellm_field(model_info, field):
+                token_prices.append(token_price)
 
         if token_prices:
             _, provider, stripped_name = parse_provider_prefix(model_id)
