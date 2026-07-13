@@ -1,7 +1,10 @@
 import { css } from "@emotion/react";
 import { Pressable } from "react-aria";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getAssistantMessageMetadata,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import {
   RichTooltip,
   Text,
@@ -43,7 +46,7 @@ function getLatestAssistantMessageUsage(
     if (message?.role !== "assistant") {
       continue;
     }
-    const usage = message.metadata?.usage;
+    const usage = getAssistantMessageMetadata(message)?.usage;
     if (usage == null) {
       continue;
     }

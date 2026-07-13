@@ -8,6 +8,7 @@ from collections.abc import (
     Awaitable,
     Callable,
     Iterable,
+    Sequence,
 )
 from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
@@ -35,7 +36,16 @@ from opentelemetry.trace import (
     format_trace_id,
     get_current_span,
 )
-from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    RootModel,
+    StringConstraints,
+    Tag,
+    field_validator,
+)
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
@@ -80,6 +90,7 @@ from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
+    AppContext,
     ChatContext,
     ResolvedContexts,
     resolve_contexts,
@@ -226,18 +237,87 @@ class TurnTraceContext(_CamelModel):
 class AssistantMessageMetadata(_CamelModel):
     """Wire schema for the chat stream's `message_metadata` payload."""
 
+    type: Literal["assistant"] = "assistant"
     session_id: str
     trace: AssistantMessageMetadataTraceIds | None = None
     turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
 
 
-class AssistantMetadataUIMessage(UIMessage):
-    """`UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`."""
+class UserMessageAppContext(_CamelModel):
+    """Browser clock stamped on a user message at send time.
 
-    metadata: AssistantMessageMetadata | None = (
-        None  # custom metadata type (provides stronger type in the OpenAPI schema)
+    Lives in message metadata (never rendered into the prompt directly) so the
+    stamp stays byte-stable in replayed history and does not invalidate the
+    Anthropic prompt-cache prefix. The `get_current_datetime` tool surfaces the
+    newest stamp to the model on demand.
+    """
+
+    current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
+    time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
+
+
+class UserMessageMetadata(_CamelModel):
+    """Wire schema for metadata the browser attaches to outgoing user messages."""
+
+    type: Literal["user"] = "user"
+    app_context: UserMessageAppContext
+
+
+def _discriminate_message_metadata(value: Any) -> str | None:
+    """Tag for the message-metadata union, discriminated on ``type``.
+
+    Histories persisted before the ``type`` tag existed carry untagged
+    assistant metadata, so fall back to shape inference: only the assistant
+    shape has a ``sessionId``.
+    """
+    if isinstance(value, dict):
+        tag = value.get("type")
+        if isinstance(tag, str):
+            return tag
+        return "assistant" if "sessionId" in value or "session_id" in value else "user"
+    tag = getattr(value, "type", None)
+    return tag if isinstance(tag, str) else None
+
+
+MessageMetadata = Annotated[
+    Annotated[AssistantMessageMetadata, Tag("assistant")]
+    | Annotated[UserMessageMetadata, Tag("user")],
+    Discriminator(_discriminate_message_metadata),
+]
+
+
+class PhoenixUIMessage(UIMessage):
+    """`UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+
+    Assistant messages carry `AssistantMessageMetadata` (streamed back via
+    `message_metadata`); user messages carry `UserMessageMetadata` (stamped by
+    the browser at send time).
+    """
+
+    metadata: MessageMetadata | None = (
+        None  # custom metadata types (provide stronger types in the OpenAPI schema)
     )
+
+
+def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext | None:
+    """Return the newest user-message browser-clock stamp, if any.
+
+    The stamp feeds ``deps.contexts.app`` for the ``get_current_datetime`` tool.
+    It deliberately never enters the system prompt: a per-turn timestamp there
+    changes the request prefix every turn and defeats provider prompt caching.
+    """
+    for message in reversed(messages):
+        if message.role != "user":
+            continue
+        if isinstance(message.metadata, UserMessageMetadata):
+            app_context = message.metadata.app_context
+            return AppContext(
+                type="app",
+                current_date_time=app_context.current_date_time,
+                time_zone=app_context.time_zone,
+            )
+    return None
 
 
 class _ObservabilityMixin(BaseModel):
@@ -280,7 +360,7 @@ class _ChatMessageMixin(_ObservabilityMixin):
             "Unknown or context-unavailable names are ignored."
         ),
     )
-    messages: list[AssistantMetadataUIMessage]
+    messages: list[PhoenixUIMessage]
     model: AgentModelSelection
     turn_trace_context: TurnTraceContext | None = Field(default=None, alias="turnTraceContext")
 
@@ -1294,6 +1374,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             tracer.tracer_provider.add_span_processor(agent_span_recorder)
 
         resolved_contexts = resolve_contexts(body.contexts)
+        # The message-metadata stamp is the primary browser-clock source; the
+        # request-level `app` context is a legacy fallback for older clients.
+        if (browser_clock := _resolve_browser_clock(body.messages)) is not None:
+            resolved_contexts.app = browser_clock
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         phoenix_user_email: str | None = None
@@ -1420,7 +1504,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     requested_skill_names=body.requested_skills,
                     available_skills=available_skills,
                     load_skill_template=agent_prompts.load_skill,
-                    message_factory=AssistantMetadataUIMessage,
+                    message_factory=PhoenixUIMessage,
                 )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,

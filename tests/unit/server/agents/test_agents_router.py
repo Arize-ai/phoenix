@@ -9,17 +9,83 @@ from sqlalchemy.exc import SAWarning
 
 from phoenix.db import models
 from phoenix.server.api.routers.agents import (
+    PhoenixUIMessage,
     TurnTraceContext,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
     _persist_db_traces,
+    _resolve_browser_clock,
     _resolve_turn_trace_ids,
     _synthesize_client_tool_spans,
     _turn_parent_context,
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, extract_otel_context
+
+
+def test_resolve_browser_clock_reads_newest_user_message_stamp() -> None:
+    messages = [
+        PhoenixUIMessage.model_validate(
+            {
+                "id": "u1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "hi"}],
+                "metadata": {
+                    "appContext": {
+                        "currentDateTime": "2026-05-04T08:00:00-07:00",
+                        "timeZone": "America/Los_Angeles",
+                    }
+                },
+            }
+        ),
+        PhoenixUIMessage.model_validate(
+            {
+                "id": "a1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "hello"}],
+                "metadata": {"sessionId": "session-1"},
+            }
+        ),
+        PhoenixUIMessage.model_validate(
+            {
+                "id": "u2",
+                "role": "user",
+                "parts": [{"type": "text", "text": "what happened today?"}],
+                "metadata": {
+                    "type": "user",
+                    "appContext": {
+                        "currentDateTime": "2026-05-05T09:30:00-07:00",
+                        "timeZone": "America/Los_Angeles",
+                    },
+                },
+            }
+        ),
+    ]
+
+    clock = _resolve_browser_clock(messages)
+
+    assert clock is not None
+    assert clock.current_date_time == "2026-05-05T09:30:00-07:00"
+    assert clock.time_zone == "America/Los_Angeles"
+
+
+def test_resolve_browser_clock_returns_none_without_stamped_user_messages() -> None:
+    messages = [
+        PhoenixUIMessage.model_validate(
+            {"id": "u1", "role": "user", "parts": [{"type": "text", "text": "hi"}]}
+        ),
+        PhoenixUIMessage.model_validate(
+            {
+                "id": "a1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "hello"}],
+                "metadata": {"sessionId": "session-1"},
+            }
+        ),
+    ]
+
+    assert _resolve_browser_clock(messages) is None
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
