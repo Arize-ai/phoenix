@@ -1,5 +1,26 @@
 # Changelog
 
+## [17.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.27.0...arize-phoenix-v17.28.0) (2026-07-13)
+
+
+### Features
+
+* **ui:** add session annotation editing in session details ([#13852](https://github.com/Arize-ai/phoenix/issues/13852)) ([522a9a9](https://github.com/Arize-ai/phoenix/commit/522a9a9e08865f4fa2943cac69f37533b04247a5))
+* **ui:** collapsible playground sections via TitledPanel ([#14324](https://github.com/Arize-ai/phoenix/issues/14324)) ([2858f8f](https://github.com/Arize-ai/phoenix/commit/2858f8f49b7a55985b686441c29bdb21890ac441))
+* **ui:** modernize core Tabs with animated selection indicator and scroll snapping ([#14325](https://github.com/Arize-ai/phoenix/issues/14325)) ([93016bf](https://github.com/Arize-ai/phoenix/commit/93016bfa58abc7493252e0d1fe75c3c0f10147f6))
+
+
+### Bug Fixes
+
+* harden one-click deploy templates ([#14323](https://github.com/Arize-ai/phoenix/issues/14323)) ([1466235](https://github.com/Arize-ai/phoenix/commit/14662353acc47bf3b8d9a0e13d8d70b0a0c0f0cf))
+* **ui:** propagate IO tooltip cell clicks ([#14326](https://github.com/Arize-ai/phoenix/issues/14326)) ([f675b2a](https://github.com/Arize-ai/phoenix/commit/f675b2adaf1296fe2e6aabaab3e3373af71fe78d))
+
+
+### Documentation
+
+* add one-click deploy buttons for self-hosting ([#14319](https://github.com/Arize-ai/phoenix/issues/14319)) ([ae5d520](https://github.com/Arize-ai/phoenix/commit/ae5d520e2db145f654989ffd7d2fd56fc0e53652))
+* Change 'Install Locally' to 'Run Locally' ([fb9cb32](https://github.com/Arize-ai/phoenix/commit/fb9cb32ed380a5615ee49c2e1ab94984d13c5814))
+
 ## [17.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.26.0...arize-phoenix-v17.27.0) (2026-07-12)
 
 

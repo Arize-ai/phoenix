@@ -943,6 +943,12 @@ class TraceSpanData(TypedDict):
     end_time: str
 
 
+class TurnTraceContext(TypedDict):
+    traceId: str
+    rootSpanId: str
+    startedAt: str
+
+
 class UpdateDatasetLabelRequestBody(TypedDict):
     name: NotRequired[str]
     color: NotRequired[str]
@@ -1025,8 +1031,16 @@ class FieldSummarizeResponse(TypedDict):
     summary: str
 
 
+class ToolCallCallbackProviderMetadata(TypedDict):
+    tool_execution_environment: Literal["client", "server"]
+    tool_input_emitted_at: NotRequired[str]
+    client_started_at: NotRequired[str]
+    client_ended_at: NotRequired[str]
+
+
 class ToolCallProviderMetadata(TypedDict):
     tool_execution_environment: Literal["client", "server"]
+    tool_input_emitted_at: NotRequired[str]
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
@@ -1590,6 +1604,7 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
 class AssistantMessageMetadata(TypedDict):
     sessionId: str
     trace: NotRequired[AssistantMessageMetadataTraceIds]
+    turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
 
 
@@ -1655,6 +1670,7 @@ class ChatRegenerateMessage(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1687,6 +1703,7 @@ class ChatSubmitMessage(TypedDict):
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):
