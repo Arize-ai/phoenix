@@ -7,17 +7,14 @@ on:
   pull_request:
 
 jobs:
-  # JOB to run change detection
   changes:
     runs-on: ubuntu-latest
-    # Required permissions
     permissions:
       pull-requests: read
-    # Set job outputs to values from filter step
     outputs:
       packages: ${{ steps.filter.outputs.packages }}
     steps:
-      # For pull requests it's not necessary to checkout the code
+      # No checkout needed: paths-filter reads the PR's changed files from the API.
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
@@ -52,14 +49,18 @@ jobs:
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: ./js/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: ./js
         run: pnpm install
 
+      # Only the publishable packages are needed; the examples/apps and benchmarks
+      # workspaces are private and their build output is discarded.
       - name: Build
         working-directory: ./js
-        run: pnpm -r build
+        run: pnpm --filter './packages/*' build
 
       # pkg-pr-new only rewrites a `workspace:*` dependency into a preview URL when the
       # depended-on package is part of the SAME publish invocation. Anything left out ships
