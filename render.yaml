@@ -6,9 +6,8 @@
 # This blueprint runs the official Phoenix Docker image alongside a managed
 # PostgreSQL database. Authentication is enabled by default: Render generates a
 # strong PHOENIX_SECRET for you, and the first login uses the default admin
-# account (email: admin@localhost). Set PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
-# below before deploying, or you will be prompted to change the password
-# ("admin") on first login.
+# account (email: admin@localhost, password: admin). You will be required to
+# set a new password on first login.
 services:
   - type: web
     name: phoenix
@@ -26,12 +25,17 @@ services:
       # --- Authentication (enabled by default) ---
       - key: PHOENIX_ENABLE_AUTH
         value: "true"
+      # Phoenix requires the secret to contain at least one digit. Render's
+      # generated value almost always satisfies this; in the rare case the
+      # container exits with a PHOENIX_SECRET validation error, regenerate the
+      # value or set your own (32+ chars with a digit and a lowercase letter).
       - key: PHOENIX_SECRET
         generateValue: true
       - key: PHOENIX_USE_SECURE_COOKIES
         value: "true"
       # Optional: uncomment and set to override the default admin password
-      # ("admin"). Otherwise you'll be forced to change it on first login.
+      # ("admin"). Either way, you will still be required to change the
+      # password on first login.
       # - key: PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
       #   sync: false
       # --- Persistent storage ---
@@ -43,5 +47,6 @@ services:
 databases:
   - name: phoenix-db
     plan: basic-1gb
+    diskSizeGB: 50
     databaseName: phoenix
     user: phoenix
