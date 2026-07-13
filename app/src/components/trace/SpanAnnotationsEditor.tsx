@@ -47,12 +47,12 @@ import type { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/com
 import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
 import type { AnnotationFormMutationResult } from "@phoenix/components/trace/AnnotationFormProvider";
 import { AnnotationFormProvider } from "@phoenix/components/trace/AnnotationFormProvider";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
 import type { Mutable } from "@phoenix/typeUtils";
 import { isStringArray } from "@phoenix/typeUtils";
-import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";

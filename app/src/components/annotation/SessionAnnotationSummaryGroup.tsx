@@ -82,27 +82,33 @@ const useSessionAnnotationSummaryGroup = (
   // newest first - sessions don't have createdAt on annotations
   const annotationsByName = useMemo(
     () =>
-      sessionAnnotations.reduce((acc, annotation) => {
-        if (annotation.label == null && annotation.score == null) {
+      sessionAnnotations.reduce(
+        (acc, annotation) => {
+          if (annotation.label == null && annotation.score == null) {
+            return acc;
+          }
+          if (!acc[annotation.name]) {
+            acc[annotation.name] = [annotation];
+          } else {
+            acc[annotation.name] = [annotation, ...acc[annotation.name]];
+          }
           return acc;
-        }
-        if (!acc[annotation.name]) {
-          acc[annotation.name] = [annotation];
-        } else {
-          acc[annotation.name] = [annotation, ...acc[annotation.name]];
-        }
-        return acc;
-      }, {} as Record<string, typeof sessionAnnotations>),
+        },
+        {} as Record<string, typeof sessionAnnotations>
+      ),
     [sessionAnnotations]
   );
   const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {} as Record<string, AnnotationConfigCategorical>);
+    return data.project.annotationConfigs.edges.reduce(
+      (acc, edge) => {
+        const name = edge.node.name;
+        if (name && edge.node.annotationType === "CATEGORICAL") {
+          acc[name] = edge.node as AnnotationConfigCategorical;
+        }
+        return acc;
+      },
+      {} as Record<string, AnnotationConfigCategorical>
+    );
   }, [data.project.annotationConfigs]);
   return {
     sortedSummariesByName,
