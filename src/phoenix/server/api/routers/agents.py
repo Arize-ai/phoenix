@@ -114,7 +114,6 @@ from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
-    PHOENIX_TRACEPARENT_HEADER,
     Tracer,
     build_synthetic_readable_span,
     detached_otel_context,
@@ -1352,16 +1351,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model_provider_availability=model_provider_availability,
         )
 
-        turn_ids: _TurnTraceIds | None = None
-        headers = dict(request.headers)
-        has_legacy_traceparent = any(key.lower() == PHOENIX_TRACEPARENT_HEADER for key in headers)
-        if body.turn_trace is None and has_legacy_traceparent:
-            # Legacy browser bundles author the root and parent this request.
-            # TODO: remove this path after one release.
-            parent_context = extract_otel_context(headers)
-        else:
-            turn_ids = _resolve_turn_trace_ids(body.turn_trace, now=request_received_at)
-            parent_context = _turn_parent_context(turn_ids)
+        turn_ids = _resolve_turn_trace_ids(body.turn_trace, now=request_received_at)
+        parent_context = _turn_parent_context(turn_ids)
         request_parent_span_context = _get_span_context(parent_context)
 
         turn_final_output_text: str | None = None
@@ -1385,7 +1376,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         root_span_id=format_span_id(turn_ids.root_span_id),
                         started_at=turn_ids.started_at,
                     )
-                    if turn_ids is not None and tracer is not None
+                    if tracer is not None
                     else None
                 ),
                 session_id=session_id,
@@ -1396,7 +1387,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             stream_error: BaseException | None = None
             try:
-                if tracer is not None and turn_ids is not None and body.turn_trace is not None:
+                if tracer is not None and body.turn_trace is not None:
                     # Later requests may repeat earlier tool parts; deterministic
                     # span IDs make persistence and remote ingestion idempotent.
                     _synthesize_client_tool_spans(
@@ -1469,7 +1460,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 raise
             finally:
                 if tracer is not None:
-                    if turn_ids is not None and (turn_is_terminal or stream_error is not None):
+                    if turn_is_terminal or stream_error is not None:
                         _emit_turn_root_span(
                             tracer=tracer,
                             turn_ids=turn_ids,
