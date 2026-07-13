@@ -21,8 +21,8 @@ test.describe("Prompt Management", () => {
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
-    await page.getByLabel("Prompt Description").click();
-    await page.getByLabel("Prompt Description").fill("very kind chatbot");
+    await page.getByLabel("Description (optional)").click();
+    await page.getByLabel("Description (optional)").fill("very kind chatbot");
     await page.getByRole("button", { name: "Create Prompt" }).click();
 
     // After saving, the URL should contain the promptId
@@ -46,8 +46,8 @@ test.describe("Prompt Management", () => {
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
-    await page.getByLabel("Prompt Description").click();
-    await page.getByLabel("Prompt Description").fill("very kind chatbot");
+    await page.getByLabel("Description (optional)").click();
+    await page.getByLabel("Description (optional)").fill("very kind chatbot");
     await page.getByRole("button", { name: "Create Prompt" }).click();
 
     // Capture the promptId from the URL after creation
@@ -80,7 +80,7 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     // Save the prompt
-    await page.getByLabel("Change Description").fill("very angry chatbot");
+    await page.getByLabel("Description (optional)").fill("very angry chatbot");
     await page.getByRole("button", { name: "Update Prompt" }).click();
 
     // After updating, verify the URL still tracks the same prompt
@@ -109,7 +109,9 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "Save Prompt" }).click();
     await page.getByPlaceholder("Select or enter new prompt").click();
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
-    await page.getByLabel("Prompt Description").fill("table row test prompt");
+    await page
+      .getByLabel("Description (optional)")
+      .fill("table row test prompt");
     await page.getByRole("button", { name: "Create Prompt" }).click();
     await expect(page).toHaveURL(/promptId=/);
 

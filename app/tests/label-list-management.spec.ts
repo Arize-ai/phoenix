@@ -61,7 +61,7 @@ async function createPrompt(page: Page, promptName: string) {
   await page.getByRole("button", { name: "Save Prompt" }).click();
   await page.getByPlaceholder("Select or enter new prompt").click();
   await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
-  await page.getByLabel("Prompt Description").fill("label e2e coverage");
+  await page.getByLabel("Description (optional)").fill("label e2e coverage");
   await page.getByRole("button", { name: "Create Prompt" }).click();
   await expect(page).toHaveURL(/promptId=/);
 }
