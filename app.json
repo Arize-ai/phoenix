@@ -15,7 +15,7 @@
       "value": "true"
     },
     "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": {
-      "description": "Initial password for the default admin account (email: admin@localhost). Only used on first startup. Leave blank to use 'admin' and change it on first login.",
+      "description": "Initial password for the default admin account (email: admin@localhost). Only used on first startup. Leave blank to use 'admin'. Either way, you will be required to set a new password on first login.",
       "required": false
     },
     "PHOENIX_SQL_DATABASE_URL": {
