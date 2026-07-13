@@ -6,6 +6,7 @@ from typing import Sequence
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.exporter.otlp.proto.http import trace_exporter as otlp_http_trace_exporter
+from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import (
     Status,
@@ -24,6 +25,7 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import (
     Tracer,
     _build_remote_http_span_exporter,
+    build_synthetic_readable_span,
     detached_otel_context,
     extract_otel_context,
 )
@@ -32,48 +34,14 @@ from phoenix.tracers import (
 class TestExtractOtelContext:
     STANDARD_TRACE_ID = "11111111111111111111111111111111"
     STANDARD_SPAN_ID = "2222222222222222"
-    PHOENIX_TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736"
-    PHOENIX_SPAN_ID = "00f067aa0ba902b7"
 
-    def test_prefers_phoenix_traceparent_over_standard(self) -> None:
-        """A RUM SDK or proxy may rewrite ``traceparent``; the Phoenix-specific
-        header must win so PXI spans stay parented to the browser root."""
-        extracted = extract_otel_context(
-            {
-                "traceparent": f"00-{self.STANDARD_TRACE_ID}-{self.STANDARD_SPAN_ID}-01",
-                "x-phoenix-traceparent": f"00-{self.PHOENIX_TRACE_ID}-{self.PHOENIX_SPAN_ID}-01",
-            }
-        )
-        span_context = get_current_span(extracted).get_span_context()
-        assert format_trace_id(span_context.trace_id) == self.PHOENIX_TRACE_ID
-        assert format_span_id(span_context.span_id) == self.PHOENIX_SPAN_ID
-
-    def test_phoenix_headers_are_case_insensitive(self) -> None:
-        extracted = extract_otel_context(
-            {"X-Phoenix-Traceparent": f"00-{self.PHOENIX_TRACE_ID}-{self.PHOENIX_SPAN_ID}-01"}
-        )
-        span_context = get_current_span(extracted).get_span_context()
-        assert format_trace_id(span_context.trace_id) == self.PHOENIX_TRACE_ID
-
-    def test_falls_back_to_standard_traceparent(self) -> None:
+    def test_extracts_standard_traceparent(self) -> None:
         extracted = extract_otel_context(
             {"traceparent": f"00-{self.STANDARD_TRACE_ID}-{self.STANDARD_SPAN_ID}-01"}
         )
         span_context = get_current_span(extracted).get_span_context()
         assert format_trace_id(span_context.trace_id) == self.STANDARD_TRACE_ID
         assert format_span_id(span_context.span_id) == self.STANDARD_SPAN_ID
-
-    def test_phoenix_tracestate_accompanies_phoenix_traceparent(self) -> None:
-        extracted = extract_otel_context(
-            {
-                "x-phoenix-traceparent": f"00-{self.PHOENIX_TRACE_ID}-{self.PHOENIX_SPAN_ID}-01",
-                "x-phoenix-tracestate": "phoenix=turn",
-                "tracestate": "dd=rum",
-            }
-        )
-        span_context = get_current_span(extracted).get_span_context()
-        assert span_context.trace_state.get("phoenix") == "turn"
-        assert span_context.trace_state.get("dd") is None
 
     def test_returns_invalid_context_for_empty_carrier(self) -> None:
         extracted = extract_otel_context({})
@@ -563,6 +531,47 @@ class TestTracer:
             tracer._self_provider.resource.attributes["openinference.project.name"]
             == "assistant_agent"
         )
+
+    def test_synthetic_span_uses_local_and_remote_processors(
+        self,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        remotely_exported: list[ReadableSpan] = []
+
+        class FakeRemoteExporter(SpanExporter):
+            def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+                remotely_exported.extend(spans)
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self) -> None:
+                return None
+
+        tracer = Tracer(
+            span_cost_calculator=span_cost_calculator,
+            enable_remote_export=True,
+            remote_collector_endpoint="https://collector.example",
+            remote_span_exporter_factory=lambda _: FakeRemoteExporter(),
+        )
+        now = datetime(2026, 7, 10, tzinfo=timezone.utc)
+        synthetic_span = build_synthetic_readable_span(
+            name="synthetic",
+            trace_id=int("1" * 32, 16),
+            span_id=int("2" * 16, 16),
+            parent_span_id=None,
+            start_time=now,
+            end_time=now,
+            attributes={OPENINFERENCE_SPAN_KIND: "AGENT"},
+            status=Status(StatusCode.OK),
+            resource=tracer.resource,
+        )
+
+        tracer.record_readable_span(synthetic_span)
+        assert tracer.force_flush()
+
+        db_traces = tracer.get_db_traces(project_id=1)
+        assert db_traces[0].trace_id == "1" * 32
+        assert db_traces[0].spans[0].span_id == "2" * 16
+        assert remotely_exported == [synthetic_span]
 
     @pytest.mark.asyncio
     async def test_save_db_traces_persists_events_and_exceptions(

@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { startTransition, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 
@@ -20,6 +21,10 @@ import { SearchIcon } from "@phoenix/components/core/field";
 import type { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
 import type { DatasetSelectorPopoverContentDatasetsQuery } from "./__generated__/DatasetSelectorPopoverContentDatasetsQuery.graphql";
 import type { DatasetSelectorPopoverContentQuery } from "./__generated__/DatasetSelectorPopoverContentQuery.graphql";
+
+const datasetMenuCSS = css`
+  max-height: var(--global-menu-max-height-small);
+`;
 
 export type DatasetSelectorPopoverContentProps = {
   onCreateNewDataset: () => void;
@@ -109,6 +114,7 @@ function DatasetsList(props: {
         </SearchField>
       </MenuHeader>
       <Menu
+        css={datasetMenuCSS}
         aria-label="datasets"
         items={items}
         selectionMode="single"

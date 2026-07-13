@@ -1,8 +1,13 @@
 import { fetchQuery, graphql } from "react-relay";
-import type { StateCreator } from "zustand";
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
+import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
+import {
+  DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
+  isExperimentMetricChartKey,
+  MAX_SELECTED_EXPERIMENT_METRIC_CHARTS,
+} from "@phoenix/pages/dataset/constants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { datasetStore_latestVersionQuery } from "./__generated__/datasetStore_latestVersionQuery.graphql";
@@ -31,6 +36,10 @@ export interface DatasetStoreProps {
    * Track if the latest version is being refreshed
    */
   isRefreshingLatestVersion: boolean;
+  /**
+   * The metric charts to show above the experiments table
+   */
+  experimentsMetricChartKeys: ExperimentMetricChartKey[];
 }
 
 export type InitialDatasetStoreProps = Pick<
@@ -43,34 +52,72 @@ export interface DatasetStoreState extends DatasetStoreProps {
    * Refreshes the latest version of the dataset
    */
   refreshLatestVersion: () => void;
+  /**
+   * Set the metric charts to show above the experiments table
+   */
+  setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => void;
 }
 
+const makeDatasetStoreKey = (datasetId: string) =>
+  `arize-phoenix-dataset-${datasetId}`;
+
 export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
-  const datasetStore: StateCreator<
-    DatasetStoreState,
-    [["zustand/devtools", unknown]]
-  > = (set, get) => ({
-    ...initialProps,
-    isRefreshingLatestVersion: false,
-    refreshLatestVersion: async () => {
-      const dataset = get();
-      set({ isRefreshingLatestVersion: true }, false, {
-        type: "refreshLatestVersionInit",
-      });
-      const newVersion = await fetchLatestVersion({
-        datasetId: dataset.datasetId,
-      });
-      set(
-        { latestVersion: newVersion, isRefreshingLatestVersion: false },
-        false,
-        { type: "refreshLatestVersionSuccess" }
-      );
-    },
-  });
   return create<DatasetStoreState>()(
-    devtools(datasetStore, {
-      name: "datasetStore",
-    })
+    persist(
+      devtools(
+        (set, get) => ({
+          ...initialProps,
+          isRefreshingLatestVersion: false,
+          refreshLatestVersion: async () => {
+            const dataset = get();
+            set({ isRefreshingLatestVersion: true }, false, {
+              type: "refreshLatestVersionInit",
+            });
+            const newVersion = await fetchLatestVersion({
+              datasetId: dataset.datasetId,
+            });
+            set(
+              { latestVersion: newVersion, isRefreshingLatestVersion: false },
+              false,
+              { type: "refreshLatestVersionSuccess" }
+            );
+          },
+          experimentsMetricChartKeys: DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
+          setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => {
+            set({ experimentsMetricChartKeys: keys }, false, {
+              type: "setExperimentsMetricChartKeys",
+            });
+          },
+        }),
+        {
+          name: "datasetStore",
+        }
+      ),
+      {
+        name: makeDatasetStoreKey(initialProps.datasetId),
+        // Only the chart selection is a persistent preference; the rest of
+        // the store (latest version, refresh state) must stay fresh per load
+        partialize: (state) => ({
+          experimentsMetricChartKeys: state.experimentsMetricChartKeys,
+        }),
+        merge: (persistedState, currentState) => {
+          const merged = {
+            ...currentState,
+            ...(persistedState as Partial<DatasetStoreState>),
+          };
+          // Persisted chart keys may reference charts that no longer exist in
+          // the chart catalog; drop them so stale keys don't count against the
+          // selection limit
+          const keys = merged.experimentsMetricChartKeys;
+          merged.experimentsMetricChartKeys = Array.isArray(keys)
+            ? keys
+                .filter(isExperimentMetricChartKey)
+                .slice(0, MAX_SELECTED_EXPERIMENT_METRIC_CHARTS)
+            : DEFAULT_EXPERIMENT_METRIC_CHART_KEYS;
+          return merged;
+        },
+      }
+    )
   );
 };
 

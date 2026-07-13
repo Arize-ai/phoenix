@@ -1,4 +1,5 @@
 import { Flex, Text } from "@phoenix/components";
+import { BaselineExperimentBadge } from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 
 /**
@@ -8,9 +9,11 @@ import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumb
 export function ExperimentMetricsTooltipHeader({
   sequenceNumber,
   name,
+  isBaseline = false,
 }: {
   sequenceNumber: number;
   name?: string;
+  isBaseline?: boolean;
 }) {
   return (
     <Flex direction="row" alignItems="center" gap="size-100">
@@ -20,6 +23,7 @@ export function ExperimentMetricsTooltipHeader({
           {name}
         </Text>
       )}
+      {isBaseline ? <BaselineExperimentBadge /> : null}
     </Flex>
   );
 }

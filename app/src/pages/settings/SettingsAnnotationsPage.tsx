@@ -76,10 +76,12 @@ const SettingsAnnotations = ({
     }
   `);
 
-  const parseError = (callback?: (error: string) => void) => (error: Error) => {
-    const formattedError = getErrorMessagesFromRelayMutationError(error);
-    callback?.(formattedError?.[0] ?? "Failed to create annotation config");
-  };
+  const parseError =
+    (fallback: string, callback?: (error: string) => void) =>
+    (error: Error) => {
+      const formattedError = getErrorMessagesFromRelayMutationError(error);
+      callback?.(formattedError?.[0] ?? fallback);
+    };
 
   const handleAddAnnotationConfig = (
     _config: AnnotationConfig,
@@ -96,7 +98,7 @@ const SettingsAnnotations = ({
         onCompleted?.();
         refetch();
       },
-      onError: parseError(onError),
+      onError: parseError("Failed to create annotation config", onError),
     });
   };
 
@@ -134,24 +136,24 @@ const SettingsAnnotations = ({
         onCompleted?.();
         refetch();
       },
-      onError: parseError(onError),
+      onError: parseError("Failed to update annotation config", onError),
     });
   };
 
   const handleDeleteAnnotationConfig = (
-    id: string,
+    ids: string[],
     {
       onCompleted,
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
     deleteAnnotationConfigs({
-      variables: { input: { ids: [id] } },
+      variables: { input: { ids } },
       onCompleted: () => {
         onCompleted?.();
         refetch();
       },
-      onError: parseError(onError),
+      onError: parseError("Failed to delete annotation configs", onError),
     });
   };
 

@@ -10,21 +10,31 @@ import {
 
 import {
   ChartEmptyStateOverlay,
+  InteractiveLegend,
   compactChartMargin,
-  compactYAxisProps,
+  compactLegendProps,
   defaultCartesianGridProps,
   defaultTooltipProps,
+  useInteractiveLegend,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import {
+  ExperimentBaselineValueLine,
+  getExperimentBaselineLegendItems,
+} from "./ExperimentBaselineReference";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
-import { experimentXAxisProps } from "./experimentXAxisProps";
+import {
+  experimentMetricsYAxisProps,
+  getExperimentXAxisProps,
+} from "./experimentXAxisProps";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 const TooltipContent = makeExperimentMetricsTooltipContent(percentFormatter);
+const ERROR_RATE_DATA_KEY = "errorRate";
 
 /**
  * The share of runs that errored per experiment.
@@ -32,10 +42,12 @@ const TooltipContent = makeExperimentMetricsTooltipContent(percentFormatter);
 export function ExperimentErrorRateChart({
   datasetId,
 }: ExperimentMetricViewProps) {
-  const { experiments } = useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment } =
+    useExperimentMetricsData(datasetId);
   const chartData = experiments.map((experiment) => ({
     sequenceNumber: experiment.sequenceNumber,
     experimentName: experiment.name,
+    isBaseline: experiment.isBaseline,
     errorRate:
       typeof experiment.errorRate === "number"
         ? experiment.errorRate * 100
@@ -46,7 +58,14 @@ export function ExperimentErrorRateChart({
   // it as an explicit (good news) empty state
   const hasErrors = chartData.some((datum) => (datum.errorRate ?? 0) > 0);
 
-  const SemanticChartColors = useSemanticChartColors();
+  const semanticChartColors = useSemanticChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
+  const baselineErrorRate = isDataKeyHidden(ERROR_RATE_DATA_KEY)
+    ? null
+    : baselineExperiment?.errorRate != null
+      ? baselineExperiment.errorRate * 100
+      : null;
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasErrors}
@@ -61,17 +80,30 @@ export function ExperimentErrorRateChart({
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...experimentXAxisProps} />
+          <XAxis
+            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+          />
           <YAxis
-            {...compactYAxisProps}
+            {...experimentMetricsYAxisProps}
             tickFormatter={(x) => percentFormatter(x)}
           />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
+          <ExperimentBaselineValueLine value={baselineErrorRate} />
           <Bar
-            dataKey="errorRate"
+            dataKey={ERROR_RATE_DATA_KEY}
             name="error rate"
-            fill={SemanticChartColors.danger}
+            fill={semanticChartColors.danger}
+            hide={isDataKeyHidden(ERROR_RATE_DATA_KEY)}
             radius={[2, 2, 0, 0]}
+          />
+          <InteractiveLegend
+            {...compactLegendProps}
+            hiddenDataKeys={hiddenDataKeys}
+            iconSize={8}
+            onToggleDataKey={toggleDataKey}
+            additionalLegendItems={getExperimentBaselineLegendItems(
+              baselineErrorRate
+            )}
           />
         </BarChart>
       </ResponsiveContainer>
