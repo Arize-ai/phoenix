@@ -32,10 +32,9 @@ def test_resolve_browser_clock_reads_newest_user_message_stamp() -> None:
                 "role": "user",
                 "parts": [{"type": "text", "text": "hi"}],
                 "metadata": {
-                    "appContext": {
-                        "currentDateTime": "2026-05-04T08:00:00-07:00",
-                        "timeZone": "America/Los_Angeles",
-                    }
+                    "type": "user",
+                    "currentDateTime": "2026-05-04T08:00:00-07:00",
+                    "timeZone": "America/Los_Angeles",
                 },
             }
         ),
@@ -44,7 +43,7 @@ def test_resolve_browser_clock_reads_newest_user_message_stamp() -> None:
                 "id": "a1",
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "hello"}],
-                "metadata": {"sessionId": "session-1"},
+                "metadata": {"type": "assistant", "sessionId": "session-1"},
             }
         ),
         PhoenixUIMessage.model_validate(
@@ -54,10 +53,8 @@ def test_resolve_browser_clock_reads_newest_user_message_stamp() -> None:
                 "parts": [{"type": "text", "text": "what happened today?"}],
                 "metadata": {
                     "type": "user",
-                    "appContext": {
-                        "currentDateTime": "2026-05-05T09:30:00-07:00",
-                        "timeZone": "America/Los_Angeles",
-                    },
+                    "currentDateTime": "2026-05-05T09:30:00-07:00",
+                    "timeZone": "America/Los_Angeles",
                 },
             }
         ),
@@ -80,7 +77,7 @@ def test_resolve_browser_clock_returns_none_without_stamped_user_messages() -> N
                 "id": "a1",
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "hello"}],
-                "metadata": {"sessionId": "session-1"},
+                "metadata": {"type": "assistant", "sessionId": "session-1"},
             }
         ),
     ]

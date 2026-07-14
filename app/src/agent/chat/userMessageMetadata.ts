@@ -10,9 +10,7 @@ export function buildUserMessageMetadata(): UserMessageMetadata {
   const timeZone = getTimeZone();
   return {
     type: "user",
-    appContext: {
-      currentDateTime: toLocalISOWithOffset(now, timeZone),
-      timeZone,
-    },
+    currentDateTime: toLocalISOWithOffset(now, timeZone),
+    timeZone,
   };
 }

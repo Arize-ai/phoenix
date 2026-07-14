@@ -1014,14 +1014,10 @@ class UpsertOrDeleteSecretsResult(TypedDict):
     deleted_keys: Sequence[str]
 
 
-class UserMessageAppContext(TypedDict):
-    currentDateTime: str
-    timeZone: str
-
-
 class UserMessageMetadata(TypedDict):
     type: Literal["user"]
-    appContext: UserMessageAppContext
+    currentDateTime: str
+    timeZone: str
 
 
 class ValidationError(TypedDict):

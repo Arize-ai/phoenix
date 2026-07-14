@@ -1680,11 +1680,10 @@ export interface components {
          */
         AssistantMessageMetadata: {
             /**
-             * Type
-             * @default assistant
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            type?: "assistant";
+            type: "assistant";
             /** Sessionid */
             sessionId: string;
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
@@ -5671,32 +5670,19 @@ export interface components {
             deleted_keys: string[];
         };
         /**
-         * UserMessageAppContext
-         * @description Browser clock stamped on a user message at send time.
-         *
-         *     Lives in message metadata (never rendered into the prompt directly) so the
-         *     stamp stays byte-stable in replayed history and does not invalidate the
-         *     Anthropic prompt-cache prefix. The `get_current_datetime` tool surfaces the
-         *     newest stamp to the model on demand.
-         */
-        UserMessageAppContext: {
-            /** Currentdatetime */
-            currentDateTime: string;
-            /** Timezone */
-            timeZone: string;
-        };
-        /**
          * UserMessageMetadata
          * @description Wire schema for metadata the browser attaches to outgoing user messages.
          */
         UserMessageMetadata: {
             /**
-             * Type
-             * @default user
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            type?: "user";
-            appContext: components["schemas"]["UserMessageAppContext"];
+            type: "user";
+            /** Currentdatetime */
+            currentDateTime: string;
+            /** Timezone */
+            timeZone: string;
         };
         /** ValidationError */
         ValidationError: {

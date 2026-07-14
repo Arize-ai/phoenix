@@ -39,11 +39,9 @@ from opentelemetry.trace import (
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Discriminator,
     Field,
     RootModel,
     StringConstraints,
-    Tag,
     field_validator,
 )
 from pydantic.alias_generators import to_camel
@@ -244,46 +242,17 @@ class AssistantMessageMetadata(_CamelModel):
     usage: AssistantMessageMetadataUsage | None = None
 
 
-class UserMessageAppContext(_CamelModel):
-    """Browser clock stamped on a user message at send time.
-
-    Lives in message metadata (never rendered into the prompt directly) so the
-    stamp stays byte-stable in replayed history and does not invalidate the
-    Anthropic prompt-cache prefix. The `get_current_datetime` tool surfaces the
-    newest stamp to the model on demand.
-    """
-
-    current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
-    time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
-
-
 class UserMessageMetadata(_CamelModel):
     """Wire schema for metadata the browser attaches to outgoing user messages."""
 
     type: Literal["user"] = "user"
-    app_context: UserMessageAppContext
-
-
-def _discriminate_message_metadata(value: Any) -> str | None:
-    """Tag for the message-metadata union, discriminated on ``type``.
-
-    Histories persisted before the ``type`` tag existed carry untagged
-    assistant metadata, so fall back to shape inference: only the assistant
-    shape has a ``sessionId``.
-    """
-    if isinstance(value, dict):
-        tag = value.get("type")
-        if isinstance(tag, str):
-            return tag
-        return "assistant" if "sessionId" in value or "session_id" in value else "user"
-    tag = getattr(value, "type", None)
-    return tag if isinstance(tag, str) else None
+    current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
+    time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
 
 
 MessageMetadata = Annotated[
-    Annotated[AssistantMessageMetadata, Tag("assistant")]
-    | Annotated[UserMessageMetadata, Tag("user")],
-    Discriminator(_discriminate_message_metadata),
+    AssistantMessageMetadata | UserMessageMetadata,
+    Field(discriminator="type"),
 ]
 
 
@@ -311,11 +280,10 @@ def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext |
         if message.role != "user":
             continue
         if isinstance(message.metadata, UserMessageMetadata):
-            app_context = message.metadata.app_context
             return AppContext(
                 type="app",
-                current_date_time=app_context.current_date_time,
-                time_zone=app_context.time_zone,
+                current_date_time=message.metadata.current_date_time,
+                time_zone=message.metadata.time_zone,
             )
     return None
 

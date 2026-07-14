@@ -12415,7 +12415,14 @@
                   {
                     "$ref": "#/components/schemas/UserMessageMetadata"
                   }
-                ]
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "assistant": "#/components/schemas/AssistantMessageMetadata",
+                    "user": "#/components/schemas/UserMessageMetadata"
+                  }
+                }
               },
               {
                 "type": "null"
@@ -17706,8 +17713,14 @@
         "title": "UpsertOrDeleteSecretsResult",
         "description": "Result payload listing which keys were upserted and which were deleted."
       },
-      "UserMessageAppContext": {
+      "UserMessageMetadata": {
         "properties": {
+          "type": {
+            "type": "string",
+            "const": "user",
+            "title": "Type",
+            "default": "user"
+          },
           "currentDateTime": {
             "type": "string",
             "maxLength": 128,
@@ -17723,25 +17736,6 @@
         "required": [
           "currentDateTime",
           "timeZone"
-        ],
-        "title": "UserMessageAppContext",
-        "description": "Browser clock stamped on a user message at send time.\n\nLives in message metadata (never rendered into the prompt directly) so the\nstamp stays byte-stable in replayed history and does not invalidate the\nAnthropic prompt-cache prefix. The `get_current_datetime` tool surfaces the\nnewest stamp to the model on demand."
-      },
-      "UserMessageMetadata": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "user",
-            "title": "Type",
-            "default": "user"
-          },
-          "appContext": {
-            "$ref": "#/components/schemas/UserMessageAppContext"
-          }
-        },
-        "type": "object",
-        "required": [
-          "appContext"
         ],
         "title": "UserMessageMetadata",
         "description": "Wire schema for metadata the browser attaches to outgoing user messages."
