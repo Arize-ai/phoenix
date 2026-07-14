@@ -7,15 +7,11 @@ export type AssistantMessageMetadata =
 
 export type UserMessageMetadata = components["schemas"]["UserMessageMetadata"];
 
-/**
- * AI SDK `UIMessage` parameterized with the backend's message metadata
- * shapes, sourced from the generated OpenAPI types. Assistant messages carry
- * `AssistantMessageMetadata` (streamed back via `message_metadata`); user
- * messages carry `UserMessageMetadata` (stamped at send time).
- */
-export type AgentUIMessage = UIMessage<
-  AssistantMessageMetadata | UserMessageMetadata
+type AgentMessageMetadata = NonNullable<
+  components["schemas"]["PhoenixUIMessage"]["metadata"]
 >;
+
+export type AgentUIMessage = UIMessage<AgentMessageMetadata>;
 
 /** Narrow a message's metadata to the assistant shape. */
 export function getAssistantMessageMetadata(
