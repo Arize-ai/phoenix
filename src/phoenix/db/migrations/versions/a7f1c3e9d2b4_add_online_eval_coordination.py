@@ -1,7 +1,7 @@
 """add online eval coordination
 
 Revision ID: a7f1c3e9d2b4
-Revises: d4e5f6a7b8c9
+Revises: eaf1907ae453
 Create Date: 2026-06-17 00:00:00.000000
 
 """
@@ -18,7 +18,7 @@ _Integer = sa.Integer().with_variant(
 
 # revision identifiers, used by Alembic.
 revision: str = "a7f1c3e9d2b4"
-down_revision: Union[str, None] = "d4e5f6a7b8c9"
+down_revision: Union[str, None] = "eaf1907ae453"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
