@@ -1000,6 +1000,12 @@ const inputFieldCSS = (theme: Theme) => css`
 const menuCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
+    /* Menu sizing */
+    --global-menu-min-height: var(--global-dimension-size-3600);
+    --global-menu-max-height-small: var(--global-dimension-size-6000);
+    --global-menu-max-height-large: var(--global-dimension-size-8000);
+
+    /* Menu colors and spacing */
     --global-menu-border-color: var(--global-border-color-default);
     --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
@@ -1146,6 +1152,28 @@ const tooltipCSS = (theme: Theme) => css`
   }
 `;
 
+const dndCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    /* Drag-and-drop feedback (see components/dnd/styles.ts) */
+    /* Soft lift shadow for the copy that follows the pointer. Kept gentle
+       so the element settles quietly rather than snapping into place. */
+    --global-dnd-drag-shadow: ${theme === "light"
+      ? "0 4px 12px rgba(0, 0, 0, 0.12)"
+      : "0 4px 14px rgba(0, 0, 0, 0.45)"};
+    /* The resting slot the element will land in — a quiet neutral wash, no
+       hard border, so the drop target reads as an invitation, not an alert. */
+    --global-dnd-drop-target-background-color: ${theme === "light"
+      ? "rgba(0, 0, 0, 0.04)"
+      : "rgba(255, 255, 255, 0.06)"};
+    --global-dnd-handle-color: var(--global-text-color-500);
+    --global-dnd-handle-color-hover: var(--global-text-color-900);
+    --global-dnd-handle-background-color-hover: ${theme === "light"
+      ? "rgba(0, 0, 0, 0.05)"
+      : "rgba(255, 255, 255, 0.07)"};
+  }
+`;
+
 const cardCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1155,8 +1183,8 @@ const cardCSS = (theme: Theme) => css`
       ? "var(--global-color-gray-100)"
       : "var(--global-color-gray-75)"};
     --global-card-header-background-color-hover: ${theme === "light"
-      ? "var(--global-color-gray-200)"
-      : "var(--global-color-gray-100)"};
+      ? "rgba(0, 0, 0, 0.04)"
+      : "rgba(255, 255, 255, 0.07)"};
   }
 `;
 
@@ -1227,6 +1255,10 @@ const tableCSS = (theme: Theme) => css`
 
     --global-table-cell-padding-y: var(--global-dimension-size-100);
     --global-table-cell-padding-x: var(--global-dimension-size-200);
+    /* height of a table header row, including its bottom border. Panels that sit
+       beside a table (e.g. TitledPanel headers) use this so their headers line up
+       with the table's header row. */
+    --global-table-header-height: 37px;
     --global-table-pagination-padding: var(--global-dimension-size-100);
     --global-table-pagination-gap: var(--global-dimension-size-50);
 
@@ -1362,6 +1394,7 @@ export const derivedCSS = (theme: Theme) =>
     checkboxCSS(theme),
     disclosureCSS(theme),
     tooltipCSS(theme),
+    dndCSS(theme),
     cardCSS(theme),
     toolCallCSS(theme),
     popoverCSS(theme),

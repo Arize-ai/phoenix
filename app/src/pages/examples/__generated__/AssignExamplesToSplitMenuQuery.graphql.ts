@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<4e63577141f961e15e9190402073be0a>>
+ * @generated SignedSource<<66ae48dcfa435bddd4a4ff0c868e2298>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -89,7 +88,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "AssignExamplesToSplitMenuQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -98,7 +97,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "AssignExamplesToSplitMenuQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "9f574209d5d5f8dcfaa162214cf54512",

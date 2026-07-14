@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2eecba38c62fe174374b1996b3a28412>>
+ * @generated SignedSource<<ef554846e2e5be3f267299901e9b8c90>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -99,7 +98,7 @@ v7 = {
 v8 = {
   "kind": "InlineFragment",
   "selections": [
-    (v3/*: any*/)
+    (v3/*:: as any*/)
   ],
   "type": "Node",
   "abstractKey": "__isNode"
@@ -128,8 +127,8 @@ v11 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -137,7 +136,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "createSpanAnnotations",
@@ -159,8 +158,8 @@ return {
                 "name": "span",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "args": null,
                     "kind": "FragmentSpread",
@@ -208,15 +207,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "applySpanAnnotationsCreateMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "createSpanAnnotations",
@@ -238,8 +237,8 @@ return {
                 "name": "span",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -248,7 +247,7 @@ return {
                     "name": "project",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
+                      (v3/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -273,7 +272,7 @@ return {
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v4/*: any*/),
+                                  (v4/*:: as any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
@@ -291,8 +290,8 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v3/*: any*/),
-                                      (v5/*: any*/),
+                                      (v3/*:: as any*/),
+                                      (v5/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -308,8 +307,8 @@ return {
                                         "name": "values",
                                         "plural": true,
                                         "selections": [
-                                          (v6/*: any*/),
-                                          (v7/*: any*/)
+                                          (v6/*:: as any*/),
+                                          (v7/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -317,7 +316,7 @@ return {
                                     "type": "CategoricalAnnotationConfig",
                                     "abstractKey": null
                                   },
-                                  (v8/*: any*/)
+                                  (v8/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -340,12 +339,12 @@ return {
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v4/*: any*/),
-                                  (v8/*: any*/),
+                                  (v4/*:: as any*/),
+                                  (v8/*:: as any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v5/*: any*/)
+                                      (v5/*:: as any*/)
                                     ],
                                     "type": "AnnotationConfigBase",
                                     "abstractKey": "__isAnnotationConfigBase"
@@ -370,12 +369,12 @@ return {
                     "name": "spanAnnotations",
                     "plural": true,
                     "selections": [
-                      (v3/*: any*/),
-                      (v5/*: any*/),
-                      (v6/*: any*/),
-                      (v7/*: any*/),
-                      (v9/*: any*/),
-                      (v10/*: any*/),
+                      (v3/*:: as any*/),
+                      (v5/*:: as any*/),
+                      (v6/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v9/*:: as any*/),
+                      (v10/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -398,11 +397,11 @@ return {
                             "name": "profilePictureUrl",
                             "storageKey": null
                           },
-                          (v3/*: any*/)
+                          (v3/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v11/*: any*/),
+                      (v11/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -478,7 +477,7 @@ return {
                             "name": "fraction",
                             "storageKey": null
                           },
-                          (v6/*: any*/)
+                          (v6/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -489,7 +488,7 @@ return {
                         "name": "meanScore",
                         "storageKey": null
                       },
-                      (v5/*: any*/)
+                      (v5/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -528,20 +527,20 @@ return {
                     "name": "spanAnnotations",
                     "plural": true,
                     "selections": [
-                      (v3/*: any*/),
-                      (v5/*: any*/),
-                      (v9/*: any*/),
-                      (v7/*: any*/),
-                      (v6/*: any*/),
-                      (v11/*: any*/),
-                      (v10/*: any*/)
+                      (v3/*:: as any*/),
+                      (v5/*:: as any*/),
+                      (v9/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v6/*:: as any*/),
+                      (v11/*:: as any*/),
+                      (v10/*:: as any*/)
                     ],
                     "storageKey": null
                   }
                 ],
                 "storageKey": null
               },
-              (v3/*: any*/)
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           }

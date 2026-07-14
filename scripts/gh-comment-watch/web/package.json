@@ -14,21 +14,21 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.2.1",
-    "@types/node": "^25.3.1",
-    "@types/react": "^19.2.14",
+    "@tailwindcss/vite": "^4.3.2",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.4",
+    "@vitejs/plugin-react": "^6.0.3",
     "eslint-plugin-react-hooks": "~7.1.1",
-    "oxfmt": "^0.51.0",
-    "oxlint": "~1.66.0",
-    "tailwindcss": "^4.2.1",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.2"
+    "oxfmt": "^0.58.0",
+    "oxlint": "~1.73.0",
+    "tailwindcss": "^4.3.2",
+    "typescript": "~7.0.2",
+    "vite": "^8.1.4"
   },
-  "packageManager": "pnpm@11.3.0"
+  "packageManager": "pnpm@11.11.0"
 }

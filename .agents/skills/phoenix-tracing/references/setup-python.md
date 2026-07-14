@@ -57,6 +57,12 @@ tracer_provider = register(
 - `batch`: Use BatchSpanProcessor (default: True, production-recommended)
 - `protocol`: `"http/protobuf"` (default) or `"grpc"`
 
+**Endpoint path prefixes (HTTP):** `register` appends `/v1/traces` to the HTTP
+endpoint while preserving any existing path prefix, so a Phoenix served behind a
+reverse proxy works — `endpoint="http://host/prefix"` sends to
+`http://host/prefix/v1/traces`. An endpoint that already ends in `/v1/traces` (with or
+without a trailing slash) is used as-is rather than doubled.
+
 ## Auto-Instrumentation
 
 Install instrumentors for your frameworks:

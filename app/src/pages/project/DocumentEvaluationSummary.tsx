@@ -17,7 +17,7 @@ export function DocumentEvaluationSummary({
   evaluationName,
 }: DocumentEvaluationSummaryProps) {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
+  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
       query DocumentEvaluationSummaryQuery(
@@ -34,10 +34,7 @@ export function DocumentEvaluationSummary({
     {
       id: projectId as string,
       evaluationName,
-      timeRange: {
-        start: timeRange?.start?.toISOString(),
-        end: timeRange?.end?.toISOString(),
-      },
+      timeRange: timeRangeISOStrings,
     }
   );
   return (

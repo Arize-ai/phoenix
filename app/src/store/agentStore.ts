@@ -14,6 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingAnnotationConfigWrite } from "@phoenix/agent/tools/annotationConfig";
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
@@ -59,6 +60,8 @@ export type AgentServerConfig = {
   collectorEndpoint: string | null;
   /** Local Phoenix project used for PXI trace persistence. */
   assistantProjectName: string;
+  /** Whether tracing and remote export are forced by the Phoenix instance. */
+  forceTracing: boolean;
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
   assistantEnabled: boolean;
@@ -156,6 +159,7 @@ const DEFAULT_MODEL_CONFIG: ModelConfig = {
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
+  forceTracing: false,
   webAccessEnabled: false,
   assistantEnabled: false,
   allowLocalTraces: false,
@@ -228,6 +232,9 @@ export function hasAcknowledgedCurrentTraceConsent({
   agentsConfig: AgentServerConfig;
   observability: AgentObservabilitySettings;
 }): boolean {
+  if (agentsConfig.forceTracing) {
+    return true;
+  }
   const acknowledgedTraceConsent = observability.acknowledgedTraceConsent;
   if (!acknowledgedTraceConsent) {
     return false;
@@ -248,12 +255,28 @@ export function getEffectiveTraceRecordingSettings({
   agentsConfig: AgentServerConfig;
   observability: AgentObservabilitySettings;
 }): AgentTraceRecordingSettings {
+  if (agentsConfig.forceTracing) {
+    return {
+      ingestTraces: true,
+      exportRemoteTraces: true,
+    };
+  }
   const ceiling = getCurrentTraceConsentSettings(agentsConfig);
   return {
     ingestTraces: ceiling.allowLocalTraces && observability.storeLocalTraces,
     exportRemoteTraces:
       ceiling.allowRemoteExport && observability.exportRemoteTraces,
   };
+}
+
+export function getEffectiveAttachUserId({
+  agentsConfig,
+  observability,
+}: {
+  agentsConfig: AgentServerConfig;
+  observability: AgentObservabilitySettings;
+}): boolean {
+  return agentsConfig.forceTracing || observability.attachUserId;
 }
 
 /**
@@ -436,6 +459,13 @@ export interface AgentState extends AgentProps {
   setPendingDatasetWrite: (
     toolCallId: string,
     pending: PendingDatasetWrite | null
+  ) => void;
+  pendingAnnotationConfigWritesByToolCallId: Partial<
+    Record<string, PendingAnnotationConfigWrite>
+  >;
+  setPendingAnnotationConfigWrite: (
+    toolCallId: string,
+    pending: PendingAnnotationConfigWrite | null
   ) => void;
   pendingPatchExperimentsByToolCallId: Partial<
     Record<string, PendingPatchExperiment>
@@ -700,6 +730,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
+    pendingAnnotationConfigWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
@@ -1270,6 +1301,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingDatasetWrite" }
+      );
+    },
+    setPendingAnnotationConfigWrite: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingAnnotationConfigWritesByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingAnnotationConfigWritesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingAnnotationConfigWrite" }
       );
     },
     setPendingBatchSpanAnnotate: (toolCallId, annotation) => {

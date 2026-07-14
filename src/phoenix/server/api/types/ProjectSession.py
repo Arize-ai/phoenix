@@ -29,7 +29,7 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
-from phoenix.server.api.types.SpanIOValue import SpanIOValue
+from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
 if TYPE_CHECKING:
@@ -125,7 +125,9 @@ class ProjectSession(Node):
             return None
         return SpanIOValue(
             mime_type=MimeType(record.mime_type.value),
-            cached_value=record.value,
+            span_rowid=record.span_rowid,
+            attr=models.Span.input_value,
+            truncated_value=truncate_value(record.truncated_value),
         )
 
     @strawberry.field
@@ -138,7 +140,9 @@ class ProjectSession(Node):
             return None
         return SpanIOValue(
             mime_type=MimeType(record.mime_type.value),
-            cached_value=record.value,
+            span_rowid=record.span_rowid,
+            attr=models.Span.output_value,
+            truncated_value=truncate_value(record.truncated_value),
         )
 
     @strawberry.field

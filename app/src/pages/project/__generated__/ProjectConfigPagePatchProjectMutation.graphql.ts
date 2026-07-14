@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0b4ac99206045785ba3c2fe3cb52c776>>
+ * @generated SignedSource<<b3d02e2cdedcbb0e4bb15d582cdaa2d8>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -101,20 +100,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectConfigPagePatchProjectMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectConfigPagePatchProjectMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "467845668654b981ad74ed26e687b19c",

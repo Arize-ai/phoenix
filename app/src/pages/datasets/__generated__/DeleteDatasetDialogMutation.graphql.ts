@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6de4dbc0eec53e1d0dab5cdeadd90ed2>>
+ * @generated SignedSource<<14a5d2305beacbb04865cbfce3e2c427>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -64,20 +63,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DeleteDatasetDialogMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DeleteDatasetDialogMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "dd7db4b6f6eac9ceaecd096c341e427c",

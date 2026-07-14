@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5a616f9d661f24c53b43a129cf911d06>>
+ * @generated SignedSource<<9d12a284760b778b8f61a6bf9c114ef7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -71,20 +70,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "useCancelPlaygroundRunDismissMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "useCancelPlaygroundRunDismissMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "6a1f11d64803c201f5cda688b0a8e585",

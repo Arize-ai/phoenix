@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
+from unittest.mock import Mock
 
 import httpx
 import pytest
@@ -26,7 +27,7 @@ from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from typing_extensions import TypeIs, assert_never
 
-from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
     build_anthropic_prompt_cache_capability,
@@ -50,14 +51,24 @@ from phoenix.server.agents.types import (
     ModelProviderAvailability,
     SandboxAvailability,
 )
+from phoenix.server.types import DbSessionFactory
 
 _DEFAULT_PROMPTS = AgentPrompts()
+
+
+def build_agent(**kwargs: Any) -> Any:
+    """Build an agent for factory tests with inert DB-backed tool dependencies."""
+    kwargs.setdefault("db", Mock(spec=DbSessionFactory))
+    kwargs.setdefault("event_queue", Mock())
+    return _build_agent(**kwargs)
+
 
 STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
         _DEFAULT_PROMPTS.bash_tool.render(),
         _DEFAULT_PROMPTS.ask_user_tool.render(),
         _DEFAULT_PROMPTS.set_time_range_tool.render(),
+        _DEFAULT_PROMPTS.get_current_datetime_tool.render(),
         _DEFAULT_PROMPTS.get_route_info_tool.render(),
     }
 )
@@ -502,7 +513,6 @@ class TestUIContextInstructions:
 
         all_text = "\n".join(_get_system_texts(captured_request.body))
         for tag in (
-            "<phoenix_app_context>",
             "<phoenix_project_context>",
             "<phoenix_trace_context>",
             "<phoenix_span_context>",
@@ -520,6 +530,8 @@ class TestUIContextInstructions:
         )
         assert "<phoenix_gql_mutations_policy>" in uncached_texts
         assert "<phoenix_gql_mutations_policy>" not in cached_texts
+        assert "<phoenix_app_context>" in cached_texts
+        assert "<phoenix_app_context>" not in uncached_texts
 
 
 class TestRouteInfoTool:
@@ -1052,6 +1064,7 @@ class TestSkillsCapability:
         assert "<available_skills>" in cached_text
         assert "<name>debug-trace</name>" in cached_text
         assert "<name>annotate-spans</name>" in cached_text
+        assert "<name>span-coding</name>" in cached_text
         assert "<name>playground</name>" not in cached_text
         assert "<name>experiments</name>" not in cached_text
 
@@ -1068,6 +1081,7 @@ class TestSkillsCapability:
         tool_names = _get_tool_names(captured_request.body)
         assert "load_skill" in tool_names
         assert "read_skill_resource" in tool_names
+        assert "write_span_note" in tool_names
 
 
 class TestCodeEvaluatorFormToolGates:

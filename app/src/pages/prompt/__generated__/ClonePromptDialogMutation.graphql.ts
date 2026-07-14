@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<de952eb9485525d2f7a33126f2009601>>
+ * @generated SignedSource<<442dc6c52b768c95c2837c85383d4f69>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -64,20 +63,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ClonePromptDialogMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ClonePromptDialogMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "6ad0382f6acd0f00125307c887c0f4f2",

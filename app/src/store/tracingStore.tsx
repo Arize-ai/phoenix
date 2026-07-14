@@ -28,6 +28,8 @@ export interface TracingProps {
    * Map of the column id to the width
    */
   columnSizing: ColumnSizingState;
+  /** Order of top-level columns by id. Empty means natural order. */
+  columnOrder: string[];
 }
 
 export interface TracingState extends TracingProps {
@@ -53,6 +55,10 @@ export interface TracingState extends TracingProps {
    * Sets the width of a column
    */
   setColumnSizing: (updater: Updater<ColumnSizingState>) => void;
+  /**
+   * Sets the order of the top-level columns
+   */
+  setColumnOrder: (columnOrder: string[]) => void;
 }
 
 const makeTracingStoreKey = ({
@@ -87,6 +93,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     },
     annotationColumnVisibility: {},
     traceAnnotationColumnVisibility: {},
+    columnOrder: [],
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility }, false, { type: "setColumnVisibility" });
     },
@@ -99,6 +106,9 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       set({ traceAnnotationColumnVisibility }, false, {
         type: "setTraceAnnotationColumnVisibility",
       });
+    },
+    setColumnOrder: (columnOrder) => {
+      set({ columnOrder }, false, { type: "setColumnOrder" });
     },
     setColumnSizing: (columnSizing) => {
       if (typeof columnSizing === "function") {

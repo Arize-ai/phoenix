@@ -24,8 +24,8 @@ PARAMETERS: dict[str, Any] = {
             "enum": ["15m", "1h", "12h", "1d", "7d", "30d", "custom"],
             "description": (
                 "Preset to apply, or `custom` when specifying explicit start/end times. "
-                "Use the current local date/time from the Phoenix UI context when resolving "
-                "relative user requests like 'today', 'yesterday', or 'last hour'."
+                "Use the current local date/time from the `get_current_datetime` tool when "
+                "resolving relative user requests like 'today', 'yesterday', or 'last hour'."
             ),
         },
         "startTime": {
@@ -51,9 +51,10 @@ PARAMETERS: dict[str, Any] = {
 DESCRIPTION = (
     "Set the Phoenix app time range selector. Use preset `timeRangeKey` values for "
     "standard relative windows (15m, 1h, 12h, 1d, 7d, 30d). Use `custom` with "
-    "`startTime` and optional `endTime` for specific calendar windows. The Phoenix UI "
-    "context includes the current date/time in the user's browser timezone; base "
-    "relative calendar phrases on that value, not on the currently selected time range."
+    "`startTime` and optional `endTime` for specific calendar windows. Call the "
+    "`get_current_datetime` tool first to read the current date/time in the user's "
+    "browser timezone; base relative calendar phrases on that value — never on prior "
+    "knowledge or on the currently selected time range."
 )
 
 TOOL_DEFINITION = ToolDefinition(

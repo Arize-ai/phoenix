@@ -48,12 +48,21 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 | Variable                                 | Description                                   |
 | ---------------------------------------- | --------------------------------------------- |
 | `PHOENIX_HOST`                           | Phoenix API endpoint                          |
-| `PHOENIX_PROJECT`                        | Project name or ID                            |
+| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                |
+| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)          |
 | `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
 | `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
 | `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+The CLI also discovers the nearest `.env.phoenix` file at or above the current
+working directory. Configuration precedence is: CLI flags, process environment,
+active profile, `.env.phoenix`, then built-in defaults. Credentials are resolved
+as one group, so a process API key is never combined with file-provided client
+headers. If a higher-priority credential is paired with `PHOENIX_HOST` from the
+file, the CLI warns once and continues. Set
+`PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
 ## Profiles
 
@@ -121,6 +130,40 @@ npx -y @arizeai/phoenix-cli pxi                              # run without insta
 Inside the chat, `/help`, `/clear`, and `/exit` are handled locally. See the
 [PXI documentation](https://arize.com/docs/phoenix/pxi) for the full flag and
 slash-command reference, model setup, and privacy controls.
+
+---
+
+### `px setup`
+
+Wire your app up to Phoenix. Run it from the app root:
+
+```bash
+px setup                                          # interactive
+px setup --endpoint https://phoenix.example.com   # skip the endpoint prompt
+npx -y @arizeai/phoenix-cli setup                 # try without installing
+```
+
+Setup saves the connection to a gitignored `.env.phoenix`, then optionally
+hands a coding agent (Claude Code, Codex, Cursor, OpenCode) an instrumentation
+task and waits until a real trace appears. After that it can point `px` at the
+new project and install Phoenix skills so the agent can query what you captured.
+
+For CI or agents, pass flags instead of answering prompts:
+
+```bash
+# Connection only — write .env.phoenix, no source changes
+px setup --no-input --endpoint http://localhost:6006 --project my-app
+
+# Instrument too — requires --agent when there's no TTY to choose one
+px setup --no-input --instrument --agent claude --yolo --language python --format raw
+```
+
+Re-run pieces later with:
+
+```bash
+px setup instrument --agent codex   # instrument and verify again
+px setup skills                     # install coding-agent skills only
+```
 
 ---
 

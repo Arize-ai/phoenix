@@ -39,6 +39,10 @@ px dataset get <name>
 px project list
 px project get <name>
 px annotation-config list
+px annotation-config get <identifier>
+px annotation-config create
+px annotation-config update <identifier>
+px annotation-config delete <id>
 px auth status
 px profile list
 px profile show [name]
@@ -57,6 +61,44 @@ export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
 
 Always use `--format raw --no-progress` when piping to `jq`.
+
+### `px setup` — onboarding
+
+`px setup` connects the app in the current directory to a Phoenix deployment
+and writes `.env.phoenix` (mode 0600, gitignored). The interactive flow is for
+humans — it prompts, launches coding agents, and polls for traces. **From an
+agent, always pass `--no-input`:**
+
+```bash
+# Register only: connection + .env.phoenix, no source changes.
+px setup --no-input --endpoint http://localhost:6006 --project my-app --format raw
+```
+
+Headless requires a clean git repo and, by default, stops after writing the
+files — it will not touch source unless you ask. If auth is enabled, also set
+`PHOENIX_API_KEY`. The project doesn't need to exist — Phoenix creates it on
+first trace. Missing inputs exit `3` with exact remediation; cancel exits `2`.
+
+To also instrument the app, name the lane — headless has no prompt to pick one
+from, so `--instrument` requires `--agent`:
+
+```bash
+px setup --no-input --instrument --agent claude --yolo --format raw
+```
+
+`--yolo` matters: a background agent has no terminal to approve its edits on,
+so without it the run stalls until trace verification times out. `--language
+python` skips the agent's language detection. `--format raw` prints
+`{"endpoint","project","files","instrumentation","tracesVerified","tracesUrl"}`
+— check `tracesVerified`, which is set only when the API confirmed a trace
+arriving, not when the agent claims it finished.
+
+Re-runnable slices, so an already-registered repo skips the questions:
+
+```bash
+px setup instrument --agent claude   # instrument + verify only
+px setup skills                      # install the Phoenix coding-agent skills
+```
 
 ## Quick Reference
 

@@ -16,7 +16,7 @@ ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 RUN npm i -g corepack && corepack enable
 
 # Copy package files for dependency installation
-COPY ./app/package.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./
+COPY ./app/package.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./app/.pnpmfile.cjs ./
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile

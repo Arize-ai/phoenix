@@ -4577,12 +4577,13 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
         llm_span_session = await _add_project_session(session, project)
         llm_span_latencies_ms = [100, 200, 300]
         for latency_ms in llm_span_latencies_ms:
+            start_time = datetime.now(timezone.utc)
             trace = await _add_trace(
                 session,
                 project,
                 project_session=llm_span_session,
-                start_time=datetime.now(timezone.utc),
-                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency_ms),
+                start_time=start_time,
+                end_time=start_time + timedelta(milliseconds=latency_ms),
             )
             await _add_span(
                 session,
@@ -4596,12 +4597,13 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
         chain_span_session = await _add_project_session(session, project)
         chain_span_latencies_ms = [400, 500, 600]
         for latency_ms in chain_span_latencies_ms:
+            start_time = datetime.now(timezone.utc)
             trace = await _add_trace(
                 session,
                 project,
                 project_session=chain_span_session,
-                start_time=datetime.now(timezone.utc),
-                end_time=datetime.now(timezone.utc) + timedelta(milliseconds=latency_ms),
+                start_time=start_time,
+                end_time=start_time + timedelta(milliseconds=latency_ms),
             )
             await _add_span(
                 session,
@@ -5726,3 +5728,263 @@ async def test_session_annotation_summary_returns_expected_results(
     assert summary["count"] == 1
     assert summary["meanScore"] == 1.0
     assert summary["labelFractions"] == [{"label": "important", "fraction": 1.0}]
+
+
+async def test_session_annotation_summary_time_range_uses_interval_overlap(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    # long_running starts before the requested window but is active inside it;
+    # before_window ends before the window starts. The summary must use the
+    # same interval-overlap semantics as the sessions table and include only
+    # long_running's annotation.
+    base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name="session-annotation-overlap-test")
+        intervals = {
+            "long_running": (timedelta(0), timedelta(minutes=15)),
+            "before_window": (timedelta(0), timedelta(minutes=5)),
+        }
+        for label, (start_offset, end_offset) in intervals.items():
+            project_session = await _add_project_session(
+                session,
+                project,
+                start_time=base_time + start_offset,
+                end_time=base_time + end_offset,
+            )
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="test-annotation",
+                    label=label,
+                    score=1.0,
+                    explanation="Test annotation",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+
+    query = """
+      query ($projectId: ID!, $timeRange: TimeRange) {
+        node(id: $projectId) {
+          ... on Project {
+            sessionAnnotationSummary(
+              annotationName: "test-annotation"
+              timeRange: $timeRange
+            ) {
+              count
+              labelFractions {
+                label
+                fraction
+              }
+            }
+          }
+        }
+      }
+    """
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "timeRange": {
+                "start": (base_time + timedelta(minutes=10)).isoformat(),
+                "end": (base_time + timedelta(minutes=20)).isoformat(),
+            },
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    summary = response.data["node"]["sessionAnnotationSummary"]
+    assert summary is not None
+    assert summary["count"] == 1
+    assert summary["labelFractions"] == [{"label": "long_running", "fraction": 1.0}]
+
+
+@dataclass
+class _TimeRangeSessionsData:
+    project: models.Project
+    sessions_by_name: dict[str, models.ProjectSession]
+
+
+class TestProjectSessionsTimeRange:
+    """The sessions connection uses interval-overlap semantics for timeRange:
+    a session is included iff [start_time, end_time] intersects [start, end)."""
+
+    _QUERY = """
+        query ($projectId: ID!, $timeRange: TimeRange, $filterIoSubstring: String) {
+          node(id: $projectId) {
+            ... on Project {
+              sessions(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
+                edges { node { id } }
+              }
+            }
+          }
+        }
+    """
+
+    _BASE_TIME = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    _WINDOW_START = _BASE_TIME + timedelta(minutes=10)
+    _WINDOW_END = _BASE_TIME + timedelta(minutes=20)
+
+    @classmethod
+    def _minutes(cls, minute: int) -> datetime:
+        return cls._BASE_TIME + timedelta(minutes=minute)
+
+    @pytest.fixture
+    async def _sessions_data(
+        self,
+        db: DbSessionFactory,
+    ) -> _TimeRangeSessionsData:
+        minutes = self._minutes
+        intervals = {
+            # started before the window, last activity inside it (the long-running case)
+            "long_running": (0, 15),
+            # entirely before the window
+            "before_window": (0, 5),
+            # last activity exactly at the window start (closed lower bound)
+            "ends_at_window_start": (0, 10),
+            # entirely inside the window
+            "inside_window": (12, 13),
+            # spans the entire window
+            "spans_window": (5, 25),
+            # starts exactly at the window end (right-exclusive upper bound)
+            "starts_at_window_end": (20, 30),
+        }
+        sessions_by_name = {}
+        async with db() as session:
+            project = await _add_project(session)
+            for name, (start_minute, end_minute) in intervals.items():
+                project_session = await _add_project_session(
+                    session,
+                    project,
+                    start_time=minutes(start_minute),
+                    end_time=minutes(end_minute),
+                )
+                sessions_by_name[name] = project_session
+                trace = await _add_trace(
+                    session,
+                    project,
+                    project_session,
+                    start_time=minutes(start_minute),
+                    end_time=minutes(start_minute) + timedelta(seconds=30),
+                )
+                await _add_span(
+                    session,
+                    trace,
+                    start_time=minutes(start_minute),
+                    end_time=minutes(start_minute) + timedelta(seconds=30),
+                    attributes={"input": {"value": f"input for {name}"}},
+                )
+        return _TimeRangeSessionsData(project=project, sessions_by_name=sessions_by_name)
+
+    async def _get_session_ids(
+        self,
+        gql_client: AsyncGraphQLClient,
+        data: _TimeRangeSessionsData,
+        time_range: Optional[dict[str, str]],
+        filter_io_substring: Optional[str] = None,
+    ) -> set[str]:
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "projectId": str(GlobalID(Project.__name__, str(data.project.id))),
+                "timeRange": time_range,
+                "filterIoSubstring": filter_io_substring,
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        edges = response.data["node"]["sessions"]["edges"]
+        return {edge["node"]["id"] for edge in edges}
+
+    def _expected_ids(self, data: _TimeRangeSessionsData, *names: str) -> set[str]:
+        return {_gid(data.sessions_by_name[name]) for name in names}
+
+    async def test_includes_sessions_overlapping_the_window(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        actual = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert actual == self._expected_ids(
+            _sessions_data,
+            "long_running",
+            "ends_at_window_start",
+            "inside_window",
+            "spans_window",
+        )
+
+    async def test_open_ended_lower_bound_filters_by_last_activity(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        time_range = {"start": self._WINDOW_START.isoformat()}
+        actual = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert actual == self._expected_ids(
+            _sessions_data,
+            "long_running",
+            "ends_at_window_start",
+            "inside_window",
+            "spans_window",
+            "starts_at_window_end",
+        )
+
+    async def test_open_ended_upper_bound_filters_by_start_time(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        time_range = {"end": self._WINDOW_END.isoformat()}
+        actual = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert actual == self._expected_ids(
+            _sessions_data,
+            "long_running",
+            "before_window",
+            "ends_at_window_start",
+            "inside_window",
+            "spans_window",
+        )
+
+    async def test_substring_filter_matches_traces_outside_the_window(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # The long-running session's only trace starts before the window; the session
+        # must still be returned because it overlaps the window and its content matches.
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        actual = await self._get_session_ids(
+            gql_client,
+            _sessions_data,
+            time_range,
+            filter_io_substring="input for long_running",
+        )
+        assert actual == self._expected_ids(_sessions_data, "long_running")
+
+    async def test_substring_filter_does_not_widen_the_window(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # A session outside the window stays excluded even if its content matches.
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        actual = await self._get_session_ids(
+            gql_client,
+            _sessions_data,
+            time_range,
+            filter_io_substring="input for before_window",
+        )
+        assert actual == set()

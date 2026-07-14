@@ -1,3 +1,4 @@
+import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { context, trace } from "@opentelemetry/api";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { afterEach, describe, expect, test } from "vitest";
@@ -241,6 +242,36 @@ describe("register", () => {
     await firstProvider.shutdown();
     await secondProvider.shutdown();
   });
+});
+
+test("register uses the env project name as a fallback", () => {
+  delete process.env.PHOENIX_PROJECT_NAME;
+  process.env.PHOENIX_PROJECT = "env-project";
+  try {
+    let capturedProjectName: unknown;
+    const captureProcessor: SpanProcessor = {
+      onStart: (span: Readonly<Span>) => {
+        capturedProjectName =
+          span.resource.attributes[SEMRESATTRS_PROJECT_NAME];
+      },
+      onEnd: () => {},
+      forceFlush: async () => {},
+      shutdown: async () => {},
+    };
+    const provider = register({
+      url: "http://localhost:6006/v1/traces",
+      apiKey: "test",
+      spanProcessors: [captureProcessor],
+      global: false,
+    });
+    provider
+      .getTracer("env-project-test")
+      .startSpan("smoke-span", undefined, context.active())
+      .end();
+    expect(capturedProjectName).toBe("env-project");
+  } finally {
+    delete process.env.PHOENIX_PROJECT;
+  }
 });
 
 test("should export DiagLogLevel as a runtime value", () => {

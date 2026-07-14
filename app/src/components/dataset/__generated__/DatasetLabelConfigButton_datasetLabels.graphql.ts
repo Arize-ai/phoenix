@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f1ded1ae57484fce3c9029ee1374ba08>>
+ * @generated SignedSource<<c7ffac136273a5c9535f7aca044f1913>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -36,7 +35,7 @@ return {
   "metadata": null,
   "name": "DatasetLabelConfigButton_datasetLabels",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -45,7 +44,7 @@ return {
       "name": "labels",
       "plural": true,
       "selections": [
-        (v0/*: any*/)
+        (v0/*:: as any*/)
       ],
       "storageKey": null
     }

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<866d6ee780ca1dce9fcf6bbb6628779f>>
+ * @generated SignedSource<<426e69d41a9671deea7af691aa40c676>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -78,21 +77,21 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SessionDetailsTracesViewRefetchQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v2/*: any*/),
+            "args": (v2/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "SessionDetailsTracesView_traces"
           }
@@ -105,20 +104,20 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SessionDetailsTracesViewRefetchQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v4/*: any*/),
+          (v3/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -131,7 +130,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": "TraceConnection",
                 "kind": "LinkedField",
                 "name": "traces",
@@ -153,7 +152,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
+                          (v4/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -169,7 +168,7 @@ return {
                             "name": "rootSpan",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/),
+                              (v4/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -206,7 +205,7 @@ return {
                                 "name": "project",
                                 "plural": false,
                                 "selections": [
-                                  (v4/*: any*/)
+                                  (v4/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -218,7 +217,7 @@ return {
                                 "name": "trace",
                                 "plural": false,
                                 "selections": [
-                                  (v4/*: any*/),
+                                  (v4/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -272,8 +271,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/)
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -310,7 +309,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "SessionDetailsTracesView_traces",

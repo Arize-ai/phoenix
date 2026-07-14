@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5ab6b49688dc39655255bdb43d228632>>
+ * @generated SignedSource<<13748c3104812695d90628d9e8d6fab0>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -48,7 +47,24 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  },
+  (v1/*:: as any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -73,7 +89,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
         "name": "datasets",
@@ -95,8 +111,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
-                  (v2/*: any*/),
+                  (v1/*:: as any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -116,6 +132,33 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "createdBy",
+                    "plural": false,
+                    "selections": (v3/*:: as any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "updatedBy",
+                    "plural": false,
+                    "selections": (v3/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -147,8 +190,8 @@ return {
                     "name": "labels",
                     "plural": true,
                     "selections": [
-                      (v1/*: any*/),
-                      (v2/*: any*/),
+                      (v1/*:: as any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -209,7 +252,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "filters": [
           "sort",
           "filter"
@@ -222,12 +265,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cfd4b610f5e90a38d75c90be0db685fe",
+    "cacheID": "76ce8f6ed8c949d48f69aa9e91a03437",
     "id": null,
     "metadata": {},
     "name": "DatasetsPageQuery",
     "operationKind": "query",
-    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        evaluatorCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        updatedAt\n        createdBy {\n          username\n          profilePictureUrl\n          id\n        }\n        updatedBy {\n          username\n          profilePictureUrl\n          id\n        }\n        exampleCount\n        experimentCount\n        evaluatorCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

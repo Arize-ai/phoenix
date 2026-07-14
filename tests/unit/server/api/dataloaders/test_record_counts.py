@@ -43,10 +43,12 @@ async def test_record_counts(
         session_pid = models.ProjectSession.project_id
         session_df = await session.run_sync(
             lambda s: pd.read_sql_query(
+                # sessions use interval-overlap time-range semantics: a session
+                # counts iff [start_time, end_time] intersects [start, end)
                 select(session_pid, func.count().label("count"))
                 .group_by(session_pid)
                 .order_by(session_pid)
-                .where(start_time <= models.ProjectSession.start_time)
+                .where(start_time <= models.ProjectSession.end_time)
                 .where(models.ProjectSession.start_time < end_time),
                 s.connection(),
             )

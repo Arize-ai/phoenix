@@ -7,44 +7,29 @@ on:
   pull_request:
 
 jobs:
-  # JOB to run change detection
   changes:
     runs-on: ubuntu-latest
-    # Required permissions
     permissions:
       pull-requests: read
-    # Set job outputs to values from filter step
     outputs:
-      workflow_file: ${{ steps.filter.outputs.workflow_file }}
-      phoenix-client: ${{ steps.filter.outputs.phoenix-client }}
-      phoenix-mcp: ${{ steps.filter.outputs.phoenix-mcp }}
-      phoenix-evals: ${{ steps.filter.outputs.phoenix-evals }}
-      phoenix-otel: ${{ steps.filter.outputs.phoenix-otel }}
-      phoenix-cli: ${{ steps.filter.outputs.phoenix-cli }}
+      packages: ${{ steps.filter.outputs.packages }}
     steps:
-      # For pull requests it's not necessary to checkout the code
+      # No checkout needed: paths-filter reads the PR's changed files from the API.
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
+          # Every publishable package is released together (see the Publish step),
+          # so a change to any one of them - or to this workflow - triggers the run.
           filters: |
-            phoenix-client:
-              - 'js/packages/phoenix-client/**'
-            phoenix-mcp:
-              - 'js/packages/phoenix-mcp/**'
-            phoenix-evals:
-              - 'js/packages/phoenix-evals/**'
-            phoenix-otel:
-              - 'js/packages/phoenix-otel/**'
-            phoenix-config:
-              - 'js/packages/phoenix-config/**'
-            phoenix-cli:
-              - 'js/packages/phoenix-cli/**'
-            workflow_file:
+            packages:
+              - 'js/packages/**'
+              - 'js/pnpm-lock.yaml'
+              - 'js/pnpm-workspace.yaml'
               - '.github/workflows/typescript-packages-publish-experimental.yml'
 
   publish-experimental-packages:
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix-client == 'true' || needs.changes.outputs.phoenix-mcp == 'true' || needs.changes.outputs.phoenix-evals == 'true' || needs.changes.outputs.phoenix-otel == 'true' || needs.changes.outputs.phoenix-cli == 'true' || needs.changes.outputs.workflow_file == 'true' }}
+    if: ${{ needs.changes.outputs.packages == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,15 +49,24 @@ jobs:
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: ./js/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: ./js
         run: pnpm install
 
+      # Only the publishable packages are needed; the examples/apps and benchmarks
+      # workspaces are private and their build output is discarded.
       - name: Build
         working-directory: ./js
-        run: pnpm -r build
+        run: pnpm --filter './packages/*' build
 
+      # pkg-pr-new only rewrites a `workspace:*` dependency into a preview URL when the
+      # depended-on package is part of the SAME publish invocation. Anything left out ships
+      # a literal `workspace:*` in its package.json, which npm/npx reject with
+      # `Unsupported URL Type "workspace:"`. Publishing the whole glob keeps every internal
+      # dependency resolvable; pkg-pr-new skips any package marked private.
       - name: Publish
         working-directory: ./js
-        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp ./packages/phoenix-evals ./packages/phoenix-otel ./packages/phoenix-cli
+        run: pnpx pkg-pr-new publish --pnpm ./packages/*

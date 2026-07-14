@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AnnotationMutationResult } from "../src/commands/annotationMutationUtils";
+import type { AnnotationMutationResult } from "../src/commands/annotationMutations";
 import { formatAnnotationMutationOutput } from "../src/commands/formatAnnotationMutation";
 import { createSpanCommand } from "../src/commands/span";
 import { createTraceCommand } from "../src/commands/trace";

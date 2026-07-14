@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a6480cf03d4217d0d3a9471f566a3838>>
+ * @generated SignedSource<<eb969630237914c775e5aff9356b26f4>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -95,7 +94,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptsLabelMenuQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -104,7 +103,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "PromptsLabelMenuQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "b1eec4579aec591910252fa2619f47f4",

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<1e6dd696c8bf5716c8e1d7cd20aacc98>>
+ * @generated SignedSource<<5878331b9629d874c772ccb54b329066>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -92,7 +91,7 @@ v9 = {
   "name": "project",
   "plural": false,
   "selections": [
-    (v5/*: any*/),
+    (v5/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -117,7 +116,7 @@ v9 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v4/*: any*/),
+                (v4/*:: as any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
@@ -135,8 +134,8 @@ v9 = {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v5/*: any*/),
-                    (v6/*: any*/),
+                    (v5/*:: as any*/),
+                    (v6/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -152,8 +151,8 @@ v9 = {
                       "name": "values",
                       "plural": true,
                       "selections": [
-                        (v7/*: any*/),
-                        (v8/*: any*/)
+                        (v7/*:: as any*/),
+                        (v8/*:: as any*/)
                       ],
                       "storageKey": null
                     }
@@ -164,7 +163,7 @@ v9 = {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v5/*: any*/)
+                    (v5/*:: as any*/)
                   ],
                   "type": "Node",
                   "abstractKey": "__isNode"
@@ -182,10 +181,10 @@ v9 = {
   "storageKey": null
 },
 v10 = [
-  (v5/*: any*/),
-  (v6/*: any*/),
-  (v7/*: any*/),
-  (v8/*: any*/),
+  (v5/*:: as any*/),
+  (v6/*:: as any*/),
+  (v7/*:: as any*/),
+  (v8/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -222,7 +221,7 @@ v10 = [
         "name": "profilePictureUrl",
         "storageKey": null
       },
-      (v5/*: any*/)
+      (v5/*:: as any*/)
     ],
     "storageKey": null
   }
@@ -264,7 +263,7 @@ v11 = [
         "name": "fraction",
         "storageKey": null
       },
-      (v7/*: any*/)
+      (v7/*:: as any*/)
     ],
     "storageKey": null
   },
@@ -275,7 +274,7 @@ v11 = [
     "name": "meanScore",
     "storageKey": null
   },
-  (v6/*: any*/)
+  (v6/*:: as any*/)
 ],
 v12 = [
   {
@@ -303,8 +302,8 @@ v12 = [
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -312,7 +311,7 @@ return {
     "selections": [
       {
         "alias": "session",
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -322,7 +321,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "kind": "FragmentSpread",
                 "name": "SessionDetailsTraceList_traces"
               }
@@ -340,22 +339,22 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionDetailsTraceListQuery",
     "selections": [
       {
         "alias": "session",
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
-          (v5/*: any*/),
+          (v4/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -368,7 +367,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "TraceConnection",
                 "kind": "LinkedField",
                 "name": "traces",
@@ -390,7 +389,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -414,8 +413,8 @@ return {
                                 "name": "trace",
                                 "plural": false,
                                 "selections": [
-                                  (v5/*: any*/),
-                                  (v9/*: any*/),
+                                  (v5/*:: as any*/),
+                                  (v9/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -423,7 +422,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "traceAnnotations",
                                     "plural": true,
-                                    "selections": (v10/*: any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -433,7 +432,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "traceAnnotationSummaries",
                                     "plural": true,
-                                    "selections": (v11/*: any*/),
+                                    "selections": (v11/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -456,8 +455,8 @@ return {
                                     "name": "traceAnnotations",
                                     "plural": true,
                                     "selections": [
-                                      (v5/*: any*/),
-                                      (v7/*: any*/),
+                                      (v5/*:: as any*/),
+                                      (v7/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -500,8 +499,8 @@ return {
                                 ],
                                 "storageKey": null
                               },
-                              (v5/*: any*/),
-                              (v6/*: any*/),
+                              (v5/*:: as any*/),
+                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -509,7 +508,7 @@ return {
                                 "name": "attributes",
                                 "storageKey": null
                               },
-                              (v9/*: any*/),
+                              (v9/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -517,7 +516,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "input",
                                 "plural": false,
-                                "selections": (v12/*: any*/),
+                                "selections": (v12/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -527,7 +526,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "output",
                                 "plural": false,
-                                "selections": (v12/*: any*/),
+                                "selections": (v12/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -572,7 +571,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "spanAnnotations",
                                 "plural": true,
-                                "selections": (v10/*: any*/),
+                                "selections": (v10/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -582,7 +581,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "spanAnnotationSummaries",
                                 "plural": true,
-                                "selections": (v11/*: any*/),
+                                "selections": (v11/*:: as any*/),
                                 "storageKey": null
                               }
                             ],
@@ -606,8 +605,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
-                          (v5/*: any*/)
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -644,7 +643,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "SessionDetailsTraceList_traces",

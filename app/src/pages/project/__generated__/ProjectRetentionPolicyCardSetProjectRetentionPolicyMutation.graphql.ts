@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6ba1f1d68793b0d9cebd6f87e52e585d>>
+ * @generated SignedSource<<4ae6f952865ef9185bb5d87964d42e54>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -108,8 +107,8 @@ v8 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -117,7 +116,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "patchProjectTraceRetentionPolicy",
@@ -133,7 +132,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -167,15 +166,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "patchProjectTraceRetentionPolicy",
@@ -191,18 +190,18 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v4/*: any*/),
-                  (v5/*: any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v6/*: any*/),
+                      (v6/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -211,8 +210,8 @@ return {
                         "name": "traceRetentionPolicy",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/),
-                          (v6/*: any*/),
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -228,11 +227,11 @@ return {
                             "name": "rule",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/),
+                              (v4/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v7/*: any*/)
+                                  (v7/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDays",
                                 "abstractKey": null
@@ -240,7 +239,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v8/*: any*/)
+                                  (v8/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxCount",
                                 "abstractKey": null
@@ -248,8 +247,8 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v7/*: any*/),
-                                  (v8/*: any*/)
+                                  (v7/*:: as any*/),
+                                  (v8/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDaysOrCount",
                                 "abstractKey": null

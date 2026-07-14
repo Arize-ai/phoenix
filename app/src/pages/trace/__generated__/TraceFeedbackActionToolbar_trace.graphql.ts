@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5c167b4ae90e4e877f1e77bc09f20ee5>>
+ * @generated SignedSource<<0b681e996c447830a7f35596c018eb33>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -38,7 +37,7 @@ return {
   "metadata": null,
   "name": "TraceFeedbackActionToolbar_trace",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": "viewerUserFeedbackAnnotations",
       "args": [
@@ -59,7 +58,7 @@ return {
       "name": "traceAnnotations",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,

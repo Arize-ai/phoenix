@@ -21,9 +21,10 @@ const compactEmptyStateCSS = css`
   // border-box so the 100% width includes the padding below; otherwise padding
   // is added outside the full width and overflows the popover → horizontal scroll.
   box-sizing: border-box;
-  // No min-height: the container drives size (a sized View, TableEmptyWrap, or a
-  // popover that wraps to content). The glow clips harmlessly in tight spots —
-  // it's ~0 alpha by its edge — and has all the room it needs in tall ones.
+  // Inherit the container's min-height so the glow fills sized regions (a sized
+  // View, TableEmptyWrap, or command palette menu) while still wrapping to
+  // content in compact popovers.
+  min-height: inherit;
   display: flex;
   flex-direction: column;
   align-items: center;

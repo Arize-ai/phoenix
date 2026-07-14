@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<ee9f7b5c87995aade65d4fe2eca2e466>>
+ * @generated SignedSource<<f2622357ddea320a83f508c87e216baf>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -84,20 +83,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "GeneratePersonalAPIKeyButtonMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "GeneratePersonalAPIKeyButtonMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "ab1efbf3367063e9ca4ca6164ad57049",

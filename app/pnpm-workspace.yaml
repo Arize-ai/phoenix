@@ -6,6 +6,10 @@ managePackageManagerVersions: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - "@arizeai/*"
+  # typescript@7.0.2 and its @typescript/typescript-* platform binaries were
+  # published same-day as the TS 7 migration; remove once 3 days have passed.
+  - typescript
+  - "@typescript/*"
 
 allowBuilds:
   "@mongodb-js/zstd": false

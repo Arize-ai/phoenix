@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0c68a8d6c1010055daccf62b06f202bd>>
+ * @generated SignedSource<<dbc48b4d85a7f3aaf4948350ad6398df>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -90,7 +89,7 @@ return {
         "count": "count",
         "cursor": "cursor",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -100,7 +99,7 @@ return {
           "cursor": "cursor"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -145,7 +144,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -153,7 +152,7 @@ return {
                   "name": "spanId",
                   "storageKey": null
                 },
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -257,7 +256,7 @@ return {
                       ],
                       "storageKey": null
                     },
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -334,7 +333,7 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*: any*/)
+    (v1/*:: as any*/)
   ],
   "type": "Trace",
   "abstractKey": null

@@ -78,10 +78,8 @@ const outlineCSS = css`
     ${pxiGlowWipeMaskCSS};
     inset: calc(
       -1 *
-        (
-          var(--pxi-outline-gap) + var(--pxi-treatment-stroke-width) +
-            var(--pxi-glow-bleed)
-        )
+        (var(--pxi-outline-gap) + var(--pxi-treatment-stroke-width) +
+          var(--pxi-glow-bleed))
     );
     z-index: 0;
     border-radius: calc(
