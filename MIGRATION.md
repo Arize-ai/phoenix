@@ -19,9 +19,19 @@ it with the new environment variable:
   longer be refreshed. The CLI reports "This Phoenix server does not support OAuth login; use an API key" when it
   encounters such a deployment. The variable has no effect when authentication is disabled.
 
-Related dials for deployments that keep the authorization server enabled: `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION`
-(default `local_only`) controls which OAuth2 clients may register themselves, and `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS`
-restricts where dynamically registered clients may receive authorization codes.
+Related dials for deployments that keep the authorization server enabled:
+
+- `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` (default `enabled`) controls dynamic client registration (RFC 7591) and
+  which redirect URIs registered clients may use. The default admits HTTPS redirect URIs in addition to loopback and
+  private-use schemes, because MCP clients in the wild (Cursor, for example) register an HTTPS callback as part of
+  standard registration and rejecting it breaks those clients out of the box. Registration by itself grants no access:
+  a token is minted only after a logged-in user approves the consent page, the authorization code is delivered only to
+  the exact registered redirect URI, and PKCE binds the token exchange to the client that started the flow. Set
+  `local_only` to restrict code delivery to processes on the approving user's machine (loopback and private-use schemes
+  only), or `disabled` to turn dynamic registration off entirely.
+- `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS` (unset by default) restricts which hosts may appear in HTTPS redirect URIs
+  when registration is `enabled` — for example, `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS=www.cursor.com` admits Cursor
+  and nothing else.
 
 A note on CORS: the anonymous OAuth surfaces (`/.well-known/*` discovery documents, `/oauth2/register`, `/oauth2/token`,
 and `/oauth2/revoke`) answer cross-origin requests from any origin with non-credentialed wildcard CORS, so browser-based

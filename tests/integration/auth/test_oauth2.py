@@ -663,9 +663,10 @@ class TestDynamicClientRegistration:
             _app,
             redirect_uri="http://127.0.0.1:8765/callback/cache-headers",
         )
+        # Plain http to a non-loopback host is rejected under every dial position.
         error = _register_response(
             _app,
-            redirect_uri="https://unavailable.example.com/callback",
+            redirect_uri="http://unavailable.example.com/callback",
         )
 
         success.raise_for_status()
@@ -786,7 +787,7 @@ class TestDynamicClientRegistration:
             "cursor://anysphere.cursor-mcp/oauth/callback",
         ],
     )
-    def test_register_local_only_redirect_classes_complete_flow(
+    def test_register_local_redirect_classes_complete_flow(
         self,
         _app: _AppInfo,
         _get_user: _GetUser,
@@ -808,15 +809,20 @@ class TestDynamicClientRegistration:
             "https://insiders.vscode.dev/redirect",
         ],
     )
-    def test_register_local_only_rejects_https_redirects(
+    def test_register_accepts_https_redirects_by_default(
         self,
         _app: _AppInfo,
         redirect_uri: str,
     ) -> None:
+        """The default dial is `enabled`: MCP clients in the wild register HTTPS
+        callbacks as part of standard RFC 7591 registration, and registration is
+        all-or-nothing, so rejecting them breaks those clients out of the box.
+        (`local_only` rejection semantics are pinned by unit tests on
+        ``validate_redirect_uri``.)"""
         response = _register_response(_app, redirect_uri=redirect_uri)
 
-        assert response.status_code == 400
-        assert response.json()["error"] == "invalid_redirect_uri"
+        response.raise_for_status()
+        assert response.json()["redirect_uris"] == [redirect_uri]
 
     def test_register_overrides_client_secret_post_to_none(self, _app: _AppInfo) -> None:
         response = _register_response(

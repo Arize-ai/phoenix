@@ -292,8 +292,8 @@ time, and DCR time, so the three checkpoints cannot drift apart.
 
 ### The Policy Dial
 
-`PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` = `disabled` | **`local_only`
-(default)** | `enabled`. The dial answers two separate questions — *who may
+`PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` = `disabled` | `local_only` |
+**`enabled` (default)**. The dial answers two separate questions — *who may
 register a client* and *where an authorization code may be delivered* — and the
 delivery rule applies to every client, seeded ones included:
 
@@ -312,12 +312,24 @@ delivery rule applies to every client, seeded ones included:
 - **`enabled`** — additionally allows exact-registered https redirects,
   optionally constrained by `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS`.
 
-The rationale for shipping DCR on by default at `local_only`: the registration
+The rationale for shipping DCR on by default at `enabled`: the registration
 step itself grants nothing — a registered client still cannot obtain a token
-without a logged-in Phoenix user clicking approve on the consent page, and the
-local-delivery restriction means the code lands with the person who clicked.
-The residual risk (a look-alike client name on the consent page) is addressed
-with the first-party badge and unverified-client caution copy.
+without a logged-in Phoenix user clicking approve on the consent page, the
+authorization code is delivered only to the exact redirect URI the client
+registered, and PKCE binds the exchange to the flow's initiator. `local_only`
+was the original default on the theory that code delivery should stay on the
+approving user's machine, but MCP clients in the wild broke on it immediately:
+Cursor registers an HTTPS callback (`https://www.cursor.com/agents/mcp/oauth/
+callback`) alongside its loopback and private-use-scheme ones, and RFC 7591
+registration is all-or-nothing, so one rejected URI fails the whole
+registration. A default that breaks the flagship MCP clients out of the box
+buys little: the marginal exposure of `enabled` is that an approved code may
+be delivered to a registered HTTPS endpoint instead of a local process, and
+that delivery is still gated by the same user consent. Operators who want the
+tighter posture set `local_only`, or keep `enabled` and constrain hosts with
+`PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS`. The residual risk (a look-alike
+client name on the consent page) is addressed with the first-party badge and
+unverified-client caution copy.
 
 ### Registration Hygiene
 
@@ -568,9 +580,11 @@ Coverage is organized by concern, one class each:
 | `TestGrantTokenAccess` | Granted tokens act with the authorizing user's permissions (scope enforcement deferred to the authorization workstream) |
 | `TestAdminGrantOversight` | Admins can list and revoke grants across users; non-admins can do neither |
 
-Separate app fixtures run the suite against `local_only` (rate-limited),
-`enabled`, and `disabled` configurations, since the dial changes both
-registration and redirect validation behavior.
+Separate app fixtures run the suite against the default `enabled`
+configuration (plus a rate-limited variant), an `enabled` + allowlist
+configuration, and `disabled`, since the dial changes both registration and
+redirect validation behavior; `local_only` semantics are pinned by unit tests
+on `validate_redirect_uri`.
 
 ---
 
@@ -579,7 +593,7 @@ registration and redirect validation behavior.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER` | `true` | Master switch: when `false`, every authorization-server endpoint and the RFC 8414 document answer 404, and the PRM stops advertising an authorization server |
-| `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` | `local_only` | The policy dial: `disabled` \| `local_only` \| `enabled` |
+| `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` | `enabled` | The policy dial: `disabled` \| `local_only` \| `enabled` |
 | `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS` | unset (any) | Host allowlist for https redirects when `enabled` |
 | `PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS` | 90 | Grant ceiling; refresh lifetimes are clamped to it |
 | `PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK` | `strict` | Origin-header enforcement on the consent decision endpoint |

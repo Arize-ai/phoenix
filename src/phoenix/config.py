@@ -436,7 +436,16 @@ Controls Origin-header enforcement on OAuth2 consent decisions. Defaults to stri
 """
 ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION = "PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION"
 """
-Controls public-client redirect URI mechanisms. Defaults to local_only.
+Controls public-client redirect URI mechanisms for dynamic client registration.
+One of: disabled, local_only, enabled. Defaults to enabled: MCP clients in the
+wild (e.g. Cursor) register HTTPS redirect URIs alongside loopback and
+private-use-scheme ones as part of standard RFC 7591 registration, and
+rejecting HTTPS breaks those clients out of the box. Registration grants no
+authority by itself — a token is minted only after a logged-in user approves
+the consent page, the authorization code is delivered only to the exact
+registered redirect URI, and PKCE binds the exchange to the flow's initiator.
+Operators can restrict which hosts may receive HTTPS deliveries with
+PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS, or set local_only / disabled.
 """
 ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS = "PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS"
 """
@@ -1552,7 +1561,7 @@ def get_env_oauth2_dynamic_client_registration() -> Literal["disabled", "local_o
     """
     Gets which public-client redirect URI mechanisms are enabled.
     """
-    value = getenv(ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION, "local_only").lower()
+    value = getenv(ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION, "enabled").lower()
     if value not in ("disabled", "local_only", "enabled"):
         raise ValueError(
             f"The environment variable `{ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION}` must be "
