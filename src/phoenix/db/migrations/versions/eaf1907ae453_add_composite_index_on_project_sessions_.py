@@ -19,11 +19,16 @@ Restructures indexes in one migration:
   FK to users was unindexed (the four annotation tables, datasets,
   dataset_versions, and experiments), so a user deletion no longer sequential-
   scans each of them.
-- Drops seven redundant single-column indexes: six whose lookups are served by
-  the leading columns of existing unique indexes, plus the unused
-  ``ix_project_sessions_end_time`` (superseded by the composite created above;
-  creation precedes the drop so there is never a window without an end_time
-  index).
+- Drops seven redundant single-column indexes. Five are served by the leading
+  columns of existing unique indexes. ``ix_dataset_examples_external_id`` is
+  not (``external_id`` is the second column of the unique ``(dataset_id,
+  external_id)`` index); it is dropped because no query filters by
+  ``external_id`` without ``dataset_id``, and dataset-scoped lookups are
+  served by that unique index. ``ix_project_sessions_end_time`` is superseded
+  by the composite created above (creation precedes the drop so there is
+  never a window without an end_time index); the one query filtering
+  ``end_time`` without ``project_id`` is deliberately non-selective and does
+  not benefit from an index.
 
 CONCURRENTLY support (opt-in via PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true):
 
@@ -86,9 +91,7 @@ _USER_ID_FK_INDEXES: list[tuple[str, str, list[str]]] = [
 ]
 
 # (index_name, table_name, [columns]) for every redundant single-column index
-# this migration drops. The first six are served by the leading columns of
-# existing unique indexes; ix_project_sessions_end_time is unused and superseded
-# by the composite (project_id, end_time DESC) index created above the drops.
+# this migration drops; see the module docstring for the per-index rationale.
 _REDUNDANT_INDEXES: list[tuple[str, str, list[str]]] = [
     ("ix_project_annotation_configs_project_id", "project_annotation_configs", ["project_id"]),
     ("ix_prompts_prompt_labels_prompt_label_id", "prompts_prompt_labels", ["prompt_label_id"]),
