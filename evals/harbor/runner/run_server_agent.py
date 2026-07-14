@@ -26,7 +26,8 @@ async def run(args: argparse.Namespace) -> None:
     history = None
     if args.history_file and args.history_file.is_file():
         history = ModelMessagesTypeAdapter.validate_json(args.history_file.read_bytes())
-    async with LifespanManager(app):
+    # App startup takes ~6s in the eval container; asgi-lifespan defaults to 5s.
+    async with LifespanManager(app, startup_timeout=120, shutdown_timeout=120):
         agent = build_server_agent(
             model=model,
             schema=app.state.graphql_schema,
