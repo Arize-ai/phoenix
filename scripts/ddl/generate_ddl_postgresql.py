@@ -43,7 +43,9 @@ import argparse
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any, Iterator
 
 import pglast
@@ -369,40 +371,56 @@ class PostgreSQLDDLExtractor:
     def _get_foreign_keys(self, schema: str, table_name: str) -> list[dict[str, Any]]:
         """Get foreign key constraints with full details.
 
-        For composite FKs whose source-column declaration order differs from the
-        referenced unique constraint's column order, we must pair source→target
-        via `position_in_unique_constraint` (the FK column's position in the
-        referenced unique constraint), not via raw ordinal positions. The target
-        list is then ordered by the source column's ordinal position so the
-        emitted REFERENCES clause matches the FK declaration's positional mapping.
+        PostgreSQL permits the same constraint name on different tables, so
+        information_schema.referential_constraints cannot be joined safely by
+        constraint name and schema alone. Use pg_constraint's relation OIDs and
+        pair conkey/confkey by ordinality to preserve composite-FK mappings.
         """
         query = sql.SQL("""
             SELECT
-                tc.constraint_name,
-                array_agg(kcu.column_name ORDER BY kcu.ordinal_position) as columns,
-                kcu2.table_schema AS foreign_table_schema,
-                kcu2.table_name AS foreign_table_name,
-                array_agg(kcu2.column_name ORDER BY kcu.ordinal_position) as foreign_columns,
-                rc.update_rule,
-                rc.delete_rule
-            FROM information_schema.table_constraints AS tc
-                     JOIN information_schema.key_column_usage AS kcu
-                          ON tc.constraint_name = kcu.constraint_name
-                              AND tc.table_schema = kcu.table_schema
-                              AND tc.table_name = kcu.table_name
-                     JOIN information_schema.referential_constraints AS rc
-                          ON tc.constraint_name = rc.constraint_name
-                              AND tc.table_schema = rc.constraint_schema
-                     JOIN information_schema.key_column_usage AS kcu2
-                          ON rc.unique_constraint_name = kcu2.constraint_name
-                              AND rc.unique_constraint_schema = kcu2.constraint_schema
-                              AND kcu.position_in_unique_constraint = kcu2.ordinal_position
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_schema = %s
-              AND tc.table_name = %s
-            GROUP BY tc.constraint_name, kcu2.table_schema, kcu2.table_name,
-                     rc.update_rule, rc.delete_rule
-            ORDER BY tc.constraint_name
+                con.conname AS constraint_name,
+                array_agg(source_column.attname ORDER BY key_map.position) AS columns,
+                target_namespace.nspname AS foreign_table_schema,
+                target_table.relname AS foreign_table_name,
+                array_agg(target_column.attname ORDER BY key_map.position) AS foreign_columns,
+                CASE con.confupdtype
+                    WHEN 'a' THEN 'NO ACTION'
+                    WHEN 'r' THEN 'RESTRICT'
+                    WHEN 'c' THEN 'CASCADE'
+                    WHEN 'n' THEN 'SET NULL'
+                    WHEN 'd' THEN 'SET DEFAULT'
+                END AS update_rule,
+                CASE con.confdeltype
+                    WHEN 'a' THEN 'NO ACTION'
+                    WHEN 'r' THEN 'RESTRICT'
+                    WHEN 'c' THEN 'CASCADE'
+                    WHEN 'n' THEN 'SET NULL'
+                    WHEN 'd' THEN 'SET DEFAULT'
+                END AS delete_rule
+            FROM pg_constraint AS con
+                     JOIN pg_class AS source_table
+                          ON source_table.oid = con.conrelid
+                     JOIN pg_namespace AS source_namespace
+                          ON source_namespace.oid = source_table.relnamespace
+                     JOIN pg_class AS target_table
+                          ON target_table.oid = con.confrelid
+                     JOIN pg_namespace AS target_namespace
+                          ON target_namespace.oid = target_table.relnamespace
+                     JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY
+                          AS key_map(source_attnum, target_attnum, position)
+                          ON TRUE
+                     JOIN pg_attribute AS source_column
+                          ON source_column.attrelid = source_table.oid
+                              AND source_column.attnum = key_map.source_attnum
+                     JOIN pg_attribute AS target_column
+                          ON target_column.attrelid = target_table.oid
+                              AND target_column.attnum = key_map.target_attnum
+            WHERE con.contype = 'f'
+              AND source_namespace.nspname = %s
+              AND source_table.relname = %s
+            GROUP BY con.oid, con.conname, target_namespace.nspname, target_table.relname,
+                     con.confupdtype, con.confdeltype
+            ORDER BY con.conname
         """)
         return self._execute_query(
             query, (schema, table_name), f"getting foreign keys for {schema}.{table_name}"
@@ -1272,8 +1290,7 @@ def run_alembic_migrations(url: URL, skip_if_failed: bool = False) -> bool:
 
     except Exception as e:
         if not skip_if_failed:
-            print(f"Warning: Failed to run migrations: {e}", file=sys.stderr)
-            print("Proceeding with DDL extraction from database as-is", file=sys.stderr)
+            print(f"Error: Failed to run migrations: {e}", file=sys.stderr)
         return False
 
 
@@ -1331,7 +1348,8 @@ def _extract_ddl_ephemeral(args: argparse.Namespace) -> int:
         print(f"Connection: {url}")
 
         # Always run migrations for ephemeral instances
-        run_alembic_migrations(url)
+        if not run_alembic_migrations(url):
+            return 1
 
         # Extract DDL using URL directly
         return _extract_ddl_with_url(url, args)
@@ -1390,45 +1408,60 @@ def _extract_ddl_with_url(url: URL, args: argparse.Namespace) -> int:
         # Extract tables
         tables_ddl = extractor.extract_all_tables_ddl(args.schema)
 
-        # Write DDL to file
+        # Render the complete artifact before touching the destination. Generation
+        # can fail for unsupported schema features, and must not truncate the last
+        # valid checked-in DDL.
+        output = StringIO()
+        if types_ddl:
+            output.write("-- User-Defined Types (Enums)\n")
+            output.write("-- " + "=" * 30 + "\n\n")
+
+            for type_info in types_ddl:
+                output.write(extractor.generate_type_ddl(type_info))
+                output.write("\n")
+
+            output.write("\n\n")
+
+        for i, table_info in enumerate(tables_ddl):
+            if i > 0:
+                output.write("\n\n")
+            output.write(extractor.generate_ddl(table_info))
+            output.write("\n")
+
+        # Write and validate a temporary file in the destination directory, then
+        # atomically replace the destination only after validation succeeds.
+        temporary_output: Path | None = None
         try:
-            with args.output.open("w", encoding="utf-8") as f:
-                # Write user-defined types first
-                if types_ddl:
-                    f.write("-- User-Defined Types (Enums)\n")
-                    f.write("-- " + "=" * 30 + "\n\n")
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=args.output.parent,
+                prefix=f".{args.output.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temporary_file:
+                temporary_file.write(output.getvalue())
+                temporary_output = Path(temporary_file.name)
 
-                    for type_info in types_ddl:
-                        type_ddl = extractor.generate_type_ddl(type_info)
-                        f.write(type_ddl)
-                        f.write("\n")
+            print("\nValidating schema syntax...")
+            if not validate_schema_syntax(temporary_output):
+                print(
+                    "Error: Schema contains syntax errors - destination was not changed",
+                    file=sys.stderr,
+                )
+                return 1
 
-                    f.write("\n\n")
-
-                # Write each table's DDL
-                for i, table_info in enumerate(tables_ddl):
-                    if i > 0:  # Add extra spacing between tables
-                        f.write("\n\n")
-
-                    ddl = extractor.generate_ddl(table_info)
-                    f.write(ddl)
-                    f.write("\n")
-        except (OSError, IOError) as e:
+            temporary_output.replace(args.output)
+            temporary_output = None
+        except OSError as e:
             print(f"Error writing to {args.output}: {e}", file=sys.stderr)
             return 1
+        finally:
+            if temporary_output is not None:
+                temporary_output.unlink(missing_ok=True)
 
         print(f"DDL exported to: {args.output}")
         print(f"Processed {len(types_ddl)} user-defined types and {len(tables_ddl)} tables")
-
-        # Validate the generated schema syntax; a validation failure must fail
-        # the run (and therefore `make schema-ddl`), not just print a warning.
-        print("\nValidating schema syntax...")
-        if not validate_schema_syntax(args.output):
-            print(
-                "Error: Schema contains syntax errors - please review the output",
-                file=sys.stderr,
-            )
-            return 1
 
     return 0
 
