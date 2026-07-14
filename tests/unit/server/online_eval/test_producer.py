@@ -28,6 +28,7 @@ async def _seed_criteria(
     *,
     filter_condition: str = "",
     sampling_rate: float = 1.0,
+    evaluation_target: models.EvaluationTarget = "SPAN",
 ) -> tuple[int, int]:
     """Create a builtin evaluator and a criteria row, returning
     (evaluator_id, criteria_id)."""
@@ -47,6 +48,7 @@ async def _seed_criteria(
             annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition=filter_condition,
             sampling_rate=sampling_rate,
+            evaluation_target=evaluation_target,
         )
         session.add(criteria)
         await session.flush()
@@ -176,6 +178,20 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
+
+
+@pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
+async def test_future_targets_are_not_loaded_by_span_producer(
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    await _seed_criteria(db, project.id, evaluation_target=evaluation_target)
+
+    producer = OnlineEvalProducer(db)
+
+    assert await producer._load_active_criteria() == []
 
 
 async def test_tick_advances_at_most_one_id_chunk(db: DbSessionFactory) -> None:

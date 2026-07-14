@@ -42,6 +42,8 @@ class ResolvedCriteria:
     version_ref: Any
     output_configs: Any
     input_mapping: Any
+    evaluation_target: str
+    sandbox_config_id: int | None
     filter_condition: str
     sampling_rate: float
 

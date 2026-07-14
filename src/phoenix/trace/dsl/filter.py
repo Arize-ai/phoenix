@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import sqlalchemy
 from sqlalchemy import case, literal
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import ColumnElement, Select
@@ -245,6 +246,13 @@ class SpanFilter:
                 ),
             )
         return stmt
+
+
+def validate_span_filter_condition(condition: str) -> None:
+    span_filter = SpanFilter(condition=condition)
+    stmt = span_filter(sqlalchemy.select(models.Span))
+    stmt.compile(dialect=sqlite.dialect())
+    stmt.compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
 
 
 _VALID_PROJECTION_NODE_TYPES: tuple[type, ...] = (

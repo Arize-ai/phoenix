@@ -184,6 +184,7 @@ GenerativeModelSDK: TypeAlias = Literal[
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR", "EXPIRED"]
 EvalWorkGrain: TypeAlias = Literal["SPAN"]
+EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -587,6 +588,25 @@ class _InputMapping(TypeDecorator[InputMapping]):
     def process_result_value(self, value: Optional[dict[str, Any]], _: Dialect) -> InputMapping:
         if value is None:
             return InputMapping(literal_mapping={}, path_mapping={})
+        return InputMapping.model_validate(value)
+
+
+class _OptionalInputMapping(TypeDecorator[Optional[InputMapping]]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[InputMapping], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[InputMapping]:
+        if value is None:
+            return None
         return InputMapping.model_validate(value)
 
 
@@ -3087,6 +3107,16 @@ class ProjectEvaluatorCriteria(HasId):
     )
     annotation_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     filter_condition: Mapped[str] = mapped_column(String, nullable=False, server_default="")
+    evaluation_target: Mapped[EvaluationTarget] = mapped_column(
+        CheckConstraint(
+            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')",
+            name="valid_evaluation_target",
+        ),
+        nullable=False,
+    )
+    input_mapping: Mapped[Optional[InputMapping]] = mapped_column(
+        _OptionalInputMapping, nullable=True
+    )
     sampling_rate: Mapped[float] = mapped_column(
         Float,
         CheckConstraint(

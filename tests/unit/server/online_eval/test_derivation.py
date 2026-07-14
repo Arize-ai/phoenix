@@ -46,6 +46,8 @@ def _criteria(rng: Random) -> ResolvedCriteria:
         version_ref=version_ref,
         output_configs=[_json_value(rng) for _ in range(rng.randint(0, 3))],
         input_mapping={_word(rng): _json_value(rng) for _ in range(rng.randint(0, 3))},
+        evaluation_target=rng.choice(["SPAN", "TRACE", "SESSION"]),
+        sandbox_config_id=rng.choice([None, rng.randint(1, 10_000)]),
         filter_condition=rng.choice(["", "span_kind == 'LLM'", "status_code == 'ERROR'"]),
         sampling_rate=rng.random(),
     )
@@ -59,6 +61,8 @@ _EDGE_CRITERIA = [
         version_ref=0,
         output_configs=[],
         input_mapping={},
+        evaluation_target="SPAN",
+        sandbox_config_id=None,
         filter_condition="",
         sampling_rate=0.0,
     ),
@@ -69,6 +73,8 @@ _EDGE_CRITERIA = [
         version_ref=["exact_match", "2026-07-01T00:00:00+00:00"],
         output_configs=[{"nested": {"deep": [1, 2, 3]}}],
         input_mapping={"input": None},
+        evaluation_target="SESSION",
+        sandbox_config_id=12,
         filter_condition="span_kind == 'LLM'",
         sampling_rate=1.0,
     ),
@@ -129,6 +135,11 @@ class TestConfigFingerprint:
                 replace(resolved, version_ref=[resolved.version_ref, "bumped"]),
                 replace(resolved, output_configs=[resolved.output_configs, "bumped"]),
                 replace(resolved, input_mapping={"bumped": resolved.input_mapping}),
+                replace(
+                    resolved,
+                    evaluation_target=("SPAN" if resolved.evaluation_target != "SPAN" else "TRACE"),
+                ),
+                replace(resolved, sandbox_config_id=(resolved.sandbox_config_id or 0) + 1),
                 replace(resolved, filter_condition=resolved.filter_condition + " "),
                 replace(resolved, sampling_rate=resolved.sampling_rate / 2 + 0.25),
             ]
@@ -154,12 +165,14 @@ class TestConfigFingerprint:
                 }
             ],
             input_mapping={"input": "attributes.llm.input_messages"},
+            evaluation_target="SPAN",
+            sandbox_config_id=None,
             filter_condition="span_kind == 'LLM'",
             sampling_rate=0.25,
         )
         assert (
             config_fingerprint(resolved)
-            == "6ba10d4ca474ac93266d5ea1d80a66e2f606c2d64ffe45bed22833f2c53bdb23"
+            == "b351d58a4568a8c417b3a94170e46fbd9cf34f306898e344f22527d853cc3121"
         )
 
 
