@@ -69,5 +69,3 @@ runner opens the database with `migrate=False`, re-run the script whenever
 - `agents/phoenix_server_agent.py` adapts the runner to Harbor's external-agent API.
 - `steps/` contains instructions, mutation configuration, and deterministic verifiers.
 - `solution/` is the perfect-answer oracle used to validate verifier plumbing.
-
-The checked-in `PLAN.md` documents the scenario and expected behavior in detail.
