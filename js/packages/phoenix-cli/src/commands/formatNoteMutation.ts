@@ -1,4 +1,4 @@
-import type { NoteMutationResult } from "./noteMutationUtils";
+import type { NoteMutationResult } from "./noteMutations";
 
 export type OutputFormat = "pretty" | "json" | "raw";
 

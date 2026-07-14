@@ -17,11 +17,13 @@ import {
   saveSettings,
   validateProfileName,
 } from "../settings";
+import { ENDPOINT_REQUIREMENT, isEndpointUrl } from "../validation/endpoint";
 import {
   type OutputFormat,
   type ProfileListEntry,
   formatProfilesOutput,
 } from "./formatProfiles";
+import type { ConfirmationOptions } from "./options";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,15 +51,6 @@ function buildSingleProfileEntry(
   };
 }
 
-function isValidUrl(value: string): boolean {
-  try {
-    new URL(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Load settings in strict mode. On any parse / I/O error, write the failure
  * to stderr and exit with `ExitCode.FAILURE`. Mutation commands all share
@@ -80,7 +73,17 @@ function loadSettingsStrictOrExit(): SettingsFile {
 // list
 // ---------------------------------------------------------------------------
 
+/**
+ * Options for `px profile list`. Reads the local settings file only — no API
+ * call is made — so this does not extend the shared connection bases.
+ */
 interface ProfileListOptions {
+  /**
+   * `--format <format>`: How the profile list is rendered on stdout —
+   * `pretty` (default), `json`, or `raw`.
+   *
+   * @example "json"
+   */
   format?: OutputFormat;
 }
 
@@ -108,7 +111,17 @@ function createProfileListCommand(): Command {
 // show
 // ---------------------------------------------------------------------------
 
+/**
+ * Options for `px profile show`. Reads the local settings file only — no API
+ * call is made — so this does not extend the shared connection bases.
+ */
 interface ProfileShowOptions {
+  /**
+   * `--format <format>`: How the profile is rendered on stdout — `pretty`
+   * (default), `json`, or `raw`.
+   *
+   * @example "raw"
+   */
   format?: OutputFormat;
 }
 
@@ -167,11 +180,48 @@ function createProfileShowCommand(): Command {
 // create
 // ---------------------------------------------------------------------------
 
+/**
+ * Options for `px profile create`. This writes to the local settings file
+ * rather than calling the Phoenix API, so it does not extend the shared
+ * connection bases either — `endpoint`/`apiKey`/`project` here are values to
+ * store on the new profile, not overrides for a request this command makes.
+ */
 interface ProfileCreateOptions {
+  /**
+   * `--endpoint <url>`: Phoenix endpoint to store on the new profile.
+   * Validated with `isEndpointUrl` before writing.
+   *
+   * @example "https://app.phoenix.arize.com"
+   */
   endpoint?: string;
+  /**
+   * `--project <name>`: Default project name or ID to store on the new
+   * profile.
+   *
+   * @example "my-app"
+   */
   project?: string;
+  /**
+   * `--api-key <key>`: API key to store on the new profile. Written to the
+   * settings file (mode 0600); never echoed back to stdout.
+   *
+   * @example "phx-abc123"
+   */
   apiKey?: string;
+  /**
+   * `--header <key=value>`: Custom HTTP header to store on the new profile,
+   * repeatable. Each value must contain `=`; entries without one are
+   * rejected.
+   *
+   * @example ["X-Custom-Header=value"]
+   */
   header?: string[];
+  /**
+   * `--activate`: Make the new profile the active one immediately after
+   * creation, instead of leaving whichever profile was active untouched.
+   *
+   * @example true // px profile create staging --endpoint https://staging.example.com --activate
+   */
   activate?: boolean;
 }
 
@@ -186,9 +236,9 @@ async function profileCreateHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  if (options.endpoint && !isValidUrl(options.endpoint)) {
+  if (options.endpoint && !isEndpointUrl(options.endpoint)) {
     writeError({
-      message: `Invalid endpoint "${options.endpoint}". Must be an absolute URL (e.g. https://app.phoenix.arize.com).`,
+      message: `Invalid endpoint "${options.endpoint}". Endpoint ${ENDPOINT_REQUIREMENT}.`,
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
@@ -427,9 +477,12 @@ function createProfileUseCommand(): Command {
 // delete
 // ---------------------------------------------------------------------------
 
-interface ProfileDeleteOptions {
-  yes?: boolean;
-}
+/**
+ * Options for `px profile delete`. The `--yes` shape is an exact match for
+ * the shared `ConfirmationOptions`, reused here directly; this command
+ * registers only `--yes` (no `-y` short alias).
+ */
+type ProfileDeleteOptions = ConfirmationOptions;
 
 async function profileDeleteHandler(
   name: string,
