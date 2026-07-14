@@ -106,8 +106,8 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
 	@echo -e "  harbor-prepare         - Build the Phoenix wheel and stage the Docker build context"
 	@echo -e "  harbor-seed-push       - Regenerate seed assets and publish to cloud storage"
-	@echo -e "  $(YELLOW)harbor-oracle$(NC)         - Validate the task with the oracle (HARBOR_TASK=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)            - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=...)"
+	@echo -e "  $(YELLOW)harbor-oracle$(NC)         - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)            - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view            - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -438,7 +438,12 @@ gh-comment-watch: ## Start the GitHub comment watcher
 
 HARBOR_TASK ?= evals/harbor/tasks/regression-triage
 HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
+# Environment backend for trials (harbor run -e): docker, daytona, etc.
+# Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
+HARBOR_ENV ?= docker
+HARBOR_VERSION ?= 0.18.0
 UVX := uvx
+HARBOR := $(UVX) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
 # The runner is staged into the task's Docker build context by prepare.sh.
 define check-harbor-prepared
@@ -455,20 +460,20 @@ harbor-seed-push: ## Regenerate Harbor seed assets and publish to cloud storage
 	@echo -e "$(CYAN)Publishing Harbor seed assets...$(NC)"
 	./evals/harbor/push_seed_assets.sh
 
-harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=...)
+harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-prepared)
-	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK)...$(NC)"
-	$(UVX) harbor run -p $(HARBOR_TASK) -a oracle --yes
+	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
+	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) --yes
 
-harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=...)
+harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)
 	$(check-harbor-prepared)
-	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL)...$(NC)"
-	PYTHONPATH=. $(UVX) harbor run -p $(HARBOR_TASK) \
+	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
+	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
 		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
-		-m $(HARBOR_MODEL) --yes
+		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
-	$(UVX) harbor view jobs
+	$(HARBOR) view jobs
 
 #=============================================================================
 # Cleanup
