@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6387ad8b67e7dbd322304ecae291b1ff>>
+ * @generated SignedSource<<df725d78f079632848e2b6969d98c83e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -84,7 +83,7 @@ v2 = [
         "name": "dataset",
         "plural": false,
         "selections": [
-          (v1/*: any*/),
+          (v1/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -93,7 +92,7 @@ v2 = [
             "name": "labels",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
+              (v1/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -120,20 +119,20 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DatasetLabelConfigButtonSetLabelsMutation",
-    "selections": (v2/*: any*/),
+    "selections": (v2/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DatasetLabelConfigButtonSetLabelsMutation",
-    "selections": (v2/*: any*/)
+    "selections": (v2/*:: as any*/)
   },
   "params": {
     "cacheID": "2578453afc9307312ce6d800e272e7fd",

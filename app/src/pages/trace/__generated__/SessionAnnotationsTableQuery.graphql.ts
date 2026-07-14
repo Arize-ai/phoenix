@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<15f06b7203ea32a0168d39dce1e0be4b>>
+ * @generated SignedSource<<bf3231200c124eb06fd0cbc49dd3b5e7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -47,14 +46,14 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SessionAnnotationsTableQuery",
     "selections": [
       {
         "alias": "session",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -74,13 +73,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SessionAnnotationsTableQuery",
     "selections": [
       {
         "alias": "session",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -93,7 +92,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -105,7 +104,7 @@ return {
                 "name": "sessionAnnotations",
                 "plural": true,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -184,7 +183,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,

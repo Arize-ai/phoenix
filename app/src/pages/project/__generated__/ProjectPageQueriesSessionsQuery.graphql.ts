@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<1ecf1e43be178531354b3a6a51409444>>
+ * @generated SignedSource<<997057e11130b05fe2d92885995367c4>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -114,14 +113,14 @@ v8 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectPageQueriesSessionsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -141,24 +140,24 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectPageQueriesSessionsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/),
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
+              (v4/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -168,7 +167,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v5/*:: as any*/),
                 "concreteType": "ProjectSessionConnection",
                 "kind": "LinkedField",
                 "name": "sessions",
@@ -190,7 +189,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
+                          (v3/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -226,7 +225,7 @@ return {
                             "kind": "LinkedField",
                             "name": "firstInput",
                             "plural": false,
-                            "selections": (v6/*: any*/),
+                            "selections": (v6/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -236,7 +235,7 @@ return {
                             "kind": "LinkedField",
                             "name": "lastOutput",
                             "plural": false,
-                            "selections": (v6/*: any*/),
+                            "selections": (v6/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -320,10 +319,10 @@ return {
                             "name": "sessionAnnotations",
                             "plural": true,
                             "selections": [
-                              (v3/*: any*/),
-                              (v4/*: any*/),
-                              (v7/*: any*/),
-                              (v8/*: any*/),
+                              (v3/*:: as any*/),
+                              (v4/*:: as any*/),
+                              (v7/*:: as any*/),
+                              (v8/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -353,7 +352,7 @@ return {
                                     "name": "profilePictureUrl",
                                     "storageKey": null
                                   },
-                                  (v3/*: any*/)
+                                  (v3/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -383,7 +382,7 @@ return {
                                     "name": "fraction",
                                     "storageKey": null
                                   },
-                                  (v7/*: any*/)
+                                  (v7/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -394,7 +393,7 @@ return {
                                 "name": "meanScore",
                                 "storageKey": null
                               },
-                              (v4/*: any*/),
+                              (v4/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -427,7 +426,7 @@ return {
                             "name": "project",
                             "plural": false,
                             "selections": [
-                              (v3/*: any*/),
+                              (v3/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -452,7 +451,7 @@ return {
                                         "name": "node",
                                         "plural": false,
                                         "selections": [
-                                          (v2/*: any*/),
+                                          (v2/*:: as any*/),
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
@@ -470,8 +469,8 @@ return {
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v3/*: any*/),
-                                              (v4/*: any*/),
+                                              (v3/*:: as any*/),
+                                              (v4/*:: as any*/),
                                               {
                                                 "alias": null,
                                                 "args": null,
@@ -487,8 +486,8 @@ return {
                                                 "name": "values",
                                                 "plural": true,
                                                 "selections": [
-                                                  (v7/*: any*/),
-                                                  (v8/*: any*/)
+                                                  (v7/*:: as any*/),
+                                                  (v8/*:: as any*/)
                                                 ],
                                                 "storageKey": null
                                               }
@@ -499,7 +498,7 @@ return {
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v3/*: any*/)
+                                              (v3/*:: as any*/)
                                             ],
                                             "type": "Node",
                                             "abstractKey": "__isNode"
@@ -534,8 +533,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v2/*: any*/),
-                          (v3/*: any*/)
+                          (v2/*:: as any*/),
+                          (v3/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -572,7 +571,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v5/*:: as any*/),
                 "filters": [
                   "sort",
                   "filterIoSubstring",

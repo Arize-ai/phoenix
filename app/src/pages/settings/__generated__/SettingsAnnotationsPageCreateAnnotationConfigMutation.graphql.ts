@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d0b7cea8c23e22adc053f9fbe6ae9a60>>
+ * @generated SignedSource<<e7d6d840ce10f50968c7961ed525fcb1>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -14,9 +13,17 @@ export type CreateAnnotationConfigInput = {
   annotationConfig: AnnotationConfigInput;
 };
 export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
+  categorical: CategoricalAnnotationConfigInput;
+  continuous?: never;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous: ContinuousAnnotationConfigInput;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous?: never;
+  freeform: FreeformAnnotationConfigInput;
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
@@ -82,14 +89,14 @@ v2 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsAnnotationsPageCreateAnnotationConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "CreateAnnotationConfigPayload",
         "kind": "LinkedField",
         "name": "createAnnotationConfig",
@@ -103,7 +110,7 @@ return {
             "name": "annotationConfig",
             "plural": false,
             "selections": [
-              (v2/*: any*/)
+              (v2/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -116,13 +123,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SettingsAnnotationsPageCreateAnnotationConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "CreateAnnotationConfigPayload",
         "kind": "LinkedField",
         "name": "createAnnotationConfig",
@@ -136,7 +143,7 @@ return {
             "name": "annotationConfig",
             "plural": false,
             "selections": [
-              (v2/*: any*/),
+              (v2/*:: as any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [

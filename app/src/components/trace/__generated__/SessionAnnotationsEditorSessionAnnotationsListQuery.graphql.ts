@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<1de9eb70c7160ebbbfb304936c1c362a>>
+ * @generated SignedSource<<cac09a85331e7c7f46081ca0f096b414>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -138,11 +137,11 @@ v8 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v3/*: any*/),
+                (v3/*:: as any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v2/*: any*/)
+                    (v2/*:: as any*/)
                   ],
                   "type": "Node",
                   "abstractKey": "__isNode"
@@ -150,7 +149,7 @@ v8 = {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v4/*: any*/),
+                    (v4/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -172,7 +171,7 @@ v8 = {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v5/*: any*/),
+                    (v5/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -181,8 +180,8 @@ v8 = {
                       "name": "values",
                       "plural": true,
                       "selections": [
-                        (v6/*: any*/),
-                        (v7/*: any*/)
+                        (v6/*:: as any*/),
+                        (v7/*:: as any*/)
                       ],
                       "storageKey": null
                     }
@@ -207,7 +206,7 @@ v8 = {
                       "name": "upperBound",
                       "storageKey": null
                     },
-                    (v5/*: any*/)
+                    (v5/*:: as any*/)
                   ],
                   "type": "ContinuousAnnotationConfig",
                   "abstractKey": null
@@ -215,8 +214,8 @@ v8 = {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v4/*: any*/),
-                    (v5/*: any*/),
+                    (v4/*:: as any*/),
+                    (v5/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -250,33 +249,33 @@ v9 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SessionAnnotationsEditorSessionAnnotationsListQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v8/*: any*/)
+          (v2/*:: as any*/),
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "session",
-        "args": (v9/*: any*/),
+        "args": (v9/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -298,34 +297,34 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SessionAnnotationsEditorSessionAnnotationsListQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v2/*: any*/),
-          (v8/*: any*/)
+          (v3/*:: as any*/),
+          (v2/*:: as any*/),
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "session",
-        "args": (v9/*: any*/),
+        "args": (v9/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v2/*: any*/),
+          (v3/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -337,8 +336,8 @@ return {
                 "name": "sessionAnnotations",
                 "plural": true,
                 "selections": [
-                  (v2/*: any*/),
-                  (v4/*: any*/),
+                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -346,8 +345,8 @@ return {
                     "name": "annotatorKind",
                     "storageKey": null
                   },
-                  (v7/*: any*/),
-                  (v6/*: any*/),
+                  (v7/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -370,7 +369,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,

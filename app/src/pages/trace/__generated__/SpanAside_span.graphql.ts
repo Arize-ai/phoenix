@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b81254593eb3518e6a20ea29571c36ec>>
+ * @generated SignedSource<<ba8f0ece98cea789a079d969fdccfd73>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -77,7 +76,7 @@ return {
   "metadata": null,
   "name": "SpanAside_span",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -86,7 +85,7 @@ return {
       "name": "project",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "args": null,
           "kind": "FragmentSpread",
@@ -119,7 +118,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v0/*: any*/)
+                        (v0/*:: as any*/)
                       ],
                       "type": "Node",
                       "abstractKey": "__isNode"
@@ -127,7 +126,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
+                        (v1/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -195,7 +194,7 @@ return {
                           "name": "upperBound",
                           "storageKey": null
                         },
-                        (v2/*: any*/)
+                        (v2/*:: as any*/)
                       ],
                       "type": "ContinuousAnnotationConfig",
                       "abstractKey": null
@@ -203,8 +202,8 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
-                        (v2/*: any*/),
+                        (v1/*:: as any*/),
+                        (v2/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,

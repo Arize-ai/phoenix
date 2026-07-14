@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<613cceaa6107c001431c98fd40ce3385>>
+ * @generated SignedSource<<17655ed654ac003f0c47cefca49080f1>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -118,14 +117,14 @@ v9 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanAnnotationActionMenuDeleteMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "deleteSpanAnnotations",
@@ -141,7 +140,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -179,13 +178,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SpanAnnotationActionMenuDeleteMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "deleteSpanAnnotations",
@@ -201,7 +200,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -214,7 +213,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v3/*: any*/),
+                  (v3/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -253,13 +252,13 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/),
-                          (v5/*: any*/),
-                          (v6/*: any*/),
-                          (v7/*: any*/),
-                          (v8/*: any*/),
-                          (v9/*: any*/)
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/)
                         ],
                         "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]},\"include\":{\"userIds\":null}})"
                       },
@@ -271,11 +270,11 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/),
-                          (v7/*: any*/),
-                          (v6/*: any*/),
-                          (v8/*: any*/),
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v6/*:: as any*/),
+                          (v8/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -283,7 +282,7 @@ return {
                             "name": "metadata",
                             "storageKey": null
                           },
-                          (v5/*: any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -298,7 +297,7 @@ return {
                             "name": "source",
                             "storageKey": null
                           },
-                          (v9/*: any*/),
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -314,7 +313,7 @@ return {
                             "name": "user",
                             "plural": false,
                             "selections": [
-                              (v3/*: any*/),
+                              (v3/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,

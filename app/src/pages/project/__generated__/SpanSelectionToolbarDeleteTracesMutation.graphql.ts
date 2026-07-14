@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<1e74b83e5bb080d8209ae02b6809e9e9>>
+ * @generated SignedSource<<3b8afb9201b32f7e486be9c4a74cbc26>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -58,20 +57,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanSelectionToolbarDeleteTracesMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SpanSelectionToolbarDeleteTracesMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "3e39d87554a43d8dc3006d3e977317e5",

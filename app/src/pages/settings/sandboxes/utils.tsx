@@ -12,6 +12,7 @@ import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getDependencyPackages } from "@phoenix/utils/packageSpecUtils";
 
+import type { SandboxConfigVariantInput } from "./__generated__/SandboxConfigDialogCreateSandboxConfigMutation.graphql";
 import type {
   BackendInfo,
   SandboxConfigFormValues,
@@ -350,8 +351,16 @@ const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
 
 export function formValuesToConfigPatch(
   values: SandboxConfigFormValues,
+  backend: BackendInfo
+): SandboxConfigVariantInput;
+export function formValuesToConfigPatch(
+  values: SandboxConfigFormValues,
   backend: BackendInfo | undefined
-): Record<string, unknown> {
+): SandboxConfigVariantInput | Record<string, never>;
+export function formValuesToConfigPatch(
+  values: SandboxConfigFormValues,
+  backend: BackendInfo | undefined
+): SandboxConfigVariantInput | Record<string, never> {
   // ``language`` now lives inside each per-provider variant input
   // (mirroring the pydantic Config's ``language`` field). The dialog form
   // tracks language at the top level; we copy it into the inner capabilities
@@ -387,5 +396,7 @@ export function formValuesToConfigPatch(
     // an empty object so the dialog can detect "no variant set".
     return {};
   }
-  return { [variantKey]: capabilities };
+  // The variant key is computed from the backend type, which TypeScript
+  // cannot correlate with the ``@oneOf`` union members, so assert the shape.
+  return { [variantKey]: capabilities } as unknown as SandboxConfigVariantInput;
 }

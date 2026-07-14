@@ -16,8 +16,8 @@
     "@arizeai/phoenix-evals": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.5",
-    "dotenv": "^16.6.1",
+    "@types/node": "^26.1.1",
+    "dotenv": "^17.4.2",
     "tsx": "^4.23.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"

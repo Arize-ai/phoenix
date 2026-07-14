@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<099332042e1ac661bbec8e395064e4a1>>
+ * @generated SignedSource<<18af60ee3d344730c21c1b3b32b3be1f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -82,18 +81,18 @@ v5 = [
     "name": "profilePictureUrl",
     "storageKey": null
   },
-  (v3/*: any*/)
+  (v3/*:: as any*/)
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DeletePromptDialogMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DeletePromptMutationPayload",
         "kind": "LinkedField",
         "name": "deletePrompt",
@@ -124,13 +123,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DeletePromptDialogMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DeletePromptMutationPayload",
         "kind": "LinkedField",
         "name": "deletePrompt",
@@ -146,7 +145,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": "PromptConnection",
                 "kind": "LinkedField",
                 "name": "prompts",
@@ -168,8 +167,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/),
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -184,7 +183,7 @@ return {
                             "kind": "LinkedField",
                             "name": "createdBy",
                             "plural": false,
-                            "selections": (v5/*: any*/),
+                            "selections": (v5/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -194,7 +193,7 @@ return {
                             "kind": "LinkedField",
                             "name": "updatedBy",
                             "plural": false,
-                            "selections": (v5/*: any*/),
+                            "selections": (v5/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -205,7 +204,7 @@ return {
                             "name": "version",
                             "plural": false,
                             "selections": [
-                              (v3/*: any*/),
+                              (v3/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -245,8 +244,8 @@ return {
                             "name": "versionTags",
                             "plural": true,
                             "selections": [
-                              (v3/*: any*/),
-                              (v4/*: any*/),
+                              (v3/*:: as any*/),
+                              (v4/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -265,8 +264,8 @@ return {
                             "name": "labels",
                             "plural": true,
                             "selections": [
-                              (v3/*: any*/),
-                              (v4/*: any*/),
+                              (v3/*:: as any*/),
+                              (v4/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -302,7 +301,7 @@ return {
                             "name": "__typename",
                             "storageKey": null
                           },
-                          (v3/*: any*/)
+                          (v3/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -339,7 +338,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "filters": [
                   "filter",
                   "labelIds"

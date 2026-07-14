@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<11acdb6d2fa3c98e0da1f86de7a1a02f>>
+ * @generated SignedSource<<42c948e554954180665bb6c8660a50e6>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -144,16 +143,16 @@ v16 = {
   "storageKey": null
 },
 v17 = [
-  (v9/*: any*/),
-  (v10/*: any*/),
-  (v11/*: any*/),
+  (v9/*:: as any*/),
+  (v10/*:: as any*/),
+  (v11/*:: as any*/),
   {
     "kind": "Variable",
     "name": "orphanSpanAsRootSpan",
     "variableName": "orphanSpanAsRootSpan"
   },
-  (v12/*: any*/),
-  (v13/*: any*/),
+  (v12/*:: as any*/),
+  (v13/*:: as any*/),
   {
     "kind": "Variable",
     "name": "timeRange",
@@ -211,7 +210,7 @@ v20 = {
       "name": "fraction",
       "storageKey": null
     },
-    (v19/*: any*/)
+    (v19/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -258,7 +257,7 @@ v26 = {
   "name": "project",
   "plural": false,
   "selections": [
-    (v15/*: any*/),
+    (v15/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -283,7 +282,7 @@ v26 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v14/*: any*/),
+                (v14/*:: as any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
@@ -301,8 +300,8 @@ v26 = {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v15/*: any*/),
-                    (v16/*: any*/),
+                    (v15/*:: as any*/),
+                    (v16/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -318,8 +317,8 @@ v26 = {
                       "name": "values",
                       "plural": true,
                       "selections": [
-                        (v19/*: any*/),
-                        (v25/*: any*/)
+                        (v19/*:: as any*/),
+                        (v25/*:: as any*/)
                       ],
                       "storageKey": null
                     }
@@ -330,7 +329,7 @@ v26 = {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v15/*: any*/)
+                    (v15/*:: as any*/)
                   ],
                   "type": "Node",
                   "abstractKey": "__isNode"
@@ -348,10 +347,10 @@ v26 = {
   "storageKey": null
 },
 v27 = [
-  (v15/*: any*/),
-  (v16/*: any*/),
-  (v19/*: any*/),
-  (v25/*: any*/),
+  (v15/*:: as any*/),
+  (v16/*:: as any*/),
+  (v19/*:: as any*/),
+  (v25/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -388,7 +387,7 @@ v27 = [
         "name": "profilePictureUrl",
         "storageKey": null
       },
-      (v15/*: any*/)
+      (v15/*:: as any*/)
     ],
     "storageKey": null
   }
@@ -405,14 +404,14 @@ v28 = [
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/),
-      (v6/*: any*/),
-      (v7/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/),
+      (v4/*:: as any*/),
+      (v5/*:: as any*/),
+      (v6/*:: as any*/),
+      (v7/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -420,7 +419,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v8/*: any*/),
+        "args": (v8/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -428,11 +427,11 @@ return {
         "selections": [
           {
             "args": [
-              (v9/*: any*/),
-              (v10/*: any*/),
-              (v11/*: any*/),
-              (v12/*: any*/),
-              (v13/*: any*/)
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
+              (v11/*:: as any*/),
+              (v12/*:: as any*/),
+              (v13/*:: as any*/)
             ],
             "kind": "FragmentSpread",
             "name": "SpansTable_spans"
@@ -447,32 +446,32 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/),
-      (v6/*: any*/),
-      (v7/*: any*/),
-      (v3/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v4/*:: as any*/),
+      (v5/*:: as any*/),
+      (v6/*:: as any*/),
+      (v7/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SpansTableSpansQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v8/*: any*/),
+        "args": (v8/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v14/*: any*/),
-          (v15/*: any*/),
+          (v14/*:: as any*/),
+          (v15/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v16/*: any*/),
+              (v16/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -489,7 +488,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v17/*: any*/),
+                "args": (v17/*:: as any*/),
                 "concreteType": "SpanConnection",
                 "kind": "LinkedField",
                 "name": "spans",
@@ -511,7 +510,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v15/*: any*/),
+                          (v15/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -519,7 +518,7 @@ return {
                             "name": "spanKind",
                             "storageKey": null
                           },
-                          (v16/*: any*/),
+                          (v16/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -567,7 +566,7 @@ return {
                                 "name": "tokenCountTotal",
                                 "storageKey": null
                               },
-                              (v18/*: any*/)
+                              (v18/*:: as any*/)
                             ]
                           },
                           {
@@ -599,7 +598,7 @@ return {
                             "name": "trace",
                             "plural": false,
                             "selections": [
-                              (v15/*: any*/),
+                              (v15/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -612,7 +611,7 @@ return {
                                 "kind": "Condition",
                                 "passingValue": true,
                                 "selections": [
-                                  (v18/*: any*/)
+                                  (v18/*:: as any*/)
                                 ]
                               },
                               {
@@ -623,16 +622,16 @@ return {
                                 "name": "traceAnnotationSummaries",
                                 "plural": true,
                                 "selections": [
-                                  (v20/*: any*/),
-                                  (v21/*: any*/),
-                                  (v22/*: any*/),
-                                  (v16/*: any*/),
-                                  (v23/*: any*/),
-                                  (v24/*: any*/)
+                                  (v20/*:: as any*/),
+                                  (v21/*:: as any*/),
+                                  (v22/*:: as any*/),
+                                  (v16/*:: as any*/),
+                                  (v23/*:: as any*/),
+                                  (v24/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
-                              (v26/*: any*/),
+                              (v26/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -640,7 +639,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "traceAnnotations",
                                 "plural": true,
-                                "selections": (v27/*: any*/),
+                                "selections": (v27/*:: as any*/),
                                 "storageKey": null
                               }
                             ],
@@ -653,7 +652,7 @@ return {
                             "kind": "LinkedField",
                             "name": "input",
                             "plural": false,
-                            "selections": (v28/*: any*/),
+                            "selections": (v28/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -663,7 +662,7 @@ return {
                             "kind": "LinkedField",
                             "name": "output",
                             "plural": false,
-                            "selections": (v28/*: any*/),
+                            "selections": (v28/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -673,7 +672,7 @@ return {
                             "kind": "LinkedField",
                             "name": "spanAnnotations",
                             "plural": true,
-                            "selections": (v27/*: any*/),
+                            "selections": (v27/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -684,12 +683,12 @@ return {
                             "name": "spanAnnotationSummaries",
                             "plural": true,
                             "selections": [
-                              (v20/*: any*/),
-                              (v22/*: any*/),
-                              (v16/*: any*/),
-                              (v21/*: any*/),
-                              (v23/*: any*/),
-                              (v24/*: any*/)
+                              (v20/*:: as any*/),
+                              (v22/*:: as any*/),
+                              (v16/*:: as any*/),
+                              (v21/*:: as any*/),
+                              (v23/*:: as any*/),
+                              (v24/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -732,7 +731,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v26/*: any*/)
+                          (v26/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -751,8 +750,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v14/*: any*/),
-                          (v15/*: any*/)
+                          (v14/*:: as any*/),
+                          (v15/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -789,7 +788,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v17/*: any*/),
+                "args": (v17/*:: as any*/),
                 "filters": [
                   "sort",
                   "rootSpansOnly",

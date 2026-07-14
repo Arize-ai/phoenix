@@ -19,23 +19,23 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hono/node-server": "^2.0.4",
-    "better-sqlite3": "^11.8.1",
+    "@hono/node-server": "^2.0.8",
+    "better-sqlite3": "^12.11.1",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.23"
+    "hono": "^4.12.29"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/node": "^25.3.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^26.1.1",
     "drizzle-kit": "^0.31.10",
-    "oxfmt": "^0.51.0",
-    "oxlint": "~1.66.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "oxfmt": "^0.58.0",
+    "oxlint": "~1.73.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.3.0"
+  "packageManager": "pnpm@11.11.0"
 }
