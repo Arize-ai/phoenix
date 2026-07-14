@@ -328,6 +328,13 @@ def _estimate_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
+def _input_tokens_details() -> InputTokensDetails:
+    values = {"cached_tokens": 0}
+    if "cache_write_tokens" in InputTokensDetails.model_fields:
+        values["cache_write_tokens"] = 0
+    return InputTokensDetails.model_validate(values)
+
+
 def _google_schema_to_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Convert Google GenAI schema format to standard JSON Schema.
 
@@ -1061,7 +1068,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
             input_tokens=10,
             output_tokens=output_tokens,
             total_tokens=10 + output_tokens,
-            input_tokens_details=InputTokensDetails(cached_tokens=0),
+            input_tokens_details=_input_tokens_details(),
             output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
         )
         return Response(
@@ -1111,7 +1118,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
             input_tokens=10,
             output_tokens=output_tokens,
             total_tokens=10 + output_tokens,
-            input_tokens_details=InputTokensDetails(cached_tokens=0),
+            input_tokens_details=_input_tokens_details(),
             output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
         )
         return Response(
@@ -1268,7 +1275,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
             input_tokens=10,
             output_tokens=output_tokens,
             total_tokens=10 + output_tokens,
-            input_tokens_details=InputTokensDetails(cached_tokens=0),
+            input_tokens_details=_input_tokens_details(),
             output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
         )
         completed_event = ResponseCompletedEvent(
@@ -1400,7 +1407,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
             input_tokens=10,
             output_tokens=output_tokens,
             total_tokens=10 + output_tokens,
-            input_tokens_details=InputTokensDetails(cached_tokens=0),
+            input_tokens_details=_input_tokens_details(),
             output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
         )
         completed_event = ResponseCompletedEvent(
