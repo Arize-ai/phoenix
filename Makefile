@@ -445,6 +445,7 @@ HARBOR_VERSION ?= 0.18.0
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13
+HARBOR_ATTEMPTS ?= 1
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
@@ -468,12 +469,12 @@ harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK
 	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
 	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) --yes
 
-harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)
+harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
 	$(check-harbor-prepared)
 	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
 		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
-		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) --yes
+		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs

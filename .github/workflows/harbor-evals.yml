@@ -24,6 +24,9 @@ jobs:
     env:
       UV_VERSION: "0.11.8"
       HARBOR_ENV: daytona
+      # Two attempts, gated on the mean: a one-off agent slip passes while a
+      # consistent regression still fails.
+      HARBOR_ATTEMPTS: "2"
       DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
