@@ -480,6 +480,21 @@ Every current consumer is a native/CLI app that cannot keep a secret, so
 Confidential-client support (client secrets, `client_credentials`) is
 deliberately absent rather than half-built.
 
+### An operator kill switch that answers 404, not silence
+
+`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER=false` serves operators whose policy
+is API-key-only access with no interactive OAuth. The routers stay registered
+and a router-level dependency answers 404, rather than skipping registration:
+an unregistered path would fall through to the SPA catch-all and answer with
+`index.html` and a 200, so the deployment would still appear to serve the
+endpoints. The 404 is also the signal the CLI already understands — its token
+exchange maps 404 to "this server does not support OAuth login; use an API
+key." Disabling the flag also empties `authorization_servers` in the
+protected-resource metadata and removes the OAuth2 section from `auth.md`, so
+discovery never points at endpoints that refuse to answer. Previously minted
+access tokens remain valid until expiry (validation is server-side against the
+token store, not an endpoint), but grants can no longer be refreshed.
+
 ### Zero new dependencies
 
 Evaluated pulling in an OAuth server framework; the mature Python option is
@@ -528,6 +543,7 @@ registration and redirect validation behavior.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER` | `true` | Master switch: when `false`, every authorization-server endpoint and the RFC 8414 document answer 404, and the PRM stops advertising an authorization server |
 | `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` | `local_only` | The policy dial: `disabled` \| `local_only` \| `enabled` |
 | `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS` | unset (any) | Host allowlist for https redirects when `enabled` |
 | `PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS` | 90 | Grant ceiling; refresh lifetimes are clamped to it |

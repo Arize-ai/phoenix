@@ -25,8 +25,13 @@ router = APIRouter(include_in_schema=False)
 @router.get("/.well-known/oauth-protected-resource")
 async def protected_resource_metadata(request: Request) -> JSONResponse:
     resource = public_origin(request)
-    authentication_enabled: bool = getattr(request.app.state, "authentication_enabled", False)
-    authorization_servers = [resource] if authentication_enabled else []
+    # Only advertise an authorization server that actually answers: this is False
+    # both when authentication is off and when the authorization server is
+    # disabled by PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER.
+    authorization_server_enabled: bool = getattr(
+        request.app.state, "oauth2_authorization_server_enabled", False
+    )
+    authorization_servers = [resource] if authorization_server_enabled else []
     return JSONResponse(
         {
             "resource": resource,
@@ -42,11 +47,23 @@ async def protected_resource_metadata(request: Request) -> JSONResponse:
 async def get_auth_md(request: Request) -> PlainTextResponse:
     base_url = public_origin(request)
     authentication_enabled: bool = getattr(request.app.state, "authentication_enabled", False)
-    content = _build_auth_md(base_url=base_url, authentication_enabled=authentication_enabled)
+    authorization_server_enabled: bool = getattr(
+        request.app.state, "oauth2_authorization_server_enabled", False
+    )
+    content = _build_auth_md(
+        base_url=base_url,
+        authentication_enabled=authentication_enabled,
+        authorization_server_enabled=authorization_server_enabled,
+    )
     return PlainTextResponse(content, media_type="text/markdown; charset=utf-8")
 
 
-def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
+def _build_auth_md(
+    *,
+    base_url: str,
+    authentication_enabled: bool,
+    authorization_server_enabled: bool,
+) -> str:
     if not authentication_enabled:
         return dedent(f"""\
             # auth.md
@@ -58,6 +75,50 @@ def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
 
             **Resource:** {base_url}
             **Protected Resource Metadata:** {base_url}/.well-known/oauth-protected-resource
+
+            This document follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
+        """)
+
+    if not authorization_server_enabled:
+        return dedent(f"""\
+            # auth.md
+
+            Arize Phoenix — AI observability & evaluation platform.
+
+            This deployment requires bearer-token authentication. Send an
+            `Authorization: Bearer <token>` header on every request.
+
+            **Resource:** {base_url}
+            **Protected Resource Metadata:** {base_url}/.well-known/oauth-protected-resource
+
+            Interactive OAuth2 login is disabled on this deployment. There is no
+            authorization server to discover; obtain a credential through one of
+            the mechanisms below.
+
+            ## Obtain a credential
+
+            - **API key**: created in the Phoenix UI under **Settings → API Keys**. API
+              keys are recommended for long-lived, non-interactive integrations.
+            - **Access token**: `POST {base_url}/auth/login` with JSON body
+              `{{"email": "...", "password": "..."}}` sets a `{PHOENIX_ACCESS_TOKEN_COOKIE_NAME}`
+              cookie usable as a bearer token. Renew an expired token via
+              `POST {base_url}/auth/refresh` with the `{PHOENIX_REFRESH_TOKEN_COOKIE_NAME}` cookie.
+
+            ## Use the credential
+
+            ```
+            GET {base_url}/v1/projects
+            Authorization: Bearer <api-key-or-access-token>
+            ```
+
+            Requests without a valid token receive `401 Unauthorized` with a
+            `WWW-Authenticate` challenge pointing at the Protected Resource Metadata
+            above.
+
+            ## Support
+
+            For integration issues, open an issue at
+            https://github.com/Arize-ai/phoenix/issues.
 
             This document follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
         """)

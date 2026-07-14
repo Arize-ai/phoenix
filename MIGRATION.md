@@ -1,5 +1,28 @@
 # Migrations
 
+## v18.x to v19.0.0
+
+### Built-in OAuth2 authorization server
+
+Phoenix now serves a built-in OAuth2 authorization server whenever authentication is enabled. It provides browser-based
+login for OAuth2 public clients — most notably `px auth login` in the Phoenix CLI — and advertises itself through the
+standard discovery documents (`/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`).
+It is on by default and requires no configuration.
+
+Operators who do not want this surface exposed — for example, deployments that mandate API-key-only access — can disable
+it with the new environment variable:
+
+- `PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER` (default `true`). When set to `false`, every `/oauth2/*` endpoint and the
+  `/.well-known/oauth-authorization-server` discovery document respond with `404`, and the protected-resource metadata
+  stops advertising an authorization server. API keys, browser login, and password-based access tokens are unaffected.
+  OAuth2 access tokens minted before the switch was flipped remain valid until they expire, but their grants can no
+  longer be refreshed. The CLI reports "This Phoenix server does not support OAuth login; use an API key" when it
+  encounters such a deployment. The variable has no effect when authentication is disabled.
+
+Related dials for deployments that keep the authorization server enabled: `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION`
+(default `local_only`) controls which OAuth2 clients may register themselves, and `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS`
+restricts where dynamically registered clients may receive authorization codes.
+
 ## v17.x to v18.0.0
 
 ### DB Index for Sessions Time Range

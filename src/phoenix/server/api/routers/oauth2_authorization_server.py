@@ -102,8 +102,32 @@ _dcr_rate_limiter = fastapi_ip_rate_limiter(
 )
 _dcr_rate_limit_dependencies = [] if get_env_disable_rate_limit() else [Depends(_dcr_rate_limiter)]
 
-router = APIRouter(include_in_schema=False)
-oauth2_router = APIRouter(prefix="/oauth2", include_in_schema=False)
+
+async def _authorization_server_enabled(request: Request) -> None:
+    """Router-level guard behind PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER.
+
+    Responds 404 rather than skipping router registration: an unregistered path
+    would fall through to the SPA catch-all and answer with index.html and a 200,
+    so a disabled deployment would still look like it serves these endpoints. A
+    real 404 is also the signal the CLI already maps to "this server does not
+    support OAuth login".
+    """
+    if not getattr(request.app.state, "oauth2_authorization_server_enabled", True):
+        raise HTTPException(
+            status_code=404,
+            detail="The OAuth2 authorization server is disabled on this deployment.",
+        )
+
+
+router = APIRouter(
+    include_in_schema=False,
+    dependencies=[Depends(_authorization_server_enabled)],
+)
+oauth2_router = APIRouter(
+    prefix="/oauth2",
+    include_in_schema=False,
+    dependencies=[Depends(_authorization_server_enabled)],
+)
 
 
 class AuthorizationDecision(BaseModel):

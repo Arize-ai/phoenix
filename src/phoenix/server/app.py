@@ -68,6 +68,7 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_disable_agent_assistant,
+    get_env_enable_oauth2_authorization_server,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
@@ -1124,6 +1125,9 @@ def create_app(
             name="static",
         )
     app.state.authentication_enabled = authentication_enabled
+    app.state.oauth2_authorization_server_enabled = (
+        authentication_enabled and get_env_enable_oauth2_authorization_server()
+    )
     app.state.read_only = read_only
     app.state.password_reset_token_expiry = password_reset_token_expiry
     app.state.access_token_expiry = access_token_expiry

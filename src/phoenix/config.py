@@ -415,6 +415,16 @@ ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES = "PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES
 """
 The duration, in minutes, before refresh tokens expire.
 """
+ENV_PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER = "PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER"
+"""
+Whether Phoenix serves its built-in OAuth2 authorization server (interactive OAuth
+login for the CLI and other public clients). Defaults to true. When false, the
+/oauth2/* endpoints and the RFC 8414 discovery document respond 404, and the
+protected-resource metadata stops advertising an authorization server. Previously
+minted OAuth2 access tokens remain valid until they expire, but grants can no
+longer be refreshed. API keys and browser login are unaffected. Has no effect
+unless authentication is enabled.
+"""
 ENV_PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS = "PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS"
 """
 The duration, in days, before an OAuth2 grant expires. Refresh-token rotation never
@@ -1501,6 +1511,13 @@ def get_env_refresh_token_expiry() -> timedelta:
     )
     assert minutes > 0
     return timedelta(minutes=minutes)
+
+
+def get_env_enable_oauth2_authorization_server() -> bool:
+    """
+    Gets whether the built-in OAuth2 authorization server is served.
+    """
+    return _bool_val(ENV_PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER, True)
 
 
 DEFAULT_OAUTH2_GRANT_EXPIRY_DAYS = 90
