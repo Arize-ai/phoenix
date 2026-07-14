@@ -1116,9 +1116,9 @@ class ProjectEvaluator(Node):
         raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
 
     @strawberry.field
-    async def annotation_name(self, info: Info[Context, None]) -> Identifier:
+    async def name(self, info: Info[Context, None]) -> Identifier:
         record = await self._get_record(info)
-        return Identifier(record.annotation_name.root)
+        return Identifier(record.name.root)
 
     @strawberry.field
     async def filter_condition(self, info: Info[Context, None]) -> str:

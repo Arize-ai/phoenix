@@ -830,7 +830,6 @@ type CreateModelMutationPayload {
 input CreateProjectCodeEvaluatorInput {
   projectId: ID!
   name: Identifier!
-  annotationName: Identifier!
   sourceCode: String!
   language: Language!
   sandboxConfigId: ID!
@@ -858,7 +857,6 @@ input CreateProjectInput {
 input CreateProjectLLMEvaluatorInput {
   projectId: ID!
   name: Identifier!
-  annotationName: Identifier!
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput!
@@ -2890,7 +2888,7 @@ type ProjectEvaluator implements Node {
   id: ID!
   project: Project!
   evaluator: Evaluator!
-  annotationName: Identifier!
+  name: Identifier!
   filterCondition: String!
   samplingRate: Float!
 
@@ -4643,7 +4641,6 @@ type UpdateModelMutationPayload {
 input UpdateProjectCodeEvaluatorInput {
   projectEvaluatorId: ID!
   name: Identifier!
-  annotationName: Identifier!
   evaluatorInputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
@@ -4663,7 +4660,6 @@ input UpdateProjectCodeEvaluatorInput {
 input UpdateProjectLLMEvaluatorInput {
   projectEvaluatorId: ID!
   name: Identifier!
-  annotationName: Identifier!
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput!

@@ -96,7 +96,7 @@ def upgrade() -> None:
             sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("annotation_name", sa.String(), nullable=False),
+        sa.Column("name", sa.String(), nullable=False),
         sa.Column("filter_condition", sa.String(), nullable=False, server_default=""),
         sa.Column(
             "sampling_rate",
@@ -130,7 +130,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("project_id", "annotation_name"),
+        sa.UniqueConstraint("project_id", "name"),
     )
     op.create_index(
         "ix_project_evaluator_criteria_project_id",

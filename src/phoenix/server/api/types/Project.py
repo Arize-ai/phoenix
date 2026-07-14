@@ -201,7 +201,7 @@ class Project(Node):
                     select(models.ProjectEvaluatorCriteria)
                     .where(models.ProjectEvaluatorCriteria.project_id == self.id)
                     .order_by(
-                        models.ProjectEvaluatorCriteria.annotation_name,
+                        models.ProjectEvaluatorCriteria.name,
                         models.ProjectEvaluatorCriteria.id,
                     )
                 )

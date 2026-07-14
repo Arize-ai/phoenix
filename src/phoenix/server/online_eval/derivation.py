@@ -37,7 +37,7 @@ class ResolvedCriteria:
     """
 
     criteria_id: int
-    annotation_name: str
+    name: str
     evaluator_id: int
     version_ref: Any
     output_configs: Any

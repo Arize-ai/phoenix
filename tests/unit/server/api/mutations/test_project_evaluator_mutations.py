@@ -10,7 +10,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 _PROJECT_EVALUATOR_FIELDS = """
 id
-annotationName
+name
 filterCondition
 samplingRate
 evaluationTarget
@@ -101,7 +101,6 @@ def _code_create_input(
     return {
         "projectId": str(GlobalID("Project", str(project.id))),
         "name": f"code-{token_hex(4)}",
-        "annotationName": f"code-annotation-{token_hex(4)}",
         "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
         "language": "PYTHON",
         "sandboxConfigId": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
@@ -151,7 +150,6 @@ def _llm_input(project: models.Project, *, name: str, text: str) -> dict[str, An
     return {
         "projectId": str(GlobalID("Project", str(project.id))),
         "name": name,
-        "annotationName": f"annotation-{name}",
         "promptVersion": _prompt_version(text),
         "outputConfigs": [
             {
@@ -203,7 +201,6 @@ async def test_project_code_evaluator_crud_and_connection(
             "input": {
                 "projectEvaluatorId": created["id"],
                 "name": "updated-code",
-                "annotationName": "updated-code-annotation",
                 "description": "updated",
                 "sourceCode": "def evaluate(output):\n    return {'score': 0.5}",
                 "evaluatorInputMapping": _mapping(output="updated"),
@@ -217,7 +214,7 @@ async def test_project_code_evaluator_crud_and_connection(
     )
     assert update_result.data and not update_result.errors
     updated = update_result.data["updateProjectCodeEvaluator"]["evaluator"]
-    assert updated["annotationName"] == "updated-code-annotation"
+    assert updated["name"] == "updated-code"
     assert updated["evaluationTarget"] == "SESSION"
     assert updated["inputMapping"] == _mapping(context="override")
     assert updated["evaluator"]["name"] == "updated-code"
@@ -235,7 +232,6 @@ async def test_project_code_evaluator_crud_and_connection(
             "input": {
                 "projectEvaluatorId": created["id"],
                 "name": "updated-code",
-                "annotationName": "updated-code-annotation",
                 "description": "updated again",
                 "evaluatorInputMapping": _mapping(output="changed-while-omitted"),
                 "samplingRate": 0.75,
@@ -260,7 +256,6 @@ async def test_project_code_evaluator_crud_and_connection(
             "input": {
                 "projectEvaluatorId": created["id"],
                 "name": "updated-code",
-                "annotationName": "updated-code-annotation",
                 "description": "updated with inheritance",
                 "evaluatorInputMapping": _mapping(output="inherited"),
                 "inputMapping": None,
@@ -372,7 +367,6 @@ async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
     update_code_input = {
         "projectEvaluatorId": code_evaluator_id,
         "name": f"invalid-rate-code-{token_hex(4)}",
-        "annotationName": f"invalid-rate-code-annotation-{token_hex(4)}",
         "evaluatorInputMapping": _mapping(output="value"),
         "samplingRate": -0.1,
         "evaluationTarget": "SPAN",
@@ -398,43 +392,43 @@ async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
     assert await _row_counts(db) == before
 
 
-async def test_create_rolls_back_all_llm_resources_on_late_annotation_conflict(
+async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
     existing_input = _code_create_input(project, sandbox_config)
-    existing_input["annotationName"] = "duplicate-project-annotation"
+    existing_input["name"] = "duplicate-project-evaluator"
     existing_result = await gql_client.execute(_CREATE_CODE, {"input": existing_input})
     assert existing_result.data and not existing_result.errors
 
     before = await _row_counts(db)
     create_input = _llm_input(project, name="rolled-back-llm", text="Evaluate {{input}}")
-    create_input["annotationName"] = "duplicate-project-annotation"
+    create_input["name"] = "duplicate-project-evaluator"
     result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
 
     assert result.errors
     assert result.errors[0].message == (
-        "A project evaluator with this name or annotation name already exists"
+        "A project evaluator with this name already exists for this project"
     )
     assert await _row_counts(db) == before
 
 
-async def test_update_rolls_back_code_version_and_state_on_late_annotation_conflict(
+async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
     first_input = _code_create_input(project, sandbox_config)
-    first_input["annotationName"] = "first-project-annotation"
+    first_input["name"] = "first-project-evaluator"
     first_result = await gql_client.execute(_CREATE_CODE, {"input": first_input})
     assert first_result.data and not first_result.errors
     first = first_result.data["createProjectCodeEvaluator"]["evaluator"]
 
     second_input = _code_create_input(project, sandbox_config)
-    second_input["annotationName"] = "second-project-annotation"
+    second_input["name"] = "second-project-evaluator"
     second_result = await gql_client.execute(_CREATE_CODE, {"input": second_input})
     assert second_result.data and not second_result.errors
 
@@ -449,7 +443,7 @@ async def test_update_rolls_back_code_version_and_state_on_late_annotation_confl
             str(evaluator.name),
             evaluator.description,
             evaluator.input_mapping.model_dump(mode="json"),
-            str(criteria.annotation_name),
+            str(criteria.name),
             criteria.filter_condition,
             criteria.sampling_rate,
             criteria.evaluation_target,
@@ -470,8 +464,7 @@ async def test_update_rolls_back_code_version_and_state_on_late_annotation_confl
         {
             "input": {
                 "projectEvaluatorId": first["id"],
-                "name": "rolled-back-code-name",
-                "annotationName": "second-project-annotation",
+                "name": "second-project-evaluator",
                 "description": "must roll back",
                 "sourceCode": "def evaluate(output):\n    return {'score': 0.0}",
                 "evaluatorInputMapping": _mapping(changed="value"),
@@ -485,7 +478,7 @@ async def test_update_rolls_back_code_version_and_state_on_late_annotation_confl
     )
     assert result.errors
     assert result.errors[0].message == (
-        "A project evaluator with this name or annotation name already exists"
+        "A project evaluator with this name already exists for this project"
     )
     assert await _row_counts(db) == counts_before
 
@@ -497,7 +490,7 @@ async def test_update_rolls_back_code_version_and_state_on_late_annotation_confl
             str(evaluator.name),
             evaluator.description,
             evaluator.input_mapping.model_dump(mode="json"),
-            str(criteria.annotation_name),
+            str(criteria.name),
             criteria.filter_condition,
             criteria.sampling_rate,
             criteria.evaluation_target,

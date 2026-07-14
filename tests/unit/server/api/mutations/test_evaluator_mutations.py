@@ -3170,14 +3170,14 @@ class TestDeleteDatasetEvaluators:
                 models.ProjectEvaluatorCriteria(
                     project_id=owned_project.id,
                     evaluator_id=evaluator.id,
-                    annotation_name=IdentifierModel.model_validate(annotation_name),
+                    name=IdentifierModel.model_validate(name),
                     filter_condition="",
                     sampling_rate=1.0,
                     evaluation_target="SPAN",
                     input_mapping=None,
                     enabled=True,
                 )
-                for evaluator, annotation_name in (
+                for evaluator, name in (
                     (dedicated_code, "dedicated-code"),
                     (dedicated_llm, "dedicated-llm"),
                     (shared_code, "shared-code-owned-project"),
@@ -3186,7 +3186,7 @@ class TestDeleteDatasetEvaluators:
             survivor_criteria = models.ProjectEvaluatorCriteria(
                 project_id=survivor_project.id,
                 evaluator_id=shared_code.id,
-                annotation_name=IdentifierModel.model_validate("shared-code-survivor-project"),
+                name=IdentifierModel.model_validate("shared-code-survivor-project"),
                 filter_condition="",
                 sampling_rate=1.0,
                 evaluation_target="SPAN",

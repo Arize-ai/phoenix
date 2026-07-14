@@ -96,7 +96,7 @@ async def resolve_criteria(
         input_mapping = effective_input_mapping.model_dump()
     return ResolvedCriteria(
         criteria_id=criteria.id,
-        annotation_name=criteria.annotation_name.root,
+        name=criteria.name.root,
         evaluator_id=evaluator.id,
         version_ref=version_ref,
         output_configs=[config.model_dump() for config in evaluator.output_configs],
@@ -113,7 +113,7 @@ class _ActiveCriteria:
     criteria_id: int
     project_id: int
     evaluator_id: int
-    annotation_name: str
+    name: str
     sampling_rate: float
     fingerprint: str
     identifier: str
@@ -447,7 +447,7 @@ class OnlineEvalProducer(DaemonTask):
                         criteria_id=criteria.id,
                         project_id=criteria.project_id,
                         evaluator_id=criteria.evaluator_id,
-                        annotation_name=resolved.annotation_name,
+                        name=resolved.name,
                         sampling_rate=criteria.sampling_rate,
                         fingerprint=fingerprint,
                         identifier=annotation_identifier(fingerprint),
@@ -516,7 +516,7 @@ class OnlineEvalProducer(DaemonTask):
                     ~exists(
                         select(1).where(
                             models.SpanAnnotation.span_rowid == models.Span.id,
-                            models.SpanAnnotation.name == criteria.annotation_name,
+                            models.SpanAnnotation.name == criteria.name,
                             models.SpanAnnotation.identifier == criteria.identifier,
                         )
                     ),

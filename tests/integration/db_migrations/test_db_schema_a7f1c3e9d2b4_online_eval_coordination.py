@@ -110,7 +110,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "id",
             "project_id",
             "evaluator_id",
-            "annotation_name",
+            "name",
             "filter_condition",
             "sampling_rate",
             "evaluation_target",
@@ -125,7 +125,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
         }
         constraint_names = {
             "pk_project_evaluator_criteria",
-            "uq_project_evaluator_criteria_project_id_annotation_name",
+            "uq_project_evaluator_criteria_project_id_name",
             "fk_project_evaluator_criteria_project_id_projects",
             "fk_project_evaluator_criteria_evaluator_id_evaluators",
             "ck_project_evaluator_criteria_`valid_sampling_rate`",
@@ -135,7 +135,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             index_names.update(
                 {
                     "pk_project_evaluator_criteria",
-                    "uq_project_evaluator_criteria_project_id_annotation_name",
+                    "uq_project_evaluator_criteria_project_id_name",
                 }
             )
         elif db_backend == "sqlite":

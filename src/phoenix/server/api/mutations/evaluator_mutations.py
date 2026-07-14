@@ -408,7 +408,6 @@ class DeleteDatasetEvaluatorsPayload:
 class CreateProjectLLMEvaluatorInput:
     project_id: GlobalID
     name: Identifier
-    annotation_name: Identifier
     prompt_version: ChatPromptVersionInput
     output_configs: list[AnnotationConfigInput]
     input_mapping: EvaluatorInputMappingInput
@@ -424,7 +423,6 @@ class CreateProjectLLMEvaluatorInput:
 class UpdateProjectLLMEvaluatorInput:
     project_evaluator_id: GlobalID
     name: Identifier
-    annotation_name: Identifier
     prompt_version: ChatPromptVersionInput
     output_configs: list[AnnotationConfigInput]
     input_mapping: EvaluatorInputMappingInput
@@ -440,7 +438,6 @@ class UpdateProjectLLMEvaluatorInput:
 class CreateProjectCodeEvaluatorInput:
     project_id: GlobalID
     name: Identifier
-    annotation_name: Identifier
     source_code: str
     language: Language
     sandbox_config_id: GlobalID
@@ -464,7 +461,6 @@ class CreateProjectCodeEvaluatorInput:
 class UpdateProjectCodeEvaluatorInput:
     project_evaluator_id: GlobalID
     name: Identifier
-    annotation_name: Identifier
     evaluator_input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
     evaluation_target: EvaluationTarget
@@ -565,8 +561,7 @@ class EvaluatorMutationMixin:
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         try:
-            evaluator_name = IdentifierModel.model_validate(input.name)
-            annotation_name = IdentifierModel.model_validate(input.annotation_name)
+            name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
             output_configs = list(
                 LLMEvaluatorOutputConfigs.from_inputs(input.output_configs).configs
@@ -585,6 +580,7 @@ class EvaluatorMutationMixin:
             async with info.context.db() as session:
                 if await session.get(models.Project, project_id) is None:
                     raise NotFound(f"Project not found: {input.project_id}")
+                evaluator_name = await _generate_unique_evaluator_name(session, name)
 
                 target_prompt_version_id: Optional[int] = None
                 if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
@@ -638,7 +634,7 @@ class EvaluatorMutationMixin:
                 criteria = models.ProjectEvaluatorCriteria(
                     project_id=project_id,
                     evaluator_id=evaluator.id,
-                    annotation_name=annotation_name,
+                    name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
                     evaluation_target=input.evaluation_target.value,
@@ -648,7 +644,7 @@ class EvaluatorMutationMixin:
                 session.add(criteria)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name or annotation name already exists")
+            raise BadRequest("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
@@ -674,8 +670,7 @@ class EvaluatorMutationMixin:
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
         try:
-            evaluator_name = IdentifierModel.model_validate(input.name)
-            annotation_name = IdentifierModel.model_validate(input.annotation_name)
+            name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
             output_configs = list(
                 LLMEvaluatorOutputConfigs.from_inputs(input.output_configs).configs
@@ -705,6 +700,8 @@ class EvaluatorMutationMixin:
                 if pair is None:
                     raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
                 criteria, evaluator = pair
+                if criteria.name != name:
+                    evaluator.name = await _generate_unique_evaluator_name(session, name)
 
                 selected_version: Optional[models.PromptVersion] = None
                 if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
@@ -740,7 +737,6 @@ class EvaluatorMutationMixin:
                     await session.flush()
                     final_prompt_version_id = prompt_version.id
 
-                evaluator.name = evaluator_name
                 evaluator.description = input.description
                 evaluator.output_configs = output_configs
                 evaluator.user_id = user_id
@@ -767,7 +763,7 @@ class EvaluatorMutationMixin:
                     prompt_version_tag.prompt_id = target_prompt_id
                     prompt_version_tag.prompt_version_id = final_prompt_version_id
 
-                criteria.annotation_name = annotation_name
+                criteria.name = name
                 criteria.filter_condition = input.filter_condition
                 criteria.sampling_rate = input.sampling_rate
                 criteria.evaluation_target = input.evaluation_target.value
@@ -775,7 +771,7 @@ class EvaluatorMutationMixin:
                 criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name or annotation name already exists")
+            raise BadRequest("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
@@ -794,8 +790,7 @@ class EvaluatorMutationMixin:
     ) -> ProjectEvaluatorMutationPayload:
         try:
             project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
-            evaluator_name = IdentifierModel.model_validate(input.name)
-            annotation_name = IdentifierModel.model_validate(input.annotation_name)
+            name = IdentifierModel.model_validate(input.name)
         except (ValueError, ValidationError) as error:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
@@ -821,6 +816,7 @@ class EvaluatorMutationMixin:
             async with info.context.db() as session:
                 if await session.get(models.Project, project_id) is None:
                     raise NotFound(f"Project not found: {input.project_id}")
+                evaluator_name = await _generate_unique_evaluator_name(session, name)
                 sandbox_config_id = await _validate_code_evaluator_sandbox_config(
                     session,
                     sandbox_config_global_id=input.sandbox_config_id,
@@ -848,7 +844,7 @@ class EvaluatorMutationMixin:
                 criteria = models.ProjectEvaluatorCriteria(
                     project_id=project_id,
                     evaluator_id=evaluator.id,
-                    annotation_name=annotation_name,
+                    name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
                     evaluation_target=input.evaluation_target.value,
@@ -860,7 +856,7 @@ class EvaluatorMutationMixin:
                 session.add(criteria)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name or annotation name already exists")
+            raise BadRequest("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
@@ -881,8 +877,7 @@ class EvaluatorMutationMixin:
             criteria_id = from_global_id_with_expected_type(
                 input.project_evaluator_id, ProjectEvaluator.__name__
             )
-            evaluator_name = IdentifierModel.model_validate(input.name)
-            annotation_name = IdentifierModel.model_validate(input.annotation_name)
+            name = IdentifierModel.model_validate(input.name)
         except (ValueError, ValidationError) as error:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
@@ -918,7 +913,8 @@ class EvaluatorMutationMixin:
                         f"CODE project evaluator not found: {input.project_evaluator_id}"
                     )
                 criteria, evaluator = pair
-                evaluator.name = evaluator_name
+                if criteria.name != name:
+                    evaluator.name = await _generate_unique_evaluator_name(session, name)
                 evaluator.description = input.description
                 evaluator.user_id = user_id
                 evaluator.input_mapping = input.evaluator_input_mapping.to_orm()
@@ -960,7 +956,7 @@ class EvaluatorMutationMixin:
                     ):
                         session.add(candidate)
 
-                criteria.annotation_name = annotation_name
+                criteria.name = name
                 criteria.filter_condition = input.filter_condition
                 criteria.sampling_rate = input.sampling_rate
                 criteria.evaluation_target = input.evaluation_target.value
@@ -971,7 +967,7 @@ class EvaluatorMutationMixin:
                 criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name or annotation name already exists")
+            raise BadRequest("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),

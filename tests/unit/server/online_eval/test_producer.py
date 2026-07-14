@@ -45,7 +45,7 @@ async def _seed_criteria(
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project_id,
             evaluator_id=evaluator.id,
-            annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition=filter_condition,
             sampling_rate=sampling_rate,
             evaluation_target=evaluation_target,
@@ -290,7 +290,7 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
         session.add(
             models.SpanAnnotation(
                 span_rowid=annotated_span.id,
-                name=criteria.annotation_name,
+                name=criteria.name,
                 label="ok",
                 score=1.0,
                 explanation=None,

@@ -3105,7 +3105,7 @@ class ProjectEvaluatorCriteria(HasId):
         nullable=False,
         index=True,
     )
-    annotation_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     filter_condition: Mapped[str] = mapped_column(String, nullable=False, server_default="")
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
         CheckConstraint(
@@ -3134,7 +3134,7 @@ class ProjectEvaluatorCriteria(HasId):
     project: Mapped["Project"] = relationship("Project")
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
 
-    __table_args__ = (UniqueConstraint("project_id", "annotation_name"),)
+    __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
 class EvalWorkCursor(HasId):

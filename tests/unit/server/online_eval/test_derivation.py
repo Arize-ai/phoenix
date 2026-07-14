@@ -41,7 +41,7 @@ def _criteria(rng: Random) -> ResolvedCriteria:
     )
     return ResolvedCriteria(
         criteria_id=rng.randint(1, 10_000),
-        annotation_name=_word(rng),
+        name=_word(rng),
         evaluator_id=rng.randint(1, 10_000),
         version_ref=version_ref,
         output_configs=[_json_value(rng) for _ in range(rng.randint(0, 3))],
@@ -56,7 +56,7 @@ def _criteria(rng: Random) -> ResolvedCriteria:
 _EDGE_CRITERIA = [
     ResolvedCriteria(
         criteria_id=0,
-        annotation_name="",
+        name="",
         evaluator_id=0,
         version_ref=0,
         output_configs=[],
@@ -68,7 +68,7 @@ _EDGE_CRITERIA = [
     ),
     ResolvedCriteria(
         criteria_id=1,
-        annotation_name="ünïcode ✓",
+        name="ünïcode ✓",
         evaluator_id=1,
         version_ref=["exact_match", "2026-07-01T00:00:00+00:00"],
         output_configs=[{"nested": {"deep": [1, 2, 3]}}],
@@ -130,7 +130,7 @@ class TestConfigFingerprint:
             resolved = _criteria(rng)
             mutations = [
                 replace(resolved, criteria_id=resolved.criteria_id + 1),
-                replace(resolved, annotation_name=resolved.annotation_name + "x"),
+                replace(resolved, name=resolved.name + "x"),
                 replace(resolved, evaluator_id=resolved.evaluator_id + 1),
                 replace(resolved, version_ref=[resolved.version_ref, "bumped"]),
                 replace(resolved, output_configs=[resolved.output_configs, "bumped"]),
@@ -152,7 +152,7 @@ class TestConfigFingerprint:
         agreement depends on these bytes never changing silently."""
         resolved = ResolvedCriteria(
             criteria_id=7,
-            annotation_name="toxicity",
+            name="toxicity",
             evaluator_id=42,
             version_ref=1301,
             output_configs=[
@@ -172,7 +172,7 @@ class TestConfigFingerprint:
         )
         assert (
             config_fingerprint(resolved)
-            == "b351d58a4568a8c417b3a94170e46fbd9cf34f306898e344f22527d853cc3121"
+            == "e6ca2ff2b09c452f4f1c9c6e846223e71a3955796ec86ce636c19d5215527f94"
         )
 
 
