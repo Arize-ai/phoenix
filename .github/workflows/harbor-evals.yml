@@ -1,0 +1,58 @@
+name: Harbor Evals
+
+on:
+  pull_request:
+    paths:
+      - "evals/harbor/**"
+      - "src/phoenix/server/agents/**"
+      - "src/phoenix/db/migrations/**"
+      - ".github/workflows/harbor-evals.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: harbor-evals-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harbor-eval:
+    name: ServerAgent regression triage (Daytona)
+    runs-on: ubuntu-latest
+    # Secrets are empty on pull_request runs from forks; skip rather than fail.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 45
+    env:
+      UV_VERSION: "0.11.8"
+      HARBOR_ENV: daytona
+      DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Build the Phoenix wheel and stage the Harbor build context
+        run: make harbor-prepare
+
+      # The oracle validates the environment build, seed-data download, and
+      # verifiers without spending agent tokens; it gates the real-agent run.
+      - name: Run oracle trial
+        run: |
+          make harbor-oracle
+          python3 evals/harbor/check_job_reward.py --min-reward 1.0
+
+      # The agent is nondeterministic; require 3 of 4 steps rather than
+      # perfection so CI isn't flaky. Tighten once there's a pass-rate history.
+      - name: Run ServerAgent trial
+        run: |
+          make harbor-run
+          python3 evals/harbor/check_job_reward.py --min-reward 0.75
+
+      - name: Upload job results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: harbor-jobs
+          path: jobs/
+          retention-days: 30
