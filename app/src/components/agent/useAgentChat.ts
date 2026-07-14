@@ -7,6 +7,7 @@ import {
   isToolUIPart,
 } from "ai";
 import { useCallback, useEffect, useRef } from "react";
+import { useRelayEnvironment } from "react-relay";
 
 import { createAgentTurnTracer } from "@phoenix/agent/chat/agentTurnTracing";
 import {
@@ -42,6 +43,11 @@ import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
+import {
+  updateAgentSessionTitle,
+  upsertAgentSessionConnection,
+} from "./agentSessionRelay";
+
 type AgentTurnTracer = ReturnType<typeof createAgentTurnTracer>;
 
 const turnTracersByChat = new WeakMap<Chat<AgentUIMessage>, AgentTurnTracer>();
@@ -66,13 +72,16 @@ export function useAgentChat({
   sessionId,
   chatApiUrl,
   modelSelection,
+  initialMessages,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
   modelSelection: AgentModelSelection;
+  initialMessages?: AgentUIMessage[];
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
+  const relayEnvironment = useRelayEnvironment();
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -96,8 +105,10 @@ export function useAgentChat({
           createChat: () => {
             // Rehydrate from store-backed messages so evicted idle runtimes can
             // be recreated without losing visible conversation history.
-            const initialMessages =
-              store.getState().sessionMap[sessionId]?.messages ?? [];
+            const runtimeMessages =
+              store.getState().sessionMap[sessionId]?.messages ??
+              initialMessages ??
+              [];
             const turnTracer = createAgentTurnTracer({
               sessionId,
               fetch: authFetch,
@@ -125,7 +136,7 @@ export function useAgentChat({
             });
             const chat = new Chat<AgentUIMessage>({
               id: sessionId,
-              messages: initialMessages,
+              messages: runtimeMessages,
               transport: new DefaultChatTransport({
                 api: chatApiUrl,
                 fetch: turnTracer.fetch,
@@ -184,8 +195,32 @@ export function useAgentChat({
                 });
               },
               onData: (dataPart) => {
+                if (dataPart.type === "data-session-created") {
+                  store
+                    .getState()
+                    .setSessionPersisted(sessionId, dataPart.data.id);
+                  upsertAgentSessionConnection({
+                    environment: relayEnvironment,
+                    session: dataPart.data,
+                  });
+                  const runtimeTitle =
+                    store.getState().sessionMap[sessionId]?.title;
+                  if (runtimeTitle) {
+                    updateAgentSessionTitle({
+                      environment: relayEnvironment,
+                      sessionId,
+                      title: runtimeTitle,
+                    });
+                  }
+                  return;
+                }
                 if (dataPart.type === "data-session-summary") {
                   store.getState().updateSessionTitle(sessionId, dataPart.data);
+                  updateAgentSessionTitle({
+                    environment: relayEnvironment,
+                    sessionId,
+                    title: dataPart.data,
+                  });
                 }
               },
               sendAutomaticallyWhen: ({ messages }) =>

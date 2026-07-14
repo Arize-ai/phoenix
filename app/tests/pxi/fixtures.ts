@@ -77,7 +77,6 @@ async function installAgentDefaults({ page }: { page: Page }) {
             },
             capabilities: {
               "graphql.mutations": false,
-              "session.storeSessions": false,
               "web.access": false,
             },
           },
@@ -104,7 +103,7 @@ const LATEST_SESSION_QUERY = `
     agentSessions(first: 1) {
       edges {
         node {
-          sessionId
+          messages
         }
       }
     }
@@ -164,27 +163,17 @@ async function fetchLatestPersistedAssistantMessage(
   const listBody = (await listResponse.json()) as {
     data?: {
       agentSessions?: {
-        edges?: Array<{ node?: { sessionId?: unknown } }>;
+        edges?: Array<{ node?: { messages?: unknown } }>;
       };
     };
   };
-  const sessionId = listBody.data?.agentSessions?.edges?.[0]?.node?.sessionId;
-  if (typeof sessionId !== "string") {
-    return null;
-  }
-  const messagesResponse = await request.get(
-    `/agents/assistant/sessions/${encodeURIComponent(sessionId)}/messages`
-  );
-  if (!messagesResponse.ok()) {
-    return null;
-  }
-  const messagesBody = (await messagesResponse.json()) as { data?: unknown };
-  return extractLatestAssistantMessage(messagesBody.data);
+  const messages = listBody.data?.agentSessions?.edges?.[0]?.node?.messages;
+  return extractLatestAssistantMessage(messages);
 }
 
 /**
- * Polls the server-persisted sessions (GraphQL list, then the REST messages
- * endpoint) until the most recent session's latest assistant message is
+ * Polls the server-persisted sessions until the most recent session's latest
+ * assistant message is
  * available. Sessions persist only in the server database (no localStorage
  * copy), so this doubles as an end-to-end assertion that turn persistence
  * works.

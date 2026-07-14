@@ -92,6 +92,9 @@ type AgentSession implements Node {
   title: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+
+  """The persisted transcript as Vercel AI UIMessage JSON objects."""
+  messages: JSON!
 }
 
 """A connection to a list of items."""
@@ -1316,6 +1319,7 @@ input DeleteAgentSessionInput {
 }
 
 type DeleteAgentSessionMutationPayload {
+  deletedAgentSessionId: ID!
   sessionId: String!
   query: Query!
 }
@@ -3580,6 +3584,11 @@ type Query {
   The viewer's persisted assistant chat sessions, most recently active first. When authentication is disabled, all sessions are returned.
   """
   agentSessions(first: Int = 20, after: String): AgentSessionConnection!
+
+  """
+  One persisted assistant chat session, or null if it does not exist or belongs to another user.
+  """
+  agentSession(sessionId: String!): AgentSession
   agentsConfig: AgentsConfig!
 
   """The assistant skills available given the supplied UI context."""

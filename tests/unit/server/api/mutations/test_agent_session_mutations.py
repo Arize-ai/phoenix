@@ -9,11 +9,11 @@ from tests.unit.graphql import AsyncGraphQLClient
 _DELETE_MUTATION = """
   mutation ($sessionId: String!) {
     deleteAgentSession(input: { sessionId: $sessionId }) {
+      deletedAgentSessionId
       sessionId
     }
   }
 """
-
 
 async def test_delete_agent_session_cascades_snapshot(
     db: DbSessionFactory,
@@ -42,6 +42,7 @@ async def test_delete_agent_session_cascades_snapshot(
     assert not response.errors
     assert response.data is not None
     assert response.data["deleteAgentSession"]["sessionId"] == "doomed"
+    assert response.data["deleteAgentSession"]["deletedAgentSessionId"]
     async with db() as session:
         assert (await session.scalars(select(models.AgentSession))).all() == []
         assert (await session.scalars(select(models.AgentSessionSnapshot))).all() == []

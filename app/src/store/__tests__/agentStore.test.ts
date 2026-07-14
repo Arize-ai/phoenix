@@ -52,6 +52,18 @@ describe("agentStore", () => {
       expect(state.activeSessionId).toBe(sessionId);
       expect(state.sessionMap[sessionId]).toBeDefined();
     });
+
+    it("marks a local draft persisted without replacing its runtime state", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+
+      store.getState().setSessionPersisted(sessionId, "relay-session-id");
+
+      expect(store.getState().sessionMap[sessionId]?.relayId).toBe(
+        "relay-session-id"
+      );
+      expect(store.getState().activeSessionId).toBe(sessionId);
+    });
   });
 
   describe("deleteSession", () => {
@@ -67,10 +79,6 @@ describe("agentStore", () => {
 
     it("falls back activeSessionId to last remaining session when active is deleted", () => {
       const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
       const sessionId1 = store.getState().createSession();
       const sessionId2 = store.getState().createSession();
       // active is sessionId2
@@ -170,61 +178,32 @@ describe("agentStore", () => {
       expect(store.getState().activeSessionId).toBe(secondSessionId);
       expect(store.getState().sessionMap[firstSessionId]).toBeDefined();
     });
-
-    it("keeps the in-memory session list when session history is toggled off", () => {
-      const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
-      const firstSessionId = store.getState().createSession();
-      const secondSessionId = store.getState().createSession();
-
-      // The capability only gates the history UI; sessions persist
-      // server-side and the local mirror is left intact.
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: false,
-      });
-
-      expect(store.getState().sessions).toEqual([
-        firstSessionId,
-        secondSessionId,
-      ]);
-      expect(store.getState().activeSessionId).toBe(secondSessionId);
-    });
   });
 
-  describe("hydrateServerSessions", () => {
-    it("adds server sessions as unloaded stubs ordered oldest-first", () => {
+  describe("cacheSession", () => {
+    it("adds a server-loaded transcript to the runtime cache", () => {
       const store = createAgentStore();
-      store.getState().hydrateServerSessions([
-        {
-          id: "older",
-          title: "older session",
-          createdAt: 1,
-          updatedAt: 10,
-        },
-        {
-          id: "newer",
-          title: "newer session",
-          createdAt: 2,
-          updatedAt: 20,
-        },
-      ]);
+      store.getState().cacheSession({
+        id: "remote",
+        relayId: "relay-remote",
+        title: "remote session",
+        messages: [{ id: "m1", role: "user", parts: [] }],
+        context: [],
+        modelConfig: store.getState().defaultModelConfig,
+        createdAt: 1,
+      });
 
       const state = store.getState();
-      expect(state.sessions).toEqual(["older", "newer"]);
-      expect(state.sessionMap["older"]).toMatchObject({
-        title: "older session",
-        messages: [],
-        messagesLoaded: false,
+      expect(state.sessions).toEqual(["remote"]);
+      expect(state.sessionMap["remote"]).toMatchObject({
+        title: "remote session",
+        messages: [{ id: "m1", role: "user", parts: [] }],
         createdAt: 1,
       });
       expect(state.activeSessionId).toBeNull();
     });
 
-    it("keeps locally created sessions and their transcripts, backfilling titles", () => {
+    it("preserves live messages while backfilling a server title", () => {
       const store = createAgentStore();
       const localSessionId = store.getState().createSession();
       store
@@ -233,50 +212,27 @@ describe("agentStore", () => {
           { id: "m1", role: "user", parts: [{ type: "text", text: "hi" }] },
         ]);
 
-      store.getState().hydrateServerSessions([
-        {
-          id: localSessionId,
-          title: "server title",
-          createdAt: 1,
-          updatedAt: 10,
-        },
-        { id: "remote", title: "remote session", createdAt: 2, updatedAt: 5 },
-      ]);
+      store.getState().cacheSession({
+        id: localSessionId,
+        relayId: "relay-local",
+        title: "server title",
+        messages: [],
+        context: [],
+        modelConfig: store.getState().defaultModelConfig,
+        createdAt: 1,
+      });
 
       const state = store.getState();
-      // Server sessions come first (oldest updatedAt first); local-only
-      // sessions keep their relative position after them.
-      expect(state.sessions).toEqual(["remote", localSessionId]);
+      expect(state.sessions).toEqual([localSessionId]);
       const localSession = state.sessionMap[localSessionId];
       expect(localSession?.messages).toHaveLength(1);
-      expect(localSession?.messagesLoaded).toBe(true);
       expect(localSession?.title).toBe("server title");
-    });
-
-    it("marks stub messages loaded once fetched", () => {
-      const store = createAgentStore();
-      store
-        .getState()
-        .hydrateServerSessions([
-          { id: "remote", title: "remote", createdAt: 1, updatedAt: 1 },
-        ]);
-      expect(store.getState().sessionMap["remote"]?.messagesLoaded).toBe(false);
-
-      store
-        .getState()
-        .setSessionMessages("remote", [{ id: "m1", role: "user", parts: [] }]);
-
-      expect(store.getState().sessionMap["remote"]?.messagesLoaded).toBe(true);
     });
   });
 
   describe("forkSession", () => {
     it("creates a new active session retaining the source session", () => {
       const store = createAgentStore();
-      store.getState().setCapability({
-        key: "session.storeSessions",
-        enabled: true,
-      });
       const sourceId = store.getState().createSession();
       const messages = [{ id: "user-1", role: "user" as const, parts: [] }];
 

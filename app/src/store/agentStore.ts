@@ -125,15 +125,12 @@ export type PendingAgentMessage = {
  */
 export type AgentSession = {
   id: string;
+  /** Canonical Relay node ID once the server has persisted the session. */
+  relayId: string | null;
   /** Brief human-readable title for the conversation. */
   title: string;
   /** Messages in AI SDK UIMessage format. */
   messages: AgentUIMessage[];
-  /**
-   * False for stubs hydrated from the server's session list, whose
-   * transcripts are fetched on activation.
-   */
-  messagesLoaded: boolean;
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
   /** Model configuration scoped to this session. */
@@ -143,21 +140,6 @@ export type AgentSession = {
   /** Usage metrics returned as metadata from llm invocations */
   usage?: AgentSessionUsage;
 };
-
-/**
- * A session entry from the list of persisted sessions.
- */
-export type ServerAgentSessionStub = {
-  id: string;
-  title: string;
-  /** Unix timestamp (ms). */
-  createdAt: number;
-  /** Unix timestamp (ms). */
-  updatedAt: number;
-};
-
-/** Hydration state of the server-backed session list. */
-export type ServerSessionsHydration = "idle" | "pending" | "done" | "error";
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: "ANTHROPIC",
@@ -278,7 +260,7 @@ export interface AgentProps {
   position: AgentPosition;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /** Ordered list of session IDs (oldest first; newest renders on top). */
+  /** Session IDs with an app-local runtime snapshot. */
   sessions: string[];
   /** ID of the currently active session, or null if none. */
   activeSessionId: string | null;
@@ -321,19 +303,11 @@ export interface AgentState extends AgentProps {
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
+  setSessionPersisted: (sessionId: string, relayId: string) => void;
   /**
-   * Merges the server's persisted session list into the in-memory mirror.
-   * Locally created sessions keep their transcript and position; server-only
-   * sessions appear as message-less stubs loaded on activation.
+   * Adds a server-loaded transcript to the app-local runtime cache.
    */
-  hydrateServerSessions: (stubs: ServerAgentSessionStub[]) => void;
-  /**
-   * Progress of the once-per-app-load fetch of the server session list.
-   * Ephemeral: sessions are persisted only in the database, so each load
-   * starts at "idle" and hydrates over the network.
-   */
-  serverSessionsHydration: ServerSessionsHydration;
-  setServerSessionsHydration: (status: ServerSessionsHydration) => void;
+  cacheSession: (session: AgentSession) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
@@ -668,9 +642,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         (state) => {
           const session: AgentSession = {
             id: sessionId,
+            relayId: null,
             title: "",
             messages: [],
-            messagesLoaded: true,
             context: [],
             modelConfig: { ...state.defaultModelConfig },
             createdAt: Date.now(),
@@ -696,9 +670,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           created = true;
           const session: AgentSession = {
             id: sessionId,
+            relayId: null,
             title: buildForkTitle(source),
             messages,
-            messagesLoaded: true,
             // Carry over the source session's context and model so the fork
             // continues the same conversation under the same configuration.
             context: [...source.context],
@@ -849,7 +823,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           return {
             sessionMap: {
               ...state.sessionMap,
-              [sessionId]: { ...session, messages, messagesLoaded: true },
+              [sessionId]: { ...session, messages },
             },
           };
         },
@@ -857,55 +831,49 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setSessionMessages" }
       );
     },
-    hydrateServerSessions: (stubs) => {
+    setSessionPersisted: (sessionId, relayId) => {
       set(
         (state) => {
-          if (stubs.length === 0) return state;
-          const sessionMap = { ...state.sessionMap };
-          // Oldest-first so the newest server session ends up last, matching
-          // the list's local ordering (display reverses to newest-first).
-          const orderedStubs = [...stubs].sort(
-            (a, b) => a.updatedAt - b.updatedAt
-          );
-          for (const stub of orderedStubs) {
-            const existing = sessionMap[stub.id];
-            if (existing) {
-              // The local copy owns the transcript; only backfill the title.
-              sessionMap[stub.id] = {
-                ...existing,
-                title: existing.title || stub.title,
-              };
-              continue;
-            }
-            sessionMap[stub.id] = {
-              id: stub.id,
-              title: stub.title,
-              messages: [],
-              messagesLoaded: false,
-              context: [],
-              modelConfig: { ...state.defaultModelConfig },
-              createdAt: stub.createdAt,
-            };
-          }
-          const serverIds = orderedStubs.map((stub) => stub.id);
-          const serverIdSet = new Set(serverIds);
-          const localOnlyIds = state.sessions.filter(
-            (sessionId) => !serverIdSet.has(sessionId)
-          );
+          const session = state.sessionMap[sessionId];
+          if (!session) return state;
           return {
-            sessions: [...serverIds, ...localOnlyIds],
-            sessionMap,
+            sessionMap: {
+              ...state.sessionMap,
+              [sessionId]: { ...session, relayId },
+            },
           };
         },
         false,
-        { type: "hydrateServerSessions" }
+        { type: "setSessionPersisted" }
       );
     },
-    serverSessionsHydration: "idle",
-    setServerSessionsHydration: (serverSessionsHydration) => {
-      set({ serverSessionsHydration }, false, {
-        type: "setServerSessionsHydration",
-      });
+    cacheSession: (session) => {
+      set(
+        (state) => {
+          const existing = state.sessionMap[session.id];
+          return {
+            sessions: state.sessions.includes(session.id)
+              ? state.sessions
+              : [...state.sessions, session.id],
+            sessionMap: {
+              ...state.sessionMap,
+              [session.id]: existing
+                ? {
+                    ...session,
+                    ...existing,
+                    title: existing.title || session.title,
+                    messages:
+                      existing.messages.length > 0
+                        ? existing.messages
+                        : session.messages,
+                  }
+                : session,
+            },
+          };
+        },
+        false,
+        { type: "cacheSession" }
+      );
     },
     setDefaultModelConfig: (config) => {
       set({ defaultModelConfig: config }, false, {

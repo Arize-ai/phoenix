@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import type { paths } from "@phoenix/api/__generated__/v1";
@@ -6,7 +6,6 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
-import { useAgentServerSessions } from "./useAgentServerSessions";
 
 const CHAT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
@@ -18,8 +17,6 @@ const ASSISTANT_AGENT_ID = "assistant";
  * {@link AgentChatPanel}.
  *
  * Responsibilities:
- * - Hydrates the session list from the server when the panel opens
- * - Resumes the most recent persisted session, or starts a fresh one
  * - Derives the chat API URL and model menu value from the store
  */
 export function useAgentChatPanelState() {
@@ -28,82 +25,11 @@ export function useAgentChatPanelState() {
   const position = useAgentContext((state) => state.position);
   const setPosition = useAgentContext((state) => state.setPosition);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const createSession = useAgentContext((state) => state.createSession);
-  const setActiveSessionInStore = useAgentContext(
-    (state) => state.setActiveSession
-  );
-  const sessionIds = useAgentContext((state) => state.sessions);
-  const sessionMap = useAgentContext((state) => state.sessionMap);
-  const serverSessionsHydration = useAgentContext(
-    (state) => state.serverSessionsHydration
-  );
-  const showSessionHistory = useAgentContext(
-    (state) => state.capabilities["session.storeSessions"]
-  );
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig
   );
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
-  );
-  const { hydrateSessions, activateSession, deleteSession } =
-    useAgentServerSessions();
-
-  // Derive full session objects in newest-first order for the session list.
-  const orderedSessions = useMemo(() => {
-    const sessions = sessionIds
-      .map((sessionId) => sessionMap[sessionId])
-      .filter(Boolean);
-    // Reverse so newest sessions appear first
-    return sessions.reverse();
-  }, [sessionIds, sessionMap]);
-
-  // Sessions persist only in the database, so the list must be hydrated over
-  // the network before deciding what to show. Kicked off on first open.
-  useEffect(() => {
-    if (isOpen) {
-      void hydrateSessions();
-    }
-  }, [isOpen, hydrateSessions]);
-
-  // Once hydration settles, resume the most recent persisted session; when
-  // there is none (or hydration failed), start a fresh session.
-  useEffect(() => {
-    if (!isOpen || activeSessionId !== null) {
-      return;
-    }
-    if (
-      serverSessionsHydration === "idle" ||
-      serverSessionsHydration === "pending"
-    ) {
-      return;
-    }
-    const mostRecentSessionId = sessionIds[sessionIds.length - 1];
-    if (mostRecentSessionId) {
-      void activateSession(mostRecentSessionId);
-    } else {
-      createSession();
-    }
-  }, [
-    isOpen,
-    activeSessionId,
-    serverSessionsHydration,
-    sessionIds,
-    activateSession,
-    createSession,
-  ]);
-
-  // Activating a session may need a network fetch of its transcript first;
-  // clearing the active session (null) stays synchronous.
-  const setActiveSession = useCallback(
-    (sessionId: string | null) => {
-      if (sessionId === null) {
-        setActiveSessionInStore(null);
-        return;
-      }
-      void activateSession(sessionId);
-    },
-    [activateSession, setActiveSessionInStore]
   );
 
   const menuValue: ModelMenuValue = useMemo(
@@ -165,14 +91,9 @@ export function useAgentChatPanelState() {
     isOpen,
     position,
     activeSessionId,
-    orderedSessions,
-    showSessionHistory,
     chatApiUrl,
     modelSelection,
     menuValue,
-    createSession,
-    setActiveSession,
-    deleteSession,
     closePanel,
     setPosition,
     handleModelChange,

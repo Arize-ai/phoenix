@@ -9,6 +9,7 @@ from collections.abc import (
 )
 from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
+from datetime import datetime
 from typing import Annotated, Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -38,7 +39,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RunUsage
-from sqlalchemy import Insert, exists, func, select
+from sqlalchemy import Insert, exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,7 +87,6 @@ from phoenix.server.api.helpers.playground_registry import (
     PROVIDER_DEFAULT,
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
-from phoenix.server.api.routers.v1.utils import ResponseBody
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatus,
@@ -183,6 +183,30 @@ class AssistantMessageMetadata(_CamelModel):
 
 
 @register_openapi_schema
+class SessionCreatedData(_CamelModel):
+    """Canonical Relay metadata for a newly persisted assistant session."""
+
+    id: str
+    session_id: str
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+@register_openapi_schema
+class SessionCreatedChunk(DataChunk):
+    """Transient canonical metadata for an owner-qualified persisted session.
+
+    Repeated acknowledgements let a retry reconcile clients that disconnected
+    before receiving the first stream's event.
+    """
+
+    type: Literal["data-session-created"] = "data-session-created"
+    data: SessionCreatedData
+    transient: Literal[True] = True
+
+
+@register_openapi_schema
 class SessionSummaryChunk(DataChunk):
     """Transient ``data-session-summary`` stream chunk: the LLM-generated
     session title, emitted on any turn that starts with the session still
@@ -205,10 +229,6 @@ class AssistantMetadataUIMessage(UIMessage):
     metadata: AssistantMessageMetadata | None = (
         None  # custom metadata type (provides stronger type in the OpenAPI schema)
     )
-
-
-class GetAgentSessionMessagesResponse(ResponseBody[list[AssistantMetadataUIMessage]]):
-    """Body for GET /agents/{agent_id}/sessions/{session_id}/messages"""
 
 
 class _ObservabilityMixin(BaseModel):
@@ -828,39 +848,65 @@ async def _load_phoenix_user_email(
     )
 
 
-async def _upsert_agent_session(
+async def _claim_agent_session(
+    session: AsyncSession,
+    *,
+    session_id: str,
+    user_id: int | None,
+    messages: list[dict[str, Any]],
+) -> models.AgentSession | None:
+    """Atomically claim a non-empty first-send session for its owner."""
+    if messages:
+        await session.execute(
+            insert_on_conflict(
+                {
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "title": "",
+                    "messages": messages,
+                },
+                table=models.AgentSession,
+                dialect=SupportedSQLDialect(session.bind.dialect.name),
+                unique_by=("session_id",),
+                on_conflict=OnConflict.DO_NOTHING,
+            )
+        )
+    agent_session = await session.scalar(
+        select(models.AgentSession).where(models.AgentSession.session_id == session_id)
+    )
+    if agent_session is not None and agent_session.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return agent_session
+
+
+async def _update_agent_session(
     session: AsyncSession,
     *,
     session_id: str,
     user_id: int | None,
     title: str,
-    messages: list[dict[str, Any]] | None = None,
-) -> int:
-    set_: dict[str, Any] = {"updated_at": func.now()}
-    if messages is not None:
-        set_["messages"] = messages
+    messages: list[dict[str, Any]],
+) -> int | None:
+    values: dict[str, Any] = {
+        "messages": messages,
+        "updated_at": func.now(),
+    }
     if title:
-        set_["title"] = title
-    await session.execute(
-        insert_on_conflict(
-            {
-                "session_id": session_id,
-                "user_id": user_id,
-                "title": title,
-                "messages": messages or [],
-            },
-            table=models.AgentSession,
-            dialect=SupportedSQLDialect(session.bind.dialect.name),
-            unique_by=("session_id",),
-            on_conflict=OnConflict.DO_UPDATE,
-            set_=set_,
+        values["title"] = title
+    owner_predicate = (
+        models.AgentSession.user_id.is_(None)
+        if user_id is None
+        else models.AgentSession.user_id == user_id
+    )
+    return await session.scalar(
+        update(models.AgentSession)
+        .where(
+            models.AgentSession.session_id == session_id,
+            owner_predicate,
         )
+        .values(**values)
+        .returning(models.AgentSession.id)
     )
-    rowid = await session.scalar(
-        select(models.AgentSession.id).where(models.AgentSession.session_id == session_id)
-    )
-    assert rowid is not None
-    return rowid
 
 
 async def _upsert_agent_session_snapshot(
@@ -896,13 +942,15 @@ async def _persist_agent_session_turn(
     if not messages:
         return
     async with db() as session:
-        agent_session_rowid = await _upsert_agent_session(
+        agent_session_rowid = await _update_agent_session(
             session,
             session_id=session_id,
             user_id=user_id,
-            title=title or "",
             messages=messages,
+            title=title or "",
         )
+        if agent_session_rowid is None:
+            return
         if bashkit_snapshot is not None:
             await _upsert_agent_session_snapshot(
                 session,
@@ -1135,8 +1183,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
+        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
+        subagents_enabled = _subagents_enabled(resolved_contexts)
+        graphql_mutations_enabled = (
+            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
+        )
+        if graphql_mutations_enabled and is_viewer:
+            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
+        session_created_data: SessionCreatedData | None = None
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
@@ -1162,26 +1218,28 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session=session,
                     phoenix_user=phoenix_user,
                 )
-                existing_session_row = (
-                    await session.execute(
-                        select(
-                            models.AgentSession.id,
-                            models.AgentSession.user_id,
-                            models.AgentSession.title,
-                        ).where(models.AgentSession.session_id == session_id)
+                incoming_messages = [
+                    message.model_dump(mode="json", by_alias=True, exclude_none=True)
+                    for message in body.messages
+                ]
+                agent_session = await _claim_agent_session(
+                    session,
+                    session_id=session_id,
+                    user_id=request_user_id,
+                    messages=incoming_messages,
+                )
+                session_needs_title = agent_session is None or not agent_session.title
+                if agent_session is not None:
+                    session_created_data = SessionCreatedData(
+                        id=str(GlobalID("AgentSession", str(agent_session.id))),
+                        session_id=agent_session.session_id,
+                        title=agent_session.title,
+                        created_at=agent_session.created_at,
+                        updated_at=agent_session.updated_at,
                     )
-                ).first()
-                session_needs_title = existing_session_row is None or not existing_session_row[2]
-                if existing_session_row is not None:
-                    agent_session_rowid, session_owner_id, _ = existing_session_row
-                    session_belongs_to_another_user = (
-                        phoenix_user is not None and session_owner_id != request_user_id
-                    )
-                    if session_belongs_to_another_user:
-                        raise HTTPException(status_code=404, detail="Session not found")
                     initial_bash_snapshot = await _load_bash_snapshot(
                         session,
-                        agent_session_rowid=agent_session_rowid,
+                        agent_session_rowid=agent_session.id,
                     )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
@@ -1198,13 +1256,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
-        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
-        subagents_enabled = _subagents_enabled(resolved_contexts)
-        graphql_mutations_enabled = (
-            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
-        )
-        if graphql_mutations_enabled and is_viewer:
-            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
         server_agent = (
             build_server_agent(
                 model=model,
@@ -1356,6 +1407,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         # are emitted once, right after the stream's opening `start`
                         # message chunk and before the model's own output.
                         forced_skills_streamed = not forced_skills
+                        session_created_streamed = session_created_data is None
                         async with aclosing(raw_stream) as stream:
                             async for agent_message_chunk in stream:
                                 if isinstance(agent_message_chunk, ToolInputAvailableChunk):
@@ -1367,6 +1419,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         )
                                     )
                                 yield agent_message_chunk
+                                if not session_created_streamed and isinstance(
+                                    agent_message_chunk,
+                                    StartChunk,
+                                ):
+                                    assert session_created_data is not None
+                                    yield SessionCreatedChunk(data=session_created_data)
+                                    session_created_streamed = True
                                 if not forced_skills_streamed and isinstance(
                                     agent_message_chunk,
                                     StartChunk,
@@ -1445,38 +1504,5 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
-
-    @router.get(
-        "/agents/{agent_id}/sessions/{session_id}/messages",
-        response_model=GetAgentSessionMessagesResponse,
-        # Vercel AI SDK `UIMessage` JSON omits unset optional fields rather
-        # than emitting `null`, which is what FastAPI's response-model
-        # re-serialization would otherwise produce.
-        response_model_exclude_none=True,
-    )
-    async def get_agent_session_messages(
-        agent_id: str,
-        session_id: str,
-        request: Request,
-    ) -> GetAgentSessionMessagesResponse:
-        """The session's persisted transcript."""
-        if agent_id != _ASSISTANT_AGENT_ID:
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
-            raise HTTPException(status_code=403, detail="Agents are disabled")
-        user = request.user if "user" in request.scope else None
-        phoenix_user = user if isinstance(user, PhoenixUser) else None
-        stmt = select(models.AgentSession.messages).where(
-            models.AgentSession.session_id == session_id
-        )
-        if phoenix_user is not None:
-            stmt = stmt.where(models.AgentSession.user_id == int(phoenix_user.identity))
-        async with request.app.state.db() as session:
-            messages_row = (await session.execute(stmt)).first()
-            if messages_row is None:
-                raise HTTPException(status_code=404, detail="Session not found")
-        return GetAgentSessionMessagesResponse(
-            data=[AssistantMetadataUIMessage.model_validate(message) for message in messages_row[0]]
-        )
 
     return router

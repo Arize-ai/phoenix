@@ -1021,6 +1021,14 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
+class SessionCreatedData(TypedDict):
+    id: str
+    sessionId: str
+    title: str
+    createdAt: str
+    updatedAt: str
+
+
 class SessionSummaryChunk(TypedDict):
     type: Literal["data-session-summary"]
     data: str
@@ -1547,6 +1555,13 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
+class SessionCreatedChunk(TypedDict):
+    type: Literal["data-session-created"]
+    data: SessionCreatedData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
+
+
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1663,10 +1678,6 @@ class CreateSpansRequestBody(TypedDict):
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
-
-
-class GetAgentSessionMessagesResponse(TypedDict):
-    data: Sequence[AssistantMetadataUIMessage]
 
 
 class GetSessionResponseBody(TypedDict):

@@ -1,7 +1,8 @@
 """Mutations for persisted assistant chat sessions."""
 
 import strawberry
-from sqlalchemy import delete
+from sqlalchemy import delete, select
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -9,6 +10,7 @@ from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.AgentSession import AgentSession
 
 
 @strawberry.input
@@ -18,6 +20,7 @@ class DeleteAgentSessionInput:
 
 @strawberry.type
 class DeleteAgentSessionMutationPayload:
+    deleted_agent_session_id: GlobalID
     session_id: str
     query: Query
 
@@ -31,14 +34,21 @@ class AgentSessionMutationMixin:
         input: DeleteAgentSessionInput,
     ) -> DeleteAgentSessionMutationPayload:
         """Delete a persisted session along with its snapshot."""
-        stmt = delete(models.AgentSession).where(models.AgentSession.session_id == input.session_id)
+        lookup_stmt = select(models.AgentSession.id).where(
+            models.AgentSession.session_id == input.session_id
+        )
         if (viewer_id := info.context.user_id) is not None:
-            stmt = stmt.where(models.AgentSession.user_id == viewer_id)
+            lookup_stmt = lookup_stmt.where(models.AgentSession.user_id == viewer_id)
         async with info.context.db() as session:
-            result = await session.execute(stmt)
-        if result.rowcount == 0:  # type: ignore[attr-defined]
+            agent_session_id = await session.scalar(lookup_stmt)
+            if agent_session_id is not None:
+                await session.execute(
+                    delete(models.AgentSession).where(models.AgentSession.id == agent_session_id)
+                )
+        if agent_session_id is None:
             raise NotFound(f"No agent session found for session ID '{input.session_id}'")
         return DeleteAgentSessionMutationPayload(
+            deleted_agent_session_id=GlobalID(AgentSession.__name__, str(agent_session_id)),
             session_id=input.session_id,
             query=Query(),
         )

@@ -1488,26 +1488,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Agent Session Messages
-         * @description The session's persisted transcript.
-         */
-        get: operations["get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/arize_phoenix_version": {
         parameters: {
             query?: never;
@@ -2780,14 +2760,6 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
-        };
-        /**
-         * GetAgentSessionMessagesResponse
-         * @description Body for GET /agents/{agent_id}/sessions/{session_id}/messages
-         */
-        GetAgentSessionMessagesResponse: {
-            /** Data */
-            data: components["schemas"]["AssistantMetadataUIMessage"][];
         };
         /** GetAnnotationConfigResponseBody */
         GetAnnotationConfigResponseBody: {
@@ -5663,6 +5635,55 @@ export interface components {
             type: "web_access";
             /** Enabled */
             enabled: boolean;
+        };
+        /**
+         * SessionCreatedChunk
+         * @description Transient canonical metadata for an owner-qualified persisted session.
+         *
+         *     Repeated acknowledgements let a retry reconcile clients that disconnected
+         *     before receiving the first stream's event.
+         */
+        SessionCreatedChunk: {
+            /**
+             * Type
+             * @default data-session-created
+             * @constant
+             */
+            type?: "data-session-created";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["SessionCreatedData"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /**
+         * SessionCreatedData
+         * @description Canonical Relay metadata for a newly persisted assistant session.
+         */
+        SessionCreatedData: {
+            /** Id */
+            id: string;
+            /** Sessionid */
+            sessionId: string;
+            /** Title */
+            title: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
         };
         /**
          * SessionSummaryChunk
@@ -10303,38 +10324,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                agent_id: string;
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetAgentSessionMessagesResponse"];
                 };
             };
             /** @description Validation Error */

@@ -1,6 +1,6 @@
 """Behavioral tests for the agents router.
 
-Every test drives the public HTTP routes (chat stream, transcript fetch) and
+Every test drives the public chat route
 asserts on observable outcomes: the chunks emitted on the stream and the rows
 persisted to the database. The LLM is the only mocked seam (``build_model``).
 """
@@ -140,6 +140,15 @@ async def test_chat_turn_persists_session_transcript(
 
     response = await httpx_client.post(_chat_url(session_id), json=body)
     assert response.status_code == 200
+    chunks = _stream_chunks(response.text)
+    created_chunks = [chunk for chunk in chunks if chunk.get("type") == "data-session-created"]
+    assert len(created_chunks) == 1
+    assert created_chunks[0]["transient"] is True
+    assert created_chunks[0]["data"]["sessionId"] == session_id
+    assert created_chunks[0]["data"]["id"]
+    chunk_types = [chunk.get("type") for chunk in chunks]
+    assert chunk_types.index("start") < chunk_types.index("data-session-created")
+    assert chunk_types.index("data-session-created") < chunk_types.index("finish")
     # A new session's first turn streams the LLM session title as a transient
     # data chunk (TestModel fills the summary tool with generated args: "a").
     assert "data-session-summary" in response.text
@@ -177,6 +186,9 @@ async def test_chat_turn_persists_session_transcript(
         },
     )
     assert second_response.status_code == 200
+    # The persisted-session acknowledgement is idempotent so a retry can
+    # reconcile Relay even if the first stream disconnected before receiving it.
+    assert "data-session-created" in second_response.text
     # Only a session's first turn summarizes; later turns keep the stored title.
     assert "data-session-summary" not in second_response.text
     async with db() as session:
@@ -222,11 +234,11 @@ async def test_chat_stream_metadata_uses_propagated_trace_context(
         "rootSpanId": root_span_id,
     }
 
-    transcript_response = await httpx_client.get(
-        f"/agents/assistant/sessions/{session_id}/messages"
-    )
-    assert transcript_response.status_code == 200
-    stored_messages = transcript_response.json()["data"]
+    async with db() as session:
+        stored_messages = await session.scalar(
+            select(models.AgentSession.messages).where(models.AgentSession.session_id == session_id)
+        )
+    assert stored_messages is not None
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert assistant_messages
     assert assistant_messages[-1]["metadata"]["trace"] == {
@@ -547,35 +559,3 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         )
         assert merged_trace is not None
         assert merged_trace.project_session_rowid == project_session.id
-
-
-async def test_get_agent_session_messages_returns_transcript(
-    db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    transcript: list[dict[str, Any]] = [
-        _user_message("first"),
-        {"id": "m2", "role": "assistant", "parts": [{"type": "text", "text": "reply"}]},
-    ]
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    async with db() as session:
-        session.add(
-            models.AgentSession(
-                session_id="with-transcript",
-                user_id=None,
-                title="session title",
-                messages=transcript,
-                created_at=now,
-                updated_at=now,
-            )
-        )
-
-    response = await httpx_client.get("/agents/assistant/sessions/with-transcript/messages")
-    assert response.status_code == 200
-    assert response.json()["data"] == transcript
-
-    missing = await httpx_client.get("/agents/assistant/sessions/nonexistent/messages")
-    assert missing.status_code == 404
-
-    unknown_agent = await httpx_client.get("/agents/other/sessions/with-transcript/messages")
-    assert unknown_agent.status_code == 404

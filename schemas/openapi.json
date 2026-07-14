@@ -7618,58 +7618,6 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/messages": {
-      "get": {
-        "tags": [
-          "chat"
-        ],
-        "summary": "Get Agent Session Messages",
-        "description": "The session's persisted transcript.",
-        "operationId": "get_agent_session_messages_agents__agent_id__sessions__session_id__messages_get",
-        "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetAgentSessionMessagesResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/arize_phoenix_version": {
       "get": {
         "summary": "Version",
@@ -10743,23 +10691,6 @@
           "type"
         ],
         "title": "FreeformAnnotationConfigData"
-      },
-      "GetAgentSessionMessagesResponse": {
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
-            },
-            "type": "array",
-            "title": "Data"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "GetAgentSessionMessagesResponse",
-        "description": "Body for GET /agents/{agent_id}/sessions/{session_id}/messages"
       },
       "GetAnnotationConfigResponseBody": {
         "properties": {
@@ -17597,6 +17528,80 @@
         ],
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
+      },
+      "SessionCreatedChunk": {
+        "additionalProperties": false,
+        "description": "Transient canonical metadata for an owner-qualified persisted session.\n\nRepeated acknowledgements let a retry reconcile clients that disconnected\nbefore receiving the first stream's event.",
+        "properties": {
+          "type": {
+            "const": "data-session-created",
+            "default": "data-session-created",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SessionCreatedData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionCreatedChunk",
+        "type": "object"
+      },
+      "SessionCreatedData": {
+        "description": "Canonical Relay metadata for a newly persisted assistant session.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "sessionId": {
+            "title": "Sessionid",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "title",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "SessionCreatedData",
+        "type": "object"
       },
       "SessionSummaryChunk": {
         "additionalProperties": false,

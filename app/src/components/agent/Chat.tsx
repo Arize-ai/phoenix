@@ -417,9 +417,6 @@ export function ChatView({
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
   const createSession = useAgentContext((state) => state.createSession);
-  const canForkSessions = useAgentContext(
-    (state) => state.capabilities["session.storeSessions"]
-  );
 
   const setSessionDraftInput = (input: string | null) => {
     if (!sessionId) {
@@ -646,7 +643,7 @@ export function ChatView({
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
                     latestUserMessageId={latestMessage.id}
-                    canFork={canForkSessions}
+                    canFork
                     onRetry={handleRetryInterruptedMessage}
                     onRewind={onRewindRequest}
                   />
@@ -662,7 +659,7 @@ export function ChatView({
                       messages,
                       role: "user",
                     })}
-                    canFork={canForkSessions}
+                    canFork
                     onRetry={retryMessage}
                     onRewind={onRewindRequest}
                   />
