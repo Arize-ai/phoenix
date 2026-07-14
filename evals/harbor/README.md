@@ -67,7 +67,8 @@ runner opens the database with `migrate=False`, re-run the script whenever
   into `/data` on the first step.
 - `push_seed_assets.sh` publishes each task's seed artifacts to cloud storage.
 - `runner/run_server_agent.py` constructs Phoenix's in-process agent, resumes the
-  conversation from the previous step's transcript, and captures output.
+  conversation from the previous step's transcript, and captures output. `prepare.sh`
+  stages it in the task's generated Docker build context.
 - `agents/phoenix_server_agent.py` adapts the runner to Harbor's external-agent API.
 - `steps/` contains instructions, mutation configuration, and deterministic verifiers.
 - `solution/` is the perfect-answer oracle used to validate verifier plumbing.

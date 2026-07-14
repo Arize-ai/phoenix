@@ -96,6 +96,7 @@ helm/charts/*.tgz
 
 # Locally built wheels for Harbor evaluations
 /evals/harbor/**/*.whl
+/evals/harbor/tasks/**/environment/run_server_agent.py
 
 # WebAssembly binaries
 wasm/*.wasm
