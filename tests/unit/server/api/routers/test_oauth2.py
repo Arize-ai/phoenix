@@ -830,15 +830,12 @@ class TestLoginOriginUrl:
                 "server": ("phoenix.internal", 6006),
                 "query_string": b"",
                 "headers": [
-                    (key.lower().encode(), value.encode())
-                    for key, value in (headers or {}).items()
+                    (key.lower().encode(), value.encode()) for key, value in (headers or {}).items()
                 ],
             }
         )
 
-    def test_declared_root_url_wins_over_referer(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_declared_root_url_wins_over_referer(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ROOT_URL", "http://localhost:18273/phoenix")
         monkeypatch.setenv("PHOENIX_HOST_ROOT_PATH", "/phoenix")
         request = self._request({"referer": "http://localhost:6274/"})

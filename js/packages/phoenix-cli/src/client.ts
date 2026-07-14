@@ -41,9 +41,7 @@ export function createPhoenixClient({
     options: {
       baseUrl,
       headers,
-      fetch: hasOAuthCredentials(config)
-        ? createOAuthFetch({ config })
-        : fetch,
+      fetch: hasOAuthCredentials(config) ? createOAuthFetch({ config }) : fetch,
     },
   });
 }
