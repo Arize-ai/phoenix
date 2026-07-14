@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSessionAnnotationsCommand } from "../src/commands/sessionAnnotationsCommand";
-import { createSpanAnnotationsCommand } from "../src/commands/spanAnnotationsCommand";
-import { createTraceAnnotationsCommand } from "../src/commands/traceAnnotationsCommand";
+import { createSessionAnnotationsCommand } from "../src/commands/sessionAnnotations";
+import { createSpanAnnotationsCommand } from "../src/commands/spanAnnotations";
+import { createTraceAnnotationsCommand } from "../src/commands/traceAnnotations";
 import { ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 

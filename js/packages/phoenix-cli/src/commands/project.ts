@@ -12,13 +12,18 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
+import type { CommonOptions, DeleteOptions } from "./options";
 
-interface ProjectListOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px project list`.
+ */
+interface ProjectListOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--limit <number>`: Maximum number of projects to fetch per page.
+   * Defaults to 100.
+   *
+   * @example 50
+   */
   limit?: number;
 }
 
@@ -69,7 +74,6 @@ async function projectListHandler(options: ProjectListOptions): Promise<void> {
     const config = resolveConfig({
       cliOptions: {
         endpoint: options.endpoint,
-        project: options.project,
         apiKey: options.apiKey,
       },
     });
@@ -119,19 +123,12 @@ export function configureProjectListCommand(command: Command): Command {
     .action(projectListHandler);
 }
 
-interface ProjectDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
-}
-
 /**
  * Handler for `project delete`
  */
 async function projectDeleteHandler(
   projectIdentifier: string,
-  options: ProjectDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();
@@ -201,11 +198,16 @@ export function createProjectDeleteCommand(): Command {
     .action(projectDeleteHandler);
 }
 
-interface ProjectGetOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px project get <name>`.
+ */
+interface ProjectGetOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--limit <number>`: Maximum number of projects to fetch per page during
+   * the lookup. Defaults to 100.
+   *
+   * @example 50
+   */
   limit?: number;
 }
 

@@ -7,6 +7,10 @@ export interface CreatePhoenixClientOptions {
    * Resolved Phoenix CLI configuration.
    */
   config: PhoenixConfig;
+  /**
+   * Transport override, for tests. Defaults to the global fetch.
+   */
+  fetch?: typeof fetch;
 }
 
 /**
@@ -14,6 +18,7 @@ export interface CreatePhoenixClientOptions {
  */
 export function createPhoenixClient({
   config,
+  fetch,
 }: CreatePhoenixClientOptions): PhoenixClient {
   const baseUrl = config.endpoint;
 
@@ -33,6 +38,7 @@ export function createPhoenixClient({
     options: {
       baseUrl,
       headers,
+      fetch,
     },
   });
 }
