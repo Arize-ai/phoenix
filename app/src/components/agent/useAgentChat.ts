@@ -23,7 +23,11 @@ import {
   createTurnTraceContextManager,
   type TurnTraceContextManager,
 } from "@phoenix/agent/chat/turnTraceContext";
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getAssistantMessageMetadata,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
+import { buildUserMessageMetadata } from "@phoenix/agent/chat/userMessageMetadata";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -120,7 +124,7 @@ export function useAgentChat({
                 toolTimings.clear();
               },
               finalize: ({ finalMessages, message }) => {
-                const usage = message.metadata?.usage;
+                const usage = getAssistantMessageMetadata(message)?.usage;
                 if (usage != null) {
                   store.getState().setSessionUsage(sessionId, {
                     ...usage.tokens,
@@ -216,7 +220,7 @@ export function useAgentChat({
               },
               onFinish: ({ messages: finalMessages, message }) => {
                 turnTraceContext.captureFromMetadata(
-                  message.metadata?.turnTraceContext
+                  getAssistantMessageMetadata(message)?.turnTraceContext
                 );
                 turnCompletionGate.handleFinish({ finalMessages, message });
               },
@@ -328,7 +332,13 @@ export function useAgentChat({
     });
     setMessages(removeInterruptedToolInputParts);
 
-    await sendMessage(...args);
+    const [message, options] = args;
+    await sendMessage(
+      message == null
+        ? message
+        : { ...message, metadata: buildUserMessageMetadata() },
+      options
+    );
   };
 
   const messagesRef = useRef(messages);

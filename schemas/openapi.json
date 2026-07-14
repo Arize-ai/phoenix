@@ -8033,6 +8033,12 @@
       },
       "AssistantMessageMetadata": {
         "properties": {
+          "type": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Type",
+            "default": "assistant"
+          },
           "sessionId": {
             "type": "string",
             "title": "Sessionid"
@@ -8155,113 +8161,6 @@
           "total"
         ],
         "title": "AssistantMessageMetadataUsageTokens"
-      },
-      "AssistantMetadataUIMessage": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "system",
-              "user",
-              "assistant"
-            ],
-            "title": "Role"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadata"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "parts": {
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/TextUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceUrlUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceDocumentUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/FileUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DataUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/StepStartUIPart"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Parts"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "role",
-          "parts"
-        ],
-        "title": "AssistantMetadataUIMessage",
-        "description": "`UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`."
       },
       "BuiltInProviderModelSelection": {
         "properties": {
@@ -8489,7 +8388,7 @@
           },
           "messages": {
             "items": {
-              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+              "$ref": "#/components/schemas/PhoenixUIMessage"
             },
             "type": "array",
             "title": "Messages"
@@ -8618,7 +8517,7 @@
           },
           "messages": {
             "items": {
-              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+              "$ref": "#/components/schemas/PhoenixUIMessage"
             },
             "type": "array",
             "title": "Messages"
@@ -12490,6 +12389,128 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OtlpStatus"
+      },
+      "PhoenixUIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/AssistantMessageMetadata"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UserMessageMetadata"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "assistant": "#/components/schemas/AssistantMessageMetadata",
+                    "user": "#/components/schemas/UserMessageMetadata"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "PhoenixUIMessage",
+        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
@@ -17691,6 +17712,33 @@
         ],
         "title": "UpsertOrDeleteSecretsResult",
         "description": "Result payload listing which keys were upserted and which were deleted."
+      },
+      "UserMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "user",
+            "title": "Type",
+            "default": "user"
+          },
+          "currentDateTime": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Currentdatetime"
+          },
+          "timeZone": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currentDateTime",
+          "timeZone"
+        ],
+        "title": "UserMessageMetadata",
+        "description": "Wire schema for metadata the browser attaches to outgoing user messages."
       },
       "ValidationError": {
         "properties": {
