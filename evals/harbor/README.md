@@ -39,7 +39,8 @@ verifier metrics under `logs/verifier/`. The oracle should receive a mean reward
 ## Layout
 
 - `environment/seed_db.py` creates the deterministic datasets, experiments, and traces.
-- `runner/run_server_agent.py` constructs Phoenix's in-process agent and captures output.
+- `runner/run_server_agent.py` constructs Phoenix's in-process agent, resumes the
+  conversation from the previous step's transcript, and captures output.
 - `agents/phoenix_server_agent.py` adapts the runner to Harbor's external-agent API.
 - `steps/` contains instructions, mutation configuration, and deterministic verifiers.
 - `solution/` is the perfect-answer oracle used to validate verifier plumbing.

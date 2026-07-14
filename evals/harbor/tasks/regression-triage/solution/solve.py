@@ -46,6 +46,7 @@ out.mkdir()
 out.joinpath("answer.json").write_text(json.dumps(answers[step]))
 out.joinpath("answer.md").write_text(f"```json\n{json.dumps(answers[step])}\n```\n")
 out.joinpath("messages.json").write_text("[]")
+out.joinpath("new_messages.json").write_text("[]")
 out.joinpath("usage.json").write_text("{}")
 latest = logs / "latest"
 if latest.is_symlink() or latest.exists():

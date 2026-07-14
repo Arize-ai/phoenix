@@ -23,14 +23,19 @@ async def run(args: argparse.Namespace) -> None:
     db = DbSessionFactory(db=_db(engine), dialect="sqlite")
     app = create_app(db=db, authentication_enabled=False, serve_ui=False)
     model = TestModel(call_tools=[]) if args.model == "test" else infer_model(args.model)
+    history = None
+    if args.history_file and args.history_file.is_file():
+        history = ModelMessagesTypeAdapter.validate_json(args.history_file.read_bytes())
     async with LifespanManager(app):
         agent = build_server_agent(
             model=model,
             schema=app.state.graphql_schema,
             build_graphql_context=lambda: app.state.build_graphql_context(None),
+            db=db,
+            event_queue=app.state.build_graphql_context(None).event_queue,
             allow_mutations=args.allow_mutations,
         )
-        result = await agent.run(args.instruction_file.read_text())
+        result = await agent.run(args.instruction_file.read_text(), message_history=history)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     answer = result.output
     blocks = re.findall(r"```json\s*(.*?)```", answer, flags=re.DOTALL | re.IGNORECASE)
@@ -39,6 +44,9 @@ async def run(args: argparse.Namespace) -> None:
     args.out_dir.joinpath("answer.json").write_text(json.dumps(parsed, indent=2) + "\n")
     args.out_dir.joinpath("messages.json").write_bytes(
         ModelMessagesTypeAdapter.dump_json(result.all_messages())
+    )
+    args.out_dir.joinpath("new_messages.json").write_bytes(
+        ModelMessagesTypeAdapter.dump_json(result.new_messages())
     )
     usage_attribute = result.usage
     usage = usage_attribute() if callable(usage_attribute) else usage_attribute
@@ -57,6 +65,7 @@ def main() -> None:
     parser.add_argument("--instruction-file", type=Path, required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument("--history-file", type=Path, default=None)
     parser.add_argument("--allow-mutations", action="store_true")
     asyncio.run(run(parser.parse_args()))
 

@@ -6,7 +6,7 @@ truth = json.loads(Path("/data/ground_truth.json").read_text())["step2"]
 ids = float(set(answer.get("regressed_example_keys", [])) == set(truth["regressed_example_keys"]))
 pattern_text = str(answer.get("pattern", "")).casefold()
 pattern = float(any(word.casefold() in pattern_text for word in truth["pattern_keywords"]))
-messages = Path("/logs/agent/latest/messages.json").read_text()
+messages = Path("/logs/agent/latest/new_messages.json").read_text()
 Path("/logs/verifier/reward.json").write_text(
     json.dumps(
         {

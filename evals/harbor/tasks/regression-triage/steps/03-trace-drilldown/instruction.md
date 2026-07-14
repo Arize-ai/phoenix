@@ -1,6 +1,6 @@
-In dataset `qa-bot-golden`, find the example whose metadata `example_key` is "ex-014".
-Locate the `candidate-v2` experiment run for that example, find that run's trace, and
-identify the span in that trace that errored.
+One of the regressed examples you just identified has metadata `example_key` "ex-014".
+Locate the lower-scoring candidate experiment's run for that example, find that run's
+trace, and identify the span in that trace that errored.
 
 Answer schema:
 {"span_name": "<name of the errored span>",
