@@ -52,6 +52,7 @@ class TestAuthorizationServerDisabled:
         "method,path",
         [
             ("GET", "/.well-known/oauth-authorization-server"),
+            ("GET", "/.well-known/openid-configuration"),
             ("GET", "/oauth2/authorize"),
             ("POST", "/oauth2/authorize/decision"),
             ("POST", "/oauth2/token"),
@@ -130,7 +131,13 @@ class TestAuthorizationServerEnabledByDefault:
             manager = await stack.enter_async_context(LifespanManager(app))
             client = _client(manager.app)
             discovery = await client.get("/.well-known/oauth-authorization-server")
+            oidc = await client.get("/.well-known/openid-configuration")
             prm = await client.get("/.well-known/oauth-protected-resource")
         assert discovery.status_code == 200
         assert discovery.json()["issuer"] == "http://test"
         assert prm.json()["authorization_servers"] == ["http://test"]
+        # The OIDC discovery location is an alias: under a root path it is the
+        # only metadata URL in the MCP client discovery order that reaches
+        # Phoenix without reverse-proxy configuration.
+        assert oidc.status_code == 200
+        assert oidc.json() == discovery.json()

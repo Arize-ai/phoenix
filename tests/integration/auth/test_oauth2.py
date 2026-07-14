@@ -29,6 +29,25 @@ class TestDiscovery:
         assert metadata["registration_endpoint"].endswith("/oauth2/register")
         assert "scopes_supported" not in metadata
 
+    def test_openid_configuration_serves_the_same_metadata(self, _app: _AppInfo) -> None:
+        """Root-path deployments make the issuer carry a path component, and the
+        discovery order MCP clients follow (RFC 8414 path-inserted, OIDC
+        path-inserted, OIDC path-appended) then never requests the path-appended
+        ``oauth-authorization-server`` URL — the path-appended OIDC location is
+        the only candidate that reaches Phoenix without proxy configuration."""
+        oidc = _httpx_client(_app).get(".well-known/openid-configuration")
+        rfc8414 = _httpx_client(_app).get(".well-known/oauth-authorization-server")
+
+        oidc.raise_for_status()
+        assert oidc.json() == rfc8414.json()
+
+    def test_unknown_well_known_documents_are_404_not_index_html(self, _app: _AppInfo) -> None:
+        """Discovery clients probe several /.well-known/ candidates and rely on
+        404s to move on; the SPA catch-all must not answer with index.html."""
+        response = _httpx_client(_app).get(".well-known/does-not-exist")
+
+        assert response.status_code == 404
+
     def test_protected_resource_metadata(self, _app: _AppInfo) -> None:
         response = _httpx_client(_app).get(".well-known/oauth-protected-resource")
 

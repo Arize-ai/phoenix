@@ -243,6 +243,7 @@ that used to kill it by deleting the row out from under the join.
 | Endpoint | Method | Auth | Rate limit | Notes |
 |----------|--------|------|-----------|-------|
 | `/.well-known/oauth-authorization-server` | GET | none | — | RFC 8414; advertises `registration_endpoint` unless DCR is disabled |
+| `/.well-known/openid-configuration` | GET | none | — | Same document at the OIDC discovery location; under a root path this is the only metadata URL in the MCP client discovery order that reaches Phoenix without proxy configuration (RFC 8414 puts the well-known segment between host and path, which the reverse proxy typically does not route) |
 | `/.well-known/oauth-protected-resource` | GET | none | — | RFC 9728; lists this deployment as its own authorization server when auth is enabled |
 | `/oauth2/authorize` | GET | session cookie (redirects to login) | — | Validates client, redirect URI, state (≥22 chars), `response_type=code`, PKCE S256, optional `resource`; unsupported response types return `unsupported_response_type`; errors that can be delivered safely go to the redirect URI per RFC 6749 §4.1.2.1, pre-validation failures render an HTML error |
 | `/oauth2/consent` | GET (SPA route) | session | — | Display only; owns no protocol state |
@@ -494,6 +495,21 @@ protected-resource metadata and removes the OAuth2 section from `auth.md`, so
 discovery never points at endpoints that refuse to answer. Previously minted
 access tokens remain valid until expiry (validation is server-side against the
 token store, not an endpoint), but grants can no longer be refreshed.
+
+### Discovery fails honestly: well-known URLs never fall back to the SPA
+
+The SPA static handler answers unknown GET paths with index.html so client-side
+routes survive a page reload. For `/.well-known/` paths that behavior is
+poison: discovery clients (RFC 8414/OIDC metadata, MCP clients) probe several
+candidate URLs and rely on 404s to move to the next one, so a 200 with HTML
+reads as a malformed discovery document and aborts the client instead. The
+static handler therefore exempts `/.well-known/` from the index.html fallback
+and lets the 404 through. The same reasoning motivates serving the metadata at
+the OIDC discovery location: under a root path the issuer carries a path
+component, RFC 8414 then places the well-known segment between host and path
+(a URL the reverse proxy typically does not route to Phoenix), and the
+path-appended OIDC location is the only URL in the MCP client discovery order
+that reaches Phoenix without proxy configuration.
 
 ### Zero new dependencies
 

@@ -385,10 +385,9 @@ async def register(request: Request) -> JSONResponse:
     )
 
 
-@router.get("/.well-known/oauth-authorization-server")
-async def authorization_server_metadata(request: Request) -> JSONResponse:
+def _authorization_server_metadata(request: Request) -> dict[str, Any]:
     issuer = public_origin(request)
-    metadata = {
+    metadata: dict[str, Any] = {
         "issuer": issuer,
         "authorization_endpoint": f"{issuer}/oauth2/authorize",
         "token_endpoint": f"{issuer}/oauth2/token",
@@ -400,7 +399,30 @@ async def authorization_server_metadata(request: Request) -> JSONResponse:
     }
     if _dcr_policy() != RedirectUriDialPosition.DISABLED:
         metadata["registration_endpoint"] = f"{issuer}/oauth2/register"
-    return JSONResponse(metadata)
+    return metadata
+
+
+@router.get("/.well-known/oauth-authorization-server")
+async def authorization_server_metadata(request: Request) -> JSONResponse:
+    return JSONResponse(_authorization_server_metadata(request))
+
+
+@router.get("/.well-known/openid-configuration")
+async def openid_configuration(request: Request) -> JSONResponse:
+    """Serve the authorization-server metadata at the OIDC discovery location.
+
+    When the deployment runs under a root path, the issuer has a path component,
+    and RFC 8414 puts the well-known segment between host and path — a URL the
+    reverse proxy in front of Phoenix typically does not route to Phoenix at all.
+    The discovery order MCP clients follow (RFC 8414 path-inserted, then OIDC
+    path-inserted, then OIDC path-appended) never requests the path-appended
+    ``oauth-authorization-server`` form Phoenix serves above, so this
+    path-appended OIDC location is the one fallback such clients can reach
+    without proxy configuration. Phoenix is not an OpenID provider; the document
+    carries the same OAuth fields as the RFC 8414 one, which is what MCP clients
+    consume from it.
+    """
+    return JSONResponse(_authorization_server_metadata(request))
 
 
 async def _exchange_authorization_code(request: Request, form: Any) -> JSONResponse:

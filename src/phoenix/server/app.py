@@ -277,6 +277,12 @@ class Static(StaticFiles):
         except HTTPException as e:
             if e.status_code != 404:
                 raise e
+            # Never mask a missing well-known document with index.html: RFC 8615
+            # consumers (OAuth/OIDC discovery, MCP clients) probe several
+            # /.well-known/ URLs and rely on a 404 to move to the next candidate;
+            # a 200 with HTML reads as a malformed discovery document instead.
+            if path == ".well-known" or path.startswith(".well-known/"):
+                raise e
             # Fallback to the index.html
             request = Request(scope)
             response = templates.TemplateResponse(
