@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { API_KEY_MASK } from "../src/commands/formatProfiles";
 import { createProfileCommand } from "../src/commands/profile";
+import { ExitCode } from "../src/exitCodes";
 import type { SettingsFile } from "../src/settings";
 
 // ---------------------------------------------------------------------------
@@ -132,6 +133,34 @@ describe("px profile edit", () => {
 // ---------------------------------------------------------------------------
 // End-to-end lifecycle — covers list, create, show, use, delete in one pass.
 // ---------------------------------------------------------------------------
+
+describe("px profile create --endpoint validation", () => {
+  const ctx = setupProfileTestContext("phoenix-endpoint-test-");
+
+  it("rejects a scheme-less endpoint rather than persisting an unusable profile", async () => {
+    await runProfileCommand(
+      ["create", "local", "--endpoint", "localhost:6006"],
+      ctx
+    );
+
+    expect(ctx.exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(logCalls(ctx.errorSpy)).toContain("http:// or https://");
+    expect(fs.existsSync(path.join(ctx.tmpDir, "px", "settings.json"))).toBe(
+      false
+    );
+  });
+
+  it("accepts an absolute https endpoint", async () => {
+    await runProfileCommand(
+      ["create", "prod", "--endpoint", "https://phoenix.example.com"],
+      ctx
+    );
+
+    expect(readSettings(ctx.tmpDir).profiles.prod.endpoint).toBe(
+      "https://phoenix.example.com"
+    );
+  });
+});
 
 describe("px profile lifecycle", () => {
   const ctx = setupProfileTestContext("phoenix-lifecycle-test-");

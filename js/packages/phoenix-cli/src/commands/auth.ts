@@ -1,4 +1,4 @@
-import type { componentsV1 } from "@arizeai/phoenix-client";
+import { type componentsV1, HttpError } from "@arizeai/phoenix-client";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
@@ -37,12 +37,22 @@ import {
   saveSettings,
 } from "../settings";
 import type { OutputFormat } from "./formatProfiles";
+import type { ConnectionOptions } from "./options";
 
 type ViewerUser = componentsV1["schemas"]["GetViewerResponseBody"]["data"];
 
-interface AuthStatusOptions {
-  endpoint?: string;
-  apiKey?: string;
+/**
+ * Options for `px auth status`.
+ */
+interface AuthStatusOptions extends ConnectionOptions {
+  /**
+   * `--profile <name>`: Named profile to resolve the connection and identity
+   * from, overriding the stored active profile. Also determines the profile
+   * name shown in the output; an invalid name here throws before any output
+   * is produced.
+   *
+   * @example "staging"
+   */
   profile?: string;
   format?: OutputFormat;
 }
@@ -87,15 +97,6 @@ interface FetchViewerError {
 export type FetchViewerResult = FetchViewerSuccess | FetchViewerError;
 
 /**
- * Extract an HTTP status code from the phoenix-client middleware error message.
- * The middleware throws errors like: "https://example.org/api/v1/user: 401 Unauthorized"
- */
-function parseStatusCode(error: Error): number | null {
-  const match = error.message.match(/:\s*(\d{3})\s/);
-  return match ? parseInt(match[1], 10) : null;
-}
-
-/**
  * Fetch the authenticated viewer from the Phoenix server.
  * Gracefully handles network errors, auth failures, and missing endpoints.
  */
@@ -111,14 +112,15 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
     if (error instanceof AuthRequiredError) {
       return { status: "auth_error", message: error.message };
     }
-    if (error instanceof Error) {
-      const statusCode = parseStatusCode(error);
-      if (statusCode === 401 || statusCode === 403) {
+    if (error instanceof HttpError) {
+      if (error.status === 401 || error.status === 403) {
         return { status: "auth_error", message: error.message };
       }
-      if (statusCode === 404) {
+      if (error.status === 404) {
         return { status: "not_found", message: error.message };
       }
+    }
+    if (error instanceof Error) {
       return { status: "unknown_error", message: error.message };
     }
     return { status: "unknown_error", message: String(error) };

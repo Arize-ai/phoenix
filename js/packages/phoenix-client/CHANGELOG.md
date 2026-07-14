@@ -1,5 +1,17 @@
 # @arizeai/phoenix-client
 
+## 6.13.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+### Patch Changes
+
+- Updated dependencies [f94067b]
+  - @arizeai/phoenix-config@0.4.0
+  - @arizeai/phoenix-otel@1.2.0
+
 ## 6.12.2
 
 ### Patch Changes

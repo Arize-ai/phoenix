@@ -1,5 +1,11 @@
 # @arizeai/phoenix-config
 
+## 0.4.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
 ## 0.3.0
 
 ### Minor Changes

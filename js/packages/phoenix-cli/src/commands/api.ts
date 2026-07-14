@@ -6,6 +6,7 @@ import { getConfigErrorMessage, resolveConfig } from "../config";
 import { renderCurlCommand } from "../curl";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
+import type { ConnectionOptions } from "./options";
 
 /**
  * Returns true if the query string is a GraphQL mutation or subscription.
@@ -16,10 +17,26 @@ export function isNonQuery({ query }: { query: string }): boolean {
   return /^\s*(mutation|subscription)[\s({]/m.test(stripped);
 }
 
-interface ApiGraphqlOptions {
-  endpoint?: string;
-  apiKey?: string;
+/**
+ * Options for `px api graphql`.
+ */
+interface ApiGraphqlOptions extends ConnectionOptions {
+  /**
+   * `--curl`: Print the equivalent curl command instead of executing the
+   * request.
+   *
+   * @example true // px api graphql '{ projects { edges { node { name } } } }' --curl
+   */
   curl?: boolean;
+  /**
+   * `--show-token`: Reveal the raw `Authorization` token in the printed curl
+   * command instead of masking it. Only valid together with `--curl`; the
+   * handler rejects it otherwise. Handle with care — the printed command
+   * contains a usable, plaintext API key, so it's easy to accidentally leak
+   * via shell history, a pasted bug report, or a chat log.
+   *
+   * @example true // px api graphql '...' --curl --show-token
+   */
   showToken?: boolean;
 }
 

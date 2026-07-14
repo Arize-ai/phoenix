@@ -13,26 +13,11 @@ import { writeStructuredError } from "../structuredError";
 import {
   formatAnnotationDeleteOutput,
   type AnnotationDeleteFilter,
-  type OutputFormat as AnnotationDeleteOutputFormat,
 } from "./formatAnnotationDelete";
+import type { AnnotationsDeleteOptions } from "./options";
 
-interface SpanAnnotationsDeleteOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: AnnotationDeleteOutputFormat;
-  progress?: boolean;
-  yes?: boolean;
-  identifier?: string;
-  name?: string;
-  annotatorKind?: string;
-  startTime?: string;
-  endTime?: string;
-  all?: boolean;
-}
-
-async function spanAnnotationsDeleteHandler(
-  options: SpanAnnotationsDeleteOptions
+async function sessionAnnotationsDeleteHandler(
+  options: AnnotationsDeleteOptions
 ): Promise<void> {
   // Pre-flight checks live OUTSIDE the try/catch so explicit
   // process.exit(INVALID_ARGUMENT) is not re-mapped to FAILURE by the
@@ -76,7 +61,7 @@ async function spanAnnotationsDeleteHandler(
       message:
         "Missing required authorization: pass --all to delete every matching row, or pass both --start-time and --end-time to bound the delete to a [start, end) window.",
       code: "INVALID_ARGUMENT",
-      hint: 'px span-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all',
+      hint: 'px session-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all',
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
@@ -101,17 +86,17 @@ async function spanAnnotationsDeleteHandler(
     const projectId = await resolveProjectId({ client, projectIdentifier });
 
     const promptMessage = options.all
-      ? `Delete all matching span annotations across all time?${describeNarrowers(options)}`
-      : `Delete span annotations between ${options.startTime} and ${options.endTime}?${describeNarrowers(options)}`;
+      ? `Delete all matching session annotations across all time?${describeNarrowers(options)}`
+      : `Delete session annotations between ${options.startTime} and ${options.endTime}?${describeNarrowers(options)}`;
     await confirmOrExit({ message: promptMessage, yes: options.yes });
 
     writeProgress({
-      message: "Deleting span annotations...",
+      message: "Deleting session annotations...",
       noProgress: !options.progress,
     });
 
     const response = await client.DELETE(
-      "/v1/projects/{project_identifier}/span_annotations",
+      "/v1/projects/{project_identifier}/session_annotations",
       {
         params: {
           path: { project_identifier: projectId },
@@ -128,7 +113,9 @@ async function spanAnnotationsDeleteHandler(
     );
 
     if (response.error) {
-      throw new Error(`Failed to delete span annotations: ${response.error}`);
+      throw new Error(
+        `Failed to delete session annotations: ${response.error}`
+      );
     }
 
     const filter: AnnotationDeleteFilter = {
@@ -144,13 +131,13 @@ async function spanAnnotationsDeleteHandler(
 
     writeOutput({
       message: formatAnnotationDeleteOutput({
-        result: { deleted: true, target: "span", filter },
+        result: { deleted: true, target: "session", filter },
         format: options.format,
       }),
     });
   } catch (error) {
     writeError({
-      message: `Error deleting span annotations: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Error deleting session annotations: ${error instanceof Error ? error.message : String(error)}`,
     });
     process.exit(getExitCodeForError(error));
   }
@@ -182,10 +169,10 @@ function describeNarrowers(options: {
   return parts.length > 0 ? ` (${parts.join(", ")})` : "";
 }
 
-export function createSpanAnnotationsDeleteCommand(): Command {
+export function createSessionAnnotationsDeleteCommand(): Command {
   return new Command("delete")
     .description(
-      "Delete span annotations for the configured project. Requires --all or both --start-time and --end-time."
+      "Delete session annotations for the configured project. Requires --all or both --start-time and --end-time."
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--project <name>", "Project name or ID")
@@ -224,18 +211,17 @@ export function createSpanAnnotationsDeleteCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        '  px span-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y\n' +
-        "  px span-annotations delete --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z\n"
+        '  px session-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y\n'
     )
-    .action(spanAnnotationsDeleteHandler);
+    .action(sessionAnnotationsDeleteHandler);
 }
 
 /**
- * Create the `span-annotations` command group.
+ * Create the `session-annotations` command group.
  */
-export function createSpanAnnotationsCommand(): Command {
-  const command = new Command("span-annotations");
-  command.description("Manage Phoenix span annotations");
-  command.addCommand(createSpanAnnotationsDeleteCommand());
+export function createSessionAnnotationsCommand(): Command {
+  const command = new Command("session-annotations");
+  command.description("Manage Phoenix session annotations");
+  command.addCommand(createSessionAnnotationsDeleteCommand());
   return command;
 }
