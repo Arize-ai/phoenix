@@ -1,7 +1,7 @@
 """add oauth2 authorization server tables
 
 Revision ID: 132d988c5bef
-Revises: d4e5f6a7b8c9
+Revises: eaf1907ae453
 Create Date: 2026-07-09 00:41:15.427576
 
 """
@@ -43,7 +43,7 @@ _Integer = sa.Integer().with_variant(
 
 # revision identifiers, used by Alembic.
 revision: str = "132d988c5bef"
-down_revision: Union[str, None] = "d4e5f6a7b8c9"
+down_revision: Union[str, None] = "eaf1907ae453"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
