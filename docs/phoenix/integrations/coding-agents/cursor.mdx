@@ -1,12 +1,12 @@
 ---
 title: "Cursor"
-description: "Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix using the Arize Coding Harness Tracing."
+description: "Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix."
 keywords: ["cursor", "cursor tracing", "phoenix", "mcp tracing", "agent tracing"]
 ---
 
 > Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix for full observability.
 
-[Cursor](https://cursor.com/) is an AI code editor for agentic software development. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, your Cursor work shows up in Phoenix: each conversation becomes a session and each message turn a trace, with the model's response, shell commands, MCP tools, and file edits captured as nested spans. You don't change any code: the toolkit hooks into Cursor's own IDE and CLI events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
+Trace your [Cursor](https://cursor.com/) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — each conversation becomes a session and each message turn a trace, with the model's response, shell commands, MCP tools, and file edits captured as nested spans. No application code changes required: the toolkit hooks into Cursor's IDE and CLI events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
 
 ## Launch Phoenix
 
@@ -88,31 +88,21 @@ Once tracing is enabled, Cursor activity is streamed to Phoenix. You'll see:
 
 The default project name is `cursor` unless you set `ARIZE_PROJECT_NAME`.
 
-### Hooks captured
+<Frame caption="Cursor conversation grouped together in a single session view">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/cursor-session.png"
+    alt="Phoenix session view for a Cursor conversation showing its turns grouped together, each with its own token count, cost, and latency, plus the selected turn's input and output"
+  />
+</Frame>
 
-<Accordion title="All hook events and the spans they produce">
+Drill into any turn trace to inspect the full span tree, including the model response and nested shell, MCP, and file-operation spans.
 
-Cursor IDE fires the full set of hooks. Cursor CLI fires a subset (no prompt/response, MCP, or file-read events).
-
-| Hook | IDE | CLI | Captured Data |
-| :--- | :-: | :-: | :------------ |
-| `sessionStart` | ✓ | ✓ | Session boundary, state init |
-| `sessionEnd` | ✓ | ✓ | Session teardown |
-| `beforeSubmitPrompt` | ✓ | | User prompt span for the turn root |
-| `afterAgentResponse` | ✓ | | Agent response text and model metadata |
-| `afterAgentThought` | ✓ | | Agent thinking output and duration |
-| `beforeShellExecution` | ✓ | ✓ | Shell command state used for merge |
-| `afterShellExecution` | ✓ | ✓ | One `Shell` span with command, cwd, output, and duration |
-| `beforeMCPExecution` | ✓ | | MCP tool state used for merge |
-| `afterMCPExecution` | ✓ | | One `MCP: {tool}` span with input, result, and duration |
-| `beforeReadFile` | ✓ | | Read file span |
-| `afterFileEdit` | ✓ | ✓ | File edit span |
-| `beforeTabFileRead` | ✓ | | Tab read file span |
-| `afterTabFileEdit` | ✓ | | Tab file edit span |
-| `postToolUse` | ✓ | ✓ | Generic tool span for non-shell, non-MCP tools |
-| `stop` | ✓ | ✓ | Stop span and state cleanup for the turn |
-
-</Accordion>
+<Frame caption="Detailed trace view for a Cursor turn">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/cursor-trace.png"
+    alt="Phoenix trace view showing the trace tree for a Cursor turn with the agent response and nested shell, MCP, and file-operation spans, alongside the span's model, input, token count, cost, and latency"
+  />
+</Frame>
 
 ## How Shell and MCP Merge Works
 

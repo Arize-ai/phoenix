@@ -1,12 +1,12 @@
 ---
 title: "Gemini CLI"
-description: "Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix using the Arize Coding Harness Tracing."
+description: "Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix."
 keywords: ["gemini", "gemini cli", "gemini tracing", "phoenix", "agent tracing"]
 ---
 
 > Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix for full observability.
 
-[Gemini CLI](https://github.com/google-gemini/gemini-cli) is Google's open-source command-line agent for Gemini. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every Gemini CLI turn shows up in Phoenix as a trace — the model call, each tool it runs, and token usage — grouped into its session. You don't change any code: the toolkit hooks into Gemini CLI's own lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
+Trace your [Gemini CLI](https://github.com/google-gemini/gemini-cli) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — every turn shows up as a trace with the model call, each tool it runs, and token usage, grouped into its session. No application code changes required: the toolkit hooks into Gemini CLI's lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
 
 ## Launch Phoenix
 
@@ -77,28 +77,10 @@ export ARIZE_LOG_TOOL_CONTENT="false"
 
 Once tracing is enabled, Gemini CLI activity is streamed to Phoenix. You'll see:
 
-- **Session traces** — each session bracketed by `SessionStart` and `SessionEnd`
-- **Agent spans** — paired `BeforeAgent` / `AfterAgent` events for each agent step
-- **LLM spans** — paired `BeforeModel` / `AfterModel` events with model info and tokens
-- **Tool spans** — paired `BeforeTool` / `AfterTool` events with input, output, and duration
-- **Session grouping** — all spans from the same session grouped by `session_id`
-
-### Hooks captured
-
-<Accordion title="All hook events and the spans they produce">
-
-| Hook            | Span Kind | Description                                  |
-| :-------------- | :-------- | :------------------------------------------- |
-| `SessionStart`  | CHAIN     | Session initialized                          |
-| `BeforeAgent`   | CHAIN     | Agent step started, records input            |
-| `AfterAgent`    | CHAIN     | Agent step completed, records output         |
-| `BeforeModel`   | LLM       | Model call started, records prompt and model |
-| `AfterModel`    | LLM       | Model call completed, records output and tokens |
-| `BeforeTool`    | TOOL      | Tool invocation started, records name and input |
-| `AfterTool`     | TOOL      | Tool invocation completed, records output and duration |
-| `SessionEnd`    | CHAIN     | Session teardown, state file cleanup         |
-
-</Accordion>
+- **Turn traces** — each agent turn as a `Turn` (CHAIN) span, with the prompt as input and the final response as output
+- **LLM spans** — one `LLM: <model>` span per model call, with model name and token counts
+- **Tool spans** — one per tool call (`read_file`, `run_shell_command`, and others), with input, output, and duration
+- **Session grouping** — all turns from the same session grouped by `session_id`
 
 ## Reference
 

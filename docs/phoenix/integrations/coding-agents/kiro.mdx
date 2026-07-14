@@ -1,12 +1,12 @@
 ---
 title: "Kiro"
-description: "Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix using the Arize Coding Harness Tracing."
+description: "Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix."
 keywords: ["kiro", "kiro tracing", "kiro cli", "phoenix", "agent tracing"]
 ---
 
 > Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix for full observability.
 
-[Kiro](https://kiro.dev) is AWS's agentic IDE and CLI for spec-driven development. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every Kiro turn shows up in Phoenix as a trace — the model call, each tool it runs, credit cost, and turn duration — grouped into its session. You don't change any code: the toolkit registers hooks on a Kiro agent and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
+Trace your [Kiro](https://kiro.dev) CLI sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — every turn shows up as a trace with the model call, each tool it runs, credit cost, and turn duration, grouped into its session. No application code changes required: the toolkit registers hooks on a Kiro agent and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
 
 ## Launch Phoenix
 
@@ -103,20 +103,6 @@ Once tracing is enabled, Kiro activity is streamed to Phoenix. You'll see:
 - **Session grouping** — all turns from the same Kiro session grouped by `session.id`
 - **Credit cost** — Kiro meters in credits rather than tokens; cost is captured as `kiro.cost.credits`
 - **Model and duration** — `llm.model_name`, `kiro.turn_duration_ms`, and `kiro.context_usage_percentage` from the session sidecar
-
-### Hooks captured
-
-<Accordion title="All hook events and the spans they produce">
-
-| Hook              | Span Kind | Description                                          |
-| :---------------- | :-------- | :--------------------------------------------------- |
-| `agentSpawn`      | CHAIN     | Agent spawned, trace/tool counters reset             |
-| `userPromptSubmit`| CHAIN     | User prompt captured, session lazy-initialized       |
-| `preToolUse`      | TOOL      | Tool invocation started, records tool name and input |
-| `postToolUse`     | TOOL      | Tool invocation completed, records output and duration |
-| `stop`            | LLM       | Model response completed with input/output values    |
-
-</Accordion>
 
 ### Span attributes
 

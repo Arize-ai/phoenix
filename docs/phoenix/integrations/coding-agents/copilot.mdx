@@ -1,12 +1,12 @@
 ---
 title: "GitHub Copilot"
-description: "Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix using the Arize Coding Harness Tracing."
+description: "Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix."
 keywords: ["github copilot", "copilot tracing", "phoenix", "vs code", "agent tracing"]
 ---
 
 > Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix for full observability.
 
-[GitHub Copilot](https://github.com/features/copilot) is GitHub's AI pair programmer for VS Code and the command line. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every Copilot turn — in VS Code or the CLI — shows up in Phoenix as a trace, with each tool call and any subagents captured as nested spans and grouped into its session. You don't change any code: the toolkit hooks into Copilot's own events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix. VS Code uses per-event hook files; the CLI uses a single `hooks.json`.
+Trace your [GitHub Copilot](https://github.com/features/copilot) sessions — in VS Code or the CLI — in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit. Every turn shows up as a trace, with each tool call and any subagents captured as nested spans and grouped into its session. No application code changes required: the toolkit hooks into Copilot's own events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. VS Code uses per-event hook files; the CLI uses a single `hooks.json`.
 
 ## Launch Phoenix
 
@@ -86,24 +86,6 @@ Once tracing is enabled, Copilot activity from both VS Code and the CLI streams 
 - **Subagent spans** — activity from any subagents Copilot spawns (VS Code)
 - **Error spans** — `errorOccurred` events from the CLI
 - **Session grouping** — all turns from the same session grouped by `session_id`
-
-### Hooks captured
-
-<Accordion title="All hook files and events">
-
-Copilot in VS Code and on the CLI use different event names. The harness handles both with one install command.
-
-| Surface | Hook File | Events |
-| :------ | :-------- | :----- |
-| VS Code | `.github/hooks/session-start.json` | `SessionStart` |
-| VS Code | `.github/hooks/user-prompt.json` | `UserPromptSubmit` |
-| VS Code | `.github/hooks/pre-tool.json` | `PreToolUse` |
-| VS Code | `.github/hooks/post-tool.json` | `PostToolUse` |
-| VS Code | `.github/hooks/stop.json` | `Stop` |
-| VS Code | `.github/hooks/subagent-stop.json` | `SubagentStop` |
-| CLI | `.github/hooks/hooks.json` | `sessionStart`, `userPromptSubmitted`, `preToolUse`, `postToolUse`, `errorOccurred`, `sessionEnd` |
-
-</Accordion>
 
 ## Reference
 

@@ -1,12 +1,12 @@
 ---
 title: "Claude Code"
-description: "Trace Claude Code CLI and Agent SDK sessions, tool usage, and token costs in Phoenix using the Arize Coding Harness Tracing."
+description: "Trace Claude Code CLI and Agent SDK sessions, tool usage, and token costs in Phoenix."
 keywords: ["claude code", "claude code tracing", "phoenix", "agent tracing", "claude agent sdk"]
 ---
 
 > Trace Claude Code CLI sessions, tool usage, and token costs with Phoenix for full observability.
 
-[Claude Code](https://code.claude.com/docs/en/overview) is Anthropic's agentic coding tool that lives in your terminal. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) plugin installed, every Claude Code turn shows up in Phoenix as a trace — the model call, each tool it runs, and the tokens and cost — grouped into the session it belongs to. You don't change any code: the plugin hooks into Claude Code's own lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix. It works with both the Claude Code CLI and the Claude Agent SDK.
+Trace your [Claude Code](https://code.claude.com/docs/en/overview) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) plugin — every turn shows up as a trace with the model call, each tool it runs, and token cost, grouped into its session. No application code changes required: the plugin hooks into Claude Code's lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Works with both the Claude Code CLI and the Claude Agent SDK.
 
 <Note>
 **Use this to trace Claude Code (or Agent SDK) *sessions* via the plugin — enabled through a settings file, no in-code instrumentor.** If instead you are **building an application** with the Claude Agent SDK and want standard OpenInference agent, tool, and LLM spans in your app's code, use the [Claude Agent SDK](/docs/phoenix/integrations/python/claude-agent-sdk) instrumentor instead.
@@ -119,33 +119,6 @@ Drill into any turn trace to inspect the full span tree, including model generat
     alt="Phoenix trace view showing the trace tree for a Claude Code turn — an LLM span with a nested subagent span and Glob, Grep, Read, and Edit tool spans — alongside the span's model (claude-opus-4-8), input, token count, cost, and latency"
   />
 </Frame>
-
-### Hooks captured
-
-<Accordion title="All 16 hooks and the spans they produce">
-
-| Hook                  | Span Kind | Description                                                                |
-| :-------------------- | :-------- | :------------------------------------------------------------------------- |
-| `SessionStart`        | CHAIN     | Session initialized, trace/tool counters reset                             |
-| `UserPromptSubmit`    | CHAIN     | User prompt captured (also lazy-inits session for SDK)                     |
-| `UserPromptExpansion` | —         | Stashes slash command metadata to attach to the next turn span             |
-| `PreToolUse`          | TOOL      | Tool invocation started, records tool name and input                       |
-| `PostToolUse`         | TOOL      | Tool invocation completed, records output and duration                     |
-| `PostToolUseFailure`  | TOOL      | Tool invocation failed, records error attributes                           |
-| `Stop`                | LLM       | Model response completed with input/output values                          |
-| `StopFailure`         | LLM       | Turn failed before completion, emits a span with `error.type` / `error.message` |
-| `SubagentStart`       | —         | Records subagent start time and prompt keyed by `agent_id`                 |
-| `SubagentStop`        | CHAIN     | Subagent response completed                                                |
-| `PreCompact`          | —         | Records compaction start time and trigger                                  |
-| `PostCompact`         | CHAIN     | Compaction completed, emits a span when it fires inside a turn             |
-| `PermissionRequest`   | CHAIN     | Permission prompt for tool use                                             |
-| `PermissionDenied`    | CHAIN     | Auto-mode tool denial recorded inside the current turn                     |
-| `Notification`        | CHAIN     | System notification event                                                  |
-| `SessionEnd`          | CHAIN     | Session teardown, state file cleanup                                       |
-
-Hooks marked `—` don't emit their own span — they stash state that an adjacent hook (turn, tool, or compaction) attaches when it fires.
-
-</Accordion>
 
 ## Agent SDK Setup
 

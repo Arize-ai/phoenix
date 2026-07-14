@@ -1,12 +1,12 @@
 ---
 title: "Oh My Pi"
-description: "Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs in Phoenix using the Arize Coding Harness Tracing."
+description: "Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs in Phoenix."
 keywords: ["oh my pi", "omp", "omp tracing", "phoenix", "agent tracing"]
 ---
 
 > Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs with Phoenix for full observability.
 
-[Oh My Pi (omp)](https://github.com/can1357/oh-my-pi) is a terminal coding agent that loads its extensions in-process inside its Bun runtime. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every omp run shows up in Phoenix as a trace — the model calls, tool invocations, and inline token usage — grouped into its session. You don't change any code: the toolkit hooks into omp's lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
+Trace your [Oh My Pi (omp)](https://github.com/can1357/oh-my-pi) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — every run shows up as a trace with the model calls, tool invocations, and inline token usage, grouped into its session. No application code changes required: the toolkit hooks into omp's lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
 
 ## Launch Phoenix
 
@@ -96,22 +96,6 @@ Once tracing is enabled, omp activity is streamed to Phoenix. There is one trace
 - **Session grouping** — all runs from the same session grouped by `session.id`
 
 Token usage is captured directly on each LLM span — omp surfaces cumulative usage inline on assistant messages, so prompt, completion, reasoning, cache, and cost values are available on every model call.
-
-### Spans captured
-
-<Accordion title="The spans each run produces">
-
-omp exposes rich, once-fired lifecycle events that already carry final, structured data. The hook forwards a small whitelist of them and emits the following spans:
-
-| Span | Kind | Description |
-| :--- | :--- | :---------- |
-| `Turn` | CHAIN | Root span for the agent run. Input is the user prompt (`before_agent_start`); output is the final assistant message. |
-| `LLM: <model>` | LLM | Child of `Turn`. One per `turn_end`, carrying model info, token counts, cache tokens, and cost. |
-| `<tool>` | TOOL | Child of `Turn`. One per tool result in a `turn_end`, paired with its originating tool call by id and recording input args and output. |
-
-Lifecycle events forwarded: `before_agent_start`, `turn_end`, `agent_end`, and `session_shutdown`.
-
-</Accordion>
 
 ## Verifying tracing
 

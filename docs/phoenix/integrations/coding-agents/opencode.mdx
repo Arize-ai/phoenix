@@ -1,12 +1,12 @@
 ---
 title: "OpenCode"
-description: "Trace OpenCode terminal coding sessions, model calls, and tool usage in Phoenix using the Arize Coding Harness Tracing."
+description: "Trace OpenCode terminal coding sessions, model calls, and tool usage in Phoenix."
 keywords: ["opencode", "opencode tracing", "phoenix", "agent tracing", "terminal coding agent"]
 ---
 
 > Trace OpenCode terminal coding sessions, model calls, and tool usage with Phoenix for full observability.
 
-[OpenCode](https://opencode.ai/) is an open-source AI coding agent built for the terminal. With the [Arize Coding Harness Tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit installed, every OpenCode turn shows up in Phoenix as a trace, with the model call and every tool invocation captured as nested spans and grouped into its session. You don't change any code: the toolkit loads an in-process plugin and streams [OpenInference](https://github.com/Arize-ai/openinference) [spans](/docs/phoenix/tracing/concepts-tracing/what-are-traces) (the individual units of work that make up a trace) to Phoenix.
+Trace your [OpenCode](https://opencode.ai/) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — every turn shows up as a trace, with the model call and every tool invocation captured as nested spans and grouped into its session. No application code changes required: the toolkit loads an in-process plugin and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
 
 ## Launch Phoenix
 
@@ -80,22 +80,6 @@ export ARIZE_LOG_TOOL_CONTENT="false"
 ## Observe
 
 Once tracing is enabled, OpenCode activity is streamed to Phoenix. Each turn (one user prompt to the assistant's response) is captured as a trace.
-
-### Spans captured
-
-<Accordion title="The spans each turn produces">
-
-Each turn produces a three-level span tree:
-
-| Span | Span Kind | Description |
-| :--- | :-------- | :---------- |
-| `Turn` | CHAIN | Root span for the turn. Input is the user prompt; output is the assistant's final text. |
-| `LLM: {model}` | LLM | Model call with `llm.model_name`, `llm.provider`, prompt/completion/reasoning token counts, cache read/write tokens, and `llm.cost`. One per assistant message. |
-| `{tool}` | TOOL | One per completed tool call, with `tool.name`, redacted input/output, and tool-specific attributes such as `tool.command`, `tool.file_path`, `tool.query`, and `tool.url`. |
-
-Timestamps come from OpenCode's own millisecond clocks rather than wall-clock time on the tracing process. The default project name is `opencode` unless you set `ARIZE_PROJECT_NAME`.
-
-</Accordion>
 
 ## How Tracing Works
 
