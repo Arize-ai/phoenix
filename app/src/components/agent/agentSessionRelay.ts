@@ -1,73 +1,33 @@
-import { ConnectionHandler, commitLocalUpdate } from "react-relay";
+import { fetchQuery } from "react-relay";
 
-import type { AgentSessionCreatedData } from "@phoenix/agent/chat/types";
+import type { AgentSessionsResourceQuery } from "./__generated__/AgentSessionsResourceQuery.graphql";
+import AgentSessionsResourceQueryNode from "./__generated__/AgentSessionsResourceQuery.graphql";
 
 export const AGENT_SESSIONS_CONNECTION_KEY =
   "AgentSessionsResource_agentSessions";
 
-type RelayEnvironment = Parameters<typeof commitLocalUpdate>[0];
+export const SESSION_PAGE_SIZE = 20;
 
-export function upsertAgentSessionConnection({
+type RelayEnvironment = Parameters<typeof fetchQuery>[0];
+
+/**
+ * Refetches the first page of the agent sessions connection so a session the
+ * server just persisted appears in the session list without hand-editing the
+ * Relay store. Refetching from the start resets the connection to the newest
+ * page, dropping any previously paginated pages.
+ *
+ * `fetchQuery` alone does not retain its data, but the payload normalizes into
+ * the same operation the mounted session list retains via `useLazyLoadQuery`,
+ * so the refreshed edges stay reachable for as long as the list is on screen.
+ */
+export function refetchAgentSessions({
   environment,
-  session,
 }: {
   environment: RelayEnvironment;
-  session: AgentSessionCreatedData;
 }) {
-  commitLocalUpdate(environment, (store) => {
-    const sessionRecord =
-      store.get(session.id) ?? store.create(session.id, "AgentSession");
-    sessionRecord.setValue(session.sessionId, "sessionId");
-    sessionRecord.setValue(session.title, "title");
-    sessionRecord.setValue(session.createdAt, "createdAt");
-    sessionRecord.setValue(session.updatedAt, "updatedAt");
-
-    const connection = ConnectionHandler.getConnection(
-      store.getRoot(),
-      AGENT_SESSIONS_CONNECTION_KEY
-    );
-    if (!connection) {
-      return;
-    }
-    const hasSession =
-      connection.getLinkedRecords("edges")?.some((edge) => {
-        const node = edge.getLinkedRecord("node");
-        return (
-          node?.getDataID() === session.id ||
-          node?.getValue("sessionId") === session.sessionId
-        );
-      }) ?? false;
-    if (hasSession) {
-      return;
-    }
-    const edge = ConnectionHandler.createEdge(
-      store,
-      connection,
-      sessionRecord,
-      "AgentSessionEdge"
-    );
-    ConnectionHandler.insertEdgeBefore(connection, edge);
-  });
-}
-
-export function updateAgentSessionTitle({
-  environment,
-  sessionId,
-  title,
-}: {
-  environment: RelayEnvironment;
-  sessionId: string;
-  title: string;
-}) {
-  commitLocalUpdate(environment, (store) => {
-    const connection = ConnectionHandler.getConnection(
-      store.getRoot(),
-      AGENT_SESSIONS_CONNECTION_KEY
-    );
-    const sessionRecord = connection
-      ?.getLinkedRecords("edges")
-      ?.map((edge) => edge.getLinkedRecord("node"))
-      .find((node) => node?.getValue("sessionId") === sessionId);
-    sessionRecord?.setValue(title, "title");
-  });
+  return fetchQuery<AgentSessionsResourceQuery>(
+    environment,
+    AgentSessionsResourceQueryNode,
+    { first: SESSION_PAGE_SIZE }
+  ).toPromise();
 }

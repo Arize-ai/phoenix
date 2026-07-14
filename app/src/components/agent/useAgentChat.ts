@@ -43,10 +43,7 @@ import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-import {
-  updateAgentSessionTitle,
-  upsertAgentSessionConnection,
-} from "./agentSessionRelay";
+import { refetchAgentSessions } from "./agentSessionRelay";
 
 type AgentTurnTracer = ReturnType<typeof createAgentTurnTracer>;
 
@@ -199,28 +196,11 @@ export function useAgentChat({
                   store
                     .getState()
                     .setSessionPersisted(sessionId, dataPart.data.id);
-                  upsertAgentSessionConnection({
-                    environment: relayEnvironment,
-                    session: dataPart.data,
-                  });
-                  const runtimeTitle =
-                    store.getState().sessionMap[sessionId]?.title;
-                  if (runtimeTitle) {
-                    updateAgentSessionTitle({
-                      environment: relayEnvironment,
-                      sessionId,
-                      title: runtimeTitle,
-                    });
-                  }
+                  void refetchAgentSessions({ environment: relayEnvironment });
                   return;
                 }
                 if (dataPart.type === "data-session-summary") {
                   store.getState().updateSessionTitle(sessionId, dataPart.data);
-                  updateAgentSessionTitle({
-                    environment: relayEnvironment,
-                    sessionId,
-                    title: dataPart.data,
-                  });
                 }
               },
               sendAutomaticallyWhen: ({ messages }) =>

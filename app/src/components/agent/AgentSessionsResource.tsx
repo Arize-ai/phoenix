@@ -31,7 +31,10 @@ import type { AgentSessionsResourceDeleteMutation } from "./__generated__/AgentS
 import type { AgentSessionsResourceQuery } from "./__generated__/AgentSessionsResourceQuery.graphql";
 import type { AgentSessionsResourceSessionQuery } from "./__generated__/AgentSessionsResourceSessionQuery.graphql";
 import { AgentChatHeader } from "./AgentChatPanelView";
-import { AGENT_SESSIONS_CONNECTION_KEY } from "./agentSessionRelay";
+import {
+  AGENT_SESSIONS_CONNECTION_KEY,
+  SESSION_PAGE_SIZE,
+} from "./agentSessionRelay";
 import { ChatView } from "./Chat";
 import type { AgentSessionListItem } from "./SessionListMenu";
 import {
@@ -40,8 +43,6 @@ import {
 } from "./sessionTitleUtils";
 import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
-
-const SESSION_PAGE_SIZE = 20;
 
 const sessionsQuery = graphql`
   query AgentSessionsResourceQuery($first: Int!) {
@@ -179,19 +180,22 @@ function AgentSessionsContent({
   const activeSessionCache = activeSessionId
     ? sessionMap[activeSessionId]
     : undefined;
-  const activeDraft =
-    activeSessionCache?.relayId == null ? activeSessionCache : undefined;
-  const localSessions: AgentSessionListItem[] = activeDraft
+  const activeLocalSession =
+    activeSessionCache &&
+    !serverSessions.some((session) => session.id === activeSessionCache.id)
+      ? activeSessionCache
+      : undefined;
+  const localSessions: AgentSessionListItem[] = activeLocalSession
     ? [
         {
-          id: activeDraft.id,
-          relayId: null,
-          title: activeDraft.title,
-          messages: activeDraft.messages,
-          createdAt: activeDraft.createdAt,
+          id: activeLocalSession.id,
+          relayId: activeLocalSession.relayId,
+          title: activeLocalSession.title,
+          messages: activeLocalSession.messages,
+          createdAt: activeLocalSession.createdAt,
           isDeleteDisabled:
-            chatStatusBySessionId[activeDraft.id] === "submitted" ||
-            chatStatusBySessionId[activeDraft.id] === "streaming",
+            chatStatusBySessionId[activeLocalSession.id] === "submitted" ||
+            chatStatusBySessionId[activeLocalSession.id] === "streaming",
         },
       ]
     : [];
