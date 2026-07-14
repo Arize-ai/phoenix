@@ -442,8 +442,11 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
 HARBOR_VERSION ?= 0.18.0
+# harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
+# repo's .python-version (3.10).
+HARBOR_PYTHON ?= 3.13
 UVX := uvx
-HARBOR := $(UVX) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
+HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
 # The runner is staged into the task's Docker build context by prepare.sh.
 define check-harbor-prepared
