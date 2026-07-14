@@ -839,6 +839,10 @@ input CreateProjectCodeEvaluatorInput {
   evaluationTarget: EvaluationTarget!
   description: String = null
   outputConfigs: [AnnotationConfigInput!] = null
+
+  """
+  Project-specific CODE input mapping. Null inherits the evaluator input mapping; an object overrides it.
+  """
   inputMapping: EvaluatorInputMappingInput = null
   filterCondition: String! = ""
   enabled: Boolean! = true
@@ -4647,6 +4651,10 @@ input UpdateProjectCodeEvaluatorInput {
   sourceCode: String
   sandboxConfigId: ID
   outputConfigs: [AnnotationConfigInput!]
+
+  """
+  Project-specific CODE input mapping patch. Omit to preserve the current setting, use null to inherit the evaluator input mapping, or provide an object to override it.
+  """
   inputMapping: EvaluatorInputMappingInput
   filterCondition: String! = ""
   enabled: Boolean! = true

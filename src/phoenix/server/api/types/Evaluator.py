@@ -1112,7 +1112,8 @@ class ProjectEvaluator(Node):
             return CodeEvaluator(id=evaluator.id)
         if isinstance(evaluator, models.BuiltinEvaluator):
             return BuiltInEvaluator(id=evaluator.id)
-        raise NotFound(f"Evaluator not found for project evaluator: {self.id}")
+        project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+        raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
 
     @strawberry.field
     async def annotation_name(self, info: Info[Context, None]) -> Identifier:
@@ -1169,6 +1170,7 @@ class ProjectEvaluator(Node):
             return self.db_record
         record = await info.context.data_loaders.project_evaluator_criteria_by_id.load(self.id)
         if record is None:
-            raise NotFound(f"ProjectEvaluator not found: {self.id}")
+            project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+            raise NotFound(f"ProjectEvaluator not found: {project_evaluator_id}")
         self.db_record = record
         return record

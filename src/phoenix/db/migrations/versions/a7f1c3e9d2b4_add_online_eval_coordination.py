@@ -6,15 +6,30 @@ Create Date: 2026-06-17 00:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
     "postgresql",
 )
+
+
+class JSONB(JSON):
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")
+def _(*args: Any, **kwargs: Any) -> str:
+    return "JSONB"
+
+
+JSON_ = JSON().with_variant(postgresql.JSONB(), "postgresql").with_variant(JSONB(), "sqlite")
 
 # revision identifiers, used by Alembic.
 revision: str = "a7f1c3e9d2b4"
@@ -92,6 +107,16 @@ def upgrade() -> None:
             ),
             nullable=False,
         ),
+        sa.Column(
+            "evaluation_target",
+            sa.String(),
+            sa.CheckConstraint(
+                "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')",
+                name="valid_evaluation_target",
+            ),
+            nullable=False,
+        ),
+        sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column(
             "created_at",

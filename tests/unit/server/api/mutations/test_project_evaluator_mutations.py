@@ -222,6 +222,63 @@ async def test_project_code_evaluator_crud_and_connection(
     assert updated["inputMapping"] == _mapping(context="override")
     assert updated["evaluator"]["name"] == "updated-code"
 
+    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        assert criteria.input_mapping is not None
+        assert criteria.input_mapping.literal_mapping == {"context": "override"}
+
+    omitted_result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": "updated-code",
+                "annotationName": "updated-code-annotation",
+                "description": "updated again",
+                "evaluatorInputMapping": _mapping(output="changed-while-omitted"),
+                "samplingRate": 0.75,
+                "evaluationTarget": "TRACE",
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+    assert omitted_result.data and not omitted_result.errors
+    omitted = omitted_result.data["updateProjectCodeEvaluator"]["evaluator"]
+    assert omitted["inputMapping"] == _mapping(context="override")
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        assert criteria.input_mapping is not None
+        assert criteria.input_mapping.literal_mapping == {"context": "override"}
+
+    inherited_result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": "updated-code",
+                "annotationName": "updated-code-annotation",
+                "description": "updated with inheritance",
+                "evaluatorInputMapping": _mapping(output="inherited"),
+                "inputMapping": None,
+                "samplingRate": 1.0,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+    assert inherited_result.data and not inherited_result.errors
+    inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
+    assert inherited["inputMapping"] == _mapping(output="inherited")
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        assert criteria.input_mapping is None
+
     delete_result = await gql_client.execute(
         _DELETE,
         {"input": {"projectEvaluatorIds": [created["id"]]}},
@@ -283,10 +340,195 @@ async def test_invalid_filter_rejects_before_project_evaluator_writes(
     assert await _row_counts(db) == before
 
 
-async def _row_counts(db: DbSessionFactory) -> tuple[int, int]:
+async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    error_message = "samplingRate must be between 0.0 and 1.0"
+
+    create_code_input = _code_create_input(project, sandbox_config)
+    create_code_input["samplingRate"] = 1.5
+    before = await _row_counts(db)
+    create_code_result = await gql_client.execute(_CREATE_CODE, {"input": create_code_input})
+    assert create_code_result.errors
+    assert create_code_result.errors[0].message == error_message
+    assert await _row_counts(db) == before
+
+    create_llm_input = _llm_input(project, name="invalid-rate-llm", text="Evaluate {{input}}")
+    create_llm_input["samplingRate"] = -0.1
+    create_llm_result = await gql_client.execute(_CREATE_LLM, {"input": create_llm_input})
+    assert create_llm_result.errors
+    assert create_llm_result.errors[0].message == error_message
+    assert await _row_counts(db) == before
+
+    valid_code_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert valid_code_result.data and not valid_code_result.errors
+    code_evaluator_id = valid_code_result.data["createProjectCodeEvaluator"]["evaluator"]["id"]
+    update_code_input = {
+        "projectEvaluatorId": code_evaluator_id,
+        "name": f"invalid-rate-code-{token_hex(4)}",
+        "annotationName": f"invalid-rate-code-annotation-{token_hex(4)}",
+        "evaluatorInputMapping": _mapping(output="value"),
+        "samplingRate": -0.1,
+        "evaluationTarget": "SPAN",
+    }
+    before = await _row_counts(db)
+    update_code_result = await gql_client.execute(_UPDATE_CODE, {"input": update_code_input})
+    assert update_code_result.errors
+    assert update_code_result.errors[0].message == error_message
+    assert await _row_counts(db) == before
+
+    valid_llm_input = _llm_input(project, name="valid-rate-llm", text="Evaluate {{input}}")
+    valid_llm_result = await gql_client.execute(_CREATE_LLM, {"input": valid_llm_input})
+    assert valid_llm_result.data and not valid_llm_result.errors
+    llm_evaluator_id = valid_llm_result.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    update_llm_input = _llm_input(project, name="updated-rate-llm", text="Update {{input}}")
+    update_llm_input.pop("projectId")
+    update_llm_input["projectEvaluatorId"] = llm_evaluator_id
+    update_llm_input["samplingRate"] = 1.1
+    before = await _row_counts(db)
+    update_llm_result = await gql_client.execute(_UPDATE_LLM, {"input": update_llm_input})
+    assert update_llm_result.errors
+    assert update_llm_result.errors[0].message == error_message
+    assert await _row_counts(db) == before
+
+
+async def test_create_rolls_back_all_llm_resources_on_late_annotation_conflict(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    existing_input = _code_create_input(project, sandbox_config)
+    existing_input["annotationName"] = "duplicate-project-annotation"
+    existing_result = await gql_client.execute(_CREATE_CODE, {"input": existing_input})
+    assert existing_result.data and not existing_result.errors
+
+    before = await _row_counts(db)
+    create_input = _llm_input(project, name="rolled-back-llm", text="Evaluate {{input}}")
+    create_input["annotationName"] = "duplicate-project-annotation"
+    result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+
+    assert result.errors
+    assert result.errors[0].message == (
+        "A project evaluator with this name or annotation name already exists"
+    )
+    assert await _row_counts(db) == before
+
+
+async def test_update_rolls_back_code_version_and_state_on_late_annotation_conflict(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    first_input = _code_create_input(project, sandbox_config)
+    first_input["annotationName"] = "first-project-annotation"
+    first_result = await gql_client.execute(_CREATE_CODE, {"input": first_input})
+    assert first_result.data and not first_result.errors
+    first = first_result.data["createProjectCodeEvaluator"]["evaluator"]
+
+    second_input = _code_create_input(project, sandbox_config)
+    second_input["annotationName"] = "second-project-annotation"
+    second_result = await gql_client.execute(_CREATE_CODE, {"input": second_input})
+    assert second_result.data and not second_result.errors
+
+    criteria_id = int(GlobalID.from_id(first["id"]).node_id)
     async with db() as session:
-        evaluator_count = await session.scalar(select(func.count()).select_from(models.Evaluator))
-        criteria_count = await session.scalar(
-            select(func.count()).select_from(models.ProjectEvaluatorCriteria)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
+        assert evaluator is not None
+        evaluator_id = evaluator.id
+        state_before = (
+            str(evaluator.name),
+            evaluator.description,
+            evaluator.input_mapping.model_dump(mode="json"),
+            str(criteria.annotation_name),
+            criteria.filter_condition,
+            criteria.sampling_rate,
+            criteria.evaluation_target,
+            criteria.input_mapping,
+            criteria.enabled,
         )
-        return evaluator_count or 0, criteria_count or 0
+        versions_before = tuple(
+            await session.scalars(
+                select(models.CodeEvaluatorVersion.source_code)
+                .where(models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id)
+                .order_by(models.CodeEvaluatorVersion.id)
+            )
+        )
+    counts_before = await _row_counts(db)
+
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": first["id"],
+                "name": "rolled-back-code-name",
+                "annotationName": "second-project-annotation",
+                "description": "must roll back",
+                "sourceCode": "def evaluate(output):\n    return {'score': 0.0}",
+                "evaluatorInputMapping": _mapping(changed="value"),
+                "inputMapping": _mapping(override="value"),
+                "samplingRate": 0.9,
+                "evaluationTarget": "TRACE",
+                "filterCondition": "span_kind == 'LLM'",
+                "enabled": False,
+            }
+        },
+    )
+    assert result.errors
+    assert result.errors[0].message == (
+        "A project evaluator with this name or annotation name already exists"
+    )
+    assert await _row_counts(db) == counts_before
+
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        assert criteria is not None and evaluator is not None
+        state_after = (
+            str(evaluator.name),
+            evaluator.description,
+            evaluator.input_mapping.model_dump(mode="json"),
+            str(criteria.annotation_name),
+            criteria.filter_condition,
+            criteria.sampling_rate,
+            criteria.evaluation_target,
+            criteria.input_mapping,
+            criteria.enabled,
+        )
+        versions_after = tuple(
+            await session.scalars(
+                select(models.CodeEvaluatorVersion.source_code)
+                .where(models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id)
+                .order_by(models.CodeEvaluatorVersion.id)
+            )
+        )
+    assert state_after == state_before
+    assert versions_after == versions_before
+
+
+async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
+    async with db() as session:
+        model_types = (
+            models.Evaluator,
+            models.Prompt,
+            models.PromptVersion,
+            models.PromptVersionTag,
+            models.PromptLabel,
+            models.PromptPromptLabel,
+            models.CodeEvaluatorVersion,
+            models.ProjectEvaluatorCriteria,
+        )
+        return {
+            model_type.__name__: await session.scalar(select(func.count()).select_from(model_type))
+            or 0
+            for model_type in model_types
+        }

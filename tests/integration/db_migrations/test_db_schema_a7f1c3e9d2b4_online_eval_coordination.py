@@ -113,6 +113,8 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "annotation_name",
             "filter_condition",
             "sampling_rate",
+            "evaluation_target",
+            "input_mapping",
             "enabled",
             "created_at",
             "updated_at",
@@ -127,6 +129,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "fk_project_evaluator_criteria_project_id_projects",
             "fk_project_evaluator_criteria_evaluator_id_evaluators",
             "ck_project_evaluator_criteria_`valid_sampling_rate`",
+            "ck_project_evaluator_criteria_`valid_evaluation_target`",
         }
         if db_backend == "postgresql":
             index_names.update(
@@ -144,7 +147,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(),
+            nullable_column_names=frozenset(["input_mapping"]),
         )
 
 

@@ -56,7 +56,7 @@ def validate_evaluator_prompt_and_configs(
         raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED)
     if isinstance(prompt_tools.tool_choice, PromptToolChoiceSpecificFunctionTool):
         if not prompt_tools.tools or not isinstance(prompt_tools.tools[0], PromptToolFunction):
-            raise ValueError(f"Tool {prompt_tools.tools[0]} is not a function tool")
+            raise ValueError(_LLMEvaluatorPromptErrorMessage.FUNCTION_TOOLS_REQUIRED)
         if prompt_tools.tool_choice.function_name != prompt_tools.tools[0].function.name:
             raise ValueError(
                 _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME
@@ -66,7 +66,7 @@ def validate_evaluator_prompt_and_configs(
     tools_by_name: dict[str, PromptToolFunction] = {}
     for tool in prompt_tools.tools:
         if not isinstance(tool, PromptToolFunction):
-            raise ValueError(f"Tool {tool} is not a function tool")
+            raise ValueError(_LLMEvaluatorPromptErrorMessage.FUNCTION_TOOLS_REQUIRED)
         tools_by_name[tool.function.name] = tool
 
     # Validate each config against its matched tool
@@ -236,6 +236,7 @@ class _LLMEvaluatorPromptErrorMessage:
         "Number of prompt tool definitions must match number of output configs"
     )
     TOOL_CHOICE_REQUIRED = "Evaluator prompts must require a tool choice"
+    FUNCTION_TOOLS_REQUIRED = "Evaluator prompts require function tools"
     TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME = (
         "Evaluator tool choice specific function name must match defined function name"
     )

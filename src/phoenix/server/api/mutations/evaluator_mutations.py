@@ -258,6 +258,11 @@ def _validate_project_evaluator_filter(filter_condition: str) -> None:
         raise BadRequest("Invalid filter condition: unable to compile for supported databases")
 
 
+def _validate_project_evaluator_sampling_rate(sampling_rate: float) -> None:
+    if not 0.0 <= sampling_rate <= 1.0:
+        raise BadRequest("samplingRate must be between 0.0 and 1.0")
+
+
 async def _garbage_collect_evaluators(
     session: AsyncSession,
     *,
@@ -444,7 +449,13 @@ class CreateProjectCodeEvaluatorInput:
     evaluation_target: EvaluationTarget
     description: Optional[str] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
-    input_mapping: Optional[EvaluatorInputMappingInput] = None
+    input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
+        default=None,
+        description=(
+            "Project-specific CODE input mapping. Null inherits the evaluator input mapping; "
+            "an object overrides it."
+        ),
+    )
     filter_condition: str = ""
     enabled: bool = True
 
@@ -461,7 +472,13 @@ class UpdateProjectCodeEvaluatorInput:
     source_code: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
-    input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Project-specific CODE input mapping patch. Omit to preserve the current setting, "
+            "use null to inherit the evaluator input mapping, or provide an object to override it."
+        ),
+    )
     filter_condition: str = ""
     enabled: bool = True
 
@@ -546,6 +563,7 @@ class EvaluatorMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid project id: {input.project_id}")
         _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
         try:
             evaluator_name = IdentifierModel.model_validate(input.name)
             annotation_name = IdentifierModel.model_validate(input.annotation_name)
@@ -654,6 +672,7 @@ class EvaluatorMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid project evaluator id: {input.project_evaluator_id}")
         _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
         try:
             evaluator_name = IdentifierModel.model_validate(input.name)
             annotation_name = IdentifierModel.model_validate(input.annotation_name)
@@ -780,6 +799,7 @@ class EvaluatorMutationMixin:
         except (ValueError, ValidationError) as error:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
         _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
         if input.output_configs is not None:
             try:
@@ -866,6 +886,7 @@ class EvaluatorMutationMixin:
         except (ValueError, ValidationError) as error:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
         if input.output_configs is None:
             raise BadRequest("output_configs cannot be set to null")
         if input.output_configs is not UNSET:
