@@ -360,8 +360,8 @@ export function OAuth2ConsentCard({
         <div css={noteCSS}>
           <Icon svg={<Icons.Shield />} aria-hidden="true" />
           <Text size="XS" color="text-700">
-            Only approve if you started this request from an application on
-            this device.
+            Only approve if you started this request from an application on this
+            device.
           </Text>
         </div>
       ) : null}

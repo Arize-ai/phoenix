@@ -24,9 +24,7 @@ test.describe("OAuth2 consent", () => {
     await expect(
       page.getByRole("heading", { name: "Connect Phoenix CLI" })
     ).toBeVisible();
-    await expect(
-      page.getByText("to your Phoenix workspace")
-    ).toBeVisible();
+    await expect(page.getByText("to your Phoenix workspace")).toBeVisible();
     await expect(page.getByText("View your data")).toBeVisible();
     await expect(page.getByText("with your permissions")).toBeVisible();
     await expect(
