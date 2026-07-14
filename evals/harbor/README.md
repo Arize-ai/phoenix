@@ -2,7 +2,8 @@
 
 This proof of concept runs Phoenix's production `ServerAgent` through four sequential
 regression-triage tasks against a deterministic SQLite database. Programmatic verifiers
-score aggregation, diagnosis, trace inspection, and a GraphQL mutation.
+score aggregation, diagnosis, trace inspection, and read the GraphQL mutation back through
+Phoenix's REST API.
 
 ## Prerequisites
 
