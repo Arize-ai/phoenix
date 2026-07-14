@@ -136,8 +136,10 @@ export type PendingAgentMessage = {
  */
 export type AgentSession = {
   id: string;
-  /** Brief human-readable summary of the conversation so far. */
-  shortSummary: string;
+  /** Canonical Relay node ID once the server has persisted the session. */
+  relayId: string | null;
+  /** Brief human-readable title for the conversation. */
+  title: string;
   /** Messages in AI SDK UIMessage format. */
   messages: AgentUIMessage[];
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
@@ -177,22 +179,20 @@ const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
   edits: "manual",
 };
 
-const MAX_STORED_AGENT_SESSIONS = 3;
+/** Prefix applied to a branched session's title to denote its origin. */
+const FORK_TITLE_PREFIX = "(branch) ";
 
-/** Prefix applied to a branched session's summary to denote its origin. */
-const FORK_SUMMARY_PREFIX = "(branch) ";
-
-/** Max length for a derived (non-LLM) fork summary before truncation. */
-const FORK_SUMMARY_MAX_LENGTH = 50;
+/** Max length for a derived (non-LLM) fork title before truncation. */
+const FORK_TITLE_MAX_LENGTH = 50;
 
 /**
- * Builds the summary for a session branched from `source`. Reuses the source's
- * LLM-generated summary when available, otherwise derives a short label from
+ * Builds the title for a session branched from `source`. Reuses the source's
+ * LLM-generated title when available, otherwise derives a short label from
  * its first user message, then prefixes it with `(branch)`. Seeding a non-empty
- * summary here also prevents the async summarizer from overwriting it.
+ * title here also prevents the async summarizer from overwriting it.
  */
-function buildForkSummary(source: AgentSession): string {
-  let base = source.shortSummary.trim();
+function buildForkTitle(source: AgentSession): string {
+  let base = source.title.trim();
   if (!base) {
     const firstUserMessage = source.messages.find(
       (message) => message.role === "user"
@@ -203,16 +203,16 @@ function buildForkSummary(source: AgentSession): string {
       .join(" ")
       .trim();
     base = text
-      ? text.length > FORK_SUMMARY_MAX_LENGTH
-        ? `${text.slice(0, FORK_SUMMARY_MAX_LENGTH)}...`
+      ? text.length > FORK_TITLE_MAX_LENGTH
+        ? `${text.slice(0, FORK_TITLE_MAX_LENGTH)}...`
         : text
       : "";
   }
   // Avoid stacking "(branch) (branch) ..." when branching from a branch.
-  if (base.startsWith(FORK_SUMMARY_PREFIX)) {
+  if (base.startsWith(FORK_TITLE_PREFIX)) {
     return base;
   }
-  return base ? `${FORK_SUMMARY_PREFIX}${base}` : FORK_SUMMARY_PREFIX.trim();
+  return base ? `${FORK_TITLE_PREFIX}${base}` : FORK_TITLE_PREFIX.trim();
 }
 
 export function getCurrentTraceConsentSettings(
@@ -280,8 +280,9 @@ export function getEffectiveAttachUserId({
 }
 
 /**
- * Serializable properties that define the agent's state.
- * These are the values persisted to local storage.
+ * Serializable properties that define the agent's state. UI preferences are
+ * persisted to local storage; session state is not — sessions live in the
+ * server's database and are hydrated per app load.
  */
 export interface AgentProps {
   /** Whether the agent panel is currently visible. */
@@ -292,7 +293,7 @@ export interface AgentProps {
   fabMode: AgentFabMode;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /** Ordered list of session IDs. */
+  /** Session IDs with an app-local runtime snapshot. */
   sessions: string[];
   /** ID of the currently active session, or null if none. */
   activeSessionId: string | null;
@@ -328,7 +329,7 @@ export interface AgentState extends AgentProps {
     restoredInput?: string | null;
   }) => string | null;
   setActiveSession: (sessionId: string | null) => void;
-  updateSessionSummary: (sessionId: string, summary: string) => void;
+  updateSessionTitle: (sessionId: string, title: string) => void;
   updateSessionModelConfig: (
     sessionId: string,
     patch: Partial<ModelConfig>
@@ -336,6 +337,11 @@ export interface AgentState extends AgentProps {
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
+  setSessionPersisted: (sessionId: string, relayId: string) => void;
+  /**
+   * Adds a server-loaded transcript to the app-local runtime cache.
+   */
+  cacheSession: (session: AgentSession) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
@@ -547,7 +553,14 @@ function mergeAgentPersistedState(
   if (!persistedState || typeof persistedState !== "object") {
     return currentState;
   }
-  const persisted = persistedState as Partial<AgentState>;
+  const {
+    // Blobs written before sessions moved to server-side persistence still
+    // carry session state in localStorage; never rehydrate it.
+    sessions: _sessions,
+    activeSessionId: _activeSessionId,
+    sessionMap: _sessionMap,
+    ...persisted
+  } = persistedState as Partial<AgentState>;
   return {
     ...currentState,
     ...persisted,
@@ -577,37 +590,6 @@ export type AgentClientAction = (
   context?: unknown
 ) => Promise<AgentClientActionResult>;
 
-/**
- * Removes entries keyed by sessions that are no longer retained.
- */
-function pruneSessionScopedRecord<T>({
-  record,
-  retainedSessionIds,
-}: {
-  record: Record<string, T>;
-  retainedSessionIds: Set<string>;
-}): Record<string, T> {
-  return Object.fromEntries(
-    Object.entries(record).filter(([sessionId]) =>
-      retainedSessionIds.has(sessionId)
-    )
-  );
-}
-
-function pruneToolCallRecordBySession<T extends { sessionId: string }>({
-  record,
-  retainedSessionIds,
-}: {
-  record: Partial<Record<string, T>>;
-  retainedSessionIds: Set<string>;
-}): Partial<Record<string, T>> {
-  return Object.fromEntries(
-    Object.entries(record).filter(
-      ([, value]) => value != null && retainedSessionIds.has(value.sessionId)
-    )
-  );
-}
-
 function removeToolCallRecordForSession<T extends { sessionId: string }>(
   record: Partial<Record<string, T>>,
   sessionId: string
@@ -615,65 +597,6 @@ function removeToolCallRecordForSession<T extends { sessionId: string }>(
   return Object.fromEntries(
     Object.entries(record).filter(([, value]) => value?.sessionId !== sessionId)
   );
-}
-
-/**
- * Builds the persisted session-state patch after creating, pruning, or clearing
- * retained sessions, keeping sessionMap and related per-session UI state aligned.
- */
-function buildSessionRetentionPatch({
-  state,
-  retainedSessionIds,
-  activeSessionId,
-}: {
-  state: AgentState;
-  retainedSessionIds: string[];
-  activeSessionId: string | null;
-}): Pick<
-  AgentState,
-  | "sessions"
-  | "activeSessionId"
-  | "sessionMap"
-  | "pendingElicitationBySessionId"
-  | "chatStatusBySessionId"
-  | "isResponsePendingBySessionId"
-  | "draftInputBySessionId"
-  | "pendingMessageBySessionId"
-  | "pendingPatchExperimentsByToolCallId"
-> {
-  const retainedSessionIdSet = new Set(retainedSessionIds);
-  return {
-    sessions: retainedSessionIds,
-    activeSessionId,
-    sessionMap: pruneSessionScopedRecord({
-      record: state.sessionMap,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    pendingElicitationBySessionId: pruneSessionScopedRecord({
-      record: state.pendingElicitationBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    chatStatusBySessionId: pruneSessionScopedRecord({
-      record: state.chatStatusBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    isResponsePendingBySessionId: pruneSessionScopedRecord({
-      record: state.isResponsePendingBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    draftInputBySessionId: pruneSessionScopedRecord({
-      record: state.draftInputBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    pendingMessageBySessionId: pruneSessionScopedRecord({
-      record: state.pendingMessageBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    pendingPatchExperimentsByToolCallId: pruneToolCallRecordBySession({
-      record: state.pendingPatchExperimentsByToolCallId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-  };
 }
 
 /**
@@ -768,30 +691,17 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         (state) => {
           const session: AgentSession = {
             id: sessionId,
-            shortSummary: "",
+            relayId: null,
+            title: "",
             messages: [],
             context: [],
             modelConfig: { ...state.defaultModelConfig },
             createdAt: Date.now(),
           };
-          let nextSessionIds: string[];
-          if (state.capabilities["session.storeSessions"]) {
-            nextSessionIds = [...state.sessions, sessionId].slice(
-              -MAX_STORED_AGENT_SESSIONS
-            );
-          } else {
-            nextSessionIds = [sessionId];
-          }
-
           return {
-            ...buildSessionRetentionPatch({
-              state: {
-                ...state,
-                sessionMap: { ...state.sessionMap, [sessionId]: session },
-              },
-              retainedSessionIds: nextSessionIds,
-              activeSessionId: sessionId,
-            }),
+            sessions: [...state.sessions, sessionId],
+            sessionMap: { ...state.sessionMap, [sessionId]: session },
+            activeSessionId: sessionId,
           };
         },
         false,
@@ -809,7 +719,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           created = true;
           const session: AgentSession = {
             id: sessionId,
-            shortSummary: buildForkSummary(source),
+            relayId: null,
+            title: buildForkTitle(source),
             messages,
             // Carry over the source session's context and model so the fork
             // continues the same conversation under the same configuration.
@@ -817,24 +728,14 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             modelConfig: { ...source.modelConfig },
             createdAt: Date.now(),
           };
-          // Forking always retains the source session alongside the new one;
-          // the standard retention rule then trims to the most recent few.
-          const nextSessionIds = [...state.sessions, sessionId].slice(
-            -MAX_STORED_AGENT_SESSIONS
-          );
           const draftInputBySessionId = restoredInput
             ? { ...state.draftInputBySessionId, [sessionId]: restoredInput }
             : state.draftInputBySessionId;
           return {
-            ...buildSessionRetentionPatch({
-              state: {
-                ...state,
-                sessionMap: { ...state.sessionMap, [sessionId]: session },
-                draftInputBySessionId,
-              },
-              retainedSessionIds: nextSessionIds,
-              activeSessionId: sessionId,
-            }),
+            sessions: [...state.sessions, sessionId],
+            sessionMap: { ...state.sessionMap, [sessionId]: session },
+            activeSessionId: sessionId,
+            draftInputBySessionId,
           };
         },
         false,
@@ -895,7 +796,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     setActiveSession: (sessionId) => {
       set({ activeSessionId: sessionId }, false, { type: "setActiveSession" });
     },
-    updateSessionSummary: (sessionId, summary) => {
+    updateSessionTitle: (sessionId, title) => {
       set(
         (state) => {
           const session = state.sessionMap[sessionId];
@@ -903,12 +804,12 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           return {
             sessionMap: {
               ...state.sessionMap,
-              [sessionId]: { ...session, shortSummary: summary },
+              [sessionId]: { ...session, title },
             },
           };
         },
         false,
-        { type: "updateSessionSummary" }
+        { type: "updateSessionTitle" }
       );
     },
     updateSessionModelConfig: (sessionId, patch) => {
@@ -984,6 +885,50 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setSessionMessages" }
       );
     },
+    setSessionPersisted: (sessionId, relayId) => {
+      set(
+        (state) => {
+          const session = state.sessionMap[sessionId];
+          if (!session) return state;
+          return {
+            sessionMap: {
+              ...state.sessionMap,
+              [sessionId]: { ...session, relayId },
+            },
+          };
+        },
+        false,
+        { type: "setSessionPersisted" }
+      );
+    },
+    cacheSession: (session) => {
+      set(
+        (state) => {
+          const existing = state.sessionMap[session.id];
+          return {
+            sessions: state.sessions.includes(session.id)
+              ? state.sessions
+              : [...state.sessions, session.id],
+            sessionMap: {
+              ...state.sessionMap,
+              [session.id]: existing
+                ? {
+                    ...session,
+                    ...existing,
+                    title: existing.title || session.title,
+                    messages:
+                      existing.messages.length > 0
+                        ? existing.messages
+                        : session.messages,
+                  }
+                : session,
+            },
+          };
+        },
+        false,
+        { type: "cacheSession" }
+      );
+    },
     setDefaultModelConfig: (config) => {
       set({ defaultModelConfig: config }, false, {
         type: "setDefaultModelConfig",
@@ -1049,22 +994,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setCapability: ({ key, enabled }) => {
       set(
-        (state) => {
-          const capabilities = { ...state.capabilities, [key]: enabled };
-          if (key !== "session.storeSessions" || enabled) {
-            return { capabilities };
-          }
-          return {
-            capabilities,
-            ...buildSessionRetentionPatch({
-              state,
-              retainedSessionIds: state.activeSessionId
-                ? [state.activeSessionId]
-                : [],
-              activeSessionId: state.activeSessionId,
-            }),
-          };
-        },
+        (state) => ({
+          capabilities: { ...state.capabilities, [key]: enabled },
+        }),
         false,
         { type: "setCapability" }
       );
@@ -1469,14 +1401,13 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: resolveAssistantStorageKey(),
       version: 0,
+      // Sessions are deliberately absent: they persist only in the server's
+      // database and are hydrated over the network on each app load.
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,
         fabMode: state.fabMode,
         fabPlacement: state.fabPlacement,
-        sessions: state.sessions,
-        activeSessionId: state.activeSessionId,
-        sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
         permissions: state.permissions,

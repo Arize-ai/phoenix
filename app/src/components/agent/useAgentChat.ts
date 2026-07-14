@@ -2,10 +2,12 @@ import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
 import { useCallback, useEffect, useRef } from "react";
+import { useRelayEnvironment } from "react-relay";
 
 import {
   buildAgentChatRequestBody,
   type AgentChatRequestBodyPatch,
+  type AgentModelSelection,
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import {
   createClientToolTimingRecorder,
@@ -47,10 +49,7 @@ import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-import {
-  useGenerateSessionSummary,
-  type AgentModelSelection,
-} from "./useGenerateSessionSummary";
+import { refetchAgentSessions } from "./agentSessionRelay";
 
 type TurnClientState = {
   turnTraceContext: TurnTraceContextManager;
@@ -76,21 +75,22 @@ const turnClientStateByChat = new WeakMap<
  * Durable state still lives in the agent store:
  * - messages are mirrored into Zustand so an idle chat can be reconstructed
  * - pending elicitation is store-backed and survives remounts
- * - summaries are generated from finalized message history, not transient UI
- *   component state
+ * - titles arrive in-band from the chat stream and are store-backed
  */
 export function useAgentChat({
   sessionId,
   chatApiUrl,
   modelSelection,
+  initialMessages,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
   modelSelection: AgentModelSelection;
+  initialMessages?: AgentUIMessage[];
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary();
+  const relayEnvironment = useRelayEnvironment();
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -98,7 +98,7 @@ export function useAgentChat({
   // The Chat is cached per-session in the runtime registry, so its transport
   // and onFinish closures are captured once and reused across model changes.
   // Read through the ref so the latest model selection takes effect on the
-  // next send/summary without rebuilding the Chat.
+  // next send without rebuilding the Chat.
   const modelSelectionRef = useRef(modelSelection);
   modelSelectionRef.current = modelSelection;
 
@@ -114,8 +114,10 @@ export function useAgentChat({
           createChat: () => {
             // Rehydrate from store-backed messages so evicted idle runtimes can
             // be recreated without losing visible conversation history.
-            const initialMessages =
-              store.getState().sessionMap[sessionId]?.messages ?? [];
+            const runtimeMessages =
+              store.getState().sessionMap[sessionId]?.messages ??
+              initialMessages ??
+              [];
             const turnTraceContext = createTurnTraceContextManager();
             const toolTimings = createClientToolTimingRecorder();
             const turnCompletionGate = createTurnCompletionGate({
@@ -138,16 +140,12 @@ export function useAgentChat({
                 // runtimes can be reclaimed and later reconstructed from state.
                 if (finalMessages) {
                   store.getState().setSessionMessages(sessionId, finalMessages);
-                  generateSummary({
-                    sessionId,
-                    modelSelection: modelSelectionRef.current,
-                  });
                 }
               },
             });
             const chat = new Chat<AgentUIMessage>({
               id: sessionId,
-              messages: initialMessages,
+              messages: runtimeMessages,
               transport: new DefaultChatTransport({
                 api: chatApiUrl,
                 fetch: authFetch,
@@ -214,6 +212,18 @@ export function useAgentChat({
                   },
                   agentStore: store,
                 });
+              },
+              onData: (dataPart) => {
+                if (dataPart.type === "data-session-created") {
+                  store
+                    .getState()
+                    .setSessionPersisted(sessionId, dataPart.data.id);
+                  void refetchAgentSessions({ environment: relayEnvironment });
+                  return;
+                }
+                if (dataPart.type === "data-session-summary") {
+                  store.getState().updateSessionTitle(sessionId, dataPart.data);
+                }
               },
               sendAutomaticallyWhen: ({ messages }) =>
                 turnCompletionGate.handleSendAutomaticallyWhen({ messages }),

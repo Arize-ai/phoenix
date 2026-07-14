@@ -78,7 +78,7 @@ def build_server_agent(
         config=TraceConfig(),
     )
     capabilities: list[AbstractCapability[None]] = [
-        BashCapability(
+        BashCapability[None](
             schema=schema,
             build_graphql_context=build_graphql_context,
             instructions=resolved_prompts.bash_tool.render(),

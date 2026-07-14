@@ -3,7 +3,6 @@ import { isToolUIPart } from "ai";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
-import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
 import {
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
@@ -16,6 +15,9 @@ import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
+
+export type AgentModelSelection =
+  components["schemas"]["ChatSubmitMessage"]["model"];
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
