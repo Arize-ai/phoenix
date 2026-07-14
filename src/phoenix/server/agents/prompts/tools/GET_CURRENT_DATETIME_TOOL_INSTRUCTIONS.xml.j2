@@ -3,6 +3,7 @@
   <when_to_use>
     - Before resolving any relative date or time phrase ("today", "yesterday", "last hour", "since 9am") into concrete timestamps.
     - Before calling `set_time_range` with a `custom` window derived from relative language.
+    - Before writing a `set_spans_filter` condition that compares `start_time` or `end_time` against a timestamp derived from relative language.
     - Whenever an answer depends on knowing what time it is now.
   </when_to_use>
   <guidelines>
