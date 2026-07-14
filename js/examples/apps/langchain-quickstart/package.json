@@ -16,14 +16,14 @@
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
-    "@langchain/core": "1.1.48",
-    "@langchain/openai": "1.4.7",
+    "@langchain/core": "1.2.2",
+    "@langchain/openai": "1.5.5",
     "dotenv": "^17.4.2",
-    "langchain": "1.4.4",
+    "langchain": "1.5.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.5",
+    "@types/node": "^26.1.1",
     "tsx": "^4.23.0",
     "typescript": "^7.0.2"
   }

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<41ca384cb1766fd98c1ab1554fd1ceee>>
+ * @generated SignedSource<<9c640185669b14a3896c27adbba49352>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -65,7 +64,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "SecretConnection",
         "kind": "LinkedField",
         "name": "secrets",
@@ -87,7 +86,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
+                  (v1/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -110,7 +109,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v1/*: any*/),
+                      (v1/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -136,7 +135,7 @@ return {
                     "name": "value",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -168,7 +167,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v2/*: any*/)
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -212,7 +211,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "SettingsSecretsPage_secrets",

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<28e8f97c9a6f2ea707988b7a9f029c37>>
+ * @generated SignedSource<<2f60f107905d8a54998709403258b1d7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -66,7 +65,7 @@ v2 = {
   "variableName": "timeRange"
 },
 v3 = [
-  (v2/*: any*/)
+  (v2/*:: as any*/)
 ],
 v4 = {
   "alias": null,
@@ -92,7 +91,7 @@ v6 = {
       "name": "projectId",
       "variableName": "projectId"
     },
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "concreteType": "SpanCostSummary",
   "kind": "LinkedField",
@@ -106,7 +105,7 @@ v6 = {
       "kind": "LinkedField",
       "name": "prompt",
       "plural": false,
-      "selections": (v5/*: any*/),
+      "selections": (v5/*:: as any*/),
       "storageKey": null
     },
     {
@@ -116,7 +115,7 @@ v6 = {
       "kind": "LinkedField",
       "name": "completion",
       "plural": false,
-      "selections": (v5/*: any*/),
+      "selections": (v5/*:: as any*/),
       "storageKey": null
     },
     {
@@ -126,7 +125,7 @@ v6 = {
       "kind": "LinkedField",
       "name": "total",
       "plural": false,
-      "selections": (v5/*: any*/),
+      "selections": (v5/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -141,14 +140,14 @@ v7 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "TopModelsByTokenQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -159,14 +158,14 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "topModelsByTokenCount",
                 "plural": true,
                 "selections": [
-                  (v4/*: any*/),
-                  (v6/*: any*/)
+                  (v4/*:: as any*/),
+                  (v6/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -183,13 +182,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TopModelsByTokenQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -207,15 +206,15 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "GenerativeModel",
                 "kind": "LinkedField",
                 "name": "topModelsByTokenCount",
                 "plural": true,
                 "selections": [
-                  (v4/*: any*/),
-                  (v6/*: any*/),
-                  (v7/*: any*/)
+                  (v4/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v7/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -223,7 +222,7 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v7/*: any*/)
+          (v7/*:: as any*/)
         ],
         "storageKey": null
       }

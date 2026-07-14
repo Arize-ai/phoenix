@@ -107,7 +107,9 @@ def _format_graphql_errors(messages: list[str]) -> str:
     return f"GraphQL errors:\n{formatted}\n"
 
 
-_HELP_TEXT_TEMPLATE = Template(
+# Annotated because jinja2's `Template.__new__` returns `t.Any`, which would
+# make the instance (and `.render()`) untyped under mypy.
+_HELP_TEXT_TEMPLATE: Template = Template(
     """\
 Usage: phoenix-gql [query] [options] [query-or-file]
 

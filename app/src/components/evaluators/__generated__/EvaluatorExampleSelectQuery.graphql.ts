@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<7245cc4ed401d7237eeceacd2f950031>>
+ * @generated SignedSource<<3cd874201377414e4f3b80a04d605337>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -94,7 +93,7 @@ v3 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -142,7 +141,7 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "EvaluatorExampleSelectQuery",
@@ -154,13 +153,13 @@ return {
         "selections": [
           {
             "alias": "dataset",
-            "args": (v1/*: any*/),
+            "args": (v1/*:: as any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
             "plural": false,
             "selections": [
-              (v3/*: any*/)
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -172,7 +171,7 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "EvaluatorExampleSelectQuery",
     "selections": [
@@ -183,7 +182,7 @@ return {
         "selections": [
           {
             "alias": "dataset",
-            "args": (v1/*: any*/),
+            "args": (v1/*:: as any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
@@ -196,8 +195,8 @@ return {
                 "name": "__typename",
                 "storageKey": null
               },
-              (v3/*: any*/),
-              (v2/*: any*/)
+              (v3/*:: as any*/),
+              (v2/*:: as any*/)
             ],
             "storageKey": null
           }

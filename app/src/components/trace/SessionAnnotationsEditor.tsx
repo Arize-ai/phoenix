@@ -14,6 +14,7 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
+import invariant from "tiny-invariant";
 
 import {
   Alert,
@@ -42,7 +43,10 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import type { SessionAnnotationsEditor_sessionAnnotations$key } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditor_sessionAnnotations.graphql";
 import type { SessionAnnotationsEditorAddAnnotationConfigToProjectMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorAddAnnotationConfigToProjectMutation.graphql";
-import type { SessionAnnotationsEditorCreateAnnotationConfigMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorCreateAnnotationConfigMutation.graphql";
+import type {
+  AnnotationConfigInput,
+  SessionAnnotationsEditorCreateAnnotationConfigMutation,
+} from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorCreateAnnotationConfigMutation.graphql";
 import type { SessionAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorCreateAnnotationMutation.graphql";
 import type { SessionAnnotationsEditorDeleteAnnotationMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorDeleteAnnotationMutation.graphql";
 import type { SessionAnnotationsEditorEditAnnotationMutation } from "@phoenix/components/trace/__generated__/SessionAnnotationsEditorEditAnnotationMutation.graphql";
@@ -173,11 +177,54 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
-    const { id: _, annotationType, ...config } = _config;
-    const key = annotationType.toLowerCase();
+    let annotationConfigInput: AnnotationConfigInput;
+    switch (_config.annotationType) {
+      case "CATEGORICAL": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          values,
+          ...categorical
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a categorical annotation config"
+        );
+        invariant(
+          values,
+          "values are required for a categorical annotation config"
+        );
+        annotationConfigInput = {
+          categorical: { ...categorical, optimizationDirection, values },
+        };
+        break;
+      }
+      case "CONTINUOUS": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          ...continuous
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a continuous annotation config"
+        );
+        annotationConfigInput = {
+          continuous: { ...continuous, optimizationDirection },
+        };
+        break;
+      }
+      case "FREEFORM": {
+        const { id: _, annotationType: _type, ...freeform } = _config;
+        annotationConfigInput = { freeform };
+        break;
+      }
+    }
     createAnnotationConfig({
       variables: {
-        input: { annotationConfig: { [key]: config } },
+        input: { annotationConfig: annotationConfigInput },
       },
       onCompleted: (response) => {
         const annotationConfig =

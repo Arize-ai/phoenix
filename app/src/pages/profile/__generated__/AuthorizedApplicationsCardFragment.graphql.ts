@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<984f9f6e9238ab5078edb9c670d2f18e>>
+ * @generated SignedSource<<d6fe40032cff07222de650c4e42c3786>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -57,7 +56,7 @@ return {
   },
   "name": "AuthorizedApplicationsCardFragment",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -66,7 +65,7 @@ return {
       "name": "oauth2Grants",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,

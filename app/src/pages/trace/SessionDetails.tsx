@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
 import {
   Suspense,
+  useCallback,
   useEffect,
-  useEffectEvent,
   useRef,
   useState,
   useTransition,
@@ -274,27 +274,30 @@ export function SessionDetails(props: SessionDetailsProps) {
     Partial<Record<SessionView, string>>
   >({});
 
-  const loadQueryForSessionView = useEffectEvent((view: SessionView) => {
-    // The annotations view fetches its own data when it mounts.
-    if (view === "annotations") {
-      return;
-    }
-    if (loadedSessionIdsByViewRef.current[view] === sessionId) {
-      return;
-    }
-    loadedSessionIdsByViewRef.current[view] = sessionId;
-    if (view === "traces") {
-      loadTracesViewQuery({
+  const loadQueryForSessionView = useCallback(
+    (view: SessionView) => {
+      // The annotations view fetches its own data when it mounts.
+      if (view === "annotations") {
+        return;
+      }
+      if (loadedSessionIdsByViewRef.current[view] === sessionId) {
+        return;
+      }
+      loadedSessionIdsByViewRef.current[view] = sessionId;
+      if (view === "traces") {
+        loadTracesViewQuery({
+          id: sessionId,
+          first: SESSION_DETAILS_PAGE_SIZE,
+        });
+        return;
+      }
+      loadTraceListQuery({
         id: sessionId,
         first: SESSION_DETAILS_PAGE_SIZE,
       });
-      return;
-    }
-    loadTraceListQuery({
-      id: sessionId,
-      first: SESSION_DETAILS_PAGE_SIZE,
-    });
-  });
+    },
+    [sessionId, loadTracesViewQuery, loadTraceListQuery]
+  );
 
   useEffect(() => {
     if (isSessionView(sessionViewParam)) {
@@ -316,7 +319,7 @@ export function SessionDetails(props: SessionDetailsProps) {
   // next one fetches, avoiding a blank state during the transition.
   useEffect(() => {
     loadQueryForSessionView(sessionView);
-  }, [sessionId, sessionView]);
+  }, [sessionView, loadQueryForSessionView]);
 
   const handleSessionViewChange = (view: SessionView) => {
     if (view === sessionView) {

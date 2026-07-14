@@ -14,6 +14,7 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
+import invariant from "tiny-invariant";
 
 import {
   Alert,
@@ -56,7 +57,10 @@ import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
-import type { SpanAnnotationsEditorCreateAnnotationConfigMutation } from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
+import type {
+  AnnotationConfigInput,
+  SpanAnnotationsEditorCreateAnnotationConfigMutation,
+} from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
 import type { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
 import type { AnnotationFormData } from "./SpanAnnotationInput";
 import { SpanAnnotationInput } from "./SpanAnnotationInput";
@@ -198,11 +202,54 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
-    const { id: _, annotationType, ...config } = _config;
-    const key = annotationType.toLowerCase();
+    let annotationConfigInput: AnnotationConfigInput;
+    switch (_config.annotationType) {
+      case "CATEGORICAL": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          values,
+          ...categorical
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a categorical annotation config"
+        );
+        invariant(
+          values,
+          "values are required for a categorical annotation config"
+        );
+        annotationConfigInput = {
+          categorical: { ...categorical, optimizationDirection, values },
+        };
+        break;
+      }
+      case "CONTINUOUS": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          ...continuous
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a continuous annotation config"
+        );
+        annotationConfigInput = {
+          continuous: { ...continuous, optimizationDirection },
+        };
+        break;
+      }
+      case "FREEFORM": {
+        const { id: _, annotationType: _type, ...freeform } = _config;
+        annotationConfigInput = { freeform };
+        break;
+      }
+    }
     createAnnotationConfig({
       variables: {
-        input: { annotationConfig: { [key]: config } },
+        input: { annotationConfig: annotationConfigInput },
       },
       onCompleted: (response) => {
         const annotationConfig =

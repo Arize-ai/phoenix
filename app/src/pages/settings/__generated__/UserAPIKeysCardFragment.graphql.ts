@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0ca5a2c36481fb87d292730efb471a4d>>
+ * @generated SignedSource<<04030916fc633273058bffffa403fbba>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -54,7 +53,7 @@ return {
   },
   "name": "UserAPIKeysCardFragment",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -63,7 +62,7 @@ return {
       "name": "apiKeys",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<78086d36e92e9f4bb3715c7f80bb8f5d>>
+ * @generated SignedSource<<cd92c58b0bc1ffea80150012d421e84e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -91,8 +90,8 @@ v8 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -100,7 +99,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectSessionAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "deleteProjectSessionAnnotation",
@@ -116,7 +115,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -160,15 +159,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionAnnotationsEditorDeleteAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectSessionAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "deleteProjectSessionAnnotation",
@@ -184,14 +183,14 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v4/*: any*/),
-                  (v5/*: any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -203,8 +202,8 @@ return {
                         "name": "sessionAnnotations",
                         "plural": true,
                         "selections": [
-                          (v5/*: any*/),
-                          (v6/*: any*/),
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -212,8 +211,8 @@ return {
                             "name": "annotatorKind",
                             "storageKey": null
                           },
-                          (v7/*: any*/),
-                          (v8/*: any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -236,7 +235,7 @@ return {
                             "name": "user",
                             "plural": false,
                             "selections": [
-                              (v5/*: any*/),
+                              (v5/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -293,7 +292,7 @@ return {
                         "name": "project",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -318,7 +317,7 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v4/*: any*/),
+                                      (v4/*:: as any*/),
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
@@ -336,8 +335,8 @@ return {
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v5/*: any*/),
-                                          (v6/*: any*/),
+                                          (v5/*:: as any*/),
+                                          (v6/*:: as any*/),
                                           {
                                             "alias": null,
                                             "args": null,
@@ -353,8 +352,8 @@ return {
                                             "name": "values",
                                             "plural": true,
                                             "selections": [
-                                              (v8/*: any*/),
-                                              (v7/*: any*/)
+                                              (v8/*:: as any*/),
+                                              (v7/*:: as any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -365,7 +364,7 @@ return {
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v5/*: any*/)
+                                          (v5/*:: as any*/)
                                         ],
                                         "type": "Node",
                                         "abstractKey": "__isNode"
@@ -426,7 +425,7 @@ return {
                                 "name": "fraction",
                                 "storageKey": null
                               },
-                              (v8/*: any*/)
+                              (v8/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -437,7 +436,7 @@ return {
                             "name": "meanScore",
                             "storageKey": null
                           },
-                          (v6/*: any*/)
+                          (v6/*:: as any*/)
                         ],
                         "storageKey": null
                       }

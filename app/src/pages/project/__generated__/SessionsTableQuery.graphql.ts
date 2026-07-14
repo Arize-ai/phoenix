@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2ef89fa12f6eeca17d1dc28ad91f0ef7>>
+ * @generated SignedSource<<2c87d13a6358fc65ad61928ae07b2085>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -138,11 +137,11 @@ v15 = {
   "storageKey": null
 },
 v16 = [
-  (v8/*: any*/),
-  (v9/*: any*/),
-  (v10/*: any*/),
-  (v11/*: any*/),
-  (v12/*: any*/),
+  (v8/*:: as any*/),
+  (v9/*:: as any*/),
+  (v10/*:: as any*/),
+  (v11/*:: as any*/),
+  (v12/*:: as any*/),
   {
     "kind": "Variable",
     "name": "timeRange",
@@ -175,13 +174,13 @@ v19 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/),
-      (v6/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/),
+      (v4/*:: as any*/),
+      (v5/*:: as any*/),
+      (v6/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -189,7 +188,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v7/*: any*/),
+        "args": (v7/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -197,11 +196,11 @@ return {
         "selections": [
           {
             "args": [
-              (v8/*: any*/),
-              (v9/*: any*/),
-              (v10/*: any*/),
-              (v11/*: any*/),
-              (v12/*: any*/)
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
+              (v11/*:: as any*/),
+              (v12/*:: as any*/)
             ],
             "kind": "FragmentSpread",
             "name": "SessionsTable_sessions"
@@ -216,31 +215,31 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/),
-      (v6/*: any*/),
-      (v3/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v4/*:: as any*/),
+      (v5/*:: as any*/),
+      (v6/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v7/*: any*/),
+        "args": (v7/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v13/*: any*/),
-          (v14/*: any*/),
+          (v13/*:: as any*/),
+          (v14/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v15/*: any*/),
+              (v15/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -250,7 +249,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v16/*: any*/),
+                "args": (v16/*:: as any*/),
                 "concreteType": "ProjectSessionConnection",
                 "kind": "LinkedField",
                 "name": "sessions",
@@ -272,7 +271,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v14/*: any*/),
+                          (v14/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -308,7 +307,7 @@ return {
                             "kind": "LinkedField",
                             "name": "firstInput",
                             "plural": false,
-                            "selections": (v17/*: any*/),
+                            "selections": (v17/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -318,7 +317,7 @@ return {
                             "kind": "LinkedField",
                             "name": "lastOutput",
                             "plural": false,
-                            "selections": (v17/*: any*/),
+                            "selections": (v17/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -402,10 +401,10 @@ return {
                             "name": "sessionAnnotations",
                             "plural": true,
                             "selections": [
-                              (v14/*: any*/),
-                              (v15/*: any*/),
-                              (v18/*: any*/),
-                              (v19/*: any*/),
+                              (v14/*:: as any*/),
+                              (v15/*:: as any*/),
+                              (v18/*:: as any*/),
+                              (v19/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -435,7 +434,7 @@ return {
                                     "name": "profilePictureUrl",
                                     "storageKey": null
                                   },
-                                  (v14/*: any*/)
+                                  (v14/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -465,7 +464,7 @@ return {
                                     "name": "fraction",
                                     "storageKey": null
                                   },
-                                  (v18/*: any*/)
+                                  (v18/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -476,7 +475,7 @@ return {
                                 "name": "meanScore",
                                 "storageKey": null
                               },
-                              (v15/*: any*/),
+                              (v15/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -509,7 +508,7 @@ return {
                             "name": "project",
                             "plural": false,
                             "selections": [
-                              (v14/*: any*/),
+                              (v14/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -534,7 +533,7 @@ return {
                                         "name": "node",
                                         "plural": false,
                                         "selections": [
-                                          (v13/*: any*/),
+                                          (v13/*:: as any*/),
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
@@ -552,8 +551,8 @@ return {
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v14/*: any*/),
-                                              (v15/*: any*/),
+                                              (v14/*:: as any*/),
+                                              (v15/*:: as any*/),
                                               {
                                                 "alias": null,
                                                 "args": null,
@@ -569,8 +568,8 @@ return {
                                                 "name": "values",
                                                 "plural": true,
                                                 "selections": [
-                                                  (v18/*: any*/),
-                                                  (v19/*: any*/)
+                                                  (v18/*:: as any*/),
+                                                  (v19/*:: as any*/)
                                                 ],
                                                 "storageKey": null
                                               }
@@ -581,7 +580,7 @@ return {
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v14/*: any*/)
+                                              (v14/*:: as any*/)
                                             ],
                                             "type": "Node",
                                             "abstractKey": "__isNode"
@@ -616,8 +615,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v13/*: any*/),
-                          (v14/*: any*/)
+                          (v13/*:: as any*/),
+                          (v14/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -654,7 +653,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v16/*: any*/),
+                "args": (v16/*:: as any*/),
                 "filters": [
                   "sort",
                   "filterIoSubstring",

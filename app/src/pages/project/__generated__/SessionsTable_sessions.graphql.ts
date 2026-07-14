@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d36c52a28e101c61173437c27273d90a>>
+ * @generated SignedSource<<bc48b202531ba63176881034c936edd0>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -173,7 +172,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -183,7 +182,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -197,7 +196,7 @@ return {
   },
   "name": "SessionsTable_sessions",
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -248,7 +247,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -284,7 +283,7 @@ return {
                   "kind": "LinkedField",
                   "name": "firstInput",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -294,7 +293,7 @@ return {
                   "kind": "LinkedField",
                   "name": "lastOutput",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -378,10 +377,10 @@ return {
                   "name": "sessionAnnotations",
                   "plural": true,
                   "selections": [
-                    (v2/*: any*/),
-                    (v1/*: any*/),
-                    (v4/*: any*/),
-                    (v5/*: any*/),
+                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
+                    (v4/*:: as any*/),
+                    (v5/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -440,7 +439,7 @@ return {
                           "name": "fraction",
                           "storageKey": null
                         },
-                        (v4/*: any*/)
+                        (v4/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -451,7 +450,7 @@ return {
                       "name": "meanScore",
                       "storageKey": null
                     },
-                    (v1/*: any*/)
+                    (v1/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -463,7 +462,7 @@ return {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -505,8 +504,8 @@ return {
                                 {
                                   "kind": "InlineFragment",
                                   "selections": [
-                                    (v2/*: any*/),
-                                    (v1/*: any*/),
+                                    (v2/*:: as any*/),
+                                    (v1/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -522,8 +521,8 @@ return {
                                       "name": "values",
                                       "plural": true,
                                       "selections": [
-                                        (v4/*: any*/),
-                                        (v5/*: any*/)
+                                        (v4/*:: as any*/),
+                                        (v5/*:: as any*/)
                                       ],
                                       "storageKey": null
                                     }
@@ -607,7 +606,7 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2785c6443bb161624c5566704de898d2>>
+ * @generated SignedSource<<26e504910016a696a3a6329740f6d69c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -39,7 +38,7 @@ return {
   "metadata": null,
   "name": "PromptVersionTagsConfigCard_data",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -48,7 +47,7 @@ return {
       "name": "versionTags",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,

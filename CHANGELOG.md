@@ -1,5 +1,25 @@
 # Changelog
 
+## [17.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.29.0...arize-phoenix-v17.30.0) (2026-07-14)
+
+
+### Features
+
+* **agents:** force tracing with debug env ([#14358](https://github.com/Arize-ai/phoenix/issues/14358)) ([1dbf5ff](https://github.com/Arize-ai/phoenix/commit/1dbf5ff6ae25e1bc6bc7157d868ebf9d8ed9dfe2))
+* **app:** support batch annotation config management ([#14198](https://github.com/Arize-ai/phoenix/issues/14198)) ([12be3cc](https://github.com/Arize-ai/phoenix/commit/12be3cc94cb84cc0c3ac98a150794bf806d046e6))
+* **playground:** show output error count ([#14277](https://github.com/Arize-ai/phoenix/issues/14277)) ([8a75d67](https://github.com/Arize-ai/phoenix/commit/8a75d673cf604c55f3eef9f01ddede2dbf41689d))
+
+
+### Bug Fixes
+
+* add nullslast to projects page end time sort ([#14092](https://github.com/Arize-ai/phoenix/issues/14092)) ([36d0e6e](https://github.com/Arize-ai/phoenix/commit/36d0e6ef034715cbba36562a982be70e70f24be0))
+* **agents:** keep browser clock out of the system prompt to preserve prompt caching ([#14362](https://github.com/Arize-ai/phoenix/issues/14362)) ([c5dbb20](https://github.com/Arize-ai/phoenix/commit/c5dbb2034961ab99eefb67eaf8bcc9cf77a6a97f))
+* **agents:** use Responses API for PXI OpenAI models ([#14365](https://github.com/Arize-ai/phoenix/issues/14365)) ([61fc1e4](https://github.com/Arize-ai/phoenix/commit/61fc1e46b85ed485b9a1327a962d6d403f60b46f))
+* **pxi:** export agent telemetry from pytest eval runs ([#14336](https://github.com/Arize-ai/phoenix/issues/14336)) ([e4b94b4](https://github.com/Arize-ai/phoenix/commit/e4b94b40443c95e90a6d104b45a10d9c709a8174))
+* resolve PostgreSQL schema for database usage stats ([#14172](https://github.com/Arize-ai/phoenix/issues/14172)) ([c26fdfe](https://github.com/Arize-ai/phoenix/commit/c26fdfeb318e9ef110c689c364af64c5b5bc8484))
+* theme provider in playground output header test ([#14351](https://github.com/Arize-ai/phoenix/issues/14351)) ([33564d5](https://github.com/Arize-ai/phoenix/commit/33564d58b4267f648d1e7a6567351f79a965dd86))
+* **ui:** allow empty prompt descriptions ([#14284](https://github.com/Arize-ai/phoenix/issues/14284)) ([c03ea6c](https://github.com/Arize-ai/phoenix/commit/c03ea6caed9b58ad73de081b2ccdbef9ce6c5534))
+
 ## [17.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.28.0...arize-phoenix-v17.29.0) (2026-07-13)
 
 

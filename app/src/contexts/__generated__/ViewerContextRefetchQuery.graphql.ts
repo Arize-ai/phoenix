@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<41003c9cc1580cbde725d06fc61abc8d>>
+ * @generated SignedSource<<602e9a124d32e62a60bf72d69fbb2546>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -78,7 +77,7 @@ return {
         "name": "viewer",
         "plural": false,
         "selections": [
-          (v0/*: any*/),
+          (v0/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -115,8 +114,8 @@ return {
             "name": "role",
             "plural": false,
             "selections": [
-              (v1/*: any*/),
-              (v0/*: any*/)
+              (v1/*:: as any*/),
+              (v0/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -135,8 +134,8 @@ return {
             "name": "apiKeys",
             "plural": true,
             "selections": [
-              (v0/*: any*/),
-              (v1/*: any*/),
+              (v0/*:: as any*/),
+              (v1/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -144,8 +143,8 @@ return {
                 "name": "description",
                 "storageKey": null
               },
-              (v2/*: any*/),
-              (v3/*: any*/)
+              (v2/*:: as any*/),
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -157,7 +156,7 @@ return {
             "name": "oauth2Grants",
             "plural": true,
             "selections": [
-              (v0/*: any*/),
+              (v0/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -186,8 +185,8 @@ return {
                 "name": "scopes",
                 "storageKey": null
               },
-              (v2/*: any*/),
-              (v3/*: any*/),
+              (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,

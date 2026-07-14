@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<8bcd933b1d5aee1c1fa176c1925fc075>>
+ * @generated SignedSource<<4a788b8667ae122a87fcda211ecbd7a5>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -62,7 +61,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -72,7 +71,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": UsersTableQuery_graphql

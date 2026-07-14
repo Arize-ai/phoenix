@@ -165,6 +165,10 @@ def _decode_value(any_value: AnyValue) -> Any:
         return dict(_decode_key_values(any_value.kvlist_value.values))
     if which == "bytes_value":
         return any_value.bytes_value
+    if which == "string_value_strindex":
+        # Reference into ProfilesDictionary.string_table (profiles signal);
+        # not resolvable in isolation and never present on span attributes.
+        return None
     if which is None:
         return None
     assert_never(which)

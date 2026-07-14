@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<25e74b15638c7ef62b8885ab54c65d15>>
+ * @generated SignedSource<<ffdcce02bc12529c811164332b9a3bce>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -118,29 +117,29 @@ v10 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "UserDetailsDrawerQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -149,7 +148,7 @@ return {
                 "name": "role",
                 "plural": false,
                 "selections": [
-                  (v9/*: any*/)
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -176,28 +175,28 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "UserDetailsDrawerQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/),
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -206,8 +205,8 @@ return {
                 "name": "role",
                 "plural": false,
                 "selections": [
-                  (v9/*: any*/),
-                  (v3/*: any*/)
+                  (v9/*:: as any*/),
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -219,8 +218,8 @@ return {
                 "name": "apiKeys",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/),
-                  (v9/*: any*/),
+                  (v3/*:: as any*/),
+                  (v9/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -228,8 +227,8 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v7/*: any*/),
-                  (v10/*: any*/)
+                  (v7/*:: as any*/),
+                  (v10/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -241,7 +240,7 @@ return {
                 "name": "oauth2Grants",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -270,8 +269,8 @@ return {
                     "name": "scopes",
                     "storageKey": null
                   },
-                  (v7/*: any*/),
-                  (v10/*: any*/),
+                  (v7/*:: as any*/),
+                  (v10/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,

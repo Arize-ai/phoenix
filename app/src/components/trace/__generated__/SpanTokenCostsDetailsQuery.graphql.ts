@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e62acdec0064cfee3df753016706fa57>>
+ * @generated SignedSource<<06620a3925cc039dbb9252f95787ed7f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -75,7 +74,7 @@ v3 = {
   "storageKey": null
 },
 v4 = [
-  (v3/*: any*/)
+  (v3/*:: as any*/)
 ],
 v5 = {
   "kind": "InlineFragment",
@@ -95,7 +94,7 @@ v5 = {
           "kind": "LinkedField",
           "name": "total",
           "plural": false,
-          "selections": (v4/*: any*/),
+          "selections": (v4/*:: as any*/),
           "storageKey": null
         },
         {
@@ -105,7 +104,7 @@ v5 = {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v4/*: any*/),
+          "selections": (v4/*:: as any*/),
           "storageKey": null
         },
         {
@@ -115,7 +114,7 @@ v5 = {
           "kind": "LinkedField",
           "name": "completion",
           "plural": false,
-          "selections": (v4/*: any*/),
+          "selections": (v4/*:: as any*/),
           "storageKey": null
         }
       ],
@@ -151,7 +150,7 @@ v5 = {
           "name": "value",
           "plural": false,
           "selections": [
-            (v3/*: any*/),
+            (v3/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -171,21 +170,21 @@ v5 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v5/*: any*/)
+          (v2/*:: as any*/),
+          (v5/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -195,20 +194,20 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SpanTokenCostsDetailsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v5/*: any*/),
+          (v2/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "alias": null,
             "args": null,
