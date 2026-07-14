@@ -103,7 +103,7 @@ _dcr_rate_limiter = fastapi_ip_rate_limiter(
 _dcr_rate_limit_dependencies = [] if get_env_disable_rate_limit() else [Depends(_dcr_rate_limiter)]
 
 
-async def _authorization_server_enabled(request: Request) -> None:
+async def authorization_server_enabled(request: Request) -> None:
     """Router-level guard behind PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER.
 
     Responds 404 rather than skipping router registration: an unregistered path
@@ -121,12 +121,12 @@ async def _authorization_server_enabled(request: Request) -> None:
 
 router = APIRouter(
     include_in_schema=False,
-    dependencies=[Depends(_authorization_server_enabled)],
+    dependencies=[Depends(authorization_server_enabled)],
 )
 oauth2_router = APIRouter(
     prefix="/oauth2",
     include_in_schema=False,
-    dependencies=[Depends(_authorization_server_enabled)],
+    dependencies=[Depends(authorization_server_enabled)],
 )
 
 

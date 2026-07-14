@@ -74,6 +74,7 @@ from phoenix.config import (
     get_env_grpc_interceptor_paths,
     get_env_grpc_port,
     get_env_host,
+    get_env_host_root_path,
     get_env_max_spans_queue_size,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
@@ -98,7 +99,12 @@ from phoenix.server.api.routers import (
     oauth2_as_well_known_router,
     oauth2_router,
 )
+from phoenix.server.api.routers.auth_md import protected_resource_metadata
 from phoenix.server.api.routers.auth_md import router as auth_md_router
+from phoenix.server.api.routers.oauth2_authorization_server import (
+    authorization_server_enabled,
+    authorization_server_metadata,
+)
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
@@ -1053,6 +1059,26 @@ def create_app(
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_as_router)
         app.include_router(oauth2_router)
+    # RFC 8414 §3 / RFC 9728 §3.1 path-inserted well-known aliases. Under a root
+    # path the issuer carries a path component, and spec-following discovery puts
+    # the well-known segment between host and path — a URL at the *host root*,
+    # outside the root path. Starlette matches such routes as-is (root_path is
+    # only stripped when present), so registering them here makes discovery work
+    # for any reverse proxy that forwards /.well-known/* to Phoenix unmodified.
+    if host_root_path := get_env_host_root_path():
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}",
+            protected_resource_metadata,
+            include_in_schema=False,
+        )
+        if authentication_enabled:
+            for well_known in ("oauth-authorization-server", "openid-configuration"):
+                app.add_api_route(
+                    f"/.well-known/{well_known}{host_root_path}",
+                    authorization_server_metadata,
+                    include_in_schema=False,
+                    dependencies=[Depends(authorization_server_enabled)],
+                )
 
     def _openapi() -> dict[str, Any]:
         """Generate the OpenAPI schema served to Swagger UI.
