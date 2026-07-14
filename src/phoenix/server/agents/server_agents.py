@@ -7,7 +7,7 @@ from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent
 from pydantic_ai.agent.abstract import AbstractAgent
-from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
+from pydantic_ai.capabilities import AbstractCapability, CombinedCapability, ToolSearch
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
@@ -153,6 +153,6 @@ def build_server_agent(
         name="ServerAgent",
         deps_type=type(None),
         instructions=resolved_prompts.base.render(),
-        capabilities=[traced_capability],
+        capabilities=[ToolSearch(), traced_capability],
     )
     return OpenInferenceAgentWrapper(agent, tracer=tracer)
