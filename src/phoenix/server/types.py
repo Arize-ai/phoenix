@@ -170,11 +170,6 @@ class RefreshToken(Token): ...
 class ApiKey(Token): ...
 
 
-# Wire value for the read-only OAuth grant scope. Distinct from the deployment
-# read-only mode enforced by IsNotReadOnly.
-GRANT_SCOPE_READ_ONLY = "read_only"
-
-
 @dataclass(frozen=True)
 class UserTokenAttributes(TokenAttributes):
     user_role: UserRoleName

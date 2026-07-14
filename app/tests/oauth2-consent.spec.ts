@@ -10,7 +10,6 @@ function consentUrl(overrides: Record<string, string> = {}) {
     state: "test-state-1234567890",
     code_challenge: "test-code-challenge",
     code_challenge_method: "S256",
-    scope: "read_only",
     ...overrides,
   });
   return `/oauth2/consent?${params.toString()}`;
@@ -23,17 +22,16 @@ test.describe("OAuth2 consent", () => {
     await page.goto(consentUrl());
 
     await expect(
-      page.getByRole("heading", {
-        name: "Phoenix CLI wants access to your Phoenix workspace",
-      })
+      page.getByRole("heading", { name: "Connect Phoenix CLI" })
     ).toBeVisible();
-    await expect(page.getByText("project data")).toBeVisible();
-    await expect(page.getByText("acts with your permissions")).toBeVisible();
+    await expect(page.getByText("to your Phoenix workspace")).toBeVisible();
+    await expect(page.getByText("View your data")).toBeVisible();
+    await expect(page.getByText("with your permissions")).toBeVisible();
     await expect(
-      page.getByText("Only approve if you started this yourself")
+      page.getByText("Only approve if you started this request")
     ).toBeVisible();
-    await expect(page.getByText("px auth login")).toBeVisible();
     await expect(page.getByText("127.0.0.1:53211")).toBeVisible();
+    await expect(page.getByText("this machine")).toBeVisible();
   });
 
   test("shows private-use scheme redirects as local applications", async ({

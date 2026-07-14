@@ -46,12 +46,12 @@ async def test_user_credential_counts_batches_active_credentials(
                 models.OAuth2Grant(
                     user_id=users[0].id,
                     oauth2_client_id=client.id,
-                    scopes=["read_only"],
+                    scopes=[],
                 ),
                 models.OAuth2Grant(
                     user_id=users[0].id,
                     oauth2_client_id=client.id,
-                    scopes=["read_only"],
+                    scopes=[],
                     revoked_at=datetime.now(timezone.utc),
                 ),
             ]

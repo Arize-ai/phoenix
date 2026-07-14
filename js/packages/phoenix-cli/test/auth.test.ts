@@ -394,7 +394,7 @@ describe("Auth Commands", () => {
           accessToken: "access",
           refreshToken: "refresh",
           expiresAt: "2026-01-01T00:10:00.000Z",
-          scope: "read_only",
+          scope: "",
         }
       );
       expect(output).toContain("Logged in as oauth-user (oauth)");
@@ -616,7 +616,7 @@ describe("px auth login/logout", () => {
               accessToken: "access",
               refreshToken: "refresh",
               expiresAt: "2026-01-01T00:00:00.000Z",
-              scope: "read_only",
+              scope: "",
             },
           },
         },

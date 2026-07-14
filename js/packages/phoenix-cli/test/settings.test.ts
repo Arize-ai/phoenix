@@ -93,7 +93,7 @@ describe("loadSettings / saveSettings", () => {
             accessToken: "access",
             refreshToken: "refresh",
             expiresAt: "2026-01-01T00:00:00.000Z",
-            scope: "read_only",
+            scope: "",
           },
         },
       },
