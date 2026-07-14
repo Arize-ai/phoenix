@@ -1,14 +1,11 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useState } from "react";
 
 import {
   ChartPanel,
   EvaluationMetricsChart,
   type EvaluationMetricsInputPoint,
   type EvaluationMetricsSeries,
-  EvaluationMetricsViewToggle,
-  getDefaultEvaluationMetricsView,
   normalizeEvaluationMetrics,
 } from "@phoenix/components/chart";
 
@@ -77,29 +74,10 @@ function ExperimentEvaluationMetricsPanel({
   series: EvaluationMetricsSeries;
   baselineSequenceNumber?: number;
 }) {
-  const [view, setView] = useState(() =>
-    getDefaultEvaluationMetricsView(series)
-  );
-  // A refetch can change the visible evaluation shape while preserving this
-  // keyed panel, so fall back when its previous view is no longer available.
-  const activeView = series.views.includes(view)
-    ? view
-    : getDefaultEvaluationMetricsView(series);
-  const reference = series.referenceByView[activeView];
-
   return (
-    <ChartPanel
-      title={series.name}
-      subtitle="Evaluation results by experiment"
-      headerActions={
-        series.views.length > 1 ? (
-          <EvaluationMetricsViewToggle view={activeView} onChange={setView} />
-        ) : undefined
-      }
-    >
+    <ChartPanel title={series.name} subtitle="Evaluation results by experiment">
       <EvaluationMetricsChart
         series={series}
-        view={activeView}
         xAxisProps={{
           ...getExperimentXAxisProps(baselineSequenceNumber),
           dataKey: "x",
@@ -107,7 +85,7 @@ function ExperimentEvaluationMetricsPanel({
         yAxisProps={experimentMetricsYAxisProps}
         syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         additionalLegendItems={getExperimentBaselineLegendItems(
-          activeView === "scores" ? reference?.meanScore : null
+          series.hasLabels ? null : series.reference?.meanScore
         )}
         renderTooltipHeader={(point) => (
           <ExperimentMetricsTooltipHeader
@@ -117,12 +95,14 @@ function ExperimentEvaluationMetricsPanel({
           />
         )}
         renderReference={({ isMeanScoreHidden }) =>
-          activeView === "scores" ? (
-            <ExperimentBaselineValueLine
-              value={isMeanScoreHidden ? null : reference?.meanScore}
+          series.hasLabels ? (
+            <ExperimentBaselineDistributionSeparator
+              value={series.reference?.x}
             />
           ) : (
-            <ExperimentBaselineDistributionSeparator value={reference?.x} />
+            <ExperimentBaselineValueLine
+              value={isMeanScoreHidden ? null : series.reference?.meanScore}
+            />
           )
         }
       />

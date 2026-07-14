@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Loading, Text } from "@phoenix/components";
@@ -7,11 +7,9 @@ import {
   ChartPanel,
   EvaluationMetricsChart,
   type EvaluationMetricsSeries,
-  EvaluationMetricsViewToggle,
   TimeRangeChartBrush,
   compactTimeXAxisProps,
   compactYAxisProps,
-  getDefaultEvaluationMetricsView,
   normalizeEvaluationMetrics,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -103,28 +101,12 @@ function ProjectEvaluationMetricsPanel({
   fullTimeFormatter: (date: Date) => string;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
 }) {
-  const [view, setView] = useState(() =>
-    getDefaultEvaluationMetricsView(series)
-  );
-  const activeView = series.views.includes(view)
-    ? view
-    : getDefaultEvaluationMetricsView(series);
-
   return (
-    <ChartPanel
-      title={series.name}
-      subtitle="Evaluation results over time"
-      headerActions={
-        series.views.length > 1 ? (
-          <EvaluationMetricsViewToggle view={activeView} onChange={setView} />
-        ) : undefined
-      }
-    >
+    <ChartPanel title={series.name} subtitle="Evaluation results over time">
       <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
         {({ chartProps }) => (
           <EvaluationMetricsChart
             series={series}
-            view={activeView}
             xAxisProps={{
               ...compactTimeXAxisProps,
               dataKey: "x",

@@ -5507,7 +5507,7 @@ class TestAnnotationMetricsTimeSeries:
             }
             assert hour_one_summaries["empty"] == {
                 "name": "empty",
-                "count": 0,
+                "count": 1,
                 "scoreCount": 0,
                 "labelCount": 0,
                 "meanScore": None,
@@ -5530,13 +5530,13 @@ class TestAnnotationMetricsTimeSeries:
                 "labelFractions": [],
             }
             mixed_summary = hour_one_summaries["mixed"]
-            assert mixed_summary["count"] == 3
+            assert mixed_summary["count"] == 4
             assert mixed_summary["scoreCount"] == 3
             assert mixed_summary["labelCount"] == 2
             assert mixed_summary["meanScore"] == pytest.approx(0.4)
             assert mixed_summary["labelFractions"] == [
-                {"label": "fail", "fraction": pytest.approx(1 / 2)},
-                {"label": "pass", "fraction": pytest.approx(1 / 2)},
+                {"label": "fail", "fraction": pytest.approx(1 / 4)},
+                {"label": "pass", "fraction": pytest.approx(1 / 4)},
             ]
             assert metrics["data"][2]["annotationSummaries"] == []
 

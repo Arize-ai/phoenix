@@ -764,8 +764,9 @@ class TestExperimentAnnotationSummaries:
                                         "count": 4,
                                         "errorCount": 1,
                                         "labelFractions": [
-                                            {"label": "label-0", "fraction": 1 / 2},
-                                            {"label": "label-1", "fraction": 1 / 2},
+                                            {"label": "failed-label", "fraction": 1 / 4},
+                                            {"label": "label-0", "fraction": 1 / 4},
+                                            {"label": "label-1", "fraction": 1 / 4},
                                         ],
                                     },
                                 ],
@@ -1221,7 +1222,7 @@ async def experiments_with_runs_and_annotations(
                 for run, score in zip(first_experiment_runs[:2], [0, 1])
             ]
             + [
-                # A labeled error must not enter the label-fraction denominator.
+                # Labels remain part of the distribution even when evaluation failed.
                 models.ExperimentRunAnnotation(
                     experiment_run_id=first_experiment_runs[3].id,
                     name="annotation-name-2",

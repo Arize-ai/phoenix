@@ -1857,14 +1857,7 @@ class Project(Node):
                 bucket,
                 models.SpanAnnotation.name,
                 models.SpanAnnotation.label,
-                func.count()
-                .filter(
-                    or_(
-                        models.SpanAnnotation.score.is_not(None),
-                        models.SpanAnnotation.label.is_not(None),
-                    )
-                )
-                .label("record_count"),
+                func.count().label("record_count"),
                 func.count(models.SpanAnnotation.label).label("label_count"),
                 func.count(models.SpanAnnotation.score).label("score_count"),
                 func.sum(models.SpanAnnotation.score).label("score_sum"),
@@ -1908,14 +1901,7 @@ class Project(Node):
                 bucket,
                 models.TraceAnnotation.name,
                 models.TraceAnnotation.label,
-                func.count()
-                .filter(
-                    or_(
-                        models.TraceAnnotation.score.is_not(None),
-                        models.TraceAnnotation.label.is_not(None),
-                    )
-                )
-                .label("record_count"),
+                func.count().label("record_count"),
                 func.count(models.TraceAnnotation.label).label("label_count"),
                 func.count(models.TraceAnnotation.score).label("score_count"),
                 func.sum(models.TraceAnnotation.score).label("score_sum"),
@@ -1954,14 +1940,7 @@ class Project(Node):
                 bucket,
                 models.ProjectSessionAnnotation.name,
                 models.ProjectSessionAnnotation.label,
-                func.count()
-                .filter(
-                    or_(
-                        models.ProjectSessionAnnotation.score.is_not(None),
-                        models.ProjectSessionAnnotation.label.is_not(None),
-                    )
-                )
-                .label("record_count"),
+                func.count().label("record_count"),
                 func.count(models.ProjectSessionAnnotation.label).label("label_count"),
                 func.count(models.ProjectSessionAnnotation.score).label("score_count"),
                 func.sum(models.ProjectSessionAnnotation.score).label("score_sum"),
@@ -2315,9 +2294,8 @@ async def _annotation_metrics_time_series(
 ) -> AnnotationMetricsTimeSeries:
     """Build summaries from grouped label rows and fill in empty time bins.
 
-    Label fractions are conditional on having a label, matching the standalone
-    annotation-summary convention. Score-only results remain available through
-    the score fields without creating an unlabeled distribution category.
+    Label fractions use every annotation of the name as their denominator. The
+    omitted null-label fraction is derived as an unlabeled segment by the client.
     """
     if time_range.start is None:
         raise BadRequest("Start time is required")
@@ -2344,14 +2322,14 @@ async def _annotation_metrics_time_series(
 
     summaries_by_timestamp: dict[datetime, list[AnnotationSummary]] = {}
     for (timestamp, name), rows in rows_by_timestamp_and_name.items():
-        annotation_label_count = sum(row["label_count"] for row in rows)
+        annotation_count = sum(row["record_count"] for row in rows)
         score_count = sum(row["score_count"] for row in rows)
         score_sum = sum(row["score_sum"] or 0 for row in rows)
         mean_score = score_sum / score_count if score_count else None
         for summary_row in rows:
             summary_row["avg_label_fraction"] = (
-                summary_row["label_count"] / annotation_label_count
-                if summary_row["label"] is not None and annotation_label_count
+                summary_row["label_count"] / annotation_count
+                if summary_row["label"] is not None and annotation_count
                 else None
             )
             # AnnotationSummary consumes one row per label and expects the

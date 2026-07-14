@@ -22,7 +22,11 @@ import {
 
 import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
 import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
-import { getCategoryChartColor, useCategoryChartColors } from "./colors";
+import {
+  getCategoryChartColor,
+  useCategoryChartColors,
+  useSequentialChartColors,
+} from "./colors";
 import {
   compactChartMargin,
   compactLegendProps,
@@ -32,11 +36,12 @@ import {
 import type {
   EvaluationMetricsChartPoint,
   EvaluationMetricsSeries,
-  EvaluationMetricsView,
 } from "./evaluationMetricsUtils";
+import { UNLABELED_LABEL } from "./evaluationMetricsUtils";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
+const UNLABELED_DATA_KEY = "unlabeledFraction";
 export const formatEvaluationFraction = (fraction: number) =>
   percentFormatter(fraction * 100);
 
@@ -79,7 +84,6 @@ function EvaluationMetricsTooltip({
 
 export function EvaluationMetricsChart({
   series,
-  view,
   xAxisProps,
   yAxisProps,
   syncId,
@@ -89,7 +93,6 @@ export function EvaluationMetricsChart({
   renderReference,
 }: {
   series: EvaluationMetricsSeries;
-  view: EvaluationMetricsView;
   xAxisProps: XAxisProps;
   yAxisProps: YAxisProps;
   syncId: string;
@@ -99,31 +102,31 @@ export function EvaluationMetricsChart({
   renderReference?: (state: { isMeanScoreHidden: boolean }) => ReactNode;
 }) {
   const categoryColors = useCategoryChartColors();
+  const { gray500 } = useSequentialChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
-  const data = series.dataByView[view];
-  const reference = series.referenceByView[view];
-  const isScoreView = view === "scores";
-  const scoreValues = [...data, reference].flatMap((point) =>
+  const scoreValues = [...series.data, series.reference].flatMap((point) =>
     point?.meanScore == null ? [] : [point.meanScore]
   );
   const scoreValuesFitUnitDomain = scoreValues.every(
     (score) => score >= 0 && score <= 1
   );
-  const domain =
-    !isScoreView || scoreValuesFitUnitDomain
-      ? ([0, 1] as [number, number])
-      : undefined;
+  const domain = scoreValuesFitUnitDomain
+    ? ([0, 1] as [number, number])
+    : undefined;
   // Distribution baselines are comparison bars, so place them first and avoid
   // duplicating them when the baseline also falls inside the visible window.
   const chartData =
-    !isScoreView && reference != null
-      ? [reference, ...data.filter(({ x }) => x !== reference.x)]
-      : data;
+    series.hasLabels && series.reference != null
+      ? [
+          series.reference,
+          ...series.data.filter(({ x }) => x !== series.reference?.x),
+        ]
+      : series.data;
 
   return (
     <ChartEmptyStateOverlay
-      isEmpty={data.length === 0}
+      isEmpty={series.data.length === 0}
       message="No evaluation data"
       chartType="bar"
     >
@@ -142,9 +145,7 @@ export function EvaluationMetricsChart({
           <YAxis
             {...yAxisProps}
             domain={domain}
-            tickFormatter={
-              isScoreView ? floatFormatter : formatEvaluationFraction
-            }
+            tickFormatter={floatFormatter}
           />
           <Tooltip
             {...defaultTooltipProps}
@@ -162,7 +163,7 @@ export function EvaluationMetricsChart({
           {renderReference?.({
             isMeanScoreHidden: isDataKeyHidden(MEAN_SCORE_DATA_KEY),
           })}
-          {isScoreView && (
+          {series.hasScores && (
             <Bar
               dataKey={MEAN_SCORE_DATA_KEY}
               name="Mean score"
@@ -171,7 +172,7 @@ export function EvaluationMetricsChart({
               radius={[2, 2, 0, 0]}
             />
           )}
-          {!isScoreView &&
+          {series.hasLabels &&
             series.labels.map((label, index) => {
               const dataKey = `fractions.${index}`;
               return (
@@ -181,21 +182,37 @@ export function EvaluationMetricsChart({
                   name={label}
                   stackId="distribution"
                   fill={getCategoryChartColor({
-                    index,
+                    // Reserve the first color for mean score so labels keep
+                    // stable colors when a score appears elsewhere in a window.
+                    index: index + 1,
                     colors: categoryColors,
                   })}
                   hide={isDataKeyHidden(dataKey)}
-                  radius={index === series.labels.length - 1 ? [2, 2, 0, 0] : 0}
+                  radius={
+                    !series.hasUnlabeled && index === series.labels.length - 1
+                      ? [2, 2, 0, 0]
+                      : 0
+                  }
                 />
               );
             })}
+          {series.hasLabels && series.hasUnlabeled && (
+            <Bar
+              dataKey={UNLABELED_DATA_KEY}
+              name={UNLABELED_LABEL}
+              stackId="distribution"
+              fill={gray500}
+              hide={isDataKeyHidden(UNLABELED_DATA_KEY)}
+              radius={[2, 2, 0, 0]}
+            />
+          )}
           <InteractiveLegend
             {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
             additionalLegendItems={
-              isScoreView && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
+              !series.hasLabels && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
                 ? []
                 : additionalLegendItems
             }
