@@ -5728,6 +5728,78 @@ async def test_session_annotation_summary_returns_expected_results(
     assert summary["labelFractions"] == [{"label": "important", "fraction": 1.0}]
 
 
+async def test_session_annotation_summary_time_range_uses_interval_overlap(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    # long_running starts before the requested window but is active inside it;
+    # before_window ends before the window starts. The summary must use the
+    # same interval-overlap semantics as the sessions table and include only
+    # long_running's annotation.
+    base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name="session-annotation-overlap-test")
+        intervals = {
+            "long_running": (timedelta(0), timedelta(minutes=15)),
+            "before_window": (timedelta(0), timedelta(minutes=5)),
+        }
+        for label, (start_offset, end_offset) in intervals.items():
+            project_session = await _add_project_session(
+                session,
+                project,
+                start_time=base_time + start_offset,
+                end_time=base_time + end_offset,
+            )
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="test-annotation",
+                    label=label,
+                    score=1.0,
+                    explanation="Test annotation",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+
+    query = """
+      query ($projectId: ID!, $timeRange: TimeRange) {
+        node(id: $projectId) {
+          ... on Project {
+            sessionAnnotationSummary(
+              annotationName: "test-annotation"
+              timeRange: $timeRange
+            ) {
+              count
+              labelFractions {
+                label
+                fraction
+              }
+            }
+          }
+        }
+      }
+    """
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "timeRange": {
+                "start": (base_time + timedelta(minutes=10)).isoformat(),
+                "end": (base_time + timedelta(minutes=20)).isoformat(),
+            },
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    summary = response.data["node"]["sessionAnnotationSummary"]
+    assert summary is not None
+    assert summary["count"] == 1
+    assert summary["labelFractions"] == [{"label": "long_running", "fraction": 1.0}]
+
+
 @dataclass
 class _TimeRangeSessionsData:
     project: models.Project
