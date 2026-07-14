@@ -1659,7 +1659,7 @@ export interface components {
         };
         /**
          * AssistantMessageMetadata
-         * @description Wire schema for the chat stream's `message_metadata` payload.
+         * @description Wire schema for the chat stream's ``message_metadata`` payload.
          */
         AssistantMessageMetadata: {
             /**
@@ -1672,6 +1672,8 @@ export interface components {
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+        } & {
+            [key: string]: unknown;
         };
         /** AssistantMessageMetadataTraceIds */
         AssistantMessageMetadataTraceIds: {
@@ -3381,7 +3383,7 @@ export interface components {
         };
         /**
          * PhoenixUIMessage
-         * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+         * @description ``UIMessage`` with metadata narrowed to the Phoenix wire shapes.
          */
         PhoenixUIMessage: {
             /** Id */
