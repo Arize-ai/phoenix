@@ -221,7 +221,10 @@ function getBashPresentation({
   };
   const outputRecord = state === "output-available" ? asRecord(output) : null;
   if (outputRecord) {
-    const exitCode = outputRecord.exit_code;
+    // The CLI is released independently of the server: newer servers emit
+    // camelCase (exitCode), but servers predating the server-side bash
+    // unification still stream snake_case (exit_code).
+    const exitCode = outputRecord.exitCode ?? outputRecord.exit_code;
     if (typeof exitCode === "number" && exitCode !== 0) {
       presentation.statusSuffix = `exit ${exitCode}`;
       const stderr = getStringField({ record: outputRecord, field: "stderr" });

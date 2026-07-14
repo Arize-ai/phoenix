@@ -15,7 +15,6 @@ import {
   createAnnotationConfigAgentTool,
   updateAnnotationConfigAgentTool,
 } from "@phoenix/agent/tools/annotationConfig";
-import { bashAgentTool } from "@phoenix/agent/tools/bash";
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
   editCodeEvaluatorDraftAgentTool,
@@ -178,7 +177,6 @@ const datasetTools: AgentToolDefinition[] = [
  * The remaining tools are not built on the client-action helper — they delegate
  * to no `registeredClientActions` entry and own what they do (built with the
  * lower-level `defineTool`):
- * - `bash` executes in the browser sandbox runtime;
  * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
  * - `ask_user`, `batch_span_annotate`, and `patch_experiment` write a
@@ -190,7 +188,6 @@ const datasetTools: AgentToolDefinition[] = [
  * `requireSession` knob, so the guard lives in one place rather than per tool.
  */
 const tools: AgentToolDefinition[] = [
-  bashAgentTool,
   getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
   askUserAgentTool,

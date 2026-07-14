@@ -1079,8 +1079,19 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
-class FieldSummarizeResponse(TypedDict):
-    summary: str
+class SessionCreatedData(TypedDict):
+    id: str
+    sessionId: str
+    title: str
+    createdAt: str
+    updatedAt: str
+
+
+class SessionSummaryChunk(TypedDict):
+    type: Literal["data-session-summary"]
+    data: str
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class ToolCallCallbackProviderMetadata(TypedDict):
@@ -1611,37 +1622,6 @@ class TraceData(TypedDict):
     spans: NotRequired[Sequence[TraceSpanData]]
 
 
-class UIMessage(TypedDict):
-    id: str
-    role: Literal["system", "user", "assistant"]
-    parts: Sequence[
-        Union[
-            TextUIPart,
-            ReasoningUIPart,
-            ToolInputStreamingPart,
-            ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
-            ToolApprovalRequestedPart,
-            ToolApprovalRespondedPart,
-            ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
-            DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
-            DynamicToolApprovalRequestedPart,
-            DynamicToolApprovalRespondedPart,
-            DynamicToolOutputDeniedPart,
-            SourceUrlUIPart,
-            SourceDocumentUIPart,
-            FileUIPart,
-            DataUIPart,
-            StepStartUIPart,
-        ]
-    ]
-    metadata: NotRequired[Any]
-
-
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1650,12 +1630,11 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
-class FieldSummarizeRequest(TypedDict):
-    messages: Sequence[UIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
+class SessionCreatedChunk(TypedDict):
+    type: Literal["data-session-created"]
+    data: SessionCreatedData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):

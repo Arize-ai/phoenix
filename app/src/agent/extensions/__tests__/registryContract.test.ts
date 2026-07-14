@@ -5,7 +5,6 @@ import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
 } from "@phoenix/agent/extensions/toolRegistry";
-import { BASH_TOOL_NAME } from "@phoenix/agent/tools/bash";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
@@ -69,7 +68,6 @@ installTestStorage();
  * the registry from a tool module breaks this list at compile time.
  */
 const EXPECTED_TOOL_NAMES = [
-  BASH_TOOL_NAME,
   GET_ROUTE_INFO_TOOL_NAME,
   ASK_USER_TOOL_NAME,
   SET_TIME_RANGE_TOOL_NAME,

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -18,12 +18,14 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    _claim_agent_session,
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
     _persist_db_traces_and_emit_event,
     _SubagentMessageChunksClosed,
+    _update_agent_session,
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
@@ -36,6 +38,47 @@ class _EventQueue:
 
     def put(self, item: DmlEvent) -> None:
         self.events.append(item)
+
+
+class TestAgentSessionPersistence:
+    async def test_claim_is_idempotent_and_final_update_does_not_recreate_deleted_session(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        messages = [{"id": "message-1", "role": "user", "parts": []}]
+        async with db() as session:
+            claimed = await _claim_agent_session(
+                session,
+                session_id="session-1",
+                user_id=None,
+                messages=messages,
+            )
+            assert claimed is not None
+            claimed_rowid = claimed.id
+
+        async with db() as session:
+            claimed_again = await _claim_agent_session(
+                session,
+                session_id="session-1",
+                user_id=None,
+                messages=messages,
+            )
+            assert claimed_again is not None
+            assert claimed_again.id == claimed_rowid
+            await session.execute(
+                delete(models.AgentSession).where(models.AgentSession.id == claimed_rowid)
+            )
+
+        async with db() as session:
+            updated_rowid = await _update_agent_session(
+                session,
+                session_id="session-1",
+                user_id=None,
+                title="title",
+                messages=messages,
+            )
+            assert updated_rowid is None
+            assert await session.scalar(select(models.AgentSession.id)) is None
 
 
 class TestPersistDbTracesAndEmitEvent:
