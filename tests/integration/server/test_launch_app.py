@@ -20,6 +20,7 @@ from sqlalchemy import URL
 
 from .._helpers import (
     _ADMIN_ONLY_ENDPOINTS,
+    _AUTH_REQUIRED_ENDPOINTS,
     _COMMON_RESOURCE_ENDPOINTS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AppInfo,
@@ -215,6 +216,10 @@ class TestLaunchApp:
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
         ):
+            # Credential-issuing endpoints fail closed when authentication is disabled,
+            # rather than returning the status they would under an authenticated app.
+            if (method, endpoint) in _AUTH_REQUIRED_ENDPOINTS:
+                expected_status_code = 403
             response = client.request(method, endpoint.format(token_hex(4)))
             assert response.status_code == expected_status_code, (
                 f"Expected {expected_status_code} but "

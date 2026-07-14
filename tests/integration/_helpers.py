@@ -2296,6 +2296,24 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/sessions/delete"),
 )
 
+# Endpoints that refuse to act when authentication is disabled, returning 403.
+#
+# These issue credentials. Without authentication Phoenix has no notion of identity, so
+# minting an API key would hand a durable bearer token to an anonymous caller. They still
+# appear in the registries above, so that the role matrix covers them when authentication
+# IS enabled, but a no-auth app must reject them regardless of the status code recorded
+# there.
+_AUTH_REQUIRED_ENDPOINTS = frozenset(
+    {
+        ("GET", "v1/user/api_keys"),
+        ("POST", "v1/user/api_keys"),
+        ("DELETE", "v1/user/api_keys/fake-id-{}"),
+        ("GET", "v1/system/api_keys"),
+        ("POST", "v1/system/api_keys"),
+        ("DELETE", "v1/system/api_keys/fake-id-{}"),
+    }
+)
+
 
 def _join_paths(prefix: _RoutePath, path: _RoutePath) -> _RoutePath:
     if not prefix:
