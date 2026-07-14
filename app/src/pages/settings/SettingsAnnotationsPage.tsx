@@ -17,6 +17,7 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
+import type { settingsAnnotationsPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsAnnotationsPageLoaderQuery.graphql";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import type { SettingsAnnotationsPageLoaderType } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { settingsAnnotationsPageLoaderGql } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -28,7 +29,10 @@ import type { SettingsAnnotationsPageFragment$key } from "./__generated__/Settin
 export const SettingsAnnotationsPage = () => {
   const loaderData = useLoaderData<SettingsAnnotationsPageLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsAnnotationsPageLoaderGql, loaderData);
+  const data = usePreloadedQuery<settingsAnnotationsPageLoaderQuery>(
+    settingsAnnotationsPageLoaderGql,
+    loaderData
+  );
   return <SettingsAnnotations annotations={data} />;
 };
 

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<ba789dc9ace5f0e52f1917b98edaa729>>
+ * @generated SignedSource<<09bd721639559343f98c4af335217d83>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -72,8 +71,8 @@ v5 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -81,13 +80,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteGenerativeModelCustomProviderMutationPayload",
         "kind": "LinkedField",
         "name": "deleteGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -114,21 +113,21 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "DeleteCustomProviderButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteGenerativeModelCustomProviderMutationPayload",
         "kind": "LinkedField",
         "name": "deleteGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -161,7 +160,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "GenerativeModelCustomProviderConnection",
                 "kind": "LinkedField",
                 "name": "generativeModelCustomProviders",
@@ -183,7 +182,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
+                          (v3/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -234,7 +233,7 @@ return {
                             "name": "user",
                             "plural": false,
                             "selections": [
-                              (v3/*: any*/),
+                              (v3/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -260,7 +259,7 @@ return {
                             "name": "config",
                             "plural": false,
                             "selections": [
-                              (v5/*: any*/),
+                              (v5/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -278,7 +277,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v5/*: any*/)
+                          (v5/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -322,7 +321,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "CustomProvidersCard_generativeModelCustomProviders",

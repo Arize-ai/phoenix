@@ -7,7 +7,7 @@ ARG NODE_VERSION=22
 FROM node:${NODE_VERSION}-slim AS frontend-builder
 WORKDIR /phoenix/app
 # Copy only package files first for better dependency caching
-COPY ./app/package*.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./
+COPY ./app/package*.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./app/.pnpmfile.cjs ./
 # Install dependencies
 RUN npm i -g corepack && \
     corepack enable && \

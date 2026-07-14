@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<fabf690993ea8ec5673cb7cd26b0092a>>
+ * @generated SignedSource<<115e0c9cdfa4e54cdcb60dafaa2fc8ff>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -65,7 +64,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "GenerativeModelConnection",
         "kind": "LinkedField",
         "name": "generativeModels",
@@ -87,7 +86,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
+                  (v1/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -144,7 +143,7 @@ return {
                     "name": "lastUsedAt",
                     "storageKey": null
                   },
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -160,7 +159,7 @@ return {
                         "name": "tokenType",
                         "storageKey": null
                       },
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -196,7 +195,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v1/*: any*/)
+                  (v1/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -233,7 +232,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "ModelsTable_generativeModels",

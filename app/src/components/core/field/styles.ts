@@ -57,8 +57,8 @@ export const fieldBaseCSS = css`
       border-color: var(--field-readonly-border-color-focus);
     }
     &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
-        [data-focus-visible]
-      ) {
+      [data-focus-visible]
+    ) {
       background-color: var(--field-readonly-background-color-hover);
       border-color: transparent;
     }

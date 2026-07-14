@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6c168e2885aedd4eb71a19eb3a1c0fd4>>
+ * @generated SignedSource<<b34b4dda422d851deba977c5c5cafd8d>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -54,26 +53,26 @@ v3 = {
   "name": "project",
   "plural": false,
   "selections": [
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "traceRedirectLoaderQuery",
     "selections": [
       {
         "alias": "trace",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "Trace",
         "kind": "LinkedField",
         "name": "getTraceByOtelId",
         "plural": false,
         "selections": [
-          (v3/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -83,20 +82,20 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "traceRedirectLoaderQuery",
     "selections": [
       {
         "alias": "trace",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "Trace",
         "kind": "LinkedField",
         "name": "getTraceByOtelId",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v2/*: any*/)
+          (v3/*:: as any*/),
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }

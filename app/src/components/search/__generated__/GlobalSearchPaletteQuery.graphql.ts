@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<668b09e7744cc2ced436f0897de841b0>>
+ * @generated SignedSource<<d50a47adba2bb725a7eea6f4a19bf12b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -91,31 +90,31 @@ v5 = {
   "storageKey": null
 },
 v6 = [
-  (v3/*: any*/),
-  (v4/*: any*/),
-  (v5/*: any*/)
+  (v3/*:: as any*/),
+  (v4/*:: as any*/),
+  (v5/*:: as any*/)
 ],
 v7 = {
   "kind": "InlineFragment",
-  "selections": (v6/*: any*/),
+  "selections": (v6/*:: as any*/),
   "type": "Project",
   "abstractKey": null
 },
 v8 = {
   "kind": "InlineFragment",
-  "selections": (v6/*: any*/),
+  "selections": (v6/*:: as any*/),
   "type": "Dataset",
   "abstractKey": null
 },
 v9 = [
-  (v3/*: any*/)
+  (v3/*:: as any*/)
 ],
 v10 = {
   "kind": "InlineFragment",
   "selections": [
-    (v3/*: any*/),
-    (v4/*: any*/),
-    (v5/*: any*/),
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -123,7 +122,7 @@ v10 = {
       "kind": "LinkedField",
       "name": "dataset",
       "plural": false,
-      "selections": (v9/*: any*/),
+      "selections": (v9/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -133,7 +132,7 @@ v10 = {
 v11 = {
   "kind": "InlineFragment",
   "selections": [
-    (v3/*: any*/),
+    (v3/*:: as any*/),
     {
       "alias": "promptName",
       "args": null,
@@ -141,31 +140,31 @@ v11 = {
       "name": "name",
       "storageKey": null
     },
-    (v5/*: any*/)
+    (v5/*:: as any*/)
   ],
   "type": "Prompt",
   "abstractKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "GlobalSearchPaletteQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "searchResources",
         "plural": true,
         "selections": [
-          (v2/*: any*/),
-          (v7/*: any*/),
-          (v8/*: any*/),
-          (v10/*: any*/),
-          (v11/*: any*/)
+          (v2/*:: as any*/),
+          (v7/*:: as any*/),
+          (v8/*:: as any*/),
+          (v10/*:: as any*/),
+          (v11/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -175,26 +174,26 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "GlobalSearchPaletteQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "searchResources",
         "plural": true,
         "selections": [
-          (v2/*: any*/),
-          (v7/*: any*/),
-          (v8/*: any*/),
-          (v10/*: any*/),
-          (v11/*: any*/),
+          (v2/*:: as any*/),
+          (v7/*:: as any*/),
+          (v8/*:: as any*/),
+          (v10/*:: as any*/),
+          (v11/*:: as any*/),
           {
             "kind": "InlineFragment",
-            "selections": (v9/*: any*/),
+            "selections": (v9/*:: as any*/),
             "type": "Node",
             "abstractKey": "__isNode"
           }

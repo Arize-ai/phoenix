@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a45b0c0d6365d3aa34536b20f962a3d3>>
+ * @generated SignedSource<<4f343b15a6a52d661ac61f413dcf2add>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -48,7 +47,7 @@ return {
   "metadata": null,
   "name": "SessionAnnotationsEditor_sessionAnnotations",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -57,7 +56,7 @@ return {
       "name": "sessionAnnotations",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -108,7 +107,7 @@ return {
           "name": "user",
           "plural": false,
           "selections": [
-            (v0/*: any*/),
+            (v0/*:: as any*/),
             {
               "alias": null,
               "args": null,

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<032328ec45a539b5b4dbe51cd722a4c0>>
+ * @generated SignedSource<<7c5d45f3629eaa6f5ae2bd982ff6031e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -103,17 +102,17 @@ v4 = [
     "name": "profilePictureUrl",
     "storageKey": null
   },
-  (v2/*: any*/)
+  (v2/*:: as any*/)
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptsTablePromptsQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "PromptsTable_prompts"
       }
@@ -123,13 +122,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PromptsTablePromptsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptConnection",
         "kind": "LinkedField",
         "name": "prompts",
@@ -151,8 +150,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v3/*: any*/),
+                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -167,7 +166,7 @@ return {
                     "kind": "LinkedField",
                     "name": "createdBy",
                     "plural": false,
-                    "selections": (v4/*: any*/),
+                    "selections": (v4/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -177,7 +176,7 @@ return {
                     "kind": "LinkedField",
                     "name": "updatedBy",
                     "plural": false,
-                    "selections": (v4/*: any*/),
+                    "selections": (v4/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -188,7 +187,7 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -228,8 +227,8 @@ return {
                     "name": "versionTags",
                     "plural": true,
                     "selections": [
-                      (v2/*: any*/),
-                      (v3/*: any*/),
+                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -248,8 +247,8 @@ return {
                     "name": "labels",
                     "plural": true,
                     "selections": [
-                      (v2/*: any*/),
-                      (v3/*: any*/),
+                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -285,7 +284,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v2/*: any*/)
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -322,7 +321,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": [
           "filter",
           "labelIds"

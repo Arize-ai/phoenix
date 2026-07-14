@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f141fd688e3c3bff7e60ad1fcb2fbfa5>>
+ * @generated SignedSource<<b66f08ac7a6a601414157e2b6a5025fb>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -69,7 +68,7 @@ v2 = {
   "storageKey": null
 },
 v3 = [
-  (v2/*: any*/)
+  (v2/*:: as any*/)
 ],
 v4 = {
   "alias": null,
@@ -127,7 +126,7 @@ v7 = {
       "kind": "LinkedField",
       "name": "total",
       "plural": false,
-      "selections": (v6/*: any*/),
+      "selections": (v6/*:: as any*/),
       "storageKey": null
     },
     {
@@ -137,7 +136,7 @@ v7 = {
       "kind": "LinkedField",
       "name": "prompt",
       "plural": false,
-      "selections": (v6/*: any*/),
+      "selections": (v6/*:: as any*/),
       "storageKey": null
     },
     {
@@ -147,7 +146,7 @@ v7 = {
       "kind": "LinkedField",
       "name": "completion",
       "plural": false,
-      "selections": (v6/*: any*/),
+      "selections": (v6/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -203,14 +202,14 @@ v13 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SessionDetailsQuery",
     "selections": [
       {
         "alias": "session",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -226,14 +225,14 @@ return {
                 "kind": "LinkedField",
                 "name": "project",
                 "plural": false,
-                "selections": (v3/*: any*/),
+                "selections": (v3/*:: as any*/),
                 "storageKey": null
               },
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -252,19 +251,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SessionDetailsQuery",
     "selections": [
       {
         "alias": "session",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
+          (v10/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -276,7 +275,7 @@ return {
                 "name": "project",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -301,7 +300,7 @@ return {
                             "name": "node",
                             "plural": false,
                             "selections": [
-                              (v10/*: any*/),
+                              (v10/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -319,8 +318,8 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v2/*: any*/),
-                                  (v11/*: any*/),
+                                  (v2/*:: as any*/),
+                                  (v11/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -336,8 +335,8 @@ return {
                                     "name": "values",
                                     "plural": true,
                                     "selections": [
-                                      (v12/*: any*/),
-                                      (v13/*: any*/)
+                                      (v12/*:: as any*/),
+                                      (v13/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -347,7 +346,7 @@ return {
                               },
                               {
                                 "kind": "InlineFragment",
-                                "selections": (v3/*: any*/),
+                                "selections": (v3/*:: as any*/),
                                 "type": "Node",
                                 "abstractKey": "__isNode"
                               }
@@ -363,11 +362,11 @@ return {
                 ],
                 "storageKey": null
               },
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -376,10 +375,10 @@ return {
                 "name": "sessionAnnotations",
                 "plural": true,
                 "selections": [
-                  (v2/*: any*/),
-                  (v11/*: any*/),
-                  (v12/*: any*/),
-                  (v13/*: any*/),
+                  (v2/*:: as any*/),
+                  (v11/*:: as any*/),
+                  (v12/*:: as any*/),
+                  (v13/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -409,7 +408,7 @@ return {
                         "name": "profilePictureUrl",
                         "storageKey": null
                       },
-                      (v2/*: any*/)
+                      (v2/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -460,7 +459,7 @@ return {
                         "name": "fraction",
                         "storageKey": null
                       },
-                      (v12/*: any*/)
+                      (v12/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -471,7 +470,7 @@ return {
                     "name": "meanScore",
                     "storageKey": null
                   },
-                  (v11/*: any*/)
+                  (v11/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -479,7 +478,7 @@ return {
             "type": "ProjectSession",
             "abstractKey": null
           },
-          (v2/*: any*/)
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }

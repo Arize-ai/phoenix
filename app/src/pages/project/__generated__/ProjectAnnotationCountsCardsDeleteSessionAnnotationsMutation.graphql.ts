@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<eada4924395042f561daf1e87715cdce>>
+ * @generated SignedSource<<f7094fd00e1e2f011d7023fdd6c328fc>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -109,8 +108,8 @@ v5 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -118,13 +117,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteProjectAnnotationsByNamePayload",
         "kind": "LinkedField",
         "name": "deleteProjectSessionAnnotations",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -135,13 +134,13 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v5/*: any*/)
+                  (v5/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -158,21 +157,21 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ProjectAnnotationCountsCardsDeleteSessionAnnotationsMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteProjectAnnotationsByNamePayload",
         "kind": "LinkedField",
         "name": "deleteProjectSessionAnnotations",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -183,7 +182,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -196,7 +195,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v5/*: any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,

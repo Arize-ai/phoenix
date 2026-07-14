@@ -13,6 +13,7 @@ import {
 } from "@phoenix/store/agentStore";
 
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
+import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
 
@@ -128,7 +129,9 @@ export function buildAgentChatRequestBody({
   return {
     ...body,
     id,
-    messages: enrichMessagesWithClientToolTimings({ messages, toolTimings }),
+    messages: toServerSafeUIMessages(
+      enrichMessagesWithClientToolTimings({ messages, toolTimings })
+    ),
     trigger,
     messageId,
     ingestTraces: traceRecording.ingestTraces,

@@ -60,14 +60,14 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/context-async-hooks": "^2.9.0",
     "@opentelemetry/core": "^2.9.0",
-    "@opentelemetry/exporter-trace-otlp-proto": "^0.218.0",
-    "@opentelemetry/instrumentation": "^0.218.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
+    "@opentelemetry/instrumentation": "^0.220.0",
     "@opentelemetry/resources": "^2.9.0",
     "@opentelemetry/sdk-trace-base": "^2.9.0",
     "@opentelemetry/sdk-trace-node": "^2.9.0"
   },
   "devDependencies": {
-    "@types/node": "^25.9.5",
+    "@types/node": "^26.1.1",
     "vitest": "^4.1.10"
   }
 }

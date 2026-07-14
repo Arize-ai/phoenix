@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<3c831ed7e27119fbb317f312190dff78>>
+ * @generated SignedSource<<d00e8172d5b7c8f1822d6f0c5562128c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -114,8 +113,8 @@ v3 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v1/*: any*/),
-        (v2/*: any*/),
+        (v1/*:: as any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -148,8 +147,8 @@ v3 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v1/*: any*/),
-        (v2/*: any*/),
+        (v1/*:: as any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -171,8 +170,8 @@ v3 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v1/*: any*/),
-        (v2/*: any*/),
+        (v1/*:: as any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -200,7 +199,7 @@ return {
   "metadata": null,
   "name": "CodeDatasetEvaluatorDetails_datasetEvaluator",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -226,7 +225,7 @@ return {
       ],
       "storageKey": null
     },
-    (v3/*: any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -245,9 +244,9 @@ return {
         {
           "kind": "InlineFragment",
           "selections": [
-            (v0/*: any*/),
-            (v1/*: any*/),
-            (v4/*: any*/),
+            (v0/*:: as any*/),
+            (v1/*:: as any*/),
+            (v4/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -255,7 +254,7 @@ return {
               "name": "language",
               "storageKey": null
             },
-            (v3/*: any*/),
+            (v3/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -264,9 +263,9 @@ return {
               "name": "sandboxConfig",
               "plural": false,
               "selections": [
-                (v0/*: any*/),
-                (v1/*: any*/),
-                (v4/*: any*/),
+                (v0/*:: as any*/),
+                (v1/*:: as any*/),
+                (v4/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -290,7 +289,7 @@ return {
                       "name": "envVars",
                       "plural": true,
                       "selections": [
-                        (v1/*: any*/),
+                        (v1/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
