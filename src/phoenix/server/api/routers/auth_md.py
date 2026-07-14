@@ -13,6 +13,11 @@ from fastapi import APIRouter
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
 
+from phoenix.auth import (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+)
+
 router = APIRouter(include_in_schema=False)
 
 
@@ -80,9 +85,9 @@ def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
           **Settings → API Keys**. The key value is shown once at creation time;
           store it securely.
         - **Access token**: `POST {base_url}/auth/login` with JSON body
-          `{{"email": "...", "password": "..."}}` sets a `phoenix.access_token`
+          `{{"email": "...", "password": "..."}}` sets a `{PHOENIX_ACCESS_TOKEN_COOKIE_NAME}`
           cookie usable as a bearer token. Renew an expired token via
-          `POST {base_url}/auth/refresh` with the `phoenix.refresh_token` cookie.
+          `POST {base_url}/auth/refresh` with the `{PHOENIX_REFRESH_TOKEN_COOKIE_NAME}` cookie.
 
         ## Use the credential
 
