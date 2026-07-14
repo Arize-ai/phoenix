@@ -8,12 +8,14 @@ from harbor.models.agent.context import AgentContext
 
 
 class PhoenixServerAgent(BaseAgent):
+    SUPPORTS_ATIF: bool = True
+
     @staticmethod
     def name() -> str:
         return "phoenix-server-agent"
 
     def version(self) -> str | None:
-        return "4"
+        return "8"
 
     async def setup(self, environment: BaseEnvironment) -> None:
         return None
@@ -39,7 +41,7 @@ n=$(($(cat "$state/step_counter" 2>/dev/null || printf 0) + 1))
 printf %s "$n" > "$state/step_counter"
 mutation_flag=""
 if printf %s "$config" | grep -q '"allow_mutations"[[:space:]]*:[[:space:]]*true'; then mutation_flag="--allow-mutations"; fi
-python /opt/phoenix-eval/run_server_agent.py --db-path /data/phoenix.db --instruction-file /tmp/instruction.md --model {shlex.quote(model)} --out-dir "/logs/agent/steps/$n" --history-file "$state/messages.json" $mutation_flag
+python /opt/phoenix-eval/run_server_agent.py --db-path /data/phoenix.db --instruction-file /tmp/instruction.md --model {shlex.quote(model)} --out-dir "/logs/agent/steps/$n" --history-file "$state/messages.json" --trajectory-file /logs/agent/trajectory.json $mutation_flag
 ln -sfn "/logs/agent/steps/$n" /logs/agent/latest
 cp "/logs/agent/steps/$n/messages.json" "$state/messages.json"
 cat /logs/agent/latest/answer.md"""
