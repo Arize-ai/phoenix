@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.sql.elements import ColumnElement
 
 from phoenix.db import models
@@ -26,6 +26,10 @@ from phoenix.server.online_eval.coordinator import (
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
 from phoenix.server.types import DbSessionFactory
+
+
+def work_unit_lease_lapsed(now: datetime) -> ColumnElement[bool]:
+    return models.EvalWorkUnit.claimed_at < now - timedelta(seconds=LEASE_TTL_SECONDS)
 
 
 class DbEvalWorkCoordinator:
@@ -45,12 +49,12 @@ class DbEvalWorkCoordinator:
         self._max_attempts = max_attempts
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
-        lease_lapsed_before = now - timedelta(seconds=LEASE_TTL_SECONDS)
         return or_(
             models.EvalWorkUnit.status == "PENDING",
             and_(
                 models.EvalWorkUnit.status == "RUNNING",
-                models.EvalWorkUnit.claimed_at < lease_lapsed_before,
+                models.EvalWorkUnit.attempts < self._max_attempts,
+                work_unit_lease_lapsed(now),
             ),
             and_(
                 models.EvalWorkUnit.status == "ERROR",
@@ -72,6 +76,19 @@ class DbEvalWorkCoordinator:
         async with self._db() as session:
             candidates = select(models.EvalWorkUnit.id).where(self._claimable(now))
             candidates = candidates.order_by(models.EvalWorkUnit.id).limit(limit)
+            claim_values = {
+                "status": "RUNNING",
+                "claimed_at": now,
+                "claimed_by": claimed_by,
+                # A straggler outliving the stop() drain is counted.
+                "attempts": case(
+                    (
+                        models.EvalWorkUnit.status == "RUNNING",
+                        models.EvalWorkUnit.attempts + 1,
+                    ),
+                    else_=models.EvalWorkUnit.attempts,
+                ),
+            }
             claimed_ids: list[int] = []
             if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
                 locked_ids = (
@@ -81,7 +98,7 @@ class DbEvalWorkCoordinator:
                     await session.execute(
                         update(models.EvalWorkUnit)
                         .where(models.EvalWorkUnit.id.in_(locked_ids))
-                        .values(status="RUNNING", claimed_at=now, claimed_by=claimed_by)
+                        .values(**claim_values)
                     )
                     claimed_ids = list(locked_ids)
             else:
@@ -89,7 +106,7 @@ class DbEvalWorkCoordinator:
                     cas = await session.execute(
                         update(models.EvalWorkUnit)
                         .where(models.EvalWorkUnit.id == unit_id, self._claimable(now))
-                        .values(status="RUNNING", claimed_at=now, claimed_by=claimed_by)
+                        .values(**claim_values)
                     )
                     if cas.rowcount == 1:  # type: ignore[attr-defined]
                         claimed_ids.append(unit_id)

@@ -336,6 +336,14 @@ sweeps, so the backstop no longer bounds exceptional loss from late-visible span
 criteria. The reaper floor is aligned to this lookback; changes to the lookback and interval
 must preserve the coverage relationship and move the reaper floor with them.
 """
+ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK = "PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK"
+"""
+The maximum span-id range the online-eval producer advances through in one tick.
+Defaults to 10000.
+
+Higher values increase catch-up throughput at the cost of larger per-tick transactions;
+lower values reduce transaction size but take longer to catch up to the observed frontier.
+"""
 ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS = "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS"
 """
 How long a PENDING online-eval work unit may wait before the reaper marks it EXPIRED.
@@ -346,10 +354,10 @@ ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECON
 How long terminal online-eval work units are kept before the reaper deletes them.
 Defaults to 604800 (7 days).
 """
-ENV_PHOENIX_ONLINE_EVAL_MAX_PENDING = "PHOENIX_ONLINE_EVAL_MAX_PENDING"
+ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 """
-The pending work-unit count above which the online-eval producer stops materializing new
-work units. Defaults to 10000.
+The outstanding work-unit count above which the online-eval producer stops materializing
+new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
@@ -3237,6 +3245,23 @@ def get_env_online_eval_backstop_lookback_span_ids() -> int:
     return _int_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS, 100_000)
 
 
+def get_env_online_eval_max_span_ids_per_tick() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK environment variable.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    max_span_ids = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK, 10_000)
+    if max_span_ids <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK}: "
+            f"{max_span_ids}. Value must be a positive integer."
+        )
+    return max_span_ids
+
+
 def get_env_online_eval_pending_ttl_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS environment variable.
@@ -3258,11 +3283,13 @@ def get_env_online_eval_retention_seconds() -> float:
     return _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
 
 
-def get_env_online_eval_max_pending() -> int:
+def get_env_online_eval_max_outstanding() -> int:
     """
-    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_PENDING environment variable.
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING environment variable.
+
+    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
     """
-    return _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_PENDING, 10_000)
+    return _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 10_000)
 
 
 def get_env_client_headers() -> dict[str, str]:

@@ -1,5 +1,6 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from queue import SimpleQueue
 from secrets import token_hex
 from typing import Any, AsyncIterator, Optional
 
@@ -32,9 +33,12 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
 )
+from phoenix.server.dml_event import DmlEvent, SpanAnnotationInsertEvent
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer, is_transient_error
+from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
+from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
-from phoenix.server.online_eval.executor import EvalExecutionError
+from phoenix.server.online_eval.executor import EvalExecutionError, OnlineEvalExecutor
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.types import DbSessionFactory
 
@@ -256,6 +260,50 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     # Nothing is claimable afterwards; a repeat cycle writes nothing new.
     await consumer._cycle()
     assert len(await _annotations(db)) == 1
+
+
+async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+    coordinator = DbEvalWorkCoordinator(db)
+
+    (first_claim,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(claimed_at=lapsed)
+        )
+    (reclaimed,) = await coordinator.claim(claimed_by="consumer-2", limit=1)
+    assert reclaimed.work_unit_id == first_claim.work_unit_id
+    assert reclaimed.identifier == first_claim.identifier
+
+    events: SimpleQueue[DmlEvent] = SimpleQueue()
+    executor = OnlineEvalExecutor(db, decrypt=lambda b: b, event_queue=events)
+    first_hydrated = await executor.hydrate(first_claim)
+    reclaimed_hydrated = await executor.hydrate(reclaimed)
+    assert first_hydrated is not None
+    assert reclaimed_hydrated is not None
+
+    await executor.evaluate_and_annotate(first_claim, first_hydrated)
+    await executor.evaluate_and_annotate(reclaimed, reclaimed_hydrated)
+
+    annotations = await _annotations(db)
+    assert len(annotations) == 1
+    assert events.get_nowait() == SpanAnnotationInsertEvent((annotations[0].id,))
+    assert events.empty()
 
 
 async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(

@@ -8,6 +8,8 @@ from sqlalchemy import func, select, update
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval import producer as producer_module
+from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
+from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.producer import (
     OnlineEvalProducer,
@@ -194,7 +196,10 @@ async def test_future_targets_are_not_loaded_by_span_producer(
     assert await producer._load_active_criteria() == []
 
 
-async def test_tick_advances_at_most_one_id_chunk(db: DbSessionFactory) -> None:
+async def test_tick_advances_at_most_one_id_chunk(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK", "2")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -210,7 +215,6 @@ async def test_tick_advances_at_most_one_id_chunk(db: DbSessionFactory) -> None:
     )
 
     producer = OnlineEvalProducer(db)
-    producer._max_span_ids_per_tick = 2
     await producer._tick()
 
     cursor = await _get_cursor(db, cursor_id)
@@ -224,6 +228,16 @@ async def test_tick_advances_at_most_one_id_chunk(db: DbSessionFactory) -> None:
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == low_exclusive + 4
     assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:4]]
+
+
+@pytest.mark.parametrize("value", ["0", "-1"])
+async def test_max_span_ids_per_tick_must_be_positive(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK", value)
+
+    with pytest.raises(ValueError, match="Value must be a positive integer"):
+        OnlineEvalProducer(db)
 
 
 async def test_cursor_regresses_to_live_span_high_water(db: DbSessionFactory) -> None:
@@ -435,10 +449,60 @@ async def test_reaper_default_keeps_old_pending_work(
     assert unit.status == "PENDING"
 
 
+async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    now = _now()
+    lapsed = now - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+
+    async with db() as session:
+        lapsed_unit = models.EvalWorkUnit(
+            span_rowid=span.id,
+            evaluator_id=evaluator_id,
+            criteria_id=criteria_id,
+            config_fingerprint=f"fp-{token_hex(8)}",
+            status="RUNNING",
+            attempts=MAX_ATTEMPTS,
+            claimed_at=lapsed,
+            claimed_by="consumer-1",
+        )
+        fresh_unit = models.EvalWorkUnit(
+            span_rowid=span.id,
+            evaluator_id=evaluator_id,
+            criteria_id=criteria_id,
+            config_fingerprint=f"fp-{token_hex(8)}",
+            status="RUNNING",
+            attempts=MAX_ATTEMPTS,
+            claimed_at=now,
+            claimed_by="consumer-1",
+        )
+        session.add_all([lapsed_unit, fresh_unit])
+        await session.flush()
+        lapsed_id, fresh_id = lapsed_unit.id, fresh_unit.id
+
+    producer = OnlineEvalProducer(db)
+    await producer._reap(now, span.id)
+
+    async with db() as session:
+        lapsed_row = await session.get(models.EvalWorkUnit, lapsed_id)
+        fresh_row = await session.get(models.EvalWorkUnit, fresh_id)
+    assert lapsed_row is not None
+    assert lapsed_row.status == "ERROR"
+    assert fresh_row is not None
+    assert fresh_row.status == "RUNNING"
+    competitor = DbEvalWorkCoordinator(db)
+    assert await competitor.claim(claimed_by="consumer-2", limit=2) == []
+
+
 async def test_admission_gate_skips_materialization(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_PENDING", "0")
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "0")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -492,7 +556,7 @@ async def test_admission_gate_counts_nonterminal_backlog(db: DbSessionFactory) -
         )
 
     producer = OnlineEvalProducer(db)
-    producer._max_pending = 0
+    producer._max_outstanding = 0
     assert await producer._admission_gate_open()
 
     async with db() as session:

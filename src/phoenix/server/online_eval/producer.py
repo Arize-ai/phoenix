@@ -28,12 +28,14 @@ from phoenix.config import (
     get_env_online_eval_backstop_interval_seconds,
     get_env_online_eval_backstop_lookback_span_ids,
     get_env_online_eval_frontier_lag_seconds,
-    get_env_online_eval_max_pending,
+    get_env_online_eval_max_outstanding,
+    get_env_online_eval_max_span_ids_per_tick,
     get_env_online_eval_pending_ttl_seconds,
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     ResolvedCriteria,
@@ -164,11 +166,11 @@ class OnlineEvalProducer(DaemonTask):
         self._frontier_lag_seconds = get_env_online_eval_frontier_lag_seconds()
         self._backstop_interval_seconds = get_env_online_eval_backstop_interval_seconds()
         self._backstop_lookback_span_ids = get_env_online_eval_backstop_lookback_span_ids()
-        self._max_span_ids_per_tick = 10_000
+        self._max_span_ids_per_tick = get_env_online_eval_max_span_ids_per_tick()
         # Disabled by default because expiry is terminal and blocks backstop re-materialization.
         self._pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
         self._retention_seconds = get_env_online_eval_retention_seconds()
-        self._max_pending = get_env_online_eval_max_pending()
+        self._max_outstanding = get_env_online_eval_max_outstanding()
         self._last_backstop_at = time.monotonic()
         self._lease_held = False
 
@@ -326,6 +328,15 @@ class OnlineEvalProducer(DaemonTask):
         # regardless of age — they must remain to block backstop resurrection.
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(
+                    models.EvalWorkUnit.status == "RUNNING",
+                    models.EvalWorkUnit.attempts >= MAX_ATTEMPTS,
+                    work_unit_lease_lapsed(now),
+                )
+                .values(status="ERROR")
+            )
             if self._pending_ttl_seconds > 0:
                 pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
                 await session.execute(
@@ -377,10 +388,10 @@ class OnlineEvalProducer(DaemonTask):
                 )
                 or 0
             )
-        if outstanding_count > self._max_pending:
+        if outstanding_count > self._max_outstanding:
             logger.warning(
                 f"Online-eval producer admission gate closed: "
-                f"{outstanding_count} outstanding work units exceeds {self._max_pending}"
+                f"{outstanding_count} outstanding work units exceeds {self._max_outstanding}"
             )
             return False
         return True
