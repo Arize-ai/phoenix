@@ -39,6 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
 	gh-comment-watch \
+	harbor-prepare harbor-seed-push harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -101,6 +102,13 @@ help: ## Show this help message
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
+	@echo -e ""
+	@echo -e "$(GREEN)Harbor Evals:$(NC)"
+	@echo -e "  harbor-prepare         - Build the Phoenix wheel and stage the Docker build context"
+	@echo -e "  harbor-seed-push       - Regenerate seed assets and publish to cloud storage"
+	@echo -e "  $(YELLOW)harbor-oracle$(NC)         - Validate the task with the oracle (HARBOR_TASK=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)            - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=...)"
+	@echo -e "  harbor-view            - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -423,6 +431,44 @@ dev-mock-llm: ## Start the mock LLM server
 gh-comment-watch: ## Start the GitHub comment watcher
 	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"
 	cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) start
+
+#=============================================================================
+# Harbor Evals
+#=============================================================================
+
+HARBOR_TASK ?= evals/harbor/tasks/regression-triage
+HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
+UVX := uvx
+
+# The runner is staged into the task's Docker build context by prepare.sh.
+define check-harbor-prepared
+	@test -f $(HARBOR_TASK)/environment/run_server_agent.py || \
+		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-prepare' first$(NC)"; exit 1; }
+endef
+
+harbor-prepare: ## Build the Phoenix wheel and stage the Harbor Docker build context
+	@echo -e "$(CYAN)Preparing Harbor build context...$(NC)"
+	./evals/harbor/prepare.sh
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+harbor-seed-push: ## Regenerate Harbor seed assets and publish to cloud storage
+	@echo -e "$(CYAN)Publishing Harbor seed assets...$(NC)"
+	./evals/harbor/push_seed_assets.sh
+
+harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=...)
+	$(check-harbor-prepared)
+	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK)...$(NC)"
+	$(UVX) harbor run -p $(HARBOR_TASK) -a oracle --yes
+
+harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=...)
+	$(check-harbor-prepared)
+	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL)...$(NC)"
+	PYTHONPATH=. $(UVX) harbor run -p $(HARBOR_TASK) \
+		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
+		-m $(HARBOR_MODEL) --yes
+
+harbor-view: ## Browse Harbor job results in a local web viewer
+	$(UVX) harbor view jobs
 
 #=============================================================================
 # Cleanup
