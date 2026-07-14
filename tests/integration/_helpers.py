@@ -2225,6 +2225,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/projects/fake-id-{}/traces"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
+    # API keys (the authenticated user's own personal keys)
+    (200, "GET", "v1/user/api_keys"),
 )
 
 # Admin-only endpoints (user management, project CRUD)
@@ -2236,6 +2238,9 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "PUT", "v1/projects/fake-id-{}"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
+    (200, "GET", "v1/system/api_keys"),
+    (422, "POST", "v1/system/api_keys"),
+    (422, "DELETE", "v1/system/api_keys/fake-id-{}"),
 )
 
 # Write operations blocked for viewers (POST/PUT/DELETE)
@@ -2261,6 +2266,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/trace_annotations"),
     (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
+    (422, "POST", "v1/user/api_keys"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
     (404, "PUT", "v1/projects/{0}/annotation_configs/{0}"),
@@ -2285,6 +2291,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "DELETE", "v1/projects/fake-id-{}/span_annotations"),
     (422, "DELETE", "v1/projects/fake-id-{}/trace_annotations"),
     (422, "DELETE", "v1/projects/fake-id-{}/session_annotations"),
+    (422, "DELETE", "v1/user/api_keys/fake-id-{}"),
     # Bulk delete routes
     (422, "POST", "v1/sessions/delete"),
 )
