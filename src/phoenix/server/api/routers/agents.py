@@ -25,6 +25,7 @@ from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
+    StepStartUIPart,
     SubmitMessage,
     UIMessage,
 )
@@ -986,7 +987,9 @@ def _build_session_transcript(
     if result is None:
         return incoming_history
     try:
-        new_ui_messages = VercelAIAdapter.dump_messages(result.new_messages())
+        new_ui_messages = _group_turn_ui_messages(
+            VercelAIAdapter.dump_messages(result.new_messages())
+        )
         # Resumed sessions re-validate stored messages as
         # AssistantMetadataUIMessage, so dump_messages' internal metadata is
         # replaced with the Phoenix shape.
@@ -1013,6 +1016,23 @@ def _build_session_transcript(
         )
         return incoming_history
     return [*incoming_history, *new_messages]
+
+
+def _group_turn_ui_messages(messages: list[UIMessage]) -> list[UIMessage]:
+    """Group consecutive model steps into the assistant message streamed to the client."""
+    grouped_messages: list[UIMessage] = []
+    for message in messages:
+        if message.role != "assistant":
+            grouped_messages.append(message)
+            continue
+        step_parts = list(message.parts)
+        if not step_parts or not isinstance(step_parts[0], StepStartUIPart):
+            step_parts.insert(0, StepStartUIPart())
+        if grouped_messages and grouped_messages[-1].role == "assistant":
+            grouped_messages[-1].parts.extend(step_parts)
+        else:
+            grouped_messages.append(message.model_copy(update={"parts": step_parts}))
+    return grouped_messages
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:

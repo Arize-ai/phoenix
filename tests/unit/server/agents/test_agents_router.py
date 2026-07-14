@@ -339,6 +339,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         json=_chat_body(session_id, [_user_message("write a note")]),
     )
     assert first_response.status_code == 200
+    first_chunks = _stream_chunks(first_response.text)
     async with db() as session:
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
@@ -351,6 +352,15 @@ async def test_bash_shell_state_persists_across_chat_turns(
                 )
             )
         ) or []
+
+    assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
+    assert len(assistant_messages) == 1
+    part_types = [part["type"] for part in assistant_messages[0]["parts"]]
+    assert "tool-bash" in part_types
+    assert "text" in part_types
+    assert part_types.count("step-start") == sum(
+        chunk.get("type") == "start-step" for chunk in first_chunks
+    )
 
     second_response = await httpx_client.post(
         _chat_url(session_id),
