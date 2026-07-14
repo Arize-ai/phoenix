@@ -126,6 +126,9 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
+        # Fractions use result-bearing, non-error annotations as their denominator.
+        # The NULL-label group is retained in the total so score-only results become
+        # the residual rather than inflating the labeled fractions.
         label_counts_query = (
             select(
                 models.ExperimentRun.experiment_id.label("experiment_id"),

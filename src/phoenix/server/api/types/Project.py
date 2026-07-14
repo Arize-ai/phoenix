@@ -2313,7 +2313,12 @@ async def _annotation_metrics_time_series(
     stride: _TimeBinStride,
     utc_offset_minutes: int,
 ) -> AnnotationMetricsTimeSeries:
-    """Execute grouped annotation metrics and fill in empty time bins."""
+    """Build summaries from grouped label rows and fill in empty time bins.
+
+    ``record_count`` includes only annotations with a score or label. This lets
+    label fractions leave a residual for score-only results while excluding
+    explanation-only annotations from the distribution denominator.
+    """
     if time_range.start is None:
         raise BadRequest("Start time is required")
     stmt = stmt.where(time_range.start <= start_time_col)
@@ -2349,6 +2354,8 @@ async def _annotation_metrics_time_series(
                 if summary_row["label"] is not None and result_count
                 else None
             )
+            # AnnotationSummary consumes one row per label and expects the
+            # evaluation-wide mean to be available on each of those rows.
             summary_row["avg_score"] = mean_score
         summaries_by_timestamp.setdefault(timestamp, []).append(
             AnnotationSummary(name=name, df=DataFrame(rows))

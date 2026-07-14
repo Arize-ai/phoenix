@@ -60,6 +60,8 @@ export function deriveScoreOnlyFraction(
 function getScoreOnlyFraction(
   summary: EvaluationSummary | undefined
 ): number | undefined {
+  // An empty label vector also occurs for explanation-only/error buckets; only
+  // a score-bearing summary can contribute the residual category.
   return summary != null && summary.scoreCount > 0
     ? deriveScoreOnlyFraction(summary.labelFractions)
     : undefined;
@@ -94,9 +96,13 @@ export function normalizeEvaluationMetrics({
         .filter((summary): summary is EvaluationSummary => summary != null);
       const hasScores = summaries.some((summary) => summary.scoreCount > 0);
       const hasLabels = summaries.some((summary) => summary.labelCount > 0);
+      // Labels take precedence so mixed evaluations remain a single
+      // distribution instead of combining scores and percentages on one axis.
       const kind: EvaluationMetricsSeries["kind"] = hasLabels
         ? "distribution"
         : "score";
+      // The reference is a comparison point, not part of the visible window
+      // used to classify an evaluation's chart type.
       const referenceSummary = referencePoint?.summaries.find(
         (summary) => summary.name === name
       );
@@ -104,6 +110,8 @@ export function normalizeEvaluationMetrics({
         hasLabels && referenceSummary != null
           ? [...summaries, referenceSummary]
           : summaries;
+      // Include reference-only labels and sort once so fraction indexes and
+      // category colors remain aligned across every bar.
       const labels = Array.from(
         new Set(
           distributionSummaries.flatMap((summary) =>

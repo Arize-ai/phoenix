@@ -114,6 +114,8 @@ function ProjectEvaluationMetricsGrid({
   );
 }
 
+// Keep each Relay query below its own Suspense boundary. Suspending from the
+// page can remount the metrics tree and repeatedly restart the query.
 export function SpanEvaluationMetricsGrid(props: ProjectMetricViewProps) {
   return (
     <ErrorBoundary>

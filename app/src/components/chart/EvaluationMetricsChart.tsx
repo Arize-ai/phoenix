@@ -114,6 +114,8 @@ export function EvaluationMetricsChart({
     series.kind === "distribution" || scoreValuesFitUnitDomain
       ? ([0, 1] as [number, number])
       : undefined;
+  // Distribution baselines are comparison bars, so place them first and avoid
+  // duplicating them when the baseline also falls inside the visible window.
   const chartData =
     series.kind === "distribution" && series.reference != null
       ? [
@@ -134,6 +136,7 @@ export function EvaluationMetricsChart({
           margin={compactChartMargin}
           barSize={10}
           syncId={syncId}
+          // A prepended baseline changes array indexes; synchronize by x-value.
           syncMethod="value"
           {...barChartProps}
         >

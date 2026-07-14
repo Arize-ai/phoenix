@@ -1221,6 +1221,7 @@ async def experiments_with_runs_and_annotations(
                 for run, score in zip(first_experiment_runs[:2], [0, 1])
             ]
             + [
+                # A labeled error must not enter the label-fraction denominator.
                 models.ExperimentRunAnnotation(
                     experiment_run_id=first_experiment_runs[3].id,
                     name="annotation-name-2",

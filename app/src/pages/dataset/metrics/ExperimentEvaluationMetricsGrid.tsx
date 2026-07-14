@@ -91,6 +91,7 @@ export function ExperimentEvaluationMetricsGrid({
           />
         </ChartPanel>
       ))}
+      {/* Share this grid so trailing half-width charts fill an odd final row. */}
       {children}
     </div>
   );
