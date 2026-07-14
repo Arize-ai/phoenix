@@ -12510,7 +12510,7 @@
           "parts"
         ],
         "title": "PhoenixUIMessage",
-        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes.\n\nAssistant messages carry `AssistantMessageMetadata` (streamed back via\n`message_metadata`); user messages carry `UserMessageMetadata` (stamped by\nthe browser at send time)."
+        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
