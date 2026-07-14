@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<934cb86331ffa455828c9d0af5477794>>
+ * @generated SignedSource<<9f2be81bad31c1d6a0ddf1048f1dadf5>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -49,13 +48,13 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "AgentSessionsResourcePaginationQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "AgentSessionsResource_sessions"
       }
@@ -65,13 +64,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "AgentSessionsResourcePaginationQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "AgentSessionConnection",
         "kind": "LinkedField",
         "name": "agentSessions",
@@ -178,7 +177,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "AgentSessionsResource_agentSessions",

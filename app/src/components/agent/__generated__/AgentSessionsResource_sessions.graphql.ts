@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<bfe6a77c6567b8245cfa91695c576b2f>>
+ * @generated SignedSource<<fbdc2637682ced798ea57dc3f586d72b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -55,7 +54,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -65,7 +64,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": AgentSessionsResourcePaginationQuery_graphql

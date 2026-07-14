@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<979ccf4d31127bcb5b0218baa53edbc4>>
+ * @generated SignedSource<<8917551a49c36f8383d795b4b4fe3010>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -82,20 +81,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "AgentSessionsResourceSessionQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "AgentSessionsResourceSessionQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "055af1941dec61c15fd60fdc7238ba63",
