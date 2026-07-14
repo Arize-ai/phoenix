@@ -112,7 +112,9 @@ const pxiButtonCSS = css`
       opacity: 0;
     }
 
-    &[data-hovered]::before {
+    &:hover:not([disabled])::before,
+    &[data-hovered]::before,
+    &[data-focus-visible]::before {
       opacity: 1;
     }
   }
