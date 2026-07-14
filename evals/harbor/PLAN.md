@@ -70,10 +70,14 @@ setting, auth, or any `PHOENIX_*` feature env vars.
 
 ### Environment state vs agent memory
 
-The ServerAgent has no session memory in this harness — each step is a fresh
-`agent.run()`. What persists across steps is the **database** (shared container).
-Step instructions are therefore fully self-contained; later steps re-derive what they
-need rather than referring to "the previous answer".
+The four steps form one conversation: each step's runner resumes from the previous
+step's `messages.json` via pydantic-ai's `message_history`, so later instructions
+refer back to earlier findings ("the regressed examples you identified"). The agent
+*process* is still rebuilt per step — which is how step 4 enables mutations
+mid-conversation while steps 1–3 stay read-only. The **database** also persists
+across steps (shared container). Note the resulting error cascade: a wrong answer in
+step 2 propagates into steps 3–4, which is intentional — the eval measures the full
+triage arc, and the `min_reward` gate on step 1 bounds wasted spend.
 
 ---
 

@@ -10,7 +10,7 @@ rows = connection.execute(
 split_count = connection.execute("SELECT COUNT(*) FROM dataset_splits").fetchone()[0]
 actual = {key for name, key in rows if name == truth["split_name"]}
 passed = split_count == 1 and actual == set(truth["expected_example_keys"])
-messages = Path("/logs/agent/latest/messages.json").read_text()
+messages = Path("/logs/agent/latest/new_messages.json").read_text()
 Path("/logs/verifier/reward.json").write_text(
     json.dumps({"reward": float(passed), "tool_calls": messages.count('"tool-call"')})
 )

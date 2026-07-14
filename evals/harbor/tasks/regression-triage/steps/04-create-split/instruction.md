@@ -1,7 +1,7 @@
-In dataset `qa-bot-golden`, determine the examples where `candidate-v2` regressed
-relative to `baseline-gpt4o` (baseline correctness score 1, candidate correctness
-score 0). Then create a dataset split named "regressions" on `qa-bot-golden` containing
-exactly those examples. GraphQL mutations are enabled for this task.
+GraphQL mutations are now enabled. Create a dataset split named "regressions" on
+`qa-bot-golden` containing exactly the regressed examples you identified earlier
+(the ones where the baseline experiment passed with correctness score 1 and the
+candidate failed with correctness score 0).
 
 Answer schema:
 {"split_name": "regressions", "example_keys": ["ex-...", ...]}

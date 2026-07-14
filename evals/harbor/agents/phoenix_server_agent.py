@@ -13,7 +13,7 @@ class PhoenixServerAgent(BaseAgent):
         return "phoenix-server-agent"
 
     def version(self) -> str | None:
-        return "1"
+        return "2"
 
     async def setup(self, environment: BaseEnvironment) -> None:
         return None
@@ -33,7 +33,7 @@ n=$(($(cat /logs/agent/step_counter 2>/dev/null || printf 0) + 1))
 printf %s "$n" > /logs/agent/step_counter
 mutation_flag=""
 if printf %s "$config" | grep -q '"allow_mutations"[[:space:]]*:[[:space:]]*true'; then mutation_flag="--allow-mutations"; fi
-python /opt/phoenix-eval/run_server_agent.py --db-path /data/phoenix.db --instruction-file /tmp/instruction.md --model {shlex.quote(model)} --out-dir "/logs/agent/steps/$n" $mutation_flag
+python /opt/phoenix-eval/run_server_agent.py --db-path /data/phoenix.db --instruction-file /tmp/instruction.md --model {shlex.quote(model)} --out-dir "/logs/agent/steps/$n" --history-file /logs/agent/latest/messages.json $mutation_flag
 ln -sfn "/logs/agent/steps/$n" /logs/agent/latest
 cat /logs/agent/latest/answer.md"""
         result = await environment.exec(command)
