@@ -384,14 +384,6 @@ logger = logging.getLogger(__name__)
 _ASSISTANT_AGENT_ID = "assistant"
 
 
-def _log_run_complete(result: AgentRunResult[Any]) -> None:
-    """Log the full message history after an agent run completes."""
-    messages = result.all_messages()
-    logger.info("agent run complete: %d messages", len(messages))
-    for message in messages:
-        logger.info("%s", message)
-
-
 _AsyncGeneratorType = TypeVar("_AsyncGeneratorType")
 
 
@@ -1259,7 +1251,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 session_id=session_id,
                 usage=result.usage,
             )
-            _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
@@ -1504,7 +1495,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 session_id=session_id,
                 usage=result.usage,
             )
-            _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             stream_error: BaseException | None = None
