@@ -23,6 +23,11 @@ Related dials for deployments that keep the authorization server enabled: `PHOEN
 (default `local_only`) controls which OAuth2 clients may register themselves, and `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS`
 restricts where dynamically registered clients may receive authorization codes.
 
+A note on CORS: the anonymous OAuth surfaces (`/.well-known/*` discovery documents, `/oauth2/register`, `/oauth2/token`,
+and `/oauth2/revoke`) answer cross-origin requests from any origin with non-credentialed wildcard CORS, so browser-based
+OAuth clients work without configuration. These endpoints honor no cookies; the cookie-authenticated app API remains
+governed by the `PHOENIX_ALLOWED_ORIGINS` allowlist, and the OAuth consent endpoint keeps its strict same-origin check.
+
 ## v17.x to v18.0.0
 
 ### DB Index for Sessions Time Range

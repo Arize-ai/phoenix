@@ -114,6 +114,7 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.middleware.anonymous_cors import AnonymousCorsMiddleware
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
@@ -1189,6 +1190,16 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
+    # Added after (= outside) the credentialed allowlist middleware so it wins
+    # on its paths: browser-based OAuth public clients fetch these anonymous
+    # endpoints from origins that cannot be known in advance. The cookie-honoring
+    # OAuth endpoints (/oauth2/authorize is navigated to; the consent decision
+    # endpoint enforces a strict Origin check) are deliberately not listed.
+    app.add_middleware(
+        AnonymousCorsMiddleware,
+        exact=frozenset({"/oauth2/register", "/oauth2/token", "/oauth2/revoke"}),
+        prefixes=("/.well-known/",),
+    )
     return app
 
 

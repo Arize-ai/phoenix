@@ -511,6 +511,24 @@ component, RFC 8414 then places the well-known segment between host and path
 path-appended OIDC location is the only URL in the MCP client discovery order
 that reaches Phoenix without proxy configuration.
 
+### Wildcard, non-credentialed CORS on the anonymous surfaces only
+
+Browser-based OAuth public clients fetch the discovery documents, register, and
+exchange codes from the page itself, from origins that cannot be known in
+advance (the MCP Inspector, for example, is a web app on a local port). Hosted
+authorization servers answer these endpoints with
+``Access-Control-Allow-Origin: *``, and Phoenix does the same — the endpoints
+honor no cookies, so there is no session for a hostile page to ride, and the
+flow's security rests on PKCE, single-use codes, and redirect-URI binding
+rather than on which origin fetched the endpoint. The wildcard applies only to
+``/.well-known/*``, ``/oauth2/register``, ``/oauth2/token``, and
+``/oauth2/revoke``; the cookie-honoring surfaces are excluded
+(``/oauth2/authorize`` is navigated to, not fetched, and the consent decision
+endpoint enforces a strict Origin check), and the credentialed
+``PHOENIX_ALLOWED_ORIGINS`` allowlist for the app API is untouched. Error
+responses carry the header too — a browser client can only read the OAuth
+error JSON if the failure response is itself CORS-approved.
+
 ### Zero new dependencies
 
 Evaluated pulling in an OAuth server framework; the mature Python option is
