@@ -150,6 +150,10 @@ export function EvaluationMetricsChart({
           />
           <Tooltip
             {...defaultTooltipProps}
+            wrapperStyle={{
+              // The active ChartPanel raises this above synchronized tooltips.
+              zIndex: "var(--chart-panel-tooltip-z-index, 1)",
+            }}
             content={(props) => (
               <EvaluationMetricsTooltip
                 {...props}

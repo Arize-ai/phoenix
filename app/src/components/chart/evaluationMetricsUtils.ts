@@ -1,4 +1,4 @@
-export const SCORE_ONLY_LABEL = "Score only";
+export const SCORE_ONLY_LABEL = "score only";
 
 const SCORE_ONLY_RESIDUAL_EPSILON = 1e-9;
 

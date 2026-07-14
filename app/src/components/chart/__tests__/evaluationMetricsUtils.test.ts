@@ -1,6 +1,5 @@
 import { formatEvaluationFraction } from "../EvaluationMetricsChart";
 import {
-  SCORE_ONLY_LABEL,
   deriveScoreOnlyFraction,
   normalizeEvaluationMetrics,
 } from "../evaluationMetricsUtils";
@@ -123,7 +122,7 @@ describe("normalizeEvaluationMetrics", () => {
       kind: "distribution",
       hasScores: true,
       hasLabels: true,
-      labels: ["fail", "pass", SCORE_ONLY_LABEL],
+      labels: ["fail", "pass", "score only"],
     });
     expect(series.data[0]).toEqual({
       x: 7,
@@ -169,7 +168,7 @@ describe("normalizeEvaluationMetrics", () => {
       },
     });
 
-    expect(series.labels).toEqual(["fail", "pass", SCORE_ONLY_LABEL]);
+    expect(series.labels).toEqual(["fail", "pass", "score only"]);
     expect(series.data[0].fractions).toEqual([undefined, 1, undefined]);
     expect(series.reference).toMatchObject({
       x: 1,

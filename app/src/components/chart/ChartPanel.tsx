@@ -19,9 +19,16 @@ const chartPanelCSS = css`
   height: 100%;
   width: 100%;
   min-width: 0;
+  --chart-panel-tooltip-z-index: 1;
   border: var(--global-border-size-thin) solid var(--chart-panel-border-color);
   border-radius: var(--global-rounding-medium);
   background-color: var(--chart-panel-background-color);
+
+  &:hover,
+  &:focus-within {
+    /* Lift only the active tooltip above synchronized sibling tooltips. */
+    --chart-panel-tooltip-z-index: 2;
+  }
 
   .chart-panel__header {
     flex: none;
