@@ -4,7 +4,10 @@ from pathlib import Path
 
 logs = Path("/logs/agent")
 logs.joinpath("steps").mkdir(parents=True, exist_ok=True)
-counter_path = logs / "step_counter"
+# Harbor archives /logs/agent after every step, so the step counter must live
+# on the container filesystem to survive across steps.
+counter_path = Path("/var/lib/phoenix-eval/step_counter")
+counter_path.parent.mkdir(parents=True, exist_ok=True)
 step = int(counter_path.read_text() if counter_path.exists() else "0") + 1
 counter_path.write_text(str(step))
 truth = json.loads(Path("/data/ground_truth.json").read_text())
