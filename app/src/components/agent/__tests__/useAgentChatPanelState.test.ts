@@ -31,7 +31,7 @@ describe("buildAgentModelSelection", () => {
     });
   });
 
-  it("leaves the API type up to custom provider configuration", () => {
+  it("omits the API type for custom provider selections", () => {
     expect(
       buildAgentModelSelection({
         model: {
