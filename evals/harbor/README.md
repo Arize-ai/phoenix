@@ -73,9 +73,9 @@ To publish fresh artifacts:
 The script regenerates each task's `phoenix.db` and `ground_truth.json` from
 `environment/seed_db.py`, clears the `evals/harbor` prefix in the bucket, and uploads
 the fresh artifacts (with `Cache-Control: no-store`, so re-pushes are visible
-immediately) along with a `metadata.json` recording the source commit. Because the
-runner opens the database with `migrate=False`, re-run the script whenever
-`seed_db.py` or the Phoenix migrations change.
+immediately) along with a `metadata.json` recording the source commit. The runner
+migrates the database to the wheel's schema at startup, so new Phoenix migrations
+do not require a re-push; re-run the script whenever `seed_db.py` changes.
 
 ## Layout
 

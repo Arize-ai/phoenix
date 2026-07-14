@@ -189,7 +189,7 @@ def build_trajectory(
 
 
 async def run(args: argparse.Namespace) -> None:
-    engine = create_engine(f"sqlite:///{args.db_path}", migrate=False)
+    engine = create_engine(f"sqlite:///{args.db_path}")
     db = DbSessionFactory(db=_db(engine), dialect="sqlite")
     app = create_app(db=db, authentication_enabled=False, serve_ui=False)
     session_id = _load_or_create_session_id(args.session_id_file)
