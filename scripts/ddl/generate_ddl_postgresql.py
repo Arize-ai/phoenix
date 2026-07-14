@@ -142,10 +142,12 @@ class PostgreSQLDDLExtractor:
     def _execute_query(
         self, query: sql.SQL | sql.Composed, params: tuple[Any, ...], operation_name: str
     ) -> list[dict[str, Any]]:
-        """Execute database query with standardized error handling.
+        """Execute a catalog query, letting database errors fail the run.
 
-        Returns empty list on error to allow graceful degradation.
-        Errors are logged to stderr with context.
+        Converting an error into an empty result would silently omit schema
+        objects from the reference DDL — and once the transaction is aborted,
+        every subsequent catalog query would fail and hollow out the rest of
+        the output while the run still exits 0.
         """
         if not self.conn:
             raise RuntimeError("No database connection")
@@ -155,8 +157,7 @@ class PostgreSQLDDLExtractor:
                 cur.execute(query, params)
                 return cur.fetchall()
         except psycopg.Error as e:
-            print(f"Error {operation_name}: {e}", file=sys.stderr)
-            return []
+            raise RuntimeError(f"Error {operation_name}: {e}") from e
 
     def extract_all_types_ddl(self, schema: str = DEFAULT_SCHEMA) -> list[TypeInfo]:
         """Extract DDL for all user-defined types (enums, etc.) in the specified schema."""
