@@ -4,16 +4,25 @@ import type { ReactNode } from "react";
 import {
   ChartPanel,
   EvaluationMetricsChart,
+  type EvaluationMetricsInputPoint,
   normalizeEvaluationMetrics,
 } from "@phoenix/components/chart";
 
+import {
+  ExperimentBaselineDistributionSeparator,
+  ExperimentBaselineValueLine,
+  getExperimentBaselineLegendItems,
+} from "./ExperimentBaselineReference";
 import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
 } from "./experimentXAxisProps";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
-import { useExperimentMetricsData } from "./useExperimentMetricsData";
+import {
+  type ExperimentMetricsDatum,
+  useExperimentMetricsData,
+} from "./useExperimentMetricsData";
 
 const evaluationGridCSS = css`
   display: grid;
@@ -34,23 +43,13 @@ export function ExperimentEvaluationMetricsGrid({
 }) {
   const { experiments, baselineExperiment } =
     useExperimentMetricsData(datasetId);
-  const evaluationSeries = normalizeEvaluationMetrics(
-    experiments.map((experiment) => ({
-      x: experiment.sequenceNumber,
-      metadata: {
-        experimentName: experiment.name,
-        isBaseline: experiment.isBaseline,
-      },
-      summaries: experiment.annotationSummaries.map((summary) => ({
-        name: summary.annotationName,
-        count: summary.count,
-        scoreCount: summary.scoreCount,
-        labelCount: summary.labelCount,
-        meanScore: summary.meanScore,
-        labelFractions: summary.labelFractions,
-      })),
-    }))
-  );
+  const evaluationSeries = normalizeEvaluationMetrics({
+    points: experiments.map(toEvaluationMetricsInputPoint),
+    referencePoint:
+      baselineExperiment == null
+        ? undefined
+        : toEvaluationMetricsInputPoint(baselineExperiment),
+  });
 
   return (
     <div css={evaluationGridCSS} data-testid="experiment-evaluation-grid">
@@ -68,6 +67,9 @@ export function ExperimentEvaluationMetricsGrid({
             }}
             yAxisProps={experimentMetricsYAxisProps}
             syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
+            additionalLegendItems={getExperimentBaselineLegendItems(
+              series.kind === "score" ? series.reference?.meanScore : null
+            )}
             renderTooltipHeader={(point) => (
               <ExperimentMetricsTooltipHeader
                 sequenceNumber={point.x}
@@ -75,10 +77,41 @@ export function ExperimentEvaluationMetricsGrid({
                 isBaseline={point.metadata.isBaseline === true}
               />
             )}
+            renderReference={({ isMeanScoreHidden }) =>
+              series.kind === "score" ? (
+                <ExperimentBaselineValueLine
+                  value={isMeanScoreHidden ? null : series.reference?.meanScore}
+                />
+              ) : (
+                <ExperimentBaselineDistributionSeparator
+                  value={series.reference?.x}
+                />
+              )
+            }
           />
         </ChartPanel>
       ))}
       {children}
     </div>
   );
+}
+
+function toEvaluationMetricsInputPoint(
+  experiment: ExperimentMetricsDatum
+): EvaluationMetricsInputPoint {
+  return {
+    x: experiment.sequenceNumber,
+    metadata: {
+      experimentName: experiment.name,
+      isBaseline: experiment.isBaseline,
+    },
+    summaries: experiment.annotationSummaries.map((summary) => ({
+      name: summary.annotationName,
+      count: summary.count,
+      scoreCount: summary.scoreCount,
+      labelCount: summary.labelCount,
+      meanScore: summary.meanScore,
+      labelFractions: summary.labelFractions,
+    })),
+  };
 }

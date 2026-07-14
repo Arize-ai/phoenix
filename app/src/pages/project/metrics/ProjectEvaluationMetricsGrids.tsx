@@ -65,12 +65,12 @@ function ProjectEvaluationMetricsGrid({
   const { fullTimeFormatter } = useTimeFormatters();
   const evaluationSeries = useMemo(
     () =>
-      normalizeEvaluationMetrics(
-        data.map((point) => ({
+      normalizeEvaluationMetrics({
+        points: data.map((point) => ({
           x: new Date(point.timestamp).getTime(),
           summaries: point.annotationSummaries,
-        }))
-      ),
+        })),
+      }),
     [data]
   );
 

@@ -34,10 +34,12 @@ export type EvaluationMetricsChartPoint = {
 
 export type EvaluationMetricsSeries = {
   readonly name: string;
+  readonly kind: "score" | "distribution";
   readonly hasScores: boolean;
   readonly hasLabels: boolean;
   readonly labels: ReadonlyArray<string>;
   readonly data: ReadonlyArray<EvaluationMetricsChartPoint>;
+  readonly reference?: EvaluationMetricsChartPoint;
 };
 
 /**
@@ -55,14 +57,26 @@ export function deriveScoreOnlyFraction(
   return residual < SCORE_ONLY_RESIDUAL_EPSILON ? undefined : residual;
 }
 
+function getScoreOnlyFraction(
+  summary: EvaluationSummary | undefined
+): number | undefined {
+  return summary != null && summary.scoreCount > 0
+    ? deriveScoreOnlyFraction(summary.labelFractions)
+    : undefined;
+}
+
 /**
  * Normalizes summary snapshots into one chart series per evaluation. An
  * evaluation's score/label shape is classified over the complete input
  * window, so sparse or mixed buckets do not change chart type over time.
  */
-export function normalizeEvaluationMetrics(
-  points: ReadonlyArray<EvaluationMetricsInputPoint>
-): EvaluationMetricsSeries[] {
+export function normalizeEvaluationMetrics({
+  points,
+  referencePoint,
+}: {
+  points: ReadonlyArray<EvaluationMetricsInputPoint>;
+  referencePoint?: EvaluationMetricsInputPoint;
+}): EvaluationMetricsSeries[] {
   const evaluationNames = new Set<string>();
   for (const point of points) {
     for (const summary of point.summaries) {
@@ -80,54 +94,88 @@ export function normalizeEvaluationMetrics(
         .filter((summary): summary is EvaluationSummary => summary != null);
       const hasScores = summaries.some((summary) => summary.scoreCount > 0);
       const hasLabels = summaries.some((summary) => summary.labelCount > 0);
+      const kind: EvaluationMetricsSeries["kind"] = hasLabels
+        ? "distribution"
+        : "score";
+      const referenceSummary = referencePoint?.summaries.find(
+        (summary) => summary.name === name
+      );
+      const distributionSummaries =
+        hasLabels && referenceSummary != null
+          ? [...summaries, referenceSummary]
+          : summaries;
       const labels = Array.from(
         new Set(
-          summaries.flatMap((summary) =>
+          distributionSummaries.flatMap((summary) =>
             summary.labelFractions.map(({ label }) => label)
           )
         )
       ).sort((left, right) => left.localeCompare(right));
       const hasScoreOnly =
         hasLabels &&
-        summaries.some(
-          (summary) => deriveScoreOnlyFraction(summary.labelFractions) != null
+        distributionSummaries.some(
+          (summary) => getScoreOnlyFraction(summary) != null
         );
       const distributionLabels = hasScoreOnly
         ? [...labels, SCORE_ONLY_LABEL]
         : labels;
 
+      const makeChartPoint = ({
+        point,
+        summary,
+      }: {
+        point: EvaluationMetricsInputPoint;
+        summary: EvaluationSummary | undefined;
+      }): EvaluationMetricsChartPoint => {
+        const fractionsByLabel = new Map(
+          summary?.labelFractions.map(({ label, fraction }) => [
+            label,
+            fraction,
+          ])
+        );
+        const scoreOnlyFraction = getScoreOnlyFraction(summary);
+        return {
+          x: point.x,
+          metadata: point.metadata ?? {},
+          meanScore: summary?.meanScore ?? undefined,
+          count: summary?.count,
+          scoreCount: summary?.scoreCount,
+          labelCount: summary?.labelCount,
+          fractions: distributionLabels.map((label) =>
+            label === SCORE_ONLY_LABEL
+              ? scoreOnlyFraction
+              : fractionsByLabel.get(label)
+          ),
+        };
+      };
+
+      const referenceIsChartable =
+        referencePoint != null &&
+        referenceSummary != null &&
+        (kind === "score"
+          ? referenceSummary.meanScore != null
+          : referenceSummary.scoreCount > 0 || referenceSummary.labelCount > 0);
+
       return {
         name,
+        kind,
         hasScores,
         hasLabels,
         labels: distributionLabels,
-        data: points.map((point) => {
-          const summary = point.summaries.find(
-            (candidate) => candidate.name === name
-          );
-          const fractionsByLabel = new Map(
-            summary?.labelFractions.map(({ label, fraction }) => [
-              label,
-              fraction,
-            ])
-          );
-          const scoreOnlyFraction = summary
-            ? deriveScoreOnlyFraction(summary.labelFractions)
-            : undefined;
-          return {
-            x: point.x,
-            metadata: point.metadata ?? {},
-            meanScore: summary?.meanScore ?? undefined,
-            count: summary?.count,
-            scoreCount: summary?.scoreCount,
-            labelCount: summary?.labelCount,
-            fractions: distributionLabels.map((label) =>
-              label === SCORE_ONLY_LABEL
-                ? scoreOnlyFraction
-                : fractionsByLabel.get(label)
+        data: points.map((point) =>
+          makeChartPoint({
+            point,
+            summary: point.summaries.find(
+              (candidate) => candidate.name === name
             ),
-          };
-        }),
+          })
+        ),
+        reference: referenceIsChartable
+          ? makeChartPoint({
+              point: referencePoint,
+              summary: referenceSummary,
+            })
+          : undefined,
       };
     })
     .filter(({ hasScores, hasLabels }) => hasScores || hasLabels);

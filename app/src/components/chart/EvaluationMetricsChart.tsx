@@ -1,5 +1,10 @@
 import type { ComponentProps, ReactNode } from "react";
-import type { TooltipContentProps, XAxisProps, YAxisProps } from "recharts";
+import type {
+  LegendPayload,
+  TooltipContentProps,
+  XAxisProps,
+  YAxisProps,
+} from "recharts";
 import {
   Bar,
   BarChart,
@@ -83,6 +88,8 @@ export function EvaluationMetricsChart({
   syncId,
   renderTooltipHeader,
   barChartProps,
+  additionalLegendItems,
+  renderReference,
 }: {
   series: EvaluationMetricsSeries;
   xAxisProps: XAxisProps;
@@ -90,21 +97,30 @@ export function EvaluationMetricsChart({
   syncId: string;
   renderTooltipHeader: (point: EvaluationMetricsChartPoint) => ReactNode;
   barChartProps?: ComponentProps<typeof BarChart>;
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
+  renderReference?: (state: { isMeanScoreHidden: boolean }) => ReactNode;
 }) {
   const categoryColors = useCategoryChartColors();
   const { gray500 } = useSequentialChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
-  const scoreValues = series.data.flatMap(({ meanScore }) =>
-    meanScore == null ? [] : [meanScore]
+  const scoreValues = [...series.data, series.reference].flatMap((point) =>
+    point?.meanScore == null ? [] : [point.meanScore]
   );
   const scoreValuesFitUnitDomain = scoreValues.every(
     (score) => score >= 0 && score <= 1
   );
   const domain =
-    !series.hasScores || scoreValuesFitUnitDomain
+    series.kind === "distribution" || scoreValuesFitUnitDomain
       ? ([0, 1] as [number, number])
       : undefined;
+  const chartData =
+    series.kind === "distribution" && series.reference != null
+      ? [
+          series.reference,
+          ...series.data.filter(({ x }) => x !== series.reference?.x),
+        ]
+      : series.data;
 
   return (
     <ChartEmptyStateOverlay
@@ -114,10 +130,11 @@ export function EvaluationMetricsChart({
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={series.data}
+          data={chartData}
           margin={compactChartMargin}
           barSize={10}
           syncId={syncId}
+          syncMethod="value"
           {...barChartProps}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
@@ -126,7 +143,9 @@ export function EvaluationMetricsChart({
             {...yAxisProps}
             domain={domain}
             tickFormatter={
-              series.hasScores ? floatFormatter : formatEvaluationFraction
+              series.kind === "score"
+                ? floatFormatter
+                : formatEvaluationFraction
             }
           />
           <Tooltip
@@ -138,7 +157,10 @@ export function EvaluationMetricsChart({
               />
             )}
           />
-          {series.hasScores && (
+          {renderReference?.({
+            isMeanScoreHidden: isDataKeyHidden(MEAN_SCORE_DATA_KEY),
+          })}
+          {series.kind === "score" && (
             <Bar
               dataKey={MEAN_SCORE_DATA_KEY}
               name="Mean score"
@@ -147,7 +169,7 @@ export function EvaluationMetricsChart({
               radius={[2, 2, 0, 0]}
             />
           )}
-          {series.hasLabels &&
+          {series.kind === "distribution" &&
             series.labels.map((label, index) => {
               const dataKey = `fractions.${index}`;
               return (
@@ -160,7 +182,7 @@ export function EvaluationMetricsChart({
                     label === SCORE_ONLY_LABEL
                       ? gray500
                       : getCategoryChartColor({
-                          index: index + (series.hasScores ? 1 : 0),
+                          index,
                           colors: categoryColors,
                         })
                   }
@@ -174,6 +196,11 @@ export function EvaluationMetricsChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            additionalLegendItems={
+              series.kind === "score" && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
+                ? []
+                : additionalLegendItems
+            }
           />
         </BarChart>
       </ResponsiveContainer>
