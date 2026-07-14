@@ -15,8 +15,8 @@ Restructures indexes in one migration:
   .experiment_run_id and .dataset_evaluator_id, and experiment_task_logs
   .dataset_example_id (all ON DELETE CASCADE targets that fire once per
   deleted parent row).
-- Creates ``user_id`` indexes on the seven tables whose ``ON DELETE SET NULL``
-  FK to users was unindexed (the four annotation tables, datasets,
+- Creates ``user_id`` indexes on seven tables with an unindexed
+  ``ON DELETE SET NULL`` FK to users (the four annotation tables, datasets,
   dataset_versions, and experiments), so a user deletion no longer sequential-
   scans each of them.
 - Drops seven redundant single-column indexes. Five are served by the leading
