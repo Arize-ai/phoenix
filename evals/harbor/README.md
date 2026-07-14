@@ -26,10 +26,11 @@ Validate the task with the bundled oracle:
 harbor run -p evals/harbor/tasks/regression-triage -a oracle
 ```
 
-Run the real ServerAgent adapter:
+Run the real ServerAgent adapter (`PYTHONPATH` makes the adapter importable from
+Harbor's own virtualenv):
 
 ```bash
-harbor run -p evals/harbor/tasks/regression-triage \
+PYTHONPATH=. harbor run -p evals/harbor/tasks/regression-triage \
   -a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
   -m anthropic/claude-sonnet-4-5
 ```
