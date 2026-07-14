@@ -214,7 +214,6 @@ def test_validate_state_accepts_minimum_length_value() -> None:
     [
         None,
         "",
-        "read_only",
         "openid email profile unknown",
         "write admin delete_everything",
     ],

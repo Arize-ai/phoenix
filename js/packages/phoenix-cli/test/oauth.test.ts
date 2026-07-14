@@ -106,7 +106,7 @@ describe("OAuth PKCE and callback helpers", () => {
             refresh_token: "refresh",
             expires_in: 120,
             token_type: "Bearer",
-            scope: "read_only",
+            scope: "",
           }),
           { status: 200 }
         )
@@ -160,7 +160,7 @@ describe("OAuth token parsing and refresh", () => {
         refresh_token: "refresh",
         expires_in: 120,
         token_type: "Bearer",
-        scope: "read_only",
+        scope: "",
       },
       now: new Date("2026-01-01T00:00:00.000Z"),
     });
@@ -168,7 +168,7 @@ describe("OAuth token parsing and refresh", () => {
       accessToken: "access",
       refreshToken: "refresh",
       expiresAt: "2026-01-01T00:02:00.000Z",
-      scope: "read_only",
+      scope: "",
     });
   });
 
@@ -179,7 +179,7 @@ describe("OAuth token parsing and refresh", () => {
           accessToken: "a",
           refreshToken: "r",
           expiresAt: "2026-01-01T00:00:59.000Z",
-          scope: "read_only",
+          scope: "",
         },
         now: new Date("2026-01-01T00:00:00.000Z"),
       })
@@ -190,7 +190,7 @@ describe("OAuth token parsing and refresh", () => {
           accessToken: "a",
           refreshToken: "r",
           expiresAt: "2026-01-01T00:01:01.000Z",
-          scope: "read_only",
+          scope: "",
         },
         now: new Date("2026-01-01T00:00:00.000Z"),
       })
@@ -212,7 +212,7 @@ describe("OAuth token parsing and refresh", () => {
               accessToken: "fresh-access",
               refreshToken: "fresh-refresh",
               expiresAt: "2999-01-01T00:00:00.000Z",
-              scope: "read_only",
+              scope: "",
             },
           },
         },
@@ -226,7 +226,7 @@ describe("OAuth token parsing and refresh", () => {
           accessToken: "stale-access",
           refreshToken: "stale-refresh",
           expiresAt: "2000-01-01T00:00:00.000Z",
-          scope: "read_only",
+          scope: "",
         },
         settingsPath,
         fetchImpl: fetchMock,
@@ -255,7 +255,7 @@ describe("OAuth token parsing and refresh", () => {
                 accessToken: "old-access",
                 refreshToken: "old-refresh",
                 expiresAt: "2000-01-01T00:00:00.000Z",
-                scope: "read_only",
+                scope: "",
               },
             },
           },
@@ -274,7 +274,7 @@ describe("OAuth token parsing and refresh", () => {
             refresh_token: "new-refresh",
             expires_in: 600,
             token_type: "Bearer",
-            scope: "read_only",
+            scope: "",
           })
         );
       });
@@ -285,7 +285,7 @@ describe("OAuth token parsing and refresh", () => {
           accessToken: "old-access",
           refreshToken: "old-refresh",
           expiresAt: "2000-01-01T00:00:00.000Z",
-          scope: "read_only",
+          scope: "",
         },
         settingsPath,
       });
@@ -319,7 +319,7 @@ describe("OAuth fetch wrapper", () => {
                 accessToken: "old-access",
                 refreshToken: "old-refresh",
                 expiresAt: "2000-01-01T00:00:00.000Z",
-                scope: "read_only",
+                scope: "",
               },
             },
           },
@@ -335,7 +335,7 @@ describe("OAuth fetch wrapper", () => {
               refresh_token: "new-refresh",
               expires_in: 600,
               token_type: "Bearer",
-              scope: "read_only",
+              scope: "",
             })
           );
           return;
@@ -353,7 +353,7 @@ describe("OAuth fetch wrapper", () => {
             accessToken: "old-access",
             refreshToken: "old-refresh",
             expiresAt: "2000-01-01T00:00:00.000Z",
-            scope: "read_only",
+            scope: "",
           },
         },
         settingsPath,
@@ -384,7 +384,7 @@ describe("OAuth fetch wrapper", () => {
                 accessToken: "access",
                 refreshToken: "refresh",
                 expiresAt: "2999-01-01T00:00:00.000Z",
-                scope: "read_only",
+                scope: "",
               },
             },
           },
@@ -400,7 +400,7 @@ describe("OAuth fetch wrapper", () => {
               refresh_token: "rotated-refresh",
               expires_in: 600,
               token_type: "Bearer",
-              scope: "read_only",
+              scope: "",
             })
           );
           return;
@@ -417,7 +417,7 @@ describe("OAuth fetch wrapper", () => {
             accessToken: "access",
             refreshToken: "refresh",
             expiresAt: "2999-01-01T00:00:00.000Z",
-            scope: "read_only",
+            scope: "",
           },
         },
         settingsPath,

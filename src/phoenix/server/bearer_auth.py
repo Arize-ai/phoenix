@@ -67,39 +67,17 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
         return AuthCredentials(), PhoenixUser(claims.subject, claims)
 
 
-def _has_read_only_grant_scope(claims: UserClaimSet) -> bool:
-    """True when the token was minted under a read-only OAuth grant."""
-    from phoenix.server.types import (
-        GRANT_SCOPE_READ_ONLY,
-        AccessTokenAttributes,
-        RefreshTokenAttributes,
-    )
-
-    attributes = claims.attributes
-    if not isinstance(attributes, (AccessTokenAttributes, RefreshTokenAttributes)):
-        return False
-    if attributes.scopes is None:
-        return False
-    return GRANT_SCOPE_READ_ONLY in attributes.scopes
-
-
 class PhoenixUser(BaseUser):
     def __init__(self, user_id: UserId, claims: UserClaimSet) -> None:
         self._user_id = user_id
         self.claims = claims
         assert claims.attributes
-        # Read-only OAuth grants clamp role flags to VIEWER-equivalent reads with
-        # admin surfaces denied, even when the underlying account is ADMIN.
-        if _has_read_only_grant_scope(claims) and claims.status is ClaimSetStatus.VALID:
-            self._is_admin = False
-            self._is_viewer = True
-        else:
-            self._is_admin = (
-                claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "ADMIN"
-            )
-            self._is_viewer = (
-                claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "VIEWER"
-            )
+        self._is_admin = (
+            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "ADMIN"
+        )
+        self._is_viewer = (
+            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "VIEWER"
+        )
 
     @cached_property
     def is_admin(self) -> bool:
@@ -160,12 +138,10 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                     or claims.status is not ClaimSetStatus.VALID
                 ):
                     break
-                # OTLP ingest is a write. Read-only OAuth grants and viewer-role
-                # tokens are authenticated but not authorized to write — reject
-                # with PERMISSION_DENIED (not UNAUTHENTICATED).
-                if _has_read_only_grant_scope(claims) or (
-                    claims.attributes is not None and claims.attributes.user_role == "VIEWER"
-                ):
+                # OTLP ingest is a write. Viewer-role tokens are authenticated but
+                # not authorized to write — reject with PERMISSION_DENIED (not
+                # UNAUTHENTICATED).
+                if claims.attributes is not None and claims.attributes.user_role == "VIEWER":
                     await context.abort(grpc.StatusCode.PERMISSION_DENIED)
                     return
                 return await method(request_or_iterator, context)
