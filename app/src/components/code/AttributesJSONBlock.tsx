@@ -1,19 +1,18 @@
-import { css } from "@emotion/react";
-import { useCallback, useMemo, useState } from "react";
+import type { PropsWithChildren } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { JSONBlock } from "./JSONBlock";
 import { PreBlock } from "./PreBlock";
-
-const buttonContainerCSS = css`
-  position: absolute;
-  top: var(--global-dimension-size-100);
-  right: var(--global-dimension-size-100);
-  z-index: 1;
-`;
 
 /**
  * Parses a string as JSON if it's a valid object or array.
@@ -73,10 +72,35 @@ export function hasStringifiedJSON(value: unknown): boolean {
   return false;
 }
 
+type AttributesJSONBlockContextType = {
+  attributes: string;
+  parsedAttributes: Record<string, unknown> | null;
+  isExpanded: boolean;
+  canExpand: boolean;
+  displayValue: string;
+  toggleExpand: () => void;
+};
+
+const AttributesJSONBlockContext =
+  createContext<AttributesJSONBlockContextType | null>(null);
+
+function useAttributesJSONBlock() {
+  const context = useContext(AttributesJSONBlockContext);
+  if (context === null) {
+    throw new Error(
+      "useAttributesJSONBlock must be used within an AttributesJSONBlockProvider"
+    );
+  }
+  return context;
+}
+
 /**
- * Displays JSON attributes with a button to expand/collapse stringified JSON values.
+ * Provides the shared state used by the attribute block and its controls.
  */
-export function AttributesJSONBlock({ attributes }: { attributes: string }) {
+export function AttributesJSONBlockProvider({
+  attributes,
+  children,
+}: PropsWithChildren<{ attributes: string }>) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const parsedAttributes = useMemo(() => {
@@ -88,7 +112,7 @@ export function AttributesJSONBlock({ attributes }: { attributes: string }) {
   }, [attributes]);
 
   const canExpand = useMemo(
-    () => parsedAttributes && hasStringifiedJSON(parsedAttributes),
+    () => parsedAttributes !== null && hasStringifiedJSON(parsedAttributes),
     [parsedAttributes]
   );
 
@@ -107,32 +131,61 @@ export function AttributesJSONBlock({ attributes }: { attributes: string }) {
   }, []);
 
   return (
-    <View position="relative">
-      <div css={buttonContainerCSS}>
-        <Flex direction="row" gap="size-100">
-          {canExpand && (
-            <Button
-              size="S"
-              variant="default"
-              aria-label={isExpanded ? "Collapse Strings" : "Expand Strings"}
-              leadingVisual={
-                <Icon
-                  svg={isExpanded ? <Icons.BlockString /> : <Icons.BlockJSON />}
-                />
-              }
-              onPress={toggleExpand}
-            >
-              {isExpanded ? "Collapse Strings" : "Expand Strings"}
-            </Button>
-          )}
-          <CopyToClipboardButton text={displayValue} />
-        </Flex>
-      </div>
-      {parsedAttributes ? (
-        <JSONBlock value={displayValue} />
-      ) : (
-        <PreBlock>{attributes}</PreBlock>
+    <AttributesJSONBlockContext.Provider
+      value={{
+        attributes,
+        parsedAttributes,
+        isExpanded,
+        canExpand,
+        displayValue,
+        toggleExpand,
+      }}
+    >
+      {children}
+    </AttributesJSONBlockContext.Provider>
+  );
+}
+
+/**
+ * Controls for expanding/collapsing stringified JSON values and copying.
+ */
+export function AttributesJSONBlockControls() {
+  const { isExpanded, canExpand, displayValue, toggleExpand } =
+    useAttributesJSONBlock();
+  const expandLabel = isExpanded ? "Collapse Strings" : "Expand Strings";
+
+  return (
+    <Flex direction="row" gap="size-100">
+      {canExpand && (
+        <Button
+          size="S"
+          variant="default"
+          aria-label={expandLabel}
+          leadingVisual={
+            <Icon
+              svg={isExpanded ? <Icons.BlockString /> : <Icons.BlockJSON />}
+            />
+          }
+          onPress={toggleExpand}
+        >
+          {expandLabel}
+        </Button>
       )}
-    </View>
+      <CopyToClipboardButton text={displayValue} />
+    </Flex>
+  );
+}
+
+/**
+ * Displays JSON attributes using state from AttributesJSONBlockProvider.
+ */
+export function AttributesJSONBlock() {
+  const { attributes, parsedAttributes, displayValue } =
+    useAttributesJSONBlock();
+
+  return parsedAttributes ? (
+    <JSONBlock value={displayValue} />
+  ) : (
+    <PreBlock>{attributes}</PreBlock>
   );
 }

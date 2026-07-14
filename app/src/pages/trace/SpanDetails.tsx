@@ -52,7 +52,11 @@ import {
   ToggleButton,
   View,
 } from "@phoenix/components";
-import { AttributesJSONBlock } from "@phoenix/components/code";
+import {
+  AttributesJSONBlock,
+  AttributesJSONBlockControls,
+  AttributesJSONBlockProvider,
+} from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -379,13 +383,16 @@ export function SpanDetails({
                 maxHeight="100%"
                 overflow="auto"
               >
-                <Card
-                  title="All Attributes"
-                  {...defaultCardProps}
-                  titleExtra={attributesContextualHelp}
-                >
-                  <AttributesJSONBlock attributes={span.attributes} />
-                </Card>
+                <AttributesJSONBlockProvider attributes={span.attributes}>
+                  <Card
+                    title="All Attributes"
+                    {...defaultCardProps}
+                    titleExtra={attributesContextualHelp}
+                    extra={<AttributesJSONBlockControls />}
+                  >
+                    <AttributesJSONBlock />
+                  </Card>
+                </AttributesJSONBlockProvider>
               </View>
             </LazyTabPanel>
 
@@ -1694,13 +1701,16 @@ function SpanIO({ span }: { span: Span }) {
         </MarkdownDisplayProvider>
       ) : null}
       {isMissingIO ? (
-        <Card
-          title="All Attributes"
-          titleExtra={attributesContextualHelp}
-          {...defaultCardProps}
-        >
-          <AttributesJSONBlock attributes={span.attributes} />
-        </Card>
+        <AttributesJSONBlockProvider attributes={span.attributes}>
+          <Card
+            title="All Attributes"
+            titleExtra={attributesContextualHelp}
+            {...defaultCardProps}
+            extra={<AttributesJSONBlockControls />}
+          >
+            <AttributesJSONBlock />
+          </Card>
+        </AttributesJSONBlockProvider>
       ) : null}
     </Flex>
   );
