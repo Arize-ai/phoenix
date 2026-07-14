@@ -1,0 +1,13 @@
+<tool name="get_current_datetime">
+  <description>Read the current date and time as reported by the user's browser (falling back to the server's UTC clock when no browser clock is available).</description>
+  <when_to_use>
+    - Before resolving any relative date or time phrase ("today", "yesterday", "last hour", "since 9am") into concrete timestamps.
+    - Before calling `set_time_range` with a `custom` window derived from relative language.
+    - Whenever an answer depends on knowing what time it is now.
+  </when_to_use>
+  <guidelines>
+    - Never guess the current date or time from prior knowledge; your training data is stale.
+    - A `browser` result is the clock captured when the user sent their most recent message; treat it as "now" for that message and interpret it in the returned timezone.
+    - Reuse the returned value for the rest of the turn instead of calling repeatedly.
+  </guidelines>
+</tool>

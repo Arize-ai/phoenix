@@ -1014,6 +1014,12 @@ class UpsertOrDeleteSecretsResult(TypedDict):
     deleted_keys: Sequence[str]
 
 
+class UserMessageMetadata(TypedDict):
+    type: Literal["user"]
+    currentDateTime: str
+    timeZone: str
+
+
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
@@ -1602,13 +1608,40 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
 
 
 class AssistantMessageMetadata(TypedDict):
+    type: Literal["assistant"]
     sessionId: str
     trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
 
 
-class AssistantMetadataUIMessage(TypedDict):
+class CreateAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class CreateSpansRequestBody(TypedDict):
+    data: Sequence[Span]
+
+
+class DeleteAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class GetSessionResponseBody(TypedDict):
+    data: SessionData
+
+
+class GetSessionsResponseBody(TypedDict):
+    data: Sequence[SessionData]
+    next_cursor: Optional[str]
+
+
+class GetTracesResponseBody(TypedDict):
+    data: Sequence[TraceData]
+    next_cursor: Optional[str]
+
+
+class PhoenixUIMessage(TypedDict):
     id: str
     role: Literal["system", "user", "assistant"]
     parts: Sequence[
@@ -1636,12 +1669,29 @@ class AssistantMetadataUIMessage(TypedDict):
             StepStartUIPart,
         ]
     ]
-    metadata: NotRequired[AssistantMessageMetadata]
+    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+
+
+class PromptAnthropicInvocationParameters(TypedDict):
+    type: Literal["anthropic"]
+    anthropic: PromptAnthropicInvocationParametersContent
+
+
+class PromptGoogleInvocationParameters(TypedDict):
+    type: Literal["google"]
+    google: PromptGoogleInvocationParametersContent
+
+
+class PromptMessage(TypedDict):
+    role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
+    content: Union[
+        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
+    ]
 
 
 class ChatRegenerateMessage(TypedDict):
     id: str
-    messages: Sequence[AssistantMetadataUIMessage]
+    messages: Sequence[PhoenixUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     trigger: Literal["regenerate-message"]
     messageId: NotRequired[str]
@@ -1675,7 +1725,7 @@ class ChatRegenerateMessage(TypedDict):
 
 class ChatSubmitMessage(TypedDict):
     id: str
-    messages: Sequence[AssistantMetadataUIMessage]
+    messages: Sequence[PhoenixUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     trigger: Literal["submit-message"]
     ingestTraces: NotRequired[bool]
@@ -1704,49 +1754,6 @@ class ChatSubmitMessage(TypedDict):
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
-
-
-class CreateAnnotationConfigResponseBody(TypedDict):
-    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
-
-
-class CreateSpansRequestBody(TypedDict):
-    data: Sequence[Span]
-
-
-class DeleteAnnotationConfigResponseBody(TypedDict):
-    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
-
-
-class GetSessionResponseBody(TypedDict):
-    data: SessionData
-
-
-class GetSessionsResponseBody(TypedDict):
-    data: Sequence[SessionData]
-    next_cursor: Optional[str]
-
-
-class GetTracesResponseBody(TypedDict):
-    data: Sequence[TraceData]
-    next_cursor: Optional[str]
-
-
-class PromptAnthropicInvocationParameters(TypedDict):
-    type: Literal["anthropic"]
-    anthropic: PromptAnthropicInvocationParametersContent
-
-
-class PromptGoogleInvocationParameters(TypedDict):
-    type: Literal["google"]
-    google: PromptGoogleInvocationParametersContent
-
-
-class PromptMessage(TypedDict):
-    role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
-    content: Union[
-        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
-    ]
 
 
 class PromptChatTemplate(TypedDict):

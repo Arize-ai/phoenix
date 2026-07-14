@@ -11,7 +11,6 @@ import {
   type AgentPermissions,
   type AgentServerConfig,
 } from "@phoenix/store/agentStore";
-import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import type { TurnTraceContext } from "./turnTraceContext";
@@ -61,23 +60,6 @@ export type AgentChatRequestBodyPatch = Pick<
   BuildAgentChatRequestBodyResult,
   "requestedSkills"
 >;
-
-/**
- * Build request-only browser clock context for resolving relative time phrases.
- *
- * This is intentionally generated at send time instead of stored in agent
- * state: it changes every turn and should not appear as user-visible page
- * context.
- */
-function buildCurrentAppContext(): AgentContext {
-  const now = new Date();
-  const timeZone = getTimeZone();
-  return {
-    type: "app",
-    currentDateTime: toLocalISOWithOffset(now, timeZone),
-    timeZone,
-  };
-}
 
 /**
  * Build GraphQL context from the current capability snapshot.
@@ -138,7 +120,6 @@ export function buildAgentChatRequestBody({
     observability,
   });
   const requestContexts = [
-    buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
     buildWebAccessContext(capabilities),
     buildSubagentsContext(capabilities),

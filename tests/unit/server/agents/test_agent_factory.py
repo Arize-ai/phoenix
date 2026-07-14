@@ -68,6 +68,7 @@ STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
         _DEFAULT_PROMPTS.bash_tool.render(),
         _DEFAULT_PROMPTS.ask_user_tool.render(),
         _DEFAULT_PROMPTS.set_time_range_tool.render(),
+        _DEFAULT_PROMPTS.get_current_datetime_tool.render(),
         _DEFAULT_PROMPTS.get_route_info_tool.render(),
     }
 )
@@ -512,7 +513,6 @@ class TestUIContextInstructions:
 
         all_text = "\n".join(_get_system_texts(captured_request.body))
         for tag in (
-            "<phoenix_app_context>",
             "<phoenix_project_context>",
             "<phoenix_trace_context>",
             "<phoenix_span_context>",
@@ -530,6 +530,8 @@ class TestUIContextInstructions:
         )
         assert "<phoenix_gql_mutations_policy>" in uncached_texts
         assert "<phoenix_gql_mutations_policy>" not in cached_texts
+        assert "<phoenix_app_context>" in cached_texts
+        assert "<phoenix_app_context>" not in uncached_texts
 
 
 class TestRouteInfoTool:

@@ -91,11 +91,6 @@ describe("buildAgentChatRequestBody", () => {
         modelName: "gpt-4o-mini",
       },
     });
-    expect(body.contexts?.[0]).toMatchObject({
-      type: "app",
-      currentDateTime: expect.any(String),
-      timeZone: expect.any(String),
-    });
     expect(body.contexts?.[0]).not.toHaveProperty("editPermission");
     expect(body).not.toHaveProperty("system");
   });
