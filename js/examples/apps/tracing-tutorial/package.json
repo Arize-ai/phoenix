@@ -11,18 +11,18 @@
     "start": "npx tsx support-agent.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.80",
+    "@ai-sdk/openai": "^3.0.83",
     "@arizeai/openinference-core": "^2.4.0",
     "@arizeai/openinference-semantic-conventions": "^2.5.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
-    "ai": "^6.0.219",
+    "ai": "^6.0.222",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.4",
-    "tsx": "^4.22.5",
+    "@types/node": "^25.9.5",
+    "tsx": "^4.23.0",
     "typescript": "^7.0.2"
   }
 }

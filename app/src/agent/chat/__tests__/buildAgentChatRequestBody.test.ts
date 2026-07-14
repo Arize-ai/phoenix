@@ -15,6 +15,7 @@ import type { AgentUIMessage } from "../types";
 const agentsConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
+  forceTracing: false,
   webAccessEnabled: false,
   assistantEnabled: true,
   allowLocalTraces: false,
@@ -235,6 +236,33 @@ describe("buildAgentChatRequestBody", () => {
 
     expect(body.attachUserId).toBe(true);
     expect(body.ingestTraces).toBe(true);
+  });
+
+  it("forces attachUserId when agent debugging is enabled", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [] as AgentUIMessage[],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig: { ...agentsConfig, forceTracing: true },
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.attachUserId).toBe(true);
   });
 });
 

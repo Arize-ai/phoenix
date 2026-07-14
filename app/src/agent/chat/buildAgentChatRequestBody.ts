@@ -5,6 +5,7 @@ import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
 import {
+  getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
   type AgentObservabilitySettings,
   type AgentPermissions,
@@ -151,7 +152,7 @@ export function buildAgentChatRequestBody({
     messageId,
     ingestTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
-    attachUserId: observability.attachUserId,
+    attachUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
     editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,
