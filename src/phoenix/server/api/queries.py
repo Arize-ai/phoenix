@@ -8,7 +8,7 @@ from typing import cast as type_cast
 
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
-from sqlalchemy.orm import defer, joinedload, load_only, with_polymorphic
+from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from sqlalchemy.sql.expression import tuple_
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
@@ -1635,7 +1635,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
     ) -> Connection[AgentSession]:
         page_size = first or 20
-        stmt = select(models.AgentSession).options(defer(models.AgentSession.messages))
+        stmt = select(models.AgentSession)
         if (viewer_id := info.context.user_id) is not None:
             stmt = stmt.where(models.AgentSession.user_id == viewer_id)
         after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
@@ -1685,11 +1685,7 @@ class Query:
     ) -> Optional[AgentSession]:
         if not info.context.settings.agent_assistant_enabled.enabled:
             return None
-        stmt = (
-            select(models.AgentSession)
-            .options(defer(models.AgentSession.messages))
-            .where(models.AgentSession.session_id == session_id)
-        )
+        stmt = select(models.AgentSession).where(models.AgentSession.session_id == session_id)
         if (viewer_id := info.context.user_id) is not None:
             stmt = stmt.where(models.AgentSession.user_id == viewer_id)
         async with info.context.db.read() as session:

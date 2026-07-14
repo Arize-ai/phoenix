@@ -11,6 +11,7 @@ from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailab
 from sqlalchemy import delete, func, select
 
 from phoenix.db import models
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
@@ -45,7 +46,7 @@ class TestAgentSessionPersistence:
         self,
         db: DbSessionFactory,
     ) -> None:
-        messages = [{"id": "message-1", "role": "user", "parts": []}]
+        messages = [PhoenixUIMessage(id="message-1", role="user", parts=[])]
         async with db() as session:
             claimed = await _claim_agent_session(
                 session,
@@ -75,7 +76,6 @@ class TestAgentSessionPersistence:
                 session_id="session-1",
                 user_id=None,
                 title="title",
-                messages=messages,
             )
             assert updated_rowid is None
             assert await session.scalar(select(models.AgentSession.id)) is None

@@ -65,6 +65,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     OutputConfig as OutputConfigModel,
 )
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, PhoenixUIMessageAdapter
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
@@ -241,6 +242,25 @@ class JsonList(TypeDecorator[list[Any]]):
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
+
+
+class _UIMessage(TypeDecorator[PhoenixUIMessage]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PhoenixUIMessage], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return (
+            value.model_dump(mode="json", by_alias=True, exclude_none=True)
+            if value is not None
+            else None
+        )
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PhoenixUIMessage]:
+        return PhoenixUIMessageAdapter.validate_python(value) if value is not None else None
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
@@ -3106,7 +3126,6 @@ class AgentSession(HasId):
         nullable=True,  # sessions may be created while auth is disabled
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
-    messages: Mapped[list[dict[str, Any]]] = mapped_column(JsonList, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3116,6 +3135,12 @@ class AgentSession(HasId):
         "AgentSessionSnapshot",
         back_populates="agent_session",
         uselist=False,
+    )
+    messages: Mapped[list["AgentSessionMessage"]] = relationship(
+        "AgentSessionMessage",
+        order_by="AgentSessionMessage.position",
+        cascade="all, delete-orphan",
+        back_populates="agent_session",
     )
     __table_args__ = (
         Index(
@@ -3127,6 +3152,25 @@ class AgentSession(HasId):
     )
 
 
+class AgentSessionMessage(HasId):
+    __tablename__ = "agent_session_messages"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    message: Mapped[PhoenixUIMessage] = mapped_column(_UIMessage, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="messages",
+    )
+    __table_args__ = (
+        UniqueConstraint("agent_session_id", "position"),
+        dict(sqlite_autoincrement=True),
+    )
+
+
 class AgentSessionSnapshot(HasId):
     __tablename__ = "agent_session_snapshots"
     agent_session_id: Mapped[int] = mapped_column(
@@ -3134,7 +3178,7 @@ class AgentSessionSnapshot(HasId):
         nullable=False,
         unique=True,
     )
-    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    bashkit_state: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

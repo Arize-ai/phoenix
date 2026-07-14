@@ -29,12 +29,23 @@ class AgentSession(Node):
     async def messages(self, info: Info[Context, None]) -> JSON:
         if not info.context.settings.agent_assistant_enabled.enabled:
             return cast(JSON, [])
-        stmt = select(models.AgentSession.messages).where(models.AgentSession.id == self.id)
+        stmt = (
+            select(models.AgentSessionMessage.message)
+            .join(models.AgentSession)
+            .where(models.AgentSession.id == self.id)
+            .order_by(models.AgentSessionMessage.position)
+        )
         if (viewer_id := info.context.user_id) is not None:
             stmt = stmt.where(models.AgentSession.user_id == viewer_id)
         async with info.context.db.read() as session:
-            messages = await session.scalar(stmt)
-        return cast(JSON, messages or [])
+            messages = (await session.scalars(stmt)).all()
+        return cast(
+            JSON,
+            [
+                message.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for message in messages
+            ],
+        )
 
 
 def to_gql_agent_session(agent_session: models.AgentSession) -> AgentSession:

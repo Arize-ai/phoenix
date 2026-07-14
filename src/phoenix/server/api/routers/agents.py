@@ -41,34 +41,23 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
-    StringConstraints,
+    TypeAdapter,
 )
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-from pydantic_ai.ui.vercel_ai.request_types import (
-    DynamicToolOutputAvailablePart,
-    DynamicToolOutputErrorPart,
-    RegenerateMessage,
-    StepStartUIPart,
-    SubmitMessage,
-    TextUIPart,
-    ToolOutputAvailablePart,
-    ToolOutputErrorPart,
-    UIMessage,
-)
+from pydantic_ai.ui.vercel_ai.request_types import RequestData as PydanticAIRequestData
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
     FinishChunk,
     MessageMetadataChunk,
-    ProviderMetadata,
     StartChunk,
     ToolInputAvailableChunk,
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RunUsage
-from sqlalchemy import Insert, exists, func, select, update
+from sqlalchemy import Insert, delete, exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,6 +75,25 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.types.data_stream_protocol import (
+    AssistantMessageMetadata,
+    AssistantMessageMetadataTraceIds,
+    AssistantMessageMetadataUsage,
+    AssistantMessageMetadataUsageTokenDetails,
+    AssistantMessageMetadataUsageTokens,
+    DynamicToolOutputAvailablePart,
+    DynamicToolOutputErrorPart,
+    PhoenixUIMessage,
+    ProviderMetadata,
+    RegenerateMessage,
+    SubmitMessage,
+    TextUIPart,
+    ToolOutputAvailablePart,
+    ToolOutputErrorPart,
+    TurnTraceContext,
+    UIMessage,
+    UserMessageMetadata,
+)
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
@@ -94,6 +102,9 @@ from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
     resolve_contexts,
+)
+from phoenix.server.agents.data_stream_protocol import (
+    accumulate_ui_message_chunks_to_ui_messages,
 )
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
@@ -206,51 +217,6 @@ class _CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
-class AssistantMessageMetadataUsageTokens(_CamelModel):
-    prompt: int
-    completion: int
-    total: int
-
-
-class AssistantMessageMetadataUsageTokenDetails(_CamelModel):
-    cache_read: int
-    cache_write: int
-
-
-class AssistantMessageMetadataUsage(_CamelModel):
-    tokens: AssistantMessageMetadataUsageTokens
-    prompt_details: AssistantMessageMetadataUsageTokenDetails | None = None
-
-
-class AssistantMessageMetadataTraceIds(_CamelModel):
-    trace_id: str
-    root_span_id: str
-
-
-class TurnTraceContext(_CamelModel):
-    trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
-    root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
-    started_at: datetime
-
-
-class AssistantMessageMetadata(_CamelModel):
-    """Wire schema for the chat stream's `message_metadata` payload."""
-
-    type: Literal["assistant"] = "assistant"
-    session_id: str
-    trace: AssistantMessageMetadataTraceIds | None = None
-    turn_trace_context: TurnTraceContext | None = None
-    usage: AssistantMessageMetadataUsage | None = None
-
-
-class UserMessageMetadata(_CamelModel):
-    """Wire schema for metadata the browser attaches to outgoing user messages."""
-
-    type: Literal["user"] = "user"
-    current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
-    time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
-
-
 @register_openapi_schema
 class SessionCreatedData(_CamelModel):
     """Canonical Relay metadata for a newly persisted assistant session."""
@@ -290,18 +256,6 @@ class SessionSummaryChunk(DataChunk):
     type: Literal["data-session-summary"] = "data-session-summary"
     data: str
     transient: Literal[True] = True
-
-
-MessageMetadata = Annotated[
-    AssistantMessageMetadata | UserMessageMetadata,
-    Field(discriminator="type"),
-]
-
-
-class PhoenixUIMessage(UIMessage):
-    """`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."""
-
-    metadata: MessageMetadata | None = None
 
 
 def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext | None:
@@ -380,6 +334,20 @@ class ChatRequest(
     ]
 ):
     """Discriminated union of chat request payloads."""
+
+
+_PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
+    PydanticAIRequestData
+)
+
+
+def _to_pydantic_ai_request_data(
+    request_data: ChatSubmitMessage | ChatRegenerateMessage,
+) -> PydanticAIRequestData:
+    """Validate vendored wire types into pydantic-ai's runtime request classes."""
+    return _PydanticAIRequestDataAdapter.validate_python(
+        request_data.model_dump(mode="json", by_alias=True, exclude_none=True)
+    )
 
 
 logger = logging.getLogger(__name__)
@@ -1219,7 +1187,7 @@ async def _claim_agent_session(
     *,
     session_id: str,
     user_id: int | None,
-    messages: list[dict[str, Any]],
+    messages: Sequence[PhoenixUIMessage],
 ) -> models.AgentSession | None:
     """Atomically claim a non-empty first-send session for its owner."""
     if messages:
@@ -1229,7 +1197,6 @@ async def _claim_agent_session(
                     "session_id": session_id,
                     "user_id": user_id,
                     "title": "",
-                    "messages": messages,
                 },
                 table=models.AgentSession,
                 dialect=SupportedSQLDialect(session.bind.dialect.name),
@@ -1251,12 +1218,8 @@ async def _update_agent_session(
     session_id: str,
     user_id: int | None,
     title: str,
-    messages: list[dict[str, Any]],
 ) -> int | None:
-    values: dict[str, Any] = {
-        "messages": messages,
-        "updated_at": func.now(),
-    }
+    values: dict[str, Any] = {"updated_at": func.now()}
     if title:
         values["title"] = title
     owner_predicate = (
@@ -1279,19 +1242,19 @@ async def _upsert_agent_session_snapshot(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
-    bashkit_snapshot: bytes,
+    bashkit_state: bytes,
 ) -> None:
     await session.execute(
         insert_on_conflict(
             {
                 "agent_session_id": agent_session_rowid,
-                "bashkit_snapshot": bashkit_snapshot,
+                "bashkit_state": bashkit_state,
             },
             table=models.AgentSessionSnapshot,
             dialect=SupportedSQLDialect(session.bind.dialect.name),
             unique_by=("agent_session_id",),
             on_conflict=OnConflict.DO_UPDATE,
-            set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
+            set_={"bashkit_state": bashkit_state, "updated_at": func.now()},
         )
     )
 
@@ -1301,8 +1264,8 @@ async def _persist_agent_session_turn(
     *,
     session_id: str,
     user_id: int | None,
-    messages: list[dict[str, Any]],
-    bashkit_snapshot: bytes | None,
+    messages: list[PhoenixUIMessage],
+    bashkit_state: bytes | None,
     title: str | None = None,
 ) -> None:
     if not messages:
@@ -1312,93 +1275,72 @@ async def _persist_agent_session_turn(
             session,
             session_id=session_id,
             user_id=user_id,
-            messages=messages,
             title=title or "",
         )
         if agent_session_rowid is None:
             return
-        if bashkit_snapshot is not None:
+        await session.execute(
+            delete(models.AgentSessionMessage).where(
+                models.AgentSessionMessage.agent_session_id == agent_session_rowid
+            )
+        )
+        session.add_all(
+            models.AgentSessionMessage(
+                agent_session_id=agent_session_rowid,
+                position=position,
+                message=message,
+            )
+            for position, message in enumerate(messages)
+        )
+        if bashkit_state is not None:
             await _upsert_agent_session_snapshot(
                 session,
                 agent_session_rowid=agent_session_rowid,
-                bashkit_snapshot=bashkit_snapshot,
+                bashkit_state=bashkit_state,
             )
 
 
-async def _load_bash_snapshot(
+async def _load_bash_state(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
 ) -> bytes | None:
     return await session.scalar(
-        select(models.AgentSessionSnapshot.bashkit_snapshot).where(
+        select(models.AgentSessionSnapshot.bashkit_state).where(
             models.AgentSessionSnapshot.agent_session_id == agent_session_rowid
         )
     )
 
 
-def _build_session_transcript(
+async def _build_session_transcript(
     *,
     request_messages: list[PhoenixUIMessage],
-    result: AgentRunResult[Any] | None,
+    message_chunks: Sequence[BaseChunk],
     session_id: str,
-    span_context: SpanContext | None,
-    turn_trace_context: TurnTraceContext | None,
-) -> list[dict[str, Any]]:
-    """Assemble the post-turn session transcript as Vercel AI UIMessage JSON."""
-    incoming_history = [
-        message.model_dump(mode="json", by_alias=True, exclude_none=True)
-        for message in request_messages
-    ]
-    if result is None:
-        return incoming_history
+) -> list[PhoenixUIMessage]:
+    """Assemble the post-turn transcript from the chunks sent to the client."""
+    latest_assistant_message: UIMessage | None = None
+
+    async def _iter_message_chunks() -> AsyncIterator[BaseChunk]:
+        for chunk in message_chunks:
+            yield chunk
+
     try:
-        new_ui_messages = _group_turn_ui_messages(
-            VercelAIAdapter.dump_messages(result.new_messages())
+        async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_message_chunks()):
+            latest_assistant_message = message
+        if latest_assistant_message is None:
+            return list(request_messages)
+        persisted_assistant_message = PhoenixUIMessage.model_validate(
+            latest_assistant_message.model_dump(mode="json", by_alias=True, exclude_none=True)
         )
-        # Resumed sessions re-validate stored messages as PhoenixUIMessage, so
-        # dump_messages' internal metadata is replaced with the Phoenix shape.
-        for message in new_ui_messages:
-            message.metadata = None
-        metadata = _build_assistant_message_metadata(
-            span_context=span_context,
-            turn_trace_context=turn_trace_context,
-            session_id=session_id,
-            usage=result.usage,
-        ).model_dump(mode="json", by_alias=True, exclude_none=True)
-        for message in reversed(new_ui_messages):
-            if message.role == "assistant":
-                message.metadata = metadata
-                break
-        new_messages = [
-            message.model_dump(mode="json", by_alias=True, exclude_none=True)
-            for message in new_ui_messages
-        ]
     except Exception:
         logger.exception(
-            "Failed to serialize the turn's new messages for session %r; "
+            "Failed to accumulate the turn's streamed messages for session %r; "
             "persisting the incoming history only",
             session_id,
         )
-        return incoming_history
-    return [*incoming_history, *new_messages]
-
-
-def _group_turn_ui_messages(messages: list[UIMessage]) -> list[UIMessage]:
-    """Group consecutive model steps into the assistant message streamed to the client."""
-    grouped_messages: list[UIMessage] = []
-    for message in messages:
-        if message.role != "assistant":
-            grouped_messages.append(message)
-            continue
-        step_parts = list(message.parts)
-        if not step_parts or not isinstance(step_parts[0], StepStartUIPart):
-            step_parts.insert(0, StepStartUIPart())
-        if grouped_messages and grouped_messages[-1].role == "assistant":
-            grouped_messages[-1].parts.extend(step_parts)
-        else:
-            grouped_messages.append(message.model_copy(update={"parts": step_parts}))
-    return grouped_messages
+        return list(request_messages)
+    return [*request_messages, persisted_assistant_message]
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -1503,7 +1445,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
         adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
             agent=server_agent,
-            run_input=body,
+            run_input=_to_pydantic_ai_request_data(body),
             accept=request.headers.get("accept"),
         )
 
@@ -1597,7 +1539,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if graphql_mutations_enabled and is_viewer:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
         phoenix_user_email: str | None = None
-        initial_bash_snapshot: bytes | None = None
+        initial_bash_state: bytes | None = None
         session_created_data: SessionCreatedData | None = None
         try:
             async with request.app.state.db() as session:
@@ -1624,15 +1566,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session=session,
                     phoenix_user=phoenix_user,
                 )
-                incoming_messages = [
-                    message.model_dump(mode="json", by_alias=True, exclude_none=True)
-                    for message in body.messages
-                ]
                 agent_session = await _claim_agent_session(
                     session,
                     session_id=session_id,
                     user_id=request_user_id,
-                    messages=incoming_messages,
+                    messages=body.messages,
                 )
                 session_needs_title = agent_session is None or not agent_session.title
                 if agent_session is not None:
@@ -1643,7 +1581,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         created_at=agent_session.created_at,
                         updated_at=agent_session.updated_at,
                     )
-                    initial_bash_snapshot = await _load_bash_snapshot(
+                    initial_bash_state = await _load_bash_state(
                         session,
                         agent_session_rowid=agent_session.id,
                     )
@@ -1709,13 +1647,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             set_subagent_final_tool_output = _set_subagent_final_tool_output
 
         bash_enabled = not get_env_phoenix_agents_disable_bash()
-        captured_bash_snapshot: bytes | None = None
+        captured_bash_state: bytes | None = None
 
-        def _capture_bash_snapshot(snapshot: bytes) -> None:
+        def _capture_bash_state(state: bytes) -> None:
             # Held until turn end, then persisted alongside the transcript
             # in the session's agent_session_snapshots row.
-            nonlocal captured_bash_snapshot
-            captured_bash_snapshot = snapshot
+            nonlocal captured_bash_state
+            captured_bash_state = state
 
         agent = build_agent(
             model=model,
@@ -1738,8 +1676,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 else None
             ),
             allow_mutations=graphql_mutations_enabled,
-            initial_bash_snapshot=initial_bash_snapshot,
-            on_bash_snapshot=_capture_bash_snapshot,
+            initial_bash_snapshot=initial_bash_state,
+            on_bash_snapshot=_capture_bash_state,
         )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
@@ -1760,7 +1698,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
-            run_input=body,
+            run_input=_to_pydantic_ai_request_data(body),
             accept=request.headers.get("accept"),
         )
         deps = AgentDependencies(
@@ -1783,7 +1721,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if tracer is not None
             else None
         )
-        completed_run: tuple[AgentRunResult[Any], SpanContext | None] | None = None
 
         async def _summarize_untitled_session() -> str | None:
             try:
@@ -1793,7 +1730,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
                     result = await summarize_messages(
-                        messages=VercelAIAdapter.load_messages(body.messages),
+                        messages=adapter.messages,
                         model=model,
                     )
             except Exception:
@@ -1805,7 +1742,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         turn_is_terminal = False
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
-            nonlocal completed_run, turn_final_output_text, turn_is_terminal
+            nonlocal turn_final_output_text, turn_is_terminal
             if isinstance(result.output, str):
                 turn_is_terminal = True
                 turn_final_output_text = result.output.strip() or None
@@ -1814,7 +1751,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if agent_span_recorder and agent_span_recorder.span_context is not None
                 else request_parent_span_context
             )
-            completed_run = (result, span_context)
             yield _build_message_metadata_chunk(
                 span_context=span_context,
                 turn_trace_context=resolved_turn_trace_context,
@@ -1825,6 +1761,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             stream_error: BaseException | None = None
             summary_task: asyncio.Task[str | None] | None = None
+            emitted_message_chunks: list[BaseChunk] = []
             try:
                 if tracer is not None and body.turn_trace_context is not None:
                     _synthesize_client_tool_spans(
@@ -1909,12 +1846,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             summary_task=summary_task,
                         )
                     async for message_chunk in message_chunk_stream:
+                        emitted_message_chunks.append(message_chunk)
                         yield message_chunk
             except BaseException as exc:
                 stream_error = exc
                 raise
             finally:
-                result, span_context = completed_run if completed_run else (None, None)
                 session_title: str | None = None
                 if summary_task is not None:
                     if summary_task.done() and not summary_task.cancelled():
@@ -1926,14 +1863,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         request.app.state.db,
                         session_id=session_id,
                         user_id=request_user_id,
-                        messages=_build_session_transcript(
+                        messages=await _build_session_transcript(
                             request_messages=body.messages,
-                            result=result,
+                            message_chunks=emitted_message_chunks,
                             session_id=session_id,
-                            span_context=span_context,
-                            turn_trace_context=resolved_turn_trace_context,
                         ),
-                        bashkit_snapshot=captured_bash_snapshot,
+                        bashkit_state=captured_bash_state,
                         title=session_title,
                     )
                 except Exception:

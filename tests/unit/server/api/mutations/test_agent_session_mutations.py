@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from phoenix.db import models
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -15,6 +16,7 @@ _DELETE_MUTATION = """
   }
 """
 
+
 async def test_delete_agent_session_cascades_snapshot(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -25,7 +27,6 @@ async def test_delete_agent_session_cascades_snapshot(
             session_id="doomed",
             user_id=None,
             title="doomed session",
-            messages=[{"id": "m1", "role": "user", "parts": []}],
             created_at=now,
             updated_at=now,
         )
@@ -34,7 +35,14 @@ async def test_delete_agent_session_cascades_snapshot(
         session.add(
             models.AgentSessionSnapshot(
                 agent_session_id=agent_session.id,
-                bashkit_snapshot=b"shell-state",
+                bashkit_state=b"shell-state",
+            )
+        )
+        session.add(
+            models.AgentSessionMessage(
+                agent_session_id=agent_session.id,
+                position=0,
+                message=PhoenixUIMessage(id="m1", role="user", parts=[]),
             )
         )
 
@@ -46,6 +54,7 @@ async def test_delete_agent_session_cascades_snapshot(
     async with db() as session:
         assert (await session.scalars(select(models.AgentSession))).all() == []
         assert (await session.scalars(select(models.AgentSessionSnapshot))).all() == []
+        assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
 
 
 async def test_delete_agent_session_not_found(

@@ -1,7 +1,7 @@
-"""create agent_sessions and agent_session_snapshots tables
+"""create agent session persistence tables
 
 Revision ID: e767d3c57f32
-Revises: d4e5f6a7b8c9
+Revises: eaf1907ae453
 Create Date: 2026-07-08 15:16:23.608705
 
 """
@@ -43,7 +43,7 @@ _Integer = sa.Integer().with_variant(
 
 # revision identifiers, used by Alembic.
 revision: str = "e767d3c57f32"
-down_revision: Union[str, None] = "d4e5f6a7b8c9"
+down_revision: Union[str, None] = "eaf1907ae453"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -60,7 +60,6 @@ def upgrade() -> None:
             nullable=True,  # sessions may be created while auth is disabled
         ),
         sa.Column("title", sa.String, nullable=False),
-        sa.Column("messages", JSON_, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -83,6 +82,27 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "agent_session_messages",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "agent_session_id",
+            _Integer,
+            sa.ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("position", sa.Integer, nullable=False),
+        sa.Column("message", JSON_, nullable=False),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("agent_session_id", "position"),
+        sqlite_autoincrement=True,
+    )
+
+    op.create_table(
         "agent_session_snapshots",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
@@ -92,7 +112,7 @@ def upgrade() -> None:
             nullable=False,
             unique=True,
         ),
-        sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
+        sa.Column("bashkit_state", sa.LargeBinary, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -112,4 +132,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("agent_session_snapshots")
+    op.drop_table("agent_session_messages")
     op.drop_table("agent_sessions")

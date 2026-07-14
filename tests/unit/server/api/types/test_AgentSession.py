@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from phoenix.db import models
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -15,15 +16,22 @@ async def _seed_agent_session(
     messages: list[dict[str, Any]] | None = None,
 ) -> None:
     async with db() as session:
-        session.add(
-            models.AgentSession(
-                session_id=session_id,
-                user_id=None,
-                title=title,
-                messages=messages or [],
-                created_at=updated_at,
-                updated_at=updated_at,
+        agent_session = models.AgentSession(
+            session_id=session_id,
+            user_id=None,
+            title=title,
+            created_at=updated_at,
+            updated_at=updated_at,
+        )
+        session.add(agent_session)
+        await session.flush()
+        session.add_all(
+            models.AgentSessionMessage(
+                agent_session_id=agent_session.id,
+                position=position,
+                message=PhoenixUIMessage.model_validate(message),
             )
+            for position, message in enumerate(messages or [])
         )
 
 

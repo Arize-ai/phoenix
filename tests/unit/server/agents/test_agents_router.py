@@ -20,16 +20,30 @@ from pydantic_ai import RunUsage
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
-from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+from pydantic_ai.ui.vercel_ai.response_types import (
+    BaseChunk,
+    DataChunk,
+    FinishChunk,
+    FinishStepChunk,
+    MessageMetadataChunk,
+    StartChunk,
+    StartStepChunk,
+    TextDeltaChunk,
+    TextEndChunk,
+    TextStartChunk,
+)
 from sqlalchemy import func, select
 from sqlalchemy.exc import SAWarning
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TurnTraceContext, UIMessage
+from phoenix.server.agents.data_stream_protocol import (
+    accumulate_ui_message_chunks_to_ui_messages,
+)
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.routers.agents import (
-    PhoenixUIMessage,
-    TurnTraceContext,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -82,6 +96,51 @@ def _stream_chunks(response_text: str) -> list[dict[str, Any]]:
         if line.startswith("data: ") and line != "data: [DONE]":
             chunks.append(json.loads(line[len("data: ") :]))
     return chunks
+
+
+async def _accumulate_streamed_assistant_message(
+    chunks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    chunk_types: dict[str, type[BaseChunk]] = {
+        "finish": FinishChunk,
+        "finish-step": FinishStepChunk,
+        "message-metadata": MessageMetadataChunk,
+        "start": StartChunk,
+        "start-step": StartStepChunk,
+        "text-delta": TextDeltaChunk,
+        "text-end": TextEndChunk,
+        "text-start": TextStartChunk,
+    }
+
+    async def _iter_chunks() -> AsyncIterator[BaseChunk]:
+        for chunk in chunks:
+            chunk_type = chunk["type"]
+            model = DataChunk if chunk_type.startswith("data-") else chunk_types.get(chunk_type)
+            if model is not None:
+                yield model.model_validate(chunk)
+
+    latest_message: UIMessage | None = None
+    async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_chunks()):
+        latest_message = message
+    assert latest_message is not None
+    return latest_message.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+
+async def _load_session_messages(
+    session: AsyncSession,
+    session_id: str,
+) -> list[dict[str, Any]]:
+    messages = (
+        await session.scalars(
+            select(models.AgentSessionMessage.message)
+            .join(models.AgentSession)
+            .where(models.AgentSession.session_id == session_id)
+            .order_by(models.AgentSessionMessage.position)
+        )
+    ).all()
+    return [
+        message.model_dump(mode="json", by_alias=True, exclude_none=True) for message in messages
+    ]
 
 
 def _scripted_model(
@@ -173,13 +232,14 @@ async def test_chat_turn_persists_session_transcript(
         assert agent_session.user_id is None
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
-        messages = agent_session.messages
+        messages = await _load_session_messages(session, session_id)
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
     assert messages[0]["role"] == "user"
     assistant_messages = [message for message in messages if message["role"] == "assistant"]
     assert assistant_messages
+    assert assistant_messages[-1] == await _accumulate_streamed_assistant_message(chunks)
     metadata = assistant_messages[-1]["metadata"]
     assert metadata["sessionId"] == session_id
     assert metadata["usage"]["tokens"]["total"] > 0
@@ -690,10 +750,7 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
     }
 
     async with db() as session:
-        stored_messages = await session.scalar(
-            select(models.AgentSession.messages).where(models.AgentSession.session_id == session_id)
-        )
-    assert stored_messages is not None
+        stored_messages = await _load_session_messages(session, session_id)
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert assistant_messages
     assert assistant_messages[-1]["metadata"]["trace"] == {
@@ -747,7 +804,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
         assert len(agent_sessions) == 1
         assert agent_sessions[0].title == ""
-        stored_messages = agent_sessions[0].messages
+        stored_messages = await _load_session_messages(session, session_id)
         assert stored_messages
 
     second_response = await httpx_client.post(
@@ -769,7 +826,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
         assert len(agent_sessions) == 1
         assert agent_sessions[0].title == "Second-turn title"
-        assert len(agent_sessions[0].messages) > len(stored_messages)
+        assert len(await _load_session_messages(session, session_id)) > len(stored_messages)
 
 
 async def test_bash_shell_state_persists_across_chat_turns(
@@ -798,15 +855,9 @@ async def test_bash_shell_state_persists_across_chat_turns(
     async with db() as session:
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
-        first_snapshot = snapshots[0].bashkit_snapshot
+        first_snapshot = snapshots[0].bashkit_state
         assert first_snapshot
-        stored_messages = (
-            await session.scalar(
-                select(models.AgentSession.messages).where(
-                    models.AgentSession.session_id == session_id
-                )
-            )
-        ) or []
+        stored_messages = await _load_session_messages(session, session_id)
 
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert len(assistant_messages) == 1
@@ -829,14 +880,8 @@ async def test_bash_shell_state_persists_across_chat_turns(
         # A turn without bash activity leaves the stored shell state intact.
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
-        assert snapshots[0].bashkit_snapshot == first_snapshot
-        stored_messages = (
-            await session.scalar(
-                select(models.AgentSession.messages).where(
-                    models.AgentSession.session_id == session_id
-                )
-            )
-        ) or []
+        assert snapshots[0].bashkit_state == first_snapshot
+        stored_messages = await _load_session_messages(session, session_id)
 
     third_response = await httpx_client.post(
         _chat_url(session_id),
