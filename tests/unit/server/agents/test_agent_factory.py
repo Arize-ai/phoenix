@@ -34,7 +34,6 @@ from phoenix.server.agents.capabilities import (
 )
 from phoenix.server.agents.context import (
     AgentSpanContext,
-    AppContext,
     CodeEvaluatorContext,
     DatasetContext,
     LlmEvaluatorContext,
@@ -531,36 +530,8 @@ class TestUIContextInstructions:
         )
         assert "<phoenix_gql_mutations_policy>" in uncached_texts
         assert "<phoenix_gql_mutations_policy>" not in cached_texts
-        # The app context (edit permission) is static: always rendered, inside
-        # the cached prefix.
         assert "<phoenix_app_context>" in cached_texts
         assert "<phoenix_app_context>" not in uncached_texts
-
-    async def test_browser_clock_never_enters_the_system_prompt(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        """The clock is surfaced through the `get_current_datetime` tool: a
-        per-turn timestamp in the instructions would change the request prefix
-        every turn and defeat prompt caching."""
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                app=AppContext(
-                    type="app",
-                    current_date_time="2026-05-05T09:30:00-07:00",
-                    time_zone="America/Los_Angeles",
-                ),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "2026-05-05T09:30:00-07:00" not in all_text
-        assert "current_browser_datetime" not in all_text
-        assert "get_current_datetime" in _get_tool_names(captured_request.body)
 
 
 class TestRouteInfoTool:

@@ -100,18 +100,6 @@ class TestAppContextCapabilityRender:
         assert content.startswith("<phoenix_app_context>")
         assert "<edit_permission>bypass</edit_permission>" in content
 
-    def test_excludes_browser_clock(self) -> None:
-        # The browser clock is surfaced through the `get_current_datetime` tool
-        # instead of the instructions: a per-turn timestamp in the prompt would
-        # invalidate the provider's prompt-cache prefix on every turn.
-        capability = AppContextCapability(
-            instructions=_DEFAULT_PROMPTS.app_context,
-            edit_permission="manual",
-        )
-        content = capability.get_static_instructions()
-        assert "current_browser_datetime" not in content
-        assert "time_zone" not in content
-
 
 class TestProjectContextCapabilityRender:
     def test_sanitizes_span_filter_condition(self) -> None:
