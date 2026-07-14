@@ -49,7 +49,8 @@ PYTHONPATH=. harbor run -p evals/harbor/tasks/regression-triage \
 
 Tracing is disabled when `HARBOR_PHOENIX_COLLECTOR_ENDPOINT` is unset. The project
 name defaults to `harbor-server-agent-evals`; the deterministic `/data/phoenix.db`
-used by the task is not modified.
+used by the task is not modified. Every trace produced by one trajectory shares its
+ATIF session ID and records Harbor's task short name in the root span's metadata.
 
 Harbor stores agent artifacts under each trial's `logs/agent/steps/` directory and
 verifier metrics under `logs/verifier/`. The oracle should receive a mean reward of 1.0.

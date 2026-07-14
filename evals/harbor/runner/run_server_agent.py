@@ -5,14 +5,15 @@ import argparse
 import asyncio
 import json
 import os
-import platform
 import re
+from contextlib import nullcontext
 from pathlib import Path
+from uuid import uuid4
 
 from asgi_lifespan import LifespanManager
-from openinference.instrumentation import OITracer, TraceConfig
+from openinference.instrumentation import OITracer, TraceConfig, get_span_kind_attributes
 from opentelemetry.sdk.trace import TracerProvider
-from phoenix.otel import register, using_session
+from phoenix.otel import register, using_attributes
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.test import TestModel
@@ -44,6 +45,17 @@ def _build_tracer_provider() -> TracerProvider | None:
         verbose=False,
         protocol="http/protobuf",
     )
+
+
+def _load_or_create_session_id(session_id_file: Path | None) -> str:
+    if session_id_file is not None and session_id_file.is_file():
+        if session_id := session_id_file.read_text().strip():
+            return session_id
+    session_id = str(uuid4())
+    if session_id_file is not None:
+        session_id_file.parent.mkdir(parents=True, exist_ok=True)
+        session_id_file.write_text(session_id + "\n")
+    return session_id
 
 
 def _text_of(content: object) -> str:
@@ -180,17 +192,18 @@ async def run(args: argparse.Namespace) -> None:
     engine = create_engine(f"sqlite:///{args.db_path}", migrate=False)
     db = DbSessionFactory(db=_db(engine), dialect="sqlite")
     app = create_app(db=db, authentication_enabled=False, serve_ui=False)
-    # The container hostname is stable for the life of the trial.
-    session_id = f"phoenix-server-agent-{platform.node()}"
+    session_id = _load_or_create_session_id(args.session_id_file)
     model = TestModel(call_tools=[]) if args.model == "test" else infer_model(args.model)
     tracer_provider = _build_tracer_provider()
+    tracer = None
     if tracer_provider is not None:
+        tracer = OITracer(
+            tracer_provider.get_tracer("phoenix.server.agents"),
+            config=TraceConfig(),
+        )
         model = OpenInferenceModelWrapper(
             model,
-            tracer=OITracer(
-                tracer_provider.get_tracer("phoenix.server.agents"),
-                config=TraceConfig(),
-            ),
+            tracer=tracer,
         )
     history = None
     if args.history_file and args.history_file.is_file():
@@ -207,7 +220,21 @@ async def run(args: argparse.Namespace) -> None:
                 allow_mutations=args.allow_mutations,
                 tracer_provider=tracer_provider,
             )
-            with using_session(session_id=session_id):
+            trace_context = (
+                tracer.start_as_current_span(
+                    "harbor.trajectory.step",
+                    attributes=get_span_kind_attributes("chain"),
+                )
+                if tracer is not None
+                else nullcontext()
+            )
+            with (
+                using_attributes(
+                    session_id=session_id,
+                    metadata={"task_name": args.task_name},
+                ),
+                trace_context,
+            ):
                 result = await agent.run(args.instruction_file.read_text(), message_history=history)
     finally:
         if tracer_provider is not None:
@@ -251,9 +278,11 @@ def main() -> None:
     parser.add_argument("--db-path", type=Path, required=True)
     parser.add_argument("--instruction-file", type=Path, required=True)
     parser.add_argument("--model", required=True)
+    parser.add_argument("--task-name", required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--history-file", type=Path, default=None)
     parser.add_argument("--trajectory-file", type=Path, default=None)
+    parser.add_argument("--session-id-file", type=Path, default=None)
     parser.add_argument("--allow-mutations", action="store_true")
     asyncio.run(run(parser.parse_args()))
 
