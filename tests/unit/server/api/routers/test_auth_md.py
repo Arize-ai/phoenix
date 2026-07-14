@@ -12,6 +12,10 @@ from fastapi import FastAPI
 from pydantic import SecretStr
 from starlette.types import ASGIApp
 
+from phoenix.auth import (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+)
 from phoenix.server.app import create_app
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import TestBulkInserter, patch_grpc_server
@@ -77,6 +81,8 @@ class TestGetAuthMd:
         assert "http://test/.well-known/oauth-protected-resource" in body
         assert "http://test/auth/login" in body
         assert "https://workos.com/auth-md/docs/apps" in body
+        assert PHOENIX_ACCESS_TOKEN_COOKIE_NAME in body
+        assert PHOENIX_REFRESH_TOKEN_COOKIE_NAME in body
 
 
 class TestWWWAuthenticateHeader:
