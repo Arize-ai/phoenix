@@ -29,14 +29,31 @@ export function AuthLayout({ children }: PropsWithChildren) {
         width: 100%;
         height: 100dvh;
         overflow-y: auto;
-        background: radial-gradient(
-          90% 60% at 50% 30%,
-          rgba(5, 145, 193, 0.4) 0%,
-          transparent 100%
-        );
         display: flex;
         flex-direction: column;
         box-sizing: border-box;
+        position: relative;
+        isolation: isolate;
+
+        /* A faint dot grid that fades out from behind the card */
+        &::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          pointer-events: none;
+          background-image: radial-gradient(
+            var(--global-border-color-default) var(--global-border-size-thin),
+            transparent var(--global-border-size-thin)
+          );
+          background-size: var(--global-dimension-static-size-300)
+            var(--global-dimension-static-size-300);
+          mask-image: radial-gradient(
+            90% 70% at 50% 35%,
+            black 0%,
+            transparent 100%
+          );
+        }
       `}
     >
       <div

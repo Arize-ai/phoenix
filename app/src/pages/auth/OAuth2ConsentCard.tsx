@@ -1,4 +1,4 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 
 import { Alert, Button, Heading, Text } from "@phoenix/components";
 import { OAuth2ClientIcon } from "@phoenix/components/auth";
@@ -62,30 +62,50 @@ const handoffNodeCSS = css`
     var(--global-border-color-default);
 `;
 
-const handoffWireCSS = css`
-  position: relative;
-  width: var(--global-dimension-size-800);
-  height: 0;
-  border-top: var(--global-border-size-thin) dashed
-    var(--global-border-color-default);
+// The client hands off to the workspace, so the dashes march left to right.
+const handoffDashKeyframes = keyframes`
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: var(--global-dimension-static-size-100);
+  }
 `;
 
-const handoffCheckCSS = css`
+const handoffWireCSS = css`
+  position: relative;
+  width: var(--global-dimension-static-size-900);
+  height: var(--global-border-size-thin);
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--global-border-color-default) 0,
+    var(--global-border-color-default) var(--global-dimension-static-size-50),
+    transparent var(--global-dimension-static-size-50),
+    transparent var(--global-dimension-static-size-100)
+  );
+  animation: ${handoffDashKeyframes} 1.5s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+const handoffBadgeCSS = css`
   position: absolute;
   top: 0;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: var(--global-dimension-size-250);
-  height: var(--global-dimension-size-250);
+  z-index: 1;
+  width: var(--global-dimension-size-300);
+  height: var(--global-dimension-size-300);
   border-radius: var(--global-rounding-full);
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: var(--global-background-color-default);
-  box-shadow:
-    inset 0 0 0 1px var(--global-color-success-500),
-    0 0 12px var(--global-color-success-100);
-  color: var(--global-color-success);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  color: var(--global-text-color-700);
   font-size: var(--global-font-size-xs);
 `;
 
@@ -94,15 +114,19 @@ const titleCSS = css`
   text-align: center;
   font-size: var(--global-font-size-l);
   line-height: 1.35;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 `;
 
 const subtitleCSS = css`
-  margin-top: var(--global-dimension-size-100);
+  margin-top: var(--global-dimension-size-50);
   text-align: center;
   overflow-wrap: anywhere;
+`;
+
+const signedInAsCSS = css`
+  color: var(--global-text-color-900);
 `;
 
 // Alerts default to 16px body copy which overwhelms the compact card —
@@ -126,10 +150,11 @@ const alertsCSS = css`
   ${compactAlertCSS}
 `;
 
+// The list's top border is the card's only divider.
 const permListCSS = css`
   list-style: none;
   margin: var(--global-dimension-size-300) 0 0;
-  padding: 0;
+  padding: var(--global-dimension-size-100) 0 0;
   border-top: var(--global-border-size-thin) solid
     var(--global-border-color-default);
 `;
@@ -139,40 +164,31 @@ const permItemCSS = css`
   gap: var(--global-dimension-size-150);
   align-items: flex-start;
   padding: var(--global-dimension-size-150) 0;
-
-  &:not(:last-of-type) {
-    border-bottom: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-  }
 `;
 
-const permTickCSS = css`
+// Descriptive, not affirmative — a checkmark here would read as access already granted.
+const permIconCSS = css`
   flex: none;
-  width: var(--global-dimension-size-250);
-  height: var(--global-dimension-size-250);
-  border-radius: var(--global-rounding-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--global-font-size-xs);
+  color: var(--global-text-color-700);
+  font-size: var(--global-font-size-m);
   margin-top: var(--global-dimension-size-25);
-
-  &[data-allowed="true"] {
-    color: var(--global-color-success);
-    background-color: var(--global-color-success-100);
-    box-shadow: inset 0 0 0 1px var(--global-color-success-500);
-  }
-
-  &[data-allowed="false"] {
-    color: var(--global-text-color-500);
-    background-color: var(--global-color-gray-200);
-    box-shadow: inset 0 0 0 1px var(--global-border-color-default);
-  }
 `;
 
 const noteCSS = css`
   margin-top: var(--global-dimension-size-200);
-  ${compactAlertCSS}
+  display: flex;
+  gap: var(--global-dimension-size-100);
+  align-items: flex-start;
+  color: var(--global-text-color-700);
+
+  & > .icon-wrap {
+    flex: none;
+    font-size: var(--global-font-size-m);
+    margin-top: var(--global-dimension-size-25);
+  }
 `;
 
 const actionsCSS = css`
@@ -281,8 +297,8 @@ export function OAuth2ConsentCard({
           size="L"
         />
         <div css={handoffWireCSS}>
-          <div css={handoffCheckCSS}>
-            <Icon svg={<Icons.Checkmark />} />
+          <div css={handoffBadgeCSS}>
+            <Icon svg={<Icons.Link2 />} />
           </div>
         </div>
         <div css={handoffNodeCSS}>
@@ -290,10 +306,11 @@ export function OAuth2ConsentCard({
         </div>
       </div>
       <Heading level={1} css={titleCSS}>
-        {clientName} wants access to your Phoenix workspace
+        Connect {clientName}
       </Heading>
       <Text elementType="p" size="S" color="text-700" css={subtitleCSS}>
-        Signed in as <b>{signedInAs}</b>
+        to your Phoenix workspace ·{" "}
+        <span css={signedInAsCSS}>{signedInAs}</span>
       </Text>
       {!isFirstParty || errorMessage || isMissingRequiredParams ? (
         <div css={alertsCSS}>
@@ -313,41 +330,39 @@ export function OAuth2ConsentCard({
       ) : null}
       <ul css={permListCSS}>
         <li css={permItemCSS}>
-          <div css={permTickCSS} data-allowed="true" aria-hidden="true">
-            <Icon svg={<Icons.Checkmark />} />
+          <div css={permIconCSS} aria-hidden="true">
+            <Icon svg={<Icons.Eye />} />
           </div>
           <div>
             <Text elementType="p" size="S" weight="heavy">
-              View your project data
+              View your data
             </Text>
             <Text elementType="p" size="XS" color="text-700">
-              Read traces, datasets, prompts, and experiments across your
-              projects.
+              Projects, traces, datasets, prompts, and experiments
             </Text>
           </div>
         </li>
         <li css={permItemCSS}>
-          <div css={permTickCSS} data-allowed="true" aria-hidden="true">
-            <Icon svg={<Icons.Checkmark />} />
+          <div css={permIconCSS} aria-hidden="true">
+            <Icon svg={<Icons.Edit2 />} />
           </div>
           <div>
             <Text elementType="p" size="S" weight="heavy">
               Make changes on your behalf
             </Text>
             <Text elementType="p" size="XS" color="text-700">
-              Create, modify, and delete anything your account can — it acts
-              with your permissions.
+              Create, modify, and delete with your permissions
             </Text>
           </div>
         </li>
       </ul>
       {isLoopback ? (
         <div css={noteCSS}>
-          <Alert variant="info">
-            Only approve if you started this yourself — for example, by running{" "}
-            <code css={monoCSS}>px auth login</code> in your terminal. If this
-            page appeared unexpectedly, cancel.
-          </Alert>
+          <Icon svg={<Icons.Shield />} aria-hidden="true" />
+          <Text size="XS" color="text-700">
+            Only approve if you started this request from an application on
+            this device.
+          </Text>
         </div>
       ) : null}
       <div css={actionsCSS}>
@@ -372,12 +387,15 @@ export function OAuth2ConsentCard({
                 <code css={monoCSS}>{redirectUri}</code>)
               </>
             ) : (
-              <span css={monoCSS}>{redirectDestination}</span>
+              <>
+                <span css={monoCSS}>{redirectDestination}</span>
+                {isLoopback ? " · this machine" : null}
+              </>
             )}
           </Text>
         ) : null}
         <Text size="XS" color="text-500">
-          You can revoke this access anytime in Settings.
+          Revoke anytime in Settings
         </Text>
         {!isFirstParty && clientId ? (
           <Text size="XS" color="text-500">
