@@ -80,6 +80,10 @@ ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NA
 """
 Project name used for assistant agent traces.
 """
+ENV_PHOENIX_AGENTS_FORCE_TRACING = "PHOENIX_AGENTS_FORCE_TRACING"
+"""
+Forces local tracing and remote export for all PXI agent requests.
+"""
 ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS = "PHOENIX_AGENTS_DISABLE_WEB_ACCESS"
 """
 Disables PXI native web search and web fetch capabilities even when external
@@ -254,6 +258,11 @@ of the index build.
 Note: CONCURRENTLY does not speed up the migration — it is roughly 2-3x slower and the new
 instance still blocks on startup until the build completes. For very large tables, consider
 pre-creating indexes manually before upgrading instead. See MIGRATION.md for details.
+
+Warning: concurrent index builds are non-transactional. If the process crashes or PostgreSQL
+aborts the build, an INVALID index may remain and future IF NOT EXISTS migrations may skip it
+by name. Operators may need to drop the invalid index manually and rerun or recreate it
+concurrently.
 
 Defaults to False. Ignored for SQLite.
 """
@@ -1352,6 +1361,10 @@ def get_env_phoenix_agents_collector_api_key() -> Optional[str]:
 
 def get_env_phoenix_agents_assistant_project_name() -> str:
     return getenv(ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME, "assistant_agent")
+
+
+def get_env_phoenix_agents_force_tracing() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_FORCE_TRACING, False)
 
 
 def get_env_phoenix_agents_disable_web_access() -> bool:

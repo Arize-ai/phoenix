@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<ea1137193b8539890e50c8f5f22ddcb6>>
+ * @generated SignedSource<<fc7eb94b6e4fdc81d582b2fef31c8029>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -75,7 +74,7 @@ v4 = [
   }
 ],
 v5 = [
-  (v3/*: any*/),
+  (v3/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -151,7 +150,7 @@ v5 = [
         "kind": "LinkedField",
         "name": "prompt",
         "plural": false,
-        "selections": (v4/*: any*/),
+        "selections": (v4/*:: as any*/),
         "storageKey": null
       },
       {
@@ -161,7 +160,7 @@ v5 = [
         "kind": "LinkedField",
         "name": "completion",
         "plural": false,
-        "selections": (v4/*: any*/),
+        "selections": (v4/*:: as any*/),
         "storageKey": null
       },
       {
@@ -171,7 +170,7 @@ v5 = [
         "kind": "LinkedField",
         "name": "total",
         "plural": false,
-        "selections": (v4/*: any*/),
+        "selections": (v4/*:: as any*/),
         "storageKey": null
       }
     ],
@@ -182,9 +181,9 @@ v6 = [
   {
     "kind": "InlineDataFragmentSpread",
     "name": "useExperimentMetricsData_experiment",
-    "selections": (v5/*: any*/),
+    "selections": (v5/*:: as any*/),
     "args": null,
-    "argumentDefinitions": ([]/*: any*/)
+    "argumentDefinitions": ([]/*:: as any*/)
   }
 ],
 v7 = [
@@ -197,8 +196,8 @@ v7 = [
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -206,7 +205,7 @@ return {
     "selections": [
       {
         "alias": "dataset",
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -222,12 +221,12 @@ return {
                 "kind": "LinkedField",
                 "name": "baselineExperiment",
                 "plural": false,
-                "selections": (v6/*: any*/),
+                "selections": (v6/*:: as any*/),
                 "storageKey": null
               },
               {
                 "alias": "metricsExperiments",
-                "args": (v7/*: any*/),
+                "args": (v7/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -248,7 +247,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v6/*: any*/),
+                        "selections": (v6/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -271,15 +270,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "useExperimentMetricsDataQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -302,12 +301,12 @@ return {
                 "kind": "LinkedField",
                 "name": "baselineExperiment",
                 "plural": false,
-                "selections": (v5/*: any*/),
+                "selections": (v5/*:: as any*/),
                 "storageKey": null
               },
               {
                 "alias": "metricsExperiments",
-                "args": (v7/*: any*/),
+                "args": (v7/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -328,7 +327,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v5/*: any*/),
+                        "selections": (v5/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -341,7 +340,7 @@ return {
             "type": "Dataset",
             "abstractKey": null
           },
-          (v3/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }

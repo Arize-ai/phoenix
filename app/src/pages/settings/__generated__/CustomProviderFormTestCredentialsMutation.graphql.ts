@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<542ea59620127fb6e3a68057d18cfd45>>
+ * @generated SignedSource<<46a0a98928e05ca00500b5ccffacbb05>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -11,11 +10,35 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type GenerativeModelCustomerProviderConfigInput = {
-  anthropic?: AnthropicCustomProviderConfigInput | null;
-  awsBedrock?: AWSBedrockCustomProviderConfigInput | null;
-  azureOpenai?: AzureOpenAICustomProviderConfigInput | null;
-  googleGenai?: GoogleGenAICustomProviderConfigInput | null;
-  openai?: OpenAICustomProviderConfigInput | null;
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai: OpenAICustomProviderConfigInput;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai: AzureOpenAICustomProviderConfigInput;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic: AnthropicCustomProviderConfigInput;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  awsBedrock: AWSBedrockCustomProviderConfigInput;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai: GoogleGenAICustomProviderConfigInput;
+  openai?: never;
 };
 export type OpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
@@ -37,9 +60,17 @@ export type AzureOpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
-  apiKey?: string | null;
-  azureAdTokenProvider?: AzureOpenAIADTokenProviderInput | null;
-  defaultCredentials?: boolean | null;
+  apiKey: string;
+  azureAdTokenProvider?: never;
+  defaultCredentials?: never;
+} | {
+  apiKey?: never;
+  azureAdTokenProvider: AzureOpenAIADTokenProviderInput;
+  defaultCredentials?: never;
+} | {
+  apiKey?: never;
+  azureAdTokenProvider?: never;
+  defaultCredentials: boolean;
 };
 export type AzureOpenAIADTokenProviderInput = {
   azureClientId: string;
@@ -67,8 +98,11 @@ export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
 };
 export type AWSBedrockAuthenticationMethodInput = {
-  accessKeys?: AWSBedrockAccessKeysInput | null;
-  defaultCredentials?: boolean | null;
+  accessKeys: AWSBedrockAccessKeysInput;
+  defaultCredentials?: never;
+} | {
+  accessKeys?: never;
+  defaultCredentials: boolean;
 };
 export type AWSBedrockAccessKeysInput = {
   awsAccessKeyId: string;
@@ -142,20 +176,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "CustomProviderFormTestCredentialsMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "CustomProviderFormTestCredentialsMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "7680aac239abb387cb84f787e2b9c2dc",

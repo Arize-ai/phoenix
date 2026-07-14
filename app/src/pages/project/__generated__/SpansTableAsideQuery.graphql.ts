@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b5bcf675ad9a49e416333b31dbc83b93>>
+ * @generated SignedSource<<2eebbeeeef75d3a9681b555f04158fe2>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -80,8 +79,8 @@ v5 = {
   "variableName": "timeRange"
 },
 v6 = [
-  (v4/*: any*/),
-  (v5/*: any*/)
+  (v4/*:: as any*/),
+  (v5/*:: as any*/)
 ],
 v7 = [
   {
@@ -111,14 +110,14 @@ v8 = {
     },
     {
       "alias": "timeRangeTraceCount",
-      "args": (v6/*: any*/),
+      "args": (v6/*:: as any*/),
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v6/*: any*/),
+      "args": (v6/*:: as any*/),
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
       "name": "costSummary",
@@ -131,7 +130,7 @@ v8 = {
           "kind": "LinkedField",
           "name": "total",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v7/*:: as any*/),
           "storageKey": null
         },
         {
@@ -141,7 +140,7 @@ v8 = {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v7/*:: as any*/),
           "storageKey": null
         },
         {
@@ -151,7 +150,7 @@ v8 = {
           "kind": "LinkedField",
           "name": "completion",
           "plural": false,
-          "selections": (v7/*: any*/),
+          "selections": (v7/*:: as any*/),
           "storageKey": null
         }
       ],
@@ -160,13 +159,13 @@ v8 = {
     {
       "alias": "latencyMsP50",
       "args": [
-        (v4/*: any*/),
+        (v4/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
         },
-        (v5/*: any*/)
+        (v5/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -175,13 +174,13 @@ v8 = {
     {
       "alias": "latencyMsP99",
       "args": [
-        (v4/*: any*/),
+        (v4/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
         },
-        (v5/*: any*/)
+        (v5/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -215,9 +214,9 @@ v8 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -225,13 +224,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v8/*: any*/)
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -242,16 +241,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SpansTableAsideQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -264,7 +263,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v8/*: any*/),
+          (v8/*:: as any*/),
           {
             "alias": null,
             "args": null,

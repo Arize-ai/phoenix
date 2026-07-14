@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<dec7fc90271e582172cc1fbe705c3d0d>>
+ * @generated SignedSource<<ae01a8fc4c3d6d492bc93db6f31597dd>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -62,7 +61,7 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DatasetLabelConfigButtonQuery",
@@ -74,7 +73,7 @@ return {
       },
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -101,13 +100,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DatasetLabelConfigButtonQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DatasetLabelConnection",
         "kind": "LinkedField",
         "name": "datasetLabels",
@@ -129,7 +128,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -144,7 +143,7 @@ return {
                     "name": "color",
                     "storageKey": null
                   },
-                  (v4/*: any*/)
+                  (v4/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -188,7 +187,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "DatasetLabelConfigButtonAllLabels_datasetLabels",
@@ -197,14 +196,14 @@ return {
       },
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
-          (v3/*: any*/),
+          (v4/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -216,7 +215,7 @@ return {
                 "name": "labels",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               }

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<41c4a8804f639cb4a0d349862f731b93>>
+ * @generated SignedSource<<d8cdec18fc09bac8820700383f76b5a1>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -16,9 +15,17 @@ export type UpdateAnnotationConfigInput = {
   id: string;
 };
 export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
+  categorical: CategoricalAnnotationConfigInput;
+  continuous?: never;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous: ContinuousAnnotationConfigInput;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous?: never;
+  freeform: FreeformAnnotationConfigInput;
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
@@ -112,14 +119,14 @@ v6 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsAnnotationsPageUpdateAnnotationConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "UpdateAnnotationConfigPayload",
         "kind": "LinkedField",
         "name": "updateAnnotationConfig",
@@ -150,13 +157,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SettingsAnnotationsPageUpdateAnnotationConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "UpdateAnnotationConfigPayload",
         "kind": "LinkedField",
         "name": "updateAnnotationConfig",
@@ -204,11 +211,11 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v2/*: any*/),
-                              (v3/*: any*/),
-                              (v4/*: any*/),
-                              (v5/*: any*/),
-                              (v6/*: any*/),
+                              (v2/*:: as any*/),
+                              (v3/*:: as any*/),
+                              (v4/*:: as any*/),
+                              (v5/*:: as any*/),
+                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -241,11 +248,11 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v2/*: any*/),
-                              (v3/*: any*/),
-                              (v4/*: any*/),
-                              (v5/*: any*/),
-                              (v6/*: any*/),
+                              (v2/*:: as any*/),
+                              (v3/*:: as any*/),
+                              (v4/*:: as any*/),
+                              (v5/*:: as any*/),
+                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -267,11 +274,11 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v2/*: any*/),
-                              (v3/*: any*/),
-                              (v4/*: any*/),
-                              (v5/*: any*/),
-                              (v6/*: any*/),
+                              (v2/*:: as any*/),
+                              (v3/*:: as any*/),
+                              (v4/*:: as any*/),
+                              (v5/*:: as any*/),
+                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -286,7 +293,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v2/*: any*/)
+                              (v2/*:: as any*/)
                             ],
                             "type": "Node",
                             "abstractKey": "__isNode"

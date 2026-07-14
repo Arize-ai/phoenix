@@ -73,6 +73,17 @@ async function writeInput({
   });
 }
 
+/**
+ * ink v7 buffers a lone Esc and unrecognized escape-sequence prefixes for
+ * 20ms before flushing them as literal input; wait past that window so the
+ * input reaches the app's handlers before asserting.
+ */
+async function flushPendingEscapeInput() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  });
+}
+
 async function writeInputRepeatedly({
   stdin,
   input,
@@ -328,6 +339,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "abXcd" });
     await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 2 });
     await writeInput({ stdin, input: deleteInput });
+    await flushPendingEscapeInput();
     await writeInput({ stdin, input: "\r" });
 
     expect(submittedText).toBe("abcd");
@@ -390,6 +402,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "abXcd" });
     await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 3 });
     await writeInput({ stdin, input: deleteInput });
+    await flushPendingEscapeInput();
     await writeInput({ stdin, input: "\r" });
 
     expect(submittedText).toBe("abcd");
@@ -755,6 +768,7 @@ describe("PXI app", () => {
     await act(async () => {
       stdin.write(ESCAPE_CHARACTER);
     });
+    await flushPendingEscapeInput();
 
     expect(abortSignals[0]?.aborted).toBe(true);
     expect(lastFrame()).toContain("Interrupted by user before completion.");

@@ -183,8 +183,8 @@ class AsyncExecutor(Executor):
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar.
             Defaults to None.
 
-        max_retries (int, optional): The maximum number of times to retry on exceptions.
-            Defaults to 10.
+        max_retries (int, optional): The maximum number of times to retry on exceptions or
+            timeouts. Defaults to 10.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
             Defaults to True.
@@ -324,7 +324,6 @@ class AsyncExecutor(Executor):
                     marked_done = True
                     continue
                 else:
-                    tqdm.write("Worker timeout, requeuing")
                     # Best-effort cancel the timed-out task without blocking the loop
                     if not generate_task.done():
                         generate_task.cancel()
@@ -332,12 +331,21 @@ class AsyncExecutor(Executor):
                             await asyncio.wait_for(generate_task, timeout=1)
                         except (asyncio.TimeoutError, asyncio.CancelledError):
                             pass
-                    # task timeouts are requeued at the same priority
-                    await queue.put((priority, item))
                     details = cast(ExecutionDetails, execution_details[index])
+                    details.log_exception(TimeoutError(f"Task timed out after {self.timeout}s"))
                     details.log_runtime(task_start_time)
                     if self._concurrency_controller is not None:
                         self._concurrency_controller.record_timeout()
+                    if (retry_count := abs(priority)) < self.max_retries:
+                        tqdm.write(f"Worker timeout on attempt {retry_count + 1}, requeuing")
+                        await queue.put((priority - 1, item))
+                    else:
+                        details.fail()
+                        tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: timeout")
+                        if self.exit_on_error:
+                            termination_event.set()
+                        else:
+                            progress_bar.update()
             except Exception as exc:
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)

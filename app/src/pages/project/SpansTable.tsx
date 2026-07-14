@@ -54,7 +54,6 @@ import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
-import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { TraceTokenCosts } from "@phoenix/components/trace";
@@ -78,6 +77,10 @@ import type {
 } from "./__generated__/SpansTable_spans.graphql";
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SpanInputValueTooltipCell,
+  SpanOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -626,13 +629,23 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "input",
       accessorKey: "input.value",
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SpanInputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
       enableSorting: false,
     },
     {
       header: "output",
       accessorKey: "output.value",
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SpanOutputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
       enableSorting: false,
     },
     {
@@ -898,66 +911,63 @@ export function SpansTable(props: SpansTableProps) {
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 
   return (
-    <Group orientation="horizontal" id="spans-table-layout">
-      <Panel>
-        <TableMetricsChartsPanelGroup view="spans">
-          <div css={spansTableCSS}>
-            <View
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              borderBottomColor="default"
-              borderBottomWidth="thin"
-              flex="none"
-            >
-              <Flex
-                direction="row"
-                gap="size-100"
-                width="100%"
-                alignItems="center"
-              >
-                <SpanFilterConditionField
-                  onValidCondition={setFilterCondition}
-                />
+    <TableMetricsChartsPanelGroup view="spans">
+      <div css={spansTableCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+          flex="none"
+        >
+          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+            <SpanFilterConditionField onValidCondition={setFilterCondition} />
 
-                <ToggleButtonGroup
-                  aria-label="Toggle between root and all spans"
-                  selectionMode="single"
-                  selectedKeys={[rootSpansOnly ? "root" : "all"]}
-                  onSelectionChange={(selection) => {
-                    if (selection.size === 0) {
-                      return;
-                    }
-                    const selectedKey = selection.keys().next().value;
-                    if (isRootSpanFilterValue(selectedKey)) {
-                      setRootSpansOnly(selectedKey === "root");
-                    } else {
-                      throw new Error(
-                        `Unknown root span filter selection: ${selectedKey}`
-                      );
-                    }
-                  }}
-                >
-                  <ToggleButton aria-label="root spans" id="root">
-                    Root Spans
-                  </ToggleButton>
-                  <ToggleButton aria-label="all spans" id="all">
-                    All
-                  </ToggleButton>
-                </ToggleButtonGroup>
-                <TableMetricsChartSelector view="spans" />
-                <SpanColumnSelector
-                  columns={table.getAllColumns()}
-                  query={data}
-                />
-                <ProjectFilterConfigButton />
-                <TableAsideToggleButton />
-              </Flex>
-            </View>
+            <ToggleButtonGroup
+              aria-label="Toggle between root and all spans"
+              selectionMode="single"
+              selectedKeys={[rootSpansOnly ? "root" : "all"]}
+              onSelectionChange={(selection) => {
+                if (selection.size === 0) {
+                  return;
+                }
+                const selectedKey = selection.keys().next().value;
+                if (isRootSpanFilterValue(selectedKey)) {
+                  setRootSpansOnly(selectedKey === "root");
+                } else {
+                  throw new Error(
+                    `Unknown root span filter selection: ${selectedKey}`
+                  );
+                }
+              }}
+            >
+              <ToggleButton aria-label="root spans" id="root">
+                Root Spans
+              </ToggleButton>
+              <ToggleButton aria-label="all spans" id="all">
+                All
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <TableMetricsChartSelector view="spans" />
+            <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <ProjectFilterConfigButton />
+            <TableAsideToggleButton />
+          </Flex>
+        </View>
+        <Group
+          orientation="horizontal"
+          id="spans-table-layout"
+          css={css`
+            flex: 1 1 auto;
+            min-height: 0;
+          `}
+        >
+          <Panel>
             <div
               css={css`
-                flex: 1 1 auto;
+                height: 100%;
                 overflow: auto;
               `}
               onScroll={(e) =>
@@ -1087,18 +1097,18 @@ export function SpansTable(props: SpansTableProps) {
                 </table>
               </ColumnOrderingProvider>
             </div>
-            {selectedRows.length ? (
-              <SpanSelectionToolbar
-                selectedSpans={selectedSpans}
-                onClearSelection={clearSelection}
-              />
-            ) : null}
-          </div>
-        </TableMetricsChartsPanelGroup>
-      </Panel>
-      <TableAsidePanel>
-        <SpansTableAside filterCondition={filterCondition} />
-      </TableAsidePanel>
-    </Group>
+          </Panel>
+          <TableAsidePanel>
+            <SpansTableAside filterCondition={filterCondition} />
+          </TableAsidePanel>
+        </Group>
+        {selectedRows.length ? (
+          <SpanSelectionToolbar
+            selectedSpans={selectedSpans}
+            onClearSelection={clearSelection}
+          />
+        ) : null}
+      </div>
+    </TableMetricsChartsPanelGroup>
   );
 }

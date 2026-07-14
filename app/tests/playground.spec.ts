@@ -125,7 +125,7 @@ test.describe("Playground", () => {
     await page.getByPlaceholder("Select or enter new prompt").click();
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
     await page
-      .getByLabel("Prompt Description")
+      .getByLabel("Description (optional)")
       .fill("test prompt for URL persistence");
     await page.getByRole("button", { name: "Create Prompt" }).click();
     await expect(page).toHaveURL(/promptId=/);

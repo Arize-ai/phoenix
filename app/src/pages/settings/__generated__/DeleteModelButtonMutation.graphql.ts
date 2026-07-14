@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<9329728b78afae83d4289499490d10ff>>
+ * @generated SignedSource<<3c1b37ff031f368ee9171050cb603e3a>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -74,8 +73,8 @@ v5 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -83,7 +82,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteModelMutationPayload",
         "kind": "LinkedField",
         "name": "deleteModel",
@@ -113,7 +112,7 @@ return {
             "name": "model",
             "plural": false,
             "selections": [
-              (v3/*: any*/)
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -127,15 +126,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "DeleteModelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteModelMutationPayload",
         "kind": "LinkedField",
         "name": "deleteModel",
@@ -151,7 +150,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "GenerativeModelConnection",
                 "kind": "LinkedField",
                 "name": "generativeModels",
@@ -173,7 +172,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
+                          (v3/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -230,7 +229,7 @@ return {
                             "name": "lastUsedAt",
                             "storageKey": null
                           },
-                          (v5/*: any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -246,7 +245,7 @@ return {
                                 "name": "tokenType",
                                 "storageKey": null
                               },
-                              (v5/*: any*/),
+                              (v5/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -282,7 +281,7 @@ return {
                             "name": "__typename",
                             "storageKey": null
                           },
-                          (v3/*: any*/)
+                          (v3/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -319,7 +318,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ModelsTable_generativeModels",
@@ -337,7 +336,7 @@ return {
             "name": "model",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,

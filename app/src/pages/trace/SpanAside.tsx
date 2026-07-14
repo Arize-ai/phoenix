@@ -9,10 +9,8 @@ import { Flex, KeyboardToken, View } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
-import {
-  EDIT_ANNOTATION_HOTKEY,
-  SpanAnnotationsEditor,
-} from "@phoenix/components/trace/SpanAnnotationsEditor";
+import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import type { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
 
 import type { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";

@@ -1019,6 +1019,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                         pass
                     elif item.type == "additional_tools":
                         pass
+                    elif item.type == "program":
+                        pass
+                    elif item.type == "program_output":
+                        pass
                     elif TYPE_CHECKING:
                         assert_never(item.type)
                 elif event.type == "response.completed":

@@ -10,6 +10,9 @@ const disclosureArrowCSS = css`
   flex: none;
   color: var(--global-text-color-500);
   transition: transform 200ms ease-in-out;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
   transform: rotate(0deg);
   &[data-expanded="true"] {
     transform: rotate(90deg);

@@ -108,8 +108,6 @@ CREATE TABLE public.project_annotation_configs (
 
 CREATE INDEX ix_project_annotation_configs_annotation_config_id ON public.project_annotation_configs
     USING btree (annotation_config_id);
-CREATE INDEX ix_project_annotation_configs_project_id ON public.project_annotation_configs
-    USING btree (project_id);
 
 
 -- Table: project_sessions
@@ -129,8 +127,8 @@ CREATE TABLE public.project_sessions (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_project_sessions_end_time ON public.project_sessions
-    USING btree (end_time);
+CREATE INDEX ix_project_sessions_project_id_end_time ON public.project_sessions
+    USING btree (project_id, end_time DESC);
 CREATE INDEX ix_project_sessions_project_id_start_time ON public.project_sessions
     USING btree (project_id, start_time DESC);
 
@@ -194,8 +192,6 @@ CREATE TABLE public.prompts_prompt_labels (
 
 CREATE INDEX ix_prompts_prompt_labels_prompt_id ON public.prompts_prompt_labels
     USING btree (prompt_id);
-CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_labels
-    USING btree (prompt_label_id);
 
 
 -- Table: token_prices
@@ -215,9 +211,6 @@ CREATE TABLE public.token_prices (
         REFERENCES public.generative_models (id)
         ON DELETE CASCADE
 );
-
-CREATE INDEX ix_token_prices_model_id ON public.token_prices
-    USING btree (model_id);
 
 
 -- Table: traces
@@ -283,8 +276,14 @@ CREATE TABLE public.spans (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
+    USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
+CREATE INDEX ix_latency ON public.spans
+    USING btree (((end_time - start_time)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
+CREATE INDEX ix_spans_session_id ON public.spans
+    USING btree ((((attributes #>> '{session,id}'::text[]))::character varying)) WHERE (((attributes #>> '{session,id}'::text[]))::character varying IS NOT NULL);
 CREATE INDEX ix_spans_start_time ON public.spans
     USING btree (start_time);
 CREATE INDEX ix_spans_trace_rowid ON public.spans
@@ -497,6 +496,9 @@ CREATE TABLE public.datasets (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_datasets_user_id ON public.datasets
+    USING btree (user_id);
+
 
 -- Table: dataset_examples
 -- -----------------------
@@ -519,10 +521,6 @@ CREATE TABLE public.dataset_examples (
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_dataset_examples_dataset_id ON public.dataset_examples
-    USING btree (dataset_id);
-CREATE INDEX ix_dataset_examples_external_id ON public.dataset_examples
-    USING btree (external_id);
 CREATE INDEX ix_dataset_examples_span_rowid ON public.dataset_examples
     USING btree (span_rowid);
 
@@ -571,6 +569,8 @@ CREATE TABLE public.dataset_versions (
 
 CREATE INDEX ix_dataset_versions_dataset_id ON public.dataset_versions
     USING btree (dataset_id);
+CREATE INDEX ix_dataset_versions_user_id ON public.dataset_versions
+    USING btree (user_id);
 
 
 -- Table: dataset_example_revisions
@@ -673,6 +673,8 @@ CREATE TABLE public.document_annotations (
 
 CREATE INDEX ix_document_annotations_span_rowid ON public.document_annotations
     USING btree (span_rowid);
+CREATE INDEX ix_document_annotations_user_id ON public.document_annotations
+    USING btree (user_id);
 
 
 -- Table: evaluators
@@ -760,8 +762,6 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
-    USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
@@ -807,6 +807,8 @@ CREATE INDEX ix_experiments_ephemeral_updated_at ON public.experiments
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
 CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
+CREATE INDEX ix_experiments_user_id ON public.experiments
+    USING btree (user_id);
 
 
 -- Table: experiment_jobs
@@ -892,6 +894,8 @@ CREATE TABLE public.experiment_logs (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_experiment_logs_experiment_id ON public.experiment_logs
+    USING btree (experiment_id);
 CREATE INDEX ix_experiment_logs_experiment_id_occurred_at_errors ON public.experiment_logs
     USING btree (experiment_id, occurred_at DESC) WHERE ((level)::text = 'ERROR'::text);
 
@@ -953,6 +957,11 @@ CREATE TABLE public.experiment_eval_logs (
         REFERENCES public.experiment_runs (id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiment_eval_logs_dataset_evaluator_id ON public.experiment_eval_logs
+    USING btree (dataset_evaluator_id);
+CREATE INDEX ix_experiment_eval_logs_experiment_run_id ON public.experiment_eval_logs
+    USING btree (experiment_run_id);
 
 
 -- Table: experiment_run_annotations
@@ -1038,6 +1047,9 @@ CREATE TABLE public.experiment_task_logs (
         REFERENCES public.dataset_examples (id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiment_task_logs_dataset_example_id ON public.experiment_task_logs
+    USING btree (dataset_example_id);
 
 
 -- Table: experiments_dataset_examples
@@ -1176,6 +1188,8 @@ CREATE TABLE public.project_session_annotations (
 
 CREATE INDEX ix_project_session_annotations_project_session_id ON public.project_session_annotations
     USING btree (project_session_id);
+CREATE INDEX ix_project_session_annotations_user_id ON public.project_session_annotations
+    USING btree (user_id);
 
 
 -- Table: prompt_versions
@@ -1556,6 +1570,8 @@ CREATE TABLE public.span_annotations (
 
 CREATE INDEX ix_span_annotations_span_rowid ON public.span_annotations
     USING btree (span_rowid);
+CREATE INDEX ix_span_annotations_user_id ON public.span_annotations
+    USING btree (user_id);
 
 
 -- Table: system_settings
@@ -1616,3 +1632,5 @@ CREATE TABLE public.trace_annotations (
 
 CREATE INDEX ix_trace_annotations_trace_rowid ON public.trace_annotations
     USING btree (trace_rowid);
+CREATE INDEX ix_trace_annotations_user_id ON public.trace_annotations
+    USING btree (user_id);

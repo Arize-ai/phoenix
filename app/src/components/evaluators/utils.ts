@@ -1,6 +1,9 @@
 import { graphql, readInlineData } from "relay-runtime";
 
-import type { CreateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import type {
+  AnnotationConfigInput,
+  CreateDatasetLLMEvaluatorInput,
+} from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import type { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -11,7 +14,6 @@ import type {
   ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorMappingSource,
-  EvaluatorOptimizationDirection,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
@@ -314,26 +316,7 @@ export const inferIncludeExplanationFromPrompt = (
  */
 const toAnnotationConfigInput = (
   config: AnnotationConfig
-): {
-  categorical?: {
-    name: string;
-    optimizationDirection: EvaluatorOptimizationDirection;
-    values: { label: string; score: number | null }[];
-  };
-  continuous?: {
-    name: string;
-    optimizationDirection: EvaluatorOptimizationDirection;
-    lowerBound?: number | null;
-    upperBound?: number | null;
-  };
-  freeform?: {
-    name: string;
-    optimizationDirection: EvaluatorOptimizationDirection;
-    threshold?: number | null;
-    lowerBound?: number | null;
-    upperBound?: number | null;
-  };
-} => {
+): AnnotationConfigInput => {
   if ("values" in config) {
     return {
       categorical: {

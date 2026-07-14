@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<200d1d64fa3df2cb2321e1eb6df6660d>>
+ * @generated SignedSource<<ecff9e4fba6555c4c649bbdd2f7d4754>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -119,7 +118,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -129,7 +128,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": PromptsTablePromptsQuery_graphql
@@ -172,8 +171,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
-                (v2/*: any*/),
+                (v1/*:: as any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -188,7 +187,7 @@ return {
                   "kind": "LinkedField",
                   "name": "createdBy",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -198,7 +197,7 @@ return {
                   "kind": "LinkedField",
                   "name": "updatedBy",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -209,7 +208,7 @@ return {
                   "name": "version",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -249,8 +248,8 @@ return {
                   "name": "versionTags",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -269,8 +268,8 @@ return {
                   "name": "labels",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,

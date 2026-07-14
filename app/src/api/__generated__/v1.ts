@@ -1679,9 +1679,15 @@ export interface components {
          * @description Wire schema for the chat stream's `message_metadata` payload.
          */
         AssistantMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "assistant";
             /** Sessionid */
             sessionId: string;
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
         };
         /** AssistantMessageMetadataTraceIds */
@@ -1711,22 +1717,6 @@ export interface components {
             completion: number;
             /** Total */
             total: number;
-        };
-        /**
-         * AssistantMetadataUIMessage
-         * @description `UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`.
-         */
-        AssistantMetadataUIMessage: {
-            /** Id */
-            id: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "system" | "user" | "assistant";
-            metadata?: components["schemas"]["AssistantMessageMetadata"] | null;
-            /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * BuiltInProviderModelSelection
@@ -1810,7 +1800,7 @@ export interface components {
             /** Id */
             id: string;
             /** Messages */
-            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            messages: components["schemas"]["PhoenixUIMessage"][];
             /** Messageid */
             messageId?: string | null;
             /**
@@ -1844,6 +1834,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1865,7 +1856,7 @@ export interface components {
             /** Id */
             id: string;
             /** Messages */
-            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            messages: components["schemas"]["PhoenixUIMessage"][];
             /**
              * Ingesttraces
              * @default false
@@ -1897,6 +1888,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -3403,6 +3395,23 @@ export interface components {
              * @description A developer-facing human readable error message.
              */
             message?: string | null;
+        };
+        /**
+         * PhoenixUIMessage
+         * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+         */
+        PhoenixUIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            /** Metadata */
+            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -5464,6 +5473,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** TurnTraceContext */
+        TurnTraceContext: {
+            /** Traceid */
+            traceId: string;
+            /** Rootspanid */
+            rootSpanId: string;
+            /**
+             * Startedat
+             * Format: date-time
+             */
+            startedAt: string;
+        };
         /**
          * UIMessage
          * @description A message as displayed in the UI by Vercel AI Elements.
@@ -5644,6 +5665,21 @@ export interface components {
             /** Deleted Keys */
             deleted_keys: string[];
         };
+        /**
+         * UserMessageMetadata
+         * @description Wire schema for metadata the browser attaches to outgoing user messages.
+         */
+        UserMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "user";
+            /** Currentdatetime */
+            currentDateTime: string;
+            /** Timezone */
+            timeZone: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -5705,6 +5741,34 @@ export interface components {
             summary: string;
         };
         /**
+         * ToolCallCallbackProviderMetadata
+         * @description Shape of the ``phoenix`` namespace the browser returns in
+         *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
+         *     plus browser-recorded execution timings.
+         */
+        ToolCallCallbackProviderMetadata: {
+            /**
+             * Tool Execution Environment
+             * @enum {string}
+             */
+            tool_execution_environment: "client" | "server";
+            /**
+             * Tool Input Emitted At
+             * @default null
+             */
+            tool_input_emitted_at?: string | null;
+            /**
+             * Client Started At
+             * @default null
+             */
+            client_started_at?: string | null;
+            /**
+             * Client Ended At
+             * @default null
+             */
+            client_ended_at?: string | null;
+        };
+        /**
          * ToolCallProviderMetadata
          * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
          *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
@@ -5716,6 +5780,11 @@ export interface components {
              * @enum {string}
              */
             tool_execution_environment: "client" | "server";
+            /**
+             * Tool Input Emitted At
+             * @default null
+             */
+            tool_input_emitted_at?: string | null;
         };
     };
     responses: never;

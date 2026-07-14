@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<bb2c4ad8d3023aa59d7ca2fd4cf39a97>>
+ * @generated SignedSource<<936a67a93bde8e997029d294e142d8af>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -42,7 +41,7 @@ var v0 = {
   "storageKey": null
 },
 v1 = [
-  (v0/*: any*/)
+  (v0/*:: as any*/)
 ];
 return {
   "argumentDefinitions": [],
@@ -58,7 +57,7 @@ return {
       "name": "project",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -85,7 +84,7 @@ return {
                   "selections": [
                     {
                       "kind": "InlineFragment",
-                      "selections": (v1/*: any*/),
+                      "selections": (v1/*:: as any*/),
                       "type": "Node",
                       "abstractKey": "__isNode"
                     },
@@ -122,7 +121,7 @@ return {
       "kind": "LinkedField",
       "name": "spanAnnotations",
       "plural": true,
-      "selections": (v1/*: any*/),
+      "selections": (v1/*:: as any*/),
       "storageKey": null
     },
     {

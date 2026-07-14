@@ -1,5 +1,94 @@
 # Changelog
 
+## [18.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.30.0...arize-phoenix-v18.0.0) (2026-07-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sessions:** use interval-overlap semantics for session time-range filters ([#14023](https://github.com/Arize-ai/phoenix/issues/14023))
+
+### Features
+
+* **sessions:** use interval-overlap semantics for session time-range filters ([#14023](https://github.com/Arize-ai/phoenix/issues/14023)) ([cd17357](https://github.com/Arize-ai/phoenix/commit/cd173576e0d228979845a582ed0e06e475b9b19e))
+
+## [17.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.29.0...arize-phoenix-v17.30.0) (2026-07-14)
+
+
+### Features
+
+* **agents:** force tracing with debug env ([#14358](https://github.com/Arize-ai/phoenix/issues/14358)) ([1dbf5ff](https://github.com/Arize-ai/phoenix/commit/1dbf5ff6ae25e1bc6bc7157d868ebf9d8ed9dfe2))
+* **app:** support batch annotation config management ([#14198](https://github.com/Arize-ai/phoenix/issues/14198)) ([12be3cc](https://github.com/Arize-ai/phoenix/commit/12be3cc94cb84cc0c3ac98a150794bf806d046e6))
+* **playground:** show output error count ([#14277](https://github.com/Arize-ai/phoenix/issues/14277)) ([8a75d67](https://github.com/Arize-ai/phoenix/commit/8a75d673cf604c55f3eef9f01ddede2dbf41689d))
+
+
+### Bug Fixes
+
+* add nullslast to projects page end time sort ([#14092](https://github.com/Arize-ai/phoenix/issues/14092)) ([36d0e6e](https://github.com/Arize-ai/phoenix/commit/36d0e6ef034715cbba36562a982be70e70f24be0))
+* **agents:** keep browser clock out of the system prompt to preserve prompt caching ([#14362](https://github.com/Arize-ai/phoenix/issues/14362)) ([c5dbb20](https://github.com/Arize-ai/phoenix/commit/c5dbb2034961ab99eefb67eaf8bcc9cf77a6a97f))
+* **agents:** use Responses API for PXI OpenAI models ([#14365](https://github.com/Arize-ai/phoenix/issues/14365)) ([61fc1e4](https://github.com/Arize-ai/phoenix/commit/61fc1e46b85ed485b9a1327a962d6d403f60b46f))
+* **pxi:** export agent telemetry from pytest eval runs ([#14336](https://github.com/Arize-ai/phoenix/issues/14336)) ([e4b94b4](https://github.com/Arize-ai/phoenix/commit/e4b94b40443c95e90a6d104b45a10d9c709a8174))
+* resolve PostgreSQL schema for database usage stats ([#14172](https://github.com/Arize-ai/phoenix/issues/14172)) ([c26fdfe](https://github.com/Arize-ai/phoenix/commit/c26fdfeb318e9ef110c689c364af64c5b5bc8484))
+* theme provider in playground output header test ([#14351](https://github.com/Arize-ai/phoenix/issues/14351)) ([33564d5](https://github.com/Arize-ai/phoenix/commit/33564d58b4267f648d1e7a6567351f79a965dd86))
+* **ui:** allow empty prompt descriptions ([#14284](https://github.com/Arize-ai/phoenix/issues/14284)) ([c03ea6c](https://github.com/Arize-ai/phoenix/commit/c03ea6caed9b58ad73de081b2ccdbef9ce6c5534))
+
+## [17.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.28.0...arize-phoenix-v17.29.0) (2026-07-13)
+
+
+### Features
+
+* **agents:** move PXI tracing server-side ([#14215](https://github.com/Arize-ai/phoenix/issues/14215)) ([ea40aea](https://github.com/Arize-ai/phoenix/commit/ea40aea40a1ad8f0a5abe1b9c2172973aa339aa3))
+* **pxi:** add remote export setup command ([#14333](https://github.com/Arize-ai/phoenix/issues/14333)) ([cb765a3](https://github.com/Arize-ai/phoenix/commit/cb765a385717ae31d7ac9162254e4bc8e32f10d5))
+
+
+### Documentation
+
+* add tracing video to README ([#14334](https://github.com/Arize-ai/phoenix/issues/14334)) ([277ae55](https://github.com/Arize-ai/phoenix/commit/277ae55e18bf59e98d0c26f0166b3cca768d6fdc))
+
+## [17.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.27.0...arize-phoenix-v17.28.0) (2026-07-13)
+
+
+### Features
+
+* **ui:** add session annotation editing in session details ([#13852](https://github.com/Arize-ai/phoenix/issues/13852)) ([522a9a9](https://github.com/Arize-ai/phoenix/commit/522a9a9e08865f4fa2943cac69f37533b04247a5))
+* **ui:** collapsible playground sections via TitledPanel ([#14324](https://github.com/Arize-ai/phoenix/issues/14324)) ([2858f8f](https://github.com/Arize-ai/phoenix/commit/2858f8f49b7a55985b686441c29bdb21890ac441))
+* **ui:** modernize core Tabs with animated selection indicator and scroll snapping ([#14325](https://github.com/Arize-ai/phoenix/issues/14325)) ([93016bf](https://github.com/Arize-ai/phoenix/commit/93016bfa58abc7493252e0d1fe75c3c0f10147f6))
+
+
+### Bug Fixes
+
+* harden one-click deploy templates ([#14323](https://github.com/Arize-ai/phoenix/issues/14323)) ([1466235](https://github.com/Arize-ai/phoenix/commit/14662353acc47bf3b8d9a0e13d8d70b0a0c0f0cf))
+* **ui:** propagate IO tooltip cell clicks ([#14326](https://github.com/Arize-ai/phoenix/issues/14326)) ([f675b2a](https://github.com/Arize-ai/phoenix/commit/f675b2adaf1296fe2e6aabaab3e3373af71fe78d))
+
+
+### Documentation
+
+* add one-click deploy buttons for self-hosting ([#14319](https://github.com/Arize-ai/phoenix/issues/14319)) ([ae5d520](https://github.com/Arize-ai/phoenix/commit/ae5d520e2db145f654989ffd7d2fd56fc0e53652))
+* Change 'Install Locally' to 'Run Locally' ([fb9cb32](https://github.com/Arize-ai/phoenix/commit/fb9cb32ed380a5615ee49c2e1ab94984d13c5814))
+
+## [17.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.26.0...arize-phoenix-v17.27.0) (2026-07-12)
+
+
+### Features
+
+* **ui:** add dataset/prompt authorship columns, rename to updatedBy ([fb08fe6](https://github.com/Arize-ai/phoenix/commit/fb08fe62d843685c64ed80c6966439a22a56d34c))
+* **ui:** column reordering on the traces, sessions, and experiments tables ([#14299](https://github.com/Arize-ai/phoenix/issues/14299)) ([2f2c4c1](https://github.com/Arize-ai/phoenix/commit/2f2c4c13547669905f9baa861e60c8a107fabd0b))
+* **ui:** customize prompts table columns ([a3c6b92](https://github.com/Arize-ai/phoenix/commit/a3c6b921484c3aae60549283afae720ad1e6fa06))
+* **ui:** design audit of alerts, counters, and session selection ([#14315](https://github.com/Arize-ai/phoenix/issues/14315)) ([c9770a2](https://github.com/Arize-ai/phoenix/commit/c9770a27dcd410ebf726d36b114d1c877d013e72))
+* **ui:** drag-and-drop column reordering with redesigned column selector ([#14298](https://github.com/Arize-ai/phoenix/issues/14298)) ([4da943b](https://github.com/Arize-ai/phoenix/commit/4da943b5d5c0dff0969832d9cfeda6a8ee303f6f))
+* **ui:** preview full span IO in table tooltips ([#14305](https://github.com/Arize-ai/phoenix/issues/14305)) ([02eb5dc](https://github.com/Arize-ai/phoenix/commit/02eb5dc1b4c341bf33197c7dcc032ec0f0c7f12c))
+
+
+### Bug Fixes
+
+* **api:** resolve dataset creator from the users loader, skip unused join ([9121920](https://github.com/Arize-ai/phoenix/commit/912192049ce9f7ac20aceba2e2bcdbb2261413b7))
+* preserve combobox tab navigation ([#14294](https://github.com/Arize-ai/phoenix/issues/14294)) ([8758636](https://github.com/Arize-ai/phoenix/commit/8758636690963ca1f0741f2a9385d547d0d194cd))
+* **tests:** format test_Dataset, scope Description locators to dialog ([2d8f536](https://github.com/Arize-ai/phoenix/commit/2d8f5369ce6e18d9496be52c042c67932e3a1b52))
+
+
+### Documentation
+
+* close weekly docs gap audit (dataset-label REST, CLI annotation-config, auth.md, experiment baseline, session cleanup) ([#14308](https://github.com/Arize-ai/phoenix/issues/14308)) ([52f05c4](https://github.com/Arize-ai/phoenix/commit/52f05c4703c8869b174e888fb5da05e344e77f24))
+
 ## [17.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.25.0...arize-phoenix-v17.26.0) (2026-07-11)
 
 

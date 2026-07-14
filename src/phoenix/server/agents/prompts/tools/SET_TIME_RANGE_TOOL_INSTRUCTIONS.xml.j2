@@ -7,7 +7,7 @@
   </when_to_use>
   <guidelines>
     - Prefer preset `timeRangeKey` values (15m, 1h, 12h, 1d, 7d, 30d) when the request maps cleanly to one. Use `custom` with `startTime` and optional `endTime` only when the user names specific calendar times.
-    - Resolve relative phrases like "today" or "last hour" against the current local date/time from the Phoenix UI context, not against the currently selected time range.
+    - Resolve relative phrases like "today" or "last hour" against the value returned by the `get_current_datetime` tool — call it first. Never guess the current date from prior knowledge or from the currently selected time range.
     - Include a timezone offset (or `Z`) on custom ISO 8601 timestamps when possible; otherwise the browser interprets them in the user's local timezone.
     - Omit `endTime` for open-ended ranges ("since 9am").
     - Confirm in your response which window was applied so the user knows what scope subsequent answers are based on.

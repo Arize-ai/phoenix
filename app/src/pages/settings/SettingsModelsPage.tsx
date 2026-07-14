@@ -17,6 +17,7 @@ import {
   Text,
 } from "@phoenix/components";
 import type { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
+import type { settingsModelsLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsModelsLoaderQuery.graphql";
 import type { SettingsModelsLoaderType } from "@phoenix/pages/settings/settingsModelsLoader";
 import { settingsModelsLoaderGql } from "@phoenix/pages/settings/settingsModelsLoader";
 
@@ -36,7 +37,10 @@ export function SettingsModelsPage() {
   const [search, setSearch] = useState("");
   const loaderData = useLoaderData<SettingsModelsLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsModelsLoaderGql, loaderData);
+  const data = usePreloadedQuery<settingsModelsLoaderQuery>(
+    settingsModelsLoaderGql,
+    loaderData
+  );
 
   return (
     <Flex direction="column" gap="size-200">

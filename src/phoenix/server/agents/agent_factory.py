@@ -29,6 +29,7 @@ from phoenix.server.agents.capabilities.tools.external import (
 )
 from phoenix.server.agents.capabilities.tools.internal import (
     CallSubAgentCapability,
+    GetCurrentDatetimeCapability,
     WriteSpanNoteCapability,
 )
 from phoenix.server.agents.prompts import AgentPrompts
@@ -99,6 +100,18 @@ def build_agent(
         config=TraceConfig(),
     )
     capabilities: list[AbstractCapability[AgentDependencies]] = [
+        WriteSpanNoteCapability(
+            db=db,
+            event_queue=event_queue,
+            instructions=resolved_prompts.write_span_note_tool.render(),
+            read_only=read_only,
+            auth_enabled=auth_enabled,
+            user_id=user_id,
+            is_viewer=is_viewer,
+        ),
+        GetCurrentDatetimeCapability(
+            instructions=resolved_prompts.get_current_datetime_tool.render(),
+        ),
         DynamicCapability(
             capability_func=get_external_tool_capability_function(
                 prompts=resolved_prompts,
@@ -138,18 +151,6 @@ def build_agent(
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
         )
-    capabilities.append(
-        WriteSpanNoteCapability(
-            db=db,
-            event_queue=event_queue,
-            instructions=resolved_prompts.write_span_note_tool.render(),
-            read_only=read_only,
-            auth_enabled=auth_enabled,
-            user_id=user_id,
-            is_viewer=is_viewer,
-        )
-    )
-
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,

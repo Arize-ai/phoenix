@@ -541,20 +541,30 @@ function ProjectItem({
         height: 100%;
       `}
     >
-      <Flex direction="row" justifyContent="space-between" alignItems="start">
-        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="start"
+        gap="size-100"
+      >
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          flex={1}
+          minWidth={0}
+        >
           <GradientCircle
             gradientStartColor={gradientStartColor}
             gradientEndColor={gradientEndColor}
           />
-          <Flex direction="column" minWidth={0}>
+          <Flex direction="column" flex={1} minWidth={0}>
             <Heading
               level={2}
               css={css`
                 overflow: hidden;
-                display: -webkit-box;
-                -webkit-box-orient: vertical;
-                -webkit-line-clamp: 1;
+                text-overflow: ellipsis;
+                white-space: nowrap;
               `}
             >
               {project.name}
@@ -596,13 +606,13 @@ function ProjectMetricsLoadingSkeleton() {
     <Flex direction="row" justifyContent="space-between" minHeight="size-600">
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
-          Total Traces
+          Traces
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
-          Total Sessions
+          Sessions
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
@@ -691,7 +701,7 @@ function ProjectMetricsRow({
     >
       <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
-          Total Traces
+          Traces
         </Text>
         <Text size="L" fontFamily="mono">
           {intFormatter(traceCount)}
@@ -699,7 +709,7 @@ function ProjectMetricsRow({
       </Flex>
       <Flex direction="column">
         <Text elementType="h3" size="S" color="text-700">
-          Total Sessions
+          Sessions
         </Text>
         <Text size="L" fontFamily="mono">
           {intFormatter(sessionCount)}

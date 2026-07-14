@@ -109,7 +109,11 @@ def _get_stmt(
     kind, (start_time, end_time), filter_condition, session_filter_condition = segment
     if kind == "session":
         pid = models.ProjectSession.project_id
-        time_column = models.ProjectSession.start_time
+        # Sessions use interval-overlap time-range semantics, matching the
+        # sessions table: a session counts iff [start_time, end_time]
+        # intersects [start, end).
+        lower_bound_column = models.ProjectSession.end_time
+        upper_bound_column = models.ProjectSession.start_time
         stmt = select(pid).add_columns(func.count().label("count"))
     else:
         pid = models.Trace.project_rowid
@@ -132,6 +136,7 @@ def _get_stmt(
                 stmt = stmt.add_columns(func.count().label("count"))
         else:
             assert_never(kind)
+        lower_bound_column = upper_bound_column = time_column
         if session_filter_condition:
             filtered_session_rowids = get_filtered_session_rowids_subquery(
                 session_filter_condition=session_filter_condition,
@@ -143,7 +148,7 @@ def _get_stmt(
     stmt = stmt.where(pid.in_(project_rowids))
     stmt = stmt.group_by(pid)
     if start_time:
-        stmt = stmt.where(start_time <= time_column)
+        stmt = stmt.where(start_time <= lower_bound_column)
     if end_time:
-        stmt = stmt.where(time_column < end_time)
+        stmt = stmt.where(upper_bound_column < end_time)
     return stmt

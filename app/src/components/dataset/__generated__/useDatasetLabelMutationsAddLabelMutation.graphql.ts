@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<769ee772aee57dab19dcb4c791145912>>
+ * @generated SignedSource<<e31d13093dd702ab4dd89ca9f0d8ec25>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -89,9 +88,9 @@ v6 = {
   "name": "datasetLabel",
   "plural": false,
   "selections": [
-    (v3/*: any*/),
-    (v4/*: any*/),
-    (v5/*: any*/),
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -110,7 +109,7 @@ v7 = {
   "name": "datasets",
   "plural": true,
   "selections": [
-    (v3/*: any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -119,9 +118,9 @@ v7 = {
       "name": "labels",
       "plural": true,
       "selections": [
-        (v3/*: any*/),
-        (v4/*: any*/),
-        (v5/*: any*/)
+        (v3/*:: as any*/),
+        (v4/*:: as any*/),
+        (v5/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -131,8 +130,8 @@ v7 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -140,14 +139,14 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "CreateDatasetLabelMutationPayload",
         "kind": "LinkedField",
         "name": "createDatasetLabel",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
-          (v7/*: any*/)
+          (v6/*:: as any*/),
+          (v7/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -158,21 +157,21 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "useDatasetLabelMutationsAddLabelMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "CreateDatasetLabelMutationPayload",
         "kind": "LinkedField",
         "name": "createDatasetLabel",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
+          (v6/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -194,7 +193,7 @@ return {
               }
             ]
           },
-          (v7/*: any*/)
+          (v7/*:: as any*/)
         ],
         "storageKey": null
       }

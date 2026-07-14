@@ -53,12 +53,15 @@ import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
   IntCell,
-  TextCell,
   useColumnOrder,
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SessionInputValueTooltipCell,
+  SessionOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
@@ -184,10 +187,10 @@ export function SessionsTable(props: SessionsTableProps) {
                 startTime
                 endTime
                 firstInput {
-                  value
+                  value: truncatedValue
                 }
                 lastOutput {
-                  value
+                  value: truncatedValue
                 }
                 tokenUsage {
                   total
@@ -369,13 +372,23 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "first input",
       accessorKey: "firstInput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SessionInputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
     },
     {
       header: "last output",
       accessorKey: "lastOutput.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SessionOutputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
     },
     ...annotationColumns,
     {
@@ -561,39 +574,41 @@ export function SessionsTable(props: SessionsTableProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
   return (
-    <Group orientation="horizontal" id="sessions-table-layout">
-      <Panel>
-        <TableMetricsChartsPanelGroup view="sessions">
-          <div css={spansTableCSS}>
-            <View
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              borderBottomColor="default"
-              borderBottomWidth="thin"
-              flex="none"
-            >
-              <Flex
-                direction="row"
-                gap="size-100"
-                width="100%"
-                alignItems="center"
-              >
-                <View flex="1 1 auto">
-                  <SessionSearchField />
-                </View>
-                <TableMetricsChartSelector view="sessions" />
-                <SessionColumnSelector
-                  columns={table.getAllColumns()}
-                  query={data}
-                />
-                <TableAsideToggleButton />
-              </Flex>
+    <TableMetricsChartsPanelGroup view="sessions">
+      <div css={spansTableCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+          flex="none"
+        >
+          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+            <View flex="1 1 auto">
+              <SessionSearchField />
             </View>
+            <TableMetricsChartSelector view="sessions" />
+            <SessionColumnSelector
+              columns={table.getAllColumns()}
+              query={data}
+            />
+            <TableAsideToggleButton />
+          </Flex>
+        </View>
+        <Group
+          orientation="horizontal"
+          id="sessions-table-layout"
+          css={css`
+            flex: 1 1 auto;
+            min-height: 0;
+          `}
+        >
+          <Panel>
             <div
               css={css`
-                flex: 1 1 auto;
+                height: 100%;
                 overflow: auto;
               `}
               onScroll={(e) =>
@@ -704,14 +719,14 @@ export function SessionsTable(props: SessionsTableProps) {
                 </table>
               </ColumnOrderingProvider>
             </div>
-          </div>
-        </TableMetricsChartsPanelGroup>
-      </Panel>
-      <TableAsidePanel>
-        <SessionsTableAside
-          filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
-        />
-      </TableAsidePanel>
-    </Group>
+          </Panel>
+          <TableAsidePanel>
+            <SessionsTableAside
+              filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
+            />
+          </TableAsidePanel>
+        </Group>
+      </div>
+    </TableMetricsChartsPanelGroup>
   );
 }

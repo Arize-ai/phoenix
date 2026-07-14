@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<4a88ff857c374978f96e844988bc6186>>
+ * @generated SignedSource<<eb9705758528fdeaaa45be89b6ca21f4>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -15,9 +14,17 @@ export type UpdateAnnotationConfigInput = {
   id: string;
 };
 export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
+  categorical: CategoricalAnnotationConfigInput;
+  continuous?: never;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous: ContinuousAnnotationConfigInput;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous?: never;
+  freeform: FreeformAnnotationConfigInput;
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
@@ -103,7 +110,7 @@ v3 = {
   "storageKey": null
 },
 v4 = [
-  (v3/*: any*/),
+  (v3/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -114,32 +121,32 @@ v4 = [
 ],
 v5 = {
   "kind": "InlineFragment",
-  "selections": (v4/*: any*/),
+  "selections": (v4/*:: as any*/),
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
 v6 = {
   "kind": "InlineFragment",
-  "selections": (v4/*: any*/),
+  "selections": (v4/*:: as any*/),
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
 v7 = {
   "kind": "InlineFragment",
-  "selections": (v4/*: any*/),
+  "selections": (v4/*:: as any*/),
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "updateAnnotationConfigToolMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "UpdateAnnotationConfigPayload",
         "kind": "LinkedField",
         "name": "updateAnnotationConfig",
@@ -153,10 +160,10 @@ return {
             "name": "annotationConfig",
             "plural": false,
             "selections": [
-              (v2/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/)
+              (v2/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -169,13 +176,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "updateAnnotationConfigToolMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "UpdateAnnotationConfigPayload",
         "kind": "LinkedField",
         "name": "updateAnnotationConfig",
@@ -189,14 +196,14 @@ return {
             "name": "annotationConfig",
             "plural": false,
             "selections": [
-              (v2/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
+              (v2/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "type": "Node",
                 "abstractKey": "__isNode"

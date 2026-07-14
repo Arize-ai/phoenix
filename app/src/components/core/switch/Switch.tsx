@@ -88,16 +88,30 @@ const switchCSS = css`
   &[data-label-placement="end"] {
     flex-direction: row;
   }
+
+  &[data-size="S"] {
+    --switch-track-width: var(--global-dimension-static-size-400);
+    --switch-track-height: var(--global-dimension-static-size-225);
+    --switch-thumb-size: var(--global-dimension-static-size-175);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  }
 `;
 export interface SwitchProps extends AriaSwitchProps {
   children: ReactNode;
   labelPlacement?: "start" | "end";
+  /**
+   * The size of the switch and its label
+   * @default "M"
+   */
+  size?: "S" | "M";
 }
 
 function Switch({
   ref,
   children,
   labelPlacement = "end",
+  size = "M",
   ...props
 }: SwitchProps & { ref?: Ref<HTMLLabelElement> }) {
   return (
@@ -106,6 +120,7 @@ function Switch({
       ref={ref}
       css={switchCSS}
       data-label-placement={labelPlacement}
+      data-size={size}
     >
       <div className="indicator" />
       {children}

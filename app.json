@@ -1,0 +1,32 @@
+{
+  "name": "Arize Phoenix",
+  "description": "Open-source AI observability platform for tracing, evaluation, experimentation, and prompt engineering. Deployed to Google Cloud Run with authentication enabled by default.",
+  "env": {
+    "PHOENIX_ENABLE_AUTH": {
+      "description": "Enable authentication so the UI and API require a login. Leave as 'true' to keep your deployment private.",
+      "value": "true"
+    },
+    "PHOENIX_SECRET": {
+      "description": "Secret used to sign authentication tokens (must be at least 32 characters with a digit and a lowercase letter). A strong value is generated for you automatically.",
+      "generator": "secret"
+    },
+    "PHOENIX_USE_SECURE_COOKIES": {
+      "description": "Store auth tokens in secure cookies. Recommended when serving Phoenix over HTTPS (Cloud Run always uses HTTPS).",
+      "value": "true"
+    },
+    "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": {
+      "description": "Initial password for the default admin account (email: admin@localhost). Only used on first startup. Leave blank to use 'admin'. Either way, you will be required to set a new password on first login.",
+      "required": false
+    },
+    "PHOENIX_SQL_DATABASE_URL": {
+      "description": "PostgreSQL connection string (e.g. a Cloud SQL instance) for durable storage. Cloud Run's container filesystem is ephemeral, so set this to persist your data across revisions. Leave blank to try Phoenix with temporary local storage.",
+      "required": false
+    }
+  },
+  "options": {
+    "allow-unauthenticated": true,
+    "memory": "1Gi",
+    "cpu": "1",
+    "port": 6006
+  }
+}

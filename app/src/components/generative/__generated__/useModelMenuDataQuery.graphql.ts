@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d7aff029f67e58b65d0527056a58e7f1>>
+ * @generated SignedSource<<7fe4fb37eebb67e02cd7eb1360c589d7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -78,7 +77,7 @@ v1 = [
                 "name": "id",
                 "storageKey": null
               },
-              (v0/*: any*/),
+              (v0/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -117,7 +116,7 @@ v1 = [
         "name": "key",
         "storageKey": null
       },
-      (v0/*: any*/),
+      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -136,7 +135,7 @@ v1 = [
     "name": "playgroundModels",
     "plural": true,
     "selections": [
-      (v0/*: any*/),
+      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -154,7 +153,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -163,7 +162,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "f9d27416a4c2066b612954c379d0c239",

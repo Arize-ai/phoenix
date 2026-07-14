@@ -108,6 +108,7 @@ function renderChatView(
           agentsConfig={{
             collectorEndpoint: null,
             assistantProjectName: "assistant_agent",
+            forceTracing: false,
             webAccessEnabled: false,
             assistantEnabled: true,
             allowLocalTraces: true,

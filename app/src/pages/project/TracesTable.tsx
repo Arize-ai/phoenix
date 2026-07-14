@@ -48,7 +48,6 @@ import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
   createRowSelectionColumn,
-  TextCell,
   useColumnOrder,
 } from "@phoenix/components/table";
 import {
@@ -84,6 +83,10 @@ import type {
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SpanInputValueTooltipCell,
+  SpanOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -792,13 +795,23 @@ export function TracesTable(props: TracesTableProps) {
         header: "input",
         accessorKey: "input.value",
         enableSorting: false,
-        cell: TextCell,
+        cell: ({ getValue, row }) => (
+          <SpanInputValueTooltipCell
+            nodeId={row.original.id}
+            preview={getValue()}
+          />
+        ),
       },
       {
         header: "output",
         accessorKey: "output.value",
         enableSorting: false,
-        cell: TextCell,
+        cell: ({ getValue, row }) => (
+          <SpanOutputValueTooltipCell
+            nodeId={row.original.id}
+            preview={getValue()}
+          />
+        ),
       },
       {
         header: () => (
