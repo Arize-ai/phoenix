@@ -1,10 +1,14 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 import {
   ChartPanel,
   EvaluationMetricsChart,
   type EvaluationMetricsInputPoint,
+  type EvaluationMetricsSeries,
+  EvaluationMetricsViewToggle,
+  getDefaultEvaluationMetricsView,
   normalizeEvaluationMetrics,
 } from "@phoenix/components/chart";
 
@@ -54,46 +58,75 @@ export function ExperimentEvaluationMetricsGrid({
   return (
     <div css={evaluationGridCSS} data-testid="experiment-evaluation-grid">
       {evaluationSeries.map((series) => (
-        <ChartPanel
+        <ExperimentEvaluationMetricsPanel
           key={series.name}
-          title={series.name}
-          subtitle="Evaluation results by experiment"
-        >
-          <EvaluationMetricsChart
-            series={series}
-            xAxisProps={{
-              ...getExperimentXAxisProps(baselineExperiment?.sequenceNumber),
-              dataKey: "x",
-            }}
-            yAxisProps={experimentMetricsYAxisProps}
-            syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
-            additionalLegendItems={getExperimentBaselineLegendItems(
-              series.kind === "score" ? series.reference?.meanScore : null
-            )}
-            renderTooltipHeader={(point) => (
-              <ExperimentMetricsTooltipHeader
-                sequenceNumber={point.x}
-                name={String(point.metadata.experimentName ?? "")}
-                isBaseline={point.metadata.isBaseline === true}
-              />
-            )}
-            renderReference={({ isMeanScoreHidden }) =>
-              series.kind === "score" ? (
-                <ExperimentBaselineValueLine
-                  value={isMeanScoreHidden ? null : series.reference?.meanScore}
-                />
-              ) : (
-                <ExperimentBaselineDistributionSeparator
-                  value={series.reference?.x}
-                />
-              )
-            }
-          />
-        </ChartPanel>
+          series={series}
+          baselineSequenceNumber={baselineExperiment?.sequenceNumber}
+        />
       ))}
       {/* Share this grid so trailing half-width charts fill an odd final row. */}
       {children}
     </div>
+  );
+}
+
+function ExperimentEvaluationMetricsPanel({
+  series,
+  baselineSequenceNumber,
+}: {
+  series: EvaluationMetricsSeries;
+  baselineSequenceNumber?: number;
+}) {
+  const [view, setView] = useState(() =>
+    getDefaultEvaluationMetricsView(series)
+  );
+  // A refetch can change the visible evaluation shape while preserving this
+  // keyed panel, so fall back when its previous view is no longer available.
+  const activeView = series.views.includes(view)
+    ? view
+    : getDefaultEvaluationMetricsView(series);
+  const reference = series.referenceByView[activeView];
+
+  return (
+    <ChartPanel
+      title={series.name}
+      subtitle="Evaluation results by experiment"
+      headerActions={
+        series.views.length > 1 ? (
+          <EvaluationMetricsViewToggle view={activeView} onChange={setView} />
+        ) : undefined
+      }
+    >
+      <EvaluationMetricsChart
+        series={series}
+        view={activeView}
+        xAxisProps={{
+          ...getExperimentXAxisProps(baselineSequenceNumber),
+          dataKey: "x",
+        }}
+        yAxisProps={experimentMetricsYAxisProps}
+        syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
+        additionalLegendItems={getExperimentBaselineLegendItems(
+          activeView === "scores" ? reference?.meanScore : null
+        )}
+        renderTooltipHeader={(point) => (
+          <ExperimentMetricsTooltipHeader
+            sequenceNumber={point.x}
+            name={String(point.metadata.experimentName ?? "")}
+            isBaseline={point.metadata.isBaseline === true}
+          />
+        )}
+        renderReference={({ isMeanScoreHidden }) =>
+          activeView === "scores" ? (
+            <ExperimentBaselineValueLine
+              value={isMeanScoreHidden ? null : reference?.meanScore}
+            />
+          ) : (
+            <ExperimentBaselineDistributionSeparator value={reference?.x} />
+          )
+        }
+      />
+    </ChartPanel>
   );
 }
 
@@ -108,9 +141,6 @@ function toEvaluationMetricsInputPoint(
     },
     summaries: experiment.annotationSummaries.map((summary) => ({
       name: summary.annotationName,
-      count: summary.count,
-      scoreCount: summary.scoreCount,
-      labelCount: summary.labelCount,
       meanScore: summary.meanScore,
       labelFractions: summary.labelFractions,
     })),

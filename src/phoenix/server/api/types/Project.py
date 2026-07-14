@@ -2315,9 +2315,9 @@ async def _annotation_metrics_time_series(
 ) -> AnnotationMetricsTimeSeries:
     """Build summaries from grouped label rows and fill in empty time bins.
 
-    ``record_count`` includes only annotations with a score or label. This lets
-    label fractions leave a residual for score-only results while excluding
-    explanation-only annotations from the distribution denominator.
+    Label fractions are conditional on having a label, matching the standalone
+    annotation-summary convention. Score-only results remain available through
+    the score fields without creating an unlabeled distribution category.
     """
     if time_range.start is None:
         raise BadRequest("Start time is required")
@@ -2344,14 +2344,14 @@ async def _annotation_metrics_time_series(
 
     summaries_by_timestamp: dict[datetime, list[AnnotationSummary]] = {}
     for (timestamp, name), rows in rows_by_timestamp_and_name.items():
-        result_count = sum(row["record_count"] for row in rows)
+        annotation_label_count = sum(row["label_count"] for row in rows)
         score_count = sum(row["score_count"] for row in rows)
         score_sum = sum(row["score_sum"] or 0 for row in rows)
         mean_score = score_sum / score_count if score_count else None
         for summary_row in rows:
             summary_row["avg_label_fraction"] = (
-                summary_row["record_count"] / result_count
-                if summary_row["label"] is not None and result_count
+                summary_row["label_count"] / annotation_label_count
+                if summary_row["label"] is not None and annotation_label_count
                 else None
             )
             # AnnotationSummary consumes one row per label and expects the

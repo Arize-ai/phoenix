@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1922f305aed994ad9d9820609fd0731e>>
+ * @generated SignedSource<<20bcfb1b47052688dae3dabc6a6bd137>>
  * @lightSyntaxTransform
  */
 
@@ -132,27 +132,6 @@ v5 = [
         "args": null,
         "kind": "ScalarField",
         "name": "annotationName",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "count",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "scoreCount",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "labelCount",
         "storageKey": null
       },
       {
@@ -366,12 +345,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "36f4bfea705a5eefdd7b047bb479bcaa",
+    "cacheID": "0953733971b12b6c99dadcfa479db250",
     "id": null,
     "metadata": {},
     "name": "useSetExperimentBaselineMutation",
     "operationKind": "mutation",
-    "text": "mutation useSetExperimentBaselineMutation(\n  $experimentId: ID!\n  $baseline: Boolean!\n) {\n  setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {\n    dataset {\n      id\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n    }\n    experiment {\n      id\n      isBaseline\n    }\n    previousBaselineExperiment {\n      id\n      isBaseline\n    }\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    count\n    scoreCount\n    labelCount\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
+    "text": "mutation useSetExperimentBaselineMutation(\n  $experimentId: ID!\n  $baseline: Boolean!\n) {\n  setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {\n    dataset {\n      id\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n    }\n    experiment {\n      id\n      isBaseline\n    }\n    previousBaselineExperiment {\n      id\n      isBaseline\n    }\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
   }
 };
 })();

@@ -15,9 +15,6 @@ const experimentMetricsExperimentFragment = graphql`
     runCount
     annotationSummaries {
       annotationName
-      count
-      scoreCount
-      labelCount
       meanScore
       labelFractions {
         label
@@ -74,9 +71,6 @@ export type ExperimentMetricsDatum = {
   runCount: number;
   annotationSummaries: readonly {
     annotationName: string;
-    count: number;
-    scoreCount: number;
-    labelCount: number;
     meanScore: number | null;
     labelFractions: ReadonlyArray<{
       label: string;

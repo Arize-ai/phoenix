@@ -1,6 +1,6 @@
 import { formatEvaluationFraction } from "../EvaluationMetricsChart";
 import {
-  deriveScoreOnlyFraction,
+  getDefaultEvaluationMetricsView,
   normalizeEvaluationMetrics,
 } from "../evaluationMetricsUtils";
 
@@ -12,23 +12,8 @@ describe("formatEvaluationFraction", () => {
   });
 });
 
-describe("deriveScoreOnlyFraction", () => {
-  it("derives and clamps the unlabeled result fraction", () => {
-    expect(
-      deriveScoreOnlyFraction([{ fraction: 0.5 }, { fraction: 0.25 }])
-    ).toBeCloseTo(0.25);
-    expect(deriveScoreOnlyFraction([{ fraction: 1.1 }])).toBeUndefined();
-    expect(deriveScoreOnlyFraction([{ fraction: -0.2 }])).toEqual(1);
-  });
-
-  it("suppresses only residuals below the floating-point epsilon", () => {
-    expect(deriveScoreOnlyFraction([{ fraction: 1 - 0.5e-9 }])).toBeUndefined();
-    expect(deriveScoreOnlyFraction([{ fraction: 1 - 2e-9 }])).toBeCloseTo(2e-9);
-  });
-});
-
 describe("normalizeEvaluationMetrics", () => {
-  it("classifies evaluation shape over the entire window", () => {
+  it("classifies evaluation views over the entire visible window", () => {
     const series = normalizeEvaluationMetrics({
       points: [
         {
@@ -36,17 +21,11 @@ describe("normalizeEvaluationMetrics", () => {
           summaries: [
             {
               name: "mixed",
-              count: 2,
-              scoreCount: 2,
-              labelCount: 0,
               meanScore: 0.4,
               labelFractions: [],
             },
             {
               name: "scores",
-              count: 1,
-              scoreCount: 1,
-              labelCount: 0,
               meanScore: 0.7,
               labelFractions: [],
             },
@@ -57,17 +36,11 @@ describe("normalizeEvaluationMetrics", () => {
           summaries: [
             {
               name: "labels",
-              count: 1,
-              scoreCount: 0,
-              labelCount: 1,
               meanScore: null,
               labelFractions: [{ label: "pass", fraction: 1 }],
             },
             {
               name: "mixed",
-              count: 1,
-              scoreCount: 0,
-              labelCount: 1,
               meanScore: null,
               labelFractions: [{ label: "pass", fraction: 1 }],
             },
@@ -81,35 +54,40 @@ describe("normalizeEvaluationMetrics", () => {
       "mixed",
       "scores",
     ]);
-    expect(
-      series.map(({ kind, hasScores, hasLabels }) => [
-        kind,
-        hasScores,
-        hasLabels,
-      ])
-    ).toEqual([
-      ["distribution", false, true],
-      ["distribution", true, true],
-      ["score", true, false],
+    expect(series.map(({ views }) => views)).toEqual([
+      ["labels"],
+      ["labels", "scores"],
+      ["scores"],
     ]);
   });
 
-  it("constructs mixed score and distribution values with coverage", () => {
+  it("builds independent datasets for a mixed evaluation", () => {
     const [series] = normalizeEvaluationMetrics({
       points: [
         {
-          x: 7,
-          metadata: { experimentName: "seventh", isBaseline: true },
+          x: 1,
+          summaries: [{ name: "quality", meanScore: 0.4, labelFractions: [] }],
+        },
+        {
+          x: 2,
           summaries: [
             {
               name: "quality",
-              count: 4,
-              scoreCount: 3,
-              labelCount: 3,
-              meanScore: 0.6,
+              meanScore: null,
+              labelFractions: [{ label: "pass", fraction: 1 }],
+            },
+          ],
+        },
+        {
+          x: 3,
+          metadata: { experimentName: "third" },
+          summaries: [
+            {
+              name: "quality",
+              meanScore: 0.8,
               labelFractions: [
-                { label: "pass", fraction: 0.5 },
                 { label: "fail", fraction: 0.25 },
+                { label: "pass", fraction: 0.75 },
               ],
             },
           ],
@@ -119,23 +97,26 @@ describe("normalizeEvaluationMetrics", () => {
 
     expect(series).toMatchObject({
       name: "quality",
-      kind: "distribution",
-      hasScores: true,
-      hasLabels: true,
-      labels: ["fail", "pass", "score only"],
+      views: ["labels", "scores"],
+      labels: ["fail", "pass"],
     });
-    expect(series.data[0]).toEqual({
-      x: 7,
-      metadata: { experimentName: "seventh", isBaseline: true },
-      meanScore: 0.6,
-      count: 4,
-      scoreCount: 3,
-      labelCount: 3,
-      fractions: [0.25, 0.5, 0.25],
+    expect(series.dataByView.scores.map(({ x }) => x)).toEqual([1, 3]);
+    expect(series.dataByView.labels.map(({ x }) => x)).toEqual([2, 3]);
+    expect(series.dataByView.labels[0]?.fractions).toEqual([undefined, 1]);
+    expect(series.dataByView.labels[1]).toEqual({
+      x: 3,
+      metadata: { experimentName: "third" },
+      fractions: [0.25, 0.75],
+    });
+    expect(series.dataByView.scores[1]).toEqual({
+      x: 3,
+      metadata: { experimentName: "third" },
+      meanScore: 0.8,
+      fractions: [],
     });
   });
 
-  it("aligns a baseline distribution to the visible label series", () => {
+  it("aligns a label baseline without letting its score add a score view", () => {
     const [series] = normalizeEvaluationMetrics({
       points: [
         {
@@ -143,9 +124,6 @@ describe("normalizeEvaluationMetrics", () => {
           summaries: [
             {
               name: "quality",
-              count: 1,
-              scoreCount: 0,
-              labelCount: 1,
               meanScore: null,
               labelFractions: [{ label: "pass", fraction: 1 }],
             },
@@ -158,65 +136,27 @@ describe("normalizeEvaluationMetrics", () => {
         summaries: [
           {
             name: "quality",
-            count: 2,
-            scoreCount: 1,
-            labelCount: 1,
             meanScore: 0.4,
-            labelFractions: [{ label: "fail", fraction: 0.5 }],
+            labelFractions: [{ label: "fail", fraction: 1 }],
           },
         ],
       },
     });
 
-    expect(series.labels).toEqual(["fail", "pass", "score only"]);
-    expect(series.data[0].fractions).toEqual([undefined, 1, undefined]);
-    expect(series.reference).toMatchObject({
-      x: 1,
-      metadata: { isBaseline: true },
-      fractions: [0.5, undefined, 0.5],
-    });
-  });
-
-  it("keeps score baselines separate from distribution classification", () => {
-    const [series] = normalizeEvaluationMetrics({
-      points: [
-        {
-          x: 4,
-          summaries: [
-            {
-              name: "quality",
-              count: 1,
-              scoreCount: 1,
-              labelCount: 0,
-              meanScore: 0.8,
-              labelFractions: [],
-            },
-          ],
-        },
-      ],
-      referencePoint: {
+    expect(series.views).toEqual(["labels"]);
+    expect(series.labels).toEqual(["fail", "pass"]);
+    expect(series.dataByView.labels[0]?.fractions).toEqual([undefined, 1]);
+    expect(series.referenceByView).toEqual({
+      labels: {
         x: 1,
-        summaries: [
-          {
-            name: "quality",
-            count: 1,
-            scoreCount: 1,
-            labelCount: 1,
-            meanScore: 0.5,
-            labelFractions: [{ label: "pass", fraction: 1 }],
-          },
-        ],
+        metadata: { isBaseline: true },
+        fractions: [1, undefined],
       },
-    });
-
-    expect(series).toMatchObject({
-      kind: "score",
-      labels: [],
-      reference: { x: 1, meanScore: 0.5 },
+      scores: undefined,
     });
   });
 
-  it("does not treat result-free buckets as score-only results", () => {
+  it("defaults mixed evaluations to labels", () => {
     const [series] = normalizeEvaluationMetrics({
       points: [
         {
@@ -224,38 +164,15 @@ describe("normalizeEvaluationMetrics", () => {
           summaries: [
             {
               name: "quality",
-              count: 1,
-              scoreCount: 0,
-              labelCount: 1,
-              meanScore: null,
+              meanScore: 0.5,
               labelFractions: [{ label: "pass", fraction: 1 }],
-            },
-          ],
-        },
-        {
-          x: 2,
-          summaries: [
-            {
-              name: "quality",
-              count: 1,
-              scoreCount: 0,
-              labelCount: 0,
-              meanScore: null,
-              labelFractions: [],
             },
           ],
         },
       ],
     });
 
-    expect(series.labels).toEqual(["pass"]);
-    expect(series.data[1].fractions).toEqual([undefined]);
-  });
-
-  it("returns no series when the window has no summaries", () => {
-    expect(
-      normalizeEvaluationMetrics({ points: [{ x: 1, summaries: [] }] })
-    ).toEqual([]);
+    expect(getDefaultEvaluationMetricsView(series!)).toBe("labels");
   });
 
   it("omits evaluations with no chartable values", () => {
@@ -266,9 +183,6 @@ describe("normalizeEvaluationMetrics", () => {
           summaries: [
             {
               name: "explanation-only",
-              count: 0,
-              scoreCount: 0,
-              labelCount: 0,
               meanScore: null,
               labelFractions: [],
             },
@@ -278,5 +192,11 @@ describe("normalizeEvaluationMetrics", () => {
     });
 
     expect(series).toEqual([]);
+  });
+
+  it("returns no series when the window has no summaries", () => {
+    expect(
+      normalizeEvaluationMetrics({ points: [{ x: 1, summaries: [] }] })
+    ).toEqual([]);
   });
 });

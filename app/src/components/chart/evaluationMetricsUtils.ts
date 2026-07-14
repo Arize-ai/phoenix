@@ -1,12 +1,7 @@
-export const SCORE_ONLY_LABEL = "score only";
-
-const SCORE_ONLY_RESIDUAL_EPSILON = 1e-9;
+export type EvaluationMetricsView = "labels" | "scores";
 
 export type EvaluationSummary = {
   readonly name: string;
-  readonly count: number;
-  readonly scoreCount: number;
-  readonly labelCount: number;
   readonly meanScore: number | null;
   readonly labelFractions: ReadonlyArray<{
     readonly label: string;
@@ -26,51 +21,33 @@ export type EvaluationMetricsChartPoint = {
   readonly x: number;
   readonly metadata: Readonly<Record<string, string | number | boolean | null>>;
   readonly meanScore?: number;
-  readonly count?: number;
-  readonly scoreCount?: number;
-  readonly labelCount?: number;
   readonly fractions: ReadonlyArray<number | undefined>;
 };
 
 export type EvaluationMetricsSeries = {
   readonly name: string;
-  readonly kind: "score" | "distribution";
-  readonly hasScores: boolean;
-  readonly hasLabels: boolean;
+  readonly views: ReadonlyArray<EvaluationMetricsView>;
   readonly labels: ReadonlyArray<string>;
-  readonly data: ReadonlyArray<EvaluationMetricsChartPoint>;
-  readonly reference?: EvaluationMetricsChartPoint;
+  readonly dataByView: Readonly<
+    Record<EvaluationMetricsView, ReadonlyArray<EvaluationMetricsChartPoint>>
+  >;
+  readonly referenceByView: Readonly<
+    Partial<Record<EvaluationMetricsView, EvaluationMetricsChartPoint>>
+  >;
 };
 
-/**
- * Returns the share of result-bearing annotations that have a score but no
- * label. Tiny floating-point residuals are omitted instead of charted.
- */
-export function deriveScoreOnlyFraction(
-  labelFractions: ReadonlyArray<{ readonly fraction: number }>
-): number | undefined {
-  const labelFractionTotal = labelFractions.reduce(
-    (total, labelFraction) => total + labelFraction.fraction,
-    0
-  );
-  const residual = Math.min(1, Math.max(0, 1 - labelFractionTotal));
-  return residual < SCORE_ONLY_RESIDUAL_EPSILON ? undefined : residual;
-}
-
-function getScoreOnlyFraction(
-  summary: EvaluationSummary | undefined
-): number | undefined {
-  // An empty label vector also occurs for explanation-only/error buckets; only
-  // a score-bearing summary can contribute the residual category.
-  return summary != null && summary.scoreCount > 0
-    ? deriveScoreOnlyFraction(summary.labelFractions)
-    : undefined;
+export function getDefaultEvaluationMetricsView(
+  series: EvaluationMetricsSeries
+): EvaluationMetricsView {
+  // Prefer labels for mixed evaluations because a distribution exposes more
+  // categorical detail than the aggregate score.
+  return series.views.includes("labels") ? "labels" : "scores";
 }
 
 /**
- * Normalizes summary snapshots into one chart series per evaluation. An
- * evaluation's score/label shape is classified over the complete input
- * window, so sparse or mixed buckets do not change chart type over time.
+ * Normalizes summary snapshots into one chart series per evaluation. Separate
+ * score and label datasets let mixed evaluations switch views without putting
+ * scores and percentages on the same axis.
  */
 export function normalizeEvaluationMetrics({
   points,
@@ -88,103 +65,103 @@ export function normalizeEvaluationMetrics({
 
   return Array.from(evaluationNames)
     .sort((left, right) => left.localeCompare(right))
-    .map((name) => {
-      const summaries = points
-        .map((point) =>
-          point.summaries.find((summary) => summary.name === name)
-        )
-        .filter((summary): summary is EvaluationSummary => summary != null);
-      const hasScores = summaries.some((summary) => summary.scoreCount > 0);
-      const hasLabels = summaries.some((summary) => summary.labelCount > 0);
-      // Labels take precedence so mixed evaluations remain a single
-      // distribution instead of combining scores and percentages on one axis.
-      const kind: EvaluationMetricsSeries["kind"] = hasLabels
-        ? "distribution"
-        : "score";
+    .map((name): EvaluationMetricsSeries => {
+      const summaryByPoint = points.map((point) => ({
+        point,
+        summary: point.summaries.find((summary) => summary.name === name),
+      }));
       // The reference is a comparison point, not part of the visible window
-      // used to classify an evaluation's chart type.
+      // used to decide whether an evaluation offers label and/or score views.
       const referenceSummary = referencePoint?.summaries.find(
         (summary) => summary.name === name
       );
-      const distributionSummaries =
-        hasLabels && referenceSummary != null
-          ? [...summaries, referenceSummary]
-          : summaries;
-      // Include reference-only labels and sort once so fraction indexes and
-      // category colors remain aligned across every bar.
       const labels = Array.from(
         new Set(
-          distributionSummaries.flatMap((summary) =>
-            summary.labelFractions.map(({ label }) => label)
-          )
+          [...summaryByPoint.map(({ summary }) => summary), referenceSummary]
+            .filter((summary): summary is EvaluationSummary => summary != null)
+            .flatMap((summary) =>
+              summary.labelFractions.map(({ label }) => label)
+            )
         )
       ).sort((left, right) => left.localeCompare(right));
-      const hasScoreOnly =
-        hasLabels &&
-        distributionSummaries.some(
-          (summary) => getScoreOnlyFraction(summary) != null
-        );
-      const distributionLabels = hasScoreOnly
-        ? [...labels, SCORE_ONLY_LABEL]
-        : labels;
 
-      const makeChartPoint = ({
+      const makeScorePoint = ({
         point,
         summary,
       }: {
         point: EvaluationMetricsInputPoint;
-        summary: EvaluationSummary | undefined;
+        summary: EvaluationSummary;
+      }): EvaluationMetricsChartPoint => ({
+        x: point.x,
+        metadata: point.metadata ?? {},
+        meanScore: summary.meanScore ?? undefined,
+        fractions: [],
+      });
+      const makeLabelPoint = ({
+        point,
+        summary,
+      }: {
+        point: EvaluationMetricsInputPoint;
+        summary: EvaluationSummary;
       }): EvaluationMetricsChartPoint => {
         const fractionsByLabel = new Map(
-          summary?.labelFractions.map(({ label, fraction }) => [
-            label,
-            fraction,
-          ])
+          summary.labelFractions.map(({ label, fraction }) => [label, fraction])
         );
-        const scoreOnlyFraction = getScoreOnlyFraction(summary);
         return {
           x: point.x,
           metadata: point.metadata ?? {},
-          meanScore: summary?.meanScore ?? undefined,
-          count: summary?.count,
-          scoreCount: summary?.scoreCount,
-          labelCount: summary?.labelCount,
-          fractions: distributionLabels.map((label) =>
-            label === SCORE_ONLY_LABEL
-              ? scoreOnlyFraction
-              : fractionsByLabel.get(label)
-          ),
+          fractions: labels.map((label) => fractionsByLabel.get(label)),
         };
       };
 
-      const referenceIsChartable =
-        referencePoint != null &&
-        referenceSummary != null &&
-        (kind === "score"
-          ? referenceSummary.meanScore != null
-          : referenceSummary.scoreCount > 0 || referenceSummary.labelCount > 0);
+      // Omit individual experiments/buckets that have no value for the active
+      // view instead of rendering misleading empty bars.
+      const scoreData = summaryByPoint.flatMap(({ point, summary }) =>
+        summary?.meanScore == null ? [] : [makeScorePoint({ point, summary })]
+      );
+      const labelData = summaryByPoint.flatMap(({ point, summary }) =>
+        summary == null || summary.labelFractions.length === 0
+          ? []
+          : [makeLabelPoint({ point, summary })]
+      );
+      const views: EvaluationMetricsView[] = [];
+      if (labelData.length > 0) {
+        views.push("labels");
+      }
+      if (scoreData.length > 0) {
+        views.push("scores");
+      }
 
       return {
         name,
-        kind,
-        hasScores,
-        hasLabels,
-        labels: distributionLabels,
-        data: points.map((point) =>
-          makeChartPoint({
-            point,
-            summary: point.summaries.find(
-              (candidate) => candidate.name === name
-            ),
-          })
-        ),
-        reference: referenceIsChartable
-          ? makeChartPoint({
-              point: referencePoint,
-              summary: referenceSummary,
-            })
-          : undefined,
+        views,
+        labels,
+        dataByView: {
+          labels: labelData,
+          scores: scoreData,
+        },
+        referenceByView: {
+          labels:
+            labelData.length > 0 &&
+            referencePoint != null &&
+            referenceSummary != null &&
+            referenceSummary.labelFractions.length > 0
+              ? makeLabelPoint({
+                  point: referencePoint,
+                  summary: referenceSummary,
+                })
+              : undefined,
+          scores:
+            scoreData.length > 0 &&
+            referencePoint != null &&
+            referenceSummary?.meanScore != null
+              ? makeScorePoint({
+                  point: referencePoint,
+                  summary: referenceSummary,
+                })
+              : undefined,
+        },
       };
     })
-    .filter(({ hasScores, hasLabels }) => hasScores || hasLabels);
+    .filter(({ views }) => views.length > 0);
 }

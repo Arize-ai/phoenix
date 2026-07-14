@@ -2,6 +2,7 @@ export * from "./ChartEmptyStateOverlay";
 export * from "./ChartPanel";
 export * from "./ChartTypeIcon";
 export * from "./EvaluationMetricsChart";
+export * from "./EvaluationMetricsViewToggle";
 export * from "./evaluationMetricsUtils";
 export * from "./MetricsChartSelector";
 export * from "./ChartTooltip";

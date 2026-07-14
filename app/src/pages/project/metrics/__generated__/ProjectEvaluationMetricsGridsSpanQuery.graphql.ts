@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb5e7dd89cdc0f83289c97223e3192b5>>
+ * @generated SignedSource<<1200f14be838fa071ec091e3cb6bfde1>>
  * @lightSyntaxTransform
  */
 
@@ -27,15 +27,12 @@ export type ProjectEvaluationMetricsGridsSpanQuery$data = {
     readonly spanAnnotationMetricsTimeSeries?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
-          readonly count: number;
-          readonly labelCount: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly timestamp: string;
       }>;
@@ -120,27 +117,6 @@ v4 = {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "name",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "count",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "scoreCount",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "labelCount",
                   "storageKey": null
                 },
                 {
@@ -254,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c3f3f67b85bd6690ac9c913b1d498f27",
+    "cacheID": "b9c4e55dfdaad572e546b20b6af81427",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluationMetricsGridsSpanQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluationMetricsGridsSpanQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            count\n            scoreCount\n            labelCount\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluationMetricsGridsSpanQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1b5f03fb86bb6924069859cd57a8716b";
+(node as any).hash = "306756d6237c8d34751ee5048dbb260d";
 
 export default node;

@@ -22,11 +22,7 @@ import {
 
 import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
 import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
-import {
-  getCategoryChartColor,
-  useCategoryChartColors,
-  useSequentialChartColors,
-} from "./colors";
+import { getCategoryChartColor, useCategoryChartColors } from "./colors";
 import {
   compactChartMargin,
   compactLegendProps,
@@ -36,8 +32,8 @@ import {
 import type {
   EvaluationMetricsChartPoint,
   EvaluationMetricsSeries,
+  EvaluationMetricsView,
 } from "./evaluationMetricsUtils";
-import { SCORE_ONLY_LABEL } from "./evaluationMetricsUtils";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
@@ -83,6 +79,7 @@ function EvaluationMetricsTooltip({
 
 export function EvaluationMetricsChart({
   series,
+  view,
   xAxisProps,
   yAxisProps,
   syncId,
@@ -92,6 +89,7 @@ export function EvaluationMetricsChart({
   renderReference,
 }: {
   series: EvaluationMetricsSeries;
+  view: EvaluationMetricsView;
   xAxisProps: XAxisProps;
   yAxisProps: YAxisProps;
   syncId: string;
@@ -101,32 +99,31 @@ export function EvaluationMetricsChart({
   renderReference?: (state: { isMeanScoreHidden: boolean }) => ReactNode;
 }) {
   const categoryColors = useCategoryChartColors();
-  const { gray500 } = useSequentialChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
-  const scoreValues = [...series.data, series.reference].flatMap((point) =>
+  const data = series.dataByView[view];
+  const reference = series.referenceByView[view];
+  const isScoreView = view === "scores";
+  const scoreValues = [...data, reference].flatMap((point) =>
     point?.meanScore == null ? [] : [point.meanScore]
   );
   const scoreValuesFitUnitDomain = scoreValues.every(
     (score) => score >= 0 && score <= 1
   );
   const domain =
-    series.kind === "distribution" || scoreValuesFitUnitDomain
+    !isScoreView || scoreValuesFitUnitDomain
       ? ([0, 1] as [number, number])
       : undefined;
   // Distribution baselines are comparison bars, so place them first and avoid
   // duplicating them when the baseline also falls inside the visible window.
   const chartData =
-    series.kind === "distribution" && series.reference != null
-      ? [
-          series.reference,
-          ...series.data.filter(({ x }) => x !== series.reference?.x),
-        ]
-      : series.data;
+    !isScoreView && reference != null
+      ? [reference, ...data.filter(({ x }) => x !== reference.x)]
+      : data;
 
   return (
     <ChartEmptyStateOverlay
-      isEmpty={!series.hasScores && !series.hasLabels}
+      isEmpty={data.length === 0}
       message="No evaluation data"
       chartType="bar"
     >
@@ -146,9 +143,7 @@ export function EvaluationMetricsChart({
             {...yAxisProps}
             domain={domain}
             tickFormatter={
-              series.kind === "score"
-                ? floatFormatter
-                : formatEvaluationFraction
+              isScoreView ? floatFormatter : formatEvaluationFraction
             }
           />
           <Tooltip
@@ -167,7 +162,7 @@ export function EvaluationMetricsChart({
           {renderReference?.({
             isMeanScoreHidden: isDataKeyHidden(MEAN_SCORE_DATA_KEY),
           })}
-          {series.kind === "score" && (
+          {isScoreView && (
             <Bar
               dataKey={MEAN_SCORE_DATA_KEY}
               name="Mean score"
@@ -176,7 +171,7 @@ export function EvaluationMetricsChart({
               radius={[2, 2, 0, 0]}
             />
           )}
-          {series.kind === "distribution" &&
+          {!isScoreView &&
             series.labels.map((label, index) => {
               const dataKey = `fractions.${index}`;
               return (
@@ -185,14 +180,10 @@ export function EvaluationMetricsChart({
                   dataKey={dataKey}
                   name={label}
                   stackId="distribution"
-                  fill={
-                    label === SCORE_ONLY_LABEL
-                      ? gray500
-                      : getCategoryChartColor({
-                          index,
-                          colors: categoryColors,
-                        })
-                  }
+                  fill={getCategoryChartColor({
+                    index,
+                    colors: categoryColors,
+                  })}
                   hide={isDataKeyHidden(dataKey)}
                   radius={index === series.labels.length - 1 ? [2, 2, 0, 0] : 0}
                 />
@@ -204,7 +195,7 @@ export function EvaluationMetricsChart({
             iconSize={8}
             onToggleDataKey={toggleDataKey}
             additionalLegendItems={
-              series.kind === "score" && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
+              isScoreView && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
                 ? []
                 : additionalLegendItems
             }

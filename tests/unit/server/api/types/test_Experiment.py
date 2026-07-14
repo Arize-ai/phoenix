@@ -764,8 +764,8 @@ class TestExperimentAnnotationSummaries:
                                         "count": 4,
                                         "errorCount": 1,
                                         "labelFractions": [
-                                            {"label": "label-0", "fraction": 1 / 3},
-                                            {"label": "label-1", "fraction": 1 / 3},
+                                            {"label": "label-0", "fraction": 1 / 2},
+                                            {"label": "label-1", "fraction": 1 / 2},
                                         ],
                                     },
                                 ],

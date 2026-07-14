@@ -1,14 +1,17 @@
 import { css } from "@emotion/react";
-import { Suspense, useMemo } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Loading, Text } from "@phoenix/components";
 import {
   ChartPanel,
   EvaluationMetricsChart,
+  type EvaluationMetricsSeries,
+  EvaluationMetricsViewToggle,
   TimeRangeChartBrush,
   compactTimeXAxisProps,
   compactYAxisProps,
+  getDefaultEvaluationMetricsView,
   normalizeEvaluationMetrics,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -30,9 +33,6 @@ type AnnotationMetricsData = ReadonlyArray<{
   readonly timestamp: string;
   readonly annotationSummaries: ReadonlyArray<{
     readonly name: string;
-    readonly count: number;
-    readonly scoreCount: number;
-    readonly labelCount: number;
     readonly meanScore: number | null;
     readonly labelFractions: ReadonlyArray<{
       readonly label: string;
@@ -63,16 +63,12 @@ function ProjectEvaluationMetricsGrid({
   const scale = useTimeBinScale({ timeRange });
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const { fullTimeFormatter } = useTimeFormatters();
-  const evaluationSeries = useMemo(
-    () =>
-      normalizeEvaluationMetrics({
-        points: data.map((point) => ({
-          x: new Date(point.timestamp).getTime(),
-          summaries: point.annotationSummaries,
-        })),
-      }),
-    [data]
-  );
+  const evaluationSeries = normalizeEvaluationMetrics({
+    points: data.map((point) => ({
+      x: new Date(point.timestamp).getTime(),
+      summaries: point.annotationSummaries,
+    })),
+  });
 
   if (evaluationSeries.length === 0) {
     return null;
@@ -81,36 +77,73 @@ function ProjectEvaluationMetricsGrid({
   return (
     <div css={evaluationGridCSS} data-testid="project-evaluation-grid">
       {evaluationSeries.map((series) => (
-        <ChartPanel
+        <ProjectEvaluationMetricsPanel
           key={series.name}
-          title={series.name}
-          subtitle="Evaluation results over time"
-        >
-          <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
-            {({ chartProps }) => (
-              <EvaluationMetricsChart
-                series={series}
-                xAxisProps={{
-                  ...compactTimeXAxisProps,
-                  dataKey: "x",
-                  domain: [timeRange.start.getTime(), timeRange.end.getTime()],
-                  tickFormatter: (value) =>
-                    timeTickFormatter(new Date(Number(value))),
-                }}
-                yAxisProps={compactYAxisProps}
-                syncId={PROJECT_METRICS_CHART_SYNC_ID}
-                barChartProps={chartProps}
-                renderTooltipHeader={(point) => (
-                  <Text weight="heavy" size="S">
-                    {fullTimeFormatter(new Date(point.x))}
-                  </Text>
-                )}
-              />
-            )}
-          </TimeRangeChartBrush>
-        </ChartPanel>
+          series={series}
+          timeRange={timeRange}
+          timeTickFormatter={timeTickFormatter}
+          fullTimeFormatter={fullTimeFormatter}
+          onTimeRangeSelected={onTimeRangeSelected}
+        />
       ))}
     </div>
+  );
+}
+
+function ProjectEvaluationMetricsPanel({
+  series,
+  timeRange,
+  timeTickFormatter,
+  fullTimeFormatter,
+  onTimeRangeSelected,
+}: {
+  series: EvaluationMetricsSeries;
+  timeRange: TimeRange;
+  timeTickFormatter: (date: Date) => string;
+  fullTimeFormatter: (date: Date) => string;
+  onTimeRangeSelected?: (timeRange: TimeRange) => void;
+}) {
+  const [view, setView] = useState(() =>
+    getDefaultEvaluationMetricsView(series)
+  );
+  const activeView = series.views.includes(view)
+    ? view
+    : getDefaultEvaluationMetricsView(series);
+
+  return (
+    <ChartPanel
+      title={series.name}
+      subtitle="Evaluation results over time"
+      headerActions={
+        series.views.length > 1 ? (
+          <EvaluationMetricsViewToggle view={activeView} onChange={setView} />
+        ) : undefined
+      }
+    >
+      <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+        {({ chartProps }) => (
+          <EvaluationMetricsChart
+            series={series}
+            view={activeView}
+            xAxisProps={{
+              ...compactTimeXAxisProps,
+              dataKey: "x",
+              domain: [timeRange.start.getTime(), timeRange.end.getTime()],
+              tickFormatter: (value) =>
+                timeTickFormatter(new Date(Number(value))),
+            }}
+            yAxisProps={compactYAxisProps}
+            syncId={PROJECT_METRICS_CHART_SYNC_ID}
+            barChartProps={chartProps}
+            renderTooltipHeader={(point) => (
+              <Text weight="heavy" size="S">
+                {fullTimeFormatter(new Date(point.x))}
+              </Text>
+            )}
+          />
+        )}
+      </TimeRangeChartBrush>
+    </ChartPanel>
   );
 }
 
@@ -146,9 +179,6 @@ function SpanEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
-                  labelCount
                   meanScore
                   labelFractions {
                     label
@@ -202,9 +232,6 @@ function TraceEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
-                  labelCount
                   meanScore
                   labelFractions {
                     label
@@ -258,9 +285,6 @@ function SessionEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
-                  labelCount
                   meanScore
                   labelFractions {
                     label

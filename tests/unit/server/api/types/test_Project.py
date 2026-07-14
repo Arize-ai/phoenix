@@ -5535,8 +5535,8 @@ class TestAnnotationMetricsTimeSeries:
             assert mixed_summary["labelCount"] == 2
             assert mixed_summary["meanScore"] == pytest.approx(0.4)
             assert mixed_summary["labelFractions"] == [
-                {"label": "fail", "fraction": pytest.approx(1 / 3)},
-                {"label": "pass", "fraction": pytest.approx(1 / 3)},
+                {"label": "fail", "fraction": pytest.approx(1 / 2)},
+                {"label": "pass", "fraction": pytest.approx(1 / 2)},
             ]
             assert metrics["data"][2]["annotationSummaries"] == []
 

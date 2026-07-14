@@ -2,7 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
@@ -43,7 +43,6 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         label_counts_by_summary: defaultdict[tuple[ExperimentID, str], list[tuple[str, int]]] = (
             defaultdict(list)
         )
-        result_counts_by_summary: defaultdict[tuple[ExperimentID, str], int] = defaultdict(int)
         repetition_mean_scores_by_example_subquery = (
             select(
                 models.ExperimentRun.experiment_id.label("experiment_id"),
@@ -126,9 +125,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
-        # Fractions use result-bearing, non-error annotations as their denominator.
-        # The NULL-label group is retained in the total so score-only results become
-        # the residual rather than inflating the labeled fractions.
+        # A label distribution is conditional on having a label. Score-only,
+        # explanation-only, and errored annotations belong outside that denominator.
         label_counts_query = (
             select(
                 models.ExperimentRun.experiment_id.label("experiment_id"),
@@ -143,12 +141,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
             .where(models.ExperimentRunAnnotation.error.is_(None))
-            .where(
-                or_(
-                    models.ExperimentRunAnnotation.score.is_not(None),
-                    models.ExperimentRunAnnotation.label.is_not(None),
-                )
-            )
+            .where(models.ExperimentRunAnnotation.label.is_not(None))
             .group_by(
                 models.ExperimentRun.experiment_id,
                 models.ExperimentRunAnnotation.name,
@@ -167,17 +160,14 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                     label_count_row.annotation_name,
                 )
                 label_count = int(label_count_row[3])
-                result_counts_by_summary[summary_key] += label_count
-                if label_count_row.label is not None:
-                    label_counts_by_summary[summary_key].append(
-                        (label_count_row.label, label_count)
-                    )
+                label_counts_by_summary[summary_key].append((label_count_row.label, label_count))
             async for scores_tuple in await session.stream(run_scores_query):
                 summary_key = (
                     scores_tuple.experiment_id,
                     scores_tuple.annotation_name,
                 )
-                result_count = result_counts_by_summary[summary_key]
+                label_counts = label_counts_by_summary[summary_key]
+                label_count = sum(count for _, count in label_counts)
                 summaries[scores_tuple.experiment_id].append(
                     ExperimentAnnotationSummary(
                         annotation_name=scores_tuple.annotation_name,
@@ -189,10 +179,9 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                         score_count=scores_tuple.score_count,
                         label_count=scores_tuple.label_count,
                         label_fractions=[
-                            (label, count / result_count)
-                            for label, count in label_counts_by_summary[summary_key]
+                            (label, count / label_count) for label, count in label_counts
                         ]
-                        if result_count
+                        if label_count
                         else [],
                     )
                 )
