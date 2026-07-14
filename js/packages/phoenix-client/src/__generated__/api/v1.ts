@@ -3399,10 +3399,6 @@ export interface components {
         /**
          * PhoenixUIMessage
          * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
-         *
-         *     Assistant messages carry `AssistantMessageMetadata` (streamed back via
-         *     `message_metadata`); user messages carry `UserMessageMetadata` (stamped by
-         *     the browser at send time).
          */
         PhoenixUIMessage: {
             /** Id */
