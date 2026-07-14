@@ -1,6 +1,6 @@
 import { isTextUIPart, type UIMessage } from "ai";
 
-const MAX_SUMMARY_LENGTH = 50;
+const MAX_TITLE_LENGTH = 50;
 
 /**
  * Extracts the text content from the first user message in a conversation.
@@ -23,23 +23,23 @@ export const EMPTY_SESSION_DISPLAY_NAME = "New chat";
 
 /**
  * Derives the display name for a session using a cascading strategy:
- * 1. LLM-generated `shortSummary` (set asynchronously after first exchange)
+ * 1. LLM-generated `title` (set asynchronously after first exchange)
  * 2. Truncated first user message
  * 3. Hardcoded "New chat" fallback
  */
 export function getSessionDisplayName({
-  shortSummary,
+  title,
   messages,
 }: {
-  shortSummary: string;
+  title: string;
   messages: UIMessage[];
 }): string {
-  if (shortSummary) return shortSummary;
+  if (title) return title;
 
   const firstMessage = getFirstUserMessageText(messages);
   if (firstMessage) {
-    return firstMessage.length > MAX_SUMMARY_LENGTH
-      ? `${firstMessage.slice(0, MAX_SUMMARY_LENGTH)}...`
+    return firstMessage.length > MAX_TITLE_LENGTH
+      ? `${firstMessage.slice(0, MAX_TITLE_LENGTH)}...`
       : firstMessage;
   }
 

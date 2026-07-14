@@ -22,14 +22,14 @@ import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenM
 import type {
   AgentFabPlacement,
   AgentPosition,
-  AgentSession,
 } from "@phoenix/store/agentStore";
 import type { Size } from "@phoenix/types/geometry";
 
 import { PxiGlyph } from "./PxiGlyph";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
-import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionSummaryUtils";
+import type { AgentSessionListItem } from "./SessionListMenu";
+import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
 
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 520;
@@ -101,24 +101,28 @@ export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
-  showSessionHistory,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
+  hasNextSessionPage,
+  isLoadingNextSessionPage,
+  onLoadNextSessionPage,
   onPositionChange,
   onClose,
 }: {
   sessionDisplayName: string;
-  orderedSessions: AgentSession[];
+  orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
-  showSessionHistory: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
+  hasNextSessionPage?: boolean;
+  isLoadingNextSessionPage?: boolean;
+  onLoadNextSessionPage?: () => void;
   onPositionChange?: (position: AgentPosition) => void;
   onClose: () => void;
 }) {
@@ -174,14 +178,15 @@ export function AgentChatHeader({
         gap="size-50"
         css={panelHeaderActionsCSS}
       >
-        {showSessionHistory ? (
-          <SessionListMenu
-            sessions={orderedSessions}
-            activeSessionId={activeSessionId}
-            onSelectSession={onSelectSession}
-            onDeleteSession={onDeleteSession}
-          />
-        ) : null}
+        <SessionListMenu
+          sessions={orderedSessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={onSelectSession}
+          onDeleteSession={onDeleteSession}
+          hasNextPage={hasNextSessionPage}
+          isLoadingNextPage={isLoadingNextSessionPage}
+          onLoadNextPage={onLoadNextSessionPage}
+        />
         <Button
           variant="quiet"
           size="S"

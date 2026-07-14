@@ -64,9 +64,6 @@ async function installAgentDefaults({ page }: { page: Page }) {
             isOpen: false,
             position: "pinned",
             fabPlacement: "bottom-end",
-            sessions: [],
-            activeSessionId: null,
-            sessionMap: {},
             defaultModelConfig: {
               provider,
               modelName,
@@ -79,9 +76,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
               hasAcknowledgedConsent: false,
             },
             capabilities: {
-              "bash.retainInactiveSessions": false,
               "graphql.mutations": false,
-              "session.storeSessions": false,
               "web.access": false,
             },
           },
@@ -94,6 +89,119 @@ async function installAgentDefaults({ page }: { page: Page }) {
       modelName: assistantModel,
     }
   );
+}
+
+/** The latest assistant message recovered from the server-persisted session. */
+export type PersistedAssistantMessage = {
+  assistantText: string;
+  parts: unknown[];
+  traceId: string | null;
+};
+
+const LATEST_SESSION_QUERY = `
+  query LatestAgentSession {
+    agentSessions(first: 1) {
+      edges {
+        node {
+          messages
+        }
+      }
+    }
+  }
+`;
+
+function extractLatestAssistantMessage(
+  messages: unknown
+): PersistedAssistantMessage | null {
+  if (!Array.isArray(messages)) {
+    return null;
+  }
+  const assistantMessages = messages.filter(
+    (candidate): candidate is Record<string, unknown> =>
+      typeof candidate === "object" &&
+      candidate !== null &&
+      (candidate as { role?: unknown }).role === "assistant"
+  );
+  const latestAssistant = assistantMessages.at(-1) as
+    | {
+        parts?: unknown[];
+        metadata?: { trace?: { traceId?: unknown } | null };
+      }
+    | undefined;
+  if (!latestAssistant) {
+    return null;
+  }
+  const assistantText = (latestAssistant.parts ?? [])
+    .map((part) => {
+      if (typeof part !== "object" || part === null) return "";
+      const candidate = part as { type?: unknown; text?: unknown };
+      return candidate.type === "text" && typeof candidate.text === "string"
+        ? candidate.text
+        : "";
+    })
+    .join("");
+  if (!assistantText) {
+    return null;
+  }
+  const traceId = latestAssistant.metadata?.trace?.traceId;
+  return {
+    assistantText,
+    parts: latestAssistant.parts ?? [],
+    traceId: typeof traceId === "string" ? traceId : null,
+  };
+}
+
+async function fetchLatestPersistedAssistantMessage(
+  request: APIRequestContext
+): Promise<PersistedAssistantMessage | null> {
+  const listResponse = await request.post("/graphql", {
+    data: { query: LATEST_SESSION_QUERY },
+  });
+  if (!listResponse.ok()) {
+    return null;
+  }
+  const listBody = (await listResponse.json()) as {
+    data?: {
+      agentSessions?: {
+        edges?: Array<{ node?: { messages?: unknown } }>;
+      };
+    };
+  };
+  const messages = listBody.data?.agentSessions?.edges?.[0]?.node?.messages;
+  return extractLatestAssistantMessage(messages);
+}
+
+/**
+ * Polls the server-persisted sessions until the most recent session's latest
+ * assistant message is
+ * available. Sessions persist only in the server database (no localStorage
+ * copy), so this doubles as an end-to-end assertion that turn persistence
+ * works.
+ */
+export async function waitForPersistedAssistantTurn({
+  request,
+  requireTraceId = true,
+  timeoutMs = 120_000,
+  pollIntervalMs = 500,
+}: {
+  request: APIRequestContext;
+  requireTraceId?: boolean;
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}): Promise<PersistedAssistantMessage> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const message = await fetchLatestPersistedAssistantMessage(request);
+    if (message && (!requireTraceId || message.traceId !== null)) {
+      return message;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(
+        "Timed out waiting for the assistant turn to be persisted to the server."
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
 }
 
 export class PxiDriver {
@@ -144,62 +252,30 @@ export class PxiDriver {
     };
   }
 
+  /**
+   * Waits for the in-flight turn to finish in the UI, then reads the latest
+   * assistant message from the server-persisted transcript. Waiting on the
+   * UI first avoids picking up a mid-turn snapshot when a turn spans several
+   * requests (client-executed tools resubmit automatically).
+   */
   async getLatestAssistantTurn(): Promise<LatestAssistantTurn> {
-    const turnHandle = await this.page.waitForFunction(() => {
-      const stored = localStorage.getItem("arize-phoenix-assistant");
-      if (!stored) {
-        return null;
-      }
-      const parsed = JSON.parse(stored) as {
-        state?: {
-          activeSessionId?: string | null;
-          sessionMap?: Record<
-            string,
-            {
-              messages?: Array<{
-                role?: string;
-                parts?: unknown[];
-                metadata?: {
-                  trace?: {
-                    traceId?: unknown;
-                  } | null;
-                };
-              }>;
-            }
-          >;
-        };
-      };
-      const activeSessionId = parsed.state?.activeSessionId;
-      if (!activeSessionId) {
-        return null;
-      }
-      const messages = parsed.state?.sessionMap?.[activeSessionId]?.messages;
-      const assistantMessages = (messages ?? []).filter(
-        (candidate) => candidate.role === "assistant"
-      );
-      const latestAssistant = assistantMessages.at(-1);
-      const traceId = latestAssistant?.metadata?.trace?.traceId;
-      if (typeof traceId !== "string") {
-        return null;
-      }
-      const assistantText = (latestAssistant?.parts ?? [])
-        .map((part) => {
-          if (typeof part !== "object" || part === null) return "";
-          const candidate = part as { type?: unknown; text?: unknown };
-          return candidate.type === "text" && typeof candidate.text === "string"
-            ? candidate.text
-            : "";
-        })
-        .join("");
-      if (!assistantText) {
-        return null;
-      }
-      return { assistantText, parts: latestAssistant?.parts ?? [], traceId };
+    const stopButton = this.page.getByRole("button", {
+      name: "Stop generation",
     });
-    const turn = (await turnHandle.jsonValue()) as {
-      assistantText: string;
-      parts: unknown[];
-      traceId: string;
+    await stopButton
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .catch(() => {
+        // The turn may already have completed.
+      });
+    await stopButton.waitFor({ state: "hidden", timeout: 180_000 });
+    const persisted = await waitForPersistedAssistantTurn({
+      request: this.request,
+    });
+    const turn = {
+      assistantText: persisted.assistantText,
+      parts: persisted.parts,
+      // requireTraceId defaults to true, so traceId is non-null here.
+      traceId: persisted.traceId as string,
     };
     const calledTools = await this.getToolNamesForTrace(turn.traceId);
     const uiCalledTools = getUiMessageToolNames(turn.parts);
@@ -268,18 +344,6 @@ export class PxiDriver {
       const toolName = getSpanToolName(span);
       return toolName ? [toolName] : [];
     });
-  }
-
-  async getActiveSessionId(): Promise<string> {
-    const handle = await this.page.waitForFunction(() => {
-      const stored = localStorage.getItem("arize-phoenix-assistant");
-      if (!stored) return null;
-      const parsed = JSON.parse(stored) as {
-        state?: { activeSessionId?: string | null };
-      };
-      return parsed.state?.activeSessionId ?? null;
-    });
-    return (await handle.jsonValue()) as string;
   }
 
   async listRecentProjectTraces(sinceIsoTimestamp: string): Promise<
