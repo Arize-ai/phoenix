@@ -1,5 +1,16 @@
 # Changelog
 
+## [18.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.30.0...arize-phoenix-v18.0.0) (2026-07-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sessions:** use interval-overlap semantics for session time-range filters ([#14023](https://github.com/Arize-ai/phoenix/issues/14023))
+
+### Features
+
+* **sessions:** use interval-overlap semantics for session time-range filters ([#14023](https://github.com/Arize-ai/phoenix/issues/14023)) ([cd17357](https://github.com/Arize-ai/phoenix/commit/cd173576e0d228979845a582ed0e06e475b9b19e))
+
 ## [17.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.29.0...arize-phoenix-v17.30.0) (2026-07-14)
 
 
