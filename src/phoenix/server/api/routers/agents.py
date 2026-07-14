@@ -257,25 +257,13 @@ MessageMetadata = Annotated[
 
 
 class PhoenixUIMessage(UIMessage):
-    """`UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+    """`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."""
 
-    Assistant messages carry `AssistantMessageMetadata` (streamed back via
-    `message_metadata`); user messages carry `UserMessageMetadata` (stamped by
-    the browser at send time).
-    """
-
-    metadata: MessageMetadata | None = (
-        None  # custom metadata types (provide stronger types in the OpenAPI schema)
-    )
+    metadata: MessageMetadata | None = None
 
 
 def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext | None:
-    """Return the newest user-message browser-clock stamp, if any.
-
-    The stamp feeds ``deps.contexts.app`` for the ``get_current_datetime`` tool.
-    It deliberately never enters the system prompt: a per-turn timestamp there
-    changes the request prefix every turn and defeats provider prompt caching.
-    """
+    """Return the newest user-message browser-clock stamp, if any."""
     for message in reversed(messages):
         if message.role != "user":
             continue
@@ -1342,8 +1330,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             tracer.tracer_provider.add_span_processor(agent_span_recorder)
 
         resolved_contexts = resolve_contexts(body.contexts)
-        # The message-metadata stamp is the primary browser-clock source; the
-        # request-level `app` context is a legacy fallback for older clients.
         if (browser_clock := _resolve_browser_clock(body.messages)) is not None:
             resolved_contexts.app = browser_clock
         user = request.user if "user" in request.scope else None
