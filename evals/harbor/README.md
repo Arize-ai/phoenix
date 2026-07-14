@@ -35,6 +35,22 @@ PYTHONPATH=. harbor run -p evals/harbor/tasks/regression-triage \
   -m anthropic/claude-sonnet-4-5
 ```
 
+To export the ServerAgent's OpenInference traces to a remote Phoenix instance,
+set the collector endpoint and API key before running Harbor:
+
+```bash
+export HARBOR_PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.example.com
+export HARBOR_PHOENIX_API_KEY=...
+export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
+PYTHONPATH=. harbor run -p evals/harbor/tasks/regression-triage \
+  -a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
+  -m anthropic/claude-sonnet-4-5
+```
+
+Tracing is disabled when `HARBOR_PHOENIX_COLLECTOR_ENDPOINT` is unset. The project
+name defaults to `harbor-server-agent-evals`; the deterministic `/data/phoenix.db`
+used by the task is not modified.
+
 Harbor stores agent artifacts under each trial's `logs/agent/steps/` directory and
 verifier metrics under `logs/verifier/`. The oracle should receive a mean reward of 1.0.
 

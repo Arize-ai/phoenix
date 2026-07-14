@@ -12,7 +12,7 @@ cpus = 2
 memory_mb = 4096
 network_mode = "public"
 build_timeout_sec = 1200.0
-env = { ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}" }
+env = { ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}", HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}", HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}", HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-harbor-server-agent-evals}" }
 
 [[steps]]
 name = "01-aggregate"
