@@ -45,5 +45,9 @@ cp "/logs/agent/steps/$n/messages.json" "$state/messages.json"
 cat /logs/agent/latest/answer.md"""
         result = await environment.exec(command)
         if result.return_code != 0:
-            raise RuntimeError(result.stderr or "Phoenix ServerAgent runner failed")
+            raise RuntimeError(
+                result.stderr
+                or result.stdout
+                or f"Phoenix ServerAgent runner failed with code {result.return_code}"
+            )
         context.metadata = {"answer": result.stdout or ""}
