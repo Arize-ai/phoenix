@@ -323,6 +323,7 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
+  "evals/harbor/tasks/.*/steps/.*/tests/",
   "examples/",
   "packages/",
   "scripts/",
@@ -352,11 +353,18 @@ module = [
   "pystache",
   "authlib.*",
   "google.*",
+  "harbor.*",
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The Harbor CLI loads this adapter in its own environment; Harbor is not a
+# dependency of the Phoenix development environment used by the root mypy run.
+module = "evals.harbor.agents.*"
+disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
 # e2b_code_interpreter and its e2b base ship without a top-level py.typed marker,

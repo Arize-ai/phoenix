@@ -8,6 +8,7 @@ import os
 import re
 from contextlib import nullcontext
 from pathlib import Path
+from typing import Any, Sequence
 from uuid import uuid4
 
 from asgi_lifespan import LifespanManager
@@ -68,7 +69,7 @@ def _text_of(content: object) -> str:
     return json.dumps(content, default=str)
 
 
-def _tool_args(part: object) -> dict:
+def _tool_args(part: object) -> dict[str, Any]:
     args = getattr(part, "args", None)
     if isinstance(args, dict):
         return args
@@ -86,7 +87,7 @@ def _timestamp_of(obj: object) -> str | None:
     return timestamp.isoformat() if timestamp is not None else None
 
 
-def _usage_metrics(usage: object) -> dict | None:
+def _usage_metrics(usage: object) -> dict[str, Any] | None:
     metrics = {
         "prompt_tokens": getattr(usage, "input_tokens", None),
         "completion_tokens": getattr(usage, "output_tokens", None),
@@ -97,13 +98,13 @@ def _usage_metrics(usage: object) -> dict | None:
 
 
 def build_trajectory(
-    messages: list, history_count: int, model_name: str, session_id: str
-) -> dict | None:
+    messages: Sequence[Any], history_count: int, model_name: str, session_id: str
+) -> dict[str, Any] | None:
     """Convert pydantic-ai messages to Harbor's ATIF v1.7 trajectory format."""
-    steps: list[dict] = []
-    last_agent_step: dict | None = None
+    steps: list[dict[str, Any]] = []
+    last_agent_step: dict[str, Any] | None = None
 
-    def add_step(source: str, is_history: bool, **fields: object) -> dict:
+    def add_step(source: str, is_history: bool, **fields: object) -> dict[str, Any]:
         step = {"step_id": len(steps) + 1, "source": source, **fields}
         if is_history:
             step["is_copied_context"] = True
@@ -154,7 +155,7 @@ def build_trajectory(
             elif kind in ("tool-return", "retry-prompt") and last_agent_step is not None:
                 call_id = getattr(part, "tool_call_id", None)
                 known_ids = {c["tool_call_id"] for c in last_agent_step.get("tool_calls", [])}
-                result = {"content": _text_of(part.content)}
+                result: dict[str, Any] = {"content": _text_of(part.content)}
                 if call_id in known_ids:
                     result["source_call_id"] = call_id
                 observation = last_agent_step.setdefault("observation", {"results": []})
@@ -172,7 +173,9 @@ def build_trajectory(
         "total_steps": len(steps),
     }
     try:
-        from phoenix import __version__ as phoenix_version
+        from phoenix import __version__
+
+        phoenix_version = str(__version__ or "unknown")
     except ImportError:
         phoenix_version = "unknown"
     return {

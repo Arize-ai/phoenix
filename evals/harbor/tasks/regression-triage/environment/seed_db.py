@@ -226,9 +226,11 @@ async def seed(db_path: Path, ground_truth_out: Path) -> None:
                                     **SPAN_DEFAULTS,
                                     "events": events,
                                     "status_code": "ERROR" if error else "OK",
-                                    "status_message": events[0]["attributes"]["exception.message"]
-                                    if error
-                                    else "",
+                                    "status_message": (
+                                        "UnsupportedLocaleError: locale 'es' is not enabled for translation"
+                                        if error
+                                        else ""
+                                    ),
                                 },
                             )
                         )
