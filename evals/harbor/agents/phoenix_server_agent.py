@@ -13,7 +13,7 @@ class PhoenixServerAgent(BaseAgent):
         return "phoenix-server-agent"
 
     def version(self) -> str | None:
-        return "2"
+        return "3"
 
     async def setup(self, environment: BaseEnvironment) -> None:
         return None
@@ -26,7 +26,8 @@ class PhoenixServerAgent(BaseAgent):
             getattr(self, "model_name", None)
             or getattr(self, "model", "anthropic/claude-sonnet-4-5")
         ).replace("anthropic/", "anthropic:", 1)
-        command = f"""printf %s {encoded} > /tmp/instruction.md
+        command = f"""sh /opt/phoenix-eval/bootstrap_data.sh
+printf %s {encoded} > /tmp/instruction.md
 config=$(cat /tmp/step-config.json 2>/dev/null || printf '%s' '{{\"allow_mutations\": false}}')
 mkdir -p /logs/agent/steps
 n=$(($(cat /logs/agent/step_counter 2>/dev/null || printf 0) + 1))
