@@ -8,8 +8,9 @@ Serves:
 """
 
 from textwrap import dedent
+from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
 
@@ -22,25 +23,47 @@ from phoenix.server.oauth2_authorization_server import public_origin
 router = APIRouter(include_in_schema=False)
 
 
-@router.get("/.well-known/oauth-protected-resource")
-async def protected_resource_metadata(request: Request) -> JSONResponse:
-    resource = public_origin(request)
+def _protected_resource_metadata(request: Request, *, resource: str) -> JSONResponse:
+    origin = public_origin(request)
     # Only advertise an authorization server that actually answers: this is False
     # both when authentication is off and when the authorization server is
     # disabled by PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER.
     authorization_server_enabled: bool = getattr(
         request.app.state, "oauth2_authorization_server_enabled", False
     )
-    authorization_servers = [resource] if authorization_server_enabled else []
+    authorization_servers = [origin] if authorization_server_enabled else []
     return JSONResponse(
         {
             "resource": resource,
             "resource_name": "Arize Phoenix",
             "authorization_servers": authorization_servers,
             "bearer_methods_supported": ["header"],
-            "resource_documentation": f"{resource}/auth.md",
+            "resource_documentation": f"{origin}/auth.md",
         }
     )
+
+
+@router.get("/.well-known/oauth-protected-resource")
+async def protected_resource_metadata(request: Request) -> JSONResponse:
+    return _protected_resource_metadata(request, resource=public_origin(request))
+
+
+@router.get("/.well-known/oauth-protected-resource/mcp")
+async def mcp_protected_resource_metadata(request: Request) -> JSONResponse:
+    """RFC 9728 path-inserted metadata for the MCP endpoint mounted at /mcp.
+
+    MCP clients derive this URL from the MCP server URL (and from the 401
+    challenge emitted by the mount's auth guard) and expect ``resource`` to be
+    the MCP endpoint itself, not the deployment origin.
+    """
+    # Set by create_app; None when the MCP server is not enabled, in which case
+    # there is no such resource to describe. The route path is /mcp because the
+    # mount path is the MCP_MOUNT_PATH constant; the state check keeps the two
+    # from drifting silently if the constant ever changes.
+    mount_path: Optional[str] = getattr(request.app.state, "mcp_mount_path", None)
+    if mount_path != "/mcp":
+        raise HTTPException(status_code=404)
+    return _protected_resource_metadata(request, resource=f"{public_origin(request)}{mount_path}")
 
 
 @router.get("/auth.md")

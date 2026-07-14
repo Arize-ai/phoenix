@@ -284,8 +284,11 @@ async def authorize_decision(request: Request, decision: AuthorizationDecision) 
                 code_challenge=decision.code_challenge,
                 code_challenge_method=decision.code_challenge_method,
                 scopes=list(granted_scopes_from_request(decision.scope)) or None,
-                resource=None,
-                audience=None,
+                # `resource` preserves the indicator as the client sent it (RFC 8707);
+                # `audience` is its canonical form, carried through the grant onto the
+                # minted tokens so each token records which resource it was issued for.
+                resource=decision.resource or None,
+                audience=_granted_audience(decision.resource),
                 expires_at=now + _AUTHORIZATION_CODE_TTL,
             )
         )
@@ -467,6 +470,15 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
             return _oauth_error("invalid_grant")
         if not verify_pkce(code_verifier, authorization_code.code_challenge):
             return _oauth_error("invalid_grant")
+        # RFC 8707: the token request may repeat the resource indicator, but it
+        # cannot re-target the code — the audience was fixed at authorization, and
+        # a code authorized for no resource must not mint tokens labeled for one.
+        # MCP clients send the indicator on both requests, so a repeat matches.
+        requested_audience = _granted_audience(resource)
+        granted_audience = authorization_code.audience
+        if requested_audience is not None and requested_audience != granted_audience:
+            return _oauth_error("invalid_target")
+        audience = granted_audience
         claimed_code_id = await session.scalar(
             sa.delete(models.OAuth2AuthorizationCode)
             .where(models.OAuth2AuthorizationCode.id == authorization_code.id)
@@ -481,7 +493,7 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
             user_id=authorization_code.user_id,
             oauth2_client_id=authorization_code.oauth2_client_id,
             scopes=list(scopes),
-            audience=None,
+            audience=audience,
             expires_at=now + get_env_oauth2_grant_expiry(),
             last_used_at=now,
             revoked_at=None,
@@ -499,6 +511,7 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
         refresh_token_expiry=refresh_token_expiry,
         grant_id=grant_id,
         scopes=scopes,
+        audience=tuple(audience) if audience is not None else None,
     )
     return _token_response(access_token, refresh_token, access_token_expiry)
 
@@ -541,6 +554,14 @@ async def _exchange_refresh_token(request: Request, form: Any) -> JSONResponse:
             or grant.client.client_id != client_id
         ):
             return _oauth_error("invalid_grant")
+        # A refresh cannot re-target the grant: if the request names a resource, it
+        # must be the one the grant was authorized for — a null-audience grant
+        # admits none. Grants are immutable, so a refresh never adds an audience
+        # the authorization did not carry.
+        requested_audience = _granted_audience(resource)
+        grant_audience = grant.audience
+        if requested_audience is not None and requested_audience != grant_audience:
+            return _oauth_error("invalid_target")
         user = grant.user
         grant.last_used_at = now
         await session.flush()
@@ -562,6 +583,7 @@ async def _exchange_refresh_token(request: Request, form: Any) -> JSONResponse:
         refresh_token_expiry=refresh_token_expiry,
         grant_id=grant.id,
         scopes=tuple(refresh_claims.attributes.scopes),
+        audience=tuple(grant_audience) if grant_audience is not None else None,
     )
     return _token_response(access_token, refresh_token, access_token_expiry)
 
@@ -787,13 +809,30 @@ def _authorization_decision_error(
     return None
 
 
+def _granted_audience(resource: Optional[str]) -> Optional[list[str]]:
+    """Canonical audience list for a resource indicator that already passed
+    ``_resource_mismatch``; None when the request named no resource."""
+    if not resource:
+        return None
+    return [canonical_resource_identifier(resource)]
+
+
 def _resource_mismatch(request: Request, resource: Optional[str]) -> bool:
     if not resource:
         return False
     try:
-        return canonical_resource_identifier(resource) != public_origin(request)
+        canonical = canonical_resource_identifier(resource)
     except ResourceIdentifierError:
         return True
+    origin = public_origin(request)
+    if canonical == origin:
+        return False
+    # The MCP endpoint is a distinct protected resource under this deployment:
+    # spec-following MCP clients send the URL they connect to (RFC 8707 via the
+    # MCP authorization spec), e.g. `<origin>/mcp`, so it must validate whenever
+    # the mount is enabled (mcp_mount_path is None otherwise).
+    mcp_mount_path: Optional[str] = getattr(request.app.state, "mcp_mount_path", None)
+    return not (mcp_mount_path and canonical == f"{origin}{mcp_mount_path}")
 
 
 def _validate_consent_origin(request: Request) -> None:

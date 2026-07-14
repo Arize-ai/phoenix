@@ -469,6 +469,11 @@ def _env(
         # 127.0.0.1, so that hostname must be trusted in addition to the
         # localhost default; the CSRF validator compares hostnames only.
         "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,http://127.0.0.1,",
+        # The /mcp mount is additive (no existing route or behavior changes when
+        # it is on), so the whole auth package runs against it: test_mcp.py
+        # exercises it directly, and every other test doubles as evidence that
+        # the mount does not interfere with the rest of the surface.
+        "PHOENIX_ENABLE_MCP_SERVER": "true",
     }
 
 
@@ -1000,6 +1005,9 @@ class _OAuthPublicClient:
     app: _AppInfo
     code_verifier: str = ""
     code_challenge: str = ""
+    #: RFC 8707 resource indicator sent on both the authorize and token requests
+    #: when set — the shape MCP clients use (their `resource` is the MCP endpoint).
+    resource: str | None = None
 
     def __post_init__(self) -> None:
         verifier = "a" + token_hex(48)
@@ -1008,7 +1016,7 @@ class _OAuthPublicClient:
         object.__setattr__(self, "code_challenge", challenge.rstrip("="))
 
     def authorization_params(self, *, state: str | None = None) -> dict[str, str]:
-        return {
+        params = {
             "response_type": "code",
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
@@ -1017,6 +1025,9 @@ class _OAuthPublicClient:
             "state": state or f"state-{token_hex(16)}",
             "scope": "read write ignored",
         }
+        if self.resource is not None:
+            params["resource"] = self.resource
+        return params
 
     def authorize(self, auth: Any, *, state: str | None = None) -> dict[str, str]:
         params = self.authorization_params(state=state)
@@ -1044,15 +1055,18 @@ class _OAuthPublicClient:
     def exchange_code(self, redirect_to: str) -> dict[str, Any]:
         query = parse_qs(urlparse(redirect_to).query)
         code = query["code"][0]
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "code_verifier": self.code_verifier,
+        }
+        if self.resource is not None:
+            data["resource"] = self.resource
         response = _httpx_client(self.app).post(
             "oauth2/token",
-            data={
-                "grant_type": "authorization_code",
-                "code": code,
-                "client_id": self.client_id,
-                "redirect_uri": self.redirect_uri,
-                "code_verifier": self.code_verifier,
-            },
+            data=data,
         )
         response.raise_for_status()
         data = response.json()
@@ -1161,6 +1175,7 @@ def _app_dcr_disabled(
         extra={
             "PHOENIX_DISABLE_RATE_LIMIT": "true",
             "PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION": "disabled",
+            "PHOENIX_ENABLE_MCP_SERVER": "false",
         },
     )
     with _server(_AppInfo(env)) as app:

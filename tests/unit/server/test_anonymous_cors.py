@@ -127,6 +127,7 @@ class TestCsrfOriginValidatorBypassesAnonymousSurfaces:
         monkeypatch: pytest.MonkeyPatch,
     ) -> AsyncIterator[ASGIApp]:
         monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", "http://trusted.example.com")
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
         async with contextlib.AsyncExitStack() as stack:
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
@@ -165,6 +166,23 @@ class TestCsrfOriginValidatorBypassesAnonymousSurfaces:
         # (whose rejection is a bare plain-text 401).
         assert resp.status_code == 400
         assert resp.json()["error"] == "invalid_grant"
+        assert resp.headers["access-control-allow-origin"] == "*"
+
+    async def test_mcp_challenge_reaches_the_browser_from_an_untrusted_origin(
+        self, csrf_client: httpx.AsyncClient
+    ) -> None:
+        resp = await csrf_client.post(
+            "/mcp/",
+            headers={
+                "Origin": _ORIGIN,
+                "Accept": "application/json, text/event-stream",
+            },
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        )
+        assert resp.status_code == 401
+        # The guard's challenge, not the validator's bare 401: without the
+        # WWW-Authenticate header an MCP client cannot bootstrap its OAuth flow.
+        assert resp.headers["www-authenticate"].startswith("Bearer ")
         assert resp.headers["access-control-allow-origin"] == "*"
 
     async def test_cookie_honoring_endpoint_stays_origin_restricted(

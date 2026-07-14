@@ -125,3 +125,26 @@ async def test_no_aliases_without_a_root_path(
         manager = await stack.enter_async_context(LifespanManager(app))
         resp = await _client(manager.app).get(f"/.well-known/oauth-authorization-server{_ROOT}")
     assert resp.status_code == 404
+
+
+async def test_path_inserted_mcp_prm_describes_the_mcp_resource(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
+    async with _rooted_auth_app(db, monkeypatch) as app:
+        resp = await _client(app).get(f"/.well-known/oauth-protected-resource{_ROOT}/mcp")
+    assert resp.status_code == 200
+    metadata = resp.json()
+    assert metadata["resource"] == f"http://test{_ROOT}/mcp"
+    assert metadata["authorization_servers"] == [f"http://test{_ROOT}"]
+
+
+async def test_path_inserted_mcp_prm_is_404_when_the_mount_is_disabled(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+    async with _rooted_auth_app(db, monkeypatch) as app:
+        resp = await _client(app).get(f"/.well-known/oauth-protected-resource{_ROOT}/mcp")
+    assert resp.status_code == 404

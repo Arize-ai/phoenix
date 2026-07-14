@@ -178,12 +178,14 @@ async def create_access_and_refresh_tokens(
     refresh_token_expiry: timedelta,
     grant_id: Optional[int] = None,
     scopes: Optional[tuple[str, ...]] = None,
+    audience: Optional[tuple[str, ...]] = None,
 ) -> tuple[AccessToken, RefreshToken]:
     """Mint a paired access/refresh token.
 
     When ``grant_id`` is set the tokens are linked to an OAuth2 grant and carry a
-    denormalized ``scopes`` snapshot. Web-session callers leave both unset so
-    behavior is unchanged.
+    denormalized ``scopes`` snapshot, plus an ``audience`` snapshot (the RFC 8707
+    resource the grant was authorized for) when one was requested. Web-session
+    callers leave all three unset so behavior is unchanged.
     """
     if grant_id is not None and scopes is None:
         raise ValueError("scopes are required when minting tokens under an OAuth2 grant")
@@ -192,6 +194,7 @@ async def create_access_and_refresh_tokens(
     user_role = user.role.name
     refresh_token_claims = RefreshTokenClaims(
         subject=user_id,
+        audience=audience,
         issued_at=issued_at,
         expiration_time=issued_at + refresh_token_expiry,
         attributes=RefreshTokenAttributes(
@@ -203,6 +206,7 @@ async def create_access_and_refresh_tokens(
     refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
     access_token_claims = AccessTokenClaims(
         subject=user_id,
+        audience=audience,
         issued_at=issued_at,
         expiration_time=issued_at + access_token_expiry,
         attributes=AccessTokenAttributes(

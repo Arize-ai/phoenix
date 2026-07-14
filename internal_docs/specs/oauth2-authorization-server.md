@@ -11,8 +11,9 @@
 | 5 | [Redirect URI Model](#redirect-uri-model) | Three delivery classes and why |
 | 6 | [Dynamic Client Registration](#dynamic-client-registration) | Policy dial and registration hygiene |
 | 7 | [CLI Login](#cli-login) | `px auth login` end to end |
-| 8 | [Design Decisions](#design-decisions) | Major choices and rationale |
-| 9 | [Testing](#testing) | Layered unit and integration strategy |
+| 8 | [MCP as a Protected Resource](#mcp-as-a-protected-resource) | The `/mcp` mount, the 401 challenge, and per-resource discovery |
+| 9 | [Design Decisions](#design-decisions) | Major choices and rationale |
+| 10 | [Testing](#testing) | Layered unit and integration strategy |
 | — | [Appendix: Environment Variables](#appendix-environment-variables) | Configuration surface |
 | — | [Appendix: Standards Compliance](#appendix-standards-compliance) | RFC-by-RFC summary |
 | — | [Appendix: Lessons Learned](#appendix-lessons-learned) | Root-path and SPA navigation pitfalls |
@@ -41,6 +42,10 @@ application short of a human copying an API key.
 - **Discovery** — RFC 8414 authorization-server metadata and RFC 9728
   protected-resource metadata, so standards-aware clients configure themselves
   from two well-known URLs
+- **An MCP endpoint as a protected resource** — a minimal MCP server mounted
+  at `/mcp` whose unauthenticated callers are challenged with the RFC 9728
+  metadata pointer, exercising the full discovery → registration → consent →
+  token chain against real MCP clients (MCP Inspector, Cursor, Claude Code)
 - **Revocation (RFC 7009)** and **refresh-token rotation** with grant-level
   lifecycle (a durable `oauth2_grants` record per approval, revocable as a unit)
 - **Zero new dependencies** — stdlib crypto plus the `joserfc`/`pydantic`
@@ -61,7 +66,8 @@ scope for this document; everything here is the protocol machinery.
 | `app/src/pages/auth/OAuth2ConsentPage.tsx` | SPA consent page |
 | `js/packages/phoenix-cli/src/oauth.ts` | CLI-side PKCE, loopback callback server, token exchange/refresh/revoke |
 | `js/packages/phoenix-cli/src/commands/auth.ts` | `px auth login` / `status` / `logout` |
-| `src/phoenix/server/api/routers/auth_md.py` | RFC 9728 protected-resource metadata |
+| `src/phoenix/server/api/routers/auth_md.py` | RFC 9728 protected-resource metadata (deployment-wide and per-resource `/mcp`) |
+| `src/phoenix/server/mcp_server.py` | The MCP mount: `MountPathNormalizer`, `BearerAuthGuard` 401 challenge |
 
 ---
 
@@ -204,7 +210,7 @@ grant behind (the unredeemed code expires and is swept).
 | Column | Type | Purpose |
 |--------|------|---------|
 | `user_id`, `oauth2_client_id` | FK, CASCADE | Grant identity |
-| `scopes`, `audience` | JSON, nullable | Granted values copied onto every token; currently scopes are empty and audience is unset |
+| `scopes`, `audience` | JSON, nullable | Granted values copied onto every token; scopes are currently empty, and audience carries the canonical resource indicator when the authorization request named one (the deployment origin or the MCP endpoint) |
 | `expires_at` | timestamp, nullable | Grant ceiling (default 90 days); both access- and refresh-token lifetimes are clamped to it at mint time |
 | `last_used_at` | timestamp | Touched on every refresh — feeds DCR client-cleanup and future session UI |
 | `revoked_at` | timestamp, nullable | Soft revocation; refresh redemption checks it |
@@ -216,7 +222,7 @@ grant behind (the unredeemed code expires and is swept).
 | `code_hash` | string, unique index | SHA-256 of the code — a DB leak does not yield redeemable codes |
 | `redirect_uri` | string | Must be echoed exactly at the token endpoint (RFC 6749 §4.1.3) |
 | `code_challenge`, `code_challenge_method` | string | PKCE (S256 only) |
-| `scopes`, `resource`, `audience` | JSON/string, nullable | Reserved for future scope/audience enforcement; current grants store no granted scopes or resource audience |
+| `scopes`, `resource`, `audience` | JSON/string, nullable | `resource` preserves the indicator as the client sent it; its canonical form is copied to the grant and its tokens as the audience at redemption. Scope enforcement is deferred to the authorization workstream |
 | `expires_at` | timestamp | 5-minute TTL; single-use — atomically claimed on redemption, rejected-and-deleted if presented after expiry, and swept at server startup |
 
 ### Token-table extensions
@@ -245,6 +251,7 @@ that used to kill it by deleting the row out from under the join.
 | `/.well-known/oauth-authorization-server` | GET | none | — | RFC 8414; advertises `registration_endpoint` unless DCR is disabled |
 | `/.well-known/openid-configuration` | GET | none | — | Same document at the OIDC discovery location; under a root path this is the only metadata URL in the MCP client discovery order that reaches Phoenix without proxy configuration (RFC 8414 puts the well-known segment between host and path, which the reverse proxy typically does not route) |
 | `/.well-known/oauth-protected-resource` | GET | none | — | RFC 9728; lists this deployment as its own authorization server when auth is enabled |
+| `/.well-known/oauth-protected-resource/mcp` | GET | none | — | RFC 9728 path-inserted metadata for the MCP endpoint: `resource` is `<origin>/mcp` rather than the deployment origin; 404 when the MCP server is not mounted |
 | `/.well-known/{doc}<root path>` | GET | none | — | Path-inserted aliases (RFC 8414 §3 / RFC 9728 §3.1), registered only under `PHOENIX_HOST_ROOT_PATH`: the well-known segment goes between host and path, so these live at the host root and require the reverse proxy to forward `/.well-known/*` to Phoenix unmodified |
 | `/oauth2/authorize` | GET | session cookie (redirects to login) | — | Validates client, redirect URI, state (≥22 chars), `response_type=code`, PKCE S256, optional `resource`; unsupported response types return `unsupported_response_type`; errors that can be delivered safely go to the redirect URI per RFC 6749 §4.1.2.1, pre-validation failures render an HTML error |
 | `/oauth2/consent` | GET (SPA route) | session | — | Display only; owns no protocol state |
@@ -386,6 +393,115 @@ silently until the grant expires or is revoked.
 
 ---
 
+## MCP as a Protected Resource
+
+Phoenix mounts a minimal MCP server on the FastAPI app and treats it as a
+second protected resource, distinct from the deployment origin. The server
+(`src/phoenix/server/mcp_server.py`) advertises no tools — `initialize` and
+`tools/list` succeed with an empty list — because its purpose is the
+authentication chain: it is the resource an MCP client discovers, registers
+for, obtains consent for, and finally connects to with a minted bearer token.
+Tool surfaces can be layered on later without touching any of the plumbing
+below. `PHOENIX_ENABLE_MCP_SERVER` (default `true`) controls the mount; the
+dependency cost is the `server` extra of `fastmcp-slim`, whose client half was
+already in the tree via `pydantic-ai`.
+
+### The connection sequence
+
+An MCP client given `<origin>/mcp` walks this chain, defined by the MCP
+authorization specification (revision 2025-06-18) and the RFCs it composes:
+
+1. It calls the endpoint with no credentials and receives **401** with a
+   `WWW-Authenticate` header naming the protected-resource metadata URL.
+2. It fetches that **PRM document** (RFC 9728) and learns the resource
+   identifier and the authorization server — this same deployment.
+3. It fetches the **authorization-server metadata** (RFC 8414, or the OIDC
+   discovery location) and learns the authorize, token, and registration
+   endpoint URLs.
+4. It **registers** via DCR, opens the user's browser for **consent**, and
+   exchanges the code at the token endpoint, sending `resource=<origin>/mcp`
+   (RFC 8707).
+5. It reconnects with the bearer token over streamable HTTP: JSON-RPC
+   requests as POSTs plus a long-lived `text/event-stream` response.
+
+Steps 3 and 4 are the machinery of the rest of this document. The
+MCP-specific work is steps 1, 2, and 5: the mount, the challenge, the
+per-resource metadata, and the CORS posture that lets browser-hosted clients
+walk the chain at all. The chain was validated end to end against the MCP
+Inspector, Cursor, and Claude Code on a root-path deployment; unit coverage
+lives in `tests/unit/server/test_app_mcp_mount.py`,
+`test_well_known_path_inserted.py`, and `test_anonymous_cors.py`.
+
+### Mount-path normalization
+
+Starlette's `Mount("/mcp")` matches `/mcp/...` but not `/mcp` itself, and the
+bare path is exactly the URL an MCP client is configured with; what falls
+through lands in the SPA catch-all (index.html for GET, 405 for POST — both
+Cursor and the Inspector surfaced this as a 405 before the fix). A pure-ASGI
+`MountPathNormalizer` rewrites the bare mount path to the mount root before
+routing. Two details matter. It *rewrites* rather than redirects, preserving
+single-request semantics for clients that do not follow redirects. And it
+compares against the root-path-prefixed form, because a deployment behind
+`PHOENIX_HOST_ROOT_PATH=/phoenix` sees `/phoenix/mcp` in the scope path — the
+literal comparison never matched and the normalizer silently did nothing,
+another instance of the root-path pitfalls in Lessons Learned.
+
+### The 401 challenge
+
+Phoenix enforces authentication on `/v1` through a FastAPI router dependency,
+which a mounted ASGI app never passes through. Without a guard, an
+unauthenticated `initialize` succeeds and the failure surfaces only later as
+opaque tool errors, so the client never learns it should run the OAuth flow.
+A `BearerAuthGuard` wraps the mounted app, delegating to the same
+`is_authenticated` used by the `/v1` routers; on failure it answers 401 with:
+
+```
+WWW-Authenticate: Bearer realm="Arize Phoenix",
+    resource_metadata="<origin>/.well-known/oauth-protected-resource/mcp"
+```
+
+The metadata URL is built from `public_origin` and the same module constant
+the PRM route is registered under, so the challenge and the document it names
+cannot drift apart.
+
+### The per-resource PRM document
+
+`/.well-known/oauth-protected-resource/mcp` (the RFC 9728 path-inserted form)
+describes the MCP endpoint: its `resource` is `<origin>/mcp`, not the
+deployment origin. It answers 404 when the MCP server is not mounted — there
+is no such resource to describe — and its `authorization_servers` list is
+empty when the authorization server is disabled, so discovery never points at
+endpoints that refuse to answer. Under a root path, a host-root alias
+(`/.well-known/oauth-protected-resource<root path>/mcp`) is registered as
+well, for SDKs that derive the metadata URL from the resource URL per RFC
+9728 §3.1 instead of honoring the challenge URL verbatim; like the other
+path-inserted aliases, it is reachable only if the reverse proxy forwards
+host-root `/.well-known/*` to Phoenix unmodified.
+
+### A second resource identifier
+
+Resource-indicator validation accepts the canonicalized `<origin>/mcp`
+whenever the mount is enabled, alongside the deployment origin
+(`_resource_mismatch`). Spec-following MCP clients send the URL they connect
+to as the RFC 8707 indicator, and the indicator is persisted and bound
+through the whole redemption chain — see the Resource Indicators design
+decision below.
+
+### CORS and exposed headers
+
+The MCP endpoint joins the anonymous wildcard-CORS set described under Design
+Decisions: browser-based MCP clients call it directly with a bearer token,
+which is not an ambient credential, so answering any origin is the same
+decision already made for the token and registration endpoints. The MCP
+surface additionally exposes two response headers
+(`Access-Control-Expose-Headers`) that the OAuth endpoints do not need:
+`Mcp-Session-Id`, which a browser client must read to continue its
+streamable-HTTP session, and `WWW-Authenticate`, which it must read from the
+401 to bootstrap the OAuth flow at all. Both are invisible to cross-origin
+JavaScript unless listed, even on a CORS-approved response.
+
+---
+
 ## Design Decisions
 
 ### Reuse the existing token pair; add no new token format
@@ -468,16 +584,21 @@ characters (~128 bits base64url) so a compliant-but-lazy client cannot ship
 mode is a clear `invalid_request` at first integration, not a latent
 vulnerability.
 
-### Resource indicators, strictly one resource
+### Resource indicators, persisted and bound
 
 `resource` (RFC 8707) is accepted at both the authorize and token endpoints
-and must canonicalize to this deployment's own origin (scheme/host lowercased,
-default ports elided, root path applied); anything else is `invalid_target`.
-Phoenix is currently the only resource its tokens are good for — the
-parameter, and the `resource`/`audience` columns, exist so multi-audience
-support later is additive rather than migratory. The authorization request's
-resource is not yet persisted and bound to token redemption; that must be
-implemented before supporting more than this single deployment resource.
+and must canonicalize to a resource this deployment serves: the deployment
+origin itself, or `<origin>/mcp` when the MCP server is mounted (scheme/host
+lowercased, default ports elided, root path applied); anything else is
+`invalid_target`. The indicator is persisted and bound through the whole
+redemption chain: the authorization code records the resource the user
+approved, the grant and every token minted under it carry its canonical form
+as their audience, the token request may repeat the indicator but cannot
+re-target the code, and a refresh cannot re-target the grant. What remains
+deferred is enforcement at the resource servers — no endpoint yet rejects a
+bearer token whose audience names the other resource. The persisted claims
+establish exactly what that enforcement will need, so adding it (or adding
+further audiences) is additive rather than migratory.
 
 ### Issuer identity from configuration, not from Host headers
 
@@ -534,8 +655,10 @@ authorization servers answer these endpoints with
 honor no cookies, so there is no session for a hostile page to ride, and the
 flow's security rests on PKCE, single-use codes, and redirect-URI binding
 rather than on which origin fetched the endpoint. The wildcard applies only to
-``/.well-known/*``, ``/oauth2/register``, ``/oauth2/token``, and
-``/oauth2/revoke``; the cookie-honoring surfaces are excluded
+``/.well-known/*``, ``/oauth2/register``, ``/oauth2/token``,
+``/oauth2/revoke``, and the MCP endpoint when it is mounted (see MCP as a
+Protected Resource for the headers that surface additionally exposes); the
+cookie-honoring surfaces are excluded
 (``/oauth2/authorize`` is navigated to, not fetched, and the consent decision
 endpoint enforces a strict Origin check), and the credentialed
 ``PHOENIX_ALLOWED_ORIGINS`` allowlist for the app API is untouched. Error
@@ -593,6 +716,7 @@ on `validate_redirect_uri`.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER` | `true` | Master switch: when `false`, every authorization-server endpoint and the RFC 8414 document answer 404, and the PRM stops advertising an authorization server |
+| `PHOENIX_ENABLE_MCP_SERVER` | `true` | Mounts the MCP server at `/mcp` and registers its per-resource PRM; when `false`, the PRM answers 404 and `<origin>/mcp` stops validating as a resource indicator |
 | `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` | `enabled` | The policy dial: `disabled` \| `local_only` \| `enabled` |
 | `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS` | unset (any) | Host allowlist for https redirects when `enabled` |
 | `PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS` | 90 | Grant ceiling; refresh lifetimes are clamped to it |
@@ -617,8 +741,8 @@ configuration — grant tokens are the same tokens.
 | RFC 7591 (DCR) | Implemented behind the policy dial; unrecognized metadata preserved |
 | RFC 8414 (AS Metadata) | Implemented at the well-known path under the deployment root |
 | RFC 8252 (OAuth for Native Apps) | Loopback (§7.3, arbitrary ports) and private-use schemes (§7.2) per the redirect model above |
-| RFC 9728 (Protected Resource Metadata) | Implemented; PRM points at this deployment as its own AS |
-| RFC 8707 (Resource Indicators) | Accepted and validated against the single deployment resource; `invalid_target` on mismatch; authorization-to-token resource binding remains future work |
+| RFC 9728 (Protected Resource Metadata) | Implemented, deployment-wide and per-resource for `/mcp`; PRM points at this deployment as its own AS |
+| RFC 8707 (Resource Indicators) | Accepted and validated against this deployment's resources (origin and the mounted MCP endpoint); `invalid_target` on mismatch; the indicator is persisted and bound through code, grant, and token — audience enforcement at the resource servers remains future work |
 | OAuth 2.1 (draft) | Partially aligned: code+PKCE only, no implicit grant, registered redirect matching, and refresh rotation with replay detection; scope and resource enforcement remain future work |
 | Client ID Metadata Documents (draft) | Not implemented; noted as the likely successor to DCR for agent platforms as the draft and client support mature |
 

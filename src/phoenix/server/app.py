@@ -68,6 +68,7 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_disable_agent_assistant,
+    get_env_enable_mcp_server,
     get_env_enable_oauth2_authorization_server,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
@@ -99,7 +100,10 @@ from phoenix.server.api.routers import (
     oauth2_as_well_known_router,
     oauth2_router,
 )
-from phoenix.server.api.routers.auth_md import protected_resource_metadata
+from phoenix.server.api.routers.auth_md import (
+    mcp_protected_resource_metadata,
+    protected_resource_metadata,
+)
 from phoenix.server.api.routers.auth_md import router as auth_md_router
 from phoenix.server.api.routers.oauth2_authorization_server import (
     authorization_server_enabled,
@@ -345,7 +349,7 @@ class RequestOriginHostnameValidator(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        # The anonymous OAuth surfaces are deliberately open to arbitrary
+        # The anonymous OAuth/MCP surfaces are deliberately open to arbitrary
         # browser origins (see AnonymousCorsMiddleware): they honor no cookies,
         # so an origin check protects nothing there and would 401 exactly the
         # requests whose preflights the CORS layer approved. Cookie-honoring
@@ -630,7 +634,7 @@ def _lifespan(
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
+    async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -687,6 +691,9 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
+            # Start the mounted MCP server's session manager (set in create_app).
+            if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
+                await stack.enter_async_context(mcp_http_app.lifespan(app))
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -920,8 +927,15 @@ def create_app(
     last_updated_at = LastUpdatedAt()
     # Resolved before the middleware stack: the anonymous-surface path set feeds
     # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
-    # of this function, so no two consumers can classify a path differently.
-    anonymous_surfaces = anonymous_paths()
+    # of this function, and it depends on whether the MCP endpoint is mounted
+    # (the mount itself happens after the routers). The import stays deferred so
+    # fastmcp is only loaded when the mount is enabled.
+    mcp_mount_path: Optional[str] = None
+    if get_env_enable_mcp_server():
+        from phoenix.server.mcp_server import MCP_MOUNT_PATH
+
+        mcp_mount_path = MCP_MOUNT_PATH
+    anonymous_surfaces = anonymous_paths(mcp_mount_path)
     middlewares: list[Middleware] = [
         Middleware(HeadersMiddleware),
         Middleware(RedactorMiddleware),
@@ -1098,6 +1112,14 @@ def create_app(
             protected_resource_metadata,
             include_in_schema=False,
         )
+        # The MCP PRM handler 404s by itself when the mount is disabled. The /mcp
+        # literal mirrors the path-appended route in auth_md.py, whose handler
+        # verifies it against the mcp_mount_path state so drift cannot be silent.
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}/mcp",
+            mcp_protected_resource_metadata,
+            include_in_schema=False,
+        )
         if authentication_enabled:
             for well_known in ("oauth-authorization-server", "openid-configuration"):
                 app.add_api_route(
@@ -1131,6 +1153,31 @@ def create_app(
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
+    mcp_http_app = None
+    if mcp_mount_path is not None:
+        # Mount before the static UI ("/") catch-all so requests to the MCP
+        # endpoint are not swallowed by it. The app's lifespan (its session
+        # manager) is entered in ``_lifespan`` above.
+        from phoenix.server.mcp_server import (
+            BearerAuthGuard,
+            MountPathNormalizer,
+            create_phoenix_mcp_app,
+        )
+
+        mcp_http_app = create_phoenix_mcp_app()
+        # The guard reads scope["user"], so it is installed exactly when the
+        # AuthenticationMiddleware that populates it is (token_store above).
+        app.mount(
+            mcp_mount_path,
+            BearerAuthGuard(mcp_http_app) if token_store is not None else mcp_http_app,
+        )
+        # Starlette mounts do not match the bare mount path, which is the URL MCP
+        # clients are configured with; rewrite it to the mount root before routing.
+        app.add_middleware(MountPathNormalizer)
+    app.state.mcp_http_app = mcp_http_app
+    # Consumed by the OAuth2 authorization server (resource-indicator validation)
+    # and the protected-resource metadata routes; None when the mount is disabled.
+    app.state.mcp_mount_path = mcp_mount_path
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1248,11 +1295,17 @@ def create_app(
     # endpoints from origins that cannot be known in advance. The cookie-honoring
     # OAuth endpoints (/oauth2/authorize is navigated to; the consent decision
     # endpoint enforces a strict Origin check) are deliberately not listed.
+    #
+    # The MCP endpoint joins the set when mounted: browser-based MCP clients call
+    # it directly with a bearer token, which is not an ambient credential (a
+    # hostile page cannot make the browser attach it), and they must be able to
+    # read the session id and the 401 challenge that bootstraps their OAuth flow.
     # The path set is shared with the CSRF origin validator, which bypasses
     # exactly these surfaces.
     app.add_middleware(
         AnonymousCorsMiddleware,
         paths=anonymous_surfaces,
+        expose_headers="Mcp-Session-Id, WWW-Authenticate" if mcp_mount_path is not None else "",
     )
     return app
 
