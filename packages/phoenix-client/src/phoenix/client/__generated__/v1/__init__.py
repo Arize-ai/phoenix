@@ -25,6 +25,26 @@ class AnonymousUser(TypedDict):
     auth_method: Literal["ANONYMOUS"]
 
 
+class ApiKey(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
+
+
+class ApiKeyData(TypedDict):
+    name: str
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
+
+
+class ApiKeyUser(TypedDict):
+    id: str
+    username: str
+    email: Optional[str]
+
+
 class AppContext(TypedDict):
     type: Literal["app"]
     currentDateTime: str
@@ -55,6 +75,10 @@ class CategoricalAnnotationValue(TypedDict):
 class CodeEvaluatorContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
+
+
+class CreateApiKeyRequestBody(TypedDict):
+    data: ApiKeyData
 
 
 class CreateDatasetLabelRequestBody(TypedDict):
@@ -94,6 +118,15 @@ class CreateProjectRequestBody(TypedDict):
 class CreateSpansResponseBody(TypedDict):
     total_received: int
     total_queued: int
+
+
+class CreatedApiKey(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    key: str
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
 
 
 class CustomProviderModelSelection(TypedDict):
@@ -202,6 +235,10 @@ class FileUIPart(TypedDict):
     url: str
     filename: NotRequired[str]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class GetApiKeysResponseBody(TypedDict):
+    data: Sequence[ApiKey]
 
 
 class GetDatasetLabelResponseBody(TypedDict):
@@ -1014,6 +1051,15 @@ class UpsertOrDeleteSecretsResult(TypedDict):
     deleted_keys: Sequence[str]
 
 
+class UserApiKey(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    user: ApiKeyUser
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
+
+
 class UserMessageMetadata(TypedDict):
     type: Literal["user"]
     currentDateTime: str
@@ -1146,6 +1192,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class CreateApiKeyResponseBody(TypedDict):
+    data: CreatedApiKey
 
 
 class CreateDatasetLabelResponseBody(TypedDict):
@@ -1303,6 +1353,11 @@ class FreeformAnnotationConfigData(TypedDict):
     threshold: NotRequired[float]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class GetAllUserApiKeysResponseBody(TypedDict):
+    data: Sequence[UserApiKey]
+    next_cursor: Optional[str]
 
 
 class GetAnnotationConfigResponseBody(TypedDict):

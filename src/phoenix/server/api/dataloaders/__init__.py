@@ -112,6 +112,7 @@ from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByPro
 from .trace_root_spans import TraceRootSpansDataLoader
 from .trace_span_counts_by_kind import TraceSpanCountsByKindDataLoader
 from .user_credential_counts import UserCredentialCountsDataLoader
+from .user_ids import UserIdsDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 from .version_authors import VersionAuthorsDataLoader
@@ -243,6 +244,7 @@ class DataLoaders:
     session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
+    session_user_ids: UserIdsDataLoader
     span_annotation_fields: TableFieldsDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
@@ -282,6 +284,7 @@ class DataLoaders:
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     trace_span_counts_by_kind: TraceSpanCountsByKindDataLoader
+    trace_user_ids: UserIdsDataLoader
     user_credential_counts: UserCredentialCountsDataLoader
     user_roles: UserRolesDataLoader
     user_api_key_fields: TableFieldsDataLoader
@@ -419,6 +422,7 @@ def build_data_loaders(
         session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
         session_token_usages=SessionTokenUsagesDataLoader(db),
         session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
+        session_user_ids=UserIdsDataLoader(db, "session"),
         span_annotation_fields=TableFieldsDataLoader(db, models.SpanAnnotation),
         span_annotations=SpanAnnotationsDataLoader(db),
         span_fields=TableFieldsDataLoader(db, models.Span),
@@ -467,6 +471,7 @@ def build_data_loaders(
             db, models.ProjectTraceRetentionPolicy
         ),
         trace_root_spans=TraceRootSpansDataLoader(db),
+        trace_user_ids=UserIdsDataLoader(db, "trace"),
         project_by_name=ProjectByNameDataLoader(db),
         project_has_traces=ProjectHasTracesDataLoader(db),
         user_credential_counts=UserCredentialCountsDataLoader(db),

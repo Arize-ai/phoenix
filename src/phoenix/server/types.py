@@ -12,6 +12,7 @@ from typing import Any, Generic, Optional, Protocol, TypeVar, final
 
 from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import Self
 
 from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
 from phoenix.db import models
@@ -209,14 +210,14 @@ class ApiKeyAttributes(UserTokenAttributes):
 class _DbId(str, ABC):
     table: type[models.Base]
 
-    def __new__(cls, id_: int) -> _DbId:
+    def __new__(cls, id_: int) -> Self:
         assert isinstance(id_, int)
         return super().__new__(cls, f"{cls.table.__name__}:{id_}")
 
     def __int__(self) -> int:
         return int(self.split(":")[1])
 
-    def __deepcopy__(self, memo: Any) -> _DbId:
+    def __deepcopy__(self, memo: Any) -> Self:
         return self
 
 

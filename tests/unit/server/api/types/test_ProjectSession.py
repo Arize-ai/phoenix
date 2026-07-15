@@ -215,6 +215,55 @@ class TestProjectSession:
             (str(GlobalID(Trace.__name__, str(trace.id))), trace.trace_id) for trace in _data.traces
         }
 
+    async def test_user_id(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            start_time = datetime.now(timezone.utc)
+            session_with_user = await _add_project_session(
+                session,
+                project,
+                start_time=start_time,
+            )
+            trace_without_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time,
+            )
+            await _add_span(session, trace_without_user_id)
+            first_trace_with_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time + timedelta(seconds=1),
+            )
+            await _add_span(
+                session,
+                first_trace_with_user_id,
+                attributes={"user": {"id": "user-1"}},
+            )
+            second_trace_with_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time + timedelta(seconds=2),
+            )
+            await _add_span(
+                session,
+                second_trace_with_user_id,
+                attributes={"user": {"id": "user-2"}},
+            )
+            session_without_user = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, session_without_user)
+            await _add_span(session, trace)
+        field = "userId"
+        assert await self._node(field, session_with_user, httpx_client) == "user-1"
+        assert await self._node(field, session_without_user, httpx_client) is None
+
     async def test_token_usage(
         self,
         _data: _Data,

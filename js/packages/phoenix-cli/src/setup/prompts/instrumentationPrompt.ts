@@ -11,6 +11,8 @@
  * self-report.
  */
 
+import { DOCS_MCP_SERVER_NAME } from "../agents/registry";
+
 export interface InstrumentationPromptDocs {
   /** Python quickstart (arize-phoenix-otel). */
   quickstartPython: string;
@@ -39,6 +41,12 @@ export interface InstrumentationPromptArgs {
    * pages from disk instead of fetching the URLs mid-run.
    */
   localDocsDir?: string;
+  /**
+   * True when the phoenix-docs MCP server was connected to the agent's
+   * project config. The agent then searches the docs on demand — cheaper
+   * than fetching whole pages — instead of reading a local prefetch.
+   */
+  docsMcpConfigured?: boolean;
 }
 
 export function buildInstrumentationPrompt({
@@ -50,6 +58,7 @@ export function buildInstrumentationPrompt({
   authEnabled,
   languages = [],
   localDocsDir,
+  docsMcpConfigured,
 }: InstrumentationPromptArgs): string {
   const credentialVars = authEnabled
     ? "PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY"
@@ -64,6 +73,9 @@ export function buildInstrumentationPrompt({
   const localDocsRule = localDocsDir
     ? `\nThese pages are already downloaded to ${localDocsDir} — read them from disk first, and only\nfetch a URL if the page you need is missing there.`
     : "";
+  const docsMcpRule = docsMcpConfigured
+    ? `\nThe "${DOCS_MCP_SERVER_NAME}" MCP server is connected in this project — search it for Phoenix docs\nfirst; it returns just the relevant sections. Fetch the URLs above only if its tools are\nunavailable.`
+    : "";
 
   return `You are running as part of the Phoenix setup script. Your ONLY task is to add Phoenix
 tracing to the application in the current working directory and emit one verification
@@ -73,7 +85,7 @@ Work from the official docs — do not guess package names or APIs from memory:
 - Python quickstart (arize-phoenix-otel): ${docs.quickstartPython}
 - TypeScript quickstart (@arizeai/phoenix-otel): ${docs.quickstartTypeScript}
 - register() reference: ${docs.phoenixOtelSetup}
-- Auto-instrumentation guides by framework/provider: ${docs.integrationsIndex}${localDocsRule}
+- Auto-instrumentation guides by framework/provider: ${docs.integrationsIndex}${localDocsRule}${docsMcpRule}
 ${languageRule}
 
 Rules:

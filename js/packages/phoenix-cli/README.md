@@ -148,6 +148,14 @@ hands a coding agent (Claude Code, Codex, Cursor, OpenCode) an instrumentation
 task and waits until a real trace appears. After that it can point `px` at the
 new project and install Phoenix skills so the agent can query what you captured.
 
+Along the way it offers to connect the Phoenix docs MCP server to the agent
+doing the hand-off — through the agent's own CLI where it has one (`claude mcp
+add`), else its per-project config file (`.cursor/mcp.json`, `opencode.json`).
+Taking the offer skips the `.px/docs` download entirely — the agent searches
+the docs on demand instead, which is faster to set up and cheaper in tokens.
+Any failure falls back to the download. Pass `--docs-mcp` to take the offer
+without being asked, `--no-docs-mcp` to never ask.
+
 For CI or agents, pass flags instead of answering prompts:
 
 ```bash
@@ -156,6 +164,9 @@ px setup --no-input --endpoint http://localhost:6006 --project my-app
 
 # Instrument too — requires --agent when there's no TTY to choose one
 px setup --no-input --instrument --agent claude --yolo --language python --format raw
+
+# Same, but connect the docs MCP instead of downloading the docs
+px setup --no-input --instrument --agent claude --yolo --docs-mcp --format raw
 ```
 
 Re-run pieces later with:

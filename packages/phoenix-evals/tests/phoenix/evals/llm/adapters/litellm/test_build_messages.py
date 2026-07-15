@@ -3,6 +3,8 @@
 
 import pytest
 
+pytest.importorskip("litellm")
+
 from phoenix.evals.llm.adapters.litellm.adapter import LiteLLMAdapter
 from phoenix.evals.llm.adapters.litellm.client import LiteLLMClient
 from phoenix.evals.llm.prompts import Message, MessageRole

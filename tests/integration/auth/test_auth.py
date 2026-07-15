@@ -40,8 +40,10 @@ from .._helpers import (
     _MEMBER,
     _OK,
     _OK_OR_DENIED,
+    _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS,
     _SYSTEM_USER_GID,
     _VIEWER,
+    _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
     _AdminSecret,
@@ -932,112 +934,6 @@ class TestDeleteUsers:
         logged_in_user.visit(_app, 401)
 
 
-class TestCreateApiKey:
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _OK),
-            (_MEMBER, _OK),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_create_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_create_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app, "System")
-
-
-class TestDeleteApiKey:
-    @pytest.mark.parametrize("role_or_user", [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN])
-    def test_delete_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = logged_in_user.create_api_key(_app)
-        logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
-    def test_only_admin_can_delete_user_api_key_for_non_self(
-        self,
-        role_or_user: _RoleOrUser,
-        role: UserRoleInput,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        non_self = _get_user(_app, role).log_in(_app)
-        assert non_self.gid != logged_in_user.gid
-        api_key = non_self.create_api_key(_app)
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_delete_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System")
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
-
-
 class TestGraphQLQuery:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
@@ -1048,18 +944,9 @@ class TestGraphQLQuery:
             (_DEFAULT_ADMIN, _OK),
         ],
     )
-    @pytest.mark.parametrize(
-        "query",
-        [
-            "query{users{edges{node{id}}}}",
-            "query{userApiKeys{id}}",
-            "query{systemApiKeys{id}}",
-        ],
-    )
-    def test_only_admin_can_list_users_and_api_keys(
+    def test_only_admin_can_list_users(
         self,
         role_or_user: _RoleOrUser,
-        query: str,
         expectation: _OK_OR_DENIED,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -1067,7 +954,7 @@ class TestGraphQLQuery:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with expectation:
-            logged_in_user.gql(_app, query)
+            logged_in_user.gql(_app, "query{users{edges{node{id}}}}")
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_can_query_user_node_for_self(
@@ -2061,9 +1948,8 @@ class TestSecretsCRUDAndValueVisibility:
 class TestApiAccessViaCookiesOrApiKeys:
     """Tests REST API v1 access control using both cookie and API key authentication.
 
-    This test suite verifies that access restrictions are enforced consistently across
-    all user roles (Admin, Member, Viewer, Default Admin) at the v1 router level,
-    regardless of authentication method:
+    This test suite verifies access restrictions across all user roles (Admin, Member,
+    Viewer, Default Admin) and both supported authentication methods:
     - Cookie-based authentication (access tokens from login)
     - API key authentication (Bearer tokens)
 
@@ -2127,9 +2013,8 @@ class TestApiAccessViaCookiesOrApiKeys:
         - Covers: Datasets, Experiments, Prompts, Annotations, Evaluations,
           Spans, Traces, and Project creation (POST /v1/projects)
 
-        This verifies that authorization is enforced consistently regardless of
-        authentication method. Each role maintains the same permissions whether
-        using cookies or API keys.
+        Role-based authority is consistent across authentication methods except for
+        credential issuance, which requires a human session.
         """
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
@@ -2138,7 +2023,10 @@ class TestApiAccessViaCookiesOrApiKeys:
         is_admin = user.role is UserRoleInput.ADMIN or role_or_user is _DEFAULT_ADMIN
         is_viewer = user.role is UserRoleInput.VIEWER
 
-        for client in (_httpx_client(_app, tokens), _httpx_client(_app, api_key)):
+        for is_api_key, client in (
+            (False, _httpx_client(_app, tokens)),
+            (True, _httpx_client(_app, api_key)),
+        ):
             # Test 1: Common read resources - all roles should have identical access
             for expected_status_code, method, endpoint in _COMMON_RESOURCE_ENDPOINTS:
                 assert expected_status_code not in (401, 403), (
@@ -2153,6 +2041,15 @@ class TestApiAccessViaCookiesOrApiKeys:
 
             # Test 2: Admin-only endpoints - only admins should have access
             for expected_status_code, method, endpoint in _ADMIN_ONLY_ENDPOINTS:
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 if is_admin:
@@ -2179,6 +2076,24 @@ class TestApiAccessViaCookiesOrApiKeys:
                         f"Admin/Member expected {expected_status_code} but got {response.status_code} "
                         f"for {method} {endpoint}"
                     )
+
+            # Test 4: User credential self-service is available to every human role.
+            for expected_status_code, method, endpoint in _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS:
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                assert response.status_code == expected_status_code, (
+                    f"Expected {expected_status_code} but got {response.status_code} "
+                    f"for {method} {endpoint}"
+                )
 
 
 class TestVercelChatStreamRouterAuth:
