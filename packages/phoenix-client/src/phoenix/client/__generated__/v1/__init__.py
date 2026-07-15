@@ -39,6 +39,12 @@ class ApiKeyData(TypedDict):
     expires_at: NotRequired[str]
 
 
+class ApiKeyUser(TypedDict):
+    id: str
+    username: str
+    email: Optional[str]
+
+
 class AppContext(TypedDict):
     type: Literal["app"]
     currentDateTime: str
@@ -1045,6 +1051,15 @@ class UpsertOrDeleteSecretsResult(TypedDict):
     deleted_keys: Sequence[str]
 
 
+class UserApiKey(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    user: ApiKeyUser
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
+
+
 class UserMessageMetadata(TypedDict):
     type: Literal["user"]
     currentDateTime: str
@@ -1338,6 +1353,11 @@ class FreeformAnnotationConfigData(TypedDict):
     threshold: NotRequired[float]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class GetAllUserApiKeysResponseBody(TypedDict):
+    data: Sequence[UserApiKey]
+    next_cursor: Optional[str]
 
 
 class GetAnnotationConfigResponseBody(TypedDict):

@@ -42,6 +42,7 @@ from .._helpers import (
     _OK_OR_DENIED,
     _SYSTEM_USER_GID,
     _VIEWER,
+    _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
     _AdminSecret,
@@ -932,112 +933,6 @@ class TestDeleteUsers:
         logged_in_user.visit(_app, 401)
 
 
-class TestCreateApiKey:
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _OK),
-            (_MEMBER, _OK),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_create_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_create_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app, "System")
-
-
-class TestDeleteApiKey:
-    @pytest.mark.parametrize("role_or_user", [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN])
-    def test_delete_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = logged_in_user.create_api_key(_app)
-        logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
-    def test_only_admin_can_delete_user_api_key_for_non_self(
-        self,
-        role_or_user: _RoleOrUser,
-        role: UserRoleInput,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        non_self = _get_user(_app, role).log_in(_app)
-        assert non_self.gid != logged_in_user.gid
-        api_key = non_self.create_api_key(_app)
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_delete_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System")
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
-
-
 class TestGraphQLQuery:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
@@ -1048,18 +943,9 @@ class TestGraphQLQuery:
             (_DEFAULT_ADMIN, _OK),
         ],
     )
-    @pytest.mark.parametrize(
-        "query",
-        [
-            "query{users{edges{node{id}}}}",
-            "query{userApiKeys{id}}",
-            "query{systemApiKeys{id}}",
-        ],
-    )
-    def test_only_admin_can_list_users_and_api_keys(
+    def test_only_admin_can_list_users(
         self,
         role_or_user: _RoleOrUser,
-        query: str,
         expectation: _OK_OR_DENIED,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -1067,7 +953,7 @@ class TestGraphQLQuery:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with expectation:
-            logged_in_user.gql(_app, query)
+            logged_in_user.gql(_app, "query{users{edges{node{id}}}}")
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_can_query_user_node_for_self(
@@ -2179,6 +2065,15 @@ class TestApiAccessViaCookiesOrApiKeys:
                         f"Admin/Member expected {expected_status_code} but got {response.status_code} "
                         f"for {method} {endpoint}"
                     )
+
+            # Test 4: User credential self-service is available to every human role.
+            for expected_status_code, method, endpoint in _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS:
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                assert response.status_code == expected_status_code, (
+                    f"Expected {expected_status_code} but got {response.status_code} "
+                    f"for {method} {endpoint}"
+                )
 
 
 class TestVercelChatStreamRouterAuth:

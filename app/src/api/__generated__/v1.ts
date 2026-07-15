@@ -1306,6 +1306,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/users/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all user API keys
+         * @description Retrieve API keys belonging to human users across the organization. System API keys are excluded. Restricted to admins.
+         */
+        get: operations["getAllUserApiKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/user/api_keys/{api_key_id}": {
         parameters: {
             query?: never;
@@ -1317,8 +1337,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete one of the authenticated user's API keys
-         * @description Permanently revoke an API key belonging to the currently authenticated user. The key stops working immediately. Keys owned by other users are not visible here and cannot be deleted through this endpoint.
+         * Delete a user API key
+         * @description Permanently revoke a user API key. Users can revoke their own keys, and admins can revoke keys belonging to other users. The key stops working immediately.
          */
         delete: operations["deleteUserApiKey"];
         options?: never;
@@ -1335,13 +1355,13 @@ export interface paths {
         };
         /**
          * List system API keys
-         * @description Retrieve all system API keys. System keys are not tied to a human user and carry full privileges, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.
+         * @description Retrieve all system API keys. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.
          */
         get: operations["getSystemApiKeys"];
         put?: never;
         /**
          * Create a system API key
-         * @description Create a system API key. System keys belong to the system user rather than to any human, and they carry full privileges, so this endpoint is restricted to admins. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
+         * @description Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
          */
         post: operations["createSystemApiKey"];
         delete?: never;
@@ -1775,6 +1795,15 @@ export interface components {
              * @description When the API key expires. The key never expires when omitted.
              */
             expires_at?: string | null;
+        };
+        /** ApiKeyUser */
+        ApiKeyUser: {
+            /** Id */
+            id: string;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string | null;
         };
         /**
          * AppContext
@@ -2920,6 +2949,13 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+        };
+        /** GetAllUserApiKeysResponseBody */
+        GetAllUserApiKeysResponseBody: {
+            /** Data */
+            data: components["schemas"]["UserApiKey"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** GetAnnotationConfigResponseBody */
         GetAnnotationConfigResponseBody: {
@@ -5820,6 +5856,23 @@ export interface components {
             upserted_keys: string[];
             /** Deleted Keys */
             deleted_keys: string[];
+        };
+        /** UserApiKey */
+        UserApiKey: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+            user: components["schemas"]["ApiKeyUser"];
         };
         /**
          * UserMessageMetadata
@@ -10341,6 +10394,58 @@ export interface operations {
             };
             /** @description Insufficient Storage */
             507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getAllUserApiKeys: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a UserApiKey GlobalID). */
+                cursor?: string | null;
+                /** @description The maximum number of API keys to return. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A paginated list of user API keys and their owners. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAllUserApiKeysResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
