@@ -1334,15 +1334,22 @@ CREATE TABLE public.project_evaluator_criteria (
     id bigserial NOT NULL,
     project_id BIGINT NOT NULL,
     evaluator_id BIGINT NOT NULL,
-    annotation_name VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
     sampling_rate DOUBLE PRECISION NOT NULL,
+    evaluation_target VARCHAR NOT NULL,
+    input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_criteria_project_id_annotation_name
-        UNIQUE (project_id, annotation_name),
+    CONSTRAINT uq_project_evaluator_criteria_project_id_name
+        UNIQUE (project_id, name),
+    CHECK (((evaluation_target)::text = ANY ((ARRAY[
+            'SPAN'::character varying,
+            'TRACE'::character varying,
+            'SESSION'::character varying
+        ])::text[]))),
     CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
     CONSTRAINT fk_project_evaluator_criteria_evaluator_id_evaluators
         FOREIGN KEY
