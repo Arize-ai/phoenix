@@ -135,7 +135,9 @@ px auth status --profile staging              # check a named profile's connecti
 
 Named profiles let you switch between multiple Phoenix instances (local, staging, cloud) without juggling environment variables. Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`).
 
-Configuration priority (highest to lowest): CLI flags > env vars > active profile > built-in defaults.
+Configuration priority (highest to lowest): CLI flags > env vars > active profile > nearest `.env.phoenix` file > built-in defaults.
+
+The CLI also discovers the nearest `.env.phoenix` file at or above the current working directory (the same file `px setup` writes). Credentials are resolved as one group, so a process API key is never combined with file-provided headers. Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
 ```bash
 px profile list                              # list all profiles (shows active profile)
