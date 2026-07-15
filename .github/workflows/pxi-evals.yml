@@ -190,11 +190,13 @@ jobs:
           report_dir="${RUNNER_TEMP}/pxi-eval-reports"
           mkdir -p "${report_dir}"
           report_md="${report_dir}/pxi-eval-summary.md"
+          decision_json="${report_dir}/pxi-eval-decision.json"
 
           gate_args=(
             "${initial_results}"
             --thresholds evals/pxi/thresholds.yaml
             --report-out "${report_md}"
+            --decision-out "${decision_json}"
           )
           if [[ "${RETRY_PLANNED}" == "true" ]]; then
             gate_args+=(--retry-artifact "${retry_results}")
@@ -209,6 +211,45 @@ jobs:
           set -e
           echo "${gate_output}"
 
+          # Read the verdict from the structured decision file, NOT by scraping
+          # the Markdown digest. ``kind`` is gate.py's stable machine token; all
+          # icons and annotations below key off it, so reworded digest prose can
+          # never desync this step. ``label`` is display text only.
+          # A missing/unparseable file just yields an empty string (handled by
+          # 2>/dev/null and the ``*)`` case below), so no in-Python guard needed.
+          read_field() {
+            python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2]) or '')" \
+              "${decision_json}" "$1" 2>/dev/null || true
+          }
+          result_kind="$(read_field kind)"
+          result_label="$(read_field label)"
+          result_note=""
+          case "${result_kind}" in
+            pass|flaky)
+              result_icon="✅"
+              ;;
+            tolerated)
+              result_icon="✅"
+              result_note=" — reproduced miss(es) within a tolerated threshold"
+              ;;
+            regression)
+              result_icon="❌"
+              ;;
+            too_many_failures)
+              result_icon="❌"
+              result_note=" — not a per-example confirmed regression"
+              ;;
+            unmeasurable)
+              result_icon="⚠️"
+              result_note=" — not an agent regression"
+              ;;
+            *)
+              result_icon="⚠️"
+              result_label="${result_label:-UNKNOWN}"
+              result_note=" — no structured decision produced"
+              ;;
+          esac
+
           if [[ "${gate_rc}" -ne 0 ]]; then
             # Embed the report in the job log under ::stop-commands:: so a payload
             # line starting with '::' cannot close the group or spoof an
@@ -219,18 +260,20 @@ jobs:
             cat "${report_md}"
             echo "::${stop_token}::"
             echo "::endgroup::"
-            # gate.py exits 2 when it could not measure a pass rate at all
-            # (missing/invalid/partial artifact, dirty session, or recording not
-            # bootstrapped) and 1 only when a pass rate was measured and breached
-            # a threshold. Keep the two annotations distinct so a "couldn't
-            # measure" run doesn't read as a regression to hunt for.
-            if [[ "${gate_rc}" -eq 2 ]]; then
-              echo "::error title=PXI eval unmeasurable::The PXI eval gate is unmeasurable (exit 2): an artifact was missing, invalid, partial, or a gating cell had zero assessable rows. This is not an agent regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
-            elif grep -q '^\*\*Result: TOO MANY FAILURES TO CONFIRM' "${report_md}"; then
-              echo "::error title=PXI eval too many failures to confirm::Too many examples needed a retry to confirm individually, so the gate failed on attempt 1 alone without confirming any single example twice (exit 1). This is a real failure, but not a per-example confirmed regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
-            else
-              echo "::error title=PXI confirmed regression::The same assessable evaluator failure occurred on both attempts and breached policy (exit 1). The digest names every example and links both Phoenix experiments. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
-            fi
+            # Keep the annotations distinct so a "couldn't measure" or "too many
+            # to confirm" run doesn't read as a regression to hunt for. Keyed off
+            # the structured ``kind`` token, not the exit code or digest text.
+            case "${result_kind}" in
+              unmeasurable)
+                echo "::error title=PXI eval unmeasurable::The PXI eval gate is unmeasurable (exit ${gate_rc}): an artifact was missing, invalid, partial, a gating cell had zero assessable rows, a code evaluator raised, or mass task errors left most examples unassessed. This is not an agent regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+                ;;
+              too_many_failures)
+                echo "::error title=PXI eval too many failures to confirm::Too many examples needed a retry to confirm individually, so the gate failed on attempt 1 alone without confirming any single example twice (exit ${gate_rc}). This is a real failure, but not a per-example confirmed regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+                ;;
+              *)
+                echo "::error title=PXI confirmed regression::The same assessable evaluator failure occurred on both attempts and breached policy (exit ${gate_rc}). The digest names every example and links both Phoenix experiments. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+                ;;
+            esac
           fi
 
           # Step summary (humans). GitHub caps the whole summary at 1 MiB; embed
@@ -240,16 +283,7 @@ jobs:
           {
             echo "## PXI Regression Evals"
             echo ""
-            if [[ "${gate_rc}" -eq 0 ]]; then
-              result_line="$(grep -m1 '^\*\*Result:' "${report_md}" || true)"
-              echo "${result_line:-**Result: ✅ gate passed**}"
-            elif [[ "${gate_rc}" -eq 2 ]]; then
-              echo "**Result: ⚠️ gate unmeasurable (not a regression)**"
-            elif grep -q '^\*\*Result: TOO MANY FAILURES TO CONFIRM' "${report_md}"; then
-              echo "**Result: ❌ too many failures to confirm individually (not a per-example confirmed regression)**"
-            else
-              echo "**Result: ❌ confirmed regression**"
-            fi
+            echo "**Result: ${result_icon} ${result_label} (exit ${gate_rc})${result_note}**"
             echo ""
             if [[ "${report_bytes}" -lt "${summary_embed_budget}" ]]; then
               echo "<details><summary>PXI eval report (paste into a coding agent)</summary>"

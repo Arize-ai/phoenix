@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from evals.pxi import conftest as recorder
 from evals.pxi import gate
 
@@ -319,9 +321,12 @@ def test_recurring_task_error_is_unmeasurable_not_a_regression() -> None:
     assert [item.reason for item in decision.infra] == ["recurring task error: HTTP 520 again"]
 
 
-def test_task_error_that_executes_and_fails_on_retry_is_a_real_assessed_miss() -> None:
-    """The retry is the only attempt that actually ran the task -- its result
-    is real signal and should count, even though attempt 1 gave none."""
+def test_task_error_then_single_retry_miss_cannot_be_confirmed() -> None:
+    """Attempt 1 was a task error (no behavioral signal) and only the retry
+    produced a miss. That is a single assessable miss, not the "same miss twice"
+    the confirm-on-retry contract requires, and the one retry is already spent --
+    so the gate must not red on an unreproduced miss. With no other assessable
+    row, the cell is unmeasurable, never a confirmed regression."""
     first = _artifact([_row("provider-error", passed=False, task_error="HTTP 520")])
     retry = _artifact(
         [_row("provider-error", passed=False, explanation="Required tool was not called")]
@@ -329,10 +334,10 @@ def test_task_error_that_executes_and_fails_on_retry_is_a_real_assessed_miss() -
 
     decision = gate.decide(first, _policy(), retry=retry)
 
-    assert decision.exit_code == gate.EXIT_BREACH
-    assert decision.label == "CONFIRMED REGRESSION"
-    assert decision.cells[0]["assessed"] == 1
-    assert decision.cells[0]["failed"] == 1
+    assert decision.exit_code == gate.EXIT_INVALID
+    assert decision.label == "UNMEASURABLE"
+    assert decision.confirmed == []
+    assert any("cannot confirm a regression" in (item.reason or "") for item in decision.infra)
 
 
 def test_zero_assessable_cell_gets_a_retry_chance_before_unmeasurable(tmp_path: Path) -> None:
@@ -499,6 +504,145 @@ def test_missing_policy_is_unmeasurable_not_regression() -> None:
 
     assert decision.exit_code == gate.EXIT_INVALID
     assert any("no threshold policy" in error for error in decision.errors)
+
+
+def test_task_error_then_retry_miss_does_not_red_a_cell_with_other_passes() -> None:
+    """The same single-miss-after-task-error case, but the cell has another
+    passing example, so it stays measurable. The unconfirmable miss is surfaced
+    as unassessed and the gate does not red -- an unreproduced miss never
+    reddens the gate."""
+    first = _artifact(
+        [
+            _row("pass", passed=True),
+            _row("provider-error", passed=False, task_error="HTTP 520"),
+        ]
+    )
+    retry = _artifact(
+        [_row("provider-error", passed=False, explanation="Required tool was not called")]
+    )
+
+    decision = gate.decide(first, _policy(), retry=retry)
+
+    assert decision.exit_code == gate.EXIT_OK
+    assert decision.confirmed == []
+    assert any(item.first["example_id"] == "provider-error" for item in decision.infra)
+    assert decision.cells[0]["assessed"] == 1
+    assert decision.cells[0]["infra"] == 1
+
+
+def test_mass_task_errors_over_cap_are_unmeasurable_not_a_pass(tmp_path: Path) -> None:
+    """Ported concern from review: past the retry cap the retry is skipped, but
+    task errors we never resolved must not be silently excluded into a green
+    PASSED just because one other row in the cell passed."""
+    rows = [
+        _row(f"provider-error-{index}", passed=False, task_error="HTTP 520") for index in range(3)
+    ]
+    rows.append(_row("clean-pass", passed=True))
+    first = _artifact(rows)
+
+    final_rc, _, report = _run_gate(tmp_path, first, retry_cap=2)
+
+    assert final_rc == gate.EXIT_INVALID
+    digest = report.read_text()
+    assert "UNMEASURABLE" in digest
+    assert "unresolved task errors" in digest
+
+
+def test_mass_behavioral_misses_over_cap_still_fail_not_unmeasurable(tmp_path: Path) -> None:
+    """A cap tripped by clean misses (not task errors) that breach is a real
+    failure -- it stays exit 1, distinct from the mass-task-error case above."""
+    first = _artifact(
+        [_row("one", passed=False), _row("two", passed=False), _row("three", passed=False)]
+    )
+
+    final_rc, _, report = _run_gate(tmp_path, first, retry_cap=2)
+
+    assert final_rc == gate.EXIT_BREACH
+    assert "TOO MANY FAILURES TO CONFIRM" in report.read_text()
+
+
+def test_evaluator_error_on_initial_run_is_unmeasurable_not_a_pass() -> None:
+    """A code evaluator that raises is a defect in the scoring apparatus, not
+    per-example noise, so it must fail closed even when another example passes
+    the same evaluator -- never silently excluded into a green PASSED."""
+    decision = gate.decide(
+        _artifact(
+            [
+                _row("pass", passed=True),
+                _row("boom", passed=False, evaluator_error="KeyError: 'tool_calls'"),
+            ]
+        ),
+        _policy(),
+    )
+
+    assert decision.exit_code == gate.EXIT_INVALID
+    assert decision.label == "UNMEASURABLE"
+    assert any("evaluator error" in error for error in decision.errors)
+
+
+def test_confirmed_miss_within_tolerated_threshold_is_surfaced_not_silent_pass() -> None:
+    """When a miss reproduces on both attempts but a sub-1.0 override tolerates
+    it, the cell does not breach -- but the result must not read as a bare
+    PASSED. It gets a distinct outcome so the reproduced miss is visible."""
+    first = _artifact([_row("pass", passed=True), _row("fail", passed=False)])
+    retry = _artifact([_row("fail", passed=False, explanation="still missing tool")])
+
+    decision = gate.decide(first, _policy(0.5), retry=retry)
+
+    assert decision.exit_code == gate.EXIT_OK
+    assert decision.kind == "tolerated"
+    assert decision.label == "PASSED WITH TOLERATED MISSES"
+    assert len(decision.confirmed) == 1
+
+
+def test_planning_and_reconciliation_modes_are_mutually_exclusive() -> None:
+    """Passing both --retry-nodeids-out and --retry-artifact used to silently
+    run planning and ignore the retry artifact; it must now be a hard error."""
+    with pytest.raises(SystemExit):
+        gate.main(
+            [
+                "artifact.json",
+                "--retry-nodeids-out",
+                "nodeids.txt",
+                "--retry-artifact",
+                "retry.json",
+            ]
+        )
+
+
+def test_decision_out_writes_structured_summary(tmp_path: Path) -> None:
+    """The machine-readable decision file is the stable contract for the CI
+    workflow -- it carries the kind token, label, and exit code so consumers
+    never parse the Markdown digest."""
+    first = _artifact([_row("broken", passed=False, explanation="missing tool")])
+    retry = _artifact([_row("broken", passed=False, explanation="still missing tool")])
+    initial_path = tmp_path / "initial.json"
+    initial_path.write_text(json.dumps(first))
+    retry_path = tmp_path / "retry.json"
+    retry_path.write_text(json.dumps(retry))
+    thresholds = tmp_path / "thresholds.yaml"
+    _write_policy(thresholds)
+    decision_out = tmp_path / "decision.json"
+
+    rc = gate.main(
+        [
+            str(initial_path),
+            "--thresholds",
+            str(thresholds),
+            "--retry-artifact",
+            str(retry_path),
+            "--decision-out",
+            str(decision_out),
+        ]
+    )
+
+    summary = json.loads(decision_out.read_text())
+    assert rc == gate.EXIT_BREACH
+    assert summary["kind"] == "regression"
+    assert summary["label"] == "CONFIRMED REGRESSION"
+    assert summary["exit_code"] == gate.EXIT_BREACH
+    assert summary["counts"]["confirmed"] == 1
+    assert summary["counts"]["breached_cells"] == 1
 
 
 def test_digest_includes_evaluator_details_and_both_phoenix_links() -> None:

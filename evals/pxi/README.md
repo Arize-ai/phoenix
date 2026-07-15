@@ -142,19 +142,50 @@ uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
 
 # Decide pass/fail (exit nonzero on a breach or an invalid/partial run)
 uv run python -m evals.pxi.gate pxi-eval-results.json --thresholds evals/pxi/thresholds.yaml
-
-# CI's two-attempt flow: plan exact node IDs, run them into a second artifact,
-# then reconcile the same evaluator verdict across both attempts.
-uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
-  --retry-nodeids-out pxi-eval-retry-nodeids.txt
-retry_nodeids=()
-while IFS= read -r nodeid; do retry_nodeids+=("${nodeid}"); done \
-  < pxi-eval-retry-nodeids.txt
-PXI_EVAL_RESULTS_PATH=pxi-eval-results-retry.json \
-  uv run pytest -c evals/pxi/pytest.ini "${retry_nodeids[@]}"
-uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
-  --retry-artifact pxi-eval-results-retry.json
 ```
+
+CI's two-attempt flow plans exact node IDs, reruns only those into a second
+artifact, then reconciles the same evaluator verdict across both attempts. Run
+it end to end exactly as CI does — the initial artifact is written to its own
+path, node IDs are re-rooted onto pytest's rootdir before the retry, and the
+retry only happens when planning actually emitted node IDs:
+
+```bash
+# 1. Initial run -> its own artifact.
+PXI_EVAL_RESULTS_PATH=pxi-eval-results-initial.json \
+  uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
+
+# 2. Plan: write the node IDs of assessable misses in gating cells (empty file
+#    if there are none, or if the run is unmeasurable).
+uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+  --thresholds evals/pxi/thresholds.yaml \
+  --retry-nodeids-out pxi-eval-retry-nodeids.txt
+
+# 3. Retry only those nodes (if any) into a second artifact, then reconcile.
+#    gate.py emits node IDs relative to evals/pxi (pytest's rootdir under
+#    `-c evals/pxi/pytest.ini`); re-root them onto that path before running
+#    pytest from the repo root, or pytest collects zero items.
+if [[ -s pxi-eval-retry-nodeids.txt ]]; then
+  mapfile -t bare_nodeids < pxi-eval-retry-nodeids.txt
+  retry_nodeids=("${bare_nodeids[@]/#/evals/pxi/}")
+  PXI_EVAL_RESULTS_PATH=pxi-eval-results-retry.json \
+    uv run pytest -c evals/pxi/pytest.ini "${retry_nodeids[@]}"
+  uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+    --thresholds evals/pxi/thresholds.yaml \
+    --retry-artifact pxi-eval-results-retry.json
+else
+  # No retry needed: the initial run already decided pass/fail.
+  uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+    --thresholds evals/pxi/thresholds.yaml
+fi
+```
+
+`--retry-nodeids-out` (planning) and `--retry-artifact` (reconciliation) are the
+two mutually exclusive phases of that flow — passing both is an error, so a
+reproduced miss can never slip through by accidentally re-entering planning
+mode. Pass `--decision-out decision.json` to any invocation to also get the
+structured verdict (`kind`, `label`, `exit_code`, `retry_nodeids`, counts) as
+JSON; CI reads that instead of scraping the Markdown digest.
 
 `pytest.ini` is a complete, self-contained config: `pytest -c <file>` replaces
 the root config rather than inheriting it, so it declares everything the eval
@@ -176,18 +207,39 @@ unrelated edits.
 
 The gate also **fails closed on an unmeasurable run** with exit 2: a missing,
 malformed, partial, or dirty artifact; a targeted retry that omitted or added a
-node ID; or a gating cell with zero assessable rows. These outcomes are labeled
-unmeasurable, not regression. When `PHOENIX_API_KEY` is set (i.e. CI), the gate
-also fails closed if the plugin recorded nothing — bootstrap failure degrades
-to a warning in the plugin, so without this a green gate could mean "recorded
-nothing to Phoenix". Local runs with no key skip this check, since recording is
-optional there.
+node ID; a gating cell with zero assessable rows; or a gating cell where a code
+**evaluator itself raised** (an `evaluator_error` — a defect in the scoring
+apparatus, which is never retried and never silently excluded into a green
+pass). These outcomes are labeled unmeasurable, not regression. When
+`PHOENIX_API_KEY` is set (i.e. CI), the gate also fails closed if the plugin
+recorded nothing — bootstrap failure degrades to a warning in the plugin, so
+without this a green gate could mean "recorded nothing to Phoenix". Local runs
+with no key skip this check, since recording is optional there.
 
 Past `--retry-cap` examples needing a retry (default 15), the gate skips
-confirm-on-retry entirely and fails on attempt 1 alone: at that scale the
+confirm-on-retry entirely and gates on attempt 1 alone: at that scale the
 failure is structural, and confirming each example individually would just
-delay a result that was never in doubt. This is reported as **too many
-failures to confirm**, distinct from a confirmed regression.
+delay a result that was never in doubt. A cap tripped by behavioral **misses**
+that breach a threshold is reported as **too many failures to confirm** (exit 1,
+distinct from a per-example confirmed regression). A cap tripped by unresolved
+**task errors** — where most examples never produced an assessable result — is
+**unmeasurable** (exit 2), never a pass: a surviving passing row cannot carry a
+run that mostly never ran.
+
+Two more outcomes keep a reproduced miss from hiding behind a green headline. A
+miss that reproduces on both attempts but stays at or above a sub-1.0 override
+threshold is **passed with tolerated misses** (exit 0) rather than a bare pass,
+so the tolerated miss stays visible. A miss where attempt 1 was a task error and
+only the retry produced a miss is **not** a confirmed regression — that is one
+assessable attempt, not the same miss twice, and the single retry is already
+spent, so it is recorded as unassessable and never reddens the gate. These
+sub-1.0 regression overrides are a deliberate interim stopgap (see
+`thresholds.yaml`); the planned end state is not ratcheting them to `1.0` but
+deleting the aggregate pass-rate machinery in favor of per-example gating
+(every regression example passes within two attempts, persistent flake is
+quarantined to a non-gating split). That cutover is a later corpus/policy step,
+gated on a k≥3 baseline on the shipped default model — not part of this
+measurement-semantics change.
 
 ### Regression gate vs. full-collection sync
 
@@ -452,7 +504,6 @@ Failure output is published through three channels, ranked by how you (or a
 coding agent) consume it:
 
 1. **Job log (primary, agents).** When the gate fails, the report is embedded
-   in the log under a collapsed `PXI EVAL REPORT (agent-readable)` group,
    in the log under a collapsed `PXI EVAL REPORT (agent-readable)` group and a
    `::stop-commands::` block. It names every confirmed, flaky, and infrastructure
    example; includes both attempts' evaluator labels, scores, and explanations;

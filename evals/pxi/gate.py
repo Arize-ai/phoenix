@@ -24,12 +24,13 @@ from typing import Any, Iterable, Literal, Mapping, Sequence
 
 import yaml
 
+from evals.pxi.rowstate import SCHEMA_VERSION, row_state
+
 DEFAULT_THRESHOLDS = Path(__file__).resolve().parent / "thresholds.yaml"
 
 EXIT_OK = 0
 EXIT_BREACH = 1
 EXIT_INVALID = 2
-SCHEMA_VERSION = 4
 
 # Past this many examples needing a retry, mass failure is structural, not a
 # coin flip worth confirming individually -- retrying dozens of examples (a
@@ -37,8 +38,20 @@ SCHEMA_VERSION = 4
 # Ported from PR #13845's ``RETRY_FAILED_CAP``.
 RETRY_FAILED_CAP = 15
 
-RowState = Literal["passed", "failed", "infra"]
 RowKey = tuple[str, str, str, str]
+
+# Machine-readable outcome kinds. This is the stable contract shell/doc
+# consumers key off -- never the human ``label`` wording, which can be reworded
+# freely. Every ``Decision`` carries exactly one of these.
+Kind = Literal[
+    "pass",  # measured pass, exit 0
+    "flaky",  # a miss recovered on retry, exit 0
+    "tolerated",  # a miss reproduced but the cell stayed above its threshold, exit 0
+    "retry_required",  # planning mode emitted node IDs to rerun, exit 0
+    "regression",  # a threshold breach, exit 1
+    "too_many_failures",  # over the retry cap, gated on attempt 1 alone, exit 1
+    "unmeasurable",  # invalid/partial artifact or no assessable rows, exit 2
+]
 
 
 @dataclass(frozen=True)
@@ -53,12 +66,33 @@ class Evidence:
 class Decision:
     label: str
     exit_code: int
+    kind: Kind = "unmeasurable"
     retry_nodeids: tuple[str, ...] = ()
     confirmed: list[Evidence] = field(default_factory=list)
     flaky: list[Evidence] = field(default_factory=list)
     infra: list[Evidence] = field(default_factory=list)
     cells: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+
+    def to_summary(self) -> dict[str, Any]:
+        """Structured decision for machine consumers (the CI workflow).
+
+        Consumers read ``kind`` (stable token) and ``exit_code``; ``label`` is
+        display text only. This is what lets the workflow avoid scraping
+        semantics out of the Markdown digest.
+        """
+        return {
+            "kind": self.kind,
+            "label": self.label,
+            "exit_code": self.exit_code,
+            "retry_nodeids": list(self.retry_nodeids),
+            "counts": {
+                "confirmed": len(self.confirmed),
+                "flaky": len(self.flaky),
+                "infra": len(self.infra),
+                "breached_cells": sum(1 for cell in self.cells if cell.get("breached")),
+            },
+        }
 
 
 def _row_key(row: Mapping[str, Any]) -> RowKey:
@@ -72,17 +106,6 @@ def _row_key(row: Mapping[str, Any]) -> RowKey:
 
 def _cell_key(row: Mapping[str, Any]) -> tuple[str, str, str]:
     return str(row["dataset"]), str(row["evaluator"]), str(row["split"])
-
-
-def _row_state(row: Mapping[str, Any]) -> RowState:
-    if row.get("task_error") or row.get("evaluator_error"):
-        return "infra"
-    score = row.get("score")
-    if isinstance(score, bool) or not isinstance(score, (int, float)):
-        return "infra"
-    if not math.isfinite(float(score)):
-        return "infra"
-    return "passed" if row.get("passed") is True else "failed"
 
 
 def _validate_artifact(artifact: Any) -> list[str]:
@@ -218,7 +241,7 @@ def _retryable_rows(
         resolved = _resolve_policy(policy, dataset, evaluator, split)
         if not (_is_gating(resolved) and _policy_error(resolved) is None):
             continue
-        state = _row_state(row)
+        state = row_state(row)
         if state == "failed" or (state == "infra" and row.get("task_error")):
             retryable.append(row)
     return retryable
@@ -255,7 +278,7 @@ def _infra_evidence(rows: Iterable[Mapping[str, Any]]) -> list[Evidence]:
     evidence: list[Evidence] = []
     seen: set[tuple[str, str, str, str]] = set()
     for row in rows:
-        if _row_state(row) != "infra":
+        if row_state(row) != "infra":
             continue
         # Task errors repeat once per evaluator. One entry per example/error is
         # enough; evaluator errors remain evaluator-specific.
@@ -303,7 +326,7 @@ def _evaluate_cells(
             invalid.append(f"{where}: {policy_error}")
             continue
         assert resolved is not None
-        states = [_row_state(row) for row in cell_rows]
+        states = [row_state(row) for row in cell_rows]
         assessed = sum(state != "infra" for state in states)
         infra = sum(state == "infra" for state in states)
         passed = sum(state == "passed" for state in states)
@@ -320,9 +343,26 @@ def _evaluate_cells(
             "failed": assessed - passed,
             "pass_rate": pass_rate,
             "min_pass_rate": resolved.get("min_pass_rate"),
+            "breached": False,
         }
         cells_out.append(cell)
         if not gating:
+            continue
+        # An evaluator that *raised* is not per-example infrastructure noise the
+        # way a task error is -- it's a defect in the scoring apparatus itself,
+        # and (unlike a task error) it is deliberately not retried. We cannot
+        # measure a trustworthy pass rate for a cell whose scoring code blew up,
+        # so fail closed rather than letting the surviving rows carry the cell to
+        # a green PASSED. Bystander evaluator errors surfaced during a *retry*
+        # never reach here: reconciliation records them as evidence only and
+        # keeps them out of ``rows``.
+        evaluator_errors = [row for row in cell_rows if row.get("evaluator_error")]
+        if evaluator_errors:
+            for row in evaluator_errors:
+                invalid.append(
+                    f"{where}: evaluator error on example {row.get('example_id')!r}: "
+                    f"{row.get('evaluator_error')} (scoring unreliable, not an agent regression)"
+                )
             continue
         if assessed == 0:
             pending_retry = any(_row_key(row) in retryable_keys for row in cell_rows)
@@ -331,6 +371,7 @@ def _evaluate_cells(
             continue
         minimum = float(resolved["min_pass_rate"])
         if pass_rate < minimum:
+            cell["breached"] = True
             breaches.append(
                 f"{where}: pass_rate {pass_rate:.3f} < {minimum:g} "
                 f"({passed}/{assessed}; {infra} infra excluded)"
@@ -407,20 +448,56 @@ def decide(
         # retryable_keys is empty here, so initial_cells/initial_breaches above
         # already reflect a strict (no-deferral) evaluation -- this is the
         # final verdict, gated on attempt 1 alone.
-        label = "TOO MANY FAILURES TO CONFIRM" if initial_breaches else "PASSED"
+        skipped_task_errors = [row for row in all_retryable if row.get("task_error")]
+        if initial_breaches:
+            # Enough examples missed a gating threshold on attempt 1 that
+            # confirming each individually is pointless -- this is a real, if
+            # unconfirmed-per-example, failure.
+            return Decision(
+                "TOO MANY FAILURES TO CONFIRM",
+                EXIT_BREACH,
+                kind="too_many_failures",
+                retry_nodeids=(),
+                infra=_infra_evidence(first_rows),
+                cells=initial_cells,
+                errors=[retry_skip_reason, *initial_breaches],
+            )
+        if skipped_task_errors:
+            # No cell breached, but the cap was tripped with unresolved task
+            # errors we deliberately did not retry. Those examples never
+            # produced an assessable result, so a surviving passing row must not
+            # carry the run to a green PASSED -- we cannot stand behind a pass we
+            # never measured. This is mass infrastructure failure, not a pass and
+            # not a regression.
+            return Decision(
+                "UNMEASURABLE",
+                EXIT_INVALID,
+                kind="unmeasurable",
+                retry_nodeids=(),
+                infra=_infra_evidence(first_rows),
+                cells=initial_cells,
+                errors=[
+                    retry_skip_reason,
+                    f"{len(skipped_task_errors)} example(s) left as unresolved task errors "
+                    "above the retry cap; most of the run was never assessed, so the result "
+                    "is unmeasurable rather than a pass",
+                ],
+            )
         return Decision(
-            label,
-            EXIT_BREACH if initial_breaches else EXIT_OK,
+            "PASSED",
+            EXIT_OK,
+            kind="pass",
             retry_nodeids=(),
             infra=_infra_evidence(first_rows),
             cells=initial_cells,
-            errors=[retry_skip_reason, *initial_breaches],
+            errors=[retry_skip_reason],
         )
 
     if planning and retry_nodeids:
         return Decision(
             "RETRY REQUIRED",
             EXIT_OK,
+            kind="retry_required",
             retry_nodeids=retry_nodeids,
             infra=_infra_evidence(first_rows),
             cells=initial_cells,
@@ -432,6 +509,7 @@ def decide(
             return Decision(
                 "UNMEASURABLE",
                 EXIT_INVALID,
+                kind="unmeasurable",
                 retry_nodeids=retry_nodeids,
                 infra=_infra_evidence(first_rows),
                 cells=cells,
@@ -440,6 +518,7 @@ def decide(
         return Decision(
             "REGRESSION" if breaches else "PASSED",
             EXIT_BREACH if breaches else EXIT_OK,
+            kind="regression" if breaches else "pass",
             retry_nodeids=retry_nodeids,
             infra=_infra_evidence(first_rows),
             cells=cells,
@@ -453,6 +532,7 @@ def decide(
         return Decision(
             "UNMEASURABLE",
             EXIT_INVALID,
+            kind="unmeasurable",
             retry_nodeids=retry_nodeids,
             infra=_infra_evidence([*first_rows, *_artifact_rows(retry)]),
             cells=initial_cells,
@@ -482,7 +562,7 @@ def decide(
     infra.extend(
         Evidence("infra", row, reason=_unassessed_reason(row))
         for row in retry_rows
-        if _row_state(row) == "infra" and _row_key(row) not in retryable_keys
+        if row_state(row) == "infra" and _row_key(row) not in retryable_keys
     )
     for first in first_rows:
         key = _row_key(first)
@@ -501,13 +581,38 @@ def decide(
             item = Evidence("infra", first, reason="missing retry row")
             infra.append(item)
             continue
-        state = _row_state(second)
-        effective_rows.append(second)
+        state = row_state(second)
         if state == "passed":
+            effective_rows.append(second)
             flaky.append(Evidence("flaky", first, retry=second))
-        elif state == "failed":
+        elif state == "failed" and row_state(first) == "failed":
+            # A clean miss on BOTH attempts -- the reproduced regression the
+            # gate exists to catch.
+            effective_rows.append(second)
             confirmed.append(Evidence("confirmed", first, retry=second))
+        elif state == "failed":
+            # Attempt 1 was a task error (no behavioral signal), so the retry
+            # miss is the only assessable read of this example. One miss is not
+            # the "same miss twice" the confirm-on-retry contract requires, and
+            # we have already spent our one retry -- so we cannot confirm it.
+            # Record it as unassessable (never a confirmed regression) rather
+            # than reddening the gate on a single, unreproduced miss. It lands
+            # in ``effective_rows`` as infra (score cleared), so a cell whose
+            # only row this is becomes zero-assessable -> unmeasurable.
+            effective_rows.append({**second, "score": None, "passed": False})
+            infra.append(
+                Evidence(
+                    "infra",
+                    first,
+                    retry=second,
+                    reason=(
+                        "task error on attempt 1, single miss on retry -- cannot confirm a "
+                        "regression from one assessable attempt"
+                    ),
+                )
+            )
         else:
+            effective_rows.append(second)
             if first.get("task_error") and second.get("task_error"):
                 reason = f"recurring task error: {second['task_error']}"
             else:
@@ -519,6 +624,7 @@ def decide(
         return Decision(
             "UNMEASURABLE",
             EXIT_INVALID,
+            kind="unmeasurable",
             retry_nodeids=retry_nodeids,
             confirmed=confirmed,
             flaky=flaky,
@@ -530,6 +636,7 @@ def decide(
         return Decision(
             "CONFIRMED REGRESSION",
             EXIT_BREACH,
+            kind="regression",
             retry_nodeids=retry_nodeids,
             confirmed=confirmed,
             flaky=flaky,
@@ -537,10 +644,34 @@ def decide(
             cells=cells,
             errors=breaches,
         )
-    label = "FLAKY RECOVERY" if flaky else "PASSED"
+    if confirmed:
+        # Misses reproduced on both attempts but every gating cell stayed at or
+        # above its threshold, so no breach fired. This is still a pass under the
+        # current policy, but it is NOT a clean one: surfacing it distinctly (not
+        # a bare "PASSED") keeps a reproduced miss that a sub-1.0 override happens
+        # to tolerate from disappearing behind a green headline. The thresholds
+        # themselves are ratcheted toward 1.0 in the corpus/policy stage, not
+        # here.
+        confirmed_notes = [
+            f"confirmed miss within tolerated threshold: {item.first.get('dataset')} / "
+            f"{item.first.get('evaluator')} / {item.first.get('example_id')}"
+            for item in confirmed
+        ]
+        return Decision(
+            "PASSED WITH TOLERATED MISSES",
+            EXIT_OK,
+            kind="tolerated",
+            retry_nodeids=retry_nodeids,
+            confirmed=confirmed,
+            flaky=flaky,
+            infra=infra,
+            cells=cells,
+            errors=confirmed_notes,
+        )
     return Decision(
-        label,
+        "FLAKY RECOVERY" if flaky else "PASSED",
         EXIT_OK,
+        kind="flaky" if flaky else "pass",
         retry_nodeids=retry_nodeids,
         confirmed=confirmed,
         flaky=flaky,
@@ -622,7 +753,7 @@ def render_digest(
         f"**Result: {decision.label} (exit {decision.exit_code})**",
         "",
         f"Confirmed evaluator misses: {len(decision.confirmed)}; "
-        f"flaky recoveries: {len(decision.flaky)}; not-assessable examples: {len(decision.infra)}.",
+        f"flaky recoveries: {len(decision.flaky)}; unassessed examples: {len(decision.infra)}.",
     ]
     if decision.errors:
         lines.extend(["", "## Decision details", ""])
@@ -647,7 +778,7 @@ def render_digest(
     sections = (
         ("Confirmed regressions", decision.confirmed),
         ("Flaky recoveries", decision.flaky),
-        ("Not assessable", decision.infra),
+        ("Unassessed", decision.infra),
     )
     for title, evidence in sections:
         if not evidence:
@@ -684,13 +815,26 @@ def _read_artifact(path: Path) -> tuple[dict[str, Any] | None, str | None]:
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Decide the two-attempt PXI behavioral gate.")
     parser.add_argument("artifact", type=Path, help="Initial pxi-eval-results.json")
-    parser.add_argument("--retry-artifact", type=Path, help="Targeted retry results artifact")
-    parser.add_argument(
+    # Planning (--retry-nodeids-out) and reconciliation (--retry-artifact) are
+    # the two mutually exclusive phases of the two-attempt flow. Passing both
+    # would silently run planning and ignore the retry artifact, so a reproduced
+    # miss could exit 0 -- make it an argparse error instead of a footgun.
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--retry-artifact", type=Path, help="Targeted retry results artifact")
+    mode.add_argument(
         "--retry-nodeids-out",
         type=Path,
         help="Planning mode: write failed gating pytest node IDs, one per line",
     )
     parser.add_argument("--report-out", type=Path, help="Also write the Markdown digest here")
+    parser.add_argument(
+        "--decision-out",
+        type=Path,
+        help=(
+            "Write the structured decision as JSON here (kind, label, exit_code, "
+            "retry_nodeids, counts) for machine consumers"
+        ),
+    )
     parser.add_argument(
         "--thresholds",
         type=Path,
@@ -722,13 +866,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if initial_read_error or retry_read_error:
         errors = [error for error in (initial_read_error, retry_read_error) if error]
-        decision = Decision("UNMEASURABLE", EXIT_INVALID, errors=errors)
+        decision = Decision("UNMEASURABLE", EXIT_INVALID, kind="unmeasurable", errors=errors)
     else:
         assert initial is not None
         try:
             policy = _load_policy(args.thresholds)
         except (OSError, ValueError, yaml.YAMLError) as exc:
-            decision = Decision("UNMEASURABLE", EXIT_INVALID, errors=[str(exc)])
+            decision = Decision(
+                "UNMEASURABLE", EXIT_INVALID, kind="unmeasurable", errors=[str(exc)]
+            )
         else:
             decision = decide(
                 initial,
@@ -741,6 +887,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.retry_nodeids_out is not None and decision.exit_code != EXIT_INVALID:
         payload = "".join(f"{nodeid}\n" for nodeid in decision.retry_nodeids)
         args.retry_nodeids_out.write_text(payload)
+
+    if args.decision_out is not None:
+        args.decision_out.parent.mkdir(parents=True, exist_ok=True)
+        args.decision_out.write_text(json.dumps(decision.to_summary(), indent=2) + "\n")
 
     digest = render_digest(decision, initial, retry)
     print(digest, end="", file=sys.stderr if decision.exit_code else sys.stdout)

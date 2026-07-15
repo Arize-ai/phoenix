@@ -12,7 +12,6 @@ on the xdist controller. It never decides pass/fail and never touches
 from __future__ import annotations
 
 import json
-import math
 import os
 from pathlib import Path
 from typing import Any, AsyncIterator
@@ -20,11 +19,11 @@ from typing import Any, AsyncIterator
 import pytest_asyncio
 
 from evals.pxi.harness.agent_task import build_shared_docs_mcp_server
+from evals.pxi.rowstate import SCHEMA_VERSION, row_state
 from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPrivateUsage]
 
 RESULTS_PATH_ENV = "PXI_EVAL_RESULTS_PATH"
 DEFAULT_RESULTS_PATH = "pxi-eval-results.json"
-SCHEMA_VERSION = 4
 RECORD_PROPERTY_KEY = "pxi_eval"
 
 # Per-process buffers. Under xdist the controller's ``pytest_runtest_logreport``
@@ -132,18 +131,14 @@ def _empty_tally() -> dict[str, int]:
 
 def _add_row(tally: dict[str, int], row: dict[str, Any]) -> None:
     tally["rows"] += 1
-    score = row.get("score")
-    if (
-        row.get("task_error")
-        or row.get("evaluator_error")
-        or isinstance(score, bool)
-        or not isinstance(score, (int, float))
-        or not math.isfinite(float(score))
-    ):
+    # Classify via the shared rule so the uploaded aggregates and the CI gate
+    # can never disagree about what counts as infra vs. an assessed verdict.
+    state = row_state(row)
+    if state == "infra":
         tally["infra"] += 1
         return
     tally["assessed"] += 1
-    if row.get("passed") is True:
+    if state == "passed":
         tally["passed"] += 1
 
 

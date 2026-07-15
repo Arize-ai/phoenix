@@ -140,7 +140,15 @@ async def test_pxi_eval(
                     input=case.input,
                 )
                 details = _result_details(eval_result)
-            except Exception as exc:  # evaluator failure is unassessable infrastructure
+            except Exception as exc:
+                # A code evaluator raising is a defect in the scoring apparatus,
+                # not a per-example agent result. Record it as an evaluator_error
+                # row instead of letting the exception abort the item: that keeps
+                # the crash visible as evidence AND lets the other evaluators on
+                # this example still run. It is NOT silently excluded -- gate.py
+                # fails the whole gating cell closed (unmeasurable, exit 2) on any
+                # evaluator_error, so a broken evaluator can never be masked into a
+                # green PASSED by other examples that happened to pass.
                 evaluator_error = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
             score = details["score"]
             # Same passing rule reporting.py applies to Phoenix annotations, so
