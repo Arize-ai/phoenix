@@ -97,6 +97,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
+    MINIMAX_MODEL_NAMES,
     GenerativeProviderKey,
 )
 from phoenix.utilities.json import jsonify
@@ -1357,8 +1358,7 @@ class MoonshotStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.MINIMAX,
     model_names=[
         PROVIDER_DEFAULT,
-        "MiniMax-M3",
-        "MiniMax-M2.7",
+        *MINIMAX_MODEL_NAMES,
     ],
 )
 class MiniMaxStreamingClient(OpenAIBaseStreamingClient):
