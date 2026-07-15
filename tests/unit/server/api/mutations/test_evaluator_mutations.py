@@ -3088,6 +3088,149 @@ class TestDeleteDatasetEvaluators:
             deleted_project = await session.get(models.Project, project_id)
             assert deleted_project is None
 
+    async def test_delete_collects_project_cascade_evaluators_before_gc(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        sandbox_config: models.SandboxConfig,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+            assert builtin_evaluator_id is not None
+
+            owned_project = models.Project(
+                name=f"cascade-owned-project-{token_hex(4)}",
+                description="Project owned by a dataset evaluator",
+            )
+            survivor_project = models.Project(
+                name=f"cascade-survivor-project-{token_hex(4)}",
+                description="Project that keeps a shared evaluator alive",
+            )
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=empty_dataset.id,
+                evaluator_id=builtin_evaluator_id,
+                name=IdentifierModel.model_validate(f"cascade-owner-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=owned_project,
+            )
+            session.add_all([dataset_evaluator, survivor_project])
+            await session.flush()
+
+            dedicated_code = models.CodeEvaluator(
+                name=IdentifierModel.model_validate(f"cascade-code-{token_hex(4)}"),
+                description="Dedicated CODE evaluator",
+                metadata_={},
+                language=sandbox_config.language,
+                sandbox_config_id=sandbox_config.id,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                versions=[
+                    models.CodeEvaluatorVersion(
+                        source_code="def evaluate(output):\n    return {'score': 1.0}"
+                    )
+                ],
+            )
+            dedicated_prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"cascade-prompt-{token_hex(4)}"),
+                description="Prompt owned by the dedicated LLM evaluator",
+                metadata_={},
+            )
+            dedicated_llm = models.LLMEvaluator(
+                name=IdentifierModel.model_validate(f"cascade-llm-{token_hex(4)}"),
+                description="Dedicated LLM evaluator",
+                metadata_={},
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
+                prompt=dedicated_prompt,
+            )
+            shared_code = models.CodeEvaluator(
+                name=IdentifierModel.model_validate(f"cascade-shared-{token_hex(4)}"),
+                description="CODE evaluator shared across projects",
+                metadata_={},
+                language=sandbox_config.language,
+                sandbox_config_id=sandbox_config.id,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+            )
+            session.add_all([dedicated_code, dedicated_llm, shared_code])
+            await session.flush()
+
+            owned_criteria = [
+                models.ProjectEvaluatorCriteria(
+                    project_id=owned_project.id,
+                    evaluator_id=evaluator.id,
+                    name=IdentifierModel.model_validate(name),
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    evaluation_target="SPAN",
+                    input_mapping=None,
+                    enabled=True,
+                )
+                for evaluator, name in (
+                    (dedicated_code, "dedicated-code"),
+                    (dedicated_llm, "dedicated-llm"),
+                    (shared_code, "shared-code-owned-project"),
+                )
+            ]
+            survivor_criteria = models.ProjectEvaluatorCriteria(
+                project_id=survivor_project.id,
+                evaluator_id=shared_code.id,
+                name=IdentifierModel.model_validate("shared-code-survivor-project"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+                input_mapping=None,
+                enabled=True,
+            )
+            session.add_all([*owned_criteria, survivor_criteria])
+            await session.flush()
+
+            dataset_evaluator_id = dataset_evaluator.id
+            dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
+            owned_project_id = owned_project.id
+            survivor_project_id = survivor_project.id
+            owned_criteria_ids = [criteria.id for criteria in owned_criteria]
+            survivor_criteria_id = survivor_criteria.id
+            dedicated_code_id = dedicated_code.id
+            dedicated_llm_id = dedicated_llm.id
+            dedicated_prompt_id = dedicated_prompt.id
+            shared_code_id = shared_code.id
+
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [dataset_evaluator_gid]}},
+        )
+
+        assert result.data and not result.errors
+        assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == [
+            dataset_evaluator_gid
+        ]
+        async with db() as session:
+            assert await session.get(models.DatasetEvaluators, dataset_evaluator_id) is None
+            assert await session.get(models.Project, owned_project_id) is None
+            for criteria_id in owned_criteria_ids:
+                assert await session.get(models.ProjectEvaluatorCriteria, criteria_id) is None
+            assert await session.get(models.Evaluator, dedicated_code_id) is None
+            assert await session.get(models.Evaluator, dedicated_llm_id) is None
+            assert await session.get(models.Prompt, dedicated_prompt_id) is None
+
+            assert await session.get(models.Project, survivor_project_id) is not None
+            assert (
+                await session.get(models.ProjectEvaluatorCriteria, survivor_criteria_id) is not None
+            )
+            assert await session.get(models.CodeEvaluator, shared_code_id) is not None
+
     async def test_delete_multiple_evaluators_mixed(
         self,
         db: DbSessionFactory,

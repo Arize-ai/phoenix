@@ -237,6 +237,7 @@ class _LLMEvaluatorPromptErrorMessage:
         "Number of prompt tool definitions must match number of output configs"
     )
     TOOL_CHOICE_REQUIRED = "Evaluator prompts must require a tool choice"
+    FUNCTION_TOOLS_REQUIRED = "Evaluator prompts require function tools"
     TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME = (
         "Evaluator tool choice specific function name must match defined function name"
     )
