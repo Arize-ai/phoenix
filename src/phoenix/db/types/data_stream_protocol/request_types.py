@@ -1,3 +1,7 @@
+# Vendored from pydantic-ai v2.9.0: https://github.com/pydantic/pydantic-ai
+# Copyright (c) Pydantic Services Inc. 2024 to present
+# SPDX-License-Identifier: MIT
+
 """Vercel AI request types (UI messages).
 
 Converted to Python from:
