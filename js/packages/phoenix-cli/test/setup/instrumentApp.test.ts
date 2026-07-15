@@ -1,6 +1,7 @@
 /**
  * Instrumentation hand-off tests: the `--agent` lane (probe, launch spec, run
- * mode) and the interactive lane prompt (agent / clipboard / manual).
+ * mode), the interactive lane prompt (agent / clipboard / manual), and the
+ * docs decision that now follows the lane choice (MCP offer vs prefetch).
  */
 
 import { describe, expect, it } from "vitest";
@@ -22,6 +23,19 @@ const CONNECTION: Connection = {
 
 const INTERACTIVE = { background: false, bypassPermissions: false };
 const BACKGROUND_BYPASS = { background: true, bypassPermissions: true };
+
+/**
+ * The docs-neutral baseline: prefetch disabled and the MCP offer declined by
+ * flag, so lane-focused tests stay lane-focused.
+ */
+const NO_DOCS = {
+  authEnabled: false,
+  languages: [],
+  headless: false,
+  isGitRepository: false,
+  docs: { enabled: false },
+  docsMcp: false,
+} as const;
 
 function detected(...ids: Array<CodingAgent["id"]>): Promise<CodingAgent[]> {
   return Promise.resolve(
@@ -59,10 +73,11 @@ describe("instrumentApp with --agent", () => {
       },
     });
 
-    const lane = await instrumentApp(
+    const { lane } = await instrumentApp(
       deps,
       { ...CONNECTION, apiKey: "sk-test" },
       {
+        ...NO_DOCS,
         authEnabled: true,
         agentDetection: detected(),
         agent: "codex",
@@ -99,11 +114,10 @@ describe("instrumentApp with --agent", () => {
       },
     });
 
-    const lane = await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
+    const { lane } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
       agentDetection: detected(),
       agent: "claude",
-      languages: [],
       mode: BACKGROUND_BYPASS,
     });
 
@@ -123,10 +137,9 @@ describe("instrumentApp with --agent", () => {
     });
 
     await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
+      ...NO_DOCS,
       agentDetection: detected(),
       agent: "claude",
-      languages: [],
       mode: { background: true, bypassPermissions: false },
     });
 
@@ -143,10 +156,9 @@ describe("instrumentApp with --agent", () => {
     });
 
     await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
+      ...NO_DOCS,
       agentDetection: detected(),
       agent: "claude",
-      languages: [],
       mode: INTERACTIVE,
     });
 
@@ -169,10 +181,9 @@ describe("instrumentApp with --agent", () => {
 
     await expect(
       instrumentApp(deps, CONNECTION, {
-        authEnabled: false,
+        ...NO_DOCS,
         agentDetection: detected("claude"),
         agent: "opencode",
-        languages: [],
         mode: BACKGROUND_BYPASS,
       })
     ).rejects.toThrow(SetupFatalError);
@@ -186,11 +197,10 @@ describe("instrumentApp with --agent", () => {
     });
     await expect(
       instrumentApp(deps, CONNECTION, {
-        authEnabled: false,
+        ...NO_DOCS,
         agentDetection: detected(),
         // The command layer validates ids; the step defends the same contract.
         agent: "aider" as never,
-        languages: [],
         mode: BACKGROUND_BYPASS,
       })
     ).rejects.toThrow(SetupFatalError);
@@ -198,8 +208,8 @@ describe("instrumentApp with --agent", () => {
 });
 
 describe("instrumentApp lane prompt", () => {
-  it("offers the detected agents and launches the chosen one", async () => {
-    const prompter = scriptedPrompter(["agent:claude"]);
+  it("offers the detected agents, then the docs MCP for the chosen one", async () => {
+    const prompter = scriptedPrompter(["agent:claude", false]);
     const launched: CommandSpec[] = [];
     const deps = buildFakeDeps({
       context: { cwd: "/repo" },
@@ -212,17 +222,20 @@ describe("instrumentApp lane prompt", () => {
       },
     });
 
-    const lane = await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
+    const { lane, docsMcp } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
+      docsMcp: undefined,
       agentDetection: detected("claude", "cursor"),
-      languages: [],
       mode: INTERACTIVE,
     });
 
     expect(lane).toEqual({ kind: "agent", agent: "claude", exitCode: 0 });
-    expect(prompter.transcript).toEqual([
-      "How do you want to instrument this app?",
-    ]);
+    expect(docsMcp?.outcome).toBe("declined");
+    // The MCP offer comes after the lane choice — it targets the chosen agent.
+    expect(prompter.transcript[0]).toBe(
+      "How do you want to instrument this app?"
+    );
+    expect(prompter.transcript[1]).toContain("docs MCP server to Claude Code");
     expect(launched[0]?.command).toBe("claude");
     // Interactive: the agent keeps the terminal, no -p.
     expect(launched[0]?.args).toHaveLength(1);
@@ -239,10 +252,12 @@ describe("instrumentApp lane prompt", () => {
       },
     });
 
-    const lane = await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
+    const { lane } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
+      // The clipboard lane has no known agent, so the MCP question never
+      // appears even when nothing suppressed it.
+      docsMcp: undefined,
       agentDetection: detected(),
-      languages: [],
       mode: INTERACTIVE,
     });
 
@@ -263,10 +278,9 @@ describe("instrumentApp lane prompt", () => {
       writeClipboard: async () => false,
     });
 
-    const lane = await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
+    const { lane } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
       agentDetection: detected(),
-      languages: [],
       mode: INTERACTIVE,
     });
 
@@ -282,10 +296,9 @@ describe("instrumentApp lane prompt", () => {
     const prompter = scriptedPrompter(["manual", true]);
     const deps = buildFakeDeps({ prompter });
 
-    const lane = await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
+    const { lane } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
       agentDetection: detected(),
-      languages: [],
       mode: INTERACTIVE,
     });
 
@@ -294,7 +307,9 @@ describe("instrumentApp lane prompt", () => {
       "Follow the tracing quickstart: https://arize.com/docs/phoenix/quickstart"
     );
   });
+});
 
+describe("instrumentApp docs decision", () => {
   it("tells the agent where the prefetched docs landed", async () => {
     const prompter = scriptedPrompter(["clipboard", true]);
     const copied: string[] = [];
@@ -304,22 +319,23 @@ describe("instrumentApp lane prompt", () => {
         copied.push(text);
         return true;
       },
-    });
-
-    await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
-      agentDetection: detected(),
-      languages: [],
-      mode: INTERACTIVE,
-      docs: {
+      fetchDocs: async () => ({
         outputDir: ".px/docs",
         workflows: ["tracing"],
         written: 3,
         failed: 0,
         hasPagesOnDisk: true,
-      },
+      }),
     });
 
+    const { docs } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
+      docs: { enabled: true },
+      agentDetection: detected(),
+      mode: INTERACTIVE,
+    });
+
+    expect(docs?.written).toBe(3);
     expect(copied[0]).toContain(".px/docs");
   });
 
@@ -332,24 +348,138 @@ describe("instrumentApp lane prompt", () => {
         copied.push(text);
         return true;
       },
-    });
-
-    await instrumentApp(deps, CONNECTION, {
-      authEnabled: false,
-      agentDetection: detected(),
-      languages: [],
-      mode: INTERACTIVE,
       // Every page failed and nothing was there from a previous run — sending
       // the agent to read an empty directory would be worse than the web.
-      docs: {
+      fetchDocs: async () => ({
         outputDir: ".px/docs",
         workflows: ["tracing"],
         written: 0,
         failed: 12,
         hasPagesOnDisk: false,
-      },
+      }),
+    });
+
+    await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
+      docs: { enabled: true },
+      agentDetection: detected(),
+      mode: INTERACTIVE,
     });
 
     expect(copied[0]).not.toContain(".px/docs");
+  });
+
+  it("a connected docs MCP replaces the prefetch and steers the prompt", async () => {
+    const prompter = scriptedPrompter([]);
+    const launched: CommandSpec[] = [];
+    let docsFetched = false;
+    const deps = buildFakeDeps({
+      prompter,
+      fetchDocs: async () => {
+        docsFetched = true;
+        throw new Error("prefetch must not run when the MCP is connected");
+      },
+      processes: {
+        exec: binariesOnPath("claude"),
+        spawnInteractive: async (spec) => {
+          launched.push(spec);
+          return { exitCode: 0 };
+        },
+      },
+    });
+
+    const { docs, docsMcp } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
+      docs: { enabled: true },
+      docsMcp: true,
+      agentDetection: detected(),
+      agent: "claude",
+      headless: true,
+      mode: BACKGROUND_BYPASS,
+    });
+
+    expect(docsFetched).toBe(false);
+    expect(docs).toBeUndefined();
+    expect(docsMcp).toEqual({
+      outcome: "configured",
+      agents: ["claude"],
+      files: [],
+    });
+    const prompt = launched[0]?.args.at(-1);
+    expect(prompt).toContain('"phoenix-docs" MCP server');
+    expect(prompt).not.toContain(".px/docs");
+  });
+
+  it("survives an MCP install path that throws and falls back to the prefetch", async () => {
+    const prompter = scriptedPrompter([]);
+    const launched: CommandSpec[] = [];
+    const deps = buildFakeDeps({
+      prompter,
+      fetchDocs: async () => ({
+        outputDir: ".px/docs",
+        workflows: ["tracing"],
+        written: 3,
+        failed: 0,
+        hasPagesOnDisk: true,
+      }),
+      processes: {
+        // The exec seam contractually never throws — this simulates exactly
+        // the kind of drift the guard exists for.
+        exec: async (spec) => {
+          if (spec.args[0] === "mcp") {
+            throw new Error("mcp subcommand went away");
+          }
+          return { exitCode: 0, stdout: "1.0.0\n", stderr: "" };
+        },
+        spawnInteractive: async (spec) => {
+          launched.push(spec);
+          return { exitCode: 0 };
+        },
+      },
+    });
+
+    const { lane, docs, docsMcp } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
+      docs: { enabled: true },
+      docsMcp: true,
+      agentDetection: detected(),
+      agent: "claude",
+      headless: true,
+      mode: BACKGROUND_BYPASS,
+    });
+
+    // Setup carried on: the failure was reported, the docs downloaded, and
+    // the agent still launched with the local pages.
+    expect(docsMcp?.outcome).toBe("failed");
+    expect(docs?.written).toBe(3);
+    expect(lane).toEqual({ kind: "agent", agent: "claude", exitCode: 0 });
+    expect(launched[0]?.args.at(-1)).toContain(".px/docs");
+    expect(
+      prompter.output.some((message) =>
+        message.includes("downloading the docs instead")
+      )
+    ).toBe(true);
+  });
+
+  it("says so when an explicit --docs-mcp meets a lane with no agent", async () => {
+    const prompter = scriptedPrompter(["clipboard", true]);
+    const deps = buildFakeDeps({
+      prompter,
+      writeClipboard: async () => true,
+    });
+
+    const { docsMcp } = await instrumentApp(deps, CONNECTION, {
+      ...NO_DOCS,
+      docsMcp: true,
+      agentDetection: detected(),
+      mode: INTERACTIVE,
+    });
+
+    // The flag can't be honored — there is no agent to configure — but it
+    // must not be dropped silently.
+    expect(docsMcp).toBeUndefined();
+    expect(
+      prompter.output.some((message) => message.includes("no coding agent"))
+    ).toBe(true);
   });
 });

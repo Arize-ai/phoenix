@@ -128,6 +128,16 @@ interface SetupCommandOptions {
    */
   docs?: boolean;
   /**
+   * `--docs-mcp` / `--no-docs-mcp`: Connect the Phoenix docs MCP server to the
+   * coding agent taking the hand-off (via the agent's own `mcp` subcommand
+   * when it has one, else its per-project config file); when taken, the docs
+   * prefetch is skipped — the agent searches the docs on demand instead.
+   * Undefined leaves it as an interactive prompt (headless runs then skip it).
+   *
+   * @example true // px setup --no-input --instrument --agent claude --docs-mcp --yolo
+   */
+  docsMcp?: boolean;
+  /**
    * `--workflow <name>`: Docs workflow to prefetch, repeatable. Same values as
    * `px docs fetch`; defaults to that command's defaults.
    *
@@ -217,6 +227,7 @@ function toSetupOptions(options: SetupCommandOptions): SetupOptions {
       refresh: options.refreshDocs,
       workers: options.workers,
     },
+    docsMcp: options.docsMcp,
   };
 }
 
@@ -362,6 +373,11 @@ function addInstrumentationOptions(command: Command): Command {
     )
     .option("--no-docs", "Skip the docs prefetch")
     .option(
+      "--docs-mcp",
+      "Connect the Phoenix docs MCP server to the hand-off agent (skips the docs prefetch)"
+    )
+    .option("--no-docs-mcp", "Skip the docs MCP offer")
+    .option(
       "--workflow <name>",
       "Docs workflow to prefetch (repeatable); same values as px docs fetch",
       collectString,
@@ -451,6 +467,7 @@ Examples:
   px setup --endpoint https://phoenix.example.com
   px setup --no-input --endpoint http://localhost:6006 --project my-app
   px setup --no-input --instrument --agent claude --yolo --format raw
+  px setup --no-input --instrument --agent claude --yolo --docs-mcp --format raw
 
 Subcommands:
   px setup instrument   Instrument and verify, without redoing the questions
