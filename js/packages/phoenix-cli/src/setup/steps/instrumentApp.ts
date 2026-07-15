@@ -7,6 +7,12 @@
  * lanes converge on the trace-verification step — setup's definition of
  * done is API-verified data flow, not agent self-report.
  *
+ * The lane is resolved before anything docs-related happens: the docs MCP
+ * offer targets exactly the agent being launched, and taking it replaces the
+ * `.px/docs` download outright — the agent searches the docs server on demand
+ * instead of reading prefetched pages. The clipboard and manual lanes have no
+ * known agent to configure, so they keep the prefetch.
+ *
  * `--agent` pre-answers the lane, which is what makes an unattended run
  * possible: with no TTY there is no prompt to pick a lane from, and the agent
  * runs in background mode (no TUI to hand the terminal to).
@@ -21,10 +27,17 @@ import {
   type CodingAgentId,
 } from "../agents/registry";
 import * as COPY from "../copy";
-import type { DocsPrefetchResult, SelectOption, SetupDeps } from "../deps";
+import type {
+  DocsPrefetchOptions,
+  DocsPrefetchResult,
+  SelectOption,
+  SetupDeps,
+} from "../deps";
 import { SetupFatalError } from "../errors";
 import { buildInstrumentationPrompt } from "../prompts/instrumentationPrompt";
 import type { Connection } from "./establishConnection";
+import { offerDocsMcp, type DocsMcpResult } from "./offerDocsMcp";
+import { prefetchDocs } from "./prefetchDocs";
 import { tracesUrl } from "./verifyTraces";
 
 const DEFAULT_LOCAL_ENDPOINT = "http://localhost:6006";
@@ -42,8 +55,13 @@ export interface InstrumentAppArgs {
   languages: string[];
   /** How to run the agent — see {@link AgentRunMode}. */
   mode: AgentRunMode;
-  /** Where the prefetched docs landed, when the docs step ran. */
-  docs?: DocsPrefetchResult;
+  /** Docs prefetch options; the download runs unless the MCP replaces it. */
+  docs: DocsPrefetchOptions;
+  /** `--docs-mcp` / `--no-docs-mcp`; undefined means ask (when we can). */
+  docsMcp?: boolean;
+  headless: boolean;
+  /** Gates the prefetch's .gitignore append, as in the docs step itself. */
+  isGitRepository: boolean;
 }
 
 /** Which lane instrumentation actually took — reported in the summary. */
@@ -52,15 +70,98 @@ export type InstrumentationLane =
   | { kind: "clipboard" }
   | { kind: "manual" };
 
+export interface InstrumentAppResult {
+  lane: InstrumentationLane;
+  /** The docs download, when it ran (the MCP taking its place omits it). */
+  docs?: DocsPrefetchResult;
+  /** The docs MCP offer, when a launched agent was there to make it to. */
+  docsMcp?: DocsMcpResult;
+}
+
 export async function instrumentApp(
   deps: Pick<
     SetupDeps,
-    "context" | "processes" | "prompter" | "writeClipboard"
+    "context" | "processes" | "prompter" | "writeClipboard" | "fetchDocs"
   >,
   connection: Connection,
   args: InstrumentAppArgs
-): Promise<InstrumentationLane> {
+): Promise<InstrumentAppResult> {
   const { authEnabled, agentDetection, languages, mode } = args;
+
+  // Resolve the lane before the docs steps: the MCP offer needs to know which
+  // agent is doing the work, and only then can "skip the download" be decided.
+  let chosenAgent: CodingAgent | undefined;
+  let fallbackLane: "clipboard" | "manual" = "manual";
+
+  if (args.agent) {
+    // `--agent` short-circuits the lane prompt. The binary is probed rather
+    // than taken from the detection sweep so a named-but-missing agent fails
+    // with "not on your PATH" instead of silently dropping to another lane.
+    const agent = getCodingAgent(args.agent);
+    if (!agent) {
+      throw new SetupFatalError(COPY.INSTRUMENTATION.unknownAgent(args.agent));
+    }
+    if (!(await probeBinary(deps, agent.binary))) {
+      throw new SetupFatalError(
+        COPY.INSTRUMENTATION.agentNotFound(agent.label, agent.binary)
+      );
+    }
+    chosenAgent = agent;
+  } else {
+    const detectedAgents = await agentDetection;
+    const options: Array<SelectOption<LaneChoice>> = [
+      ...detectedAgents.map(
+        (agent): SelectOption<LaneChoice> => ({
+          value: `agent:${agent.id}`,
+          label: COPY.INSTRUMENTATION.launchLabel(agent.label),
+          hint: COPY.INSTRUMENTATION.launchHint,
+        })
+      ),
+      {
+        value: "clipboard",
+        label: COPY.INSTRUMENTATION.clipboardLabel,
+        hint: COPY.INSTRUMENTATION.clipboardHint,
+      },
+      {
+        value: "manual",
+        label: COPY.INSTRUMENTATION.manualLabel,
+        hint: COPY.INSTRUMENTATION.manualHint,
+      },
+    ];
+    const choice = await deps.prompter.select<LaneChoice>({
+      message: COPY.INSTRUMENTATION.modeMessage,
+      options,
+    });
+    chosenAgent = detectedAgents.find(
+      (agent) => choice === `agent:${agent.id}`
+    );
+    fallbackLane = choice === "clipboard" ? "clipboard" : "manual";
+  }
+
+  // The offer is an optimization and never takes setup down with it — that
+  // contract lives inside offerDocsMcp, which reports any failure and returns
+  // "failed" instead of throwing. Only a user cancel unwinds.
+  let docsMcp: DocsMcpResult | undefined;
+  if (chosenAgent) {
+    docsMcp = await offerDocsMcp(deps, {
+      docsMcp: args.docsMcp,
+      agent: chosenAgent,
+      headless: args.headless,
+      docsEnabled: args.docs.enabled,
+    });
+  } else if (args.docsMcp === true) {
+    // An explicit --docs-mcp deserves a word when the lane can't honor it,
+    // same as a pinned agent with no MCP install path.
+    deps.prompter.line(COPY.DOCS_MCP.noAgentLane);
+  }
+  const docs =
+    docsMcp?.outcome === "configured"
+      ? undefined
+      : await prefetchDocs(deps, {
+          docs: args.docs,
+          isGitRepository: args.isGitRepository,
+        });
+
   const prompt = buildInstrumentationPrompt({
     projectName: connection.projectName,
     endpoint: connection.endpoint,
@@ -77,60 +178,24 @@ export async function instrumentApp(
     // Only advertise the local docs dir when it holds pages — an empty one
     // (docs site down, over-narrow workflow filter) would send the agent to
     // read a directory with nothing in it instead of the web.
-    ...(args.docs?.hasPagesOnDisk ? { localDocsDir: args.docs.outputDir } : {}),
+    ...(docs?.hasPagesOnDisk ? { localDocsDir: docs.outputDir } : {}),
+    ...(docsMcp?.outcome === "configured" ? { docsMcpConfigured: true } : {}),
   });
 
-  // `--agent` short-circuits the lane prompt. The binary is probed rather
-  // than taken from the detection sweep so a named-but-missing agent fails
-  // with "not on your PATH" instead of silently dropping to another lane.
-  if (args.agent) {
-    const agent = getCodingAgent(args.agent);
-    if (!agent) {
-      throw new SetupFatalError(COPY.INSTRUMENTATION.unknownAgent(args.agent));
-    }
-    if (!(await probeBinary(deps, agent.binary))) {
-      throw new SetupFatalError(
-        COPY.INSTRUMENTATION.agentNotFound(agent.label, agent.binary)
-      );
-    }
-    return launchAgent(deps, connection, { agent, prompt, mode });
-  }
-
-  const detectedAgents = await agentDetection;
-
-  const options: Array<SelectOption<LaneChoice>> = [
-    ...detectedAgents.map(
-      (agent): SelectOption<LaneChoice> => ({
-        value: `agent:${agent.id}`,
-        label: COPY.INSTRUMENTATION.launchLabel(agent.label),
-        hint: COPY.INSTRUMENTATION.launchHint,
-      })
-    ),
-    {
-      value: "clipboard",
-      label: COPY.INSTRUMENTATION.clipboardLabel,
-      hint: COPY.INSTRUMENTATION.clipboardHint,
-    },
-    {
-      value: "manual",
-      label: COPY.INSTRUMENTATION.manualLabel,
-      hint: COPY.INSTRUMENTATION.manualHint,
-    },
-  ];
-
-  const choice = await deps.prompter.select<LaneChoice>({
-    message: COPY.INSTRUMENTATION.modeMessage,
-    options,
-  });
-
-  const chosenAgent = detectedAgents.find(
-    (agent) => choice === `agent:${agent.id}`
-  );
   if (chosenAgent) {
-    return launchAgent(deps, connection, { agent: chosenAgent, prompt, mode });
+    const lane = await launchAgent(deps, connection, {
+      agent: chosenAgent,
+      prompt,
+      mode,
+    });
+    return {
+      lane,
+      ...(docs ? { docs } : {}),
+      ...(docsMcp ? { docsMcp } : {}),
+    };
   }
 
-  if (choice === "clipboard") {
+  if (fallbackLane === "clipboard") {
     const copied = await deps.writeClipboard(prompt);
     if (copied) {
       deps.prompter.line(COPY.INSTRUMENTATION.promptCopied);
@@ -144,7 +209,7 @@ export async function instrumentApp(
         { value: true, label: COPY.INSTRUMENTATION.clipboardDoneLabel },
       ],
     });
-    return { kind: "clipboard" };
+    return { lane: { kind: "clipboard" }, ...(docs ? { docs } : {}) };
   }
 
   deps.prompter.line(
@@ -154,7 +219,7 @@ export async function instrumentApp(
     message: COPY.INSTRUMENTATION.manualDoneMessage,
     options: [{ value: true, label: COPY.INSTRUMENTATION.manualDoneLabel }],
   });
-  return { kind: "manual" };
+  return { lane: { kind: "manual" }, ...(docs ? { docs } : {}) };
 }
 
 /**

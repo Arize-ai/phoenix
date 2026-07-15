@@ -178,6 +178,7 @@ describe("runSetup", () => {
       "local", // endpoint
       "my-app", // project name
       "agent:claude", // hand off to Claude Code
+      false, // no docs MCP — keep the docs download
       // agent exits, verification succeeds via the API poll — no checkpoint
       false, // no px profile
       false, // no global CLI install
@@ -215,6 +216,151 @@ describe("runSetup", () => {
       PHOENIX_COLLECTOR_ENDPOINT: LOCAL,
       PHOENIX_PROJECT_NAME: "my-app",
     });
+  });
+
+  it("accepting the docs MCP offer replaces the docs download", async () => {
+    const prompter = scriptedPrompter([
+      "local", // endpoint
+      "my-app", // project name
+      "agent:claude", // hand off to Claude Code
+      true, // yes, connect the docs MCP
+      false, // no px profile
+      false, // no global CLI install
+      false, // no skills install
+    ]);
+    const git = gitExecFake();
+    const launched: Array<{ args: string[] }> = [];
+    const mcpCommands: string[][] = [];
+    let docsFetched = false;
+    const deps = buildFakeDeps({
+      context: { cwd: dir, settingsPath },
+      prompter,
+      fetch: authOffFetch(),
+      fetchDocs: async () => {
+        docsFetched = true;
+        throw new Error("prefetch must not run when the MCP is connected");
+      },
+      processes: {
+        exec: async (spec) => {
+          if (spec.command === "claude" && spec.args[0] === "--version") {
+            return { exitCode: 0, stdout: "1.0.0\n", stderr: "" };
+          }
+          if (spec.command === "claude" && spec.args[0] === "mcp") {
+            mcpCommands.push(spec.args);
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
+          return git(spec);
+        },
+        spawnInteractive: async (spec) => {
+          launched.push(spec);
+          return { exitCode: 0 };
+        },
+      },
+    });
+
+    const result = await runSetupLane(deps);
+    expect(docsFetched).toBe(false);
+    expect(result.docs).toBeUndefined();
+    // Claude registers through its own CLI (local scope) — no repo file.
+    expect(result.docsMcp).toEqual({
+      outcome: "configured",
+      agents: ["claude"],
+      files: [],
+    });
+    expect(fs.existsSync(path.join(dir, ".mcp.json"))).toBe(false);
+    expect(
+      mcpCommands.some(
+        (args) => args[1] === "add" && args.at(-1)?.startsWith("https://")
+      )
+    ).toBe(true);
+    // The hand-off prompt steers the agent at the MCP server, not local docs.
+    expect(launched[0]?.args?.[0]).toContain('"phoenix-docs" MCP server');
+    expect(launched[0]?.args?.[0]).not.toContain(".px/docs");
+  });
+
+  it("headless --docs-mcp configures the pinned agent without prompting", async () => {
+    const prompter = scriptedPrompter([]);
+    const git = gitExecFake();
+    const mcpCommands: Array<{ args: string[]; cwd?: string }> = [];
+    const deps = buildFakeDeps({
+      context: { cwd: dir },
+      prompter,
+      fetch: authOffFetch(),
+      fetchDocs: async () => {
+        throw new Error("prefetch must not run when the MCP is connected");
+      },
+      processes: {
+        exec: async (spec) => {
+          if (spec.command === "claude" && spec.args[0] === "--version") {
+            return { exitCode: 0, stdout: "1.0.0\n", stderr: "" };
+          }
+          if (spec.command === "claude" && spec.args[0] === "mcp") {
+            mcpCommands.push(spec);
+            return { exitCode: 0, stdout: "", stderr: "" };
+          }
+          return git(spec);
+        },
+      },
+    });
+
+    const result = await runSetupLane(deps, {
+      noInput: true,
+      instrument: true,
+      agent: "claude",
+      bypassPermissions: true,
+      docsMcp: true,
+      endpoint: LOCAL,
+      project: "my-app",
+    });
+    expect(prompter.transcript).toEqual([]);
+    expect(result.docsMcp?.outcome).toBe("configured");
+    expect(result.docs).toBeUndefined();
+    // Registered in the repo directory — claude's local scope is per-project.
+    expect(mcpCommands.length).toBeGreaterThan(0);
+    expect(mcpCommands.every((spec) => spec.cwd === dir)).toBe(true);
+  });
+
+  it("a drifted MCP install can never take setup down with it", async () => {
+    const prompter = scriptedPrompter([]);
+    const git = gitExecFake();
+    const launched: Array<{ args: string[] }> = [];
+    const deps = buildFakeDeps({
+      context: { cwd: dir },
+      prompter,
+      fetch: authOffFetch(),
+      processes: {
+        exec: async (spec) => {
+          if (spec.command === "claude" && spec.args[0] === "--version") {
+            return { exitCode: 0, stdout: "1.0.0\n", stderr: "" };
+          }
+          if (spec.command === "claude" && spec.args[0] === "mcp") {
+            // Harsher than a non-zero exit: the exec seam itself misbehaving.
+            throw new Error("mcp subcommand went away");
+          }
+          return git(spec);
+        },
+        spawnInteractive: async (spec) => {
+          launched.push(spec);
+          return { exitCode: 0 };
+        },
+      },
+    });
+
+    const result = await runSetupLane(deps, {
+      noInput: true,
+      instrument: true,
+      agent: "claude",
+      bypassPermissions: true,
+      docsMcp: true,
+      endpoint: LOCAL,
+      project: "my-app",
+    });
+    // The run completed: docs downloaded instead, agent launched, traces
+    // verified — the MCP failure cost nothing but the optimization.
+    expect(result.docsMcp?.outcome).toBe("failed");
+    expect(result.docs?.outputDir).toBe(".px/docs");
+    expect(result.tracesVerified).toBe(true);
+    expect(launched).toHaveLength(1);
   });
 
   it("offers a finish-anyway escape hatch when no traces arrive", async () => {

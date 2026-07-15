@@ -190,6 +190,7 @@ async def test_span_fields(
           timestamp
         }
         metadata
+        userId
         numDocuments
         numChildSpans
         descendants(maxDepth: 3) {
@@ -294,6 +295,7 @@ async def test_span_fields(
             assert json.loads(span["metadata"]) == db_span.metadata_
         else:
             assert not span["metadata"]
+        assert span["userId"] == db_span.user_id
         assert span["numDocuments"] == db_span.num_documents
         if num_child_spans := db_num_child_spans.get(span_rowid):
             assert span["numChildSpans"] == num_child_spans
@@ -400,6 +402,8 @@ async def _span_data(
                         ).value
                 if random() < 0.5:
                     attributes["metadata"] = fake.pydict(allowed_types=(str, int, float, bool))
+                if random() < 0.5:
+                    attributes["user"] = {"id": token_hex(8)}
                 if random() < 0.5:
                     attributes["retrieval"] = {"documents": []}
                     for _ in range(randint(1, 10)):
