@@ -29,8 +29,11 @@ def main() -> int:
     rewards = {
         name: metric["reward"]
         for name, eval_stats in stats["evals"].items()
-        for metric in eval_stats["metrics"]
+        for metric in eval_stats.get("metrics") or []
+        if metric.get("reward") is not None
     }
+    if not rewards:
+        failures.append("no reward metrics in result.json")
     for name, reward in rewards.items():
         if reward < args.min_reward:
             failures.append(f"{name}: reward {reward} < {args.min_reward}")
