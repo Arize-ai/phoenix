@@ -188,14 +188,16 @@ def _get_updated_provider_metadata(
     return result
 
 
-class _CamelModel(BaseModel):
+class _CamelBaseModel(BaseModel):
+    """Base model with camelCase aliases."""
+
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 # Transient session chunks live in this router rather than ``phoenix.db.types`` because they are
 # delivered to the client's ``onData`` callback but never persisted.
 @register_openapi_schema
-class SessionCreatedData(_CamelModel):
+class SessionCreatedData(_CamelBaseModel):
     """Canonical Relay metadata for a newly persisted assistant session."""
 
     id: str
@@ -248,16 +250,13 @@ def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext |
     return None
 
 
-class _ObservabilityMixin(BaseModel):
+class _ObservabilityMixin(_CamelBaseModel):
     """Per-request observability flags"""
 
-    model_config = ConfigDict(populate_by_name=True)
-
-    ingest_traces: bool = Field(default=False, alias="ingestTraces")
-    export_remote_traces: bool = Field(default=False, alias="exportRemoteTraces")
+    ingest_traces: bool = False
+    export_remote_traces: bool = False
     attach_user_id: bool = Field(
         default=False,
-        alias="attachUserId",
         description=(
             "When true and the request is authenticated as a PhoenixUser, attaches "
             "the user's email as the OpenInference ``user.id`` span attribute on "
@@ -274,14 +273,10 @@ class _ChatMessageMixin(_ObservabilityMixin):
     )
 
     contexts: list[ChatContext] = Field(default_factory=list)
-    agent_session_id: str | None = Field(default=None, alias="agentSessionId")
-    edit_permission: Literal["manual", "bypass"] = Field(
-        default="manual",
-        alias="editPermission",
-    )
+    agent_session_id: str | None = None
+    edit_permission: Literal["manual", "bypass"] = "manual"
     requested_skills: list[str] = Field(
         default_factory=list,
-        alias="requestedSkills",
         description=(
             "Skills the user explicitly requested via the prompt's slash-command "
             "affordance. The server force-loads each available skill by injecting a "
@@ -291,7 +286,7 @@ class _ChatMessageMixin(_ObservabilityMixin):
     )
     messages: list[PhoenixUIMessage]
     model: AgentModelSelection
-    turn_trace_context: TurnTraceContext | None = Field(default=None, alias="turnTraceContext")
+    turn_trace_context: TurnTraceContext | None = None
 
 
 class ChatSubmitMessage(_ChatMessageMixin, SubmitMessage):
