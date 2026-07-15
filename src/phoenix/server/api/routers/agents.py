@@ -1161,13 +1161,7 @@ async def _create_or_load_agent_session(
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
 ) -> models.AgentSession | None:
-    """Create a session on first send or load an owner-qualified session.
-
-    Creation also persists the incoming messages so the session is never
-    empty in the database while its first turn is still streaming — an
-    interrupted turn leaves behind the user's message instead of an empty
-    session. The end-of-turn persist rewrites the full transcript.
-    """
+    """Create a session on first send or load an owner-qualified session."""
     if agent_session_id is None:
         if not messages:
             return None
@@ -1220,6 +1214,28 @@ async def _update_agent_session(
         .values(**values)
         .returning(models.AgentSession.id)
     )
+
+
+async def _persist_agent_session_title(
+    db: DbSessionFactory,
+    *,
+    agent_session_rowid: int,
+    user_id: int | None,
+    title: str,
+) -> None:
+    try:
+        async with db() as session:
+            await _update_agent_session(
+                session,
+                agent_session_rowid=agent_session_rowid,
+                user_id=user_id,
+                title=title,
+            )
+    except Exception:
+        logger.exception(
+            "Failed to persist title for agent session %r",
+            str(GlobalID("AgentSession", str(agent_session_rowid))),
+        )
 
 
 async def _upsert_agent_session_snapshot(
@@ -1713,7 +1729,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     using_session(session_id=otel_session_id),
                     _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
-                    result = await summarize_messages(
+                    summary = await summarize_messages(
                         messages=adapter.messages,
                         model=model,
                     )
@@ -1723,23 +1739,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session_created_data.id if session_created_data is not None else None,
                 )
                 return None
-            summary = result.summary.strip() or None
             if summary is not None and agent_session_rowid is not None:
-                # Persist immediately so the title survives an interrupted
-                # turn; the end-of-turn persist rewrites it as a fallback.
-                try:
-                    async with request.app.state.db() as session:
-                        await _update_agent_session(
-                            session,
-                            agent_session_rowid=agent_session_rowid,
-                            user_id=request_user_id,
-                            title=summary,
-                        )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist title for agent session %r",
-                        session_created_data.id if session_created_data is not None else None,
-                    )
+                await _persist_agent_session_title(
+                    request.app.state.db,
+                    agent_session_rowid=agent_session_rowid,
+                    user_id=request_user_id,
+                    title=summary,
+                )
             return summary
 
         turn_final_output_text: str | None = None

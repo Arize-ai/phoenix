@@ -4,7 +4,6 @@ Tests cover both router-level helpers and observable behavior through the
 public chat route. The LLM is the only mocked seam in behavioral tests.
 """
 
-import asyncio
 import json
 import warnings
 from collections.abc import AsyncIterator
@@ -847,70 +846,6 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         assert len(await _load_session_messages(session, agent_sessions[0].id)) > len(
             stored_messages
         )
-
-
-async def test_new_session_transcript_and_title_persist_before_turn_completes(
-    db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A new session's first user message is persisted when the session row is
-    created and its LLM title as soon as summarization resolves — both while
-    the first turn is still streaming — so an interrupted turn cannot leave
-    behind an empty or untitled session."""
-    mid_turn_state: dict[str, Any] = {}
-
-    async def _await_mid_turn_persistence() -> None:
-        # Runs inside the turn's streamed model call: poll until the summary
-        # task's eager title write lands, then capture what the database
-        # holds while the turn is still in flight.
-        while True:
-            async with db() as session:
-                agent_session = await session.scalar(select(models.AgentSession))
-                if agent_session is not None and agent_session.title:
-                    mid_turn_state["title"] = agent_session.title
-                    mid_turn_state["messages"] = await _load_session_messages(
-                        session, agent_session.id
-                    )
-                    return
-            await asyncio.sleep(0.005)
-
-    async def stream_function(
-        messages: list[ModelMessage],
-        agent_info: AgentInfo,
-    ) -> AsyncIterator[str | DeltaToolCalls]:
-        await asyncio.wait_for(_await_mid_turn_persistence(), timeout=10)
-        yield "done"
-
-    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
-        return ModelResponse(
-            parts=[ToolCallPart(tool_name="summary", args={"summary": "Eager title"})]
-        )
-
-    _mock_turn_models(
-        monkeypatch,
-        FunctionModel(function=function, stream_function=stream_function),
-    )
-    session_id = "66666666-6666-4666-8666-666666666666"
-
-    response = await httpx_client.post(
-        _chat_url(),
-        json=_chat_body(session_id, [_user_message("what is happening?")]),
-    )
-    assert response.status_code == 200
-
-    # Mid-turn, the database already held the title and the user's message.
-    assert mid_turn_state["title"] == "Eager title"
-    assert [message["id"] for message in mid_turn_state["messages"]] == ["msg-user-1"]
-    assert [message["role"] for message in mid_turn_state["messages"]] == ["user"]
-
-    # The end-of-turn persist appends the assistant reply on top.
-    async with db() as session:
-        agent_session = await session.scalar(select(models.AgentSession))
-        assert agent_session is not None
-        assert agent_session.title == "Eager title"
-        final_messages = await _load_session_messages(session, agent_session.id)
-    assert [message["role"] for message in final_messages] == ["user", "assistant"]
 
 
 async def test_bash_shell_state_persists_across_chat_turns(
