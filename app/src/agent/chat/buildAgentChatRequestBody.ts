@@ -24,7 +24,7 @@ type BuildAgentChatRequestBodyOptions = {
   body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
-  /** Server-minted Relay ID for an existing persisted session. */
+  /** Node ID for agent session. */
   agentSessionId?: string | null;
   /** Full UI message history sent with the request. */
   messages: AgentUIMessage[];

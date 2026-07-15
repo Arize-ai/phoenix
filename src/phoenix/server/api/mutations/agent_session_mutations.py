@@ -8,7 +8,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AgentSession import AgentSession
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -34,10 +34,13 @@ class AgentSessionMutationMixin:
         input: DeleteAgentSessionInput,
     ) -> DeleteAgentSessionMutationPayload:
         """Delete a persisted session along with its snapshot."""
-        agent_session_rowid = from_global_id_with_expected_type(
-            input.id,
-            models.AgentSession.__name__,
-        )
+        try:
+            agent_session_rowid = from_global_id_with_expected_type(
+                input.id,
+                models.AgentSession.__name__,
+            )
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
         lookup_stmt = select(models.AgentSession.id).where(
             models.AgentSession.id == agent_session_rowid
         )
