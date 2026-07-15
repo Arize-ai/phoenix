@@ -1192,7 +1192,7 @@ async def _update_agent_session(
     values: dict[str, Any] = {"updated_at": func.now()}
     if title:
         values["title"] = title
-    owner_predicate = (
+    session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None
         else models.AgentSession.user_id == user_id
@@ -1201,7 +1201,7 @@ async def _update_agent_session(
         update(models.AgentSession)
         .where(
             models.AgentSession.id == agent_session_rowid,
-            owner_predicate,
+            session_owner_filter,
         )
         .values(**values)
         .returning(models.AgentSession.id)
@@ -1704,7 +1704,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         model=model,
                     )
             except Exception:
-                logger.exception("Failed to summarize new agent session %r", agent_session_rowid)
+                logger.exception(
+                    "Failed to summarize new agent session %r",
+                    session_created_data.id if session_created_data is not None else None,
+                )
                 return None
             return result.summary.strip() or None
 
