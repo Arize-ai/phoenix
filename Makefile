@@ -449,6 +449,12 @@ HARBOR_ATTEMPTS ?= 1
 # Retry trials that die on transient infrastructure errors (e.g. a cloud
 # sandbox failing to start); reward-scored failures are not retried.
 HARBOR_RETRIES ?= 1
+# Daytona sandboxes orphaned by a killed run (e.g. a canceled CI job) would
+# otherwise occupy org quota forever and starve later runs into
+# EnvironmentStartTimeoutError; have Daytona stop and delete them itself.
+ifeq ($(HARBOR_ENV),daytona)
+HARBOR_ENV_KWARGS := --ek auto_stop_interval_mins=30 --ek auto_delete_interval_mins=30
+endif
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
@@ -470,14 +476,14 @@ harbor-seed-push: ## Regenerate Harbor seed assets and publish to cloud storage
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-prepared)
 	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
-	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) --yes
+	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
 harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
 	$(check-harbor-prepared)
 	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
 		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
-		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) --yes
+		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs
