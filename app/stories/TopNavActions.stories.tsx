@@ -12,8 +12,8 @@ const navPreviewCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
-  padding: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100);
   background-color: var(--global-color-gray-100);
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
@@ -21,8 +21,8 @@ const navPreviewCSS = css`
 `;
 
 const pageBodyCSS = css`
-  margin-top: var(--global-dimension-static-size-200);
-  padding: var(--global-dimension-static-size-200);
+  margin-top: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
   border: 1px dashed var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
 `;

@@ -37,7 +37,7 @@ const menuCSS = css`
     align-items: center;
     justify-content: center;
     display: flex;
-    padding: var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-100);
   }
 
   .react-aria-MenuSection {
@@ -97,7 +97,7 @@ export const Menu = <T extends object>({
 };
 
 const menuItemCss = css`
-  padding: var(--global-dimension-static-size-50);
+  padding: var(--global-dimension-size-50);
   border-radius: var(--global-rounding-small);
   outline: none;
   cursor: default;
@@ -292,8 +292,7 @@ export const MenuContainer = ({
 };
 
 const menuSectionTitleCss = css`
-  padding: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100) 0;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100) 0;
 `;
 
 export const MenuSectionTitle = ({
@@ -400,7 +399,7 @@ export const MenuHeaderTitle = ({
       minHeight={30}
       data-testid="menu-header-title"
       css={css`
-        padding: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-size-100);
         border-bottom: 1px solid var(--global-menu-border-color);
       `}
     >
@@ -411,7 +410,7 @@ export const MenuHeaderTitle = ({
         css={css`
           flex: 1 1 auto;
           width: 100%;
-          padding-left: var(--global-dimension-static-size-50);
+          padding-left: var(--global-dimension-size-50);
         `}
       >
         {children}
@@ -445,12 +444,12 @@ export const MenuFooter = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
-        padding: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-size-100);
         border-top: 1px solid var(--global-menu-border-color);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        gap: var(--global-dimension-static-size-50);
+        gap: var(--global-dimension-size-50);
       `}
     >
       {children}

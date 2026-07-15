@@ -51,8 +51,7 @@ const alertCSS = css`
   --alert-border-color: lch(from var(--alert-base-color) 88 calc(c * 0.4) h);
   --alert-text-color: lch(from var(--alert-base-color) 45 c h);
 
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   border-radius: var(--global-rounding-small);
   color: var(--alert-text-color);
   display: flex;
@@ -101,7 +100,7 @@ const alertCSS = css`
     flex-direction: row;
 
     .icon-wrap {
-      margin-right: var(--global-dimension-static-size-100);
+      margin-right: var(--global-dimension-size-100);
       font-size: var(--global-font-size-m);
       display: flex;
       align-items: center;
@@ -129,7 +128,7 @@ const dismissButtonCSS = css`
   cursor: pointer;
   width: 20px;
   height: 20px;
-  margin-left: var(--global-dimension-static-size-200);
+  margin-left: var(--global-dimension-size-200);
 `;
 
 export const Alert = ({

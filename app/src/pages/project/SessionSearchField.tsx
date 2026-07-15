@@ -10,7 +10,7 @@ import { useSessionSearchContext } from "./SessionSearchContext";
 const codeMirrorCSS = css`
   flex: 1 1 auto;
   .cm-content {
-    padding: var(--global-dimension-static-size-100) 0;
+    padding: var(--global-dimension-size-100) 0;
   }
   .cm-editor {
     background-color: transparent !important;
@@ -41,8 +41,8 @@ const fieldCSS = css`
   }
   box-sizing: border-box;
   .search-icon {
-    margin-left: var(--global-dimension-static-size-100);
-    margin-top: var(--global-dimension-static-size-100);
+    margin-left: var(--global-dimension-size-100);
+    margin-top: var(--global-dimension-size-100);
   }
 `;
 
@@ -92,7 +92,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
         />
         <button
           css={css`
-            margin-right: var(--global-dimension-static-size-100);
+            margin-right: var(--global-dimension-size-100);
             color: var(--global-text-color-700);
             visibility: ${hasSubstring ? "visible" : "hidden"};
           `}

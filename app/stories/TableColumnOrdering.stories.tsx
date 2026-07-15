@@ -282,8 +282,8 @@ export const SelectorMenuWithSections: Story = {
         >
           <section
             css={css`
-              padding: 0 var(--global-dimension-static-size-50);
-              margin-top: var(--global-dimension-static-size-50);
+              padding: 0 var(--global-dimension-size-50);
+              margin-top: var(--global-dimension-size-50);
               border-top: 1px solid var(--global-border-color-default);
             `}
           >
@@ -291,9 +291,9 @@ export const SelectorMenuWithSections: Story = {
               css={css`
                 display: flex;
                 align-items: center;
-                min-height: var(--global-dimension-static-size-400);
-                padding: 0 var(--global-dimension-static-size-100);
-                margin-top: var(--global-dimension-static-size-50);
+                min-height: var(--global-dimension-size-400);
+                padding: 0 var(--global-dimension-size-100);
+                margin-top: var(--global-dimension-size-50);
                 border-radius: var(--global-rounding-small);
                 &:hover {
                   background-color: var(--global-color-gray-200);
@@ -331,8 +331,8 @@ export const SelectorMenuWithSections: Story = {
                   css={css`
                     display: flex;
                     align-items: center;
-                    min-height: var(--global-dimension-static-size-400);
-                    padding: 0 var(--global-dimension-static-size-100);
+                    min-height: var(--global-dimension-size-400);
+                    padding: 0 var(--global-dimension-size-100);
                     border-radius: var(--global-rounding-small);
                     &:hover {
                       background-color: var(--global-color-gray-200);

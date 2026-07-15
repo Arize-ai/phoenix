@@ -21,7 +21,7 @@ export function PreBlock({ children }: { children: string }) {
       data-testid="pre-block"
       css={css`
         white-space: pre-wrap;
-        padding: var(--global-dimension-static-size-200);
+        padding: var(--global-dimension-size-200);
         font-size: var(--global-font-size-s);
       `}
     >

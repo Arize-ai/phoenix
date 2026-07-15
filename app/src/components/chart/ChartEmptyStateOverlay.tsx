@@ -37,7 +37,7 @@ const chartEmptyStateOverlayCSS = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-100);
     pointer-events: none;
     text-align: center;
     z-index: 3;
@@ -48,7 +48,7 @@ const chartEmptyStateOverlayCSS = css`
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--global-dimension-static-size-100);
+    gap: var(--global-dimension-size-100);
     text-wrap: balance;
   }
 `;
