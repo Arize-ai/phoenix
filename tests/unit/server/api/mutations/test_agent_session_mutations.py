@@ -35,7 +35,7 @@ async def test_delete_agent_session_cascades_snapshot(
         session.add(
             models.AgentSessionSnapshot(
                 agent_session_id=agent_session.id,
-                bashkit_state=b"shell-state",
+                bashkit_snapshot=b"shell-state",
             )
         )
         session.add(

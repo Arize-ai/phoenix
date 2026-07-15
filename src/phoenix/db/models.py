@@ -3177,7 +3177,7 @@ class AgentSessionSnapshot(HasId):
         nullable=False,
         unique=True,
     )
-    bashkit_state: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

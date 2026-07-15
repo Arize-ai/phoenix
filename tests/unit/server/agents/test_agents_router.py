@@ -874,7 +874,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
     async with db() as session:
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
-        first_snapshot = snapshots[0].bashkit_state
+        first_snapshot = snapshots[0].bashkit_snapshot
         assert first_snapshot
         agent_session_rowid = snapshots[0].agent_session_id
         stored_messages = await _load_session_messages(session, agent_session_rowid)
@@ -902,7 +902,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         # A turn without bash activity leaves the stored shell state intact.
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
-        assert snapshots[0].bashkit_state == first_snapshot
+        assert snapshots[0].bashkit_snapshot == first_snapshot
         stored_messages = await _load_session_messages(session, agent_session_rowid)
 
     third_response = await httpx_client.post(

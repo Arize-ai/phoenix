@@ -1240,19 +1240,19 @@ async def _upsert_agent_session_snapshot(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
-    bashkit_state: bytes,
+    bashkit_snapshot: bytes,
 ) -> None:
     await session.execute(
         insert_on_conflict(
             {
                 "agent_session_id": agent_session_rowid,
-                "bashkit_state": bashkit_state,
+                "bashkit_snapshot": bashkit_snapshot,
             },
             table=models.AgentSessionSnapshot,
             dialect=SupportedSQLDialect(session.bind.dialect.name),
             unique_by=("agent_session_id",),
             on_conflict=OnConflict.DO_UPDATE,
-            set_={"bashkit_state": bashkit_state, "updated_at": func.now()},
+            set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
         )
     )
 
@@ -1263,7 +1263,7 @@ async def _persist_agent_session_turn(
     agent_session_rowid: int,
     user_id: int | None,
     messages: list[PhoenixUIMessage],
-    bashkit_state: bytes | None,
+    bashkit_snapshot: bytes | None,
     title: str | None = None,
 ) -> None:
     if not messages:
@@ -1290,21 +1290,21 @@ async def _persist_agent_session_turn(
             )
             for position, message in enumerate(messages)
         )
-        if bashkit_state is not None:
+        if bashkit_snapshot is not None:
             await _upsert_agent_session_snapshot(
                 session,
                 agent_session_rowid=agent_session_rowid,
-                bashkit_state=bashkit_state,
+                bashkit_snapshot=bashkit_snapshot,
             )
 
 
-async def _load_bash_state(
+async def _load_bash_snapshot(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
 ) -> bytes | None:
     return await session.scalar(
-        select(models.AgentSessionSnapshot.bashkit_state).where(
+        select(models.AgentSessionSnapshot.bashkit_snapshot).where(
             models.AgentSessionSnapshot.agent_session_id == agent_session_rowid
         )
     )
@@ -1536,7 +1536,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if graphql_mutations_enabled and is_viewer:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
         phoenix_user_email: str | None = None
-        initial_bash_state: bytes | None = None
+        initial_bash_snapshot: bytes | None = None
         session_created_data: SessionCreatedData | None = None
         try:
             async with request.app.state.db() as session:
@@ -1578,7 +1578,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         created_at=agent_session.created_at,
                         updated_at=agent_session.updated_at,
                     )
-                    initial_bash_state = await _load_bash_state(
+                    initial_bash_snapshot = await _load_bash_snapshot(
                         session,
                         agent_session_rowid=agent_session.id,
                     )
@@ -1644,13 +1644,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             set_subagent_final_tool_output = _set_subagent_final_tool_output
 
         bash_enabled = not get_env_phoenix_agents_disable_bash()
-        captured_bash_state: bytes | None = None
+        captured_bash_snapshot: bytes | None = None
 
-        def _capture_bash_state(state: bytes) -> None:
+        def _capture_bash_snapshot(snapshot: bytes) -> None:
             # Held until turn end, then persisted alongside the transcript
             # in the session's agent_session_snapshots row.
-            nonlocal captured_bash_state
-            captured_bash_state = state
+            nonlocal captured_bash_snapshot
+            captured_bash_snapshot = snapshot
 
         agent = build_agent(
             model=model,
@@ -1673,8 +1673,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 else None
             ),
             allow_mutations=graphql_mutations_enabled,
-            initial_bash_snapshot=initial_bash_state,
-            on_bash_snapshot=_capture_bash_state,
+            initial_bash_snapshot=initial_bash_snapshot,
+            on_bash_snapshot=_capture_bash_snapshot,
         )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
@@ -1867,11 +1867,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 message_chunks=emitted_message_chunks,
                                 session_id=otel_session_id,
                             ),
-                            bashkit_state=captured_bash_state,
+                            bashkit_snapshot=captured_bash_snapshot,
                             title=session_title,
                         )
                 except Exception:
-                    logger.exception("Failed to persist agent session %r", agent_session_rowid)
+                    logger.exception(
+                        "Failed to persist agent session %r",
+                        str(GlobalID("AgentSession", str(agent_session_rowid))),
+                    )
                 if tracer is not None:
                     if turn_is_terminal or stream_error is not None:
                         _emit_turn_root_span(

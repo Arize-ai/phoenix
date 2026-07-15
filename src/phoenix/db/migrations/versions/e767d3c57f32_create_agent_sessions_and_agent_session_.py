@@ -111,7 +111,7 @@ def upgrade() -> None:
             nullable=False,
             unique=True,
         ),
-        sa.Column("bashkit_state", sa.LargeBinary, nullable=True),
+        sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

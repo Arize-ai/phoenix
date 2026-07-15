@@ -453,7 +453,7 @@ CREATE TABLE public.agent_session_messages (
 CREATE TABLE public.agent_session_snapshots (
     id bigserial NOT NULL,
     agent_session_id BIGINT NOT NULL,
-    bashkit_state BYTEA,
+    bashkit_snapshot BYTEA,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_snapshots PRIMARY KEY (id),
