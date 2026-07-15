@@ -88,7 +88,12 @@ px setup --no-input --instrument --agent claude --yolo --format raw
 
 `--yolo` matters: a background agent has no terminal to approve its edits on,
 so without it the run stalls until trace verification times out. `--language
-python` skips the agent's language detection. `--format raw` prints
+python` skips the agent's language detection. `--docs-mcp` connects the
+Phoenix docs MCP server to the hand-off agent (`claude mcp add` for claude,
+config-file merge for cursor/opencode; codex unsupported) and skips the
+`.px/docs` download — the agent searches docs on demand instead; any failure
+falls back to the download. `--no-docs-mcp` suppresses the interactive offer.
+`--format raw` prints
 `{"endpoint","project","files","instrumentation","tracesVerified","tracesUrl"}`
 — check `tracesVerified`, which is set only when the API confirmed a trace
 arriving, not when the agent claims it finished.

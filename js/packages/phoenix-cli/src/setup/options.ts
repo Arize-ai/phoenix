@@ -68,6 +68,12 @@ export interface SetupOptions {
   background?: boolean;
   /** Docs prefetch, so the agent instruments against local docs. */
   docs?: DocsPrefetchOptions;
+  /**
+   * --docs-mcp / --no-docs-mcp: connect the Phoenix docs MCP server to the
+   * coding agent's project config (replaces the docs prefetch when taken).
+   * Undefined means ask interactively; headless skips unless the flag opts in.
+   */
+  docsMcp?: boolean;
 }
 
 export interface SetupInputs {
@@ -97,6 +103,11 @@ export interface SetupInputs {
   bypassPermissions: boolean;
   /** Docs prefetch; only consulted when `instrument` is true. */
   docs: DocsPrefetchOptions;
+  /**
+   * Docs MCP offer; only consulted when `instrument` is true. Undefined means
+   * ask interactively — an unattended run skips it unless `--docs-mcp` opts in.
+   */
+  docsMcp?: boolean;
 }
 
 /**
@@ -162,5 +173,6 @@ export function resolveSetupInputs({
     background: options.background ?? headless,
     bypassPermissions: Boolean(options.bypassPermissions),
     docs: options.docs ?? { enabled: true },
+    docsMcp: options.docsMcp,
   };
 }

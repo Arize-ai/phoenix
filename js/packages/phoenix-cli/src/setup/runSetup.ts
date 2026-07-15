@@ -31,8 +31,8 @@ import {
   type ToolingResult,
 } from "./steps/installTooling";
 import { instrumentApp, type InstrumentationLane } from "./steps/instrumentApp";
+import type { DocsMcpResult } from "./steps/offerDocsMcp";
 import { offerPxProfile } from "./steps/offerPxProfile";
-import { prefetchDocs } from "./steps/prefetchDocs";
 import {
   hasSpansInSkewWindow,
   waitForFirstTrace,
@@ -50,6 +50,8 @@ export interface SetupReport {
   /** Paths appended to a .gitignore. */
   gitignored: string[];
   docs?: DocsPrefetchResult;
+  /** The docs MCP offer, when it was made (configured replaces `docs`). */
+  docsMcp?: DocsMcpResult;
   instrumentation?: InstrumentationLane;
   /** True once the API confirmed a trace arrived after this run started. */
   tracesVerified?: boolean;
@@ -193,14 +195,6 @@ async function registerAndInstrument(
     return base;
   }
 
-  // Only after registration's git-safety gate: the docs fetch writes into
-  // `.px/`, which an earlier download can make look like a pre-existing dirty
-  // tree in a fast or cached headless run.
-  const docs = await prefetchDocs(deps, {
-    docs: inputs.docs,
-    isGitRepository: registration.isGitRepository,
-  });
-
   const startedAt = deps.clock.now();
   // Any span already visible inside the clock-skew window predates this run —
   // verification must then require spans strictly after the start time, or a
@@ -209,7 +203,15 @@ async function registerAndInstrument(
     sinceMs: startedAt,
   });
 
-  const instrumentation = await instrumentApp(deps, connection, {
+  // The docs steps live inside instrumentApp, after its lane choice: the docs
+  // MCP offer targets exactly the agent doing the hand-off, and taking it
+  // replaces the `.px/docs` download outright. Both still run behind
+  // registration's git-safety gate, which this call comes after.
+  const {
+    lane: instrumentation,
+    docs,
+    docsMcp,
+  } = await instrumentApp(deps, connection, {
     authEnabled,
     agentDetection,
     agent: inputs.agent,
@@ -218,7 +220,10 @@ async function registerAndInstrument(
       background: inputs.background,
       bypassPermissions: inputs.bypassPermissions,
     },
-    ...(docs ? { docs } : {}),
+    docs: inputs.docs,
+    docsMcp: inputs.docsMcp,
+    headless: inputs.headless,
+    isGitRepository: registration.isGitRepository,
   });
 
   // The return value is setup's definition of done — a trace the API confirmed
@@ -234,8 +239,10 @@ async function registerAndInstrument(
   return {
     ...base,
     ...(docs ? { docs } : {}),
-    // The docs step gitignores its own output dir, so the report has to fold
-    // those appends in or it under-states what setup touched.
+    ...(docsMcp && docsMcp.outcome !== "skipped" ? { docsMcp } : {}),
+    // The MCP config files and the docs step's own gitignore appends have to
+    // fold into the report, or it under-states what setup touched.
+    files: [...base.files, ...(docsMcp?.files ?? [])],
     gitignored: [...base.gitignored, ...(docs?.gitignoreAppended ?? [])],
     instrumentation,
     tracesVerified,

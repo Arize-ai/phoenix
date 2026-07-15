@@ -15,6 +15,66 @@ import type { Connection } from "../steps/establishConnection";
 
 export type CodingAgentId = "claude" | "codex" | "opencode" | "cursor";
 
+/** The server name the docs MCP is registered under in agent configs. */
+export const DOCS_MCP_SERVER_NAME = "phoenix-docs";
+
+/**
+ * The Mintlify-hosted Phoenix docs MCP server (streamable HTTP). Searching it
+ * returns just the relevant doc sections, so an agent connected to it needs
+ * neither the `.px/docs` download nor whole-page fetches.
+ */
+export const DOCS_MCP_SERVER_URL = "https://arizeai-433a7140.mintlify.app/mcp";
+
+/**
+ * How the docs MCP server is installed for an agent, scoped to the repo setup
+ * runs in. Absent when the agent has no per-project MCP config (Codex reads
+ * only a global TOML).
+ *
+ * `cli` is preferred wherever the agent ships an MCP subcommand: the installed
+ * binary writes the config format that same binary reads, so the CLI can never
+ * drift from the agent's schema. `file` is the fallback for agents whose only
+ * documented mechanism is hand-editing a JSON file — those shapes mirror
+ * `docs/phoenix/integrations/phoenix-mcp-server.mdx`, which is the contract to
+ * keep them true to.
+ */
+export type DocsMcpInstall =
+  | {
+      kind: "cli";
+      /**
+       * Best-effort removal of a previous entry, with its exit code ignored.
+       * Run only after an `add` was refused and `verifyArgs` confirmed an
+       * entry exists under our name — `add` refuses a name that already
+       * exists, and remove-then-retry is what makes a setup re-run
+       * idempotent, while removing any earlier would destroy a working
+       * registration a failed retry can't put back.
+       */
+      removeArgs: string[];
+      /** argv (after the binary) that registers the server. */
+      addArgs(serverUrl: string): string[];
+      /**
+       * Read-back of the entry after `add`; a non-zero exit means the server
+       * is not actually registered. This is the drift guard: if the agent's
+       * flags ever change meaning while still parsing, exit codes alone would
+       * lie, but an entry that doesn't show up in the agent's own listing
+       * cannot.
+       */
+      verifyArgs: string[];
+    }
+  | {
+      kind: "file";
+      /**
+       * Config file path, relative to the repo root. Always forward-slash:
+       * Node's fs resolves it on every platform, and the setup report stays
+       * platform-stable (`path.join` would put a backslash in the JSON
+       * envelope on Windows).
+       */
+      relativePath: string;
+      /** Keys applied only when the file is being created, e.g. `$schema`. */
+      createDefaults?: Record<string, unknown>;
+      /** The JSON fragment to merge into that file. */
+      patch(serverUrl: string): Record<string, unknown>;
+    };
+
 /**
  * How the agent is run.
  *
@@ -42,6 +102,8 @@ export interface CodingAgent {
    * after the `exec` subcommand, not before it.
    */
   launchArgs(prompt: string, mode: AgentRunMode): string[];
+  /** See {@link DocsMcpInstall}; absent when the agent has none. */
+  docsMcpInstall?: DocsMcpInstall;
 }
 
 export const CODING_AGENTS: readonly CodingAgent[] = [
@@ -54,6 +116,22 @@ export const CODING_AGENTS: readonly CodingAgent[] = [
       ...(mode.bypassPermissions ? ["--dangerously-skip-permissions"] : []),
       prompt,
     ],
+    // The default (local) scope is deliberate: nothing lands in the repo, and
+    // unlike a project-scoped .mcp.json the server needs no first-use
+    // approval, so the launched hand-off session can actually use it.
+    docsMcpInstall: {
+      kind: "cli",
+      removeArgs: ["mcp", "remove", DOCS_MCP_SERVER_NAME],
+      addArgs: (serverUrl) => [
+        "mcp",
+        "add",
+        "--transport",
+        "http",
+        DOCS_MCP_SERVER_NAME,
+        serverUrl,
+      ],
+      verifyArgs: ["mcp", "get", DOCS_MCP_SERVER_NAME],
+    },
   },
   {
     id: "codex",
@@ -78,6 +156,20 @@ export const CODING_AGENTS: readonly CodingAgent[] = [
       ...(mode.bypassPermissions ? ["--dangerously-skip-permissions"] : []),
       prompt,
     ],
+    docsMcpInstall: {
+      kind: "file",
+      relativePath: "opencode.json",
+      createDefaults: { $schema: "https://opencode.ai/config.json" },
+      patch: (serverUrl) => ({
+        mcp: {
+          [DOCS_MCP_SERVER_NAME]: {
+            type: "remote",
+            url: serverUrl,
+            enabled: true,
+          },
+        },
+      }),
+    },
   },
   {
     id: "cursor",
@@ -88,6 +180,13 @@ export const CODING_AGENTS: readonly CodingAgent[] = [
       ...(mode.bypassPermissions ? ["--force"] : []),
       prompt,
     ],
+    docsMcpInstall: {
+      kind: "file",
+      relativePath: ".cursor/mcp.json",
+      patch: (serverUrl) => ({
+        mcpServers: { [DOCS_MCP_SERVER_NAME]: { url: serverUrl } },
+      }),
+    },
   },
 ];
 

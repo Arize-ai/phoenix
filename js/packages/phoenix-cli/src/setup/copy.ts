@@ -4,6 +4,10 @@
  * Keep prose here so wording changes never touch step logic.
  */
 
+// The one allowed inbound name: the MCP server's registered name must read
+// the same in the prose as in the agent configs it lands in.
+import { DOCS_MCP_SERVER_NAME } from "./agents/registry";
+
 // ---------------------------------------------------------------------------
 // Docs contract — the only doc URLs setup emits.
 // ---------------------------------------------------------------------------
@@ -325,6 +329,38 @@ export const TOOLING = {
       "Phoenix skills installed. Your coding agent can now query and debug traces.",
     failed: `Skills install failed — install later with \`npx skills add ${SKILLS_SOURCE}\`.`,
   },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Docs MCP offer
+// ---------------------------------------------------------------------------
+
+export const DOCS_MCP = {
+  message: (agentLabel: string) =>
+    `Connect the Phoenix docs MCP server to ${agentLabel}? (it searches the docs on demand — no download needed)`,
+  yes: `Yes, connect ${DOCS_MCP_SERVER_NAME} (recommended)`,
+  yesHint: "fastest setup; pulls only the doc sections the agent needs",
+  no: "No, download the docs instead",
+  noHint: "writes ~100 pages to .px/docs for offline reading",
+  /** The decline pair when `--no-docs` means declining downloads nothing. */
+  noWithoutDownload: "No, skip it",
+  noWithoutDownloadHint:
+    "the docs download is off (--no-docs); the agent reads the docs from the web",
+  configured: (files: string[]) =>
+    `Added the ${DOCS_MCP_SERVER_NAME} MCP server to ${files.join(", ")} — skipping the docs download.`,
+  configuredCli: (agentLabel: string) =>
+    `Connected the ${DOCS_MCP_SERVER_NAME} MCP server to ${agentLabel} — skipping the docs download.`,
+  failedFor: (agentLabel: string, reason: string) =>
+    `Couldn't register the ${agentLabel} MCP config (${reason}).`,
+  verifyFailed:
+    "the entry did not show up in the agent's own MCP listing after adding it",
+  fallback: "The MCP server was not connected — downloading the docs instead.",
+  fallbackWithoutDownload:
+    "The MCP server was not connected — the agent will read the docs from the web.",
+  /** Printed when an explicit --docs-mcp met a lane with no agent to configure. */
+  noAgentLane: `The clipboard and manual lanes have no coding agent to connect the ${DOCS_MCP_SERVER_NAME} MCP server to — skipping the offer.`,
+  unsupported: (agentLabel: string) =>
+    `${agentLabel} has no per-project MCP config — skipping the offer.`,
 } as const;
 
 // ---------------------------------------------------------------------------
