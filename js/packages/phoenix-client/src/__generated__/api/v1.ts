@@ -1579,7 +1579,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/agents/{agent_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1589,7 +1589,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Chat */
-        post: operations["chat_agents__agent_id__sessions__session_id__chat_post"];
+        post: operations["chat_agents__agent_id__chat_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1810,7 +1810,7 @@ export interface components {
         };
         /**
          * AssistantMessageMetadata
-         * @description Wire schema for the chat stream's `message_metadata` payload.
+         * @description Wire schema for the chat stream's ``message_metadata`` payload.
          */
         AssistantMessageMetadata: {
             /**
@@ -1823,6 +1823,8 @@ export interface components {
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+        } & {
+            [key: string]: unknown;
         };
         /** AssistantMessageMetadataTraceIds */
         AssistantMessageMetadataTraceIds: {
@@ -1955,6 +1957,8 @@ export interface components {
             attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
             /**
              * Editpermission
              * @default manual
@@ -2009,6 +2013,8 @@ export interface components {
             attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
             /**
              * Editpermission
              * @default manual
@@ -3573,7 +3579,7 @@ export interface components {
         };
         /**
          * PhoenixUIMessage
-         * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+         * @description ``UIMessage`` with metadata narrowed to the Phoenix wire shapes.
          */
         PhoenixUIMessage: {
             /** Id */
@@ -5915,8 +5921,6 @@ export interface components {
         SessionCreatedData: {
             /** Id */
             id: string;
-            /** Sessionid */
-            sessionId: string;
             /** Title */
             title: string;
             /**
@@ -5970,25 +5974,25 @@ export interface components {
          */
         ToolCallCallbackProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
             /**
-             * Client Started At
+             * Clientstartedat
              * @default null
              */
-            client_started_at?: string | null;
+            clientStartedAt?: string | null;
             /**
-             * Client Ended At
+             * Clientendedat
              * @default null
              */
-            client_ended_at?: string | null;
+            clientEndedAt?: string | null;
         };
         /**
          * ToolCallProviderMetadata
@@ -5998,15 +6002,15 @@ export interface components {
          */
         ToolCallProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
         };
     };
     responses: never;
@@ -10941,13 +10945,12 @@ export interface operations {
             };
         };
     };
-    chat_agents__agent_id__sessions__session_id__chat_post: {
+    chat_agents__agent_id__chat_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 agent_id: string;
-                session_id: string;
             };
             cookie?: never;
         };

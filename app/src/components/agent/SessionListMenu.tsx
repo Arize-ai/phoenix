@@ -40,8 +40,8 @@ export type SessionListMenuProps = {
 };
 
 export type AgentSessionListItem = {
-  id: string;
-  relayId: string | null;
+  clientKey: string;
+  id: string | null;
   title: string;
   messages: AgentUIMessage[];
   createdAt: number;
@@ -86,7 +86,7 @@ export function SessionListMenu({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        handleDeleteSession(focusedSessionRef.current.id);
+        handleDeleteSession(focusedSessionRef.current.clientKey);
       }
     },
     [handleDeleteSession]
@@ -122,7 +122,7 @@ export function SessionListMenu({
         >
           {sessions.map((session) => (
             <SessionMenuItem
-              key={session.id}
+              key={session.clientKey}
               session={session}
               focusedSessionRef={focusedSessionRef}
               onRequestDelete={handleDeleteSession}
@@ -156,7 +156,7 @@ function SessionMenuItem({
     (isFocused: boolean) => {
       if (isFocused) {
         focusedSessionRef.current = session;
-      } else if (focusedSessionRef.current?.id === session.id) {
+      } else if (focusedSessionRef.current?.clientKey === session.clientKey) {
         focusedSessionRef.current = null;
       }
     },
@@ -165,7 +165,7 @@ function SessionMenuItem({
 
   return (
     <MenuItem
-      id={session.id}
+      id={session.clientKey}
       textValue={`${displayName}\n${dateLabel}`}
       onFocusChange={handleFocusChange}
       aria-keyshortcuts="Delete"
@@ -177,7 +177,7 @@ function SessionMenuItem({
               size="S"
               aria-label={`Delete session: ${displayName}`}
               isDisabled={session.isDeleteDisabled}
-              onPress={() => onRequestDelete(session.id)}
+              onPress={() => onRequestDelete(session.clientKey)}
               leadingVisual={<Icon svg={<Icons.Trash />} />}
             />
             <Tooltip>

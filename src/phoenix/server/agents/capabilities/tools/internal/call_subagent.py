@@ -11,15 +11,21 @@ from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from pydantic_ai.ui.vercel_ai import VercelAIEventStream
 from pydantic_ai.ui.vercel_ai.request_types import (
+    SubmitMessage as PydanticAISubmitMessage,
+)
+from pydantic_ai.ui.vercel_ai.request_types import (
+    TextUIPart as PydanticAITextUIPart,
+)
+from pydantic_ai.ui.vercel_ai.request_types import UIMessage as PydanticAIUIMessage
+from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
+
+from phoenix.db.types.data_stream_protocol import (
     DataUIPart,
     ReasoningUIPart,
     StepStartUIPart,
-    SubmitMessage,
     TextUIPart,
     UIMessage,
 )
-from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
-
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
@@ -151,15 +157,15 @@ def _has_renderable_ui_message_parts(message: UIMessage) -> bool:
     return False
 
 
-def _get_dummy_request_data(*, tool_call_id: str, task: str) -> SubmitMessage:
+def _get_dummy_request_data(*, tool_call_id: str, task: str) -> PydanticAISubmitMessage:
     """Build placeholder request data required by the Vercel event stream."""
-    return SubmitMessage(
+    return PydanticAISubmitMessage(
         id=f"subagent-{tool_call_id}",
         messages=[
-            UIMessage(
+            PydanticAIUIMessage(
                 id=f"subagent-task-{tool_call_id}",
                 role="user",
-                parts=[TextUIPart(text=task)],
+                parts=[PydanticAITextUIPart(text=task)],
             )
         ],
     )

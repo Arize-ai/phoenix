@@ -1081,7 +1081,6 @@ class WebAccessContext(TypedDict):
 
 class SessionCreatedData(TypedDict):
     id: str
-    sessionId: str
     title: str
     createdAt: str
     updatedAt: str
@@ -1095,15 +1094,15 @@ class SessionSummaryChunk(TypedDict):
 
 
 class ToolCallCallbackProviderMetadata(TypedDict):
-    tool_execution_environment: Literal["client", "server"]
-    tool_input_emitted_at: NotRequired[str]
-    client_started_at: NotRequired[str]
-    client_ended_at: NotRequired[str]
+    toolExecutionEnvironment: Literal["client", "server"]
+    toolInputEmittedAt: NotRequired[str]
+    clientStartedAt: NotRequired[str]
+    clientEndedAt: NotRequired[str]
 
 
 class ToolCallProviderMetadata(TypedDict):
-    tool_execution_environment: Literal["client", "server"]
-    tool_input_emitted_at: NotRequired[str]
+    toolExecutionEnvironment: Literal["client", "server"]
+    toolInputEmittedAt: NotRequired[str]
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
@@ -1752,6 +1751,7 @@ class ChatRegenerateMessage(TypedDict):
             ]
         ]
     ]
+    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
@@ -1785,6 +1785,7 @@ class ChatSubmitMessage(TypedDict):
             ]
         ]
     ]
+    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]

@@ -135,9 +135,10 @@ export type PendingAgentMessage = {
  * and its own model configuration (initially cloned from the default).
  */
 export type AgentSession = {
-  id: string;
+  /** Stable client-side key used to identify the session in React. */
+  clientKey: string;
   /** Canonical Relay node ID once the server has persisted the session. */
-  relayId: string | null;
+  id: string | null;
   /** Brief human-readable title for the conversation. */
   title: string;
   /** Messages in AI SDK UIMessage format. */
@@ -293,11 +294,11 @@ export interface AgentProps {
   fabMode: AgentFabMode;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /** Session IDs with an app-local runtime snapshot. */
+  /** Session client keys with an app-local runtime snapshot. */
   sessions: string[];
-  /** ID of the currently active session, or null if none. */
+  /** Client key of the currently active session, or null if none. */
   activeSessionId: string | null;
-  /** Lookup table of sessions by their ID. */
+  /** Lookup table of sessions by their client key. */
   sessionMap: Record<string, AgentSession>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
@@ -337,7 +338,7 @@ export interface AgentState extends AgentProps {
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
-  setSessionPersisted: (sessionId: string, relayId: string) => void;
+  setSessionPersisted: (clientKey: string, id: string) => void;
   /**
    * Adds a server-loaded transcript to the app-local runtime cache.
    */
@@ -690,8 +691,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       set(
         (state) => {
           const session: AgentSession = {
-            id: sessionId,
-            relayId: null,
+            clientKey: sessionId,
+            id: null,
             title: "",
             messages: [],
             context: [],
@@ -718,8 +719,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           if (!source) return state;
           created = true;
           const session: AgentSession = {
-            id: sessionId,
-            relayId: null,
+            clientKey: sessionId,
+            id: null,
             title: buildForkTitle(source),
             messages,
             // Carry over the source session's context and model so the fork
@@ -885,15 +886,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setSessionMessages" }
       );
     },
-    setSessionPersisted: (sessionId, relayId) => {
+    setSessionPersisted: (clientKey, id) => {
       set(
         (state) => {
-          const session = state.sessionMap[sessionId];
+          const session = state.sessionMap[clientKey];
           if (!session) return state;
           return {
             sessionMap: {
               ...state.sessionMap,
-              [sessionId]: { ...session, relayId },
+              [clientKey]: { ...session, id },
             },
           };
         },
@@ -904,14 +905,14 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     cacheSession: (session) => {
       set(
         (state) => {
-          const existing = state.sessionMap[session.id];
+          const existing = state.sessionMap[session.clientKey];
           return {
-            sessions: state.sessions.includes(session.id)
+            sessions: state.sessions.includes(session.clientKey)
               ? state.sessions
-              : [...state.sessions, session.id],
+              : [...state.sessions, session.clientKey],
             sessionMap: {
               ...state.sessionMap,
-              [session.id]: existing
+              [session.clientKey]: existing
                 ? {
                     ...session,
                     ...existing,

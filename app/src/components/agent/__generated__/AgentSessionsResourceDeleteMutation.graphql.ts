@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<da0629ce5b70101f3cd587cba51af221>>
+ * @generated SignedSource<<226a0e5bd764df32cf91562ad118b142>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -11,12 +10,11 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type AgentSessionsResourceDeleteMutation$variables = {
   connectionId: string;
-  sessionId: string;
+  id: string;
 };
 export type AgentSessionsResourceDeleteMutation$data = {
   readonly deleteAgentSession: {
     readonly deletedAgentSessionId: string;
-    readonly sessionId: string;
   };
 };
 export type AgentSessionsResourceDeleteMutation = {
@@ -33,15 +31,15 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "sessionId"
+  "name": "id"
 },
 v2 = [
   {
     "fields": [
       {
         "kind": "Variable",
-        "name": "sessionId",
-        "variableName": "sessionId"
+        "name": "id",
+        "variableName": "id"
       }
     ],
     "kind": "ObjectValue",
@@ -54,19 +52,12 @@ v3 = {
   "kind": "ScalarField",
   "name": "deletedAgentSessionId",
   "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "sessionId",
-  "storageKey": null
 };
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -74,14 +65,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteAgentSessionMutationPayload",
         "kind": "LinkedField",
         "name": "deleteAgentSession",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v4/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -92,21 +82,21 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "AgentSessionsResourceDeleteMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteAgentSessionMutationPayload",
         "kind": "LinkedField",
         "name": "deleteAgentSession",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -128,24 +118,23 @@ return {
                 "name": "connections"
               }
             ]
-          },
-          (v4/*: any*/)
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "2474f57342e3a6b8bc724d06dbe14334",
+    "cacheID": "7da9790d8b5e404cec28169648a5bf4a",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation AgentSessionsResourceDeleteMutation(\n  $sessionId: String!\n) {\n  deleteAgentSession(input: {sessionId: $sessionId}) {\n    deletedAgentSessionId\n    sessionId\n  }\n}\n"
+    "text": "mutation AgentSessionsResourceDeleteMutation(\n  $id: ID!\n) {\n  deleteAgentSession(input: {id: $id}) {\n    deletedAgentSessionId\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "45bb194138c4eb95aa9b57ec8b30ea28";
+(node as any).hash = "feedd8c5daf5d09b7162f9d4d4203231";
 
 export default node;

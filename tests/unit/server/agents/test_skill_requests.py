@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import TypeAdapter
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-from pydantic_ai.ui.vercel_ai.request_types import (
+from pydantic_ai.ui.vercel_ai.request_types import UIMessage as PydanticAIUIMessage
+
+from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
     ToolOutputAvailablePart,
     UIMessage,
 )
-
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.prompts.templating import get_template
 from phoenix.server.agents.skill_requests import (
@@ -120,7 +122,13 @@ class TestInjectRequestedSkills:
     def test_synthetic_pair_adapts_to_pydantic_ai_messages(self) -> None:
         messages = [_user_message("/debug-trace help")]
         result = _inject(messages, ["debug-trace"], [_make_skill("debug-trace")])
-        history = VercelAIAdapter.load_messages(result)
+        pydantic_ai_messages = TypeAdapter(list[PydanticAIUIMessage]).validate_python(
+            [
+                message.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for message in result
+            ]
+        )
+        history = VercelAIAdapter.load_messages(pydantic_ai_messages)
         part_types = [type(part).__name__ for message in history for part in message.parts]
         assert "ToolCallPart" in part_types
         assert "ToolReturnPart" in part_types

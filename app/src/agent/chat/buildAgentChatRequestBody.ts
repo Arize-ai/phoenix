@@ -24,6 +24,8 @@ type BuildAgentChatRequestBodyOptions = {
   body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
+  /** Node ID for agent session. */
+  agentSessionId?: string | null;
   /** Full UI message history sent with the request. */
   messages: AgentUIMessage[];
   /** Reason the transport is sending this request. */
@@ -56,7 +58,7 @@ type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
  */
 type ClientToolTimingMetadata = Pick<
   components["schemas"]["ToolCallCallbackProviderMetadata"],
-  "client_started_at" | "client_ended_at"
+  "clientStartedAt" | "clientEndedAt"
 >;
 
 export type AgentChatRequestBodyPatch = Pick<
@@ -106,6 +108,7 @@ function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
 export function buildAgentChatRequestBody({
   body,
   id,
+  agentSessionId = null,
   messages,
   trigger,
   messageId,
@@ -131,6 +134,7 @@ export function buildAgentChatRequestBody({
   return {
     ...body,
     id,
+    agentSessionId,
     messages: toServerSafeUIMessages(
       enrichMessagesWithClientToolTimings({ messages, toolTimings })
     ),
@@ -172,8 +176,8 @@ export function enrichMessagesWithClientToolTimings({
       }
       hasChangedPart = true;
       const timingMetadata: ClientToolTimingMetadata = {
-        client_started_at: timing.startedAt,
-        client_ended_at: timing.endedAt,
+        clientStartedAt: timing.startedAt,
+        clientEndedAt: timing.endedAt,
       };
       return {
         ...part,

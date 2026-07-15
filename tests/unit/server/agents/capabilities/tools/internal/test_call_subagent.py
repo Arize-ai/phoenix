@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from pydantic_ai import Agent, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
-from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
+from phoenix.db.types.data_stream_protocol import TextUIPart
 from phoenix.server.agents.capabilities.tools.internal.call_subagent import (
     CallSubagentOutput,
     CallSubAgentToolset,
