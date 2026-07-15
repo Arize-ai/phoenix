@@ -7,7 +7,6 @@ from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
 from sqlalchemy import Select, and_, case, desc, distinct, exists, false, func, or_, select
-from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
@@ -35,6 +34,7 @@ from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.Evaluator import ProjectEvaluator
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -59,7 +59,11 @@ from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
+from phoenix.trace.dsl.filter import (
+    RootSpanScope,
+    root_span_scope,
+    validate_span_filter_condition,
+)
 
 DEFAULT_PAGE_SIZE = 30
 _TOKEN_COUNT_DETAIL_EPSILON = 1e-9
@@ -236,6 +240,37 @@ class Project(Node):
                 ),
             )
         return description
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[ProjectEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db.read() as session:
+            records = list(
+                await session.scalars(
+                    select(models.ProjectEvaluatorCriteria)
+                    .where(models.ProjectEvaluatorCriteria.project_id == self.id)
+                    .order_by(
+                        models.ProjectEvaluatorCriteria.name,
+                        models.ProjectEvaluatorCriteria.id,
+                    )
+                )
+            )
+        return connection_from_list(
+            data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
+            args=args,
+        )
 
     @strawberry.field
     async def gradient_start_color(
@@ -1096,18 +1131,7 @@ class Project(Node):
         # This query is too expensive to run on every validation
         # valid_eval_names = await self.span_annotation_names()
         try:
-            span_filter = SpanFilter(
-                condition=condition,
-                # valid_eval_names=valid_eval_names,
-            )
-            stmt = span_filter(select(models.Span))
-            dialect = info.context.db.dialect
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                str(stmt.compile(dialect=sqlite.dialect()))
-            elif dialect is SupportedSQLDialect.SQLITE:
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-            else:
-                assert_never(dialect)
+            validate_span_filter_condition(condition)
             return ValidationResult(is_valid=True, error_message=None)
         except Exception as e:
             return ValidationResult(

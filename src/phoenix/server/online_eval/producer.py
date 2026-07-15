@@ -60,6 +60,7 @@ async def resolve_criteria(
     """
     version_ref: Any
     input_mapping: Any = None
+    sandbox_config_id: Optional[int] = None
     if isinstance(evaluator, models.LLMEvaluator):
         if evaluator.prompt_version_tag_id is not None:
             version_ref = await session.scalar(
@@ -81,20 +82,27 @@ async def resolve_criteria(
             .order_by(models.CodeEvaluatorVersion.id.desc())
             .limit(1)
         )
-        input_mapping = evaluator.input_mapping.model_dump()
+        sandbox_config_id = evaluator.sandbox_config_id
     elif isinstance(evaluator, models.BuiltinEvaluator):
         version_ref = [evaluator.key, evaluator.synced_at.isoformat()]
     else:
         return None
     if version_ref is None:
         return None
+    effective_input_mapping = criteria.input_mapping
+    if effective_input_mapping is None and isinstance(evaluator, models.CodeEvaluator):
+        effective_input_mapping = evaluator.input_mapping
+    if effective_input_mapping is not None:
+        input_mapping = effective_input_mapping.model_dump()
     return ResolvedCriteria(
         criteria_id=criteria.id,
-        annotation_name=criteria.annotation_name.root,
+        name=criteria.name.root,
         evaluator_id=evaluator.id,
         version_ref=version_ref,
         output_configs=[config.model_dump() for config in evaluator.output_configs],
         input_mapping=input_mapping,
+        evaluation_target=criteria.evaluation_target,
+        sandbox_config_id=sandbox_config_id,
         filter_condition=criteria.filter_condition,
         sampling_rate=criteria.sampling_rate,
     )
@@ -105,7 +113,7 @@ class _ActiveCriteria:
     criteria_id: int
     project_id: int
     evaluator_id: int
-    annotation_name: str
+    name: str
     sampling_rate: float
     fingerprint: str
     identifier: str
@@ -404,7 +412,10 @@ class OnlineEvalProducer(DaemonTask):
                         polymorphic_evaluator,
                         models.ProjectEvaluatorCriteria.evaluator_id == polymorphic_evaluator.id,
                     )
-                    .where(models.ProjectEvaluatorCriteria.enabled)
+                    .where(
+                        models.ProjectEvaluatorCriteria.enabled,
+                        models.ProjectEvaluatorCriteria.evaluation_target == "SPAN",
+                    )
                 )
             ).all()
             for criteria, evaluator in rows:
@@ -436,7 +447,7 @@ class OnlineEvalProducer(DaemonTask):
                         criteria_id=criteria.id,
                         project_id=criteria.project_id,
                         evaluator_id=criteria.evaluator_id,
-                        annotation_name=resolved.annotation_name,
+                        name=resolved.name,
                         sampling_rate=criteria.sampling_rate,
                         fingerprint=fingerprint,
                         identifier=annotation_identifier(fingerprint),
@@ -505,7 +516,7 @@ class OnlineEvalProducer(DaemonTask):
                     ~exists(
                         select(1).where(
                             models.SpanAnnotation.span_rowid == models.Span.id,
-                            models.SpanAnnotation.name == criteria.annotation_name,
+                            models.SpanAnnotation.name == criteria.name,
                             models.SpanAnnotation.identifier == criteria.identifier,
                         )
                     ),
