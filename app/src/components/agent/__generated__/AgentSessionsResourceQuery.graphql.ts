@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b17b0bbb8aa553bb00e94fe26443c7f4>>
+ * @generated SignedSource<<fadc6d03d8e0123920a54e7a4b25273c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -38,13 +37,13 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "AgentSessionsResourceQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "AgentSessionsResource_sessions"
       }
@@ -54,13 +53,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "AgentSessionsResourceQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "AgentSessionConnection",
         "kind": "LinkedField",
         "name": "agentSessions",
@@ -87,13 +86,6 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "id",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "sessionId",
                     "storageKey": null
                   },
                   {
@@ -167,7 +159,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "AgentSessionsResource_agentSessions",
@@ -177,12 +169,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "245f277641b2a2f024d131fefb251609",
+    "cacheID": "9eda964eb1ccc892066f83cf67988656",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        sessionId\n        title\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

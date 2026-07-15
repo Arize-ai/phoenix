@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<bfe6a77c6567b8245cfa91695c576b2f>>
+ * @generated SignedSource<<1b71cbe5e2ae04352c4c85e05f34f52c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -16,7 +15,6 @@ export type AgentSessionsResource_sessions$data = {
       readonly node: {
         readonly createdAt: string;
         readonly id: string;
-        readonly sessionId: string;
         readonly title: string;
         readonly updatedAt: string;
       };
@@ -55,7 +53,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -65,7 +63,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": AgentSessionsResourcePaginationQuery_graphql
@@ -102,13 +100,6 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "id",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "sessionId",
                   "storageKey": null
                 },
                 {
@@ -186,6 +177,6 @@ return {
 };
 })();
 
-(node as any).hash = "ed58ae99a1075029e4e2a91d53a3ac75";
+(node as any).hash = "313915caa2a819e2901c35152d905d93";
 
 export default node;

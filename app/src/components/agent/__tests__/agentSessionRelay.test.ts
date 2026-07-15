@@ -8,7 +8,6 @@ import {
 
 type SessionNode = {
   id: string;
-  sessionId: string;
   title: string;
 };
 
@@ -48,7 +47,7 @@ function createEnvironment(payloads: ReturnType<typeof sessionsPayload>[]) {
 }
 
 function getSessions(environment: Environment) {
-  let sessions: Array<{ id: string; sessionId: unknown; title: unknown }> = [];
+  let sessions: Array<{ id: string; title: unknown }> = [];
   commitLocalUpdate(environment, (store) => {
     const connection = ConnectionHandler.getConnection(
       store.getRoot(),
@@ -61,7 +60,6 @@ function getSessions(environment: Environment) {
           ? [
               {
                 id: node.getDataID(),
-                sessionId: node.getValue("sessionId"),
                 title: node.getValue("title"),
               },
             ]
@@ -75,27 +73,25 @@ describe("refetchAgentSessions", () => {
   it("hydrates the sessions connection from the server", async () => {
     const environment = createEnvironment([
       sessionsPayload([
-        { id: "agent-session-2", sessionId: "session-2", title: "Second" },
-        { id: "agent-session-1", sessionId: "session-1", title: "First" },
+        { id: "agent-session-2", title: "Second" },
+        { id: "agent-session-1", title: "First" },
       ]),
     ]);
 
     await refetchAgentSessions({ environment });
 
     expect(getSessions(environment)).toEqual([
-      { id: "agent-session-2", sessionId: "session-2", title: "Second" },
-      { id: "agent-session-1", sessionId: "session-1", title: "First" },
+      { id: "agent-session-2", title: "Second" },
+      { id: "agent-session-1", title: "First" },
     ]);
   });
 
   it("resets the connection to the newest server page", async () => {
     const environment = createEnvironment([
+      sessionsPayload([{ id: "agent-session-1", title: "First" }]),
       sessionsPayload([
-        { id: "agent-session-1", sessionId: "session-1", title: "First" },
-      ]),
-      sessionsPayload([
-        { id: "agent-session-2", sessionId: "session-2", title: "Second" },
-        { id: "agent-session-1", sessionId: "session-1", title: "Renamed" },
+        { id: "agent-session-2", title: "Second" },
+        { id: "agent-session-1", title: "Renamed" },
       ]),
     ]);
 
@@ -103,8 +99,8 @@ describe("refetchAgentSessions", () => {
     await refetchAgentSessions({ environment });
 
     expect(getSessions(environment)).toEqual([
-      { id: "agent-session-2", sessionId: "session-2", title: "Second" },
-      { id: "agent-session-1", sessionId: "session-1", title: "Renamed" },
+      { id: "agent-session-2", title: "Second" },
+      { id: "agent-session-1", title: "Renamed" },
     ]);
   });
 });

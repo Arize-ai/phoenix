@@ -7559,13 +7559,13 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/agents/{agent_id}/chat": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Chat",
-        "operationId": "chat_agents__agent_id__sessions__session_id__chat_post",
+        "operationId": "chat_agents__agent_id__chat_post",
         "parameters": [
           {
             "name": "agent_id",
@@ -7574,15 +7574,6 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
-            }
-          },
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
             }
           }
         ],
@@ -8013,12 +8004,13 @@
             ]
           }
         },
+        "additionalProperties": true,
         "type": "object",
         "required": [
           "sessionId"
         ],
         "title": "AssistantMessageMetadata",
-        "description": "Wire schema for the chat stream's `message_metadata` payload."
+        "description": "Wire schema for the chat stream's ``message_metadata`` payload."
       },
       "AssistantMessageMetadataTraceIds": {
         "properties": {
@@ -8031,6 +8023,7 @@
             "title": "Rootspanid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "traceId",
@@ -8054,6 +8047,7 @@
             ]
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "tokens"
@@ -8071,6 +8065,7 @@
             "title": "Cachewrite"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "cacheRead",
@@ -8093,6 +8088,7 @@
             "title": "Total"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "prompt",
@@ -8366,6 +8362,17 @@
             "type": "array",
             "title": "Contexts"
           },
+          "agentSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentsessionid"
+          },
           "editPermission": {
             "type": "string",
             "enum": [
@@ -8483,6 +8490,17 @@
             },
             "type": "array",
             "title": "Contexts"
+          },
+          "agentSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentsessionid"
           },
           "editPermission": {
             "type": "string",
@@ -12449,7 +12467,7 @@
           "parts"
         ],
         "title": "PhoenixUIMessage",
-        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."
+        "description": "``UIMessage`` with metadata narrowed to the Phoenix wire shapes."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
@@ -17158,6 +17176,7 @@
             "title": "Startedat"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "traceId",
@@ -17565,6 +17584,7 @@
             "title": "Timezone"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "currentDateTime",
@@ -17678,10 +17698,6 @@
             "title": "Id",
             "type": "string"
           },
-          "sessionId": {
-            "title": "Sessionid",
-            "type": "string"
-          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -17699,7 +17715,6 @@
         },
         "required": [
           "id",
-          "sessionId",
           "title",
           "createdAt",
           "updatedAt"
@@ -17750,15 +17765,15 @@
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17768,9 +17783,9 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           },
-          "client_started_at": {
+          "clientStartedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17780,9 +17795,9 @@
               }
             ],
             "default": null,
-            "title": "Client Started At"
+            "title": "Clientstartedat"
           },
-          "client_ended_at": {
+          "clientEndedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17792,11 +17807,11 @@
               }
             ],
             "default": null,
-            "title": "Client Ended At"
+            "title": "Clientendedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallCallbackProviderMetadata",
         "type": "object"
@@ -17805,15 +17820,15 @@
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17823,11 +17838,11 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallProviderMetadata",
         "type": "object"

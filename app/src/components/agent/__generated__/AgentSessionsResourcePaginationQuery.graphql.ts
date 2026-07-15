@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<934cb86331ffa455828c9d0af5477794>>
+ * @generated SignedSource<<b014b222eebb3ca9358ab2df639d3d8e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -49,13 +48,13 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "AgentSessionsResourcePaginationQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "AgentSessionsResource_sessions"
       }
@@ -65,13 +64,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "AgentSessionsResourcePaginationQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "AgentSessionConnection",
         "kind": "LinkedField",
         "name": "agentSessions",
@@ -98,13 +97,6 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "id",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "sessionId",
                     "storageKey": null
                   },
                   {
@@ -178,7 +170,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "AgentSessionsResource_agentSessions",
@@ -188,16 +180,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "53976f2cfbd75d9574474e1cfd24f897",
+    "cacheID": "e1a95b24d8070106c2eb3675b73ed496",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourcePaginationQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        sessionId\n        title\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ed58ae99a1075029e4e2a91d53a3ac75";
+(node as any).hash = "313915caa2a819e2901c35152d905d93";
 
 export default node;

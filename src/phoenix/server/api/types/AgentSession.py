@@ -1,47 +1,104 @@
+from asyncio import gather
 from datetime import datetime
-from typing import cast
+from typing import Optional
 
 import strawberry
 from sqlalchemy import select
-from strawberry.relay import Node, NodeID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import NotFound
 
 
 @strawberry.type
 class AgentSession(Node):
     id: NodeID[int]
-    session_id: str = strawberry.field(
-        description="The client-generated session ID.",
-    )
-    title: str = strawberry.field(
+    db_record: strawberry.Private[Optional[models.AgentSession]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("AgentSession ID mismatch")
+
+    def _not_found(self) -> NotFound:
+        global_id = GlobalID(self.__class__.__name__, str(self.id))
+        return NotFound(f"Unknown agent session: {global_id}")
+
+    async def _ensure_access(self, info: Info[Context, None]) -> None:
+        if not info.context.settings.agent_assistant_enabled.enabled:
+            raise self._not_found()
+        if self.db_record:
+            agent_session_id = self.db_record.id
+            owner_id = self.db_record.user_id
+        else:
+            fields = info.context.data_loaders.agent_session_fields
+            agent_session_id, owner_id = await gather(
+                fields.load((self.id, models.AgentSession.id)),
+                fields.load((self.id, models.AgentSession.user_id)),
+            )
+        viewer_id = info.context.user_id
+        if agent_session_id is None or (viewer_id is not None and owner_id != viewer_id):
+            raise self._not_found()
+
+    @strawberry.field(
         description=("The title of the session."),
-    )
-    created_at: datetime
-    updated_at: datetime
+    )  # type: ignore
+    async def title(self, info: Info[Context, None]) -> str:
+        await self._ensure_access(info)
+        if self.db_record:
+            return self.db_record.title
+        title = await info.context.data_loaders.agent_session_fields.load(
+            (self.id, models.AgentSession.title),
+        )
+        assert isinstance(title, str)
+        return title
+
+    @strawberry.field
+    async def created_at(self, info: Info[Context, None]) -> datetime:
+        await self._ensure_access(info)
+        if self.db_record:
+            return self.db_record.created_at
+        created_at = await info.context.data_loaders.agent_session_fields.load(
+            (self.id, models.AgentSession.created_at),
+        )
+        assert isinstance(created_at, datetime)
+        return created_at
+
+    @strawberry.field
+    async def updated_at(self, info: Info[Context, None]) -> datetime:
+        await self._ensure_access(info)
+        if self.db_record:
+            return self.db_record.updated_at
+        updated_at = await info.context.data_loaders.agent_session_fields.load(
+            (self.id, models.AgentSession.updated_at),
+        )
+        assert isinstance(updated_at, datetime)
+        return updated_at
 
     @strawberry.field(
         description="The persisted transcript as Vercel AI UIMessage JSON objects.",
     )  # type: ignore
     async def messages(self, info: Info[Context, None]) -> JSON:
-        if not info.context.settings.agent_assistant_enabled.enabled:
-            return cast(JSON, [])
-        stmt = select(models.AgentSession.messages).where(models.AgentSession.id == self.id)
-        if (viewer_id := info.context.user_id) is not None:
-            stmt = stmt.where(models.AgentSession.user_id == viewer_id)
+        await self._ensure_access(info)
+        stmt = (
+            select(models.AgentSessionMessage.message)
+            .where(models.AgentSessionMessage.agent_session_id == self.id)
+            .order_by(models.AgentSessionMessage.position)
+        )
         async with info.context.db.read() as session:
-            messages = await session.scalar(stmt)
-        return cast(JSON, messages or [])
+            messages = (await session.scalars(stmt)).all()
+        return JSON(
+            [
+                message.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for message in messages
+            ],
+        )
 
 
 def to_gql_agent_session(agent_session: models.AgentSession) -> AgentSession:
     return AgentSession(
         id=agent_session.id,
-        session_id=agent_session.session_id,
-        title=agent_session.title,
-        created_at=agent_session.created_at,
-        updated_at=agent_session.updated_at,
+        db_record=agent_session,
     )
