@@ -48,7 +48,14 @@ from phoenix.server.api.routers.v1.utils import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin, require_auth_enabled
 from phoenix.server.bearer_auth import PhoenixSystemUser, PhoenixUser
-from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, TokenStore, UserId
+from phoenix.server.types import (
+    AccessTokenClaims,
+    ApiKeyAttributes,
+    ApiKeyClaims,
+    ApiKeyId,
+    TokenStore,
+    UserId,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -220,22 +227,18 @@ def _parse_api_key_id(api_key_id: str, node_name: str) -> int:
         )
 
 
-async def require_non_system_user(request: Request) -> models.UserRoleName:
+async def require_human_session(request: Request) -> models.UserRoleName:
     """
-    Resolve the caller's role from the database and reject the system user.
+    Require an access-token session and return its current database role.
 
-    Every system key is owned by the single system user, so a system caller's own keys
-    are all the system keys. The `/user` routes authorize by owner id alone, so admitting
-    a system caller would let any one system key list and revoke every other system key,
-    bypassing the `require_admin` gate on the `/system` routes. System keys are managed
-    only through `/system/api_keys`.
-
-    The role is read from the database rather than the token store's in-memory claims so
-    role changes apply immediately, and because the admin-secret system principal carries
-    no claims at all. The resolved role is returned so callers that need it (key creation)
-    can reuse it without a second query.
+    An API key is a delegated credential. Allowing it to issue a replacement would let a
+    compromised key preserve access after the original is revoked. Issuance therefore
+    starts from a human session, and the database role is reused when constructing the key.
     """
-    user_id = int(_get_authenticated_user(request).identity)
+    user = _get_authenticated_user(request)
+    if isinstance(user, PhoenixSystemUser) or not isinstance(user.claims, AccessTokenClaims):
+        raise HTTPException(status_code=403, detail="API keys cannot create API keys")
+    user_id = int(user.identity)
     async with request.app.state.db() as session:
         user_role = await get_user_role(session, user_id)
     if user_role is None:
@@ -246,6 +249,15 @@ async def require_non_system_user(request: Request) -> models.UserRoleName:
             detail="System API keys must be managed through the /system/api_keys endpoints.",
         )
     return user_role
+
+
+def require_session_or_admin_secret(request: Request) -> None:
+    """Require an access-token session or the configured admin-secret principal."""
+    user = _get_authenticated_user(request)
+    if isinstance(user, PhoenixSystemUser):
+        return
+    if not isinstance(user.claims, AccessTokenClaims):
+        raise HTTPException(status_code=403, detail="API keys cannot create API keys")
 
 
 def reject_system_api_key(request: Request) -> None:
@@ -354,6 +366,7 @@ async def list_all_user_api_keys(
     description=(
         "Create a personal API key for the currently authenticated user. The key inherits "
         "the user's role, so it grants no more access than the user already has. "
+        "Creation requires an access-token session; API keys cannot mint replacement keys. "
         "The response contains the key itself, which is shown only once and cannot be "
         "retrieved afterwards."
     ),
@@ -368,11 +381,10 @@ async def list_all_user_api_keys(
 async def create_user_api_key(
     request: Request,
     request_body: CreateApiKeyRequestBody,
-    user_role: models.UserRoleName = Depends(require_non_system_user),
+    user_role: models.UserRoleName = Depends(require_human_session),
 ) -> CreateApiKeyResponseBody:
-    # The role comes from require_non_system_user, which has already rejected the system
-    # user, so a personal key can only ever inherit a non-SYSTEM role. This mirrors the
-    # GraphQL create_user_api_key mutation, which never mints a SYSTEM-role key.
+    # The role comes from require_human_session, which has already rejected API keys and
+    # the system user, so a personal key can only inherit a current human role.
     user_id = int(_get_authenticated_user(request).identity)
     data = await _create_api_key(
         request,
@@ -472,13 +484,19 @@ async def list_system_api_keys(request: Request) -> GetApiKeysResponseBody:
     summary="Create a system API key",
     description=(
         "Create a system API key. System keys belong to the system user rather than to any "
-        "human, so this endpoint is restricted to admins. "
+        "human, so this endpoint is restricted to admins. Creation requires an admin "
+        "access-token session or the configured admin secret; API keys cannot mint keys. "
         "The response contains the key itself, which is shown only once and cannot be "
         "retrieved afterwards."
     ),
     response_description="The newly created system API key, including the key itself.",
     status_code=201,
-    dependencies=[Depends(require_auth_enabled), Depends(require_admin), Depends(is_not_locked)],
+    dependencies=[
+        Depends(require_auth_enabled),
+        Depends(require_admin),
+        Depends(require_session_or_admin_secret),
+        Depends(is_not_locked),
+    ],
     responses=add_errors_to_responses([401, 422, 507]),
     response_model_by_alias=True,
     response_model_exclude_unset=True,
