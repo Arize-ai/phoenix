@@ -493,6 +493,9 @@ class TestSystemApiKeys:
         assert response["errors"][0]["message"] == "API key not found"
         assert any(k["id"] == personal["id"] for k in _list(_app, admin, "user").json()["data"])
 
+        assert _delete(_app, admin, "system", relabeled_id).status_code == 404
+        assert any(k["id"] == personal["id"] for k in _list(_app, admin, "user").json()["data"])
+
         system = _create(_app, admin, "system").json()["data"]
         node_id = GlobalID.from_id(system["id"]).node_id
         relabeled_id = str(GlobalID("UserApiKey", node_id))
