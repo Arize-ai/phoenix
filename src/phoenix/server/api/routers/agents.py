@@ -222,7 +222,6 @@ class SessionCreatedData(_CamelModel):
     """Canonical Relay metadata for a newly persisted assistant session."""
 
     id: str
-    session_id: str
     title: str
     created_at: datetime
     updated_at: datetime
@@ -298,6 +297,7 @@ class _ChatMessageMixin(_ObservabilityMixin):
     )
 
     contexts: list[ChatContext] = Field(default_factory=list)
+    agent_session_id: str | None = Field(default=None, alias="agentSessionId")
     edit_permission: Literal["manual", "bypass"] = Field(
         default="manual",
         alias="editPermission",
@@ -1182,40 +1182,38 @@ async def _load_phoenix_user_email(
     )
 
 
-async def _claim_agent_session(
+async def _create_or_load_agent_session(
     session: AsyncSession,
     *,
-    session_id: str,
+    agent_session_id: str | None,
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
 ) -> models.AgentSession | None:
-    """Atomically claim a non-empty first-send session for its owner."""
-    if messages:
-        await session.execute(
-            insert_on_conflict(
-                {
-                    "session_id": session_id,
-                    "user_id": user_id,
-                    "title": "",
-                },
-                table=models.AgentSession,
-                dialect=SupportedSQLDialect(session.bind.dialect.name),
-                unique_by=("session_id",),
-                on_conflict=OnConflict.DO_NOTHING,
-            )
+    """Create a session on first send or load an owner-qualified session."""
+    if agent_session_id is None:
+        if not messages:
+            return None
+        created_agent_session = models.AgentSession(user_id=user_id, title="")
+        session.add(created_agent_session)
+        await session.flush()
+        return created_agent_session
+    try:
+        agent_session_rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(agent_session_id),
+            models.AgentSession.__name__,
         )
-    agent_session = await session.scalar(
-        select(models.AgentSession).where(models.AgentSession.session_id == session_id)
-    )
-    if agent_session is not None and agent_session.user_id != user_id:
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Session not found") from None
+    loaded_agent_session = await session.get(models.AgentSession, agent_session_rowid)
+    if loaded_agent_session is None or loaded_agent_session.user_id != user_id:
         raise HTTPException(status_code=404, detail="Session not found")
-    return agent_session
+    return loaded_agent_session
 
 
 async def _update_agent_session(
     session: AsyncSession,
     *,
-    session_id: str,
+    agent_session_rowid: int,
     user_id: int | None,
     title: str,
 ) -> int | None:
@@ -1230,7 +1228,7 @@ async def _update_agent_session(
     return await session.scalar(
         update(models.AgentSession)
         .where(
-            models.AgentSession.session_id == session_id,
+            models.AgentSession.id == agent_session_rowid,
             owner_predicate,
         )
         .values(**values)
@@ -1262,7 +1260,7 @@ async def _upsert_agent_session_snapshot(
 async def _persist_agent_session_turn(
     db: DbSessionFactory,
     *,
-    session_id: str,
+    agent_session_rowid: int,
     user_id: int | None,
     messages: list[PhoenixUIMessage],
     bashkit_state: bytes | None,
@@ -1271,13 +1269,13 @@ async def _persist_agent_session_turn(
     if not messages:
         return
     async with db() as session:
-        agent_session_rowid = await _update_agent_session(
+        updated_agent_session_rowid = await _update_agent_session(
             session,
-            session_id=session_id,
+            agent_session_rowid=agent_session_rowid,
             user_id=user_id,
             title=title or "",
         )
-        if agent_session_rowid is None:
+        if updated_agent_session_rowid is None:
             return
         await session.execute(
             delete(models.AgentSessionMessage).where(
@@ -1488,10 +1486,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         return adapter.streaming_response(_stream_with_session())
 
-    @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
+    @router.post("/agents/{agent_id}/chat")
     async def chat(
         agent_id: str,
-        session_id: str,
         request: Request,
         request_body: ChatRequest,
     ) -> Response:
@@ -1566,17 +1563,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session=session,
                     phoenix_user=phoenix_user,
                 )
-                agent_session = await _claim_agent_session(
+                agent_session = await _create_or_load_agent_session(
                     session,
-                    session_id=session_id,
+                    agent_session_id=body.agent_session_id,
                     user_id=request_user_id,
                     messages=body.messages,
                 )
                 session_needs_title = agent_session is None or not agent_session.title
+                agent_session_rowid = agent_session.id if agent_session is not None else None
                 if agent_session is not None:
                     session_created_data = SessionCreatedData(
                         id=str(GlobalID("AgentSession", str(agent_session.id))),
-                        session_id=agent_session.session_id,
                         title=agent_session.title,
                         created_at=agent_session.created_at,
                         updated_at=agent_session.updated_at,
@@ -1721,12 +1718,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if tracer is not None
             else None
         )
+        otel_session_id = str(agent_session_rowid) if agent_session_rowid is not None else body.id
 
         async def _summarize_untitled_session() -> str | None:
             try:
                 with (
                     detached_otel_context(parent_context),
-                    using_session(session_id=session_id),
+                    using_session(session_id=otel_session_id),
                     _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
                     result = await summarize_messages(
@@ -1734,7 +1732,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         model=model,
                     )
             except Exception:
-                logger.exception("Failed to summarize new agent session %r", session_id)
+                logger.exception("Failed to summarize new agent session %r", agent_session_rowid)
                 return None
             return result.summary.strip() or None
 
@@ -1754,7 +1752,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             yield _build_message_metadata_chunk(
                 span_context=span_context,
                 turn_trace_context=resolved_turn_trace_context,
-                session_id=session_id,
+                session_id=otel_session_id,
                 usage=result.usage,
             )
 
@@ -1769,13 +1767,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         turn_ids=turn_ids,
                         messages=body.messages,
                         received_at=request_received_at,
-                        session_id=session_id,
+                        session_id=otel_session_id,
                     )
                 if session_needs_title:
                     summary_task = asyncio.create_task(_summarize_untitled_session())
                 with (
                     detached_otel_context(parent_context),
-                    using_session(session_id=session_id),
+                    using_session(session_id=otel_session_id),
                     _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
                     raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
@@ -1859,26 +1857,27 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else:
                         summary_task.cancel()
                 try:
-                    await _persist_agent_session_turn(
-                        request.app.state.db,
-                        session_id=session_id,
-                        user_id=request_user_id,
-                        messages=await _build_session_transcript(
-                            request_messages=body.messages,
-                            message_chunks=emitted_message_chunks,
-                            session_id=session_id,
-                        ),
-                        bashkit_state=captured_bash_state,
-                        title=session_title,
-                    )
+                    if agent_session_rowid is not None:
+                        await _persist_agent_session_turn(
+                            request.app.state.db,
+                            agent_session_rowid=agent_session_rowid,
+                            user_id=request_user_id,
+                            messages=await _build_session_transcript(
+                                request_messages=body.messages,
+                                message_chunks=emitted_message_chunks,
+                                session_id=otel_session_id,
+                            ),
+                            bashkit_state=captured_bash_state,
+                            title=session_title,
+                        )
                 except Exception:
-                    logger.exception("Failed to persist agent session %r", session_id)
+                    logger.exception("Failed to persist agent session %r", agent_session_rowid)
                 if tracer is not None:
                     if turn_is_terminal or stream_error is not None:
                         _emit_turn_root_span(
                             tracer=tracer,
                             turn_ids=turn_ids,
-                            session_id=session_id,
+                            session_id=otel_session_id,
                             input_text=_get_last_user_text(body.messages),
                             output_text=turn_final_output_text,
                             error_message=(

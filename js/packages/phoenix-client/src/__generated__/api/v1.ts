@@ -1471,7 +1471,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/agents/{agent_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1481,7 +1481,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Chat */
-        post: operations["chat_agents__agent_id__sessions__session_id__chat_post"];
+        post: operations["chat_agents__agent_id__chat_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1806,6 +1806,8 @@ export interface components {
             attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
             /**
              * Editpermission
              * @default manual
@@ -1860,6 +1862,8 @@ export interface components {
             attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
             /**
              * Editpermission
              * @default manual
@@ -5708,8 +5712,6 @@ export interface components {
         SessionCreatedData: {
             /** Id */
             id: string;
-            /** Sessionid */
-            sessionId: string;
             /** Title */
             title: string;
             /**
@@ -10372,13 +10374,12 @@ export interface operations {
             };
         };
     };
-    chat_agents__agent_id__sessions__session_id__chat_post: {
+    chat_agents__agent_id__chat_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 agent_id: string;
-                session_id: string;
             };
             cookie?: never;
         };

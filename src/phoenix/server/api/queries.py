@@ -1681,11 +1681,15 @@ class Query:
     async def agent_session(
         self,
         info: Info[Context, None],
-        session_id: str,
+        id: GlobalID,
     ) -> Optional[AgentSession]:
         if not info.context.settings.agent_assistant_enabled.enabled:
             return None
-        stmt = select(models.AgentSession).where(models.AgentSession.session_id == session_id)
+        agent_session_rowid = from_global_id_with_expected_type(
+            id,
+            models.AgentSession.__name__,
+        )
+        stmt = select(models.AgentSession).where(models.AgentSession.id == agent_session_rowid)
         if (viewer_id := info.context.user_id) is not None:
             stmt = stmt.where(models.AgentSession.user_id == viewer_id)
         async with info.context.db.read() as session:

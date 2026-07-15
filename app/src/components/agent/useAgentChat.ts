@@ -162,6 +162,8 @@ export function useAgentChat({
                     body: buildAgentChatRequestBody({
                       body,
                       id,
+                      agentSessionId:
+                        store.getState().sessionMap[sessionId]?.relayId ?? null,
                       messages,
                       trigger,
                       messageId,

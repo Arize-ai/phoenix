@@ -7559,13 +7559,13 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/agents/{agent_id}/chat": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Chat",
-        "operationId": "chat_agents__agent_id__sessions__session_id__chat_post",
+        "operationId": "chat_agents__agent_id__chat_post",
         "parameters": [
           {
             "name": "agent_id",
@@ -7574,15 +7574,6 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
-            }
-          },
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
             }
           }
         ],
@@ -8371,6 +8362,17 @@
             "type": "array",
             "title": "Contexts"
           },
+          "agentSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentsessionid"
+          },
           "editPermission": {
             "type": "string",
             "enum": [
@@ -8488,6 +8490,17 @@
             },
             "type": "array",
             "title": "Contexts"
+          },
+          "agentSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentsessionid"
           },
           "editPermission": {
             "type": "string",
@@ -17685,10 +17698,6 @@
             "title": "Id",
             "type": "string"
           },
-          "sessionId": {
-            "title": "Sessionid",
-            "type": "string"
-          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -17706,7 +17715,6 @@
         },
         "required": [
           "id",
-          "sessionId",
           "title",
           "createdAt",
           "updatedAt"

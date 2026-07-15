@@ -1035,7 +1035,6 @@ class WebAccessContext(TypedDict):
 
 class SessionCreatedData(TypedDict):
     id: str
-    sessionId: str
     title: str
     createdAt: str
     updatedAt: str
@@ -1697,6 +1696,7 @@ class ChatRegenerateMessage(TypedDict):
             ]
         ]
     ]
+    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
@@ -1730,6 +1730,7 @@ class ChatSubmitMessage(TypedDict):
             ]
         ]
     ]
+    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]

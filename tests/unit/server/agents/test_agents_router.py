@@ -67,18 +67,21 @@ def _user_message(text: str, *, message_id: str = "msg-user-1") -> dict[str, Any
     }
 
 
-def _chat_url(session_id: str) -> str:
-    return f"/agents/assistant/sessions/{session_id}/chat"
+def _chat_url() -> str:
+    return "/agents/assistant/chat"
 
 
 def _chat_body(
     session_id: str,
     messages: list[dict[str, Any]],
+    *,
+    agent_session_id: str | None = None,
     **overrides: Any,
 ) -> dict[str, Any]:
     return {
         "trigger": "submit-message",
         "id": session_id,
+        "agentSessionId": agent_session_id,
         "messages": messages,
         "model": {
             "providerType": "builtin",
@@ -96,6 +99,16 @@ def _stream_chunks(response_text: str) -> list[dict[str, Any]]:
         if line.startswith("data: ") and line != "data: [DONE]":
             chunks.append(json.loads(line[len("data: ") :]))
     return chunks
+
+
+def _created_agent_session_id(response_text: str) -> str:
+    agent_session_id = next(
+        chunk["data"]["id"]
+        for chunk in _stream_chunks(response_text)
+        if chunk.get("type") == "data-session-created"
+    )
+    assert isinstance(agent_session_id, str)
+    return agent_session_id
 
 
 async def _accumulate_streamed_assistant_message(
@@ -128,13 +141,12 @@ async def _accumulate_streamed_assistant_message(
 
 async def _load_session_messages(
     session: AsyncSession,
-    session_id: str,
+    agent_session_rowid: int,
 ) -> list[dict[str, Any]]:
     messages = (
         await session.scalars(
             select(models.AgentSessionMessage.message)
-            .join(models.AgentSession)
-            .where(models.AgentSession.session_id == session_id)
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
             .order_by(models.AgentSessionMessage.position)
         )
     ).all()
@@ -210,14 +222,14 @@ async def test_chat_turn_persists_session_transcript(
     session_id = "44444444-4444-4444-8444-444444444444"
     body = _chat_body(session_id, [_user_message("What datasets exist?")])
 
-    response = await httpx_client.post(_chat_url(session_id), json=body)
+    response = await httpx_client.post(_chat_url(), json=body)
     assert response.status_code == 200
     chunks = _stream_chunks(response.text)
     created_chunks = [chunk for chunk in chunks if chunk.get("type") == "data-session-created"]
     assert len(created_chunks) == 1
     assert created_chunks[0]["transient"] is True
-    assert created_chunks[0]["data"]["sessionId"] == session_id
-    assert created_chunks[0]["data"]["id"]
+    agent_session_id = created_chunks[0]["data"]["id"]
+    assert "sessionId" not in created_chunks[0]["data"]
     chunk_types = [chunk.get("type") for chunk in chunks]
     assert chunk_types.index("start") < chunk_types.index("data-session-created")
     assert chunk_types.index("data-session-created") < chunk_types.index("finish")
@@ -228,11 +240,11 @@ async def test_chat_turn_persists_session_transcript(
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
-        assert agent_session.session_id == session_id
         assert agent_session.user_id is None
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
-        messages = await _load_session_messages(session, session_id)
+        messages = await _load_session_messages(session, agent_session.id)
+        persisted_session_id = str(agent_session.id)
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
@@ -241,7 +253,7 @@ async def test_chat_turn_persists_session_transcript(
     assert assistant_messages
     assert assistant_messages[-1] == await _accumulate_streamed_assistant_message(chunks)
     metadata = assistant_messages[-1]["metadata"]
-    assert metadata["sessionId"] == session_id
+    assert metadata["sessionId"] == persisted_session_id
     assert metadata["usage"]["tokens"]["total"] > 0
     # Resuming a session sends the persisted transcript back through the chat
     # request's message validation, so every stored message must round-trip.
@@ -249,9 +261,10 @@ async def test_chat_turn_persists_session_transcript(
         PhoenixUIMessage.model_validate(message)
 
     second_response = await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json={
             **body,
+            "agentSessionId": agent_session_id,
             "messages": [
                 *messages,
                 _user_message("And experiments?", message_id="msg-user-2"),
@@ -723,7 +736,7 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
     session_id = "11111111-1111-4111-8111-111111111111"
 
     response = await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json=_chat_body(
             session_id,
             [_user_message("hello")],
@@ -750,7 +763,9 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
     }
 
     async with db() as session:
-        stored_messages = await _load_session_messages(session, session_id)
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert assistant_messages
     assert assistant_messages[-1]["metadata"]["trace"] == {
@@ -773,7 +788,7 @@ async def test_chat_turn_without_messages_persists_no_session(
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     session_id = "22222222-2222-4222-8222-222222222222"
 
-    await httpx_client.post(_chat_url(session_id), json=_chat_body(session_id, []))
+    await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
 
     async with db() as session:
         assert (await session.scalars(select(models.AgentSession))).all() == []
@@ -795,7 +810,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
     )
 
     first_response = await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json=_chat_body(session_id, [_user_message("first question")]),
     )
     assert first_response.status_code == 200
@@ -804,14 +819,16 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
         assert len(agent_sessions) == 1
         assert agent_sessions[0].title == ""
-        stored_messages = await _load_session_messages(session, session_id)
+        stored_messages = await _load_session_messages(session, agent_sessions[0].id)
         assert stored_messages
+    agent_session_id = _created_agent_session_id(first_response.text)
 
     second_response = await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json=_chat_body(
             session_id,
             [*stored_messages, _user_message("second question", message_id="msg-user-2")],
+            agent_session_id=agent_session_id,
         ),
     )
     assert second_response.status_code == 200
@@ -826,7 +843,9 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
         assert len(agent_sessions) == 1
         assert agent_sessions[0].title == "Second-turn title"
-        assert len(await _load_session_messages(session, session_id)) > len(stored_messages)
+        assert len(await _load_session_messages(session, agent_sessions[0].id)) > len(
+            stored_messages
+        )
 
 
 async def test_bash_shell_state_persists_across_chat_turns(
@@ -847,7 +866,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
     )
 
     first_response = await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json=_chat_body(session_id, [_user_message("write a note")]),
     )
     assert first_response.status_code == 200
@@ -857,7 +876,9 @@ async def test_bash_shell_state_persists_across_chat_turns(
         assert len(snapshots) == 1
         first_snapshot = snapshots[0].bashkit_state
         assert first_snapshot
-        stored_messages = await _load_session_messages(session, session_id)
+        agent_session_rowid = snapshots[0].agent_session_id
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    agent_session_id = _created_agent_session_id(first_response.text)
 
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert len(assistant_messages) == 1
@@ -869,10 +890,11 @@ async def test_bash_shell_state_persists_across_chat_turns(
     )
 
     second_response = await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json=_chat_body(
             session_id,
             [*stored_messages, _user_message("thanks", message_id="msg-user-2")],
+            agent_session_id=agent_session_id,
         ),
     )
     assert second_response.status_code == 200
@@ -881,13 +903,14 @@ async def test_bash_shell_state_persists_across_chat_turns(
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
         assert snapshots[0].bashkit_state == first_snapshot
-        stored_messages = await _load_session_messages(session, session_id)
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
 
     third_response = await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json=_chat_body(
             session_id,
             [*stored_messages, _user_message("read it back", message_id="msg-user-3")],
+            agent_session_id=agent_session_id,
         ),
     )
     assert third_response.status_code == 200
@@ -977,7 +1000,7 @@ async def _post_traced_chat_turn(
     session_id: str,
 ) -> httpx.Response:
     return await httpx_client.post(
-        _chat_url(session_id),
+        _chat_url(),
         json=_chat_body(
             session_id,
             [_user_message("What datasets exist?")],
@@ -1051,7 +1074,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Merging backend spans into a browser-ingested trace groups the trace
-    under a project session keyed by the chat session id, without tripping
+    under a project session keyed by the persisted agent-session row ID, without tripping
     SQLAlchemy's transient-object relationship warnings on autoflush."""
     await _enable_local_trace_recording(app)
     await _ingest_browser_trace(db)
@@ -1064,8 +1087,12 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         assert response.status_code == 200
 
     async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
         project_session = await session.scalar(
-            select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+            select(models.ProjectSession).where(
+                models.ProjectSession.session_id == str(agent_session_rowid)
+            )
         )
         assert project_session is not None
         merged_trace = await session.scalar(

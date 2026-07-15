@@ -3120,7 +3120,6 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
 
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
-    session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,  # sessions may be created while auth is disabled

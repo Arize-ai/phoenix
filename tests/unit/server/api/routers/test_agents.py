@@ -9,6 +9,7 @@ from unittest.mock import patch
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from sqlalchemy import delete, func, select
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
@@ -19,7 +20,7 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
-    _claim_agent_session,
+    _create_or_load_agent_session,
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
     _load_sandbox_availability,
@@ -42,43 +43,67 @@ class _EventQueue:
 
 
 class TestAgentSessionPersistence:
-    async def test_claim_is_idempotent_and_final_update_does_not_recreate_deleted_session(
+    async def test_create_load_and_final_update_does_not_recreate_deleted_session(
         self,
         db: DbSessionFactory,
     ) -> None:
         messages = [PhoenixUIMessage(id="message-1", role="user", parts=[])]
         async with db() as session:
-            claimed = await _claim_agent_session(
+            created = await _create_or_load_agent_session(
                 session,
-                session_id="session-1",
+                agent_session_id=None,
                 user_id=None,
                 messages=messages,
             )
-            assert claimed is not None
-            claimed_rowid = claimed.id
+            assert created is not None
+            created_rowid = created.id
 
         async with db() as session:
-            claimed_again = await _claim_agent_session(
+            loaded = await _create_or_load_agent_session(
                 session,
-                session_id="session-1",
+                agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
                 user_id=None,
                 messages=messages,
             )
-            assert claimed_again is not None
-            assert claimed_again.id == claimed_rowid
+            assert loaded is not None
+            assert loaded.id == created_rowid
             await session.execute(
-                delete(models.AgentSession).where(models.AgentSession.id == claimed_rowid)
+                delete(models.AgentSession).where(models.AgentSession.id == created_rowid)
             )
 
         async with db() as session:
             updated_rowid = await _update_agent_session(
                 session,
-                session_id="session-1",
+                agent_session_rowid=created_rowid,
                 user_id=None,
                 title="title",
             )
             assert updated_rowid is None
             assert await session.scalar(select(models.AgentSession.id)) is None
+
+    async def test_create_requires_messages(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            created = await _create_or_load_agent_session(
+                session,
+                agent_session_id=None,
+                user_id=None,
+                messages=[],
+            )
+        assert created is None
+
+    async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            first = models.AgentSession(user_id=None, title="first")
+            session.add(first)
+            await session.flush()
+            first_rowid = first.id
+            await session.delete(first)
+
+        async with db() as session:
+            second = models.AgentSession(user_id=None, title="second")
+            session.add(second)
+            await session.flush()
+            assert second.id > first_rowid
 
 
 class TestPersistDbTracesAndEmitEvent:

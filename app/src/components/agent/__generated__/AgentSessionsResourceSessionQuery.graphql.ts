@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8917551a49c36f8383d795b4b4fe3010>>
+ * @generated SignedSource<<2bd59d53461e95cb0657c91d5b44b972>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type AgentSessionsResourceSessionQuery$variables = {
-  sessionId: string;
+  id: string;
 };
 export type AgentSessionsResourceSessionQuery$data = {
   readonly agentSession: {
@@ -29,7 +29,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "sessionId"
+    "name": "id"
   }
 ],
 v1 = [
@@ -38,8 +38,8 @@ v1 = [
     "args": [
       {
         "kind": "Variable",
-        "name": "sessionId",
-        "variableName": "sessionId"
+        "name": "id",
+        "variableName": "id"
       }
     ],
     "concreteType": "AgentSession",
@@ -97,16 +97,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "055af1941dec61c15fd60fdc7238ba63",
+    "cacheID": "9ac32e91de6c43cf327a4776d38ccd69",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceSessionQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceSessionQuery(\n  $sessionId: String!\n) {\n  agentSession(sessionId: $sessionId) {\n    id\n    title\n    createdAt\n    messages\n  }\n}\n"
+    "text": "query AgentSessionsResourceSessionQuery(\n  $id: ID!\n) {\n  agentSession(id: $id) {\n    id\n    title\n    createdAt\n    messages\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a5a88369d4035003ead891d8f70b03ba";
+(node as any).hash = "66ffd37f99696fb120ba6893ccb42325";
 
 export default node;

@@ -52,7 +52,6 @@ def upgrade() -> None:
     op.create_table(
         "agent_sessions",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column("session_id", sa.String, unique=True, nullable=False),
         sa.Column(
             "user_id",
             _Integer,

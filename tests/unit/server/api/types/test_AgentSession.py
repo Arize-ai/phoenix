@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from strawberry.relay import GlobalID
+
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.types import DbSessionFactory
@@ -10,14 +12,12 @@ from tests.unit.graphql import AsyncGraphQLClient
 async def _seed_agent_session(
     db: DbSessionFactory,
     *,
-    session_id: str,
     title: str,
     updated_at: datetime,
     messages: list[dict[str, Any]] | None = None,
-) -> None:
+) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
-            session_id=session_id,
             user_id=None,
             title=title,
             created_at=updated_at,
@@ -33,6 +33,7 @@ async def _seed_agent_session(
             )
             for position, message in enumerate(messages or [])
         )
+        return str(GlobalID("AgentSession", str(agent_session.id)))
 
 
 _LIST_QUERY = """
@@ -40,7 +41,7 @@ _LIST_QUERY = """
     agentSessions(first: $first, after: $after) {
       edges {
         cursor
-        node { sessionId title }
+        node { id title }
       }
       pageInfo { hasNextPage }
     }
@@ -48,9 +49,9 @@ _LIST_QUERY = """
 """
 
 _DETAIL_QUERY = """
-  query ($sessionId: String!) {
-    agentSession(sessionId: $sessionId) {
-      sessionId
+  query ($id: ID!) {
+    agentSession(id: $id) {
+      id
       title
       messages
     }
@@ -62,11 +63,10 @@ async def test_agent_sessions_orders_by_recency_and_paginates(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    for index, session_id in enumerate(("oldest", "middle", "newest")):
+    for index, title in enumerate(("oldest", "middle", "newest")):
         await _seed_agent_session(
             db,
-            session_id=session_id,
-            title=f"{session_id} session",
+            title=f"{title} session",
             updated_at=datetime(2026, 1, 1 + index, tzinfo=timezone.utc),
         )
 
@@ -74,7 +74,10 @@ async def test_agent_sessions_orders_by_recency_and_paginates(
     assert not response.errors
     assert response.data is not None
     connection = response.data["agentSessions"]
-    assert [edge["node"]["sessionId"] for edge in connection["edges"]] == ["newest", "middle"]
+    assert [edge["node"]["title"] for edge in connection["edges"]] == [
+        "newest session",
+        "middle session",
+    ]
     assert connection["pageInfo"]["hasNextPage"] is True
 
     next_page = await gql_client.execute(
@@ -84,18 +87,17 @@ async def test_agent_sessions_orders_by_recency_and_paginates(
     assert not next_page.errors
     assert next_page.data is not None
     connection = next_page.data["agentSessions"]
-    assert [edge["node"]["sessionId"] for edge in connection["edges"]] == ["oldest"]
+    assert [edge["node"]["title"] for edge in connection["edges"]] == ["oldest session"]
     assert connection["pageInfo"]["hasNextPage"] is False
 
 
-async def test_agent_session_loads_transcript_by_session_id(
+async def test_agent_session_loads_transcript_by_id(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
     messages = [{"id": "message-1", "role": "user", "parts": []}]
-    await _seed_agent_session(
+    agent_session_id = await _seed_agent_session(
         db,
-        session_id="session-1",
         title="Session one",
         updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         messages=messages,
@@ -103,13 +105,13 @@ async def test_agent_session_loads_transcript_by_session_id(
 
     response = await gql_client.execute(
         query=_DETAIL_QUERY,
-        variables={"sessionId": "session-1"},
+        variables={"id": agent_session_id},
     )
 
     assert not response.errors
     assert response.data == {
         "agentSession": {
-            "sessionId": "session-1",
+            "id": agent_session_id,
             "title": "Session one",
             "messages": messages,
         }
@@ -121,7 +123,7 @@ async def test_agent_session_returns_null_when_missing(
 ) -> None:
     response = await gql_client.execute(
         query=_DETAIL_QUERY,
-        variables={"sessionId": "missing"},
+        variables={"id": str(GlobalID("AgentSession", "999999"))},
     )
 
     assert not response.errors

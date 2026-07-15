@@ -24,6 +24,8 @@ type BuildAgentChatRequestBodyOptions = {
   body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
+  /** Server-minted Relay ID for an existing persisted session. */
+  agentSessionId?: string | null;
   /** Full UI message history sent with the request. */
   messages: AgentUIMessage[];
   /** Reason the transport is sending this request. */
@@ -106,6 +108,7 @@ function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
 export function buildAgentChatRequestBody({
   body,
   id,
+  agentSessionId = null,
   messages,
   trigger,
   messageId,
@@ -131,6 +134,7 @@ export function buildAgentChatRequestBody({
   return {
     ...body,
     id,
+    agentSessionId,
     messages: toServerSafeUIMessages(
       enrichMessagesWithClientToolTimings({ messages, toolTimings })
     ),

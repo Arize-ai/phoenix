@@ -85,9 +85,6 @@ type AgentSession implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
 
-  """The client-generated session ID."""
-  sessionId: String!
-
   """The title of the session."""
   title: String!
   createdAt: DateTime!
@@ -1331,12 +1328,11 @@ type DecryptedSecret {
 }
 
 input DeleteAgentSessionInput {
-  sessionId: String!
+  id: ID!
 }
 
 type DeleteAgentSessionMutationPayload {
   deletedAgentSessionId: ID!
-  sessionId: String!
   query: Query!
 }
 
@@ -3623,7 +3619,7 @@ type Query {
   """
   One persisted assistant chat session, or null if it does not exist or belongs to another user.
   """
-  agentSession(sessionId: String!): AgentSession
+  agentSession(id: ID!): AgentSession
   agentsConfig: AgentsConfig!
 
   """The assistant skills available given the supplied UI context."""

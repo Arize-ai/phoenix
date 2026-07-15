@@ -23,6 +23,35 @@ const agentsConfig = {
 };
 
 describe("buildAgentChatRequestBody", () => {
+  it("forwards the persisted agent session Relay ID separately from the chat ID", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "local-chat-id",
+      agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
+      messages: [],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.id).toBe("local-chat-id");
+    expect(body.agentSessionId).toBe("QWdlbnRTZXNzaW9uOjE=");
+  });
+
   it("echoes the active turn trace context", () => {
     const turnTraceContext = {
       traceId: "1".repeat(32),

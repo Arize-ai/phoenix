@@ -121,7 +121,6 @@ function AgentSessionsContent({
           edges {
             node {
               id
-              sessionId
               title
               createdAt
               updatedAt
@@ -164,17 +163,27 @@ function AgentSessionsContent({
     return createLocalSession();
   }, [createLocalSession, store]);
 
+  const runtimeSessionByRelayId = useMemo(
+    () =>
+      new Map(
+        Object.values(sessionMap).flatMap((session) =>
+          session.relayId ? ([[session.relayId, session]] as const) : []
+        )
+      ),
+    [sessionMap]
+  );
   const serverSessions = data.agentSessions.edges.map(({ node }) => {
-    const runtimeSession = sessionMap[node.sessionId];
+    const runtimeSession = runtimeSessionByRelayId.get(node.id);
+    const sessionId = runtimeSession?.id ?? node.id;
     return {
-      id: node.sessionId,
+      id: sessionId,
       relayId: node.id,
       title: runtimeSession?.title || node.title,
       messages: runtimeSession?.messages ?? [],
       createdAt: Date.parse(node.createdAt as string),
       isDeleteDisabled:
-        chatStatusBySessionId[node.sessionId] === "submitted" ||
-        chatStatusBySessionId[node.sessionId] === "streaming",
+        chatStatusBySessionId[sessionId] === "submitted" ||
+        chatStatusBySessionId[sessionId] === "streaming",
     } satisfies AgentSessionListItem;
   });
   const activeSessionCache = activeSessionId
@@ -218,12 +227,11 @@ function AgentSessionsContent({
   const [commitDelete] =
     useMutation<AgentSessionsResourceDeleteMutation>(graphql`
       mutation AgentSessionsResourceDeleteMutation(
-        $sessionId: String!
+        $id: ID!
         $connectionId: ID!
       ) {
-        deleteAgentSession(input: { sessionId: $sessionId }) {
+        deleteAgentSession(input: { id: $id }) {
           deletedAgentSessionId @deleteEdge(connections: [$connectionId])
-          sessionId
         }
       }
     `);
@@ -253,11 +261,10 @@ function AgentSessionsContent({
         return;
       }
       commitDelete({
-        variables: { sessionId, connectionId },
+        variables: { id: session.relayId, connectionId },
         optimisticResponse: {
           deleteAgentSession: {
             deletedAgentSessionId: session.relayId,
-            sessionId,
           },
         },
         onCompleted: () => {
@@ -379,8 +386,8 @@ function AgentSessionTranscript({
 }) {
   const data = useLazyLoadQuery<AgentSessionsResourceSessionQuery>(
     graphql`
-      query AgentSessionsResourceSessionQuery($sessionId: String!) {
-        agentSession(sessionId: $sessionId) {
+      query AgentSessionsResourceSessionQuery($id: ID!) {
+        agentSession(id: $id) {
           id
           title
           createdAt
@@ -388,7 +395,7 @@ function AgentSessionTranscript({
         }
       }
     `,
-    { sessionId },
+    { id: sessionId },
     { fetchPolicy: "store-or-network" }
   );
   const store = useAgentStore();
