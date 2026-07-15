@@ -197,13 +197,13 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               </Text>
               {selectedSplits.length === 1 ? (
                 <>
-                  <Text color="text-300">&nbsp;/&nbsp;</Text>
+                  <Text color="text-700">&nbsp;/&nbsp;</Text>
                   <Token color={selectedSplits[0].color} size="S">
                     {selectedSplits[0].name}
                   </Token>
                 </>
               ) : (
-                <Text color="text-300" minWidth={0}>
+                <Text color="text-700" minWidth={0}>
                   <Truncate maxWidth="100%">
                     {selectedSplits.length > 1
                       ? `/ ${selectedSplits.length} splits`
@@ -213,7 +213,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               )}
             </>
           ) : (
-            <Text color="text-300">
+            <Text color="text-700">
               {props.placeholder ?? "Select a dataset"}
             </Text>
           )}

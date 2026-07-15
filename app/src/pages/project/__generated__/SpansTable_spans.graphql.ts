@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<7e68925fc47aa9bedf39fda12b65ad44>>
+ * @generated SignedSource<<01c328027789e7813b8e88e2934e1872>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -166,7 +165,7 @@ v5 = {
       "name": "fraction",
       "storageKey": null
     },
-    (v4/*: any*/)
+    (v4/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -232,7 +231,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -242,7 +241,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -256,7 +255,7 @@ return {
   },
   "name": "SpansTable_spans",
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -324,7 +323,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -332,7 +331,7 @@ return {
                   "name": "spanKind",
                   "storageKey": null
                 },
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -380,7 +379,7 @@ return {
                       "name": "tokenCountTotal",
                       "storageKey": null
                     },
-                    (v3/*: any*/)
+                    (v3/*:: as any*/)
                   ]
                 },
                 {
@@ -412,7 +411,7 @@ return {
                   "name": "trace",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -425,7 +424,7 @@ return {
                       "kind": "Condition",
                       "passingValue": true,
                       "selections": [
-                        (v3/*: any*/)
+                        (v3/*:: as any*/)
                       ]
                     },
                     {
@@ -436,7 +435,7 @@ return {
                       "name": "traceAnnotationSummaries",
                       "plural": true,
                       "selections": [
-                        (v5/*: any*/),
+                        (v5/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -444,8 +443,8 @@ return {
                           "name": "count",
                           "storageKey": null
                         },
-                        (v6/*: any*/),
-                        (v1/*: any*/)
+                        (v6/*:: as any*/),
+                        (v1/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -464,7 +463,7 @@ return {
                   "kind": "LinkedField",
                   "name": "input",
                   "plural": false,
-                  "selections": (v7/*: any*/),
+                  "selections": (v7/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -474,7 +473,7 @@ return {
                   "kind": "LinkedField",
                   "name": "output",
                   "plural": false,
-                  "selections": (v7/*: any*/),
+                  "selections": (v7/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -485,9 +484,9 @@ return {
                   "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
-                    (v2/*: any*/),
-                    (v1/*: any*/),
-                    (v4/*: any*/),
+                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
+                    (v4/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -520,9 +519,9 @@ return {
                   "name": "spanAnnotationSummaries",
                   "plural": true,
                   "selections": [
-                    (v5/*: any*/),
-                    (v6/*: any*/),
-                    (v1/*: any*/)
+                    (v5/*:: as any*/),
+                    (v6/*:: as any*/),
+                    (v1/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -629,7 +628,7 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null

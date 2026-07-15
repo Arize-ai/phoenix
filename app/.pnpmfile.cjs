@@ -6,7 +6,7 @@ const TYPESCRIPT6 = "npm:@typescript/typescript6@^6.0.2";
 
 const NEEDS_TS6_API = new Set([
   "openapi-typescript", // generate:openapi (runs in typescript-CI)
-  "react-docgen-typescript", // storybook docgen (chromatic builds)
+  "react-docgen-typescript", // storybook docgen
   "@joshwooding/vite-plugin-react-docgen-typescript", // storybook docgen vite plugin
 ]);
 

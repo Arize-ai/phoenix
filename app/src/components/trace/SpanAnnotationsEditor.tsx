@@ -14,6 +14,7 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
+import invariant from "tiny-invariant";
 
 import {
   Alert,
@@ -47,6 +48,7 @@ import type { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/com
 import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
 import type { AnnotationFormMutationResult } from "@phoenix/components/trace/AnnotationFormProvider";
 import { AnnotationFormProvider } from "@phoenix/components/trace/AnnotationFormProvider";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
@@ -55,12 +57,18 @@ import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
-import type { SpanAnnotationsEditorCreateAnnotationConfigMutation } from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
+import type {
+  AnnotationConfigInput,
+  SpanAnnotationsEditorCreateAnnotationConfigMutation,
+} from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
 import type { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
 import type { AnnotationFormData } from "./SpanAnnotationInput";
 import { SpanAnnotationInput } from "./SpanAnnotationInput";
 
-export const EDIT_ANNOTATION_HOTKEY = "e";
+const EMPTY_TIME_RANGE_ISO_STRINGS = {
+  start: undefined,
+  end: undefined,
+};
 
 export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
@@ -194,11 +202,54 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
-    const { id: _, annotationType, ...config } = _config;
-    const key = annotationType.toLowerCase();
+    let annotationConfigInput: AnnotationConfigInput;
+    switch (_config.annotationType) {
+      case "CATEGORICAL": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          values,
+          ...categorical
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a categorical annotation config"
+        );
+        invariant(
+          values,
+          "values are required for a categorical annotation config"
+        );
+        annotationConfigInput = {
+          categorical: { ...categorical, optimizationDirection, values },
+        };
+        break;
+      }
+      case "CONTINUOUS": {
+        const {
+          id: _,
+          annotationType: _type,
+          optimizationDirection,
+          ...continuous
+        } = _config;
+        invariant(
+          optimizationDirection,
+          "optimizationDirection is required for a continuous annotation config"
+        );
+        annotationConfigInput = {
+          continuous: { ...continuous, optimizationDirection },
+        };
+        break;
+      }
+      case "FREEFORM": {
+        const { id: _, annotationType: _type, ...freeform } = _config;
+        annotationConfigInput = { freeform };
+        break;
+      }
+    }
     createAnnotationConfig({
       variables: {
-        input: { annotationConfig: { [key]: config } },
+        input: { annotationConfig: annotationConfigInput },
       },
       onCompleted: (response) => {
         const annotationConfig =
@@ -441,7 +492,8 @@ function SpanAnnotationsList(props: {
   // time range is nullable in this context
   // we only use it to refresh fragments after mutations so it is ok to not have a time range context
   const timeRangeContext = useNullableTimeRangeContext();
-  const timeRange = timeRangeContext?.timeRange;
+  const timeRangeISOStrings =
+    timeRangeContext?.timeRangeISOStrings ?? EMPTY_TIME_RANGE_ISO_STRINGS;
 
   const [commitDeleteAnnotation] =
     useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
@@ -482,10 +534,7 @@ function SpanAnnotationsList(props: {
             variables: {
               spanId: spanNodeId,
               annotationIds: [annotation.id],
-              timeRange: {
-                start: timeRange?.start?.toISOString(),
-                end: timeRange?.end?.toISOString(),
-              },
+              timeRange: timeRangeISOStrings,
               projectId,
               filterUserIds: userFilter,
             },
@@ -508,7 +557,13 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [commitDeleteAnnotation, spanNodeId, timeRange, projectId, userFilter]
+    [
+      commitDeleteAnnotation,
+      spanNodeId,
+      timeRangeISOStrings,
+      projectId,
+      userFilter,
+    ]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
@@ -575,10 +630,7 @@ function SpanAnnotationsList(props: {
                 score: data.score,
                 explanation: data.explanation || null,
                 filterUserIds: userFilter,
-                timeRange: {
-                  start: timeRange?.start?.toISOString(),
-                  end: timeRange?.end?.toISOString(),
-                },
+                timeRange: timeRangeISOStrings,
                 projectId,
               },
               onCompleted: () => {
@@ -598,7 +650,7 @@ function SpanAnnotationsList(props: {
         }
       });
     },
-    [commitEdit, spanNodeId, userFilter, timeRange, projectId]
+    [commitEdit, spanNodeId, userFilter, timeRangeISOStrings, projectId]
   );
 
   const [commitCreateAnnotation] =
@@ -650,10 +702,7 @@ function SpanAnnotationsList(props: {
             name: data.name,
             spanId: spanNodeId,
             filterUserIds: userFilter,
-            timeRange: {
-              start: timeRange?.start?.toISOString(),
-              end: timeRange?.end?.toISOString(),
-            },
+            timeRange: timeRangeISOStrings,
             projectId,
           },
           onCompleted: () => {
@@ -670,7 +719,13 @@ function SpanAnnotationsList(props: {
           },
         });
       }),
-    [commitCreateAnnotation, spanNodeId, timeRange, projectId, userFilter]
+    [
+      commitCreateAnnotation,
+      spanNodeId,
+      timeRangeISOStrings,
+      projectId,
+      userFilter,
+    ]
   );
 
   return (

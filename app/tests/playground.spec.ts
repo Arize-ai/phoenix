@@ -20,6 +20,7 @@ async function createDataset(page: Page, datasetName: string) {
   await page.getByLabel("Dataset Name").clear();
   await page.getByLabel("Dataset Name").fill(datasetName);
   await page
+    .getByTestId("dialog")
     .getByLabel("Description")
     .fill("Compiler playground table dataset");
   await page.getByRole("button", { name: "Create Dataset" }).click();
@@ -59,6 +60,57 @@ async function addDatasetExample(
 }
 
 test.describe("Playground", () => {
+  test("reorders prompt messages by dragging the handle", async ({ page }) => {
+    await page.goto("/playground");
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
+
+    const reorderButtons = page.getByRole("button", {
+      name: "Reorder message",
+    });
+    const messageItems = page.locator("li").filter({ has: reorderButtons });
+
+    await expect(reorderButtons).toHaveCount(2);
+    await expect(messageItems).toHaveCount(2);
+    await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
+      "You are a chatbot"
+    );
+    await expect(messageItems.nth(1).getByRole("textbox")).toContainText(
+      "{{question}}"
+    );
+
+    // Drag with explicit stepped mouse moves — dnd-kit tracks the pointer on
+    // animation frames, so a single-step dragTo can release before the drop
+    // target is registered
+    const targetBox = await messageItems.nth(1).boundingBox();
+    if (!targetBox) {
+      throw new Error("target message item is not visible");
+    }
+    await reorderButtons.first().hover();
+    await page.mouse.down();
+    await page.mouse.move(
+      targetBox.x + targetBox.width / 2,
+      targetBox.y + targetBox.height / 2,
+      { steps: 20 }
+    );
+    // The dragged item gets an inline z-index while dragging — wait for it so
+    // the drag is registered before releasing. During the live swap
+    // animation, dnd-kit can briefly apply the style to the item being
+    // swapped as well, so assert at least one rather than exactly one.
+    await expect
+      .poll(async () => page.locator("li[style*='z-index']").count())
+      .toBeGreaterThanOrEqual(1);
+    await page.mouse.up();
+
+    await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
+      "{{question}}"
+    );
+    await expect(messageItems.nth(1).getByRole("textbox")).toContainText(
+      "You are a chatbot"
+    );
+  });
+
   test("preserves prompt selection in the URL across page reloads", async ({
     page,
   }) => {
@@ -73,7 +125,7 @@ test.describe("Playground", () => {
     await page.getByPlaceholder("Select or enter new prompt").click();
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
     await page
-      .getByLabel("Prompt Description")
+      .getByLabel("Description (optional)")
       .fill("test prompt for URL persistence");
     await page.getByRole("button", { name: "Create Prompt" }).click();
     await expect(page).toHaveURL(/promptId=/);

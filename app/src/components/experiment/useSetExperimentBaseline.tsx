@@ -25,6 +25,12 @@ export function useSetExperimentBaseline() {
           experimentId: $experimentId
           baseline: $baseline
         ) {
+          dataset {
+            id
+            baselineExperiment {
+              ...useExperimentMetricsData_experiment
+            }
+          }
           experiment {
             id
             isBaseline

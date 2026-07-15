@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<fc5a1253656a4fd2bdc377c60bdc8675>>
+ * @generated SignedSource<<0bf28c13b37556e87942073adbf6aad7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -54,8 +53,8 @@ return {
   "metadata": null,
   "name": "PromptLayout__main",
   "selections": [
-    (v0/*: any*/),
-    (v1/*: any*/),
+    (v0/*:: as any*/),
+    (v1/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -78,8 +77,8 @@ return {
       "name": "sourcePrompt",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/)
+        (v0/*:: as any*/),
+        (v1/*:: as any*/)
       ],
       "storageKey": null
     },
@@ -107,7 +106,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v0/*: any*/)
+                (v0/*:: as any*/)
               ],
               "storageKey": null
             }

@@ -1,7 +1,5 @@
-import { css } from "@emotion/react";
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -13,25 +11,11 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { ChartPanel } from "@phoenix/components/chart";
-import { transparentResizeHandleCSS } from "@phoenix/components/resize";
-import { ExperimentsChart } from "@phoenix/pages/experiments/ExperimentsChart";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
+import { ExperimentsMetricsChartsPanelGroup } from "./ExperimentsMetricsCharts";
 import { ExperimentsTable } from "./ExperimentsTable";
-
-/**
- * Pull the table content up by the handle's height so the transparent resize
- * handle adds no layout height of its own — it overlays the top of the table
- * content's padding instead, keeping the gap between the chart panel and the
- * filter bar tight and consistent with the tracing charts strip.
- */
-const chartsResizeHandleCSS = css`
-  margin-bottom: calc(-1 * var(--resize-handle-size));
-  position: relative;
-  z-index: 1;
-`;
 
 export function ExperimentsPage() {
   const { datasetId } = useParams();
@@ -62,39 +46,13 @@ export function ExperimentsPage() {
 
   return (
     <>
-      <Group orientation="vertical">
-        <Panel
-          minSize="20%"
-          maxSize="30%"
-          defaultSize="25%"
-          style={{ overflow: "visible" }}
-        >
-          <View
-            paddingStart="size-200"
-            paddingEnd="size-200"
-            paddingTop="size-200"
-            height="100%"
-            overflow="visible"
-          >
-            <ChartPanel
-              title="Experiments Analysis"
-              subtitle="Annotation scores and latency by experiment"
-              headingLevel={2}
-              fillHeight
-            >
-              <ExperimentsChart datasetId={datasetId} />
-            </ChartPanel>
-          </View>
-        </Panel>
-        <Separator css={[transparentResizeHandleCSS, chartsResizeHandleCSS]} />
-        <Panel>
-          <View height="100%" overflow="hidden" flex="1 1 auto">
-            <ErrorBoundary fallback={ErrorBoundaryFallback}>
-              <ExperimentsTable dataset={data.dataset} />
-            </ErrorBoundary>
-          </View>
-        </Panel>
-      </Group>
+      <ExperimentsMetricsChartsPanelGroup>
+        <View height="100%" overflow="hidden" flex="1 1 auto">
+          <ErrorBoundary fallback={ErrorBoundaryFallback}>
+            <ExperimentsTable dataset={data.dataset} />
+          </ErrorBoundary>
+        </View>
+      </ExperimentsMetricsChartsPanelGroup>
       <Suspense>
         <Outlet />
       </Suspense>

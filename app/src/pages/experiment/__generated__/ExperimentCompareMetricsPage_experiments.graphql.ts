@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<85566440875a5ac362059a309c262d9f>>
+ * @generated SignedSource<<5dbfbb13cf1e4c0ae9c946e8293b1abc>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -236,7 +235,7 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": (v0/*: any*/),
+                              "selections": (v0/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -246,7 +245,7 @@ return {
                               "kind": "LinkedField",
                               "name": "prompt",
                               "plural": false,
-                              "selections": (v0/*: any*/),
+                              "selections": (v0/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -256,7 +255,7 @@ return {
                               "kind": "LinkedField",
                               "name": "completion",
                               "plural": false,
-                              "selections": (v0/*: any*/),
+                              "selections": (v0/*:: as any*/),
                               "storageKey": null
                             }
                           ],
@@ -334,7 +333,7 @@ return {
               "kind": "LinkedField",
               "name": "latency",
               "plural": false,
-              "selections": (v1/*: any*/),
+              "selections": (v1/*:: as any*/),
               "storageKey": null
             },
             {
@@ -344,7 +343,7 @@ return {
               "kind": "LinkedField",
               "name": "totalTokenCount",
               "plural": false,
-              "selections": (v1/*: any*/),
+              "selections": (v1/*:: as any*/),
               "storageKey": null
             },
             {
@@ -354,7 +353,7 @@ return {
               "kind": "LinkedField",
               "name": "promptTokenCount",
               "plural": false,
-              "selections": (v1/*: any*/),
+              "selections": (v1/*:: as any*/),
               "storageKey": null
             },
             {
@@ -364,7 +363,7 @@ return {
               "kind": "LinkedField",
               "name": "completionTokenCount",
               "plural": false,
-              "selections": (v1/*: any*/),
+              "selections": (v1/*:: as any*/),
               "storageKey": null
             },
             {
@@ -374,7 +373,7 @@ return {
               "kind": "LinkedField",
               "name": "totalCost",
               "plural": false,
-              "selections": (v1/*: any*/),
+              "selections": (v1/*:: as any*/),
               "storageKey": null
             },
             {
@@ -384,7 +383,7 @@ return {
               "kind": "LinkedField",
               "name": "promptCost",
               "plural": false,
-              "selections": (v1/*: any*/),
+              "selections": (v1/*:: as any*/),
               "storageKey": null
             },
             {
@@ -394,7 +393,7 @@ return {
               "kind": "LinkedField",
               "name": "completionCost",
               "plural": false,
-              "selections": (v1/*: any*/),
+              "selections": (v1/*:: as any*/),
               "storageKey": null
             }
           ],

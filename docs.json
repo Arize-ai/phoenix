@@ -984,6 +984,20 @@
                     ]
                   },
                   {
+                    "group": "Dataset Labels",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-dataset-labels",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/create-a-dataset-label",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/get-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/update-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/delete-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-the-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/replace-the-set-of-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/apply-a-label-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/remove-a-label-from-a-dataset"
+                    ]
+                  },
+                  {
                     "group": "Experiments",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",

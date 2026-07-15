@@ -27,7 +27,7 @@ async function createDataset(
   await page.getByRole("tab", { name: "From scratch" }).click();
   await page.getByLabel("Dataset Name").clear();
   await page.getByLabel("Dataset Name").fill(datasetName);
-  await page.getByLabel("Description").fill(description);
+  await page.getByTestId("dialog").getByLabel("Description").fill(description);
   await page.getByRole("button", { name: "Create Dataset" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
 }
@@ -56,6 +56,7 @@ test.describe("Datasets", () => {
     await page.getByLabel("Dataset Name").clear();
     await page.getByLabel("Dataset Name").fill(datasetName);
     await page
+      .getByTestId("dialog")
       .getByLabel("Description")
       .fill("A test dataset created from scratch");
 
@@ -80,7 +81,10 @@ test.describe("Datasets", () => {
     await page.getByRole("tab", { name: "From scratch" }).click();
     await page.getByLabel("Dataset Name").clear();
     await page.getByLabel("Dataset Name").fill(datasetName);
-    await page.getByLabel("Description").fill("Navigate to this dataset");
+    await page
+      .getByTestId("dialog")
+      .getByLabel("Description")
+      .fill("Navigate to this dataset");
 
     await page.getByRole("button", { name: "Create Dataset" }).click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();

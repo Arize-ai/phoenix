@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d45c3777d024568d40476a068d77db8c>>
+ * @generated SignedSource<<00b49abb7ec1354b1fb8baf63019da54>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -15,6 +14,10 @@ export type PromptsTable_prompts$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
       readonly prompt: {
+        readonly createdBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
         readonly description: string | null;
         readonly id: string;
         readonly labels: ReadonlyArray<{
@@ -23,6 +26,10 @@ export type PromptsTable_prompts$data = {
           readonly name: string;
         }>;
         readonly name: string;
+        readonly updatedBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
         readonly version: {
           readonly createdAt: string;
           readonly id: string;
@@ -64,7 +71,23 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -95,7 +118,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -105,7 +128,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": PromptsTablePromptsQuery_graphql
@@ -148,8 +171,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
-                (v2/*: any*/),
+                (v1/*:: as any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -160,12 +183,32 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "createdBy",
+                  "plural": false,
+                  "selections": (v3/*:: as any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "updatedBy",
+                  "plural": false,
+                  "selections": (v3/*:: as any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "PromptVersion",
                   "kind": "LinkedField",
                   "name": "version",
                   "plural": false,
                   "selections": [
-                    (v1/*: any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -205,8 +248,8 @@ return {
                   "name": "versionTags",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -225,8 +268,8 @@ return {
                   "name": "labels",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -302,6 +345,6 @@ return {
 };
 })();
 
-(node as any).hash = "b5fb70bb7de99fce33aaeac3b119d898";
+(node as any).hash = "0716ae3773a7559b1fc7cc94a404b820";
 
 export default node;

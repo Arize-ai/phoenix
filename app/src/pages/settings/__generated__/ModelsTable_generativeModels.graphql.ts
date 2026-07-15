@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<ed58f038525b5bf54e08be1a959d4fd0>>
+ * @generated SignedSource<<3a0dd4925f1255520a5c42be5e0e7fe1>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -75,7 +74,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -85,7 +84,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": ModelsTableGenerativeModelsQuery_graphql
@@ -180,7 +179,7 @@ return {
                   "name": "lastUsedAt",
                   "storageKey": null
                 },
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -196,7 +195,7 @@ return {
                       "name": "tokenType",
                       "storageKey": null
                     },
-                    (v1/*: any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,

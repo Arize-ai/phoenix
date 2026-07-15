@@ -18,7 +18,10 @@ from typing import Any, AsyncIterator
 
 import pytest_asyncio
 
-from evals.pxi.harness.agent_task import build_shared_docs_mcp_server
+from evals.pxi.harness.agent_task import (
+    build_shared_docs_mcp_server,
+    flush_agent_telemetry,
+)
 from evals.pxi.rowstate import SCHEMA_VERSION, row_state
 from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPrivateUsage]
 
@@ -68,6 +71,8 @@ def pytest_runtest_logreport(report: Any) -> None:
 
 
 def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
+    # Before the worker early-return: each xdist process flushes its own spans.
+    flush_agent_telemetry()
     # Workers post their reports to the controller, which owns the single write.
     if hasattr(session.config, "workerinput"):
         return

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b619efb6bdecc82970276b4e8bf19835>>
+ * @generated SignedSource<<bd21685e90d75cc553e3f32ff6ee2f8e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -99,34 +98,34 @@ v7 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "TraceNotesTableCellQuery",
     "selections": [
       {
         "alias": "trace",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "TraceAnnotation",
                 "kind": "LinkedField",
                 "name": "traceAnnotations",
                 "plural": true,
                 "selections": [
-                  (v4/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -135,7 +134,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v7/*: any*/)
+                      (v7/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -155,33 +154,33 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TraceNotesTableCellQuery",
     "selections": [
       {
         "alias": "trace",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "TraceAnnotation",
                 "kind": "LinkedField",
                 "name": "traceAnnotations",
                 "plural": true,
                 "selections": [
-                  (v4/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -190,8 +189,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v7/*: any*/),
-                      (v4/*: any*/)
+                      (v7/*:: as any*/),
+                      (v4/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -202,7 +201,7 @@ return {
             "type": "Trace",
             "abstractKey": null
           },
-          (v4/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<b2dc46bcc3064ee53938f5dfab5873fe>>
+ * @generated SignedSource<<481b1e7701db7f9eefa55e388e18d46f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -18,6 +17,7 @@ export type authenticatedRootLoaderQuery$data = {
     readonly assistantEnabled: boolean;
     readonly assistantProjectName: string;
     readonly collectorEndpoint: string | null;
+    readonly forceTracing: boolean;
     readonly webAccessEnabled: boolean;
   };
   readonly viewer: {
@@ -54,6 +54,13 @@ var v0 = {
       "args": null,
       "kind": "ScalarField",
       "name": "assistantProjectName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "forceTracing",
       "storageKey": null
     },
     {
@@ -134,7 +141,7 @@ return {
         "kind": "FragmentSpread",
         "name": "ViewerContext_viewer"
       },
-      (v0/*: any*/),
+      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -143,10 +150,10 @@ return {
         "name": "viewer",
         "plural": false,
         "selections": [
-          (v1/*: any*/),
-          (v2/*: any*/),
-          (v3/*: any*/),
-          (v4/*: any*/)
+          (v1/*:: as any*/),
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -168,9 +175,9 @@ return {
         "name": "viewer",
         "plural": false,
         "selections": [
-          (v1/*: any*/),
-          (v2/*: any*/),
-          (v3/*: any*/),
+          (v1/*:: as any*/),
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -193,8 +200,8 @@ return {
             "name": "role",
             "plural": false,
             "selections": [
-              (v5/*: any*/),
-              (v1/*: any*/)
+              (v5/*:: as any*/),
+              (v1/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -213,8 +220,8 @@ return {
             "name": "apiKeys",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
-              (v5/*: any*/),
+              (v1/*:: as any*/),
+              (v5/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -239,24 +246,24 @@ return {
             ],
             "storageKey": null
           },
-          (v4/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v0/*: any*/)
+      (v0/*:: as any*/)
     ]
   },
   "params": {
-    "cacheID": "c4d76dc1d6016faf2d55d3694b970ece",
+    "cacheID": "bad27b002fbdcc54d8235a2a4e5704ef",
     "id": null,
     "metadata": {},
     "name": "authenticatedRootLoaderQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    webAccessEnabled\n    assistantEnabled\n    allowLocalTraces\n    allowRemoteExport\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    forceTracing\n    webAccessEnabled\n    assistantEnabled\n    allowLocalTraces\n    allowRemoteExport\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e66d05013f311a15863e40c44d7bb33f";
+(node as any).hash = "5664be46b399644bab48856bc94821a0";
 
 export default node;

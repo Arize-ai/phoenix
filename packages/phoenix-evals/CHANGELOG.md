@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.1.0...arize-phoenix-evals-v3.1.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **evals:** compute macro/weighted F-score per class to match sklearn semantics ([#13740](https://github.com/Arize-ai/phoenix/issues/13740)) ([c0f6267](https://github.com/Arize-ai/phoenix/commit/c0f6267f24e14d4e22e237be146fd05e0310f8f1))
+* **evals:** count AsyncExecutor timeouts against max_retries ([#14361](https://github.com/Arize-ai/phoenix/issues/14361)) ([90eee08](https://github.com/Arize-ai/phoenix/commit/90eee082b9e357a6669df29bc926a68f731fbc43))
+* **evals:** gate 0/1 positive_label auto-detection on default macro average ([#14012](https://github.com/Arize-ai/phoenix/issues/14012)) ([f96dbd9](https://github.com/Arize-ai/phoenix/commit/f96dbd9f6a405ead30a0acf5602f93e6f8488a43))
+
 ## [3.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.0.0...arize-phoenix-evals-v3.1.0) (2026-05-04)
 
 

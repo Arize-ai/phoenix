@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<891835024a09fb2d987fe1480714a1e2>>
+ * @generated SignedSource<<619d4cd5a9fc7fc34102059993ac2bf8>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -86,7 +85,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -96,7 +95,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": RetentionPoliciesTablePoliciesQuery_graphql
@@ -132,8 +131,8 @@ return {
                   "kind": "InlineDataFragmentSpread",
                   "name": "RetentionPoliciesTable_retentionPolicy",
                   "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -149,11 +148,11 @@ return {
                       "name": "rule",
                       "plural": false,
                       "selections": [
-                        (v3/*: any*/),
+                        (v3/*:: as any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            (v4/*: any*/)
+                            (v4/*:: as any*/)
                           ],
                           "type": "TraceRetentionRuleMaxCount",
                           "abstractKey": null
@@ -161,7 +160,7 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            (v5/*: any*/)
+                            (v5/*:: as any*/)
                           ],
                           "type": "TraceRetentionRuleMaxDays",
                           "abstractKey": null
@@ -169,8 +168,8 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            (v5/*: any*/),
-                            (v4/*: any*/)
+                            (v5/*:: as any*/),
+                            (v4/*:: as any*/)
                           ],
                           "type": "TraceRetentionRuleMaxDaysOrCount",
                           "abstractKey": null
@@ -202,8 +201,8 @@ return {
                               "name": "node",
                               "plural": false,
                               "selections": [
-                                (v2/*: any*/),
-                                (v1/*: any*/)
+                                (v2/*:: as any*/),
+                                (v1/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -217,7 +216,7 @@ return {
                   "args": null,
                   "argumentDefinitions": []
                 },
-                (v3/*: any*/)
+                (v3/*:: as any*/)
               ],
               "storageKey": null
             },

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0ed037dca1074df69208bd73a032767a>>
+ * @generated SignedSource<<d8b4276755e9e6fa1fdea27897b4af7d>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -42,7 +41,7 @@ return {
   "metadata": null,
   "name": "PromptVersionSummaryFragment",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -72,7 +71,7 @@ return {
       "name": "user",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,

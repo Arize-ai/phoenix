@@ -1,7 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
 import {
-  Alert,
   ExternalLink,
   Icon,
   IconButton,
@@ -253,16 +252,11 @@ export function PlatformVersionStatus() {
     return null;
   }
   return (
-    <Alert
-      variant="warning"
-      extra={
-        <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
-          View release notes
-        </ExternalLink>
-      }
-      data-testid="platform-version-status"
-    >
-      A newer version of Phoenix is available (v{latestVersion}).
-    </Alert>
+    <Text color="warning" size="XS" data-testid="platform-version-status">
+      A newer version of Phoenix is available (v{latestVersion}).{" "}
+      <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
+        View release notes
+      </ExternalLink>
+    </Text>
   );
 }

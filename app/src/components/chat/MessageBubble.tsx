@@ -36,6 +36,7 @@ interface MessageBubbleProps {
 }
 
 const bubbleCSS = css`
+  min-width: 0;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   font-size: var(--global-font-size-s);
   line-height: var(--global-line-height-s);

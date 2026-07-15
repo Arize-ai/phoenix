@@ -28,6 +28,7 @@ from .settings import (
     get_env_grpc_port,
     get_env_phoenix_auth_header,
     get_env_project_name,
+    warn_if_using_file_endpoint_with_credentials,
 )
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
@@ -567,6 +568,7 @@ class HTTPSpanExporter(_HTTPSpanExporter):
         sig = _get_class_signature(_HTTPSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
+        has_explicit_headers = bool(bound_args.arguments.get("headers"))
 
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
@@ -592,6 +594,8 @@ class HTTPSpanExporter(_HTTPSpanExporter):
                 bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
+            if has_explicit_headers:
+                warn_if_using_file_endpoint_with_credentials(credential_source="explicit arguments")
             _, endpoint = _normalized_endpoint(None, use_http=True)
             bound_args.arguments["endpoint"] = endpoint
         super().__init__(*bound_args.args, **bound_args.kwargs)
@@ -652,6 +656,7 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         sig = _get_class_signature(_GRPCSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
+        has_explicit_headers = bool(bound_args.arguments.get("headers"))
 
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
@@ -677,6 +682,8 @@ class GRPCSpanExporter(_GRPCSpanExporter):
                 bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
+            if has_explicit_headers:
+                warn_if_using_file_endpoint_with_credentials(credential_source="explicit arguments")
             _, endpoint = _normalized_endpoint(None)
             bound_args.arguments["endpoint"] = endpoint
         super().__init__(*bound_args.args, **bound_args.kwargs)

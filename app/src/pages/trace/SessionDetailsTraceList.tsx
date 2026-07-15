@@ -60,8 +60,6 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { SessionViewTabs } from "./SessionViewTabs";
-import type { SessionView } from "./SessionViewTabs";
 import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
@@ -570,14 +568,8 @@ const panelContentCSS = css`
 
 export function SessionDetailsTraceList({
   queryRef,
-  sessionView,
-  onSessionViewChange,
-  traceCount,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
-  sessionView: SessionView;
-  onSessionViewChange: (view: SessionView) => void;
-  traceCount: number;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
     sessionDetailsTraceListQuery,
@@ -749,15 +741,7 @@ export function SessionDetailsTraceList({
       `}
     >
       <Panel id="session-turns" defaultSize="20%" minSize="10%">
-        <div css={panelContentCSS}>
-          <SessionViewTabs
-            sessionView={sessionView}
-            onSessionViewChange={onSessionViewChange}
-            traceCount={traceCount}
-          >
-            {turnListPanel}
-          </SessionViewTabs>
-        </div>
+        <div css={panelContentCSS}>{turnListPanel}</div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
       <Panel id="session-turn-details">

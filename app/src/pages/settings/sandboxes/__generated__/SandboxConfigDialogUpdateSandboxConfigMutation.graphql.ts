@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a0014f5a552171d0bb92e608098976c1>>
+ * @generated SignedSource<<fc4dc29f6676785e35c46aaed27471af>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -20,12 +19,47 @@ export type UpdateSandboxConfigInput = {
   timeout?: number | null;
 };
 export type SandboxConfigVariantInput = {
-  daytona?: DaytonaConfigInput | null;
-  deno?: DenoConfigInput | null;
-  e2b?: E2BConfigInput | null;
-  modal?: ModalConfigInput | null;
-  vercel?: VercelConfigInput | null;
-  wasm?: WASMConfigInput | null;
+  daytona?: never;
+  deno?: never;
+  e2b: E2BConfigInput;
+  modal?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona: DaytonaConfigInput;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno: DenoConfigInput;
+  e2b?: never;
+  modal?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  vercel: VercelConfigInput;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  vercel?: never;
+  wasm: WASMConfigInput;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal: ModalConfigInput;
+  vercel?: never;
+  wasm?: never;
 };
 export type E2BConfigInput = {
   dependencies?: DependenciesInput | null;
@@ -148,14 +182,14 @@ v8 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SandboxConfigDialogUpdateSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "UpdateSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "updateSandboxConfig",
@@ -186,13 +220,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SandboxConfigDialogUpdateSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "UpdateSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "updateSandboxConfig",
@@ -214,8 +248,8 @@ return {
                 "name": "sandboxBackends",
                 "plural": true,
                 "selections": [
-                  (v2/*: any*/),
-                  (v3/*: any*/),
+                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -230,7 +264,7 @@ return {
                     "name": "dependencyHints",
                     "storageKey": null
                   },
-                  (v4/*: any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -281,8 +315,8 @@ return {
                         "name": "key",
                         "storageKey": null
                       },
-                      (v3/*: any*/),
-                      (v5/*: any*/),
+                      (v3/*:: as any*/),
+                      (v5/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -304,10 +338,10 @@ return {
                 "name": "sandboxProviders",
                 "plural": true,
                 "selections": [
-                  (v6/*: any*/),
-                  (v2/*: any*/),
-                  (v4/*: any*/),
-                  (v7/*: any*/),
+                  (v6/*:: as any*/),
+                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v7/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -316,9 +350,9 @@ return {
                     "name": "configs",
                     "plural": true,
                     "selections": [
-                      (v6/*: any*/),
-                      (v8/*: any*/),
-                      (v5/*: any*/),
+                      (v6/*:: as any*/),
+                      (v8/*:: as any*/),
+                      (v5/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -333,7 +367,7 @@ return {
                         "name": "timeout",
                         "storageKey": null
                       },
-                      (v7/*: any*/),
+                      (v7/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -350,7 +384,7 @@ return {
                             "name": "envVars",
                             "plural": true,
                             "selections": [
-                              (v8/*: any*/),
+                              (v8/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,

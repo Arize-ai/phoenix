@@ -16,6 +16,7 @@ import {
   createSessionAnnotationsCommand,
   createSessionCommand,
   createSelfCommand,
+  createSetupCommand,
   createSpanAnnotationsCommand,
   createSpanCommand,
   createTraceAnnotationsCommand,
@@ -47,6 +48,7 @@ export function createProgram(): Command {
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
   program.addCommand(createSelfCommand());
+  program.addCommand(createSetupCommand());
 
   return program;
 }
