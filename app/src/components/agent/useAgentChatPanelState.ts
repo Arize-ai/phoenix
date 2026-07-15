@@ -7,8 +7,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
 
-const CHAT_PATH_TEMPLATE =
-  "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
+const CHAT_PATH_TEMPLATE = "/agents/{agent_id}/chat" satisfies keyof paths;
 
 const ASSISTANT_AGENT_ID = "assistant";
 
@@ -83,17 +82,13 @@ export function useAgentChatPanelState() {
     [menuValue]
   );
 
-  const chatApiUrl = useMemo(() => {
-    // The session id is part of the path so the URL is session-scoped. Until
-    // a session exists the chat hook short-circuits all network activity, so
-    // this empty string is never actually fetched.
-    if (activeSessionId === null) return "";
-    const path = CHAT_PATH_TEMPLATE.replace(
-      "{agent_id}",
-      ASSISTANT_AGENT_ID
-    ).replace("{session_id}", encodeURIComponent(activeSessionId));
-    return prependBasename(path);
-  }, [activeSessionId]);
+  const chatApiUrl = useMemo(
+    () =>
+      prependBasename(
+        CHAT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID)
+      ),
+    []
+  );
 
   const closePanel = useCallback(() => {
     setIsOpen(false);

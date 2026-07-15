@@ -8,7 +8,7 @@ from typing import cast as type_cast
 
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
-from sqlalchemy.orm import defer, joinedload, load_only, with_polymorphic
+from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from sqlalchemy.sql.expression import tuple_
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
@@ -1080,6 +1080,8 @@ class Query:
             return ProjectSession(id=node_id)
         elif type_name == OAuth2Grant.__name__:
             return OAuth2Grant(id=node_id)
+        elif type_name == AgentSession.__name__:
+            return AgentSession(id=node_id)
         elif type_name == Prompt.__name__:
             return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
@@ -1649,7 +1651,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
     ) -> Connection[AgentSession]:
         page_size = first or 20
-        stmt = select(models.AgentSession).options(defer(models.AgentSession.messages))
+        stmt = select(models.AgentSession)
         if (viewer_id := info.context.user_id) is not None:
             stmt = stmt.where(models.AgentSession.user_id == viewer_id)
         after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
@@ -1685,30 +1687,6 @@ class Query:
             has_previous_page=after_cursor is not None,
             has_next_page=has_next_page,
         )
-
-    @strawberry.field(
-        description=(
-            "One persisted assistant chat session, or null if it does not exist "
-            "or belongs to another user."
-        ),
-    )  # type: ignore
-    async def agent_session(
-        self,
-        info: Info[Context, None],
-        session_id: str,
-    ) -> Optional[AgentSession]:
-        if not info.context.settings.agent_assistant_enabled.enabled:
-            return None
-        stmt = (
-            select(models.AgentSession)
-            .options(defer(models.AgentSession.messages))
-            .where(models.AgentSession.session_id == session_id)
-        )
-        if (viewer_id := info.context.user_id) is not None:
-            stmt = stmt.where(models.AgentSession.user_id == viewer_id)
-        async with info.context.db.read() as session:
-            agent_session = await session.scalar(stmt)
-        return to_gql_agent_session(agent_session) if agent_session is not None else None
 
     @strawberry.field
     def agents_config(self, info: Info[Context, None]) -> AgentsConfig:

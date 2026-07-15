@@ -3,31 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pydantic_ai.ui.vercel_ai.request_types import (
-    DataUIPart,
-    DynamicToolApprovalRequestedPart,
-    DynamicToolInputAvailablePart,
-    DynamicToolInputStreamingPart,
-    DynamicToolOutputAvailablePart,
-    DynamicToolOutputDeniedPart,
-    DynamicToolOutputErrorPart,
-    FileUIPart,
-    ProviderMetadata,
-    ReasoningUIPart,
-    SourceDocumentUIPart,
-    SourceUrlUIPart,
-    StepStartUIPart,
-    TextUIPart,
-    ToolApprovalRequested,
-    ToolApprovalRequestedPart,
-    ToolInputAvailablePart,
-    ToolInputStreamingPart,
-    ToolOutputAvailablePart,
-    ToolOutputDeniedPart,
-    ToolOutputErrorPart,
-    UIMessage,
-    UIMessagePart,
-)
+from pydantic import BaseModel
 from pydantic_ai.ui.vercel_ai.response_types import (
     AbortChunk,
     BaseChunk,
@@ -54,6 +30,32 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
     ToolOutputDeniedChunk,
     ToolOutputErrorChunk,
+)
+
+from phoenix.db.types.data_stream_protocol import (
+    DataUIPart,
+    DynamicToolApprovalRequestedPart,
+    DynamicToolInputAvailablePart,
+    DynamicToolInputStreamingPart,
+    DynamicToolOutputAvailablePart,
+    DynamicToolOutputDeniedPart,
+    DynamicToolOutputErrorPart,
+    FileUIPart,
+    ProviderMetadata,
+    ReasoningUIPart,
+    SourceDocumentUIPart,
+    SourceUrlUIPart,
+    StepStartUIPart,
+    TextUIPart,
+    ToolApprovalRequested,
+    ToolApprovalRequestedPart,
+    ToolInputAvailablePart,
+    ToolInputStreamingPart,
+    ToolOutputAvailablePart,
+    ToolOutputDeniedPart,
+    ToolOutputErrorPart,
+    UIMessage,
+    UIMessagePart,
 )
 
 _DEFAULT_MESSAGE_ID = "subagent-message"
@@ -361,8 +363,9 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             message.parts.append(FileUIPart(url=chunk.url, media_type=chunk.media_type))
             changed = True
         elif isinstance(chunk, DataChunk):
-            message.parts.append(DataUIPart(type=chunk.type, id=chunk.id, data=chunk.data))
-            changed = True
+            if chunk.transient is not True:
+                message.parts.append(DataUIPart(type=chunk.type, id=chunk.id, data=chunk.data))
+                changed = True
         elif isinstance(chunk, ErrorChunk):
             message.parts.append(
                 DataUIPart(type="data-error", data={"errorText": chunk.error_text})
@@ -643,6 +646,10 @@ def _get_call_provider_metadata(part: UIMessagePart | None) -> ProviderMetadata 
 
 
 def _merge_metadata(existing: Any, new: Any) -> Any:
+    if isinstance(existing, BaseModel):
+        existing = existing.model_dump(mode="json", by_alias=True, exclude_none=True)
+    if isinstance(new, BaseModel):
+        new = new.model_dump(mode="json", by_alias=True, exclude_none=True)
     if isinstance(existing, dict) and isinstance(new, dict):
         return {**existing, **new}
     return new

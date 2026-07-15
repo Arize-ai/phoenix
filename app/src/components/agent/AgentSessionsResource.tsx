@@ -121,7 +121,6 @@ function AgentSessionsContent({
           edges {
             node {
               id
-              sessionId
               title
               createdAt
               updatedAt
@@ -154,7 +153,7 @@ function AgentSessionsContent({
       const session = store.getState().sessionMap[sessionId];
       const status = store.getState().chatStatusBySessionId[sessionId];
       if (
-        session?.relayId == null &&
+        session?.id == null &&
         status !== "submitted" &&
         status !== "streaming"
       ) {
@@ -164,17 +163,27 @@ function AgentSessionsContent({
     return createLocalSession();
   }, [createLocalSession, store]);
 
+  const runtimeSessionById = useMemo(
+    () =>
+      new Map(
+        Object.values(sessionMap).flatMap((session) =>
+          session.id ? ([[session.id, session]] as const) : []
+        )
+      ),
+    [sessionMap]
+  );
   const serverSessions = data.agentSessions.edges.map(({ node }) => {
-    const runtimeSession = sessionMap[node.sessionId];
+    const runtimeSession = runtimeSessionById.get(node.id);
+    const clientKey = runtimeSession?.clientKey ?? node.id;
     return {
-      id: node.sessionId,
-      relayId: node.id,
+      clientKey,
+      id: node.id,
       title: runtimeSession?.title || node.title,
       messages: runtimeSession?.messages ?? [],
       createdAt: Date.parse(node.createdAt as string),
       isDeleteDisabled:
-        chatStatusBySessionId[node.sessionId] === "submitted" ||
-        chatStatusBySessionId[node.sessionId] === "streaming",
+        chatStatusBySessionId[clientKey] === "submitted" ||
+        chatStatusBySessionId[clientKey] === "streaming",
     } satisfies AgentSessionListItem;
   });
   const activeSessionCache = activeSessionId
@@ -182,20 +191,23 @@ function AgentSessionsContent({
     : undefined;
   const activeLocalSession =
     activeSessionCache &&
-    !serverSessions.some((session) => session.id === activeSessionCache.id)
+    !serverSessions.some(
+      (session) => session.clientKey === activeSessionCache.clientKey
+    )
       ? activeSessionCache
       : undefined;
   const localSessions: AgentSessionListItem[] = activeLocalSession
     ? [
         {
+          clientKey: activeLocalSession.clientKey,
           id: activeLocalSession.id,
-          relayId: activeLocalSession.relayId,
           title: activeLocalSession.title,
           messages: activeLocalSession.messages,
           createdAt: activeLocalSession.createdAt,
           isDeleteDisabled:
-            chatStatusBySessionId[activeLocalSession.id] === "submitted" ||
-            chatStatusBySessionId[activeLocalSession.id] === "streaming",
+            chatStatusBySessionId[activeLocalSession.clientKey] ===
+              "submitted" ||
+            chatStatusBySessionId[activeLocalSession.clientKey] === "streaming",
         },
       ]
     : [];
@@ -209,7 +221,7 @@ function AgentSessionsContent({
     }
     const mostRecentSession = orderedSessionsRef.current[0];
     if (mostRecentSession) {
-      setActiveSession(mostRecentSession.id);
+      setActiveSession(mostRecentSession.clientKey);
     } else {
       createSession();
     }
@@ -218,12 +230,11 @@ function AgentSessionsContent({
   const [commitDelete] =
     useMutation<AgentSessionsResourceDeleteMutation>(graphql`
       mutation AgentSessionsResourceDeleteMutation(
-        $sessionId: String!
+        $id: ID!
         $connectionId: ID!
       ) {
-        deleteAgentSession(input: { sessionId: $sessionId }) {
+        deleteAgentSession(input: { id: $id }) {
           deletedAgentSessionId @deleteEdge(connections: [$connectionId])
-          sessionId
         }
       }
     `);
@@ -231,21 +242,21 @@ function AgentSessionsContent({
   const deleteSession = useCallback(
     (sessionId: string) => {
       const session = orderedSessionsRef.current.find(
-        (candidate) => candidate.id === sessionId
+        (candidate) => candidate.clientKey === sessionId
       );
       const nextSession = orderedSessionsRef.current.find(
-        (candidate) => candidate.id !== sessionId
+        (candidate) => candidate.clientKey !== sessionId
       );
       const isDeletingActiveSession = activeSessionId === sessionId;
       let replacementSessionId: string | null = null;
       if (isDeletingActiveSession) {
         if (nextSession) {
-          setActiveSession(nextSession.id);
-        } else if (session?.relayId) {
+          setActiveSession(nextSession.clientKey);
+        } else if (session?.id) {
           replacementSessionId = createSession();
         }
       }
-      if (!session?.relayId) {
+      if (!session?.id) {
         deleteLocalSession(sessionId);
         if (isDeletingActiveSession && !nextSession) {
           createSession();
@@ -253,11 +264,10 @@ function AgentSessionsContent({
         return;
       }
       commitDelete({
-        variables: { sessionId, connectionId },
+        variables: { id: session.id, connectionId },
         optimisticResponse: {
           deleteAgentSession: {
-            deletedAgentSessionId: session.relayId,
-            sessionId,
+            deletedAgentSessionId: session.id,
           },
         },
         onCompleted: () => {
@@ -290,7 +300,7 @@ function AgentSessionsContent({
   );
 
   const activeSession = orderedSessions.find(
-    (session) => session.id === activeSessionId
+    (session) => session.clientKey === activeSessionId
   );
   const activeRuntimeSession = activeSessionId
     ? sessionMap[activeSessionId]
@@ -304,25 +314,25 @@ function AgentSessionsContent({
   const handleMissingSession = useCallback(
     (sessionId: string) => {
       const missingSession = orderedSessionsRef.current.find(
-        (session) => session.id === sessionId
+        (session) => session.clientKey === sessionId
       );
       const nextSession = orderedSessionsRef.current.find(
-        (session) => session.id !== sessionId
+        (session) => session.clientKey !== sessionId
       );
-      const missingRelayId = missingSession?.relayId;
-      if (missingRelayId) {
+      const missingSessionId = missingSession?.id;
+      if (missingSessionId) {
         commitLocalUpdate(relayEnvironment, (relayStore) => {
           const connection = ConnectionHandler.getConnection(
             relayStore.getRoot(),
             AGENT_SESSIONS_CONNECTION_KEY
           );
           if (connection) {
-            ConnectionHandler.deleteNode(connection, missingRelayId);
+            ConnectionHandler.deleteNode(connection, missingSessionId);
           }
         });
       }
       if (nextSession) {
-        setActiveSession(nextSession.id);
+        setActiveSession(nextSession.clientKey);
       } else {
         createSession();
       }
@@ -379,23 +389,27 @@ function AgentSessionTranscript({
 }) {
   const data = useLazyLoadQuery<AgentSessionsResourceSessionQuery>(
     graphql`
-      query AgentSessionsResourceSessionQuery($sessionId: String!) {
-        agentSession(sessionId: $sessionId) {
-          id
-          title
-          createdAt
-          messages
+      query AgentSessionsResourceSessionQuery($id: ID!) {
+        agentSession: node(id: $id) {
+          __typename
+          ... on AgentSession {
+            id
+            title
+            createdAt
+            messages
+          }
         }
       }
     `,
-    { sessionId },
+    { id: sessionId },
     { fetchPolicy: "store-or-network" }
   );
   const store = useAgentStore();
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig
   );
-  const agentSession = data.agentSession;
+  const agentSession =
+    data.agentSession.__typename === "AgentSession" ? data.agentSession : null;
   const messages = useMemo(
     () =>
       Array.isArray(agentSession?.messages)
@@ -410,8 +424,8 @@ function AgentSessionTranscript({
       return;
     }
     store.getState().cacheSession({
-      id: sessionId,
-      relayId: agentSession.id,
+      clientKey: sessionId,
+      id: agentSession.id,
       title: agentSession.title,
       messages,
       context: [],

@@ -2,17 +2,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
 
-from pydantic_ai.ui.vercel_ai.request_types import (
-    DataUIPart,
-    FileUIPart,
-    ReasoningUIPart,
-    SourceDocumentUIPart,
-    SourceUrlUIPart,
-    StepStartUIPart,
-    TextUIPart,
-    ToolOutputAvailablePart,
-    UIMessage,
-)
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
@@ -36,6 +25,17 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 
+from phoenix.db.types.data_stream_protocol import (
+    DataUIPart,
+    FileUIPart,
+    ReasoningUIPart,
+    SourceDocumentUIPart,
+    SourceUrlUIPart,
+    StepStartUIPart,
+    TextUIPart,
+    ToolOutputAvailablePart,
+    UIMessage,
+)
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
@@ -146,6 +146,7 @@ class TestAccumulateUIMessageChunksToUIMessages:
     async def test_accumulates_data_source_file_and_error_chunks(self) -> None:
         messages = await _collect_messages(
             [
+                DataChunk(type="data-status", data="working", transient=True),
                 DataChunk(type="data-progress", id="data-1", data={"percent": 50}),
                 SourceUrlChunk(
                     source_id="source-url-1",

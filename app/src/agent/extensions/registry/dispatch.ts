@@ -98,7 +98,7 @@ export function createAgentToolDispatcher(
       // the result streams back as `tool-output-available` and must not be
       // intercepted by the frontend registry.
       if (
-        toolCall.providerMetadata?.phoenix?.tool_execution_environment ===
+        toolCall.providerMetadata?.phoenix?.toolExecutionEnvironment ===
         "server"
       ) {
         return;

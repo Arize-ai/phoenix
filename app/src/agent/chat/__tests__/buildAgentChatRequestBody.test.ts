@@ -285,8 +285,8 @@ describe("enrichMessagesWithClientToolTimings", () => {
             output: { name: "prompt" },
             callProviderMetadata: {
               phoenix: {
-                tool_execution_environment: "client",
-                tool_input_emitted_at: "2026-07-10T11:59:59Z",
+                toolExecutionEnvironment: "client",
+                toolInputEmittedAt: "2026-07-10T11:59:59Z",
               },
               provider: { retained: true },
             },
@@ -308,10 +308,10 @@ describe("enrichMessagesWithClientToolTimings", () => {
       callProviderMetadata: {
         provider: { retained: true },
         phoenix: {
-          tool_execution_environment: "client",
-          tool_input_emitted_at: "2026-07-10T11:59:59Z",
-          client_started_at: "2026-07-10T12:00:00.000Z",
-          client_ended_at: "2026-07-10T12:00:01.000Z",
+          toolExecutionEnvironment: "client",
+          toolInputEmittedAt: "2026-07-10T11:59:59Z",
+          clientStartedAt: "2026-07-10T12:00:00.000Z",
+          clientEndedAt: "2026-07-10T12:00:01.000Z",
         },
       },
     });

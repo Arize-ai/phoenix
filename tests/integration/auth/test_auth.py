@@ -2114,9 +2114,7 @@ class TestVercelChatStreamRouterAuth:
 
     @pytest.fixture
     def _path(self) -> str:
-        # Sessions are persisted and owned by the first user to post to them,
-        # so each test needs a fresh session id to avoid a 404 ownership rejection.
-        return f"/agents/assistant/sessions/session-{token_hex(8)}/chat"
+        return "/agents/assistant/chat"
 
     def test_unauthenticated_request_is_rejected(
         self,
