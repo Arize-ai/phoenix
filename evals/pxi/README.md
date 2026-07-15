@@ -234,12 +234,14 @@ only the retry produced a miss is **not** a confirmed regression — that is one
 assessable attempt, not the same miss twice, and the single retry is already
 spent, so it is recorded as unassessable and never reddens the gate. These
 sub-1.0 regression overrides are a deliberate interim stopgap (see
-`thresholds.yaml`); the planned end state is not ratcheting them to `1.0` but
-deleting the aggregate pass-rate machinery in favor of per-example gating
-(every regression example passes within two attempts, persistent flake is
-quarantined to a non-gating split). That cutover is a later corpus/policy step,
-gated on a k≥3 baseline on the shipped default model — not part of this
-measurement-semantics change.
+`thresholds.yaml`); the planned end state ratchets them back to the strict
+`1.0` default once the corpus is re-baselined (k≥3 on the shipped default
+model) and every consistent failure is dispositioned — confirm-on-retry
+absorbs wobble at the measurement layer, and persistent flake is quarantined
+explicitly to a non-gating split rather than tolerated by numeric headroom.
+The threshold system itself stays: it remains the policy layer for split
+defaults, dev/holdout leniency, and `gating: false` quarantine. That ratchet
+is a later corpus/policy step, not part of this measurement-semantics change.
 
 ### Regression gate vs. full-collection sync
 
