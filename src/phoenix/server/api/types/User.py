@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy import select
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
@@ -10,6 +9,7 @@ from phoenix.config import get_env_admins
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.api_key_policy import get_user_role_and_api_keys
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.UserApiKey import UserApiKey
 
@@ -119,9 +119,9 @@ class User(Node):
     @strawberry.field
     async def api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
         async with info.context.db.read() as session:
-            api_keys = await session.scalars(
-                select(models.ApiKey).where(models.ApiKey.user_id == self.id)
-            )
+            user_role, api_keys = await get_user_role_and_api_keys(session, self.id)
+        if user_role == "SYSTEM":
+            return []
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
     @strawberry.field

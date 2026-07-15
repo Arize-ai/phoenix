@@ -5,15 +5,26 @@ from secrets import token_hex
 from typing import Any, Optional
 
 import pytest
+from strawberry.relay import GlobalID
+
+from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (
     _ADMIN,
+    _DEFAULT_ADMIN,
+    _DENIED,
     _MEMBER,
+    _OK,
+    _OK_OR_DENIED,
     _VIEWER,
     _ApiKey,
     _AppInfo,
+    _delete_users,
     _GetUser,
+    _gql,
     _httpx_client,
+    _patch_user,
+    _RoleOrUser,
     _SecurityArtifact,
 )
 
@@ -41,6 +52,107 @@ def _list(app: _AppInfo, auth: _SecurityArtifact, kind: str) -> Any:
 
 def _delete(app: _AppInfo, auth: _SecurityArtifact, kind: str, api_key_id: str) -> Any:
     return _httpx_client(app, auth).delete(f"v1/{kind}/api_keys/{api_key_id}")
+
+
+class TestGraphQLApiKeys:
+    @pytest.mark.parametrize("role_or_user", [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    def test_create_and_delete_own_user_key(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = user.create_api_key(_app)
+        user.delete_api_key(_app, api_key)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    def test_only_admin_can_create_system_key(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role_or_user).log_in(_app)
+        with expectation:
+            user.create_api_key(_app, "System")
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, pytest.raises(RuntimeError, match="API key not found")),
+            (_MEMBER, pytest.raises(RuntimeError, match="API key not found")),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    @pytest.mark.parametrize("owner_role", [_MEMBER, _ADMIN])
+    def test_only_admin_can_delete_another_users_key(
+        self,
+        role_or_user: _RoleOrUser,
+        owner_role: UserRoleInput,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role_or_user).log_in(_app)
+        owner = _get_user(_app, owner_role).log_in(_app)
+        assert owner.gid != user.gid
+        api_key = owner.create_api_key(_app)
+        with expectation:
+            user.delete_api_key(_app, api_key)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    def test_only_admin_can_delete_system_key(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role_or_user).log_in(_app)
+        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System")
+        with expectation:
+            user.delete_api_key(_app, api_key)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    @pytest.mark.parametrize("query", ["query{userApiKeys{id}}", "query{systemApiKeys{id}}"])
+    def test_only_admin_can_list_keys(
+        self,
+        role_or_user: _RoleOrUser,
+        query: str,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role_or_user).log_in(_app)
+        with expectation:
+            user.gql(_app, query)
 
 
 class TestUserApiKeys:
@@ -76,25 +188,122 @@ class TestUserApiKeys:
         assert _httpx_client(_app, _ApiKey(key, created["id"])).get("v1/user").status_code == 401
 
     def test_keys_are_scoped_to_their_owner(self, _get_user: _GetUser, _app: _AppInfo) -> None:
-        """A user cannot see or delete another user's key, even as an admin."""
+        """A user cannot manage another user's key, while an admin can revoke it."""
         owner = _get_user(_app, _MEMBER)
         other = _get_user(_app, _MEMBER)
         admin = _get_user(_app, _ADMIN)
         created = _create(_app, owner, "user").json()["data"]
 
-        for stranger in (other, admin):
-            assert all(
-                k["id"] != created["id"] for k in _list(_app, stranger, "user").json()["data"]
+        assert all(k["id"] != created["id"] for k in _list(_app, other, "user").json()["data"])
+        # 404 rather than 403 so the endpoint cannot be used to probe for others' keys.
+        assert _delete(_app, other, "user", created["id"]).status_code == 404
+
+        assert _delete(_app, admin, "user", created["id"]).status_code == 204
+
+    def test_deleting_a_user_revokes_their_api_keys(
+        self, _get_user: _GetUser, _app: _AppInfo
+    ) -> None:
+        """A deleted user's keys must not outlive them.
+
+        This is the invariant the admin-secret emergency-revocation path relies on: an
+        operator holding only PHOENIX_ADMIN_SECRET cannot revoke a specific user's key
+        directly, but deleting the user revokes it.
+        """
+        owner = _get_user(_app, _MEMBER)
+        created = _create(_app, owner, "user").json()["data"]
+        key = _ApiKey(created["key"], created["id"])
+
+        # The key authenticates while its owner exists.
+        assert _httpx_client(_app, key).get("v1/user").status_code == 200
+
+        _delete_users(_app, _app.admin_secret, users=[owner])
+
+        # Once the owner is deleted, the key no longer authenticates.
+        assert _httpx_client(_app, key).get("v1/user").status_code == 401
+
+    def test_viewers_can_manage_their_own_keys(self, _get_user: _GetUser, _app: _AppInfo) -> None:
+        viewer = _get_user(_app, _VIEWER)
+        created = _create(_app, viewer, "user").json()["data"]
+        assert any(k["id"] == created["id"] for k in _list(_app, viewer, "user").json()["data"])
+        assert _delete(_app, viewer, "user", created["id"]).status_code == 204
+
+    @pytest.mark.parametrize("transport", ["rest", "graphql"])
+    def test_new_key_uses_current_database_role(
+        self,
+        transport: str,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, _MEMBER)
+        existing = _create(_app, user, "user").json()["data"]
+        existing_key = _ApiKey(existing["key"], existing["id"])
+        _patch_user(_app, user, _app.admin_secret, new_role=UserRoleInput.VIEWER)
+
+        if transport == "rest":
+            created = _create(_app, existing_key, "user").json()["data"]
+            new_key = _ApiKey(created["key"], created["id"])
+        else:
+            response, _ = _gql(
+                _app,
+                existing_key,
+                query=(
+                    'mutation { createUserApiKey(input: {name: "role-check"}) '
+                    "{ jwt apiKey { id } } }"
+                ),
             )
-            # 404 rather than 403 so the endpoint cannot be used to probe for others' keys.
-            assert _delete(_app, stranger, "user", created["id"]).status_code == 404
+            payload = response["data"]["createUserApiKey"]
+            new_key = _ApiKey(payload["jwt"], payload["apiKey"]["id"])
+        # The new key is immediately a viewer even if the caller's cached claims still say MEMBER.
+        assert _httpx_client(_app, new_key).post("v1/projects").status_code == 403
 
-        # The key still works, i.e. the failed deletes were genuinely no-ops.
-        assert _delete(_app, owner, "user", created["id"]).status_code == 204
+    def test_admin_can_inventory_user_keys(self, _get_user: _GetUser, _app: _AppInfo) -> None:
+        owner = _get_user(_app, _MEMBER)
+        admin = _get_user(_app, _ADMIN)
+        personal = [
+            _create(_app, owner, "user").json()["data"],
+            _create(_app, owner, "user").json()["data"],
+        ]
+        system = _create(_app, admin, "system").json()["data"]
 
-    def test_viewers_cannot_create_keys(self, _get_user: _GetUser, _app: _AppInfo) -> None:
-        # Viewers are blocked from all v1 write operations at the router level.
-        assert _create(_app, _get_user(_app, _VIEWER), "user").status_code == 403
+        assert _httpx_client(_app, owner).get("v1/users/api_keys").status_code == 403
+        response = _httpx_client(_app, admin).get("v1/users/api_keys", params={"limit": 1})
+        assert response.status_code == 200
+        first_page = response.json()
+        assert len(first_page["data"]) == 1
+        assert first_page["next_cursor"]
+        response = _httpx_client(_app, admin).get(
+            "v1/users/api_keys",
+            params={"cursor": first_page["next_cursor"]},
+        )
+        assert response.status_code == 200
+        keys = first_page["data"] + response.json()["data"]
+        assert {key["id"] for key in keys}.issuperset(key["id"] for key in personal)
+        entry = next(key for key in keys if key["id"] == personal[0]["id"])
+        assert entry["user"]["id"] == owner.gid
+        assert entry["user"]["username"] == owner.profile.username
+        assert all(key["id"] != system["id"] for key in keys)
+
+    def test_graphql_delete_does_not_reveal_key_existence(
+        self, _get_user: _GetUser, _app: _AppInfo
+    ) -> None:
+        owner = _get_user(_app, _MEMBER)
+        other = _get_user(_app, _MEMBER)
+        existing_id = _create(_app, owner, "user").json()["data"]["id"]
+        missing_id = str(GlobalID("UserApiKey", "999999999"))
+        query = "mutation($id: ID!) { deleteUserApiKey(input: {id: $id}) { apiKeyId } }"
+
+        messages = []
+        for api_key_id in (existing_id, missing_id):
+            response, _ = _gql(
+                _app,
+                other,
+                query=query,
+                variables={"id": api_key_id},
+                raise_on_errors=False,
+            )
+            assert response["data"] is None
+            messages.append(response["errors"][0]["message"])
+        assert messages == ["API key not found", "API key not found"]
 
     @pytest.mark.parametrize(
         "data",
@@ -147,12 +356,103 @@ class TestSystemApiKeys:
         assert _delete(_app, admin, "system", created["id"]).status_code == 204
         assert all(k["id"] != created["id"] for k in _list(_app, admin, "system").json()["data"])
 
+    def test_admin_secret_is_system_admin_but_has_no_personal_key_identity(
+        self, _get_user: _GetUser, _app: _AppInfo
+    ) -> None:
+        owner = _get_user(_app, _MEMBER)
+        admin_secret = _app.admin_secret
+
+        # It owns no personal keys: listing returns an empty collection (matching GraphQL),
+        # and it cannot create a personal key of its own.
+        listed = _list(_app, admin_secret, "user")
+        assert listed.status_code == 200
+        assert listed.json()["data"] == []
+        assert _create(_app, admin_secret, "user").status_code == 403
+
+        # But its configured admin authority permits cross-user revocation of a human user's
+        # key, on both surfaces, even though its database role is SYSTEM.
+        rest_target = _create(_app, owner, "user").json()["data"]
+        assert _delete(_app, admin_secret, "user", rest_target["id"]).status_code == 204
+        assert all(k["id"] != rest_target["id"] for k in _list(_app, owner, "user").json()["data"])
+
+        gql_target = _create(_app, owner, "user").json()["data"]
+        _gql(
+            _app,
+            admin_secret,
+            query="mutation($id: ID!) { deleteUserApiKey(input: {id: $id}) { apiKeyId } }",
+            variables={"id": gql_target["id"]},
+        )
+        assert all(k["id"] != gql_target["id"] for k in _list(_app, owner, "user").json()["data"])
+
+        # System-key administration remains available to the admin secret.
+        created = _create(_app, admin_secret, "system").json()["data"]
+        assert any(
+            key["id"] == created["id"] for key in _list(_app, admin_secret, "system").json()["data"]
+        )
+        assert _delete(_app, admin_secret, "system", created["id"]).status_code == 204
+
     @pytest.mark.parametrize("role", [_MEMBER, _VIEWER])
     def test_non_admins_are_denied(self, role: Any, _get_user: _GetUser, _app: _AppInfo) -> None:
         user = _get_user(_app, role)
         assert _list(_app, user, "system").status_code == 403
         assert _create(_app, user, "system").status_code == 403
         assert _delete(_app, user, "system", "fake-id").status_code == 403
+
+    def test_system_keys_cannot_manage_keys_through_the_user_routes(
+        self, _get_user: _GetUser, _app: _AppInfo
+    ) -> None:
+        """
+        A system key must not reach the personal-key routes. Every system key is owned by
+        the single system user, so if the /user routes admitted a system caller it could
+        list and revoke every other system key and mint fresh SYSTEM-role keys, bypassing
+        the admin gate on the /system routes.
+        """
+        admin = _get_user(_app, _ADMIN)
+        created = _create(_app, admin, "system").json()["data"]
+        system = _ApiKey(created["key"], created["id"], "System")
+
+        # Listing returns an empty personal collection: the system key's keys are system keys
+        # and are deliberately not exposed here, so it cannot enumerate them. Create and
+        # delete on the personal routes are rejected outright.
+        listed = _list(_app, system, "user")
+        assert listed.status_code == 200
+        assert listed.json()["data"] == []
+        assert _create(_app, system, "user").status_code == 403
+        assert _delete(_app, system, "user", created["id"]).status_code == 403
+
+        # The system key itself is untouched and still usable.
+        assert _httpx_client(_app, system).get("v1/projects").status_code == 200
+
+    def test_system_keys_cannot_manage_keys_through_graphql_personal_paths(
+        self, _get_user: _GetUser, _app: _AppInfo
+    ) -> None:
+        created = _create(_app, _get_user(_app, _ADMIN), "system").json()["data"]
+        system = _ApiKey(created["key"], created["id"], "System")
+
+        listed, _ = _gql(_app, system, query="query { viewer { apiKeys { id } } }")
+        assert listed == {"data": {"viewer": {"apiKeys": []}}}
+
+        created_personal, _ = _gql(
+            _app,
+            system,
+            query='mutation { createUserApiKey(input: {name: "forbidden"}) { jwt } }',
+            raise_on_errors=False,
+        )
+        assert created_personal["data"] is None
+        assert created_personal["errors"]
+
+        node_id = GlobalID.from_id(created["id"]).node_id
+        relabeled_id = str(GlobalID("UserApiKey", node_id))
+        deleted, _ = _gql(
+            _app,
+            system,
+            query=("mutation($id: ID!) { deleteUserApiKey(input: {id: $id}) { apiKeyId } }"),
+            variables={"id": relabeled_id},
+            raise_on_errors=False,
+        )
+        assert deleted["data"] is None
+        assert deleted["errors"][0]["message"] == "API key not found"
+        assert _httpx_client(_app, system).get("v1/projects").status_code == 200
 
     def test_personal_keys_are_not_reachable_as_system_keys(
         self, _get_user: _GetUser, _app: _AppInfo
@@ -164,4 +464,25 @@ class TestSystemApiKeys:
         # The personal key's GlobalID is of the wrong node type for the system endpoint.
         assert _delete(_app, admin, "system", personal["id"]).status_code == 422
         assert any(k["id"] == personal["id"] for k in _list(_app, admin, "user").json()["data"])
+
+        node_id = GlobalID.from_id(personal["id"]).node_id
+        relabeled_id = str(GlobalID("SystemApiKey", node_id))
+        response, _ = _gql(
+            _app,
+            admin,
+            query=("mutation($id: ID!) { deleteSystemApiKey(input: {id: $id}) { apiKeyId } }"),
+            variables={"id": relabeled_id},
+            raise_on_errors=False,
+        )
+        assert response["data"] is None
+        assert response["errors"][0]["message"] == "API key not found"
+        assert any(k["id"] == personal["id"] for k in _list(_app, admin, "user").json()["data"])
+
+        system = _create(_app, admin, "system").json()["data"]
+        node_id = GlobalID.from_id(system["id"]).node_id
+        relabeled_id = str(GlobalID("UserApiKey", node_id))
+        assert _delete(_app, admin, "user", relabeled_id).status_code == 404
+        assert any(k["id"] == system["id"] for k in _list(_app, admin, "system").json()["data"])
+
         assert _delete(_app, admin, "user", personal["id"]).status_code == 204
+        assert _delete(_app, admin, "system", system["id"]).status_code == 204

@@ -22,22 +22,32 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import Field, field_validator
 from sqlalchemy import select
+from sqlalchemy.orm import contains_eager
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.api.helpers.api_key_policy import (
+    can_revoke_user_api_key,
+    get_api_key_owner,
+    get_system_user_id,
+    get_user_api_key_authorization,
+    get_user_role,
+    get_user_role_and_api_keys,
+)
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
+    PaginatedResponseBody,
     RequestBody,
     ResponseBody,
     add_errors_to_responses,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin, require_auth_enabled
-from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.bearer_auth import PhoenixSystemUser, PhoenixUser
 from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, TokenStore, UserId
 
 logger = logging.getLogger(__name__)
@@ -49,8 +59,6 @@ router = APIRouter(tags=["api_keys"])
 # holds.
 _USER_API_KEY = "UserApiKey"
 _SYSTEM_API_KEY = "SystemApiKey"
-
-_SYSTEM_ROLE: models.UserRoleName = "SYSTEM"
 
 
 class ApiKeyData(V1RoutesBaseModel):
@@ -101,6 +109,16 @@ class CreatedApiKey(ApiKey):
     )
 
 
+class ApiKeyUser(V1RoutesBaseModel):
+    id: str
+    username: str
+    email: Optional[str]
+
+
+class UserApiKey(ApiKey):
+    user: ApiKeyUser
+
+
 class CreateApiKeyRequestBody(RequestBody[ApiKeyData]):
     pass
 
@@ -113,6 +131,10 @@ class GetApiKeysResponseBody(ResponseBody[list[ApiKey]]):
     pass
 
 
+class GetAllUserApiKeysResponseBody(PaginatedResponseBody[UserApiKey]):
+    pass
+
+
 def _to_api_key(api_key: models.ApiKey, node_name: str) -> ApiKey:
     return ApiKey(
         id=str(GlobalID(node_name, str(api_key.id))),
@@ -120,6 +142,18 @@ def _to_api_key(api_key: models.ApiKey, node_name: str) -> ApiKey:
         description=api_key.description or UNDEFINED,
         created_at=api_key.created_at,
         expires_at=api_key.expires_at or UNDEFINED,
+    )
+
+
+def _to_user_api_key(api_key: models.ApiKey) -> UserApiKey:
+    user = api_key.user
+    return UserApiKey(
+        **_to_api_key(api_key, _USER_API_KEY).model_dump(),
+        user=ApiKeyUser(
+            id=str(GlobalID("User", str(user.id))),
+            username=user.username,
+            email=user.email,
+        ),
     )
 
 
@@ -186,6 +220,52 @@ def _parse_api_key_id(api_key_id: str, node_name: str) -> int:
         )
 
 
+async def require_non_system_user(request: Request) -> models.UserRoleName:
+    """
+    Resolve the caller's role from the database and reject the system user.
+
+    Every system key is owned by the single system user, so a system caller's own keys
+    are all the system keys. The `/user` routes authorize by owner id alone, so admitting
+    a system caller would let any one system key list and revoke every other system key,
+    bypassing the `require_admin` gate on the `/system` routes. System keys are managed
+    only through `/system/api_keys`.
+
+    The role is read from the database rather than the token store's in-memory claims so
+    role changes apply immediately, and because the admin-secret system principal carries
+    no claims at all. The resolved role is returned so callers that need it (key creation)
+    can reuse it without a second query.
+    """
+    user_id = int(_get_authenticated_user(request).identity)
+    async with request.app.state.db() as session:
+        user_role = await get_user_role(session, user_id)
+    if user_role is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    if user_role == "SYSTEM":
+        raise HTTPException(
+            status_code=403,
+            detail="System API keys must be managed through the /system/api_keys endpoints.",
+        )
+    return user_role
+
+
+def reject_system_api_key(request: Request) -> None:
+    """Reject a SYSTEM-role API key while admitting the admin-secret principal.
+
+    A SYSTEM API key is a workload credential and cannot manage user keys, so it is rejected
+    early and categorically. The admin-secret principal shares the system user's identity but
+    carries configured admin authority; it is admitted here and authorized by the route body's
+    cross-user revocation logic.
+    """
+    user = _get_authenticated_user(request)
+    if isinstance(user, PhoenixSystemUser):
+        return
+    if user.claims.attributes is not None and user.claims.attributes.user_role == "SYSTEM":
+        raise HTTPException(
+            status_code=403,
+            detail="System API keys must be managed through the /system/api_keys endpoints.",
+        )
+
+
 @router.get(
     "/user/api_keys",
     operation_id="getUserApiKeys",
@@ -204,14 +284,66 @@ def _parse_api_key_id(api_key_id: str, node_name: str) -> int:
 async def list_user_api_keys(request: Request) -> GetApiKeysResponseBody:
     user_id = int(_get_authenticated_user(request).identity)
     async with request.app.state.db() as session:
-        api_keys = (
-            await session.scalars(
-                select(models.ApiKey)
-                .where(models.ApiKey.user_id == user_id)
-                .order_by(models.ApiKey.id.desc())
-            )
-        ).all()
+        user_role, api_keys = await get_user_role_and_api_keys(session, user_id)
+    if user_role is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    # A system-backed principal owns no user-class keys, so its personal collection is empty
+    # rather than forbidden. This matches GraphQL's `viewer { apiKeys }`, letting a caller
+    # swap surfaces without handling a 403 on one and an empty list on the other. The keys
+    # owned by the system user are system keys and are deliberately not returned here.
+    if user_role == "SYSTEM":
+        return GetApiKeysResponseBody(data=[])
     return GetApiKeysResponseBody(data=[_to_api_key(k, _USER_API_KEY) for k in api_keys])
+
+
+@router.get(
+    "/users/api_keys",
+    operation_id="getAllUserApiKeys",
+    summary="List all user API keys",
+    description=(
+        "Retrieve API keys belonging to human users across the organization. "
+        "System API keys are excluded. Restricted to admins."
+    ),
+    response_description="A paginated list of user API keys and their owners.",
+    dependencies=[Depends(require_auth_enabled), Depends(require_admin)],
+    responses=add_errors_to_responses([401, 422]),
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
+)
+async def list_all_user_api_keys(
+    request: Request,
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination (a UserApiKey GlobalID).",
+    ),
+    limit: int = Query(
+        default=100,
+        description="The maximum number of API keys to return.",
+        gt=0,
+    ),
+) -> GetAllUserApiKeysResponseBody:
+    stmt = (
+        select(models.ApiKey)
+        .join(models.User, models.User.id == models.ApiKey.user_id)
+        .join(models.UserRole, models.UserRole.id == models.User.user_role_id)
+        .where(models.UserRole.name != "SYSTEM")
+        .options(contains_eager(models.ApiKey.user))
+        .order_by(models.ApiKey.id.desc())
+    )
+    if cursor:
+        stmt = stmt.where(models.ApiKey.id <= _parse_api_key_id(cursor, _USER_API_KEY))
+    stmt = stmt.limit(limit + 1)
+    async with request.app.state.db() as session:
+        api_keys = list((await session.scalars(stmt)).unique().all())
+    next_cursor = None
+    if len(api_keys) == limit + 1:
+        next_cursor = str(GlobalID(_USER_API_KEY, str(api_keys[-1].id)))
+        api_keys = api_keys[:-1]
+    return GetAllUserApiKeysResponseBody(
+        data=[_to_user_api_key(api_key) for api_key in api_keys],
+        next_cursor=next_cursor,
+    )
 
 
 @router.post(
@@ -235,16 +367,12 @@ async def list_user_api_keys(request: Request) -> GetApiKeysResponseBody:
 async def create_user_api_key(
     request: Request,
     request_body: CreateApiKeyRequestBody,
+    user_role: models.UserRoleName = Depends(require_non_system_user),
 ) -> CreateApiKeyResponseBody:
+    # The role comes from require_non_system_user, which has already rejected the system
+    # user, so a personal key can only ever inherit a non-SYSTEM role. This mirrors the
+    # GraphQL create_user_api_key mutation, which never mints a SYSTEM-role key.
     user_id = int(_get_authenticated_user(request).identity)
-    async with request.app.state.db() as session:
-        user_role = await session.scalar(
-            select(models.UserRole.name)
-            .join(models.User, models.User.user_role_id == models.UserRole.id)
-            .where(models.User.id == user_id)
-        )
-    if user_role is None:
-        raise HTTPException(status_code=401, detail="User not found")
     data = await _create_api_key(
         request,
         user_id=user_id,
@@ -258,15 +386,14 @@ async def create_user_api_key(
 @router.delete(
     "/user/api_keys/{api_key_id}",
     operation_id="deleteUserApiKey",
-    summary="Delete one of the authenticated user's API keys",
+    summary="Delete a user API key",
     description=(
-        "Permanently revoke an API key belonging to the currently authenticated user. "
-        "The key stops working immediately. Keys owned by other users are not visible "
-        "here and cannot be deleted through this endpoint."
+        "Permanently revoke a user API key. Users can revoke their own keys, and admins "
+        "can revoke keys belonging to other users. The key stops working immediately."
     ),
     response_description="No content returned on successful deletion.",
     status_code=204,
-    dependencies=[Depends(require_auth_enabled)],
+    dependencies=[Depends(require_auth_enabled), Depends(reject_system_api_key)],
     responses=add_errors_to_responses(
         [
             401,
@@ -282,15 +409,27 @@ async def delete_user_api_key(
     request: Request,
     api_key_id: str = Path(..., description="The GlobalID of the API key."),
 ) -> None:
-    user_id = int(_get_authenticated_user(request).identity)
+    user = _get_authenticated_user(request)
+    user_id = int(user.identity)
+    # The admin-secret principal has no personal keys but carries configured admin authority,
+    # so it may revoke another user's key even though its database role is SYSTEM.
+    caller_is_admin_secret = isinstance(user, PhoenixSystemUser)
     id_ = _parse_api_key_id(api_key_id, _USER_API_KEY)
     async with request.app.state.db() as session:
-        owner_id = await session.scalar(
-            select(models.ApiKey.user_id).where(models.ApiKey.id == id_)
+        authorization = await get_user_api_key_authorization(
+            session,
+            caller_id=user_id,
+            api_key_id=id_,
         )
+    if authorization is None and not caller_is_admin_secret:
+        raise HTTPException(status_code=401, detail="User not found")
     # A key owned by someone else is reported as missing rather than forbidden so that this
     # endpoint cannot be used to probe for the existence of other users' keys.
-    if owner_id is None or owner_id != user_id:
+    if not can_revoke_user_api_key(
+        caller_id=user_id,
+        caller_is_admin_secret=caller_is_admin_secret,
+        authorization=authorization,
+    ):
         raise HTTPException(status_code=404, detail="API key not found")
     await _revoke_api_key(request, id_)
     return None
@@ -301,9 +440,9 @@ async def delete_user_api_key(
     operation_id="getSystemApiKeys",
     summary="List system API keys",
     description=(
-        "Retrieve all system API keys. System keys are not tied to a human user and carry "
-        "full privileges, so this endpoint is restricted to admins. The keys themselves "
-        "are not recoverable and are never included in the response."
+        "Retrieve all system API keys. System keys belong to the system user rather than to "
+        "any human, so this endpoint is restricted to admins. The keys themselves are not "
+        "recoverable and are never included in the response."
     ),
     response_description="The system API keys.",
     dependencies=[Depends(require_auth_enabled), Depends(require_admin)],
@@ -319,7 +458,7 @@ async def list_system_api_keys(request: Request) -> GetApiKeysResponseBody:
                 select(models.ApiKey)
                 .join(models.User, models.User.id == models.ApiKey.user_id)
                 .join(models.UserRole, models.UserRole.id == models.User.user_role_id)
-                .where(models.UserRole.name == _SYSTEM_ROLE)
+                .where(models.UserRole.name == "SYSTEM")
                 .order_by(models.ApiKey.id.desc())
             )
         ).all()
@@ -332,7 +471,7 @@ async def list_system_api_keys(request: Request) -> GetApiKeysResponseBody:
     summary="Create a system API key",
     description=(
         "Create a system API key. System keys belong to the system user rather than to any "
-        "human, and they carry full privileges, so this endpoint is restricted to admins. "
+        "human, so this endpoint is restricted to admins. "
         "The response contains the key itself, which is shown only once and cannot be "
         "retrieved afterwards."
     ),
@@ -349,20 +488,14 @@ async def create_system_api_key(
     request_body: CreateApiKeyRequestBody,
 ) -> CreateApiKeyResponseBody:
     async with request.app.state.db() as session:
-        system_user_id = await session.scalar(
-            select(models.User.id)
-            .join(models.UserRole, models.UserRole.id == models.User.user_role_id)
-            .where(models.UserRole.name == _SYSTEM_ROLE)
-            .order_by(models.User.id)
-            .limit(1)
-        )
+        system_user_id = await get_system_user_id(session)
     if system_user_id is None:
         logger.error("System user not found")
         raise HTTPException(status_code=500, detail="System user not found")
     data = await _create_api_key(
         request,
         user_id=system_user_id,
-        user_role=_SYSTEM_ROLE,
+        user_role="SYSTEM",
         data=request_body.data,
         node_name=_SYSTEM_API_KEY,
     )
@@ -397,15 +530,10 @@ async def delete_system_api_key(
 ) -> None:
     id_ = _parse_api_key_id(api_key_id, _SYSTEM_API_KEY)
     async with request.app.state.db() as session:
-        role = await session.scalar(
-            select(models.UserRole.name)
-            .join(models.User, models.User.user_role_id == models.UserRole.id)
-            .join(models.ApiKey, models.ApiKey.user_id == models.User.id)
-            .where(models.ApiKey.id == id_)
-        )
+        owner = await get_api_key_owner(session, id_)
     # Personal keys are not system keys, so they are invisible to this endpoint even though
     # they live in the same table.
-    if role != _SYSTEM_ROLE:
+    if owner is None or not owner.is_system:
         raise HTTPException(status_code=404, detail="System API key not found")
     await _revoke_api_key(request, id_)
     return None

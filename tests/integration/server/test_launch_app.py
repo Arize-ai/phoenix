@@ -22,6 +22,7 @@ from .._helpers import (
     _ADMIN_ONLY_ENDPOINTS,
     _AUTH_REQUIRED_ENDPOINTS,
     _COMMON_RESOURCE_ENDPOINTS,
+    _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AppInfo,
     _get,
@@ -215,6 +216,7 @@ class TestLaunchApp:
             _COMMON_RESOURCE_ENDPOINTS,
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
+            _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
         ):
             # Credential-issuing endpoints fail closed when authentication is disabled,
             # rather than returning the status they would under an authenticated app.

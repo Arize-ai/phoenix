@@ -7280,13 +7280,98 @@
         }
       }
     },
+    "/v1/users/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List all user API keys",
+        "description": "Retrieve API keys belonging to human users across the organization. System API keys are excluded. Restricted to admins.",
+        "operationId": "getAllUserApiKeys",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a UserApiKey GlobalID).",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a UserApiKey GlobalID)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The maximum number of API keys to return.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The maximum number of API keys to return."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A paginated list of user API keys and their owners.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllUserApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/user/api_keys/{api_key_id}": {
       "delete": {
         "tags": [
           "api_keys"
         ],
-        "summary": "Delete one of the authenticated user's API keys",
-        "description": "Permanently revoke an API key belonging to the currently authenticated user. The key stops working immediately. Keys owned by other users are not visible here and cannot be deleted through this endpoint.",
+        "summary": "Delete a user API key",
+        "description": "Permanently revoke a user API key. Users can revoke their own keys, and admins can revoke keys belonging to other users. The key stops working immediately.",
         "operationId": "deleteUserApiKey",
         "parameters": [
           {
@@ -7354,7 +7439,7 @@
           "api_keys"
         ],
         "summary": "List system API keys",
-        "description": "Retrieve all system API keys. System keys are not tied to a human user and carry full privileges, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.",
+        "description": "Retrieve all system API keys. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.",
         "operationId": "getSystemApiKeys",
         "responses": {
           "200": {
@@ -7394,7 +7479,7 @@
           "api_keys"
         ],
         "summary": "Create a system API key",
-        "description": "Create a system API key. System keys belong to the system user rather than to any human, and they carry full privileges, so this endpoint is restricted to admins. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
+        "description": "Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
         "operationId": "createSystemApiKey",
         "requestBody": {
           "content": {
@@ -8420,6 +8505,36 @@
           "name"
         ],
         "title": "ApiKeyData"
+      },
+      "ApiKeyUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "title": "ApiKeyUser"
       },
       "AppContext": {
         "properties": {
@@ -11204,6 +11319,34 @@
           "type"
         ],
         "title": "FreeformAnnotationConfigData"
+      },
+      "GetAllUserApiKeysResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/UserApiKey"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetAllUserApiKeysResponseBody"
       },
       "GetAnnotationConfigResponseBody": {
         "properties": {
@@ -18251,6 +18394,57 @@
         ],
         "title": "UpsertOrDeleteSecretsResult",
         "description": "Result payload listing which keys were upserted and which were deleted."
+      },
+      "UserApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ApiKeyUser"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "user"
+        ],
+        "title": "UserApiKey"
       },
       "UserMessageMetadata": {
         "properties": {
