@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from phoenix.db import models
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
@@ -30,9 +31,10 @@ async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, 
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project.id,
             evaluator_id=evaluator.id,
-            annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
+            evaluation_target="SPAN",
         )
         session.add(criteria)
         await session.flush()
@@ -185,8 +187,10 @@ async def test_project_evaluator_criteria_defaults_and_relationships(
         )
         assert fetched is not None
         assert fetched.enabled is True
-        assert fetched.annotation_name.root.startswith("criteria-")
+        assert fetched.name.root.startswith("criteria-")
         assert fetched.filter_condition == ""
+        assert fetched.evaluation_target == "SPAN"
+        assert fetched.input_mapping is None
         assert fetched.sampling_rate == 1.0
         assert fetched.evaluator.id == evaluator_id
         assert fetched.project is not None
@@ -208,15 +212,16 @@ async def test_project_evaluator_criteria_rejects_out_of_range_sampling_rate(
                 models.ProjectEvaluatorCriteria(
                     project_id=project_id,
                     evaluator_id=evaluator_id,
-                    annotation_name=Identifier(root=f"criteria-{token_hex(4)}"),
+                    name=Identifier(root=f"criteria-{token_hex(4)}"),
                     filter_condition="",
                     sampling_rate=1.5,
+                    evaluation_target="SPAN",
                 )
             )
             await session.flush()
 
 
-async def test_project_evaluator_criteria_annotation_name_is_unique_per_project(
+async def test_project_evaluator_criteria_name_is_unique_per_project(
     db: DbSessionFactory,
 ) -> None:
     _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
@@ -225,7 +230,7 @@ async def test_project_evaluator_criteria_annotation_name_is_unique_per_project(
         existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert existing is not None
         project_id = existing.project_id
-        annotation_name = existing.annotation_name
+        name = existing.name
 
     with pytest.raises(Exception):
         async with db() as session:
@@ -233,9 +238,60 @@ async def test_project_evaluator_criteria_annotation_name_is_unique_per_project(
                 models.ProjectEvaluatorCriteria(
                     project_id=project_id,
                     evaluator_id=evaluator_id,
-                    annotation_name=annotation_name,
+                    name=name,
                     filter_condition="",
                     sampling_rate=0.5,
+                    evaluation_target="SPAN",
+                )
+            )
+            await session.flush()
+
+
+async def test_project_evaluator_criteria_preserves_empty_input_mapping(
+    db: DbSessionFactory,
+) -> None:
+    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    async with db() as session:
+        existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert existing is not None
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=existing.project_id,
+            evaluator_id=evaluator_id,
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="TRACE",
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        )
+        session.add(criteria)
+        await session.flush()
+        criteria_id = criteria.id
+
+    async with db() as session:
+        fetched = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert fetched is not None
+        assert fetched.input_mapping == InputMapping(literal_mapping={}, path_mapping={})
+
+
+async def test_project_evaluator_criteria_rejects_unknown_target(
+    db: DbSessionFactory,
+) -> None:
+    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    async with db() as session:
+        existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert existing is not None
+        project_id = existing.project_id
+
+    with pytest.raises(Exception):
+        async with db() as session:
+            session.add(
+                models.ProjectEvaluatorCriteria(
+                    project_id=project_id,
+                    evaluator_id=evaluator_id,
+                    name=Identifier(root=f"criteria-{token_hex(4)}"),
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    evaluation_target="DOCUMENT",
                 )
             )
             await session.flush()

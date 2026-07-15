@@ -41,11 +41,13 @@ def _criteria(rng: Random) -> ResolvedCriteria:
     )
     return ResolvedCriteria(
         criteria_id=rng.randint(1, 10_000),
-        annotation_name=_word(rng),
+        name=_word(rng),
         evaluator_id=rng.randint(1, 10_000),
         version_ref=version_ref,
         output_configs=[_json_value(rng) for _ in range(rng.randint(0, 3))],
         input_mapping={_word(rng): _json_value(rng) for _ in range(rng.randint(0, 3))},
+        evaluation_target=rng.choice(["SPAN", "TRACE", "SESSION"]),
+        sandbox_config_id=rng.choice([None, rng.randint(1, 10_000)]),
         filter_condition=rng.choice(["", "span_kind == 'LLM'", "status_code == 'ERROR'"]),
         sampling_rate=rng.random(),
     )
@@ -54,21 +56,25 @@ def _criteria(rng: Random) -> ResolvedCriteria:
 _EDGE_CRITERIA = [
     ResolvedCriteria(
         criteria_id=0,
-        annotation_name="",
+        name="",
         evaluator_id=0,
         version_ref=0,
         output_configs=[],
         input_mapping={},
+        evaluation_target="SPAN",
+        sandbox_config_id=None,
         filter_condition="",
         sampling_rate=0.0,
     ),
     ResolvedCriteria(
         criteria_id=1,
-        annotation_name="ünïcode ✓",
+        name="ünïcode ✓",
         evaluator_id=1,
         version_ref=["exact_match", "2026-07-01T00:00:00+00:00"],
         output_configs=[{"nested": {"deep": [1, 2, 3]}}],
         input_mapping={"input": None},
+        evaluation_target="SESSION",
+        sandbox_config_id=12,
         filter_condition="span_kind == 'LLM'",
         sampling_rate=1.0,
     ),
@@ -124,11 +130,16 @@ class TestConfigFingerprint:
             resolved = _criteria(rng)
             mutations = [
                 replace(resolved, criteria_id=resolved.criteria_id + 1),
-                replace(resolved, annotation_name=resolved.annotation_name + "x"),
+                replace(resolved, name=resolved.name + "x"),
                 replace(resolved, evaluator_id=resolved.evaluator_id + 1),
                 replace(resolved, version_ref=[resolved.version_ref, "bumped"]),
                 replace(resolved, output_configs=[resolved.output_configs, "bumped"]),
                 replace(resolved, input_mapping={"bumped": resolved.input_mapping}),
+                replace(
+                    resolved,
+                    evaluation_target=("SPAN" if resolved.evaluation_target != "SPAN" else "TRACE"),
+                ),
+                replace(resolved, sandbox_config_id=(resolved.sandbox_config_id or 0) + 1),
                 replace(resolved, filter_condition=resolved.filter_condition + " "),
                 replace(resolved, sampling_rate=resolved.sampling_rate / 2 + 0.25),
             ]
@@ -141,7 +152,7 @@ class TestConfigFingerprint:
         agreement depends on these bytes never changing silently."""
         resolved = ResolvedCriteria(
             criteria_id=7,
-            annotation_name="toxicity",
+            name="toxicity",
             evaluator_id=42,
             version_ref=1301,
             output_configs=[
@@ -154,12 +165,14 @@ class TestConfigFingerprint:
                 }
             ],
             input_mapping={"input": "attributes.llm.input_messages"},
+            evaluation_target="SPAN",
+            sandbox_config_id=None,
             filter_condition="span_kind == 'LLM'",
             sampling_rate=0.25,
         )
         assert (
             config_fingerprint(resolved)
-            == "6ba10d4ca474ac93266d5ea1d80a66e2f606c2d64ffe45bed22833f2c53bdb23"
+            == "e6ca2ff2b09c452f4f1c9c6e846223e71a3955796ec86ce636c19d5215527f94"
         )
 
 
