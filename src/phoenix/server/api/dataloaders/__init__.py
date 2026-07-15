@@ -149,6 +149,7 @@ class CacheForDataLoaders:
 
 @dataclass
 class DataLoaders:
+    agent_session_fields: TableFieldsDataLoader
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_repeated_run_group_latency: (
@@ -292,6 +293,7 @@ def build_data_loaders(
     cache_for_dataloaders: CacheForDataLoaders | None = None,
 ) -> DataLoaders:
     return DataLoaders(
+        agent_session_fields=TableFieldsDataLoader(db, models.AgentSession),
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
             db

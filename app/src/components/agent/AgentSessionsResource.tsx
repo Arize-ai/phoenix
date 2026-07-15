@@ -387,11 +387,14 @@ function AgentSessionTranscript({
   const data = useLazyLoadQuery<AgentSessionsResourceSessionQuery>(
     graphql`
       query AgentSessionsResourceSessionQuery($id: ID!) {
-        agentSession(id: $id) {
-          id
-          title
-          createdAt
-          messages
+        agentSession: node(id: $id) {
+          __typename
+          ... on AgentSession {
+            id
+            title
+            createdAt
+            messages
+          }
         }
       }
     `,
@@ -402,7 +405,8 @@ function AgentSessionTranscript({
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig
   );
-  const agentSession = data.agentSession;
+  const agentSession =
+    data.agentSession.__typename === "AgentSession" ? data.agentSession : null;
   const messages = useMemo(
     () =>
       Array.isArray(agentSession?.messages)

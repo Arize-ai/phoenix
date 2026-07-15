@@ -3615,11 +3615,6 @@ type Query {
   The viewer's persisted assistant chat sessions, most recently active first. When authentication is disabled, all sessions are returned.
   """
   agentSessions(first: Int = 20, after: String): AgentSessionConnection!
-
-  """
-  One persisted assistant chat session, or null if it does not exist or belongs to another user.
-  """
-  agentSession(id: ID!): AgentSession
   agentsConfig: AgentsConfig!
 
   """The assistant skills available given the supplied UI context."""

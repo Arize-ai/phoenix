@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2bd59d53461e95cb0657c91d5b44b972>>
+ * @generated SignedSource<<728db6ef72bb26890222cce4a0affd32>>
  * @lightSyntaxTransform
  */
 
@@ -13,11 +13,16 @@ export type AgentSessionsResourceSessionQuery$variables = {
 };
 export type AgentSessionsResourceSessionQuery$data = {
   readonly agentSession: {
+    readonly __typename: "AgentSession";
     readonly createdAt: string;
     readonly id: string;
     readonly messages: any;
     readonly title: string;
-  } | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
+  };
 };
 export type AgentSessionsResourceSessionQuery = {
   response: AgentSessionsResourceSessionQuery$data;
@@ -34,58 +39,77 @@ var v0 = [
 ],
 v1 = [
   {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "id",
-        "variableName": "id"
-      }
-    ],
-    "concreteType": "AgentSession",
-    "kind": "LinkedField",
-    "name": "agentSession",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "id",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "title",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "createdAt",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "messages",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "title",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "messages",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "AgentSessionsResourceSessionQuery",
-    "selections": (v1/*:: as any*/),
+    "selections": [
+      {
+        "alias": "agentSession",
+        "args": (v1/*:: as any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          (v2/*:: as any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/)
+            ],
+            "type": "AgentSession",
+            "abstractKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Query",
     "abstractKey": null
   },
@@ -94,19 +118,43 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "AgentSessionsResourceSessionQuery",
-    "selections": (v1/*:: as any*/)
+    "selections": [
+      {
+        "alias": "agentSession",
+        "args": (v1/*:: as any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/)
+            ],
+            "type": "AgentSession",
+            "abstractKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "9ac32e91de6c43cf327a4776d38ccd69",
+    "cacheID": "5d6f3956a3509d65796db179899d5887",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceSessionQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceSessionQuery(\n  $id: ID!\n) {\n  agentSession(id: $id) {\n    id\n    title\n    createdAt\n    messages\n  }\n}\n"
+    "text": "query AgentSessionsResourceSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      createdAt\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "66ffd37f99696fb120ba6893ccb42325";
+(node as any).hash = "83571c638255dfc75976738a033a0320";
 
 export default node;

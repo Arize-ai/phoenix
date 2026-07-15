@@ -50,10 +50,12 @@ _LIST_QUERY = """
 
 _DETAIL_QUERY = """
   query ($id: ID!) {
-    agentSession(id: $id) {
-      id
-      title
-      messages
+    agentSession: node(id: $id) {
+      ... on AgentSession {
+        id
+        title
+        messages
+      }
     }
   }
 """
@@ -118,13 +120,15 @@ async def test_agent_session_loads_transcript_by_id(
     }
 
 
-async def test_agent_session_returns_null_when_missing(
+async def test_agent_session_node_returns_not_found_when_missing(
     gql_client: AsyncGraphQLClient,
 ) -> None:
+    agent_session_id = str(GlobalID("AgentSession", "999999"))
     response = await gql_client.execute(
         query=_DETAIL_QUERY,
-        variables={"id": str(GlobalID("AgentSession", "999999"))},
+        variables={"id": agent_session_id},
     )
 
-    assert not response.errors
-    assert response.data == {"agentSession": None}
+    assert response.data is None
+    assert response.errors
+    assert response.errors[0].message == f"Unknown agent session: {agent_session_id}"

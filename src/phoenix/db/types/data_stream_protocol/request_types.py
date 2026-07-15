@@ -1,7 +1,8 @@
 """Vendored Vercel AI request types (UI messages).
 
-Source: pydantic_ai/ui/vercel_ai/request_types.py from pydantic-ai-slim==2.4.0.
-Keep this module in sync when bumping pydantic-ai.
+Initially vendored from pydantic_ai/ui/vercel_ai/request_types.py in
+pydantic-ai-slim==2.4.0. Compatibility with the installed version is enforced by
+tests/unit/db/types/test_data_stream_protocol_compatibility.py.
 
 Converted to Python from:
 https://github.com/vercel/ai/blob/ai%406.0.57/packages/ai/src/ui/ui-messages.ts
