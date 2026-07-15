@@ -54,6 +54,13 @@ class EvaluatorKind(Enum):
     BUILTIN = "BUILTIN"
 
 
+@strawberry.enum
+class EvaluationTarget(Enum):
+    SPAN = "SPAN"
+    TRACE = "TRACE"
+    SESSION = "SESSION"
+
+
 @strawberry.type
 class EvaluatorInputMapping:
     literal_mapping: JSON
@@ -1075,5 +1082,95 @@ class DatasetEvaluator(Node):
         record = await info.context.data_loaders.dataset_evaluators_by_id.load(self.id)
         if record is None:
             raise NotFound(f"DatasetEvaluator not found: {self.id}")
+        self.db_record = record
+        return record
+
+
+@strawberry.type
+class ProjectEvaluator(Node):
+    """An evaluator and its project-specific online evaluation policy."""
+
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.ProjectEvaluatorCriteria]] = None
+
+    @strawberry.field
+    async def project(
+        self, info: Info[Context, None]
+    ) -> Annotated["Project", strawberry.lazy(".Project")]:
+        record = await self._get_record(info)
+        from .Project import Project
+
+        return Project(id=record.project_id)
+
+    @strawberry.field
+    async def evaluator(self, info: Info[Context, None]) -> Evaluator:
+        record = await self._get_record(info)
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        if isinstance(evaluator, models.LLMEvaluator):
+            return LLMEvaluator(id=evaluator.id)
+        if isinstance(evaluator, models.CodeEvaluator):
+            return CodeEvaluator(id=evaluator.id)
+        if isinstance(evaluator, models.BuiltinEvaluator):
+            return BuiltInEvaluator(id=evaluator.id)
+        project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+        raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
+
+    @strawberry.field
+    async def name(self, info: Info[Context, None]) -> Identifier:
+        record = await self._get_record(info)
+        return Identifier(record.name.root)
+
+    @strawberry.field
+    async def filter_condition(self, info: Info[Context, None]) -> str:
+        return (await self._get_record(info)).filter_condition
+
+    @strawberry.field
+    async def sampling_rate(self, info: Info[Context, None]) -> float:
+        return (await self._get_record(info)).sampling_rate
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Evaluation grain. SPAN is currently executable; TRACE and SESSION are "
+            "stored but remain inactive until their runtimes are available."
+        )
+    )
+    async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
+        record = await self._get_record(info)
+        return EvaluationTarget(record.evaluation_target)
+
+    @strawberry.field
+    async def input_mapping(self, info: Info[Context, None]) -> EvaluatorInputMapping:
+        record = await self._get_record(info)
+        input_mapping = record.input_mapping
+        if input_mapping is None:
+            evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+            if isinstance(evaluator, models.CodeEvaluator):
+                input_mapping = evaluator.input_mapping
+        if input_mapping is None:
+            return EvaluatorInputMapping(literal_mapping=JSON({}), path_mapping=JSON({}))
+        return EvaluatorInputMapping(
+            literal_mapping=JSON(input_mapping.literal_mapping),
+            path_mapping=JSON(input_mapping.path_mapping),
+        )
+
+    @strawberry.field
+    async def enabled(self, info: Info[Context, None]) -> bool:
+        return (await self._get_record(info)).enabled
+
+    @strawberry.field
+    async def created_at(self, info: Info[Context, None]) -> datetime:
+        return (await self._get_record(info)).created_at
+
+    @strawberry.field
+    async def updated_at(self, info: Info[Context, None]) -> datetime:
+        return (await self._get_record(info)).updated_at
+
+    async def _get_record(self, info: Info[Context, None]) -> models.ProjectEvaluatorCriteria:
+        if self.db_record is not None:
+            return self.db_record
+        record = await info.context.data_loaders.project_evaluator_criteria_by_id.load(self.id)
+        if record is None:
+            project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+            raise NotFound(f"ProjectEvaluator not found: {project_evaluator_id}")
         self.db_record = record
         return record
