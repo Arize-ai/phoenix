@@ -225,7 +225,7 @@ function IOValueTooltipCell({
 
   return (
     <TooltipTrigger
-      delay={350}
+      delay={700}
       closeDelay={100}
       onOpenChange={(isOpen) => {
         if (isOpen) {
