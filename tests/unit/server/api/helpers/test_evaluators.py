@@ -47,6 +47,7 @@ from phoenix.db.types.prompts import (
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
+    PromptToolRaw,
     PromptTools,
     TextContentPart,
 )
@@ -277,6 +278,22 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+
+    def test_raw_tool_error_does_not_echo_submitted_json(
+        self,
+        output_config: CategoricalOutputConfig,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools = [
+            PromptToolRaw(type="raw", raw={"api_key": "secret", "type": "web_search"})
+        ]
+        with pytest.raises(
+            ValueError,
+            match=f"^{_LLMEvaluatorPromptErrorMessage.FUNCTION_TOOLS_REQUIRED}$",
+        ) as error:
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+        assert "secret" not in str(error.value)
 
     def test_function_parameters_type_not_object_raises(
         self,
