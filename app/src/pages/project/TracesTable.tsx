@@ -28,7 +28,6 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -44,9 +43,9 @@ import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp"
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import {
-  CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
+  CopyableTextCell,
   createRowSelectionColumn,
   useColumnOrder,
 } from "@phoenix/components/table";
@@ -295,6 +294,7 @@ export function TracesTable(props: TracesTableProps) {
                 trace {
                   id
                   traceId
+                  userId
                   numSpans
                   costSummary {
                     total {
@@ -758,17 +758,7 @@ export function TracesTable(props: TracesTableProps) {
         enableSorting: false,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) return null;
-          const value = getValue() as string | null;
-          if (!value) return <>{"--"}</>;
-          return (
-            <CellWithControlsWrap
-              controls={<CopyToClipboardButton text={value} />}
-            >
-              <Truncate>
-                <Text>{value}</Text>
-              </Truncate>
-            </CellWithControlsWrap>
-          );
+          return <CopyableTextCell value={getValue() as string | null} />;
         },
       },
       {
@@ -778,17 +768,7 @@ export function TracesTable(props: TracesTableProps) {
         enableSorting: false,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) return null;
-          const value = getValue() as string | null;
-          if (!value) return <>{"--"}</>;
-          return (
-            <CellWithControlsWrap
-              controls={<CopyToClipboardButton text={value} />}
-            >
-              <Truncate>
-                <Text>{value}</Text>
-              </Truncate>
-            </CellWithControlsWrap>
-          );
+          return <CopyableTextCell value={getValue() as string | null} />;
         },
       },
       {
@@ -847,6 +827,16 @@ export function TracesTable(props: TracesTableProps) {
         accessorKey: "metadata",
         enableSorting: false,
         cell: MetadataCell,
+      },
+      {
+        header: "user",
+        accessorKey: "trace.userId",
+        id: "userId",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.depth !== 0 || row.original.__additionalRow) return null;
+          return <CopyableTextCell value={getValue() as string | null} />;
+        },
       },
       ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
       {

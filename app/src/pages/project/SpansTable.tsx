@@ -21,7 +21,6 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -39,9 +38,9 @@ import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp"
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import {
-  CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
+  CopyableTextCell,
   createRowSelectionColumn,
   LoadMoreRow,
   useColumnOrder,
@@ -265,6 +264,7 @@ export function SpansTable(props: SpansTableProps) {
                 spanKind
                 name
                 metadata
+                userId
                 statusCode
                 statusMessage
                 startTime
@@ -593,38 +593,18 @@ export function SpansTable(props: SpansTableProps) {
       header: "span id",
       accessorKey: "spanId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "trace id",
       accessorKey: "trace.traceId",
       id: "traceId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "input",
@@ -714,6 +694,14 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "metadata",
       cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
       enableSorting: false,
+    },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     ...annotationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
     {
