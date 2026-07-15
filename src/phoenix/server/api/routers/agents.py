@@ -1161,13 +1161,27 @@ async def _create_or_load_agent_session(
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
 ) -> models.AgentSession | None:
-    """Create a session on first send or load an owner-qualified session."""
+    """Create a session on first send or load an owner-qualified session.
+
+    Creation also persists the incoming messages so the session is never
+    empty in the database while its first turn is still streaming — an
+    interrupted turn leaves behind the user's message instead of an empty
+    session. The end-of-turn persist rewrites the full transcript.
+    """
     if agent_session_id is None:
         if not messages:
             return None
         created_agent_session = models.AgentSession(user_id=user_id, title="")
         session.add(created_agent_session)
         await session.flush()
+        session.add_all(
+            models.AgentSessionMessage(
+                agent_session_id=created_agent_session.id,
+                position=position,
+                message=message,
+            )
+            for position, message in enumerate(messages)
+        )
         return created_agent_session
     try:
         agent_session_rowid = from_global_id_with_expected_type(
@@ -1709,7 +1723,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session_created_data.id if session_created_data is not None else None,
                 )
                 return None
-            return result.summary.strip() or None
+            summary = result.summary.strip() or None
+            if summary is not None and agent_session_rowid is not None:
+                # Persist immediately so the title survives an interrupted
+                # turn; the end-of-turn persist rewrites it as a fallback.
+                try:
+                    async with request.app.state.db() as session:
+                        await _update_agent_session(
+                            session,
+                            agent_session_rowid=agent_session_rowid,
+                            user_id=request_user_id,
+                            title=summary,
+                        )
+                except Exception:
+                    logger.exception(
+                        "Failed to persist title for agent session %r",
+                        session_created_data.id if session_created_data is not None else None,
+                    )
+            return summary
 
         turn_final_output_text: str | None = None
         turn_is_terminal = False

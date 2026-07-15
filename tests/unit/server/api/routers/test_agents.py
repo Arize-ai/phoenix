@@ -81,6 +81,49 @@ class TestAgentSessionPersistence:
             assert updated_rowid is None
             assert await session.scalar(select(models.AgentSession.id)) is None
 
+    async def test_create_eagerly_persists_incoming_messages(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        messages = [
+            PhoenixUIMessage(id="message-1", role="user", parts=[]),
+            PhoenixUIMessage(id="message-2", role="assistant", parts=[]),
+        ]
+        async with db() as session:
+            created = await _create_or_load_agent_session(
+                session,
+                agent_session_id=None,
+                user_id=None,
+                messages=messages,
+            )
+            assert created is not None
+            created_rowid = created.id
+
+        async with db() as session:
+            stored_messages = (
+                await session.scalars(
+                    select(models.AgentSessionMessage)
+                    .where(models.AgentSessionMessage.agent_session_id == created_rowid)
+                    .order_by(models.AgentSessionMessage.position)
+                )
+            ).all()
+        assert [stored.message.id for stored in stored_messages] == ["message-1", "message-2"]
+
+        # Loading an existing session must not write messages again.
+        async with db() as session:
+            loaded = await _create_or_load_agent_session(
+                session,
+                agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
+                user_id=None,
+                messages=messages,
+            )
+            assert loaded is not None
+        async with db() as session:
+            message_count = await session.scalar(
+                select(func.count()).select_from(models.AgentSessionMessage)
+            )
+        assert message_count == len(messages)
+
     async def test_create_requires_messages(self, db: DbSessionFactory) -> None:
         async with db() as session:
             created = await _create_or_load_agent_session(
