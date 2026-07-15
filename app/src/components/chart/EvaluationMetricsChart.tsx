@@ -34,6 +34,7 @@ import type {
   EvaluationMetricsSeries,
   EvaluationMetricsView,
 } from "./evaluationMetricsUtils";
+import { getEvaluationMetricsChartData } from "./evaluationMetricsUtils";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
@@ -114,12 +115,7 @@ export function EvaluationMetricsChart({
     !isScoreView || scoreValuesFitUnitDomain
       ? ([0, 1] as [number, number])
       : undefined;
-  // Distribution baselines are comparison bars, so place them first and avoid
-  // duplicating them when the baseline also falls inside the visible window.
-  const chartData =
-    !isScoreView && reference != null
-      ? [reference, ...data.filter(({ x }) => x !== reference.x)]
-      : data;
+  const chartData = getEvaluationMetricsChartData({ data, reference });
 
   return (
     <ChartEmptyStateOverlay

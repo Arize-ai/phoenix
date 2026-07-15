@@ -45,6 +45,23 @@ export function getDefaultEvaluationMetricsView(
 }
 
 /**
+ * Prepends a comparison point without duplicating it when it is already part
+ * of the visible domain. Keeping this ordering outside the renderer makes the
+ * baseline category invariant explicit and independently testable.
+ */
+export function getEvaluationMetricsChartData({
+  data,
+  reference,
+}: {
+  data: ReadonlyArray<EvaluationMetricsChartPoint>;
+  reference?: EvaluationMetricsChartPoint;
+}): ReadonlyArray<EvaluationMetricsChartPoint> {
+  return reference == null
+    ? data
+    : [reference, ...data.filter(({ x }) => x !== reference.x)];
+}
+
+/**
  * Normalizes summary snapshots into one chart series per evaluation. Separate
  * score and label datasets let mixed evaluations switch views without putting
  * scores and percentages on the same axis.
@@ -52,9 +69,12 @@ export function getDefaultEvaluationMetricsView(
 export function normalizeEvaluationMetrics({
   points,
   referencePoint,
+  includeEmptyPoints = false,
 }: {
   points: ReadonlyArray<EvaluationMetricsInputPoint>;
   referencePoint?: EvaluationMetricsInputPoint;
+  /** Retain input categories that have no value for a supported view. */
+  includeEmptyPoints?: boolean;
 }): EvaluationMetricsSeries[] {
   const evaluationNames = new Set<string>();
   for (const point of points) {
@@ -90,11 +110,11 @@ export function normalizeEvaluationMetrics({
         summary,
       }: {
         point: EvaluationMetricsInputPoint;
-        summary: EvaluationSummary;
+        summary?: EvaluationSummary;
       }): EvaluationMetricsChartPoint => ({
         x: point.x,
         metadata: point.metadata ?? {},
-        meanScore: summary.meanScore ?? undefined,
+        meanScore: summary?.meanScore ?? undefined,
         fractions: [],
       });
       const makeLabelPoint = ({
@@ -102,10 +122,13 @@ export function normalizeEvaluationMetrics({
         summary,
       }: {
         point: EvaluationMetricsInputPoint;
-        summary: EvaluationSummary;
+        summary?: EvaluationSummary;
       }): EvaluationMetricsChartPoint => {
         const fractionsByLabel = new Map(
-          summary.labelFractions.map(({ label, fraction }) => [label, fraction])
+          (summary?.labelFractions ?? []).map(({ label, fraction }) => [
+            label,
+            fraction,
+          ])
         );
         return {
           x: point.x,
@@ -114,21 +137,33 @@ export function normalizeEvaluationMetrics({
         };
       };
 
-      // Omit individual experiments/buckets that have no value for the active
-      // view instead of rendering misleading empty bars.
-      const scoreData = summaryByPoint.flatMap(({ point, summary }) =>
-        summary?.meanScore == null ? [] : [makeScorePoint({ point, summary })]
+      const hasScoreValues = summaryByPoint.some(
+        ({ summary }) => summary?.meanScore != null
       );
-      const labelData = summaryByPoint.flatMap(({ point, summary }) =>
-        summary == null || summary.labelFractions.length === 0
-          ? []
-          : [makeLabelPoint({ point, summary })]
+      const hasLabelValues = summaryByPoint.some(
+        ({ summary }) => (summary?.labelFractions.length ?? 0) > 0
       );
+      // Category charts can opt into a shared domain. Missing values remain
+      // undefined, so they reserve axis space without drawing empty bars.
+      const scoreData = includeEmptyPoints
+        ? summaryByPoint.map(makeScorePoint)
+        : summaryByPoint.flatMap(({ point, summary }) =>
+            summary?.meanScore == null
+              ? []
+              : [makeScorePoint({ point, summary })]
+          );
+      const labelData = includeEmptyPoints
+        ? summaryByPoint.map(makeLabelPoint)
+        : summaryByPoint.flatMap(({ point, summary }) =>
+            summary == null || summary.labelFractions.length === 0
+              ? []
+              : [makeLabelPoint({ point, summary })]
+          );
       const views: EvaluationMetricsView[] = [];
-      if (labelData.length > 0) {
+      if (hasLabelValues) {
         views.push("labels");
       }
-      if (scoreData.length > 0) {
+      if (hasScoreValues) {
         views.push("scores");
       }
 
@@ -142,19 +177,19 @@ export function normalizeEvaluationMetrics({
         },
         referenceByView: {
           labels:
-            labelData.length > 0 &&
+            hasLabelValues &&
             referencePoint != null &&
-            referenceSummary != null &&
-            referenceSummary.labelFractions.length > 0
+            (includeEmptyPoints ||
+              (referenceSummary?.labelFractions.length ?? 0) > 0)
               ? makeLabelPoint({
                   point: referencePoint,
                   summary: referenceSummary,
                 })
               : undefined,
           scores:
-            scoreData.length > 0 &&
+            hasScoreValues &&
             referencePoint != null &&
-            referenceSummary?.meanScore != null
+            (includeEmptyPoints || referenceSummary?.meanScore != null)
               ? makeScorePoint({
                   point: referencePoint,
                   summary: referenceSummary,

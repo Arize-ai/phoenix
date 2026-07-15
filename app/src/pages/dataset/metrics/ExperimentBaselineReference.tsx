@@ -52,8 +52,8 @@ export function ExperimentBaselineDistributionSeparator({
   if (typeof value !== "number") {
     return null;
   }
-  // Distribution baselines are prepended as bars, so separate the first
-  // category instead of drawing the horizontal value line used by scores.
+  // Evaluation baselines are prepended as bars, so separate the first
+  // category from the seven-experiment comparison window.
   return (
     <ReferenceLine
       x={value}

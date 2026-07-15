@@ -53,6 +53,9 @@ export function ExperimentEvaluationMetricsGrid({
       baselineExperiment == null
         ? undefined
         : toEvaluationMetricsInputPoint(baselineExperiment),
+    // Every panel uses the same experiment categories even when an evaluation
+    // only ran on a subset of the seven-experiment window.
+    includeEmptyPoints: true,
   });
 
   return (
@@ -86,6 +89,8 @@ function ExperimentEvaluationMetricsPanel({
     ? view
     : getDefaultEvaluationMetricsView(series);
   const reference = series.referenceByView[activeView];
+  // Score baselines serve two purposes: the bar aligns categories across
+  // panels, while the horizontal line supports value comparison.
 
   return (
     <ChartPanel
@@ -103,6 +108,8 @@ function ExperimentEvaluationMetricsPanel({
         xAxisProps={{
           ...getExperimentXAxisProps(baselineSequenceNumber),
           dataKey: "x",
+          // Recharts otherwise thins category ticks when panels get narrow.
+          interval: 0,
         }}
         yAxisProps={experimentMetricsYAxisProps}
         syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
@@ -116,15 +123,16 @@ function ExperimentEvaluationMetricsPanel({
             isBaseline={point.metadata.isBaseline === true}
           />
         )}
-        renderReference={({ isMeanScoreHidden }) =>
-          activeView === "scores" ? (
-            <ExperimentBaselineValueLine
-              value={isMeanScoreHidden ? null : reference?.meanScore}
-            />
-          ) : (
+        renderReference={({ isMeanScoreHidden }) => (
+          <>
             <ExperimentBaselineDistributionSeparator value={reference?.x} />
-          )
-        }
+            {activeView === "scores" && (
+              <ExperimentBaselineValueLine
+                value={isMeanScoreHidden ? null : reference?.meanScore}
+              />
+            )}
+          </>
+        )}
       />
     </ChartPanel>
   );
