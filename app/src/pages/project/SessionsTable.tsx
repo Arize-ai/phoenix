@@ -183,6 +183,7 @@ export function SessionsTable(props: SessionsTableProps) {
               session: node {
                 id
                 sessionId
+                userId
                 numTraces
                 startTime
                 endTime
@@ -389,6 +390,24 @@ export function SessionsTable(props: SessionsTableProps) {
           preview={getValue()}
         />
       ),
+    },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        if (!value) return <>{"--"}</>;
+        return (
+          <CellWithControlsWrap
+            controls={<CopyToClipboardButton text={value} />}
+          >
+            <Truncate>
+              <Text>{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
+        );
+      },
     },
     ...annotationColumns,
     {

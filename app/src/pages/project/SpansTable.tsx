@@ -265,6 +265,7 @@ export function SpansTable(props: SpansTableProps) {
                 spanKind
                 name
                 metadata
+                userId
                 statusCode
                 statusMessage
                 startTime
@@ -714,6 +715,24 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "metadata",
       cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
       enableSorting: false,
+    },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        if (!value) return <>{"--"}</>;
+        return (
+          <CellWithControlsWrap
+            controls={<CopyToClipboardButton text={value} />}
+          >
+            <Truncate>
+              <Text>{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
+        );
+      },
     },
     ...annotationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
     {

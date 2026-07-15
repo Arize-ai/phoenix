@@ -2884,6 +2884,11 @@ type ProjectSession implements Node {
   numTracesWithError: Int!
   firstInput: SpanIOValue
   lastOutput: SpanIOValue
+
+  """
+  The first non-null "user.id" span attribute in the session, identifying the end user of the traced application.
+  """
+  userId: String
   tokenUsage: TokenUsage!
   traces(first: Int!, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float
@@ -3885,6 +3890,11 @@ type Span implements Node {
 
   """Metadata as a JSON string"""
   metadata: String
+
+  """
+  The "user.id" attribute of the span, identifying the end user of the traced application.
+  """
+  userId: String
   numDocuments: Int
 
   """
@@ -4345,6 +4355,11 @@ type Trace implements Node {
   projectSessionId: ID
   session: ProjectSession
   rootSpan: Span
+
+  """
+  The first non-null "user.id" span attribute in the trace, identifying the end user of the traced application.
+  """
+  userId: String
   numSpans: Int!
 
   """

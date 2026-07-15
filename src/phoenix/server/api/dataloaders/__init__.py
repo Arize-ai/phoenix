@@ -80,6 +80,7 @@ from .session_num_traces import SessionNumTracesDataLoader
 from .session_num_traces_with_error import SessionNumTracesWithErrorDataLoader
 from .session_token_usages import SessionTokenUsagesDataLoader
 from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileDataLoader
+from .session_user_ids import SessionUserIdsDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_by_id import SpanByIdDataLoader
 from .span_cost_by_span import SpanCostBySpanDataLoader
@@ -111,6 +112,7 @@ from .trace_errors_by_type import TraceErrorsByTypeDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
 from .trace_span_counts_by_kind import TraceSpanCountsByKindDataLoader
+from .trace_user_ids import TraceUserIdsDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 from .version_authors import VersionAuthorsDataLoader
@@ -242,6 +244,7 @@ class DataLoaders:
     session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
+    session_user_ids: SessionUserIdsDataLoader
     span_annotation_fields: TableFieldsDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
@@ -281,6 +284,7 @@ class DataLoaders:
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     trace_span_counts_by_kind: TraceSpanCountsByKindDataLoader
+    trace_user_ids: TraceUserIdsDataLoader
     user_roles: UserRolesDataLoader
     user_api_key_fields: TableFieldsDataLoader
     user_fields: TableFieldsDataLoader
@@ -417,6 +421,7 @@ def build_data_loaders(
         session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
         session_token_usages=SessionTokenUsagesDataLoader(db),
         session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
+        session_user_ids=SessionUserIdsDataLoader(db),
         span_annotation_fields=TableFieldsDataLoader(db, models.SpanAnnotation),
         span_annotations=SpanAnnotationsDataLoader(db),
         span_fields=TableFieldsDataLoader(db, models.Span),
@@ -465,6 +470,7 @@ def build_data_loaders(
             db, models.ProjectTraceRetentionPolicy
         ),
         trace_root_spans=TraceRootSpansDataLoader(db),
+        trace_user_ids=TraceUserIdsDataLoader(db),
         project_by_name=ProjectByNameDataLoader(db),
         project_has_traces=ProjectHasTracesDataLoader(db),
         users=UsersDataLoader(db),

@@ -278,6 +278,7 @@ export function TracesTable(props: TracesTableProps) {
                 spanKind
                 name
                 metadata
+                userId
                 statusCode
                 statusMessage
                 startTime
@@ -847,6 +848,25 @@ export function TracesTable(props: TracesTableProps) {
         accessorKey: "metadata",
         enableSorting: false,
         cell: MetadataCell,
+      },
+      {
+        header: "user",
+        accessorKey: "userId",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.depth !== 0 || row.original.__additionalRow) return null;
+          const value = getValue() as string | null;
+          if (!value) return <>{"--"}</>;
+          return (
+            <CellWithControlsWrap
+              controls={<CopyToClipboardButton text={value} />}
+            >
+              <Truncate>
+                <Text>{value}</Text>
+              </Truncate>
+            </CellWithControlsWrap>
+          );
+        },
       },
       ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
       {
