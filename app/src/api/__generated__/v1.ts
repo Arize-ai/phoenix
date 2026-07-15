@@ -1297,7 +1297,7 @@ export interface paths {
         put?: never;
         /**
          * Create an API key for the authenticated user
-         * @description Create a personal API key for the currently authenticated user. The key inherits the user's role, so it grants no more access than the user already has. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
+         * @description Create a personal API key for the currently authenticated user. The key inherits the user's role, so it grants no more access than the user already has. Creation requires an access-token session; API keys cannot mint replacement keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
          */
         post: operations["createUserApiKey"];
         delete?: never;
@@ -1361,7 +1361,7 @@ export interface paths {
         put?: never;
         /**
          * Create a system API key
-         * @description Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
+         * @description Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. Creation requires an admin access-token session or the configured admin secret; API keys cannot mint keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
          */
         post: operations["createSystemApiKey"];
         delete?: never;

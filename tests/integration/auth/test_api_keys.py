@@ -203,12 +203,7 @@ class TestUserApiKeys:
     def test_deleting_a_user_revokes_their_api_keys(
         self, _get_user: _GetUser, _app: _AppInfo
     ) -> None:
-        """A deleted user's keys must not outlive them.
-
-        This is the invariant the admin-secret emergency-revocation path relies on: an
-        operator holding only PHOENIX_ADMIN_SECRET cannot revoke a specific user's key
-        directly, but deleting the user revokes it.
-        """
+        """A deleted user's keys must not outlive them."""
         owner = _get_user(_app, _MEMBER)
         created = _create(_app, owner, "user").json()["data"]
         key = _ApiKey(created["key"], created["id"])
@@ -227,10 +222,20 @@ class TestUserApiKeys:
         assert any(k["id"] == created["id"] for k in _list(_app, viewer, "user").json()["data"])
         assert _delete(_app, viewer, "user", created["id"]).status_code == 204
 
-    @pytest.mark.parametrize("transport", ["rest", "graphql"])
-    def test_new_key_uses_current_database_role(
+    @pytest.mark.parametrize("role", [_VIEWER, _MEMBER, _ADMIN])
+    def test_user_api_keys_cannot_issue_user_keys(
         self,
-        transport: str,
+        role: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, role)
+        existing = _create(_app, user, "user").json()["data"]
+        existing_key = _ApiKey(existing["key"], existing["id"])
+        assert _create(_app, existing_key, "user").status_code == 403
+
+    def test_graphql_new_key_uses_current_database_role(
+        self,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
@@ -239,20 +244,15 @@ class TestUserApiKeys:
         existing_key = _ApiKey(existing["key"], existing["id"])
         _patch_user(_app, user, _app.admin_secret, new_role=UserRoleInput.VIEWER)
 
-        if transport == "rest":
-            created = _create(_app, existing_key, "user").json()["data"]
-            new_key = _ApiKey(created["key"], created["id"])
-        else:
-            response, _ = _gql(
-                _app,
-                existing_key,
-                query=(
-                    'mutation { createUserApiKey(input: {name: "role-check"}) '
-                    "{ jwt apiKey { id } } }"
-                ),
-            )
-            payload = response["data"]["createUserApiKey"]
-            new_key = _ApiKey(payload["jwt"], payload["apiKey"]["id"])
+        response, _ = _gql(
+            _app,
+            existing_key,
+            query=(
+                'mutation { createUserApiKey(input: {name: "role-check"}) { jwt apiKey { id } } }'
+            ),
+        )
+        payload = response["data"]["createUserApiKey"]
+        new_key = _ApiKey(payload["jwt"], payload["apiKey"]["id"])
         # The new key is immediately a viewer even if the caller's cached claims still say MEMBER.
         assert _httpx_client(_app, new_key).post("v1/projects").status_code == 403
 
@@ -395,6 +395,16 @@ class TestSystemApiKeys:
             key["id"] == created["id"] for key in _list(_app, admin_secret, "system").json()["data"]
         )
         assert _delete(_app, admin_secret, "system", created["id"]).status_code == 204
+
+    def test_api_keys_cannot_issue_system_keys(self, _get_user: _GetUser, _app: _AppInfo) -> None:
+        admin = _get_user(_app, _ADMIN)
+        user_key_data = _create(_app, admin, "user").json()["data"]
+        user_key = _ApiKey(user_key_data["key"], user_key_data["id"])
+        assert _create(_app, user_key, "system").status_code == 403
+
+        system_key_data = _create(_app, admin, "system").json()["data"]
+        system_key = _ApiKey(system_key_data["key"], system_key_data["id"], "System")
+        assert _create(_app, system_key, "system").status_code == 403
 
     @pytest.mark.parametrize("role", [_MEMBER, _VIEWER])
     def test_non_admins_are_denied(self, role: Any, _get_user: _GetUser, _app: _AppInfo) -> None:
