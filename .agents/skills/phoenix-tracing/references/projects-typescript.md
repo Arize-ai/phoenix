@@ -13,14 +13,17 @@ Projects group traces for a single application or experiment.
 ### Environment Variable (Recommended)
 
 ```bash
-export PHOENIX_PROJECT_NAME="my-app-prod"
+export PHOENIX_PROJECT="my-app-prod"  # PHOENIX_PROJECT_NAME is a supported alias
 ```
 
 ```typescript
-process.env.PHOENIX_PROJECT_NAME = "my-app-prod";
+process.env.PHOENIX_PROJECT = "my-app-prod";
 import { register } from "@arizeai/phoenix-otel";
 register();  // Uses "my-app-prod"
 ```
+
+`PHOENIX_PROJECT` is canonical and takes precedence over the `PHOENIX_PROJECT_NAME`
+alias when both are set.
 
 ### Code
 
