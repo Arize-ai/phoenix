@@ -26,6 +26,11 @@ export type SegmentChartProps = {
    */
   totalValue?: number;
   /**
+   * The minimum width of a non-zero segment as a percentage of the chart.
+   * @default 0
+   */
+  minimumSegmentPercentage?: number;
+  /**
    * The segments to display in the chart
    */
   segments: {
@@ -46,6 +51,7 @@ export type SegmentChartProps = {
 
 export const SegmentChart = ({
   height = 6,
+  minimumSegmentPercentage = 0,
   segments,
   totalValue: _totalValue,
 }: SegmentChartProps) => {
@@ -53,19 +59,29 @@ export const SegmentChart = ({
   // this is useful for cases where the total value is not known ahead of time
   const totalValue =
     _totalValue ?? segments.reduce((acc, segment) => acc + segment.value, 0);
+  const visibleSegments =
+    minimumSegmentPercentage > 0
+      ? segments.filter((segment) => segment.value > 0)
+      : segments;
 
   return (
     <div style={{ height: `${height}px` }} css={chartContainerCSS}>
-      {segments.map((segment) => {
+      {visibleSegments.map((segment) => {
         const percentage =
           totalValue > 0 ? (segment.value / totalValue) * 100 : 0;
         const color = segment.color;
+        const minimumWidth =
+          segment.value > 0 && minimumSegmentPercentage > 0
+            ? `${minimumSegmentPercentage}%`
+            : undefined;
         return (
           <div
             key={segment.name}
             css={chartSegmentCSS}
             style={{
               width: `${percentage}%`,
+              minWidth: minimumWidth,
+              flexShrink: minimumWidth == null ? 0 : 1,
               backgroundColor: color,
             }}
           />

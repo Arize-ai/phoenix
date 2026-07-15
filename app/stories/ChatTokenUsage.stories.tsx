@@ -31,11 +31,11 @@ type Story = StoryObj<typeof meta>;
 /** The persistent footer shows only the total token count. */
 export const Default: Story = {};
 
-/** Hovering the token count reveals the in-flow Prompt/Completion breakdown. */
-export const ExpandedOnHover: Story = {
+/** Clicking the token count reveals the in-flow Prompt/Completion breakdown. */
+export const Expanded: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.hover(
+    await userEvent.click(
       canvas.getByRole("button", { name: "33,200 total tokens" })
     );
     await expect(
@@ -62,7 +62,7 @@ export const WithApprovalControl: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.hover(
+    await userEvent.click(
       canvas.getByRole("button", { name: "33,200 total tokens" })
     );
     await expect(

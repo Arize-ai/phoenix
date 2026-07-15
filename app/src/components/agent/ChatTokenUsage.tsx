@@ -1,8 +1,7 @@
 import { css } from "@emotion/react";
 import { useId, useState } from "react";
-import { useHover } from "react-aria";
 
-import { Text } from "@phoenix/components";
+import { DisclosureArrow, Text } from "@phoenix/components";
 import {
   SegmentChart,
   useCategoryChartColors,
@@ -20,16 +19,44 @@ const chatTokenUsageCSS = css`
     grid-row: 1;
   }
 
+  .chat-token-usage__trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-static-size-25);
+    border-radius: var(--global-rounding-small);
+    color: var(--global-text-color-300);
+    cursor: pointer;
+    outline: none;
+    transition: color 150ms ease-in-out;
+
+    .token-count-item .icon-wrap,
+    .token-count-item .text,
+    .disclosure-arrow {
+      color: currentColor;
+    }
+
+    &:hover,
+    &:focus-visible,
+    &[aria-expanded="true"] {
+      color: var(--global-text-color-700);
+    }
+
+    &:focus-visible {
+      outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+
   .chat-token-usage__details {
     grid-column: 1 / -1;
     grid-row: 2;
     min-width: 0;
   }
 
-  &:focus-within .chat-token-usage__details {
-    border-radius: var(--global-rounding-small);
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
-    outline-offset: var(--focus-ring-offset);
+  @media (prefers-reduced-motion: reduce) {
+    .chat-token-usage__trigger {
+      transition: none;
+    }
   }
 `;
 
@@ -63,8 +90,8 @@ const chatTokenUsageDetailsCSS = css`
   }
 
   .chat-token-usage-details__swatch {
-    width: var(--global-dimension-static-size-75);
-    height: var(--global-dimension-static-size-75);
+    width: var(--global-dimension-static-size-100);
+    height: var(--global-dimension-static-size-100);
     flex: none;
     border-radius: var(--global-rounding-full);
   }
@@ -95,7 +122,12 @@ export function ChatTokenUsageDetails({
       aria-label="Token usage breakdown"
     >
       <div aria-hidden="true">
-        <SegmentChart height={6} totalValue={total} segments={segments} />
+        <SegmentChart
+          height={6}
+          minimumSegmentPercentage={1}
+          totalValue={total}
+          segments={segments}
+        />
       </div>
       <div className="chat-token-usage-details__legend">
         <Text size="XS" color="text-700" weight="heavy">
@@ -131,33 +163,29 @@ export function ChatTokenUsage({
   prompt,
   completion,
 }: ChatTokenUsageDetailsProps) {
-  const [isFocused, setIsFocused] = useState(false);
-  const { hoverProps, isHovered } = useHover({});
+  const [isExpanded, setIsExpanded] = useState(false);
   const detailsId = useId();
-  const isExpanded = isHovered || isFocused;
 
   return (
     <div
-      {...hoverProps}
       className="chat-token-usage"
       css={chatTokenUsageCSS}
       data-expanded={isExpanded}
     >
       <div className="chat-token-usage__summary">
-        <TokenCount
-          className="chat-token-usage__trigger"
-          size="S"
-          color="text-300"
-          role="button"
-          tabIndex={0}
+        <button
+          className="chat-token-usage__trigger button--reset"
+          type="button"
           aria-controls={detailsId}
           aria-expanded={isExpanded}
           aria-label={`${formatInt(total)} total tokens`}
-          onBlur={() => setIsFocused(false)}
-          onFocus={() => setIsFocused(true)}
+          onClick={() => setIsExpanded((wasExpanded) => !wasExpanded)}
         >
-          {total}
-        </TokenCount>
+          <TokenCount size="S" color="text-300">
+            {total}
+          </TokenCount>
+          <DisclosureArrow isExpanded={isExpanded} />
+        </button>
       </div>
       {isExpanded ? (
         <div className="chat-token-usage__details" id={detailsId}>

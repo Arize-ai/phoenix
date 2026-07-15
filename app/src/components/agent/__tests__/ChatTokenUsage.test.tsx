@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
-import { ChatTokenUsage } from "../ChatTokenUsage";
+import { ChatTokenUsage, ChatTokenUsageDetails } from "../ChatTokenUsage";
 
 describe("ChatTokenUsage", () => {
   let container: HTMLDivElement;
@@ -45,45 +45,108 @@ describe("ChatTokenUsage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("reveals the prompt and completion breakdown on hover", async () => {
+  it("stays collapsed on hover", async () => {
     const user = userEvent.setup();
-    const trigger = container.querySelector<HTMLElement>(
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="16,567 total tokens"]'
+    );
+
+    expect(trigger).not.toBeNull();
+
+    await act(async () => user.hover(trigger!));
+
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(container.textContent).not.toContain("Prompt");
+  });
+
+  it("toggles the prompt and completion breakdown on click", async () => {
+    const user = userEvent.setup();
+    const trigger = container.querySelector<HTMLButtonElement>(
       '[aria-label="16,567 total tokens"]'
     );
 
     expect(trigger).not.toBeNull();
     expect(container.textContent).not.toContain("Prompt");
 
-    await act(async () => user.hover(trigger!));
+    await act(async () => user.click(trigger!));
 
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
     expect(container.textContent).toContain("16K Prompt");
     expect(container.textContent).toContain("630 Completion");
 
-    const details = container.querySelector<HTMLElement>(
-      '[aria-label="Token usage breakdown"]'
-    );
-    expect(details).not.toBeNull();
+    await act(async () => user.click(trigger!));
 
-    await act(async () => user.hover(details!));
-
-    expect(container.textContent).toContain("16K Prompt");
-
-    await act(async () => user.unhover(details!));
-
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
     expect(container.textContent).not.toContain("Prompt");
   });
 
-  it("reveals the breakdown for keyboard focus", () => {
-    const trigger = container.querySelector<HTMLElement>(
+  it("gives a tiny non-zero token segment a minimum width of one percent", () => {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <ChatTokenUsageDetails
+            total={16_567}
+            prompt={16_566}
+            completion={1}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    const chart = container.querySelector<HTMLElement>(
+      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+    );
+    const chartSegments = Array.from(chart?.children ?? []);
+    const promptSegment = chartSegments[0] as HTMLElement;
+    const completionSegment = chartSegments[1] as HTMLElement;
+
+    expect(chartSegments).toHaveLength(2);
+    expect(promptSegment.style.minWidth).toBe("1%");
+    expect(completionSegment.style.width).toBe(`${(1 / 16_567) * 100}%`);
+    expect(completionSegment.style.minWidth).toBe("1%");
+  });
+
+  it("does not render a slice or gap for a zero-value segment", () => {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <ChatTokenUsageDetails
+            total={16_567}
+            prompt={16_567}
+            completion={0}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    const chart = container.querySelector<HTMLElement>(
+      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+    );
+    const chartSegments = Array.from(chart?.children ?? []);
+    const promptSegment = chartSegments[0] as HTMLElement;
+
+    expect(chartSegments).toHaveLength(1);
+    expect(promptSegment.style.width).toBe("100%");
+  });
+
+  it("toggles the breakdown from the keyboard", async () => {
+    const user = userEvent.setup();
+    const trigger = container.querySelector<HTMLButtonElement>(
       '[aria-label="16,567 total tokens"]'
     );
 
     expect(trigger).not.toBeNull();
 
     act(() => trigger!.focus());
+    await act(async () => user.keyboard("{Enter}"));
 
     expect(trigger?.getAttribute("aria-expanded")).toBe("true");
     expect(container.textContent).toContain("16K Prompt");
     expect(container.textContent).toContain("630 Completion");
+
+    await act(async () => user.keyboard(" "));
+
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(container.textContent).not.toContain("Prompt");
   });
 });
