@@ -1,8 +1,4 @@
-"""Vendored Vercel AI request types (UI messages).
-
-Initially vendored from pydantic_ai/ui/vercel_ai/request_types.py in
-pydantic-ai-slim==2.4.0. Compatibility with the installed version is enforced by
-tests/unit/db/types/test_data_stream_protocol_compatibility.py.
+"""Vercel AI request types (UI messages).
 
 Converted to Python from:
 https://github.com/vercel/ai/blob/ai%406.0.57/packages/ai/src/ui/ui-messages.ts
@@ -15,7 +11,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Discriminator, Field
 
-from ._base import CamelBaseModel
+from ._models import CamelBaseModel
 
 # Technically this is recursive union of JSON types; for simplicity, we call it Any
 JSONValue = Any

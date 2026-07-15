@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, StringConstraints
 
-from ._base import CamelBaseModel
+from ._models import CamelBaseModel
 from .request_types import UIMessage
 
 

@@ -1,4 +1,9 @@
-"""Persisted Vercel AI data-stream-protocol message types."""
+"""Persisted Vercel AI data-stream-protocol message types.
+
+``_models.py`` and ``request_types.py`` are vendored from
+``pydantic_ai.ui.vercel_ai``. Their compatibility with the installed pydantic-ai
+version is enforced by ``test_data_stream_protocol_compatibility.py``.
+"""
 
 from pydantic import TypeAdapter
 
