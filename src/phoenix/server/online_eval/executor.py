@@ -127,14 +127,14 @@ class OnlineEvalExecutor:
             context = span_eval_context(span)
             if isinstance(evaluator_orm, models.LLMEvaluator):
                 return await self._hydrate_llm(
-                    session, evaluator_orm, resolved.annotation_name, resolved.version_ref, context
+                    session, evaluator_orm, resolved.name, resolved.version_ref, context
                 )
             if isinstance(evaluator_orm, models.CodeEvaluator):
                 return await self._hydrate_code(
-                    session, evaluator_orm, resolved.annotation_name, resolved.version_ref, context
+                    session, evaluator_orm, resolved.name, resolved.version_ref, context
                 )
             if isinstance(evaluator_orm, models.BuiltinEvaluator):
-                return self._hydrate_builtin(evaluator_orm, resolved.annotation_name, context)
+                return self._hydrate_builtin(evaluator_orm, resolved.name, context)
             return None
 
     async def _hydrate_llm(
