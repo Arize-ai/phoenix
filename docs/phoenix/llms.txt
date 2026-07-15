@@ -249,6 +249,7 @@
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
+- [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
 
 ### Python Frameworks
@@ -377,6 +378,7 @@
 - [MistralAI](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai): Mistral AI develops open-weight large language models, focusing on efficiency, customization, and
 - [OpenAI](https://arize.com/docs/phoenix/integrations/llm-providers/openai): OpenAI provides state-of-the-art LLMs for natural language understanding and generation
 - [OpenRouter](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): OpenRouter is a platform that connects developers to multiple AI models through a unified API, making it
+- [OrcaRouter](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): OrcaRouter is an OpenAI-compatible AI gateway that routes requests across 200+ models
 - [VertexAI](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai): Vertex AI is a fully managed platform by Google Cloud for building, deploying, and scaling machine learning
 ## Settings
 
@@ -432,9 +434,6 @@
 ### Evaluation
 
 - [LLM as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge): LLM-based evaluation best practices
-- [Eval Data Types](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluation-types): Categorize evaluations by output type — categorical, numeric, and continuous scores
-- [Custom Task Evaluation](https://arize.com/docs/phoenix/evaluation/concepts-evals/building-your-own-evals): Design and customize your own evaluator templates for task-specific quality checks
-- [Evaluating Multi-Agent Systems](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems): Evaluate multi-agent architectures with strategies for routing, coordination, and per-agent scoring
 
 ## Resources
 
@@ -792,6 +791,7 @@
 - [06.24.2026 Annotations, Labels, and PXI Server Tools](https://arize.com/docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools): Trace-level annotations in the trace header, label management from prompts and datasets lists, and a server-side bash tool for PXI subagents
 - [06.26.2026 Evals as Tests — pytest and Vitest/Jest](https://arize.com/docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest): Write LLM evaluations as pytest, Vitest, or Jest tests that record every run to Phoenix and gate CI
 - [06.30.2026 PXI Terminal Client and Annotation Summary](https://arize.com/docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary): Run PXI as an interactive terminal chat from the CLI; review and bulk-delete annotations from project settings
+- [07.07.2026: Metric Charts, Trace Search, and REST API Expansion](https://arize.com/docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api): Pin metric charts above data tables, search the trace tree, manage labels and annotation configs over REST, and use Claude Sonnet 5 in the Playground
 
 ### 2025
 
