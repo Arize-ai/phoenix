@@ -173,6 +173,12 @@ export const EvaluatorOutputPreview = () => {
       | { ok: true; output: EvaluatorPreviewsOutput }
       | { ok: false; error: string }
     > => {
+      if (shouldUpdateUi) {
+        // Match pre-batch behavior: a UI-visible preview run replaces any
+        // stale error/results from the previous run before starting.
+        setError(null);
+        setPreviewResults([]);
+      }
       return new Promise((resolve) => {
         previewEvaluator({
           variables: {

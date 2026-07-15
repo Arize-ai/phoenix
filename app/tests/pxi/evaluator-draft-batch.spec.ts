@@ -6,7 +6,10 @@ import type {
   Response,
 } from "@playwright/test";
 
-import { assertEfficientEvaluatorDraftCalibration } from "./evaluatorDraftTrajectory";
+import {
+  assertEfficientEvaluatorDraftCalibration,
+  EVALUATOR_DRAFT_BASELINES,
+} from "./evaluatorDraftTrajectory";
 import {
   persistPxiExperiment,
   PXI_EXPERIMENT_EXAMPLES,
@@ -173,6 +176,7 @@ test.describe.serial("PXI evaluator draft batch calibration", () => {
         assertEfficientEvaluatorDraftCalibration({
           toolCalls: turn.toolCalls,
           testToolName: "test_code_evaluator_draft",
+          baseline: EVALUATOR_DRAFT_BASELINES.code,
           expectedOutcomes: [
             { id: "single-tool-match", expectedText: "match" },
             { id: "correct-abstention", expectedText: "match" },
@@ -250,6 +254,7 @@ test.describe.serial("PXI evaluator draft batch calibration", () => {
         assertEfficientEvaluatorDraftCalibration({
           toolCalls: turn.toolCalls,
           testToolName: "test_llm_evaluator_draft",
+          baseline: EVALUATOR_DRAFT_BASELINES.llm,
           expectedOutcomes: [
             { id: "exact-alignment", expectedText: "aligned" },
             { id: "semantic-paraphrase", expectedText: "aligned" },

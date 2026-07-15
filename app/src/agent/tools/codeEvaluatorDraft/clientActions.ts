@@ -1,18 +1,20 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import {
-  getEvaluatorDraftPreviewInputValidationError,
-  runEvaluatorDraftPreviewClientAction,
+  CODE_EVALUATOR_PREVIEW_CONCURRENCY,
+  createEvaluatorDraftTestClientAction,
   type EvaluatorPreviewRunnerFactory,
 } from "@phoenix/agent/tools/evaluatorDraftPreview";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import { SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
+import {
+  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "./constants";
 import {
   parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
-  parseTestCodeEvaluatorDraftInput,
 } from "./parsers";
 import { bindPendingCodeEvaluatorEditActions } from "./pendingCodeEvaluatorEdit";
 import type { CodeEvaluatorDraftHost, PendingCodeEvaluatorEdit } from "./types";
@@ -130,25 +132,11 @@ export function createTestCodeEvaluatorDraftClientAction({
   isDraftMounted: () => boolean;
   createPreviewRunner: EvaluatorPreviewRunnerFactory;
 }) {
-  return async (input: unknown): Promise<AgentClientActionResult> => {
-    const parsed = parseTestCodeEvaluatorDraftInput(input);
-    if (!parsed) {
-      return {
-        ok: false,
-        error:
-          `Invalid test_code_evaluator_draft input. ${getEvaluatorDraftPreviewInputValidationError(input) ?? ""}`.trim(),
-      };
-    }
-    if (!isDraftMounted()) {
-      return {
-        ok: false,
-        error: "The code-evaluator form is not mounted; cannot test the draft.",
-      };
-    }
-    return runEvaluatorDraftPreviewClientAction({
-      input: parsed,
-      createPreviewRunner,
-      concurrency: 1,
-    });
-  };
+  return createEvaluatorDraftTestClientAction({
+    toolName: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    formLabel: "code-evaluator form",
+    isDraftMounted,
+    createPreviewRunner,
+    concurrency: CODE_EVALUATOR_PREVIEW_CONCURRENCY,
+  });
 }

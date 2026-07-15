@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { assertEfficientEvaluatorDraftCalibration } from "./evaluatorDraftTrajectory";
+import {
+  assertEfficientEvaluatorDraftCalibration,
+  EVALUATOR_DRAFT_BASELINES,
+} from "./evaluatorDraftTrajectory";
 import type { PxiToolCall } from "./types";
 
 function makeEfficientCalls(): PxiToolCall[] {
@@ -37,6 +40,7 @@ test("accepts one complete ordered evaluator calibration batch", () => {
     assertEfficientEvaluatorDraftCalibration({
       toolCalls: makeEfficientCalls(),
       testToolName: "test_code_evaluator_draft",
+      baseline: EVALUATOR_DRAFT_BASELINES.code,
       expectedOutcomes: [
         { id: "match", expectedText: "match" },
         { id: "abstain", expectedText: "match" },
@@ -44,6 +48,24 @@ test("accepts one complete ordered evaluator calibration batch", () => {
       ],
     })
   ).not.toThrow();
+});
+
+test("rejects a trajectory that does not beat the pre-fix baseline", () => {
+  const calls = makeEfficientCalls();
+  expect(() =>
+    assertEfficientEvaluatorDraftCalibration({
+      toolCalls: calls,
+      testToolName: "test_code_evaluator_draft",
+      // The efficient trajectory has 2 edit+test calls; a baseline of 2
+      // means it failed to improve on the pre-fix loop.
+      baseline: { editAndTestCalls: 2 },
+      expectedOutcomes: [
+        { id: "match", expectedText: "match" },
+        { id: "abstain", expectedText: "match" },
+        { id: "partial", expectedText: "mismatch" },
+      ],
+    })
+  ).toThrow(/pre-fix baseline of 2 edit\+test calls, observed 2/);
 });
 
 test("reports repeated payload edits, incomplete cases, and observed evidence", () => {

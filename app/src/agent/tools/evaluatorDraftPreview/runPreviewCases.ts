@@ -77,9 +77,7 @@ export async function runEvaluatorPreviewCases({
   getNow?: () => number;
 }): Promise<EvaluatorPreviewBatchOutput> {
   const boundedConcurrency = Math.max(1, Math.floor(concurrency));
-  const orderedResults: EvaluatorPreviewCaseResult[] = new Array(
-    cases.length
-  );
+  const orderedResults: EvaluatorPreviewCaseResult[] = new Array(cases.length);
   // A bounded worker pool, not fixed-size sequential waves: each worker pulls
   // the next case as soon as it frees up, so one slow case doesn't stall an
   // otherwise-idle concurrency slot until its whole wave finishes.

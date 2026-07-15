@@ -1,5 +1,13 @@
 import type { PxiToolCall } from "./types";
 
+/**
+ * Pre-fix baselines measured from the two source `pxi_dev` authoring traces
+ * (see Arize-ai/phoenix#14359): code evaluator 0a6c4738a4a7b39e5b7256e7dad4546d,
+ * LLM evaluator 5a40eebb1441b8eefc926aa7b7d6bebe. A batched calibration must
+ * use strictly fewer edit+test calls than these serial payload-swap loops did.
+ * `durationMs` is recorded for before/after reporting only (wall-clock against
+ * a live LLM is too flaky to assert on).
+ */
 export const EVALUATOR_DRAFT_BASELINES = {
   code: { editAndTestCalls: 7, durationMs: 195_200 },
   llm: { editAndTestCalls: 8, durationMs: 238_600 },
@@ -99,11 +107,14 @@ export function assertEfficientEvaluatorDraftCalibration({
   testToolName,
   expectedOutcomes,
   maximumToolCalls = 10,
+  baseline,
 }: {
   toolCalls: PxiToolCall[];
   testToolName: "test_code_evaluator_draft" | "test_llm_evaluator_draft";
   expectedOutcomes: ExpectedCaseOutcome[];
   maximumToolCalls?: number;
+  /** Pre-fix edit+test call count the batched trajectory must beat. */
+  baseline?: { editAndTestCalls: number };
 }): void {
   const errors: string[] = [];
   const testCalls = toolCalls.filter(
@@ -113,6 +124,17 @@ export function assertEfficientEvaluatorDraftCalibration({
     errors.push(
       `expected exactly one ${testToolName} call, observed ${testCalls.length}`
     );
+  }
+  if (baseline) {
+    const editAndTestCalls = toolCalls.filter(
+      (toolCall) =>
+        toolCall.name.startsWith("edit_") || toolCall.name === testToolName
+    ).length;
+    if (editAndTestCalls >= baseline.editAndTestCalls) {
+      errors.push(
+        `expected fewer than the pre-fix baseline of ${baseline.editAndTestCalls} edit+test calls, observed ${editAndTestCalls}`
+      );
+    }
   }
   if (toolCalls.length > maximumToolCalls) {
     errors.push(

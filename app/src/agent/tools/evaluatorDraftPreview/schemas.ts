@@ -3,6 +3,9 @@ import { z } from "zod";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 
 export const MAX_EVALUATOR_PREVIEW_CASES = 10;
+// Code previews run one at a time against the sandbox; LLM-judge previews
+// allow limited parallelism because each case is an independent judge call.
+export const CODE_EVALUATOR_PREVIEW_CONCURRENCY = 1;
 export const LLM_EVALUATOR_PREVIEW_CONCURRENCY = 2;
 
 export const evaluatorMappingSourceSchema = z
@@ -62,12 +65,10 @@ export const evaluatorDraftPreviewInputSchema = z
     });
   });
 
-export function getEvaluatorDraftPreviewInputValidationError(
-  input: unknown
-): string | null {
-  const result = evaluatorDraftPreviewInputSchema.safeParse(input);
-  if (result.success) return null;
-  return result.error.issues
+export function formatEvaluatorDraftPreviewInputError(
+  error: z.ZodError
+): string {
+  return error.issues
     .map((issue) => {
       const path = issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
       return `${path}${issue.message}`;
