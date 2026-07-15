@@ -25,7 +25,6 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   ContextualHelp,
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -49,9 +48,9 @@ import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationCont
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
 import {
-  CellWithControlsWrap,
   ColumnHeaderCell,
   ColumnOrderingProvider,
+  CopyableTextCell,
   IntCell,
   useColumnOrder,
 } from "../../components/table";
@@ -355,19 +354,9 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "session id",
       accessorKey: "sessionId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "first input",
@@ -395,19 +384,9 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "user",
       accessorKey: "userId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     ...annotationColumns,
     {

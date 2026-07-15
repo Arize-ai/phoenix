@@ -324,9 +324,9 @@ class Span(Node):
             value = await info.context.data_loaders.span_fields.load(
                 (self.id, models.Span.user_id),
             )
-        if value is None:
-            return None
-        return str(value)
+        if value is None or isinstance(value, str):
+            return value
+        return json.dumps(value)
 
     @strawberry.field
     async def num_documents(
