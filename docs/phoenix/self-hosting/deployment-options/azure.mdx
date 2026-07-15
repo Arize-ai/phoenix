@@ -1,0 +1,39 @@
+---
+title: "Azure"
+description: Deploy Arize Phoenix on Azure Container Instances with a one-click ARM template.
+---
+
+You can deploy Arize Phoenix on [Azure Container Instances](https://azure.microsoft.com/en-us/products/container-instances) via a one-click ARM template. The template provisions Phoenix alongside an Azure Database for PostgreSQL flexible server for durable storage.
+
+## Deploy
+
+Use the following button to deploy the Phoenix template to Azure:
+
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FArize-ai%2Fphoenix%2Fmain%2Fazuredeploy.json" target="_blank">
+  <img src="https://aka.ms/deploytoazurebutton" alt="Deploy to Azure" height="30" noZoom />
+</a>
+
+## What the template provisions
+
+- A container group running the `arizephoenix/phoenix` image (2 CPU cores and 4 GB of memory by default) with a public DNS name
+- An Azure Database for PostgreSQL flexible server wired to Phoenix for durable storage
+- Authentication enabled by default, with a `PHOENIX_SECRET` and database password generated per deployment
+
+During deployment you choose an initial admin password and can override the image tag, CPU, memory, and region.
+
+<Warning>
+  Azure Container Instances does not terminate TLS, so the template serves plain HTTP on port 6006. Front the deployment with a TLS proxy such as an [Application Gateway](https://azure.microsoft.com/en-us/products/application-gateway) before production use.
+</Warning>
+
+## First login
+
+Once the container group is running, log in at the deployment's public DNS name on port 6006 with the default admin account:
+
+- **Email:** `admin@localhost`
+- **Password:** the initial admin password you chose during deployment
+
+You will be required to set a new password on first login.
+
+<Tip>
+  To review or customize the template, see [`azuredeploy.json`](https://github.com/Arize-ai/phoenix/blob/main/azuredeploy.json) in the Phoenix repository. Configuration options are documented in [Environment Variables](/docs/phoenix/self-hosting/configuration#environment-variables).
+</Tip>

@@ -1,0 +1,43 @@
+---
+title: "Google Cloud Run"
+description: Deploy Arize Phoenix on Google Cloud Run with a one-click button.
+---
+
+You can deploy Arize Phoenix on [Google Cloud Run](https://cloud.google.com/run) with a one-click button. Cloud Run gives you a fully managed, autoscaling deployment with HTTPS out of the box.
+
+## Deploy
+
+Use the following button to deploy Phoenix to Cloud Run:
+
+<a href="https://deploy.cloud.run/?git_repo=https://github.com/Arize-ai/phoenix" target="_blank">
+  <img src="https://deploy.cloud.run/button.svg" alt="Run on Google Cloud" height="30" noZoom />
+</a>
+
+<Note>
+  The button clones the Phoenix repository into Cloud Shell and builds the image from source rather than deploying the prebuilt Docker Hub image. Expect the initial build to take several minutes.
+</Note>
+
+## What gets deployed
+
+The deployment runs Phoenix with 1 CPU and 1 GB of memory, and prompts you for configuration during setup:
+
+- Authentication is enabled by default, with a strong `PHOENIX_SECRET` generated for you
+- Secure cookies are enabled, since Cloud Run always serves over HTTPS
+- You can optionally set an initial admin password and a PostgreSQL connection string
+
+<Warning>
+  Cloud Run's container filesystem is ephemeral — data is lost whenever a new revision is deployed or an instance restarts. For anything beyond a quick trial, set `PHOENIX_SQL_DATABASE_URL` to a PostgreSQL instance (for example, [Cloud SQL](https://cloud.google.com/sql)) so your traces persist.
+</Warning>
+
+## First login
+
+Once the service is live, log in with the default admin account:
+
+- **Email:** `admin@localhost`
+- **Password:** `admin` (or the initial password you set during deployment)
+
+You will be required to set a new password on first login.
+
+<Tip>
+  Configuration options are documented in [Environment Variables](/docs/phoenix/self-hosting/configuration#environment-variables).
+</Tip>
