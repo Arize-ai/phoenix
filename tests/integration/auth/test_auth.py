@@ -40,6 +40,7 @@ from .._helpers import (
     _MEMBER,
     _OK,
     _OK_OR_DENIED,
+    _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS,
     _SYSTEM_USER_GID,
     _VIEWER,
     _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
@@ -1947,9 +1948,8 @@ class TestSecretsCRUDAndValueVisibility:
 class TestApiAccessViaCookiesOrApiKeys:
     """Tests REST API v1 access control using both cookie and API key authentication.
 
-    This test suite verifies that access restrictions are enforced consistently across
-    all user roles (Admin, Member, Viewer, Default Admin) at the v1 router level,
-    regardless of authentication method:
+    This test suite verifies access restrictions across all user roles (Admin, Member,
+    Viewer, Default Admin) and both supported authentication methods:
     - Cookie-based authentication (access tokens from login)
     - API key authentication (Bearer tokens)
 
@@ -2013,9 +2013,8 @@ class TestApiAccessViaCookiesOrApiKeys:
         - Covers: Datasets, Experiments, Prompts, Annotations, Evaluations,
           Spans, Traces, and Project creation (POST /v1/projects)
 
-        This verifies that authorization is enforced consistently regardless of
-        authentication method. Each role maintains the same permissions whether
-        using cookies or API keys.
+        Role-based authority is consistent across authentication methods except for
+        credential issuance, which requires a human session.
         """
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
@@ -2024,7 +2023,10 @@ class TestApiAccessViaCookiesOrApiKeys:
         is_admin = user.role is UserRoleInput.ADMIN or role_or_user is _DEFAULT_ADMIN
         is_viewer = user.role is UserRoleInput.VIEWER
 
-        for client in (_httpx_client(_app, tokens), _httpx_client(_app, api_key)):
+        for is_api_key, client in (
+            (False, _httpx_client(_app, tokens)),
+            (True, _httpx_client(_app, api_key)),
+        ):
             # Test 1: Common read resources - all roles should have identical access
             for expected_status_code, method, endpoint in _COMMON_RESOURCE_ENDPOINTS:
                 assert expected_status_code not in (401, 403), (
@@ -2039,6 +2041,15 @@ class TestApiAccessViaCookiesOrApiKeys:
 
             # Test 2: Admin-only endpoints - only admins should have access
             for expected_status_code, method, endpoint in _ADMIN_ONLY_ENDPOINTS:
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 if is_admin:
@@ -2068,6 +2079,15 @@ class TestApiAccessViaCookiesOrApiKeys:
 
             # Test 4: User credential self-service is available to every human role.
             for expected_status_code, method, endpoint in _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS:
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 assert response.status_code == expected_status_code, (

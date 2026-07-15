@@ -2307,6 +2307,16 @@ _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
 )
 
 
+# Credential issuance requires a human session (or, where supported, the admin secret).
+# A user API key cannot issue another credential, even when its owner has the required role.
+_SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS = frozenset(
+    {
+        ("POST", "v1/user/api_keys"),
+        ("POST", "v1/system/api_keys"),
+    }
+)
+
+
 # Endpoints that refuse to act when authentication is disabled, returning 403.
 #
 # These issue credentials. Without authentication Phoenix has no notion of identity, so
