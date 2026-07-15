@@ -654,7 +654,10 @@
 - [Kubernetes](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes): Deploy on Kubernetes
 - [Helm](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes-helm): Deploy with Helm charts
 - [AWS CloudFormation](https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation): Deploy on AWS
-- [Railway](https://arize.com/docs/phoenix/self-hosting/deployment-options/railway): Deploy on Railway
+- [Railway](https://arize.com/docs/phoenix/self-hosting/deployment-options/railway): Deploy on Railway via one-click template
+- [Render](https://arize.com/docs/phoenix/self-hosting/deployment-options/render): Deploy on Render via one-click blueprint with managed PostgreSQL
+- [Google Cloud Run](https://arize.com/docs/phoenix/self-hosting/deployment-options/google-cloud-run): Deploy on Google Cloud Run with a one-click button
+- [Azure](https://arize.com/docs/phoenix/self-hosting/deployment-options/azure): Deploy on Azure Container Instances via one-click ARM template
 
 ### Features
 

@@ -21,26 +21,6 @@ Phoenix is **free to self-host** with no feature limitations. Your data stays en
 **New to Phoenix?** Try [Phoenix Cloud](/docs/phoenix/phoenix-cloud) to get started instantly without any setup, then self-host when you're ready for production.
 </Tip>
 
-## One-Click Deploy
-
-Deploy Phoenix to the cloud of your choice with a single click:
-
-<p>
-  <a href="https://railway.app/template/PTHRoq?referralCode=Xe2txW"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="30" noZoom /></a>
-  &nbsp;
-  <a href="https://render.com/deploy?repo=https://github.com/Arize-ai/phoenix"><img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" height="30" noZoom /></a>
-  &nbsp;
-  <a href="https://deploy.cloud.run/?git_repo=https://github.com/Arize-ai/phoenix"><img src="https://deploy.cloud.run/button.svg" alt="Run on Google Cloud" height="30" noZoom /></a>
-  &nbsp;
-  <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FArize-ai%2Fphoenix%2Fmain%2Fazuredeploy.json"><img src="https://aka.ms/deploytoazurebutton" alt="Deploy to Azure" height="30" noZoom /></a>
-  &nbsp;
-  <a href="/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation"><img src="https://img.shields.io/badge/Deploy%20to-AWS-FF9900?logo=amazonwebservices&logoColor=white&labelColor=232F3E" alt="Deploy to AWS" height="30" noZoom /></a>
-</p>
-
-<Note>
-  The Google Cloud button builds Phoenix from source in Cloud Shell rather than deploying the prebuilt Docker Hub image. The Azure template serves plain HTTP (Azure Container Instances does not terminate TLS) — front it with a TLS proxy such as an Application Gateway before production use.
-</Note>
-
 ## Choose Your Deployment
 
 <CardGroup cols={3}>
@@ -60,7 +40,16 @@ Deploy Phoenix to the cloud of your choice with a single click:
     CloudFormation
   </Card>
   <Card title="Railway" href="/docs/phoenix/self-hosting/deployment-options/railway" icon="train">
+    One-click template
+  </Card>
+  <Card title="Render" href="/docs/phoenix/self-hosting/deployment-options/render" icon="server">
+    One-click blueprint
+  </Card>
+  <Card title="Google Cloud Run" href="/docs/phoenix/self-hosting/deployment-options/google-cloud-run" icon="google">
     One-click deploy
+  </Card>
+  <Card title="Azure" href="/docs/phoenix/self-hosting/deployment-options/azure" icon="microsoft">
+    One-click ARM template
   </Card>
 </CardGroup>
 

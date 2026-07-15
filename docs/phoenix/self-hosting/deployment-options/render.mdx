@@ -1,0 +1,37 @@
+---
+title: "Render"
+description: Deploy Arize Phoenix on Render via the one-click blueprint.
+---
+
+You can deploy Arize Phoenix on [Render](https://render.com/) via a one-click blueprint. The blueprint runs the official Phoenix Docker image alongside a managed PostgreSQL database for durable storage.
+
+## Deploy
+
+Use the following button to deploy the Phoenix blueprint on Render:
+
+<a href="https://render.com/deploy?repo=https://github.com/Arize-ai/phoenix" target="_blank">
+  <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" height="30" noZoom />
+</a>
+
+## What the blueprint provisions
+
+- A web service running the `arizephoenix/phoenix:latest` Docker image on the standard plan
+- A managed PostgreSQL database wired to Phoenix via `PHOENIX_SQL_DATABASE_URL`
+- Authentication enabled by default, with a strong `PHOENIX_SECRET` generated for you
+
+<Note>
+  Phoenix needs more than Render's 512 MB starter instance — heavy span queries will run the process out of memory. The blueprint defaults to the standard plan for this reason.
+</Note>
+
+## First login
+
+Once the service is live, log in with the default admin account:
+
+- **Email:** `admin@localhost`
+- **Password:** `admin`
+
+You will be required to set a new password on first login.
+
+<Tip>
+  To review or customize the blueprint (instance size, environment variables, admin password), see [`render.yaml`](https://github.com/Arize-ai/phoenix/blob/main/render.yaml) in the Phoenix repository. Configuration options are documented in [Environment Variables](/docs/phoenix/self-hosting/configuration#environment-variables).
+</Tip>

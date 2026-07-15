@@ -1130,7 +1130,10 @@
               "docs/phoenix/self-hosting/deployment-options/kubernetes",
               "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
               "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
-              "docs/phoenix/self-hosting/deployment-options/railway"
+              "docs/phoenix/self-hosting/deployment-options/railway",
+              "docs/phoenix/self-hosting/deployment-options/render",
+              "docs/phoenix/self-hosting/deployment-options/google-cloud-run",
+              "docs/phoenix/self-hosting/deployment-options/azure"
             ]
           },
           {
