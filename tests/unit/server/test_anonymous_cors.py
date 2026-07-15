@@ -111,3 +111,66 @@ class TestCookieHonoringSurfacesStayOriginRestricted:
             headers={"Origin": _ORIGIN},
         )
         assert "access-control-allow-origin" not in resp.headers
+
+
+class TestCsrfOriginValidatorBypassesAnonymousSurfaces:
+    """PHOENIX_CSRF_TRUSTED_ORIGINS must not close what AnonymousCorsMiddleware
+    opens: the anonymous surfaces honor no cookies, so the origin check protects
+    nothing there, and rejecting the post-preflight request would break
+    browser-based OAuth clients and MCP OAuth bootstrap. Cookie-honoring
+    endpoints stay origin-validated."""
+
+    @pytest.fixture
+    async def app_with_csrf(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> AsyncIterator[ASGIApp]:
+        monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", "http://trusted.example.com")
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_grpc_server())
+            app = create_app(
+                db=db,
+                authentication_enabled=True,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+                secret=SecretStr("test-secret-at-least-32-chars-long!!"),
+            )
+            manager = await stack.enter_async_context(LifespanManager(app))
+            yield manager.app
+
+    @pytest.fixture
+    def csrf_client(self, app_with_csrf: ASGIApp) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app_with_csrf),
+            base_url="http://test",
+        )
+
+    async def test_token_endpoint_reaches_the_handler_from_an_untrusted_origin(
+        self, csrf_client: httpx.AsyncClient
+    ) -> None:
+        preflight = await csrf_client.options(
+            "/oauth2/token",
+            headers={"Origin": _ORIGIN, "Access-Control-Request-Method": "POST"},
+        )
+        assert preflight.status_code == 200
+        assert preflight.headers["access-control-allow-origin"] == "*"
+
+        resp = await csrf_client.post(
+            "/oauth2/token",
+            headers={"Origin": _ORIGIN},
+            data={"grant_type": "authorization_code"},
+        )
+        # The OAuth error JSON proves the request got past the origin validator
+        # (whose rejection is a bare plain-text 401).
+        assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_grant"
+        assert resp.headers["access-control-allow-origin"] == "*"
+
+    async def test_cookie_honoring_endpoint_stays_origin_restricted(
+        self, csrf_client: httpx.AsyncClient
+    ) -> None:
+        resp = await csrf_client.get("/oauth2/authorize", headers={"Origin": _ORIGIN})
+        assert resp.status_code == 401
+        assert resp.text == "untrusted origin"
+        assert "www-authenticate" not in resp.headers

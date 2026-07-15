@@ -120,7 +120,11 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.middleware.anonymous_cors import AnonymousCorsMiddleware
+from phoenix.server.middleware.anonymous_cors import (
+    AnonymousCorsMiddleware,
+    AnonymousPaths,
+    anonymous_paths,
+)
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
@@ -325,15 +329,29 @@ class Static(StaticFiles):
 
 
 class RequestOriginHostnameValidator(BaseHTTPMiddleware):
-    def __init__(self, *args: Any, trusted_hostnames: list[str], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        trusted_hostnames: list[str],
+        anonymous_paths: AnonymousPaths,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._trusted_hostnames = trusted_hostnames
+        self._anonymous_paths = anonymous_paths
 
     async def dispatch(
         self,
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        # The anonymous OAuth surfaces are deliberately open to arbitrary
+        # browser origins (see AnonymousCorsMiddleware): they honor no cookies,
+        # so an origin check protects nothing there and would 401 exactly the
+        # requests whose preflights the CORS layer approved. Cookie-honoring
+        # endpoints (/oauth2/authorize, the consent decision) are not in the set.
+        if self._anonymous_paths.matches(request.scope):
+            return await call_next(request)
         headers = request.headers
         for key in "origin", "referer":
             if not (url := headers.get(key)):
@@ -900,6 +918,10 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
+    # Resolved before the middleware stack: the anonymous-surface path set feeds
+    # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
+    # of this function, so no two consumers can classify a path differently.
+    anonymous_surfaces = anonymous_paths()
     middlewares: list[Middleware] = [
         Middleware(HeadersMiddleware),
         Middleware(RedactorMiddleware),
@@ -911,6 +933,7 @@ def create_app(
             Middleware(
                 RequestOriginHostnameValidator,
                 trusted_hostnames=trusted_hostnames,
+                anonymous_paths=anonymous_surfaces,
             )
         )
     elif email_sender or oauth2_client_configs:
@@ -1225,10 +1248,11 @@ def create_app(
     # endpoints from origins that cannot be known in advance. The cookie-honoring
     # OAuth endpoints (/oauth2/authorize is navigated to; the consent decision
     # endpoint enforces a strict Origin check) are deliberately not listed.
+    # The path set is shared with the CSRF origin validator, which bypasses
+    # exactly these surfaces.
     app.add_middleware(
         AnonymousCorsMiddleware,
-        exact=frozenset({"/oauth2/register", "/oauth2/token", "/oauth2/revoke"}),
-        prefixes=("/.well-known/",),
+        paths=anonymous_surfaces,
     )
     return app
 

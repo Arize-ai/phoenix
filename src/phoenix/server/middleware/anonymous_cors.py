@@ -21,7 +21,7 @@ path set on purpose.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, NamedTuple, Optional
 
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import PlainTextResponse
@@ -34,26 +34,48 @@ if TYPE_CHECKING:
 _PREFLIGHT_MAX_AGE_SECONDS = 600
 
 
+class AnonymousPaths(NamedTuple):
+    """The path set of the anonymous (cookie-free) OAuth/MCP surfaces.
+
+    Built once per app by :func:`anonymous_paths` and consumed by everything
+    that must treat these surfaces specially — ``AnonymousCorsMiddleware``
+    (wildcard CORS) and the CSRF origin validator (bypass) — so no two
+    consumers can classify a path differently.
+    """
+
+    exact: frozenset[str]
+    prefixes: tuple[str, ...]
+
+    def matches(self, scope: "Scope") -> bool:
+        # Compare the root-path-relative route: when a reverse proxy forwards
+        # the prefix (PHOENIX_HOST_ROOT_PATH), the scope path arrives as
+        # /<root>/oauth2/token etc.
+        route = strip_root_path(scope, scope.get("path", ""))
+        return route in self.exact or route.startswith(self.prefixes)
+
+
+def anonymous_paths(mcp_mount_path: Optional[str] = None) -> AnonymousPaths:
+    mcp = (mcp_mount_path,) if mcp_mount_path is not None else ()
+    return AnonymousPaths(
+        exact=frozenset({"/oauth2/register", "/oauth2/token", "/oauth2/revoke", *mcp}),
+        prefixes=("/.well-known/", *(f"{path}/" for path in mcp)),
+    )
+
+
 class AnonymousCorsMiddleware:
     def __init__(
         self,
         app: "ASGIApp",
         *,
-        exact: Iterable[str] = (),
-        prefixes: Iterable[str] = (),
+        paths: AnonymousPaths,
         expose_headers: str = "",
     ) -> None:
         self._app = app
-        self._exact = frozenset(exact)
-        self._prefixes = tuple(prefixes)
+        self._paths = paths
         self._expose_headers = expose_headers
 
-    def _matches(self, scope: "Scope") -> bool:
-        route = strip_root_path(scope, scope.get("path", ""))
-        return route in self._exact or route.startswith(self._prefixes)
-
     async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
-        if scope["type"] != "http" or not self._matches(scope):
+        if scope["type"] != "http" or not self._paths.matches(scope):
             await self._app(scope, receive, send)
             return
         request_headers = Headers(scope=scope)
