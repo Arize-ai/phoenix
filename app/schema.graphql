@@ -827,11 +827,45 @@ type CreateModelMutationPayload {
   query: Query!
 }
 
+input CreateProjectCodeEvaluatorInput {
+  projectId: ID!
+  name: Identifier!
+  sourceCode: String!
+  language: Language!
+  sandboxConfigId: ID!
+  evaluatorInputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  description: String = null
+  outputConfigs: [AnnotationConfigInput!] = null
+
+  """
+  Project-specific CODE input mapping. Null inherits the evaluator input mapping; an object overrides it.
+  """
+  inputMapping: EvaluatorInputMappingInput = null
+  filterCondition: String! = ""
+  enabled: Boolean! = true
+}
+
 input CreateProjectInput {
   name: String!
   description: String
   gradientStartColor: String
   gradientEndColor: String
+}
+
+input CreateProjectLLMEvaluatorInput {
+  projectId: ID!
+  name: Identifier!
+  promptVersion: ChatPromptVersionInput!
+  outputConfigs: [AnnotationConfigInput!]!
+  inputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  description: String = null
+  promptVersionId: ID
+  filterCondition: String! = ""
+  enabled: Boolean! = true
 }
 
 input CreateProjectSessionAnnotationInput {
@@ -1386,6 +1420,16 @@ input DeleteProjectAnnotationsInput {
   timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
 }
 
+input DeleteProjectEvaluatorsInput {
+  projectEvaluatorIds: [ID!]!
+  deleteAssociatedPrompt: Boolean! = true
+}
+
+type DeleteProjectEvaluatorsPayload {
+  projectEvaluatorIds: [ID!]!
+  query: Query!
+}
+
 input DeleteProjectTraceRetentionPolicyInput {
   id: ID!
 }
@@ -1581,6 +1625,12 @@ type EvaluationResult {
   annotation: ExperimentRunAnnotation
   trace: Trace
   error: String
+}
+
+enum EvaluationTarget {
+  SPAN
+  TRACE
+  SESSION
 }
 
 interface Evaluator implements Node {
@@ -2405,6 +2455,27 @@ type Mutation {
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
+
+  """
+  Create an LLM project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  """
+  createProjectLlmEvaluator(input: CreateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Update an LLM project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  """
+  updateProjectLlmEvaluator(input: UpdateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Create a CODE project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  """
+  createProjectCodeEvaluator(input: CreateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Update a CODE project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  """
+  updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
+  deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
@@ -2715,6 +2786,7 @@ type Project implements Node {
   id: ID!
   name: String!
   description: String
+  evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null): ProjectEvaluatorConnection!
   gradientStartColor: String!
   gradientEndColor: String!
   startTime: DateTime
@@ -2809,6 +2881,48 @@ type ProjectEdge {
 
   """The item at the end of the edge"""
   node: Project!
+}
+
+type ProjectEvaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  project: Project!
+  evaluator: Evaluator!
+  name: Identifier!
+  filterCondition: String!
+  samplingRate: Float!
+
+  """
+  Evaluation grain. SPAN is currently executable; TRACE and SESSION are stored but remain inactive until their runtimes are available.
+  """
+  evaluationTarget: EvaluationTarget!
+  inputMapping: EvaluatorInputMapping!
+  enabled: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type ProjectEvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectEvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectEvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectEvaluator!
+}
+
+type ProjectEvaluatorMutationPayload {
+  evaluator: ProjectEvaluator!
+  query: Query!
 }
 
 """The filter key and value for project connections"""
@@ -4522,6 +4636,39 @@ input UpdateModelMutationInput {
 type UpdateModelMutationPayload {
   model: GenerativeModel!
   query: Query!
+}
+
+input UpdateProjectCodeEvaluatorInput {
+  projectEvaluatorId: ID!
+  name: Identifier!
+  evaluatorInputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  enabled: Boolean!
+  description: String = null
+  sourceCode: String
+  sandboxConfigId: ID
+  outputConfigs: [AnnotationConfigInput!]
+
+  """
+  Project-specific CODE input mapping patch. Omit to preserve the current setting, use null to inherit the evaluator input mapping, or provide an object to override it.
+  """
+  inputMapping: EvaluatorInputMappingInput
+}
+
+input UpdateProjectLLMEvaluatorInput {
+  projectEvaluatorId: ID!
+  name: Identifier!
+  promptVersion: ChatPromptVersionInput!
+  outputConfigs: [AnnotationConfigInput!]!
+  inputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  enabled: Boolean!
+  description: String = null
+  promptVersionId: ID
 }
 
 input UpdateSandboxConfigInput {

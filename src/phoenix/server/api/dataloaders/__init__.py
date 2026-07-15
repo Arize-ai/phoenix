@@ -61,6 +61,7 @@ from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMax
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
+from .project_evaluator_criteria_by_id import ProjectEvaluatorCriteriaByIdDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_label_usage_counts import PromptLabelUsageCountsDataLoader
@@ -207,6 +208,7 @@ class DataLoaders:
     project_by_name: ProjectByNameDataLoader
     project_has_traces: ProjectHasTracesDataLoader
     project_fields: TableFieldsDataLoader
+    project_evaluator_criteria_by_id: ProjectEvaluatorCriteriaByIdDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_fields: TableFieldsDataLoader
@@ -364,6 +366,7 @@ def build_data_loaders(
         num_child_spans=NumChildSpansDataLoader(db),
         num_spans_per_trace=NumSpansPerTraceDataLoader(db),
         project_fields=TableFieldsDataLoader(db, models.Project),
+        project_evaluator_criteria_by_id=ProjectEvaluatorCriteriaByIdDataLoader(db),
         projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
         prompt_fields=TableFieldsDataLoader(db, models.Prompt),
         prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
