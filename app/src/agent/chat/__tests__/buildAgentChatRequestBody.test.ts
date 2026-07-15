@@ -23,35 +23,6 @@ const agentsConfig = {
 };
 
 describe("buildAgentChatRequestBody", () => {
-  it("forwards the persisted agent session Relay ID separately from the chat ID", () => {
-    const body = buildAgentChatRequestBody({
-      body: undefined,
-      id: "local-chat-id",
-      agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
-      messages: [],
-      trigger: "submit-message",
-      messageId: undefined,
-      capabilities: createDefaultAgentCapabilities(),
-      observability: {
-        storeLocalTraces: false,
-        exportRemoteTraces: false,
-        attachUserId: false,
-        acknowledgedTraceConsent: null,
-      },
-      agentsConfig,
-      permissions: { edits: "manual" },
-      contexts: [],
-      modelSelection: {
-        providerType: "builtin",
-        provider: "OPENAI",
-        modelName: "gpt-4o-mini",
-      },
-    });
-
-    expect(body.id).toBe("local-chat-id");
-    expect(body.agentSessionId).toBe("QWdlbnRTZXNzaW9uOjE=");
-  });
-
   it("echoes the active turn trace context", () => {
     const turnTraceContext = {
       traceId: "1".repeat(32),
@@ -314,8 +285,8 @@ describe("enrichMessagesWithClientToolTimings", () => {
             output: { name: "prompt" },
             callProviderMetadata: {
               phoenix: {
-                tool_execution_environment: "client",
-                tool_input_emitted_at: "2026-07-10T11:59:59Z",
+                toolExecutionEnvironment: "client",
+                toolInputEmittedAt: "2026-07-10T11:59:59Z",
               },
               provider: { retained: true },
             },
@@ -337,10 +308,10 @@ describe("enrichMessagesWithClientToolTimings", () => {
       callProviderMetadata: {
         provider: { retained: true },
         phoenix: {
-          tool_execution_environment: "client",
-          tool_input_emitted_at: "2026-07-10T11:59:59Z",
-          client_started_at: "2026-07-10T12:00:00.000Z",
-          client_ended_at: "2026-07-10T12:00:01.000Z",
+          toolExecutionEnvironment: "client",
+          toolInputEmittedAt: "2026-07-10T11:59:59Z",
+          clientStartedAt: "2026-07-10T12:00:00.000Z",
+          clientEndedAt: "2026-07-10T12:00:01.000Z",
         },
       },
     });

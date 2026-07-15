@@ -88,6 +88,9 @@ from phoenix.db.types.data_stream_protocol import (
     RegenerateMessage,
     SubmitMessage,
     TextUIPart,
+    ToolCallCallbackProviderMetadata,
+    ToolCallProviderMetadata,
+    ToolExecutionEnvironment,
     ToolOutputAvailablePart,
     ToolOutputErrorPart,
     TurnTraceContext,
@@ -149,36 +152,8 @@ _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
-ToolExecutionEnvironment = Literal["client", "server"]
-
-
-@register_openapi_schema
-class ToolCallProviderMetadata(BaseModel):
-    """Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
-    ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
-    ``tool-input-available``)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    tool_execution_environment: ToolExecutionEnvironment
-    """Whether the tool is executed on the client (external toolset) or on the
-    Phoenix server (everything else, e.g. MCP tools and function tools)."""
-
-    tool_input_emitted_at: str | None = None
-    """RFC3339 server timestamp for a client tool-call chunk."""
-
-
-@register_openapi_schema
-class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
-    """Shape of the ``phoenix`` namespace the browser returns in
-    ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
-    plus browser-recorded execution timings."""
-
-    client_started_at: str | None = None
-    """RFC3339 browser timestamp taken when client tool execution started."""
-
-    client_ended_at: str | None = None
-    """RFC3339 browser timestamp taken when client tool execution ended."""
+register_openapi_schema(ToolCallProviderMetadata)
+register_openapi_schema(ToolCallCallbackProviderMetadata)
 
 
 def _get_updated_provider_metadata(
@@ -208,7 +183,7 @@ def _get_updated_provider_metadata(
     existing_tool_call_metadata: dict[str, Any] = result.get(_PHOENIX_PROVIDER_METADATA_KEY, {})
     result[_PHOENIX_PROVIDER_METADATA_KEY] = {
         **existing_tool_call_metadata,
-        **new_tool_call_metadata.model_dump(exclude_none=True),
+        **new_tool_call_metadata.model_dump(by_alias=True, exclude_none=True),
     }
     return result
 
@@ -217,6 +192,8 @@ class _CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
+# Transient session chunks live in this router rather than ``phoenix.db.types`` because they are
+# delivered to the client's ``onData`` callback but never persisted.
 @register_openapi_schema
 class SessionCreatedData(_CamelModel):
     """Canonical Relay metadata for a newly persisted assistant session."""
@@ -616,15 +593,15 @@ def _extract_client_tool_timings(provider_metadata: object) -> _ClientToolTiming
     phoenix_metadata = provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
     if not isinstance(phoenix_metadata, dict):
         return None
-    if phoenix_metadata.get("tool_execution_environment") != "client":
+    if phoenix_metadata.get("toolExecutionEnvironment") != "client":
         return None
-    emitted_at = _parse_rfc3339(phoenix_metadata.get("tool_input_emitted_at"))
+    emitted_at = _parse_rfc3339(phoenix_metadata.get("toolInputEmittedAt"))
     if emitted_at is None:
         return None
     return _ClientToolTimings(
         emitted_at=emitted_at,
-        client_started_at=_parse_rfc3339(phoenix_metadata.get("client_started_at")),
-        client_ended_at=_parse_rfc3339(phoenix_metadata.get("client_ended_at")),
+        client_started_at=_parse_rfc3339(phoenix_metadata.get("clientStartedAt")),
+        client_ended_at=_parse_rfc3339(phoenix_metadata.get("clientEndedAt")),
     )
 
 

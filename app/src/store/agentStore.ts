@@ -129,7 +129,7 @@ export type PendingAgentMessage = {
 export type AgentSession = {
   id: string;
   /** Canonical Relay node ID once the server has persisted the session. */
-  relayId: string | null;
+  nodeId: string | null;
   /** Brief human-readable title for the conversation. */
   title: string;
   /** Messages in AI SDK UIMessage format. */
@@ -326,7 +326,7 @@ export interface AgentState extends AgentProps {
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
-  setSessionPersisted: (sessionId: string, relayId: string) => void;
+  setSessionPersisted: (sessionId: string, nodeId: string) => void;
   /**
    * Adds a server-loaded transcript to the app-local runtime cache.
    */
@@ -673,7 +673,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         (state) => {
           const session: AgentSession = {
             id: sessionId,
-            relayId: null,
+            nodeId: null,
             title: "",
             messages: [],
             context: [],
@@ -701,7 +701,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           created = true;
           const session: AgentSession = {
             id: sessionId,
-            relayId: null,
+            nodeId: null,
             title: buildForkTitle(source),
             messages,
             // Carry over the source session's context and model so the fork
@@ -862,7 +862,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setSessionMessages" }
       );
     },
-    setSessionPersisted: (sessionId, relayId) => {
+    setSessionPersisted: (sessionId, nodeId) => {
       set(
         (state) => {
           const session = state.sessionMap[sessionId];
@@ -870,7 +870,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           return {
             sessionMap: {
               ...state.sessionMap,
-              [sessionId]: { ...session, relayId },
+              [sessionId]: { ...session, nodeId },
             },
           };
         },

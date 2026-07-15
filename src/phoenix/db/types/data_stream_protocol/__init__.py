@@ -13,6 +13,11 @@ from .phoenix_types import (
     TurnTraceContext,
     UserMessageMetadata,
 )
+from .provider_metadata import (
+    ToolCallCallbackProviderMetadata,
+    ToolCallProviderMetadata,
+    ToolExecutionEnvironment,
+)
 from .request_types import (
     BaseUIPart,
     DataUIPart,
@@ -87,6 +92,9 @@ __all__ = [
     "ToolApprovalRequestedPart",
     "ToolApprovalResponded",
     "ToolApprovalRespondedPart",
+    "ToolCallCallbackProviderMetadata",
+    "ToolCallProviderMetadata",
+    "ToolExecutionEnvironment",
     "ToolInputAvailablePart",
     "ToolInputStreamingPart",
     "ToolOutputAvailablePart",

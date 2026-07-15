@@ -5765,25 +5765,25 @@ export interface components {
          */
         ToolCallCallbackProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
             /**
-             * Client Started At
+             * Clientstartedat
              * @default null
              */
-            client_started_at?: string | null;
+            clientStartedAt?: string | null;
             /**
-             * Client Ended At
+             * Clientendedat
              * @default null
              */
-            client_ended_at?: string | null;
+            clientEndedAt?: string | null;
         };
         /**
          * ToolCallProviderMetadata
@@ -5793,15 +5793,15 @@ export interface components {
          */
         ToolCallProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
         };
     };
     responses: never;

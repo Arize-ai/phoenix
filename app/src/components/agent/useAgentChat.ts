@@ -163,7 +163,7 @@ export function useAgentChat({
                       body,
                       id,
                       agentSessionId:
-                        store.getState().sessionMap[sessionId]?.relayId ?? null,
+                        store.getState().sessionMap[sessionId]?.nodeId ?? null,
                       messages,
                       trigger,
                       messageId,
@@ -192,7 +192,7 @@ export function useAgentChat({
                   : null;
                 const isServerExecuted =
                   isRecord(phoenixMetadata) &&
-                  phoenixMetadata.tool_execution_environment === "server";
+                  phoenixMetadata.toolExecutionEnvironment === "server";
                 if (!isServerExecuted) {
                   toolTimings.recordStart(toolCall.toolCallId);
                 }

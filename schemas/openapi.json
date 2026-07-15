@@ -17765,15 +17765,15 @@
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17783,9 +17783,9 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           },
-          "client_started_at": {
+          "clientStartedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17795,9 +17795,9 @@
               }
             ],
             "default": null,
-            "title": "Client Started At"
+            "title": "Clientstartedat"
           },
-          "client_ended_at": {
+          "clientEndedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17807,11 +17807,11 @@
               }
             ],
             "default": null,
-            "title": "Client Ended At"
+            "title": "Clientendedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallCallbackProviderMetadata",
         "type": "object"
@@ -17820,15 +17820,15 @@
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -17838,11 +17838,11 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallProviderMetadata",
         "type": "object"

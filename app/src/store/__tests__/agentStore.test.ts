@@ -59,10 +59,10 @@ describe("agentStore", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
 
-      store.getState().setSessionPersisted(sessionId, "relay-session-id");
+      store.getState().setSessionPersisted(sessionId, "session-node-id");
 
-      expect(store.getState().sessionMap[sessionId]?.relayId).toBe(
-        "relay-session-id"
+      expect(store.getState().sessionMap[sessionId]?.nodeId).toBe(
+        "session-node-id"
       );
       expect(store.getState().activeSessionId).toBe(sessionId);
     });
@@ -187,7 +187,7 @@ describe("agentStore", () => {
       const store = createAgentStore();
       store.getState().cacheSession({
         id: "remote",
-        relayId: "relay-remote",
+        nodeId: "remote-node-id",
         title: "remote session",
         messages: [{ id: "m1", role: "user", parts: [] }],
         context: [],
@@ -216,7 +216,7 @@ describe("agentStore", () => {
 
       store.getState().cacheSession({
         id: localSessionId,
-        relayId: "relay-local",
+        nodeId: "local-node-id",
         title: "server title",
         messages: [],
         context: [],

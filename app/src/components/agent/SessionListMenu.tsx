@@ -41,7 +41,7 @@ export type SessionListMenuProps = {
 
 export type AgentSessionListItem = {
   id: string;
-  relayId: string | null;
+  nodeId: string | null;
   title: string;
   messages: AgentUIMessage[];
   createdAt: number;

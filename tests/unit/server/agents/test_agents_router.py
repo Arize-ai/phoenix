@@ -368,10 +368,10 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
                         "output": {"ok": True},
                         "callProviderMetadata": {
                             "phoenix": {
-                                "tool_execution_environment": "client",
-                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
-                                "client_started_at": (now - timedelta(minutes=1)).isoformat(),
-                                "client_ended_at": (now + timedelta(minutes=1)).isoformat(),
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=1)).isoformat(),
+                                "clientStartedAt": (now - timedelta(minutes=1)).isoformat(),
+                                "clientEndedAt": (now + timedelta(minutes=1)).isoformat(),
                             }
                         },
                     }
@@ -444,8 +444,8 @@ def test_error_parts_record_exception_events() -> None:
                         "errorText": "tool exploded",
                         "callProviderMetadata": {
                             "phoenix": {
-                                "tool_execution_environment": "client",
-                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=1)).isoformat(),
                             }
                         },
                     }

@@ -3,10 +3,14 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field, StringConstraints
+from pydantic import ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
 
 from ._models import CamelBaseModel
+from .provider_metadata import ToolCallCallbackProviderMetadata
 from .request_types import UIMessage
+
+_PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+_ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderMetadata)
 
 
 class AssistantMessageMetadataUsageTokens(CamelBaseModel):
@@ -66,3 +70,15 @@ class PhoenixUIMessage(UIMessage):
     """``UIMessage`` with metadata narrowed to the Phoenix wire shapes."""
 
     metadata: MessageMetadata | None = None
+
+    @model_validator(mode="after")
+    def _validate_phoenix_tool_call_metadata(self) -> "PhoenixUIMessage":
+        for part in self.parts:
+            call_provider_metadata = getattr(part, "call_provider_metadata", None)
+            if not isinstance(call_provider_metadata, dict):
+                continue
+            phoenix_metadata = call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+            if phoenix_metadata is None:
+                continue
+            _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+        return self

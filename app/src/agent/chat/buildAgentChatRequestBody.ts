@@ -58,7 +58,7 @@ type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
  */
 type ClientToolTimingMetadata = Pick<
   components["schemas"]["ToolCallCallbackProviderMetadata"],
-  "client_started_at" | "client_ended_at"
+  "clientStartedAt" | "clientEndedAt"
 >;
 
 export type AgentChatRequestBodyPatch = Pick<
@@ -176,8 +176,8 @@ export function enrichMessagesWithClientToolTimings({
       }
       hasChangedPart = true;
       const timingMetadata: ClientToolTimingMetadata = {
-        client_started_at: timing.startedAt,
-        client_ended_at: timing.endedAt,
+        clientStartedAt: timing.startedAt,
+        clientEndedAt: timing.endedAt,
       };
       return {
         ...part,

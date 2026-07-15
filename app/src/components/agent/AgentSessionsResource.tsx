@@ -153,7 +153,7 @@ function AgentSessionsContent({
       const session = store.getState().sessionMap[sessionId];
       const status = store.getState().chatStatusBySessionId[sessionId];
       if (
-        session?.relayId == null &&
+        session?.nodeId == null &&
         status !== "submitted" &&
         status !== "streaming"
       ) {
@@ -163,21 +163,21 @@ function AgentSessionsContent({
     return createLocalSession();
   }, [createLocalSession, store]);
 
-  const runtimeSessionByRelayId = useMemo(
+  const runtimeSessionByNodeId = useMemo(
     () =>
       new Map(
         Object.values(sessionMap).flatMap((session) =>
-          session.relayId ? ([[session.relayId, session]] as const) : []
+          session.nodeId ? ([[session.nodeId, session]] as const) : []
         )
       ),
     [sessionMap]
   );
   const serverSessions = data.agentSessions.edges.map(({ node }) => {
-    const runtimeSession = runtimeSessionByRelayId.get(node.id);
+    const runtimeSession = runtimeSessionByNodeId.get(node.id);
     const sessionId = runtimeSession?.id ?? node.id;
     return {
       id: sessionId,
-      relayId: node.id,
+      nodeId: node.id,
       title: runtimeSession?.title || node.title,
       messages: runtimeSession?.messages ?? [],
       createdAt: Date.parse(node.createdAt as string),
@@ -198,7 +198,7 @@ function AgentSessionsContent({
     ? [
         {
           id: activeLocalSession.id,
-          relayId: activeLocalSession.relayId,
+          nodeId: activeLocalSession.nodeId,
           title: activeLocalSession.title,
           messages: activeLocalSession.messages,
           createdAt: activeLocalSession.createdAt,
@@ -249,11 +249,11 @@ function AgentSessionsContent({
       if (isDeletingActiveSession) {
         if (nextSession) {
           setActiveSession(nextSession.id);
-        } else if (session?.relayId) {
+        } else if (session?.nodeId) {
           replacementSessionId = createSession();
         }
       }
-      if (!session?.relayId) {
+      if (!session?.nodeId) {
         deleteLocalSession(sessionId);
         if (isDeletingActiveSession && !nextSession) {
           createSession();
@@ -261,10 +261,10 @@ function AgentSessionsContent({
         return;
       }
       commitDelete({
-        variables: { id: session.relayId, connectionId },
+        variables: { id: session.nodeId, connectionId },
         optimisticResponse: {
           deleteAgentSession: {
-            deletedAgentSessionId: session.relayId,
+            deletedAgentSessionId: session.nodeId,
           },
         },
         onCompleted: () => {
@@ -316,15 +316,15 @@ function AgentSessionsContent({
       const nextSession = orderedSessionsRef.current.find(
         (session) => session.id !== sessionId
       );
-      const missingRelayId = missingSession?.relayId;
-      if (missingRelayId) {
+      const missingNodeId = missingSession?.nodeId;
+      if (missingNodeId) {
         commitLocalUpdate(relayEnvironment, (relayStore) => {
           const connection = ConnectionHandler.getConnection(
             relayStore.getRoot(),
             AGENT_SESSIONS_CONNECTION_KEY
           );
           if (connection) {
-            ConnectionHandler.deleteNode(connection, missingRelayId);
+            ConnectionHandler.deleteNode(connection, missingNodeId);
           }
         });
       }
@@ -422,7 +422,7 @@ function AgentSessionTranscript({
     }
     store.getState().cacheSession({
       id: sessionId,
-      relayId: agentSession.id,
+      nodeId: agentSession.id,
       title: agentSession.title,
       messages,
       context: [],
