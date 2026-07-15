@@ -123,6 +123,7 @@ from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.anonymous_cors import AnonymousCorsMiddleware
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
@@ -804,8 +805,11 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     """
     headers = dict(getattr(exc, "headers", None) or {})
     if exc.status_code == 401 and getattr(request.app.state, "authentication_enabled", False):
-        base_url = str(request.base_url).rstrip("/")
-        prm_url = f"{base_url}/.well-known/oauth-protected-resource"
+        # public_origin, not request.base_url: behind a proxy that does not
+        # rewrite forwarded headers the latter names the internal host. The
+        # challenge must name the same document the discovery routes serve,
+        # honoring PHOENIX_ROOT_URL and the configured root path.
+        prm_url = f"{public_origin(request)}/.well-known/oauth-protected-resource"
         headers.setdefault(
             "WWW-Authenticate",
             f'Bearer realm="Arize Phoenix", resource_metadata="{prm_url}"',
