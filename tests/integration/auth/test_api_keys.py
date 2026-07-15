@@ -266,6 +266,11 @@ class TestUserApiKeys:
         system = _create(_app, admin, "system").json()["data"]
 
         assert _httpx_client(_app, owner).get("v1/users/api_keys").status_code == 403
+        # The page size is bounded to guard against oversized responses.
+        assert (
+            _httpx_client(_app, admin).get("v1/users/api_keys", params={"limit": 1001}).status_code
+            == 422
+        )
         response = _httpx_client(_app, admin).get("v1/users/api_keys", params={"limit": 1})
         assert response.status_code == 200
         first_page = response.json()

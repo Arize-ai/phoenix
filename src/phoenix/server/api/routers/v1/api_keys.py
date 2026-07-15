@@ -319,8 +319,9 @@ async def list_all_user_api_keys(
     ),
     limit: int = Query(
         default=100,
-        description="The maximum number of API keys to return.",
+        description="The maximum number of API keys to return (at most 1000).",
         gt=0,
+        le=1000,
     ),
 ) -> GetAllUserApiKeysResponseBody:
     stmt = (
