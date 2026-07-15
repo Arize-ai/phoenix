@@ -10408,7 +10408,7 @@ export interface operations {
             query?: {
                 /** @description Cursor for pagination (a UserApiKey GlobalID). */
                 cursor?: string | null;
-                /** @description The maximum number of API keys to return. */
+                /** @description The maximum number of API keys to return (at most 1000). */
                 limit?: number;
             };
             header?: never;

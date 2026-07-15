@@ -7313,12 +7313,13 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 1000,
               "exclusiveMinimum": 0,
-              "description": "The maximum number of API keys to return.",
+              "description": "The maximum number of API keys to return (at most 1000).",
               "default": 100,
               "title": "Limit"
             },
-            "description": "The maximum number of API keys to return."
+            "description": "The maximum number of API keys to return (at most 1000)."
           }
         ],
         "responses": {
