@@ -20,7 +20,17 @@ import {
 
 export const OAUTH_CLIENT_ID = "phoenix-cli";
 export const OAUTH_CALLBACK_PATH = "/callback";
-export const OAUTH_LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
+const OAUTH_LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
+/**
+ * Bounds every token-endpoint round trip. Without it a proxy that accepts the
+ * socket but never answers strands the CLI for undici's 300s default, long
+ * past the point where the user has already consented in the browser. Generous
+ * because the code is single-use: aborting a slow-but-live exchange costs the
+ * user the whole browser consent, so this must clear a cold-starting server.
+ */
+export const OAUTH_TOKEN_REQUEST_TIMEOUT_MS = 30 * 1000;
+/** Best-effort and blocking a wizard, so it gives up sooner than a token call. */
+export const OAUTH_REVOKE_TIMEOUT_MS = 10 * 1000;
 export const OAUTH_REFRESH_BUFFER_MS = 60 * 1000;
 const SETTINGS_LOCK_TIMEOUT_MS = 10 * 1000;
 const SETTINGS_LOCK_RETRY_MS = 50;
@@ -36,6 +46,17 @@ export const OAuthTokenEndpointResponseSchema = z.object({
 export type OAuthTokenEndpointResponse = z.infer<
   typeof OAuthTokenEndpointResponseSchema
 >;
+
+/**
+ * The RFC 8414 discovery fields the login flow depends on. Only a document
+ * that parses proves an authorization server is really there: a Phoenix
+ * without one answers unknown paths with the SPA's index.html and a 200.
+ */
+export const OAuthAuthorizationServerMetadataSchema = z.object({
+  issuer: z.string().min(1),
+  authorization_endpoint: z.string().min(1),
+  token_endpoint: z.string().min(1),
+});
 
 export interface PkcePair {
   verifier: string;
@@ -61,7 +82,7 @@ export type CallbackParseResult =
   | CallbackDenied
   | CallbackInvalid;
 
-export interface LoginCallbackResult {
+interface LoginCallbackResult {
   redirectUri: string;
   resultPromise: Promise<CallbackParseResult>;
   close: () => Promise<void>;
@@ -181,7 +202,7 @@ export function isOAuthTokenExpiring({
   return Date.parse(tokens.expiresAt) - now.getTime() <= bufferMs;
 }
 
-export async function startLoginCallbackServer({
+async function startLoginCallbackServer({
   expectedState,
 }: {
   expectedState: string;
@@ -241,7 +262,7 @@ export async function startLoginCallbackServer({
   };
 }
 
-export interface PastedRedirectPrompt {
+interface PastedRedirectPrompt {
   resultPromise: Promise<CallbackParseResult>;
   /**
    * Release stdin. Must be called when the prompt loses the race to the
@@ -251,7 +272,7 @@ export interface PastedRedirectPrompt {
   close: () => void;
 }
 
-export function waitForPastedRedirectUrl({
+function waitForPastedRedirectUrl({
   expectedState,
   input = process.stdin,
   output = process.stderr,
@@ -276,7 +297,7 @@ export function waitForPastedRedirectUrl({
   return { resultPromise, close: () => reader.close() };
 }
 
-export function withTimeout<T>({
+function withTimeout<T>({
   promise,
   timeoutMs,
 }: {
@@ -300,7 +321,7 @@ export function withTimeout<T>({
   });
 }
 
-export async function openBrowser(url: string): Promise<void> {
+async function openBrowser(url: string): Promise<void> {
   const platform = process.platform;
   const command =
     platform === "darwin" ? "open" : platform === "win32" ? "cmd" : "xdg-open";
@@ -342,6 +363,134 @@ export async function exchangeAuthorizationCode({
   return postTokenRequest({ endpoint, body, fetchImpl });
 }
 
+export interface BrowserLoginFlowArgs {
+  endpoint: string;
+  /**
+   * Called with the authorization URL before the browser opens, so the user
+   * can complete the login by hand when the launch fails or goes unnoticed.
+   */
+  onAuthorizationUrl: (url: string) => void;
+  /** False keeps the browser shut, leaving the pasted-URL lane (if allowed). */
+  openBrowserWindow?: boolean;
+  /** Narrates a failed launch; the pasted-redirect prompt is the fallback. */
+  onBrowserOpenFailed?: (error: unknown) => void;
+  /**
+   * Accept a hand-pasted redirect URL when no browser was opened — the only
+   * way to finish a login over SSH or in a container.
+   */
+  allowPastedRedirect?: boolean;
+  /** Abandon the wait — the caller's escape hatch from an unanswered login. */
+  signal?: AbortSignal;
+}
+
+export type BrowserLoginFlowResult =
+  | { status: "success"; tokens: OAuthTokenEndpointResponse }
+  /** The user declined consent, or abandoned the wait via `signal`. */
+  | { status: "cancelled" }
+  | { status: "invalid"; message: string };
+
+/**
+ * The Authorization Code + PKCE browser login, end to end: callback server,
+ * browser launch, the wait, and the token exchange. Both `px auth login` (which
+ * persists the tokens) and `px setup` (which spends the access token once to
+ * mint an API key) drive it — the differences between them are the arguments
+ * above, not a second copy of the sequence.
+ */
+export async function runBrowserLoginFlow({
+  endpoint,
+  onAuthorizationUrl,
+  openBrowserWindow = true,
+  onBrowserOpenFailed,
+  allowPastedRedirect = false,
+  signal,
+}: BrowserLoginFlowArgs): Promise<BrowserLoginFlowResult> {
+  // Bail before binding a port or launching a browser for a login the caller
+  // has already given up on.
+  if (signal?.aborted) {
+    return { status: "cancelled" };
+  }
+  const pkce = generatePkcePair();
+  const state = generateState();
+  const callbackServer = await startLoginCallbackServer({
+    expectedState: state,
+  });
+  let pastedRedirectPrompt: PastedRedirectPrompt | undefined;
+  try {
+    const authorizationUrl = buildAuthorizationUrl({
+      endpoint,
+      redirectUri: callbackServer.redirectUri,
+      state,
+      codeChallenge: pkce.challenge,
+    });
+    onAuthorizationUrl(authorizationUrl);
+
+    let browserOpened = false;
+    if (openBrowserWindow) {
+      try {
+        await openBrowser(authorizationUrl);
+        browserOpened = true;
+      } catch (error) {
+        onBrowserOpenFailed?.(error);
+      }
+    }
+
+    // Only when no browser opened: otherwise the prompt would hold stdin for a
+    // login the browser is about to complete on its own.
+    pastedRedirectPrompt =
+      allowPastedRedirect && !browserOpened
+        ? waitForPastedRedirectUrl({ expectedState: state })
+        : undefined;
+
+    const races: Promise<CallbackParseResult | "aborted">[] = [
+      callbackServer.resultPromise,
+    ];
+    if (pastedRedirectPrompt !== undefined) {
+      races.push(pastedRedirectPrompt.resultPromise);
+    }
+    if (signal !== undefined) {
+      races.push(abortedPromise(signal));
+    }
+    const callbackResult = await withTimeout({
+      promise: Promise.race(races),
+      timeoutMs: OAUTH_LOGIN_TIMEOUT_MS,
+    });
+
+    if (
+      callbackResult === "aborted" ||
+      callbackResult.status === "access_denied"
+    ) {
+      return { status: "cancelled" };
+    }
+    if (callbackResult.status === "invalid") {
+      return { status: "invalid", message: callbackResult.message };
+    }
+
+    const tokens = await exchangeAuthorizationCode({
+      endpoint,
+      code: callbackResult.code,
+      redirectUri: callbackServer.redirectUri,
+      verifier: pkce.verifier,
+    });
+    return { status: "success", tokens };
+  } finally {
+    // Release stdin when the loopback callback won the race — an open readline
+    // interface would keep the process alive after success.
+    pastedRedirectPrompt?.close();
+    await callbackServer.close();
+  }
+}
+
+/** Resolves — never rejects — so it can lose a `Promise.race` harmlessly. */
+function abortedPromise(signal: AbortSignal): Promise<"aborted"> {
+  return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve("aborted");
+      return;
+    }
+    signal.addEventListener("abort", () => resolve("aborted"), { once: true });
+  });
+}
+
 export async function refreshOAuthToken({
   endpoint,
   refreshToken,
@@ -368,16 +517,31 @@ async function postTokenRequest({
   body: URLSearchParams;
   fetchImpl: typeof fetch;
 }): Promise<OAuthTokenEndpointResponse> {
-  const response = await fetchImpl(
-    new URL("oauth2/token", normalizeEndpoint(endpoint)),
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body,
+  let response: Response;
+  try {
+    response = await fetchImpl(
+      new URL("oauth2/token", normalizeEndpoint(endpoint)),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body,
+        signal: AbortSignal.timeout(OAUTH_TOKEN_REQUEST_TIMEOUT_MS),
+      }
+    );
+  } catch (error) {
+    // A bare AbortError/DOMException is neither actionable nor mapped to an
+    // exit code by the callers, which recognize NetworkError.
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new NetworkError(
+        `The OAuth token endpoint at ${endpoint} did not respond within ${
+          OAUTH_TOKEN_REQUEST_TIMEOUT_MS / 1000
+        }s.`
+      );
     }
-  );
+    throw error;
+  }
 
   if (response.status === 404) {
     throw new AuthRequiredError(
@@ -414,6 +578,7 @@ export async function revokeOAuthToken({
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
+    signal: AbortSignal.timeout(OAUTH_REVOKE_TIMEOUT_MS),
   });
 }
 

@@ -14,6 +14,7 @@ import {
   parseOAuthCallbackUrl,
   refreshOAuthTokensForProfile,
   revokeOAuthToken,
+  runBrowserLoginFlow,
   tokenResponseToOAuthTokens,
 } from "../src/oauth";
 import { type SettingsFile, saveSettings } from "../src/settings";
@@ -149,6 +150,54 @@ describe("OAuth PKCE and callback helpers", () => {
         expectedState: "expected",
       })
     ).toMatchObject({ status: "invalid" });
+  });
+});
+
+describe("browser login flow", () => {
+  it("abandons the wait as cancelled when the signal aborts", async () => {
+    const abandon = new AbortController();
+    const flow = runBrowserLoginFlow({
+      endpoint: "http://127.0.0.1:1",
+      onAuthorizationUrl: () => abandon.abort(),
+      // No browser and no paste prompt: the abort is the only way this ends.
+      openBrowserWindow: false,
+      allowPastedRedirect: false,
+      signal: abandon.signal,
+    });
+    await expect(flow).resolves.toEqual({ status: "cancelled" });
+  });
+
+  it("exchanges the code once the callback arrives", async () => {
+    const tokenServer = await withServer((request, response) => {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          access_token: "access-abc",
+          refresh_token: "refresh-abc",
+          token_type: "Bearer",
+          expires_in: 3600,
+        })
+      );
+    });
+    try {
+      const result = await runBrowserLoginFlow({
+        endpoint: tokenServer.url,
+        // Drive the loopback callback ourselves, standing in for the browser.
+        onAuthorizationUrl: async (url) => {
+          const redirectUri = new URL(url).searchParams.get("redirect_uri")!;
+          const state = new URL(url).searchParams.get("state")!;
+          await fetch(`${redirectUri}?code=code-abc&state=${state}`);
+        },
+        openBrowserWindow: false,
+        allowPastedRedirect: false,
+      });
+      expect(result).toMatchObject({
+        status: "success",
+        tokens: { access_token: "access-abc" },
+      });
+    } finally {
+      await tokenServer.close();
+    }
   });
 });
 
