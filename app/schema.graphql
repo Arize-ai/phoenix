@@ -4644,6 +4644,8 @@ input UpdateProjectCodeEvaluatorInput {
   evaluatorInputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  enabled: Boolean!
   description: String = null
   sourceCode: String
   sandboxConfigId: ID
@@ -4653,8 +4655,6 @@ input UpdateProjectCodeEvaluatorInput {
   Project-specific CODE input mapping patch. Omit to preserve the current setting, use null to inherit the evaluator input mapping, or provide an object to override it.
   """
   inputMapping: EvaluatorInputMappingInput
-  filterCondition: String! = ""
-  enabled: Boolean! = true
 }
 
 input UpdateProjectLLMEvaluatorInput {
@@ -4665,10 +4665,10 @@ input UpdateProjectLLMEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  enabled: Boolean!
   description: String = null
   promptVersionId: ID
-  filterCondition: String! = ""
-  enabled: Boolean! = true
 }
 
 input UpdateSandboxConfigInput {

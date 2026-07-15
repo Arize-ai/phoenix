@@ -428,10 +428,10 @@ class UpdateProjectLLMEvaluatorInput:
     input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
     evaluation_target: EvaluationTarget
+    filter_condition: str
+    enabled: bool
     description: Optional[str] = None
     prompt_version_id: Optional[GlobalID] = UNSET
-    filter_condition: str = ""
-    enabled: bool = True
 
 
 @strawberry.input
@@ -464,6 +464,8 @@ class UpdateProjectCodeEvaluatorInput:
     evaluator_input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
     evaluation_target: EvaluationTarget
+    filter_condition: str
+    enabled: bool
     description: Optional[str] = None
     source_code: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
@@ -475,8 +477,6 @@ class UpdateProjectCodeEvaluatorInput:
             "use null to inherit the evaluator input mapping, or provide an object to override it."
         ),
     )
-    filter_condition: str = ""
-    enabled: bool = True
 
 
 @strawberry.type
@@ -644,7 +644,7 @@ class EvaluatorMutationMixin:
                 session.add(criteria)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name already exists for this project")
+            raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
@@ -771,7 +771,7 @@ class EvaluatorMutationMixin:
                 criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name already exists for this project")
+            raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
@@ -856,7 +856,7 @@ class EvaluatorMutationMixin:
                 session.add(criteria)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name already exists for this project")
+            raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
@@ -882,6 +882,8 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        if input.source_code is not UNSET and input.source_code is None:
+            raise BadRequest("source_code cannot be set to null")
         if input.output_configs is None:
             raise BadRequest("output_configs cannot be set to null")
         if input.output_configs is not UNSET:
@@ -967,7 +969,7 @@ class EvaluatorMutationMixin:
                 criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise BadRequest("A project evaluator with this name already exists for this project")
+            raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),

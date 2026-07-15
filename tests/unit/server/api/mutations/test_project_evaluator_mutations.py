@@ -370,6 +370,8 @@ async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
         "evaluatorInputMapping": _mapping(output="value"),
         "samplingRate": -0.1,
         "evaluationTarget": "SPAN",
+        "filterCondition": "",
+        "enabled": True,
     }
     before = await _row_counts(db)
     update_code_result = await gql_client.execute(_UPDATE_CODE, {"input": update_code_input})
@@ -390,6 +392,38 @@ async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
     assert update_llm_result.errors
     assert update_llm_result.errors[0].message == error_message
     assert await _row_counts(db) == before
+
+
+async def test_update_code_evaluator_rejects_explicit_null_source_code(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    evaluator_id = create_result.data["createProjectCodeEvaluator"]["evaluator"]["id"]
+
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": evaluator_id,
+                "name": f"null-source-{token_hex(4)}",
+                "sourceCode": None,
+                "evaluatorInputMapping": _mapping(output="value"),
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+    assert result.errors
+    assert result.errors[0].message == "source_code cannot be set to null"
 
 
 async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(
