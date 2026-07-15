@@ -41,8 +41,12 @@ def _compile_safe_json_boolean(
 ) -> str:
     value = compiler.process(list(element.clauses)[0], **kwargs)
     scalar = f"lower(json_extract({value}, '$'))"
+    # SQLite's JSON functions return booleans as integers (e.g. JSON_QUOTE of an
+    # extracted true is '1', whose json_type is 'integer'), so real JSON booleans
+    # arrive here as 1/0 rather than 'true'/'false'.
     return (
         f"CASE json_type({value}) WHEN 'true' THEN 1 WHEN 'false' THEN 0 "
+        f"WHEN 'integer' THEN CASE json_extract({value}, '$') WHEN 1 THEN 1 WHEN 0 THEN 0 END "
         f"WHEN 'text' THEN CASE {scalar} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END END"
     )
 
@@ -52,8 +56,14 @@ def _compile_safe_json_boolean_postgresql(
     element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
 ) -> str:
     value = compiler.process(list(element.clauses)[0], **kwargs)
-    converted = f"jsonb_path_query_first({value}, '$.boolean()', '{{}}'::jsonb, true)"
-    return f"CAST({converted} AS BOOLEAN)"
+    # The jsonpath .boolean() method requires PostgreSQL 17; this CASE works on
+    # all supported PostgreSQL versions.
+    scalar = f"({value} #>> '{{}}')"
+    return (
+        f"CASE jsonb_typeof({value}) WHEN 'boolean' THEN CAST({scalar} AS BOOLEAN) "
+        f"WHEN 'string' THEN CASE lower{scalar} WHEN 'true' THEN true WHEN 'false' THEN false END "
+        f"WHEN 'number' THEN CASE {scalar} WHEN '1' THEN true WHEN '0' THEN false END END"
+    )
 
 
 @compiles(_SafeJsonFloat)
@@ -414,6 +424,10 @@ def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, bool)
 
 
+def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    return isinstance(node, ast.Constant) and node.value is None
+
+
 def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.Tuple]]:
     return (
         isinstance(node, (ast.List, ast.Tuple))
@@ -499,6 +513,8 @@ def _validate_operand_types(expression: ast.Expression) -> None:
             and isinstance(node.func, ast.Name)
             and node.func.id in ("float", "int")
         ):
+            if len(node.args) != 1:
+                raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
             argument = node.args[0]
             if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
                 try:
@@ -509,18 +525,18 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                 raise SyntaxError("cannot cast string to number")
             continue
         if isinstance(node, ast.BoolOp):
-            if any(_get_filter_value_type(value) != "boolean" for value in node.values):
+            # operands of unknown type (e.g. JSON attributes) are allowed as truthy values
+            if any(_get_filter_value_type(value) not in (None, "boolean") for value in node.values):
                 raise SyntaxError("logical operands must be boolean expressions")
             continue
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            if _get_filter_value_type(node.operand) != "boolean":
+            if _get_filter_value_type(node.operand) not in (None, "boolean"):
                 raise SyntaxError("logical operands must be boolean expressions")
             continue
         if not isinstance(node, ast.Compare):
             continue
         left = node.left
         for operator, right in zip(node.ops, node.comparators):
-            left_type = _get_filter_value_type(left)
             if isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
                 right, (ast.List, ast.Tuple)
             ):
@@ -542,24 +558,36 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                     first_type, second_type = present_types[0], present_types[1]
                     raise SyntaxError(f"cannot compare {first_type} and {second_type}")
                 for element in right.elts:
-                    _validate_comparable_types(left_type, _get_filter_value_type(element))
+                    _validate_comparable_types(left, element)
             elif isinstance(operator, (ast.In, ast.NotIn)):
+                left_type = _get_filter_value_type(left)
                 right_type = _get_filter_value_type(right)
                 if left_type not in (None, "string") or right_type not in (None, "string"):
                     raise SyntaxError(
                         f"cannot compare {left_type or 'value'} and {right_type or 'string'}"
                     )
             else:
-                _validate_comparable_types(left_type, _get_filter_value_type(right))
+                _validate_comparable_types(left, right)
             left = right
 
 
-def _validate_comparable_types(
-    left_type: typing.Optional[FilterValueType],
-    right_type: typing.Optional[FilterValueType],
-) -> None:
+def _validate_comparable_types(left: ast.AST, right: ast.AST) -> None:
+    left_type = _get_filter_value_type(left)
+    right_type = _get_filter_value_type(right)
     if {left_type, right_type} == {"datetime", "string"}:
-        return
+        # only a string literal can be bound as a datetime
+        string_node = left if left_type == "string" else right
+        if _is_string_constant(string_node):
+            return
+    if {left_type, right_type} == {"number", "string"}:
+        # a numeric string literal is cast to a number at translation
+        string_node = left if left_type == "string" else right
+        if (
+            isinstance(string_node, ast.Constant)
+            and isinstance(string_node.value, str)
+            and _is_numeric_string(string_node.value)
+        ):
+            return
     if (
         left_type is not None
         and right_type is not None
@@ -567,6 +595,14 @@ def _validate_comparable_types(
         and "null" not in (left_type, right_type)
     ):
         raise SyntaxError(f"cannot compare {left_type} and {right_type}")
+
+
+def _is_numeric_string(value: str) -> bool:
+    try:
+        float(value)
+    except ValueError:
+        return False
+    return True
 
 
 def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
@@ -786,9 +822,9 @@ class _FilterTranslator(_ProjectionTranslator):
                 if _is_bool_constant(left) or _is_bool_sequence(left)
                 else _cast_as("String", right)
             )
-        if _is_float(left) and not _is_float(right):
+        if _is_float(left) and not _is_float(right) and not _is_none_constant(right):
             right = _cast_as("Float", right)
-        elif not _is_float(left) and _is_float(right):
+        elif not _is_float(left) and not _is_none_constant(left) and _is_float(right):
             left = _cast_as("Float", left)
         if isinstance(op, (ast.In, ast.NotIn)):
             if (
@@ -823,10 +859,24 @@ class _FilterTranslator(_ProjectionTranslator):
         return ast.Compare(left=left, ops=[op], comparators=[right])
 
     def _bind_datetime_literal(self, source: ast.expr, translated: ast.expr) -> ast.expr:
+        if isinstance(source, (ast.List, ast.Tuple)) and isinstance(
+            translated, (ast.List, ast.Tuple)
+        ):
+            elts = [
+                self._bind_datetime_literal(source_elt, translated_elt)
+                for source_elt, translated_elt in zip(source.elts, translated.elts)
+            ]
+            if isinstance(translated, ast.List):
+                return ast.List(elts=elts, ctx=ast.Load())
+            return ast.Tuple(elts=elts, ctx=ast.Load())
         if not (isinstance(source, ast.Constant) and isinstance(source.value, str)):
             return translated
+        raw = source.value
+        if raw.endswith(("Z", "z")):
+            # Python 3.10's fromisoformat does not accept the Z suffix
+            raw = raw[:-1] + "+00:00"
         try:
-            value = datetime.fromisoformat(source.value)
+            value = datetime.fromisoformat(raw)
         except ValueError as error:
             raise SyntaxError(f"invalid datetime literal: {source.value!r}") from error
         name = f"__datetime_literal_{len(self.literal_bindings)}"

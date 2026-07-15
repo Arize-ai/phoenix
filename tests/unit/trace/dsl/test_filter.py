@@ -299,6 +299,32 @@ def test_filter_rejects_invalid_datetime_literal() -> None:
         SpanFilter("start_time > 'yesterday'")
 
 
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "latency_ms > '100'",
+        "'100' < latency_ms",
+        "annotations['quality'].score >= '0.5'",
+        "start_time < '2024-01-01T00:00:00Z'",
+        "metadata['flag'] and name == 'x'",
+        "not metadata['flag']",
+        "latency_ms == None",
+    ],
+)
+def test_filter_accepts_previously_valid_conditions(condition: str) -> None:
+    SpanFilter(condition)
+
+
+def test_filter_rejects_zero_argument_cast() -> None:
+    with pytest.raises(SyntaxError, match="invalid expression"):
+        SpanFilter("float() > 1")
+
+
+def test_filter_rejects_string_column_vs_datetime_column_comparison() -> None:
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter("name == start_time")
+
+
 async def test_filter_iso_datetime_string_executes(
     db: DbSessionFactory,
     default_project: Any,
@@ -373,6 +399,51 @@ async def test_filter_boolean_json_string_cast_matches(
         span_ids = await session.scalars(span_filter(select(models.Span.id)))
 
     assert list(span_ids) == [span.id]
+
+
+async def test_filter_real_json_boolean_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"flag": True}}
+
+    span_filter = SpanFilter("metadata['flag'] is True")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span.id]
+
+
+async def test_filter_datetime_in_tuple_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        iso = span.start_time.isoformat()
+
+    span_filter = SpanFilter(f"start_time in ('{iso}',)")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert span.id in list(span_ids)
+
+
+async def test_filter_numeric_null_comparison_executes(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        none_ids = await session.scalars(SpanFilter("latency_ms == None")(select(models.Span.id)))
+        assert list(none_ids) == []
+        not_none_ids = await session.scalars(
+            SpanFilter("latency_ms != None")(select(models.Span.id))
+        )
+        assert list(not_none_ids)
 
 
 @pytest.mark.parametrize("operator", ["/", "%"])
