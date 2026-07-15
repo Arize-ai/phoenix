@@ -26,6 +26,7 @@ export type ProviderServerCredentialsPanelProvider = {
   readonly name: string;
   readonly key: string;
   readonly credentialRequirements: readonly ProviderCredentialRequirement[];
+  readonly credentialsSet: boolean;
 };
 
 // Form values type for react-hook-form
@@ -248,9 +249,20 @@ function ServerCredentials({
     );
   }
 
+  const setViaServerEnvironment =
+    provider.credentialsSet &&
+    existingSecretKeys.length === 0 &&
+    providerUnparsableSecrets.length === 0;
+
   return (
     <Flex direction="column" gap="size-100">
       {error && <Alert variant="danger">{error}</Alert>}
+      {setViaServerEnvironment && (
+        <Alert variant="info">
+          Set via a server environment variable. This can only be cleared by
+          removing the environment variable on the server.
+        </Alert>
+      )}
       {providerUnparsableSecrets.map(({ envVarName, parseError }) => (
         <Alert key={envVarName} variant="danger" title={envVarName}>
           {parseError}

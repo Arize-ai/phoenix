@@ -245,9 +245,7 @@ function CredentialsSetIndicator() {
       svg={<Icons.Checkmark />}
       aria-label="credentials set"
       css={css`
-        margin-left: var(--global-dimension-size-50);
         font-size: var(--global-font-size-s);
-        vertical-align: middle;
       `}
     />
   );
@@ -295,12 +293,16 @@ function ProviderCredentialsDialog({
             <Tabs defaultSelectedKey="browser">
               <TabList aria-label="Credential storage location">
                 <Tab id="browser">
-                  Browser
-                  {hasBrowserCredentials && <CredentialsSetIndicator />}
+                  <Flex direction="row" alignItems="center" gap="size-50">
+                    <Text>Browser</Text>
+                    {hasBrowserCredentials && <CredentialsSetIndicator />}
+                  </Flex>
                 </Tab>
                 <Tab id="server">
-                  Server
-                  {provider.credentialsSet && <CredentialsSetIndicator />}
+                  <Flex direction="row" alignItems="center" gap="size-50">
+                    <Text>Server</Text>
+                    {provider.credentialsSet && <CredentialsSetIndicator />}
+                  </Flex>
                 </Tab>
               </TabList>
               <LazyTabPanel id="browser">
