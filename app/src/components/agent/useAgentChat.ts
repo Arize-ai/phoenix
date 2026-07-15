@@ -163,7 +163,7 @@ export function useAgentChat({
                       body,
                       id,
                       agentSessionId:
-                        store.getState().sessionMap[sessionId]?.nodeId ?? null,
+                        store.getState().sessionMap[sessionId]?.id ?? null,
                       messages,
                       trigger,
                       messageId,

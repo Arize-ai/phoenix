@@ -52,7 +52,10 @@ describe("agentStore", () => {
       const state = store.getState();
       expect(state.sessions).toEqual([sessionId]);
       expect(state.activeSessionId).toBe(sessionId);
-      expect(state.sessionMap[sessionId]).toBeDefined();
+      expect(state.sessionMap[sessionId]).toMatchObject({
+        clientKey: sessionId,
+        id: null,
+      });
     });
 
     it("marks a local draft persisted without replacing its runtime state", () => {
@@ -61,9 +64,10 @@ describe("agentStore", () => {
 
       store.getState().setSessionPersisted(sessionId, "session-node-id");
 
-      expect(store.getState().sessionMap[sessionId]?.nodeId).toBe(
+      expect(store.getState().sessionMap[sessionId]?.id).toBe(
         "session-node-id"
       );
+      expect(store.getState().sessionMap[sessionId]?.clientKey).toBe(sessionId);
       expect(store.getState().activeSessionId).toBe(sessionId);
     });
   });
@@ -186,8 +190,8 @@ describe("agentStore", () => {
     it("adds a server-loaded transcript to the runtime cache", () => {
       const store = createAgentStore();
       store.getState().cacheSession({
-        id: "remote",
-        nodeId: "remote-node-id",
+        clientKey: "remote",
+        id: "remote-node-id",
         title: "remote session",
         messages: [{ id: "m1", role: "user", parts: [] }],
         context: [],
@@ -215,8 +219,8 @@ describe("agentStore", () => {
         ]);
 
       store.getState().cacheSession({
-        id: localSessionId,
-        nodeId: "local-node-id",
+        clientKey: localSessionId,
+        id: "local-node-id",
         title: "server title",
         messages: [],
         context: [],
