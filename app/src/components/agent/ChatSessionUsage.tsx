@@ -26,6 +26,7 @@ function getLatestAssistantMessageUsage(
     return {
       tokenCount: {
         ...usage.tokens,
+        ...(usage.promptDetails ? { promptDetails: usage.promptDetails } : {}),
       },
     } satisfies AgentSessionUsage;
   }
@@ -44,6 +45,7 @@ export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
       total={usage.tokenCount.total}
       prompt={usage.tokenCount.prompt}
       completion={usage.tokenCount.completion}
+      promptDetails={usage.tokenCount.promptDetails}
     />
   );
 };

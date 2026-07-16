@@ -149,4 +149,72 @@ describe("ChatTokenUsage", () => {
     expect(trigger?.getAttribute("aria-expanded")).toBe("false");
     expect(container.textContent).not.toContain("Prompt");
   });
+
+  it("reveals prompt cache details on hover and restores the summary afterward", async () => {
+    const user = userEvent.setup();
+
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <ChatTokenUsageDetails
+            total={33_200}
+            prompt={32_000}
+            completion={1_200}
+            promptDetails={{ cacheRead: 21_000, cacheWrite: 3_000 }}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    const promptTrigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="32,000 prompt tokens. Show cache details"]'
+    );
+
+    expect(promptTrigger).not.toBeNull();
+    expect(container.textContent).toContain("32K Prompt");
+    expect(container.textContent).not.toContain("Cache read");
+
+    await act(async () => user.hover(promptTrigger!));
+
+    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(container.textContent).toContain("8.0K Uncached");
+    expect(container.textContent).toContain("21K Cache read");
+    expect(container.textContent).toContain("3.0K Cache write");
+    expect(container.textContent).not.toContain("1.2K Completion");
+
+    await act(async () => user.unhover(promptTrigger!));
+
+    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(container.textContent).toContain("32K Prompt");
+    expect(container.textContent).toContain("1.2K Completion");
+  });
+
+  it("reveals prompt cache details on keyboard focus", () => {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <ChatTokenUsageDetails
+            total={33_200}
+            prompt={32_000}
+            completion={1_200}
+            promptDetails={{ cacheRead: 32_000, cacheWrite: 0 }}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    const promptTrigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="32,000 prompt tokens. Show cache details"]'
+    );
+
+    act(() => promptTrigger!.focus());
+
+    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(container.textContent).toContain("32K Cache read");
+    expect(container.textContent).not.toContain("Uncached");
+
+    act(() => promptTrigger!.blur());
+
+    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("false");
+  });
 });

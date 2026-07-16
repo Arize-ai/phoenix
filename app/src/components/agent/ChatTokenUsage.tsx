@@ -5,6 +5,7 @@ import { DisclosureArrow, Text } from "@phoenix/components";
 import {
   SegmentChart,
   useCategoryChartColors,
+  useGrayscaleCategoricalColors,
 } from "@phoenix/components/chart";
 import { TokenCount } from "@phoenix/components/trace";
 import { formatInt, formatIntShort } from "@phoenix/utils/numberFormatUtils";
@@ -73,10 +74,30 @@ const chatTokenUsageDetailsCSS = css`
     gap: var(--global-dimension-static-size-100);
   }
 
+  .chat-token-usage-details__chart {
+    position: relative;
+  }
+
+  .chat-token-usage-details__prompt-trigger {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    min-width: 1%;
+    border-radius: var(--global-rounding-medium);
+    cursor: pointer;
+    outline: none;
+
+    &:focus-visible {
+      outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+
   .chat-token-usage-details__segments {
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: var(--global-dimension-static-size-200);
     list-style: none;
     margin: 0;
@@ -101,18 +122,75 @@ export type ChatTokenUsageDetailsProps = {
   total: number;
   prompt: number;
   completion: number;
+  promptDetails?: {
+    cacheRead: number;
+    cacheWrite: number;
+  };
 };
+
+type TokenSegment = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+function getClampedTokenCount({
+  value,
+  maximum,
+}: {
+  value: number;
+  maximum: number;
+}) {
+  return Math.min(Math.max(value, 0), Math.max(maximum, 0));
+}
 
 export function ChatTokenUsageDetails({
   total,
   prompt,
   completion,
+  promptDetails,
 }: ChatTokenUsageDetailsProps) {
   const colors = useCategoryChartColors();
-  const segments = [
+  const grayscaleColors = useGrayscaleCategoricalColors();
+  const [isPromptHovered, setIsPromptHovered] = useState(false);
+  const [isPromptFocused, setIsPromptFocused] = useState(false);
+  const promptLegendId = useId();
+  const cacheRead = getClampedTokenCount({
+    value: promptDetails?.cacheRead ?? 0,
+    maximum: prompt,
+  });
+  const cacheWrite = getClampedTokenCount({
+    value: promptDetails?.cacheWrite ?? 0,
+    maximum: Math.max(prompt - cacheRead, 0),
+  });
+  const uncachedPrompt = Math.max(prompt - cacheRead - cacheWrite, 0);
+  const hasPromptDetails = prompt > 0 && (cacheRead > 0 || cacheWrite > 0);
+  const isPromptBreakdownActive =
+    hasPromptDetails && (isPromptHovered || isPromptFocused);
+  const defaultSegments: TokenSegment[] = [
     { name: "Prompt", value: prompt, color: colors.category1 },
     { name: "Completion", value: completion, color: colors.category2 },
   ];
+  const promptSegments: TokenSegment[] = [
+    { name: "Uncached", value: uncachedPrompt, color: colors.category1 },
+    { name: "Cache read", value: cacheRead, color: colors.category5 },
+    { name: "Cache write", value: cacheWrite, color: colors.category4 },
+  ];
+  const chartSegments = isPromptBreakdownActive
+    ? [
+        ...promptSegments,
+        {
+          name: "Completion",
+          value: completion,
+          color: grayscaleColors.gray3,
+        },
+      ]
+    : defaultSegments;
+  const legendSegments = isPromptBreakdownActive
+    ? promptSegments.filter((segment) => segment.value > 0)
+    : defaultSegments;
+  const promptPercentage =
+    total > 0 ? Math.min(Math.max((prompt / total) * 100, 0), 100) : 0;
 
   return (
     <div
@@ -121,23 +199,43 @@ export function ChatTokenUsageDetails({
       role="region"
       aria-label="Token usage breakdown"
     >
-      <div aria-hidden="true">
-        <SegmentChart
-          height={6}
-          minimumSegmentPercentage={1}
-          totalValue={total}
-          segments={segments}
-        />
+      <div className="chat-token-usage-details__chart">
+        <div aria-hidden="true">
+          <SegmentChart
+            height={6}
+            minimumSegmentPercentage={1}
+            totalValue={total}
+            segments={chartSegments}
+          />
+        </div>
+        {hasPromptDetails ? (
+          <button
+            className="chat-token-usage-details__prompt-trigger button--reset"
+            type="button"
+            style={{ width: `${promptPercentage}%` }}
+            aria-controls={promptLegendId}
+            aria-expanded={isPromptBreakdownActive}
+            aria-label={`${formatInt(prompt)} prompt tokens. Show cache details`}
+            onMouseEnter={() => setIsPromptHovered(true)}
+            onMouseLeave={() => setIsPromptHovered(false)}
+            onFocus={() => setIsPromptFocused(true)}
+            onBlur={() => setIsPromptFocused(false)}
+          />
+        ) : null}
       </div>
-      <div className="chat-token-usage-details__legend">
+      <div
+        className="chat-token-usage-details__legend"
+        id={promptLegendId}
+        aria-live="polite"
+      >
         <Text size="XS" color="text-700" weight="heavy">
-          Total
+          {isPromptBreakdownActive ? "Prompt" : "Total"}
         </Text>
         <ul
           className="chat-token-usage-details__segments"
           aria-label="Token types"
         >
-          {segments.map((segment) => (
+          {legendSegments.map((segment) => (
             <li
               className="chat-token-usage-details__segment"
               key={segment.name}
@@ -162,6 +260,7 @@ export function ChatTokenUsage({
   total,
   prompt,
   completion,
+  promptDetails,
 }: ChatTokenUsageDetailsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const detailsId = useId();
@@ -193,6 +292,7 @@ export function ChatTokenUsage({
             total={total}
             prompt={prompt}
             completion={completion}
+            promptDetails={promptDetails}
           />
         </div>
       ) : null}

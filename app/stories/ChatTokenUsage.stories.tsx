@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, userEvent, within } from "storybook/test";
 
-import { Button } from "@phoenix/components";
-import { ChatTokenUsage } from "@phoenix/components/agent/ChatTokenUsage";
+import { Button, Text } from "@phoenix/components";
+import {
+  ChatTokenUsage,
+  ChatTokenUsageDetails,
+} from "@phoenix/components/agent/ChatTokenUsage";
 
 const meta = {
   title: "Agent/Chat Token Usage",
@@ -44,6 +47,84 @@ export const Expanded: Story = {
   },
 };
 
+/** Hovering or focusing Prompt reveals its uncached, cache-read, and cache-write composition. */
+export const ExpandedWithPromptDetails: Story = {
+  args: {
+    promptDetails: {
+      cacheRead: 21_000,
+      cacheWrite: 3_000,
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "33,200 total tokens" })
+    );
+    await userEvent.hover(
+      canvas.getByRole("button", {
+        name: "32,000 prompt tokens. Show cache details",
+      })
+    );
+    await expect(canvas.getByText("8.0K Uncached")).toBeVisible();
+    await expect(canvas.getByText("21K Cache read")).toBeVisible();
+    await expect(canvas.getByText("3.0K Cache write")).toBeVisible();
+  },
+};
+
+/** Prompt-detail states keep the base Prompt/Completion view when no cache data exists. */
+export const PromptDetailScenarios: Story = {
+  render: () => (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "32px",
+        width: "426px",
+      }}
+    >
+      <TokenUsageScenario label="Cache read and write">
+        <ChatTokenUsageDetails
+          total={33_200}
+          prompt={32_000}
+          completion={1_200}
+          promptDetails={{ cacheRead: 21_000, cacheWrite: 3_000 }}
+        />
+      </TokenUsageScenario>
+      <TokenUsageScenario label="Cache read only">
+        <ChatTokenUsageDetails
+          total={33_200}
+          prompt={32_000}
+          completion={1_200}
+          promptDetails={{ cacheRead: 27_000, cacheWrite: 0 }}
+        />
+      </TokenUsageScenario>
+      <TokenUsageScenario label="Cache write only">
+        <ChatTokenUsageDetails
+          total={33_200}
+          prompt={32_000}
+          completion={1_200}
+          promptDetails={{ cacheRead: 0, cacheWrite: 5_000 }}
+        />
+      </TokenUsageScenario>
+      <TokenUsageScenario label="Fully cached prompt">
+        <ChatTokenUsageDetails
+          total={33_200}
+          prompt={32_000}
+          completion={1_200}
+          promptDetails={{ cacheRead: 32_000, cacheWrite: 0 }}
+        />
+      </TokenUsageScenario>
+      <TokenUsageScenario label="No prompt details">
+        <ChatTokenUsageDetails
+          total={33_200}
+          prompt={32_000}
+          completion={1_200}
+        />
+      </TokenUsageScenario>
+    </div>
+  ),
+};
+
 /** The chart spans both metadata columns without moving their first-row alignment. */
 export const WithApprovalControl: Story = {
   render: (args) => (
@@ -70,3 +151,20 @@ export const WithApprovalControl: Story = {
     ).toBeVisible();
   },
 };
+
+function TokenUsageScenario({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <Text size="XS" css={{ marginBottom: "8px" }}>
+        {label}
+      </Text>
+      {children}
+    </section>
+  );
+}
