@@ -257,17 +257,25 @@ def test_flushes_before_starting_the_next_evaluator() -> None:
     ]
 
 
-def test_sampling_is_deterministic() -> None:
-    sampled_spec = TOOL_COUNT_PER_TURN.__class__(
-        name="sampled",
-        input_scope="trace",
-        root_span_name="pxi.turn",
-        evaluate=TOOL_COUNT_PER_TURN.evaluate,
-        sample_rate=0.5,
-    )
-    assert _sampled(sampled_spec, "trace-1") == _sampled(sampled_spec, "trace-1")
-    assert any(_sampled(sampled_spec, f"trace-{index}") for index in range(100))
-    assert any(not _sampled(sampled_spec, f"trace-{index}") for index in range(100))
+@pytest.mark.parametrize(
+    ("name", "artifact_id", "sample_rate", "expected"),
+    [
+        ("sampled", "trace-1", 0.5, True),
+        ("sampled", "trace-2", 0.5, False),
+        ("user_friction", "abc", 0.25, True),
+        ("user_friction", "xyz", 0.25, False),
+        ("sampled", "trace-1", 0.0, False),
+        ("sampled", "trace-1", 1.0, True),
+    ],
+)
+def test_sampling_is_deterministic_across_runs(
+    name: str,
+    artifact_id: str,
+    sample_rate: float,
+    expected: bool,
+) -> None:
+    spec = replace(TOOL_COUNT_PER_TURN, name=name, sample_rate=sample_rate)
+    assert _sampled(spec, artifact_id) is expected
 
 
 def test_applicability_filter_skips_evaluation() -> None:
