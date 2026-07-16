@@ -190,7 +190,7 @@ class SessionEvalSweeper(DaemonTask):
                     models.ProjectSession,
                     models.EvalSessionActivity.project_session_rowid == models.ProjectSession.id,
                 )
-                .order_by(models.EvalSessionActivity.id)
+                .order_by(models.EvalSessionActivity.observed_at)
                 .limit(_MAX_ACTIVITY_ROWS_PER_TICK)
             )
         ).all()
