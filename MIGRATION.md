@@ -49,6 +49,16 @@ Operators who do not want the MCP surface exposed can disable it with:
 - `PHOENIX_ENABLE_MCP_SERVER` (default `true`). When set to `false`, the `/mcp` mount and the path-inserted protected
   resource metadata at `/.well-known/oauth-protected-resource/mcp` respond with `404`.
 
+By default the `/mcp` endpoint now presents FastMCP's **code-mode** tool surface: instead of the `/v1`-derived tool
+list, clients see discovery meta-tools (`search`, `get_schema`, `tags`, `list_tools`) and an `execute` tool that runs
+model-written Python in a `pydantic-monty` sandbox where `call_tool(name, params)` is the only function in scope. The
+`execute` tool can only invoke tools the caller is already authorized for, and each block is bounded by the FastMCP
+sandbox defaults (30s wall clock, 100 MB memory, at most 50 `call_tool` invocations). To restore the previous
+group-gated progressive-disclosure tool list instead, set:
+
+- `PHOENIX_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
+  effect unless `PHOENIX_ENABLE_MCP_SERVER` is also set.
+
 ### Deployments behind a reverse proxy
 
 The authorization server and the MCP endpoint place requirements on a fronting reverse proxy that ordinary UI and API
