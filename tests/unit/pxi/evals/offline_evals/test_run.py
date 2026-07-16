@@ -47,6 +47,7 @@ class _FakeSpans:
         self.annotations = annotations
         self.hydrated_trace_ids: list[str] = []
         self.writes: list[v1.SpanAnnotationData] = []
+        self.write_batches: list[list[v1.SpanAnnotationData]] = []
         self.get_spans_calls = 0
         self.get_spans_requests: list[dict[str, Any]] = []
 
@@ -66,6 +67,7 @@ class _FakeSpans:
     ) -> list[dict[str, str]]:
         assert sync is True
         self.writes.extend(span_annotations)
+        self.write_batches.append(list(span_annotations))
         return [{"id": str(index)} for index, _ in enumerate(span_annotations)]
 
 
@@ -208,6 +210,50 @@ def test_serializes_categorical_label_as_annotation_result() -> None:
             "result": {"score": 1.0, "label": "friction"},
             "metadata": {"provider": "openai"},
         }
+    ]
+
+
+def test_flushes_annotations_in_bounded_batches() -> None:
+    roots = [
+        _span(
+            f"root-{index}",
+            trace_id=f"trace-{index}",
+            name="pxi.turn",
+            kind="AGENT",
+            parent_id=None,
+        )
+        for index in range(3)
+    ]
+    spans = _FakeSpans(roots, {f"trace-{index}": [root] for index, root in enumerate(roots)}, [])
+
+    with mock.patch.object(run_module, "ANNOTATION_WRITE_BATCH_SIZE", 2):
+        summary = run_evaluators(
+            _FakeClient(spans),  # type: ignore[arg-type]
+            project="pxi_dev",
+            specs=[TOOL_COUNT_PER_TURN],
+            now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        )["tool_count_per_turn"]
+
+    assert [len(batch) for batch in spans.write_batches] == [2, 1]
+    assert summary.annotations == 3
+
+
+def test_flushes_before_starting_the_next_evaluator() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    spans = _FakeSpans([root], {"trace": [root]}, [])
+    first = replace(TOOL_COUNT_PER_TURN, name="first")
+    second = replace(TOOL_COUNT_PER_TURN, name="second", annotator_kind="LLM")
+
+    run_evaluators(
+        _FakeClient(spans),  # type: ignore[arg-type]
+        project="pxi_dev",
+        specs=[first, second],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )
+
+    assert [[annotation["name"] for annotation in batch] for batch in spans.write_batches] == [
+        ["first"],
+        ["second"],
     ]
 
 

@@ -24,6 +24,7 @@ DEFAULT_TIMEOUT_SECONDS = 120
 MAX_CANDIDATE_ROOTS = 5_000
 MAX_SPANS_PER_BATCH = 10_000
 TRACE_ID_BATCH_SIZE = 100
+ANNOTATION_WRITE_BATCH_SIZE = 100
 
 
 def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
@@ -113,6 +114,19 @@ def _load_trace_spans(
     return dict(grouped)
 
 
+def _flush_annotations(
+    client: Client,
+    annotations: list[v1.SpanAnnotationData],
+    *,
+    dry_run: bool,
+) -> None:
+    if not annotations:
+        return
+    if not dry_run:
+        client.spans.log_span_annotations(span_annotations=annotations, sync=True)
+    annotations.clear()
+
+
 def run_evaluators(
     client: Client,
     *,
@@ -175,7 +189,11 @@ def run_evaluators(
         client, project=project, trace_ids=(trace_id(root) for _, root in pending)
     )
     annotations: list[v1.SpanAnnotationData] = []
+    previous_spec_name: str | None = None
     for spec, root in pending:
+        if previous_spec_name is not None and spec.name != previous_spec_name:
+            _flush_annotations(client, annotations, dry_run=dry_run)
+        previous_spec_name = spec.name
         artifact_spans = traces.get(trace_id(root), [])
         try:
             if not spec.applies_to(root, artifact_spans):
@@ -204,11 +222,11 @@ def run_evaluators(
         if result.metadata:
             annotation["metadata"] = result.metadata
         annotations.append(annotation)
+        summaries[spec.name].annotations += 1
+        if len(annotations) >= ANNOTATION_WRITE_BATCH_SIZE:
+            _flush_annotations(client, annotations, dry_run=dry_run)
 
-    if annotations and not dry_run:
-        client.spans.log_span_annotations(span_annotations=annotations, sync=True)
-    for annotation in annotations:
-        summaries[annotation["name"]].annotations += 1
+    _flush_annotations(client, annotations, dry_run=dry_run)
     return summaries
 
 
