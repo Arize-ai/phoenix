@@ -20,11 +20,11 @@ from phoenix.server.agents.types import (
 )
 from phoenix.server.api.routers.agents import (
     _interleave_agent_and_subagent_message_chunks,
-    _load_agent_session_for_turn,
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
     _persist_db_traces_and_emit_event,
+    _refresh_and_load_agent_session,
     _SubagentMessageChunksClosed,
     _update_agent_session,
 )
@@ -60,7 +60,7 @@ class TestAgentSessionPersistence:
             created_project_session_id = created.project_session_id
 
         async with db() as session:
-            loaded = await _load_agent_session_for_turn(
+            loaded = await _refresh_and_load_agent_session(
                 session,
                 agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
                 user_id=None,
