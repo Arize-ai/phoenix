@@ -17,14 +17,14 @@ from phoenix.server.agents.prompts import SUMMARIZATION_INSTRUCTIONS_TEMPLATE
 SUMMARY_TOOL_NAME = "summary"
 
 
-class Summary(BaseModel):
+class _Summary(BaseModel):
     summary: str
 
 
 SUMMARY_TOOL_DEFINITION = ToolDefinition(
     name=SUMMARY_TOOL_NAME,
     description="Provide the conversation title.",
-    parameters_json_schema=Summary.model_json_schema(),
+    parameters_json_schema=_Summary.model_json_schema(),
 )
 
 
@@ -32,7 +32,7 @@ async def summarize_messages(
     *,
     messages: list[ModelMessage],
     model: Model,
-) -> Summary:
+) -> str | None:
     request_params = ModelRequestParameters(
         function_tools=[],
         output_tools=[SUMMARY_TOOL_DEFINITION],
@@ -56,7 +56,7 @@ async def summarize_messages(
     for part in response.parts:
         if isinstance(part, ToolCallPart) and part.tool_name == SUMMARY_TOOL_NAME:
             try:
-                return Summary.model_validate(part.args_as_dict())
+                return _Summary.model_validate(part.args_as_dict()).summary.strip() or None
             except Exception as exc:
                 raise SummarizationError(f"invalid summary tool arguments: {exc}") from exc
     raise SummarizationError("model did not call the summary tool")
