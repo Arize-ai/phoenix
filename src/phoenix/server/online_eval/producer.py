@@ -2,7 +2,7 @@
 
 Materializes span-grain eval work units from enabled project evaluator criteria.
 The producer runs on every replica but self-elects each tick via the
-``eval_work_cursors`` CAS lease, so exactly one replica per (grain, consumer_group)
+``eval_work_cursors`` CAS lease, so exactly one replica per grain
 scans spans and writes work rows at a time. Each tick: renew the lease, reap
 expired/aged work rows, scan the lag-gated span id window per criteria, and
 idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
@@ -24,8 +24,21 @@ from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
+from phoenix.config import (
+    get_env_online_eval_backstop_interval_seconds,
+    get_env_online_eval_backstop_lookback_span_ids,
+    get_env_online_eval_frontier_lag_seconds,
+    get_env_online_eval_max_outstanding,
+    get_env_online_eval_max_span_ids_per_tick,
+    get_env_online_eval_pending_ttl_seconds,
+    get_env_online_eval_retention_seconds,
+)
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.db_coordinator import (
+    STALE_FINGERPRINT_ERROR,
+    work_unit_lease_lapsed,
+)
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     ResolvedCriteria,
@@ -43,6 +56,12 @@ TICK_INTERVAL_SECONDS = 10.0
 
 _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
+_CONSUMER_GROUP = "default"
+_PENDING_TTL_EXCEEDED_ERROR = "pending ttl exceeded"
+
+
+class _CursorLeaseLost(Exception):
+    pass
 
 
 async def resolve_criteria(
@@ -128,6 +147,37 @@ class _ActiveCriteria:
         )
         return self.span_filter(stmt)
 
+    def materializable_scan_stmt(
+        self, low_exclusive: int, high_inclusive: int
+    ) -> Select[tuple[int]]:
+        return self.scan_stmt(low_exclusive, high_inclusive).where(
+            ~exists(
+                select(1).where(
+                    models.SpanAnnotation.span_rowid == models.Span.id,
+                    models.SpanAnnotation.name == self.name,
+                    models.SpanAnnotation.identifier == self.identifier,
+                )
+            ),
+            or_(
+                ~exists(
+                    select(1).where(
+                        models.EvalWorkUnit.span_rowid == models.Span.id,
+                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
+                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
+                    )
+                ),
+                exists(
+                    select(1).where(
+                        models.EvalWorkUnit.span_rowid == models.Span.id,
+                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
+                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
+                        models.EvalWorkUnit.status == "EXPIRED",
+                        models.EvalWorkUnit.error == STALE_FINGERPRINT_ERROR,
+                    )
+                ),
+            ),
+        )
+
     def sampled(self, span_ids: list[int]) -> list[int]:
         return [sid for sid in span_ids if sample_key(sid) < self.sampling_rate]
 
@@ -144,33 +194,21 @@ class OnlineEvalProducer(DaemonTask):
         self,
         db: DbSessionFactory,
         *,
-        consumer_group: str = "default",
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
         self._db = db
         self._grain: models.EvalWorkGrain = "SPAN"
-        self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
         self._producer_id = f"producer-{token_hex(8)}"
-        # Config knobs are hardcoded to their defaults until the online-eval env-var surface lands.
-        self._frontier_lag_seconds = 60.0
-        # The backstop's coverage guarantee is rate-dependent: gap-free re-coverage
-        # requires lookback_span_ids >= instance_wide_ingest_rate * interval_seconds.
-        # Spans draw from a single id sequence, so the rate that matters is the sum
-        # across all projects and tenants — 100k ids per 3600s sweep only protects
-        # deployments ingesting under ~28 spans/sec instance-wide. Above that, rows
-        # can age out of the lookback between sweeps and the backstop stops bounding
-        # the exceptional loss modes it exists to catch (late-visible spans, skipped
-        # criteria). The reaper's floor (``_reap``) is aligned to this lookback, so
-        # any change here must move both together.
-        self._backstop_interval_seconds = 3600.0
-        self._backstop_lookback_span_ids = 100_000
-        self._max_span_ids_per_tick = 10_000
-        # Disabled because expiry is terminal and blocks backstop re-materialization.
-        self._pending_ttl_seconds = 0.0
-        self._retention_seconds = 604_800.0
-        self._max_pending = 10_000
+        self._frontier_lag_seconds = get_env_online_eval_frontier_lag_seconds()
+        self._backstop_interval_seconds = get_env_online_eval_backstop_interval_seconds()
+        self._backstop_lookback_span_ids = get_env_online_eval_backstop_lookback_span_ids()
+        self._max_span_ids_per_tick = get_env_online_eval_max_span_ids_per_tick()
+        # Disabled by default because expiry is terminal and blocks backstop re-materialization.
+        self._pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
+        self._retention_seconds = get_env_online_eval_retention_seconds()
+        self._max_outstanding = get_env_online_eval_max_outstanding()
         self._last_backstop_at = time.monotonic()
         self._lease_held = False
 
@@ -186,53 +224,61 @@ class OnlineEvalProducer(DaemonTask):
             await self._release_lease()
 
     async def _tick(self) -> None:
-        now = datetime.now(timezone.utc)
-        cursor = await self._acquire_cursor(now)
-        if cursor is None:
-            return
-        cursor = await self._clamp_cursor(cursor)
-        if cursor is None:
-            return
-        produced_through_id = cursor.produced_through_id
+        try:
+            now = datetime.now(timezone.utc)
+            cursor = await self._acquire_cursor(now)
+            if cursor is None:
+                return
+            cursor = await self._clamp_cursor(cursor)
+            if cursor is None:
+                return
+            produced_through_id = cursor.produced_through_id
 
-        await self._reap(now, produced_through_id)
+            await self._reap(now, produced_through_id)
+            await self._renew_lease(datetime.now(timezone.utc))
 
-        observed_high_water_id = cursor.observed_high_water_id
-        pending_observation = (
-            observed_high_water_id is not None
-            and cursor.observed_at is not None
-            and observed_high_water_id > produced_through_id
-        )
-        frontier: Optional[int] = None
-        if (
-            pending_observation
-            and observed_high_water_id is not None
-            and cursor.observed_at is not None
-            and (now - cursor.observed_at).total_seconds() >= self._frontier_lag_seconds
-        ):
-            frontier = min(
-                observed_high_water_id,
-                produced_through_id + self._max_span_ids_per_tick,
+            observed_high_water_id = cursor.observed_high_water_id
+            pending_observation = (
+                observed_high_water_id is not None
+                and cursor.observed_at is not None
+                and observed_high_water_id > produced_through_id
             )
+            frontier: Optional[int] = None
+            if (
+                pending_observation
+                and observed_high_water_id is not None
+                and cursor.observed_at is not None
+                and (now - cursor.observed_at).total_seconds() >= self._frontier_lag_seconds
+            ):
+                frontier = min(
+                    observed_high_water_id,
+                    produced_through_id + self._max_span_ids_per_tick,
+                )
 
-        gate_open = await self._admission_gate_open()
-        active = await self._load_active_criteria() if gate_open else []
+            budget = await self._admission_budget()
+            active = await self._load_active_criteria() if budget > 0 else []
 
-        advanced = False
-        if gate_open and frontier is not None:
-            advanced = await self._materialize_and_advance(active, produced_through_id, frontier)
-            if advanced:
-                produced_through_id = frontier
+            advanced = False
+            if budget > 0 and frontier is not None:
+                await self._renew_lease(datetime.now(timezone.utc))
+                advanced, budget = await self._materialize_and_advance(
+                    active, produced_through_id, frontier, budget
+                )
+                if advanced:
+                    produced_through_id = frontier
 
-        observation_consumed = advanced and frontier == observed_high_water_id
-        if not pending_observation or observation_consumed:
-            await self._record_observation(produced_through_id)
+            observation_consumed = advanced and frontier == observed_high_water_id
+            if not pending_observation or observation_consumed:
+                await self._record_observation(produced_through_id)
 
-        if gate_open and time.monotonic() - self._last_backstop_at >= (
-            self._backstop_interval_seconds
-        ):
-            self._last_backstop_at = time.monotonic()
-            await self._backstop_sweep(active, produced_through_id)
+            if budget > 0 and time.monotonic() - self._last_backstop_at >= (
+                self._backstop_interval_seconds
+            ):
+                await self._renew_lease(datetime.now(timezone.utc))
+                await self._backstop_sweep(active, produced_through_id, budget)
+                self._last_backstop_at = time.monotonic()
+        except _CursorLeaseLost:
+            logger.warning("Online-eval producer tick aborted after losing its lease")
 
     async def _acquire_cursor(self, now: datetime) -> Optional[models.EvalWorkCursor]:
         stale = now - timedelta(seconds=CURSOR_LEASE_TTL_SECONDS)
@@ -242,7 +288,7 @@ class OnlineEvalProducer(DaemonTask):
                     update(models.EvalWorkCursor)
                     .where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                         or_(
                             models.EvalWorkCursor.claimed_by.is_(None),
                             models.EvalWorkCursor.claimed_by == self._producer_id,
@@ -259,7 +305,7 @@ class OnlineEvalProducer(DaemonTask):
                 row_exists = await session.scalar(
                     select(models.EvalWorkCursor.id).where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     )
                 )
                 if row_exists is not None:
@@ -269,7 +315,7 @@ class OnlineEvalProducer(DaemonTask):
                     insert_on_conflict(
                         {
                             "grain": self._grain,
-                            "consumer_group": self._consumer_group,
+                            "consumer_group": _CONSUMER_GROUP,
                             "produced_through_id": produced_through_id,
                         },
                         table=models.EvalWorkCursor,
@@ -314,7 +360,7 @@ class OnlineEvalProducer(DaemonTask):
                     update(models.EvalWorkCursor)
                     .where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                         models.EvalWorkCursor.claimed_by == self._producer_id,
                     )
                     .values(claimed_by=None, claimed_at=None)
@@ -322,12 +368,44 @@ class OnlineEvalProducer(DaemonTask):
         except Exception:
             logger.exception("Failed to release online-eval producer lease")
 
+    async def _renew_lease(self, now: datetime) -> None:
+        async with self._db() as session:
+            renewed = await session.scalar(
+                update(models.EvalWorkCursor)
+                .where(
+                    models.EvalWorkCursor.grain == self._grain,
+                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
+                    models.EvalWorkCursor.claimed_by == self._producer_id,
+                )
+                .values(claimed_at=now)
+                .returning(models.EvalWorkCursor.id)
+            )
+        if renewed is None:
+            self._lease_held = False
+            raise _CursorLeaseLost
+
     async def _reap(self, now: datetime, produced_through_id: int) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
         # regardless of age — they must remain to block backstop resurrection.
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(
+                    models.EvalWorkUnit.status == "RUNNING",
+                    models.EvalWorkUnit.attempts >= MAX_ATTEMPTS - 1,
+                    work_unit_lease_lapsed(now),
+                )
+                .values(
+                    status="ERROR",
+                    attempts=MAX_ATTEMPTS,
+                    error=func.coalesce(
+                        models.EvalWorkUnit.error,
+                        "lease lapsed with attempts exhausted",
+                    ),
+                )
+            )
             if self._pending_ttl_seconds > 0:
                 pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
                 await session.execute(
@@ -336,7 +414,13 @@ class OnlineEvalProducer(DaemonTask):
                         models.EvalWorkUnit.status == "PENDING",
                         models.EvalWorkUnit.created_at < pending_cutoff,
                     )
-                    .values(status="EXPIRED")
+                    .values(
+                        status="EXPIRED",
+                        error=func.coalesce(
+                            models.EvalWorkUnit.error,
+                            _PENDING_TTL_EXCEEDED_ERROR,
+                        ),
+                    )
                 )
             await session.execute(
                 delete(models.EvalWorkUnit).where(
@@ -354,7 +438,7 @@ class OnlineEvalProducer(DaemonTask):
                 )
             )
 
-    async def _admission_gate_open(self) -> bool:
+    async def _admission_budget(self) -> int:
         # The gate bounds the backlog that will eventually demand consumer
         # capacity — every non-terminal row, not just PENDING: RUNNING rows are
         # claimed but unfinished, and retryable ERROR rows return to the claim
@@ -379,13 +463,14 @@ class OnlineEvalProducer(DaemonTask):
                 )
                 or 0
             )
-        if outstanding_count > self._max_pending:
+        budget = max(0, self._max_outstanding - outstanding_count)
+        if budget == 0:
             logger.warning(
                 f"Online-eval producer admission gate closed: "
-                f"{outstanding_count} outstanding work units exceeds {self._max_pending}"
+                f"{outstanding_count} outstanding work units reached "
+                f"{self._max_outstanding}"
             )
-            return False
-        return True
+        return budget
 
     async def _load_active_criteria(self) -> list[_ActiveCriteria]:
         """Load and resolve enabled criteria into scan-ready form.
@@ -461,25 +546,42 @@ class OnlineEvalProducer(DaemonTask):
         active: list[_ActiveCriteria],
         low_exclusive: int,
         frontier: int,
-    ) -> bool:
+        budget: int,
+    ) -> tuple[bool, int]:
         async with self._db() as session:
-            for criteria in active:
-                span_ids = list(await session.scalars(criteria.scan_stmt(low_exclusive, frontier)))
-                await self._insert_work_units(session, criteria, criteria.sampled(span_ids))
+            for index, criteria in enumerate(active):
+                span_ids = list(
+                    await session.scalars(
+                        criteria.materializable_scan_stmt(low_exclusive, frontier)
+                    )
+                )
+                sampled_span_ids = criteria.sampled(span_ids)
+                admitted_span_ids = sampled_span_ids[:budget]
+                await self._insert_work_units(session, criteria, admitted_span_ids)
+                budget -= len(admitted_span_ids)
+                if len(admitted_span_ids) < len(sampled_span_ids) or (
+                    budget == 0 and index < len(active) - 1
+                ):
+                    logger.warning(
+                        f"Online-eval producer frontier truncated at insertion budget; "
+                        f"{budget} budget remaining"
+                    )
+                    await self._fence_mutating_session(session)
+                    return False, budget
             advanced = await session.scalar(
                 update(models.EvalWorkCursor)
                 .where(
                     models.EvalWorkCursor.grain == self._grain,
-                    models.EvalWorkCursor.consumer_group == self._consumer_group,
+                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
                 .values(produced_through_id=frontier)
                 .returning(models.EvalWorkCursor.id)
             )
-        if advanced is None:
-            logger.warning("Online-eval producer lost its lease; watermark not advanced")
-            return False
-        return True
+            if advanced is None:
+                self._lease_held = False
+                raise _CursorLeaseLost
+        return True, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
@@ -498,38 +600,56 @@ class OnlineEvalProducer(DaemonTask):
                 update(models.EvalWorkCursor)
                 .where(
                     models.EvalWorkCursor.grain == self._grain,
-                    models.EvalWorkCursor.consumer_group == self._consumer_group,
+                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
                 .values(observed_high_water_id=high_water, observed_at=observed_at)
             )
 
-    async def _backstop_sweep(self, active: list[_ActiveCriteria], watermark: int) -> None:
+    async def _backstop_sweep(
+        self,
+        active: list[_ActiveCriteria],
+        watermark: int,
+        budget: int,
+    ) -> int:
         if watermark <= 0:
-            return
+            return budget
         # Window is [watermark - lookback, watermark], matching the reaper's floor
         # exactly so every retained terminal row is inside the swept range.
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
-            for criteria in active:
-                stmt = criteria.scan_stmt(low_exclusive, watermark).where(
-                    ~exists(
-                        select(1).where(
-                            models.SpanAnnotation.span_rowid == models.Span.id,
-                            models.SpanAnnotation.name == criteria.name,
-                            models.SpanAnnotation.identifier == criteria.identifier,
-                        )
-                    ),
-                    ~exists(
-                        select(1).where(
-                            models.EvalWorkUnit.span_rowid == models.Span.id,
-                            models.EvalWorkUnit.evaluator_id == criteria.evaluator_id,
-                            models.EvalWorkUnit.config_fingerprint == criteria.fingerprint,
-                        )
-                    ),
-                )
+            for index, criteria in enumerate(active):
+                stmt = criteria.materializable_scan_stmt(low_exclusive, watermark)
                 span_ids = list(await session.scalars(stmt))
-                await self._insert_work_units(session, criteria, criteria.sampled(span_ids))
+                sampled_span_ids = criteria.sampled(span_ids)
+                admitted_span_ids = sampled_span_ids[:budget]
+                await self._insert_work_units(session, criteria, admitted_span_ids)
+                budget -= len(admitted_span_ids)
+                if len(admitted_span_ids) < len(sampled_span_ids) or (
+                    budget == 0 and index < len(active) - 1
+                ):
+                    logger.warning(
+                        f"Online-eval producer backstop truncated at insertion budget; "
+                        f"{budget} budget remaining"
+                    )
+                    break
+            await self._fence_mutating_session(session)
+        return budget
+
+    async def _fence_mutating_session(self, session: AsyncSession) -> None:
+        renewed = await session.scalar(
+            update(models.EvalWorkCursor)
+            .where(
+                models.EvalWorkCursor.grain == self._grain,
+                models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
+                models.EvalWorkCursor.claimed_by == self._producer_id,
+            )
+            .values(claimed_at=datetime.now(timezone.utc))
+            .returning(models.EvalWorkCursor.id)
+        )
+        if renewed is None:
+            self._lease_held = False
+            raise _CursorLeaseLost
 
     async def _insert_work_units(
         self,
@@ -547,9 +667,36 @@ class OnlineEvalProducer(DaemonTask):
             for span_rowid in span_ids
         ]
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
+            batch = records[start : start + _INSERT_BATCH_SIZE]
+            batch_span_ids = [record["span_rowid"] for record in batch]
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(
+                    models.EvalWorkUnit.span_rowid.in_(batch_span_ids),
+                    models.EvalWorkUnit.evaluator_id == criteria.evaluator_id,
+                    models.EvalWorkUnit.config_fingerprint == criteria.fingerprint,
+                    models.EvalWorkUnit.status == "EXPIRED",
+                    models.EvalWorkUnit.error == STALE_FINGERPRINT_ERROR,
+                    ~exists(
+                        select(1).where(
+                            models.SpanAnnotation.span_rowid == models.EvalWorkUnit.span_rowid,
+                            models.SpanAnnotation.name == criteria.name,
+                            models.SpanAnnotation.identifier == criteria.identifier,
+                        )
+                    ),
+                )
+                .values(
+                    status="PENDING",
+                    attempts=0,
+                    error=None,
+                    claimed_by=None,
+                    claimed_at=None,
+                    cooldown_until=None,
+                )
+            )
             await session.execute(
                 insert_on_conflict(
-                    *records[start : start + _INSERT_BATCH_SIZE],
+                    *batch,
                     table=models.EvalWorkUnit,
                     dialect=self._db.dialect,
                     unique_by=_WORK_UNIT_UNIQUE_BY,
