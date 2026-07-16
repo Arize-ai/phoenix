@@ -218,6 +218,16 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationMetricsTimeSeries {
+  data: [AnnotationMetricsTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type AnnotationMetricsTimeSeriesDataPoint {
+  timestamp: DateTime!
+  annotationSummaries: [AnnotationSummary!]!
+}
+
 type AnnotationNameCount {
   name: String!
   count: Int!
@@ -988,6 +998,9 @@ type Dataset implements Node {
 
   """The experiment tagged as this dataset's baseline, if one is set."""
   baselineExperiment: Experiment
+
+  """Evaluation metrics for the most recent non-ephemeral experiments."""
+  experimentAnnotationMetrics(first: Int! = 7): ExperimentAnnotationMetrics!
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
@@ -1738,6 +1751,17 @@ type Experiment implements Node {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   datasetSplits: DatasetSplitConnection!
   job: ExperimentJob
+}
+
+type ExperimentAnnotationMetrics {
+  names: [String!]!
+  baselineExperiment: ExperimentAnnotationMetricsDataPoint
+  recentExperiments: [ExperimentAnnotationMetricsDataPoint!]!
+}
+
+type ExperimentAnnotationMetricsDataPoint {
+  experiment: Experiment!
+  annotationSummaries: [AnnotationSummary!]!
 }
 
 type ExperimentAnnotationSummary {
@@ -2845,6 +2869,9 @@ type Project implements Node {
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
+  traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
+  sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }

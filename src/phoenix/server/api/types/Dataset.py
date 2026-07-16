@@ -29,6 +29,7 @@ from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.ExperimentAnnotationMetrics import ExperimentAnnotationMetrics
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -472,6 +473,26 @@ class Dataset(Node):
             return None
         experiment, sequence_number = result
         return to_gql_experiment(experiment, sequence_number, is_baseline=True)
+
+    @strawberry.field(
+        description="Evaluation metrics for the most recent non-ephemeral experiments."
+    )  # type: ignore
+    async def experiment_annotation_metrics(
+        self,
+        info: Info[Context, None],
+        first: int = 7,
+    ) -> ExperimentAnnotationMetrics:
+        if first < 1 or first > 50:
+            raise BadRequest("first must be between 1 and 50")
+        from phoenix.server.api.experiment_annotation_metrics import (
+            get_experiment_annotation_metrics,
+        )
+
+        return await get_experiment_annotation_metrics(
+            db=info.context.db,
+            dataset_id=self.id,
+            first=first,
+        )
 
     @strawberry.field
     async def experiment_jobs(
