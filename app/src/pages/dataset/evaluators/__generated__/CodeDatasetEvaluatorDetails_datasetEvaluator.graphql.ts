@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d00e8172d5b7c8f1822d6f0c5562128c>>
+ * @generated SignedSource<<075a5a1f746054b59ab278dec4b094d0>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type InternetAccessChoice = "ALLOW" | "DENY";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "ISLO" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {

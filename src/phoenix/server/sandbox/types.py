@@ -244,6 +244,17 @@ class ModalConfig(
     language: Literal["PYTHON"] = "PYTHON"
 
 
+class IsloConfig(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+    _RuntimePackageInstallation,
+):
+    backend_type: Literal["ISLO"] = "ISLO"
+    language: Literal["PYTHON"] = "PYTHON"
+
+
 SandboxConfigModel: TypeAlias = Annotated[
     Union[
         E2BConfig,
@@ -252,6 +263,7 @@ SandboxConfigModel: TypeAlias = Annotated[
         VercelConfig,
         WASMConfig,
         ModalConfig,
+        IsloConfig,
     ],
     Field(discriminator="backend_type"),
 ]
@@ -377,6 +389,13 @@ class DenoDeployment(NoDeployment):
     backend_type: Literal["DENO"] = "DENO"
 
 
+class IsloDeployment(NoDeployment):
+    """No routing kwargs; self-hosted Islo routes via the ``ISLO_BASE_URL`` /
+    ``ISLO_COMPUTE_URL`` env vars (read by the SDK)."""
+
+    backend_type: Literal["ISLO"] = "ISLO"
+
+
 SandboxDeploymentModel: TypeAlias = Annotated[
     Union[
         DaytonaDeployment,
@@ -385,6 +404,7 @@ SandboxDeploymentModel: TypeAlias = Annotated[
         ModalDeployment,
         WASMDeployment,
         DenoDeployment,
+        IsloDeployment,
     ],
     Field(discriminator="backend_type"),
 ]
@@ -438,6 +458,15 @@ class ModalCredentials(_BaseModel):
     MODAL_TOKEN_SECRET: SecretStr = Field(
         title="Modal Token Secret",
         description="Modal authentication token secret.",
+    )
+
+
+class IsloCredentials(_BaseModel):
+    ISLO_API_KEY: SecretStr = Field(
+        title="Islo API Key",
+        description=(
+            "API key for the Islo sandbox service. Create one at https://app.islo.dev/api-keys"
+        ),
     )
 
 

@@ -384,7 +384,8 @@
                   "docs/phoenix/settings/sandboxes/e2b",
                   "docs/phoenix/settings/sandboxes/daytona",
                   "docs/phoenix/settings/sandboxes/vercel",
-                  "docs/phoenix/settings/sandboxes/modal"
+                  "docs/phoenix/settings/sandboxes/modal",
+                  "docs/phoenix/settings/sandboxes/islo"
                 ]
               }
             ]

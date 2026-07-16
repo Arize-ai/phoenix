@@ -107,6 +107,7 @@ dev = [
   "ldap3",
   "litellm>=1.83.14; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
+  "islo>=0.3.11",  # type-checking only; runtime is gated by the [islo] extra
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
   "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
   "mypy==2.2.0",
@@ -198,6 +199,9 @@ vercel = [
 modal = [
   "modal>=1.2.0",
 ]
+islo = [
+  "islo>=0.3.11",
+]
 pg = [
   "asyncpg",
 ]
@@ -233,13 +237,14 @@ container = [
   "types-aiobotocore-bedrock-runtime>=3.6.0",
   # Sandbox provider SDKs — bundled so the shipped container can use any
   # configured provider without a rebuild. Each pin matches the matching
-  # single-provider extra above ([wasm], [e2b], [daytona], [vercel], [modal]).
+  # single-provider extra above ([wasm], [e2b], [daytona], [vercel], [modal], [islo]).
   "wasmtime>=15.0",
   "e2b-code-interpreter>=0.0.12",
   "daytona-sdk>=0.140.0",
   "vercel>=0.5.8",
   "websockets>=14.0",
   "modal>=1.2.0",
+  "islo>=0.3.11",
 ]
 
 [project.urls]

@@ -183,6 +183,26 @@ const WasmSVG = ({ height }: IconProps) => (
   </svg>
 );
 
+// Placeholder mark (isolated box) rendered in currentColor; swap for the
+// official Islo asset once it's hosted on arize-phoenix-assets.
+const IsloSVG = ({ height }: IconProps) => (
+  <svg
+    viewBox="0 0 128 128"
+    width={height}
+    height={height}
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Islo</title>
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M28 8h72c11.046 0 20 8.954 20 20v72c0 11.046-8.954 20-20 20H28c-11.046 0-20-8.954-20-20V28C8 16.954 16.954 8 28 8zm0 12c-4.418 0-8 3.582-8 8v72c0 4.418 3.582 8 8 8h72c4.418 0 8-3.582 8-8V28c0-4.418-3.582-8-8-8H28z"
+    />
+    <rect x="40" y="40" width="48" height="48" rx="10" />
+  </svg>
+);
+
 const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   WASM: WasmSVG,
   E2B: E2BSVG,
@@ -190,6 +210,7 @@ const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   VERCEL: VercelSVG,
   DENO: DenoSVG,
   MODAL: ModalSVG,
+  ISLO: IsloSVG,
 };
 
 export type SandboxProviderIconProps = {

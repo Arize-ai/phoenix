@@ -38,7 +38,7 @@ flowchart TB
         Server --> localBox
     end
 
-    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal"]
+    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal / Islo"]
         direction LR
         Libs("Third-party libraries")
         Net("Outbound internet")
@@ -93,6 +93,9 @@ flowchart TB
       <Card title="Modal" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/modal.svg" href="/docs/phoenix/settings/sandboxes/modal">
         Serverless containers with sub-second cold starts and Python-first ergonomics.
       </Card>
+      <Card title="Islo" icon="box" href="/docs/phoenix/settings/sandboxes/islo">
+        Isolated cloud sandbox VMs purpose-built for autonomous coding agents.
+      </Card>
     </CardGroup>
   </Accordion>
 </AccordionGroup>
@@ -108,7 +111,7 @@ A **provider** is a sandbox runtime that Phoenix can run code on — for example
 The **Enabled** switch above is a per-deployment, admin-facing control. Self-hosted deployments can also restrict providers at the *server* level with the `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` environment variable, which is set before Phoenix starts and cannot be overridden from this page.
 
 - **Leave it unset** to allow every supported provider (the default).
-- **Set it to a comma-separated list** — e.g. `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO` — to allow only those providers. Accepted values are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, and `MODAL` (case-insensitive).
+- **Set it to a comma-separated list** — e.g. `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO` — to allow only those providers. Accepted values are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, and `ISLO` (case-insensitive).
 - **Set it to `NONE`** to disable every sandbox provider.
 
 A provider that isn't on the allowlist shows the status **Disabled** with the tooltip "Disabled on the server," and its **Enabled** switch is unavailable. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) for the full details.
@@ -121,6 +124,7 @@ Click the gear icon next to a provider to open the credentials dialog. The dialo
 - **Daytona** — `DAYTONA_API_KEY`
 - **Modal** — `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`
 - **Vercel Sandbox** — `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`
+- **Islo** — `ISLO_API_KEY`
 
 Values are stored encrypted at rest using the server's `PHOENIX_SECRET`. The dialog shows each field's environment-variable name and a short description; required fields are marked. Local backends (Deno, WebAssembly) have no credentials, and the gear button is disabled for them.
 

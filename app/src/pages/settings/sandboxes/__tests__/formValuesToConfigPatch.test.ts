@@ -127,6 +127,37 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
     expect(result["wasm"]).not.toHaveProperty("internetAccess");
   });
 
+  it("maps ISLO to the islo variant key with full capabilities", () => {
+    const isloFullCapabilityBackend: PartialBackend = {
+      backendType: "ISLO",
+      supportsEnvVars: true,
+      internetAccess: "BOOLEAN",
+      supportsDependencies: true,
+    };
+    const values: SandboxConfigFormValues = {
+      ...emptyValues,
+      envVars: [{ name: "KEY", secretKey: "key_secret" }],
+      internetAccessEnabled: true,
+      dependenciesText: "numpy\npandas",
+    };
+
+    const result = formValuesToConfigPatch(
+      values,
+      isloFullCapabilityBackend as BackendInfo
+    );
+
+    expect(result).toEqual({
+      islo: {
+        language: "PYTHON",
+        envVars: [{ name: "KEY", secretKey: "key_secret" }],
+        internetAccess: { mode: "ALLOW" },
+        dependencies: {
+          packages: ["numpy", "pandas"],
+        },
+      },
+    });
+  });
+
   it("env vars produce flattened secretKey values", () => {
     const values: SandboxConfigFormValues = {
       ...emptyValues,

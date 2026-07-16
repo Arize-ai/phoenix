@@ -394,6 +394,7 @@
 - [Daytona Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/daytona): Configure Daytona credentials and snapshot settings for hosted code evaluation
 - [Vercel Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/vercel): Configure Vercel team and project credentials for hosted code evaluation
 - [Modal Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/modal): Configure Modal token and workspace for hosted Python code evaluation
+- [Islo Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/islo): Configure an Islo API key for hosted Python code evaluation in isolated cloud sandboxes
 
 ## Concepts
 

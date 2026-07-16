@@ -2313,6 +2313,13 @@ enum InternetAccessMode {
   BOOLEAN
 }
 
+input IsloConfigInput {
+  language: Language! = PYTHON
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
@@ -3659,6 +3666,7 @@ enum SandboxBackendType {
   VERCEL
   DENO
   MODAL
+  ISLO
 }
 
 type SandboxConfig implements Node {
@@ -3706,6 +3714,7 @@ input SandboxConfigVariantInput @oneOf {
   vercel: VercelConfigInput
   wasm: WASMConfigInput
   modal: ModalConfigInput
+  islo: IsloConfigInput
 }
 
 """

@@ -256,6 +256,7 @@ class TestSyncSandboxDefaultConfigs:
             "DAYTONA": False,
             "VERCEL": False,
             "MODAL": False,
+            "ISLO": False,
         }
         for backend_type, want in expected.items():
             meta = SANDBOX_ADAPTER_METADATA[backend_type]

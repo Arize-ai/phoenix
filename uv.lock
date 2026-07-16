@@ -554,6 +554,7 @@ container = [
     { name = "daytona-sdk" },
     { name = "e2b-code-interpreter" },
     { name = "google-genai" },
+    { name = "islo" },
     { name = "modal" },
     { name = "openai" },
     { name = "opentelemetry-exporter-otlp" },
@@ -577,6 +578,9 @@ daytona = [
 ]
 e2b = [
     { name = "e2b-code-interpreter" },
+]
+islo = [
+    { name = "islo" },
 ]
 modal = [
     { name = "modal" },
@@ -617,6 +621,7 @@ dev = [
     { name = "grpcio" },
     { name = "grpcio-tools" },
     { name = "httpx" },
+    { name = "islo" },
     { name = "jinja2" },
     { name = "jsonpath-ng" },
     { name = "jupyter" },
@@ -724,6 +729,8 @@ requires-dist = [
     { name = "grpc-interceptor" },
     { name = "grpcio" },
     { name = "httpx" },
+    { name = "islo", marker = "extra == 'container'", specifier = ">=0.3.11" },
+    { name = "islo", marker = "extra == 'islo'", specifier = ">=0.3.11" },
     { name = "jinja2" },
     { name = "jmespath" },
     { name = "joserfc" },
@@ -783,7 +790,7 @@ requires-dist = [
     { name = "websockets", marker = "extra == 'vercel'", specifier = ">=14.0" },
     { name = "wrapt", specifier = ">=1.17.2,<3" },
 ]
-provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "experimental", "modal", "pg", "vercel", "wasm"]
+provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "experimental", "islo", "modal", "pg", "vercel", "wasm"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -810,6 +817,7 @@ dev = [
     { name = "grpcio" },
     { name = "grpcio-tools", specifier = ">=1.78.0" },
     { name = "httpx" },
+    { name = "islo", specifier = ">=0.3.11" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonpath-ng" },
     { name = "jupyter", specifier = ">=1.1.1" },
@@ -2884,15 +2892,15 @@ name = "huggingface-hub"
 version = "1.23.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "filelock", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "fsspec", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "hf-xet", marker = "(python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'arm64') or (python_full_version < '3.14' and platform_machine == 'x86_64') or (platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'win32') or (platform_machine == 'amd64' and sys_platform == 'win32') or (platform_machine == 'arm64' and sys_platform == 'win32') or (platform_machine == 'x86_64' and sys_platform == 'win32')" },
-    { name = "httpx", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "packaging", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "pyyaml", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "tqdm", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "click", marker = "python_full_version < '3.14'" },
+    { name = "filelock", marker = "python_full_version < '3.14'" },
+    { name = "fsspec", marker = "python_full_version < '3.14'" },
+    { name = "hf-xet", marker = "(python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'arm64') or (python_full_version < '3.14' and platform_machine == 'x86_64')" },
+    { name = "httpx", marker = "python_full_version < '3.14'" },
+    { name = "packaging", marker = "python_full_version < '3.14'" },
+    { name = "pyyaml", marker = "python_full_version < '3.14'" },
+    { name = "tqdm", marker = "python_full_version < '3.14'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1a/8f/999e4dda11c6187c78f090eac00895a47e11a0049308f07579bcb7aa3aa2/huggingface_hub-1.23.0.tar.gz", hash = "sha256:c04997fb8bbdace1e57b7703d30ed7678af51f70d00d241819ff411b92ae9a88", size = 919163, upload-time = "2026-07-09T14:49:32.315Z" }
 wheels = [
@@ -2934,7 +2942,7 @@ name = "importlib-metadata"
 version = "8.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "zipp", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e7/72/c600ae4f68c28fc19f9c31b9403053e5dbb8cace2e6842c7b7c3e4d42fe9/importlib_metadata-8.9.0.tar.gz", hash = "sha256:58850626cef4bd2df100378b0f2aea9724a7b92f10770d547725b047078f99ee", size = 56140, upload-time = "2026-03-20T16:56:26.362Z" }
 wheels = [
@@ -3074,6 +3082,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/4c/ae/c5ce1edc1afe042eadb445e95b0671b03cee61895264357956e61c0d2ac0/ipywidgets-8.1.8.tar.gz", hash = "sha256:61f969306b95f85fba6b6986b7fe45d73124d1d9e3023a8068710d47a22ea668", size = 116739, upload-time = "2025-11-01T21:18:12.393Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/56/6d/0d9848617b9f753b87f214f1c682592f7ca42de085f564352f10f0843026/ipywidgets-8.1.8-py3-none-any.whl", hash = "sha256:ecaca67aed704a338f88f67b1181b58f821ab5dc89c1f0f5ef99db43c1c2921e", size = 139808, upload-time = "2025-11-01T21:18:10.956Z" },
+]
+
+[[package]]
+name = "islo"
+version = "0.3.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8d/2a/8a1fc0d5a056deda8a54a47ddb62a0f75fff7fd341f7f1542f7587b2d4cc/islo-0.3.11.tar.gz", hash = "sha256:7eda29022686429f6308c1ffa71da6d3747d3594935bb8941184be3d1587119c", size = 111539, upload-time = "2026-07-12T14:39:02.85Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/f9/b162c490115383fe83409c2cecb86b6a731a82dc079b9aace85505b3f759/islo-0.3.11-py3-none-any.whl", hash = "sha256:fbfd3ea7048d0cf820ed33897d6556edff38eed8598ef0b89d61ee803ed5d3a3", size = 258479, upload-time = "2026-07-12T14:39:01.348Z" },
 ]
 
 [[package]]
@@ -3778,18 +3800,18 @@ name = "litellm"
 version = "1.92.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiohttp", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "click", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "fastuuid", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "httpx", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "importlib-metadata", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "jinja2", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "jsonschema", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "openai", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "pydantic", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "python-dotenv", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "tiktoken", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "tokenizers", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "aiohttp", marker = "python_full_version < '3.14'" },
+    { name = "click", marker = "python_full_version < '3.14'" },
+    { name = "fastuuid", marker = "python_full_version < '3.14'" },
+    { name = "httpx", marker = "python_full_version < '3.14'" },
+    { name = "importlib-metadata", marker = "python_full_version < '3.14'" },
+    { name = "jinja2", marker = "python_full_version < '3.14'" },
+    { name = "jsonschema", marker = "python_full_version < '3.14'" },
+    { name = "openai", marker = "python_full_version < '3.14'" },
+    { name = "pydantic", marker = "python_full_version < '3.14'" },
+    { name = "python-dotenv", marker = "python_full_version < '3.14'" },
+    { name = "tiktoken", marker = "python_full_version < '3.14'" },
+    { name = "tokenizers", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/46/ea/5522be7e0dbcaa7c3fddfd2834f387c6e8eab47c0cc65f2a74657c815af7/litellm-1.92.0.tar.gz", hash = "sha256:773adf5503ee1793289689c899394a83df8122993760d9acd782e32aa798db9d", size = 15098143, upload-time = "2026-07-12T01:15:59.828Z" }
 wheels = [
@@ -7684,7 +7706,7 @@ name = "tokenizers"
 version = "0.23.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "huggingface-hub", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c1/60/21f715d9faba5f5407ff759472ade058ec4a507ad62bcea47cb847239a73/tokenizers-0.23.1.tar.gz", hash = "sha256:1feeeadf865a7915adc25445dea30e9933e593c31bb96c277cee36de227c8bfa", size = 365748, upload-time = "2026-04-27T14:43:25.606Z" }
 wheels = [

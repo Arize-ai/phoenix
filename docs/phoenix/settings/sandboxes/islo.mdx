@@ -1,0 +1,28 @@
+---
+title: "Islo"
+description: "Run code evaluators in Islo's isolated cloud sandboxes."
+---
+
+[**Islo**](https://islo.dev/) runs each Python evaluation in an isolated cloud sandbox VM, purpose-built for autonomous coding agents. Sandboxes are created on demand, reused across evaluations in the same run, and cleaned up automatically. See the [Islo documentation](https://docs.islo.dev/) for platform details.
+
+## Setup
+
+1. **Create an Islo account** at [islo.dev](https://islo.dev/) if you don't already have one.
+2. **Create an API key** at [app.islo.dev/api-keys](https://app.islo.dev/api-keys).
+3. **Add the credential to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Islo** row, click the gear icon, and paste the value as `ISLO_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
+4. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Islo**, set the timeout and any environment variables or dependencies, and save.
+
+## Capabilities
+
+- **Python only.** Islo configurations run Python evaluators.
+- **Environment variables** are injected per execution, so rotating a secret takes effect on the next evaluation without recreating the sandbox.
+- **Internet access** can be toggled per configuration. When off, the sandbox runs with no network egress.
+- **Dependencies** are installed with `pip` inside the sandbox at runtime, which requires internet access to be enabled.
+
+## Non-container installs
+
+The official `arizephoenix/phoenix` container bundles the Islo SDK. If you installed Phoenix with pip, add the `islo` extra:
+
+```bash
+pip install 'arize-phoenix[islo]'
+```

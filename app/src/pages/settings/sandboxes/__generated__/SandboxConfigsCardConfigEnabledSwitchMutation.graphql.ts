@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e79843b8d67649c1f494db018b0808ae>>
+ * @generated SignedSource<<c88cc7d46d12330e0821d77a0c965db4>>
  * @lightSyntaxTransform
  */
 
@@ -22,6 +22,7 @@ export type SandboxConfigVariantInput = {
   daytona?: never;
   deno?: never;
   e2b: E2BConfigInput;
+  islo?: never;
   modal?: never;
   vercel?: never;
   wasm?: never;
@@ -29,6 +30,7 @@ export type SandboxConfigVariantInput = {
   daytona: DaytonaConfigInput;
   deno?: never;
   e2b?: never;
+  islo?: never;
   modal?: never;
   vercel?: never;
   wasm?: never;
@@ -36,6 +38,7 @@ export type SandboxConfigVariantInput = {
   daytona?: never;
   deno: DenoConfigInput;
   e2b?: never;
+  islo?: never;
   modal?: never;
   vercel?: never;
   wasm?: never;
@@ -43,6 +46,7 @@ export type SandboxConfigVariantInput = {
   daytona?: never;
   deno?: never;
   e2b?: never;
+  islo?: never;
   modal?: never;
   vercel: VercelConfigInput;
   wasm?: never;
@@ -50,6 +54,7 @@ export type SandboxConfigVariantInput = {
   daytona?: never;
   deno?: never;
   e2b?: never;
+  islo?: never;
   modal?: never;
   vercel?: never;
   wasm: WASMConfigInput;
@@ -57,7 +62,16 @@ export type SandboxConfigVariantInput = {
   daytona?: never;
   deno?: never;
   e2b?: never;
+  islo?: never;
   modal: ModalConfigInput;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  islo: IsloConfigInput;
+  modal?: never;
   vercel?: never;
   wasm?: never;
 };
@@ -96,6 +110,12 @@ export type WASMConfigInput = {
   language?: Language;
 };
 export type ModalConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language?: Language;
+};
+export type IsloConfigInput = {
   dependencies?: DependenciesInput | null;
   envVars?: ReadonlyArray<EnvVarInput>;
   internetAccess?: InternetAccessInput | null;

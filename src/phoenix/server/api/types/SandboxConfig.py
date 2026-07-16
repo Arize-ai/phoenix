@@ -64,6 +64,7 @@ class SandboxBackendType(Enum):
     VERCEL = "VERCEL"
     DENO = "DENO"
     MODAL = "MODAL"
+    ISLO = "ISLO"
 
 
 @strawberry.enum
