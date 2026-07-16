@@ -91,6 +91,39 @@ The initial scheduled project is `pxi_dev`. The Phoenix Cloud production PXI
 traces are in `pxi_phoenix_cloud`; add that project only after validating the
 runner on new-format development traces.
 
+### Adding an offline evaluator
+
+An evaluator receives the root span and every hydrated span in its trace. It
+returns an `EvaluationResult` or `None` when the artifact is not applicable:
+
+```python
+from collections.abc import Sequence
+
+from phoenix.client.__generated__ import v1
+
+from evals.pxi.offline_evals.models import EvaluationResult
+
+
+def evaluate(root: v1.Span, spans: Sequence[v1.Span]) -> EvaluationResult | None:
+    if not spans:
+        return None
+    return EvaluationResult(score=1.0, label="example", explanation="why")
+```
+
+Declare an `EvaluatorSpec` with `input_scope="trace"`,
+`annotation_target="span"`, the expected root span name, annotator kind,
+sampling rate, and a versioned identifier. Use `applies_to` only for a cheap
+precheck; returning `None` is preferable when applicability requires the same
+work as evaluation. If credentials or other environment variables are
+required, expose them through `required_env_fn` so the runner validates them
+before discovery. Use `identifier_fn` when configuration such as provider or
+model must participate in checkpoint identity.
+
+Register the spec in `evals/pxi/offline_evals/evaluators/__init__.py` and add
+focused coverage under `tests/unit/pxi/evals/offline_evals/`. Runner-level tests
+should assert the exact persisted annotation shape as well as failure,
+applicability, sampling, and checkpoint behavior relevant to the evaluator.
+
 ## Run Locally
 
 There are two ways to run the evals:
