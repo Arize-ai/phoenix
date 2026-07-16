@@ -20,8 +20,9 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
-    _create_or_load_agent_session,
+    _create_agent_session,
     _interleave_agent_and_subagent_message_chunks,
+    _load_agent_session,
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
@@ -49,12 +50,11 @@ class TestAgentSessionPersistence:
     ) -> None:
         messages = [PhoenixUIMessage(id="message-1", role="user", parts=[])]
         async with db() as session:
-            created = await _create_or_load_agent_session(
+            created = await _create_agent_session(
                 session,
-                agent_session_id=None,
+                session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 messages=messages,
-                new_session_id="11111111-1111-4111-8111-111111111111",
                 project_name="assistant_agent",
             )
             assert created is not None
@@ -63,13 +63,10 @@ class TestAgentSessionPersistence:
             created_session_id = created.session_id
 
         async with db() as session:
-            loaded = await _create_or_load_agent_session(
+            loaded = await _load_agent_session(
                 session,
                 agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
                 user_id=None,
-                messages=messages,
-                new_session_id="22222222-2222-4222-8222-222222222222",
-                project_name="assistant_agent",
             )
             assert loaded is not None
             assert loaded.id == created_rowid
@@ -90,12 +87,11 @@ class TestAgentSessionPersistence:
 
     async def test_create_requires_messages(self, db: DbSessionFactory) -> None:
         async with db() as session:
-            created = await _create_or_load_agent_session(
+            created = await _create_agent_session(
                 session,
-                agent_session_id=None,
+                session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 messages=[],
-                new_session_id="11111111-1111-4111-8111-111111111111",
                 project_name="assistant_agent",
             )
         assert created is None

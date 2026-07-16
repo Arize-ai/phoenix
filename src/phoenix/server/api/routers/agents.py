@@ -1155,36 +1155,43 @@ async def _load_phoenix_user_email(
     )
 
 
-async def _create_or_load_agent_session(
+async def _create_agent_session(
     session: AsyncSession,
     *,
-    agent_session_id: str | None,
+    session_id: str,
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
-    new_session_id: str,
     project_name: str,
 ) -> models.AgentSession | None:
-    """Create a session on first send or load an owner-qualified session."""
-    if agent_session_id is None:
-        if not messages:
-            return None
-        created_agent_session = models.AgentSession(
-            session_id=new_session_id,
-            user_id=user_id,
-            title="",
-            project_name=project_name,
+    """Create a session on first send when the request has messages."""
+    if not messages:
+        return None
+    created_agent_session = models.AgentSession(
+        session_id=session_id,
+        user_id=user_id,
+        title="",
+        project_name=project_name,
+    )
+    session.add(created_agent_session)
+    await session.flush()
+    session.add_all(
+        models.AgentSessionMessage(
+            agent_session_id=created_agent_session.id,
+            position=position,
+            message=message,
         )
-        session.add(created_agent_session)
-        await session.flush()
-        session.add_all(
-            models.AgentSessionMessage(
-                agent_session_id=created_agent_session.id,
-                position=position,
-                message=message,
-            )
-            for position, message in enumerate(messages)
-        )
-        return created_agent_session
+        for position, message in enumerate(messages)
+    )
+    return created_agent_session
+
+
+async def _load_agent_session(
+    session: AsyncSession,
+    *,
+    agent_session_id: str,
+    user_id: int | None,
+) -> models.AgentSession:
+    """Load an owner-qualified session or raise a not-found response."""
     try:
         agent_session_rowid = from_global_id_with_expected_type(
             GlobalID.from_id(agent_session_id),
@@ -1574,14 +1581,20 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session=session,
                     phoenix_user=phoenix_user,
                 )
-                agent_session = await _create_or_load_agent_session(
-                    session,
-                    agent_session_id=body.agent_session_id,
-                    user_id=request_user_id,
-                    messages=body.messages,
-                    new_session_id=otel_session_id,
-                    project_name=project_name,
-                )
+                if body.agent_session_id is None:
+                    agent_session = await _create_agent_session(
+                        session,
+                        session_id=otel_session_id,
+                        user_id=request_user_id,
+                        messages=body.messages,
+                        project_name=project_name,
+                    )
+                else:
+                    agent_session = await _load_agent_session(
+                        session,
+                        agent_session_id=body.agent_session_id,
+                        user_id=request_user_id,
+                    )
                 session_needs_title = agent_session is None or not agent_session.title
                 agent_session_rowid = agent_session.id if agent_session is not None else None
                 if agent_session is not None:
