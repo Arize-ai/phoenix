@@ -161,10 +161,10 @@ def run_evaluators(
     annotations: list[v1.SpanAnnotationData] = []
     for spec, root in pending:
         artifact_spans = traces.get(trace_id(root), [])
-        if not spec.applies_to(root, artifact_spans):
-            summaries[spec.name].not_applicable += 1
-            continue
         try:
+            if not spec.applies_to(root, artifact_spans):
+                summaries[spec.name].not_applicable += 1
+                continue
             result = spec.evaluate(root, artifact_spans)
         except Exception:
             logger.exception("%s failed on trace %s; continuing", spec.name, trace_id(root))

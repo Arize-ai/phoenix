@@ -3,10 +3,14 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
+from unittest import mock
 
+import pytest
 from phoenix.client.__generated__ import v1
 
+from evals.pxi.offline_evals import run as run_module
 from evals.pxi.offline_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
+from evals.pxi.offline_evals.models import RunSummary
 from evals.pxi.offline_evals.run import _sampled, run_evaluators
 
 
@@ -43,8 +47,10 @@ class _FakeSpans:
         self.annotations = annotations
         self.hydrated_trace_ids: list[str] = []
         self.writes: list[v1.SpanAnnotationData] = []
+        self.get_spans_calls = 0
 
     def get_spans(self, **kwargs: Any) -> list[v1.Span]:
+        self.get_spans_calls += 1
         if trace_ids := kwargs.get("trace_ids"):
             self.hydrated_trace_ids.extend(trace_ids)
             return [span for trace_id in trace_ids for span in self.traces[trace_id]]
@@ -170,3 +176,81 @@ def test_applicability_filter_skips_evaluation() -> None:
     assert summary.not_applicable == 1
     assert summary.evaluated == 0
     assert spans.writes == []
+
+
+def test_applicability_failure_is_isolated_to_one_turn() -> None:
+    failing_root = _span(
+        "failing-root", trace_id="failing-trace", name="pxi.turn", kind="AGENT", parent_id=None
+    )
+    successful_root = _span(
+        "successful-root",
+        trace_id="successful-trace",
+        name="pxi.turn",
+        kind="AGENT",
+        parent_id=None,
+    )
+    successful_tool = _span(
+        "successful-tool",
+        trace_id="successful-trace",
+        name="bash",
+        kind="TOOL",
+        parent_id="successful-root",
+    )
+    spans = _FakeSpans(
+        [failing_root, successful_root],
+        {
+            "failing-trace": [failing_root],
+            "successful-trace": [successful_root, successful_tool],
+        },
+        [],
+    )
+
+    def applies_to(root: v1.Span, _spans: list[v1.Span]) -> bool:
+        if root["context"]["span_id"] == "failing-root":
+            raise ValueError("malformed trace")
+        return True
+
+    spec = replace(TOOL_COUNT_PER_TURN, applies_to=applies_to)
+    summary = run_evaluators(
+        _FakeClient(spans),  # type: ignore[arg-type]
+        project="pxi_dev",
+        specs=[spec],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )["tool_count_per_turn"]
+
+    assert summary.errors == 1
+    assert summary.evaluated == 1
+    assert summary.annotations == 1
+    assert [annotation["span_id"] for annotation in spans.writes] == ["successful-root"]
+
+
+def test_missing_environment_fails_before_discovery() -> None:
+    spans = _FakeSpans([], {}, [])
+    spec = replace(
+        TOOL_COUNT_PER_TURN,
+        required_env_fn=lambda: ("MISSING_TEST_API_KEY",),
+    )
+
+    with (
+        mock.patch.dict("os.environ", {}, clear=True),
+        pytest.raises(RuntimeError, match="MISSING_TEST_API_KEY"),
+    ):
+        run_evaluators(
+            _FakeClient(spans),  # type: ignore[arg-type]
+            project="pxi_dev",
+            specs=[spec],
+        )
+
+    assert spans.get_spans_calls == 0
+
+
+def test_main_returns_nonzero_when_an_evaluator_errors() -> None:
+    with (
+        mock.patch.object(run_module, "Client"),
+        mock.patch.object(
+            run_module,
+            "run_evaluators",
+            return_value={"tool_count_per_turn": RunSummary(errors=1)},
+        ),
+    ):
+        assert run_module.main(["--eval", "tool_count_per_turn"]) == 1
