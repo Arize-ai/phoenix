@@ -418,6 +418,7 @@ CREATE TABLE public.agent_sessions (
     project_name VARCHAR NOT NULL,
     user_id BIGINT,
     title VARCHAR NOT NULL,
+    is_temporary BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
@@ -429,6 +430,8 @@ CREATE TABLE public.agent_sessions (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_agent_sessions_temporary_updated_at ON public.agent_sessions
+    USING btree (updated_at) WHERE (is_temporary IS TRUE);
 CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
     USING btree (user_id, updated_at DESC);
 

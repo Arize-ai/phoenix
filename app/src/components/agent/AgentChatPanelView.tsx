@@ -101,11 +101,13 @@ export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
+  isActiveSessionTemporary = false,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
+  onCreateTemporarySession = () => undefined,
   hasNextSessionPage,
   isLoadingNextSessionPage,
   onLoadNextSessionPage,
@@ -115,11 +117,13 @@ export function AgentChatHeader({
   sessionDisplayName: string;
   orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
+  isActiveSessionTemporary?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
+  onCreateTemporarySession?: () => void;
   hasNextSessionPage?: boolean;
   isLoadingNextSessionPage?: boolean;
   onLoadNextSessionPage?: () => void;
@@ -171,6 +175,30 @@ export function AgentChatHeader({
             </RichTooltip>
           </TooltipTrigger>
         ) : null}
+        {isActiveSessionTemporary ? (
+          <TooltipTrigger delay={0}>
+            <Pressable>
+              <span
+                role="button"
+                tabIndex={0}
+                css={css`
+                  display: inline-flex;
+                  flex: none;
+                  cursor: default;
+                `}
+              >
+                <Badge>Temporary</Badge>
+              </span>
+            </Pressable>
+            <RichTooltip>
+              <TooltipArrow />
+              <Text size="XS">
+                This chat won&apos;t be saved and will be gone after you close
+                or reload.
+              </Text>
+            </RichTooltip>
+          </TooltipTrigger>
+        ) : null}
       </Flex>
       <Flex
         direction="row"
@@ -193,6 +221,13 @@ export function AgentChatHeader({
           aria-label="New chat"
           onPress={onCreateSession}
           leadingVisual={<Icon svg={<Icons.Plus />} />}
+        />
+        <Button
+          variant="quiet"
+          size="S"
+          aria-label="New temporary chat"
+          onPress={onCreateTemporarySession}
+          leadingVisual={<Icon svg={<Icons.EyeOff />} />}
         />
         <LinkButton
           variant="quiet"

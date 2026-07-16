@@ -26,6 +26,8 @@ type BuildAgentChatRequestBodyOptions = {
   id: string;
   /** Node ID for agent session. */
   agentSessionId?: string | null;
+  /** Whether a newly created session should remain in server-backed history. */
+  persist?: boolean;
   /** Full UI message history sent with the request. */
   messages: AgentUIMessage[];
   /** Reason the transport is sending this request. */
@@ -109,6 +111,7 @@ export function buildAgentChatRequestBody({
   body,
   id,
   agentSessionId = null,
+  persist = true,
   messages,
   trigger,
   messageId,
@@ -135,6 +138,7 @@ export function buildAgentChatRequestBody({
     ...body,
     id,
     agentSessionId,
+    persist,
     messages: toServerSafeUIMessages(
       enrichMessagesWithClientToolTimings({ messages, toolTimings })
     ),

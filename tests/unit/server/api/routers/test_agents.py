@@ -57,9 +57,11 @@ class TestAgentSessionPersistence:
                 user_id=None,
                 messages=messages,
                 project_name="assistant_agent",
+                is_temporary=True,
             )
             assert created is not None
             assert created.session_id == "11111111-1111-4111-8111-111111111111"
+            assert created.is_temporary is True
             created_rowid = created.id
             created_session_id = created.session_id
 

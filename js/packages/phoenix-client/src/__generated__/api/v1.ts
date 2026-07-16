@@ -1809,6 +1809,11 @@ export interface components {
             /** Agentsessionid */
             agentSessionId?: string | null;
             /**
+             * Persist
+             * @default true
+             */
+            persist?: boolean;
+            /**
              * Editpermission
              * @default manual
              * @enum {string}
@@ -1864,6 +1869,11 @@ export interface components {
             contexts?: components["schemas"]["ChatContext"][];
             /** Agentsessionid */
             agentSessionId?: string | null;
+            /**
+             * Persist
+             * @default true
+             */
+            persist?: boolean;
             /**
              * Editpermission
              * @default manual

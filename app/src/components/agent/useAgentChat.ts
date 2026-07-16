@@ -164,6 +164,8 @@ export function useAgentChat({
                       id,
                       agentSessionId:
                         store.getState().sessionMap[sessionId]?.id ?? null,
+                      persist:
+                        !store.getState().sessionMap[sessionId]?.isTemporary,
                       messages,
                       trigger,
                       messageId,

@@ -23,6 +23,34 @@ const agentsConfig = {
 };
 
 describe("buildAgentChatRequestBody", () => {
+  it("marks temporary sessions as non-persistent", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      persist: false,
+      messages: [],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.persist).toBe(false);
+  });
+
   it("echoes the active turn trace context", () => {
     const turnTraceContext = {
       traceId: "1".repeat(32),

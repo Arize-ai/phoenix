@@ -242,6 +242,7 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.user_id is None
+        assert agent_session.is_temporary is False
         assert UUID(agent_session.session_id).version == 4
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         # The in-stream summary is persisted as the session title.
@@ -291,6 +292,51 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.title == "a"
+
+
+async def test_temporary_chat_session_stays_temporary_on_continuation(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Persist is honored only while creating a session."""
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    body = _chat_body(
+        "55555555-5555-4555-8555-555555555555",
+        [_user_message("temporary question")],
+        persist=False,
+    )
+
+    first_response = await httpx_client.post(_chat_url(), json=body)
+    assert first_response.status_code == 200
+    agent_session_id = _created_agent_session_id(first_response.text)
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.is_temporary is True
+        messages = await _load_session_messages(session, agent_session.id)
+
+    continuation_response = await httpx_client.post(
+        _chat_url(),
+        json={
+            **body,
+            "agentSessionId": agent_session_id,
+            "messages": [
+                *messages,
+                _user_message("follow up", message_id="msg-user-2"),
+            ],
+            "persist": True,
+        },
+    )
+    assert continuation_response.status_code == 200
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.is_temporary is True
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:

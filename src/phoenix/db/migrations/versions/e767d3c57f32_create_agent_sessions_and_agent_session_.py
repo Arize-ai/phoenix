@@ -62,6 +62,12 @@ def upgrade() -> None:
         ),
         sa.Column("title", sa.String, nullable=False),
         sa.Column(
+            "is_temporary",
+            sa.Boolean,
+            nullable=False,
+            server_default=sa.false(),
+        ),
+        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
@@ -81,6 +87,14 @@ def upgrade() -> None:
         "ix_agent_sessions_user_id_updated_at",
         "agent_sessions",
         ["user_id", sa.column("updated_at").desc()],
+    )
+    op.create_index(
+        "ix_agent_sessions_temporary_updated_at",
+        "agent_sessions",
+        ["updated_at"],
+        unique=False,
+        postgresql_where=sa.text("is_temporary IS TRUE"),
+        sqlite_where=sa.text("is_temporary IS TRUE"),
     )
 
     op.create_table(

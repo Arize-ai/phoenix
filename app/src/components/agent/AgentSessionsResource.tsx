@@ -134,6 +134,7 @@ function AgentSessionsContent({
   const store = useAgentStore();
   const relayEnvironment = useRelayEnvironment();
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
+  const sessions = useAgentContext((state) => state.sessions);
   const sessionMap = useAgentContext((state) => state.sessionMap);
   const chatStatusBySessionId = useAgentContext(
     (state) => state.chatStatusBySessionId
@@ -147,21 +148,24 @@ function AgentSessionsContent({
     AGENT_SESSIONS_CONNECTION_KEY
   );
 
-  const createSession = useCallback(() => {
-    const state = store.getState();
-    for (const sessionId of state.sessions) {
-      const session = store.getState().sessionMap[sessionId];
-      const status = store.getState().chatStatusBySessionId[sessionId];
-      if (
-        session?.id == null &&
-        status !== "submitted" &&
-        status !== "streaming"
-      ) {
-        store.getState().deleteSession(sessionId);
+  const createSession = useCallback(
+    (options?: { isTemporary?: boolean }) => {
+      const state = store.getState();
+      for (const sessionId of state.sessions) {
+        const session = store.getState().sessionMap[sessionId];
+        const status = store.getState().chatStatusBySessionId[sessionId];
+        if (
+          session?.id == null &&
+          status !== "submitted" &&
+          status !== "streaming"
+        ) {
+          store.getState().deleteSession(sessionId);
+        }
       }
-    }
-    return createLocalSession();
-  }, [createLocalSession, store]);
+      return createLocalSession(options);
+    },
+    [createLocalSession, store]
+  );
 
   const runtimeSessionById = useMemo(
     () =>
@@ -181,36 +185,36 @@ function AgentSessionsContent({
       title: runtimeSession?.title || node.title,
       messages: runtimeSession?.messages ?? [],
       createdAt: Date.parse(node.createdAt as string),
+      isTemporary: runtimeSession?.isTemporary ?? false,
       isDeleteDisabled:
         chatStatusBySessionId[clientKey] === "submitted" ||
         chatStatusBySessionId[clientKey] === "streaming",
     } satisfies AgentSessionListItem;
   });
-  const activeSessionCache = activeSessionId
-    ? sessionMap[activeSessionId]
-    : undefined;
-  const activeLocalSession =
-    activeSessionCache &&
-    !serverSessions.some(
-      (session) => session.clientKey === activeSessionCache.clientKey
-    )
-      ? activeSessionCache
-      : undefined;
-  const localSessions: AgentSessionListItem[] = activeLocalSession
-    ? [
+  const serverSessionClientKeys = new Set(
+    serverSessions.map((session) => session.clientKey)
+  );
+  const localSessions: AgentSessionListItem[] = [...sessions]
+    .reverse()
+    .flatMap((sessionId) => {
+      const session = sessionMap[sessionId];
+      if (!session || serverSessionClientKeys.has(session.clientKey)) {
+        return [];
+      }
+      return [
         {
-          clientKey: activeLocalSession.clientKey,
-          id: activeLocalSession.id,
-          title: activeLocalSession.title,
-          messages: activeLocalSession.messages,
-          createdAt: activeLocalSession.createdAt,
+          clientKey: session.clientKey,
+          id: session.id,
+          title: session.title,
+          messages: session.messages,
+          createdAt: session.createdAt,
+          isTemporary: session.isTemporary,
           isDeleteDisabled:
-            chatStatusBySessionId[activeLocalSession.clientKey] ===
-              "submitted" ||
-            chatStatusBySessionId[activeLocalSession.clientKey] === "streaming",
+            chatStatusBySessionId[session.clientKey] === "submitted" ||
+            chatStatusBySessionId[session.clientKey] === "streaming",
         },
-      ]
-    : [];
+      ];
+    });
   const orderedSessions = [...localSessions, ...serverSessions];
   const orderedSessionsRef = useRef(orderedSessions);
   orderedSessionsRef.current = orderedSessions;
@@ -346,11 +350,13 @@ function AgentSessionsContent({
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
+        isActiveSessionTemporary={activeRuntimeSession?.isTemporary}
         position={position}
         isPositionChangeDisabled={isPositionChangeDisabled}
         onSelectSession={setActiveSession}
         onDeleteSession={deleteSession}
         onCreateSession={createSession}
+        onCreateTemporarySession={() => createSession({ isTemporary: true })}
         hasNextSessionPage={hasNext}
         isLoadingNextSessionPage={isLoadingNext}
         onLoadNextSessionPage={() => loadNext(SESSION_PAGE_SIZE)}
@@ -427,6 +433,7 @@ function AgentSessionTranscript({
       clientKey: sessionId,
       id: agentSession.id,
       title: agentSession.title,
+      isTemporary: false,
       messages,
       context: [],
       modelConfig: { ...defaultModelConfig },

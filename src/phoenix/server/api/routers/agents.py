@@ -275,6 +275,7 @@ class _ChatMessageMixin(_ObservabilityMixin):
 
     contexts: list[ChatContext] = Field(default_factory=list)
     agent_session_id: str | None = None
+    persist: bool = True
     edit_permission: Literal["manual", "bypass"] = "manual"
     requested_skills: list[str] = Field(
         default_factory=list,
@@ -1162,6 +1163,7 @@ async def _create_agent_session(
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
     project_name: str,
+    is_temporary: bool = False,
 ) -> models.AgentSession:
     """Create a session for a request with messages."""
     assert messages
@@ -1170,6 +1172,7 @@ async def _create_agent_session(
         user_id=user_id,
         title="",
         project_name=project_name,
+        is_temporary=is_temporary,
     )
     session.add(created_agent_session)
     await session.flush()
@@ -1588,6 +1591,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         user_id=request_user_id,
                         messages=body.messages,
                         project_name=project_name,
+                        is_temporary=not body.persist,
                     )
                 else:
                     agent_session = await _load_agent_session(

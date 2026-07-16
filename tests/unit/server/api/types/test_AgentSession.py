@@ -16,6 +16,7 @@ async def _seed_agent_session(
     title: str,
     updated_at: datetime,
     messages: list[dict[str, Any]] | None = None,
+    is_temporary: bool = False,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
@@ -23,6 +24,7 @@ async def _seed_agent_session(
             user_id=None,
             title=title,
             project_name="assistant_agent",
+            is_temporary=is_temporary,
             created_at=updated_at,
             updated_at=updated_at,
         )
@@ -94,6 +96,39 @@ async def test_agent_sessions_orders_by_recency_and_paginates(
     connection = next_page.data["agentSessions"]
     assert [edge["node"]["title"] for edge in connection["edges"]] == ["oldest session"]
     assert connection["pageInfo"]["hasNextPage"] is False
+
+
+async def test_agent_sessions_excludes_temporary_sessions(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    temporary_session_id = await _seed_agent_session(
+        db,
+        title="temporary session",
+        updated_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        is_temporary=True,
+    )
+    await _seed_agent_session(
+        db,
+        title="persistent session",
+        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+
+    response = await gql_client.execute(query=_LIST_QUERY, variables={"first": 20})
+
+    assert not response.errors
+    assert response.data is not None
+    assert [edge["node"]["title"] for edge in response.data["agentSessions"]["edges"]] == [
+        "persistent session"
+    ]
+
+    detail_response = await gql_client.execute(
+        query=_DETAIL_QUERY,
+        variables={"id": temporary_session_id},
+    )
+    assert not detail_response.errors
+    assert detail_response.data is not None
+    assert detail_response.data["agentSession"]["id"] == temporary_session_id
 
 
 async def test_agent_session_loads_transcript_by_id(

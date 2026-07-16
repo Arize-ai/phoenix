@@ -55,7 +55,16 @@ describe("agentStore", () => {
       expect(state.sessionMap[sessionId]).toMatchObject({
         clientKey: sessionId,
         id: null,
+        isTemporary: false,
       });
+    });
+
+    it("creates a temporary session when requested", () => {
+      const store = createAgentStore();
+
+      const sessionId = store.getState().createSession({ isTemporary: true });
+
+      expect(store.getState().sessionMap[sessionId]?.isTemporary).toBe(true);
     });
 
     it("marks a local draft persisted without replacing its runtime state", () => {
@@ -193,6 +202,7 @@ describe("agentStore", () => {
         clientKey: "remote",
         id: "remote-node-id",
         title: "remote session",
+        isTemporary: false,
         messages: [{ id: "m1", role: "user", parts: [] }],
         context: [],
         modelConfig: store.getState().defaultModelConfig,
@@ -222,6 +232,7 @@ describe("agentStore", () => {
         clientKey: localSessionId,
         id: "local-node-id",
         title: "server title",
+        isTemporary: false,
         messages: [],
         context: [],
         modelConfig: store.getState().defaultModelConfig,

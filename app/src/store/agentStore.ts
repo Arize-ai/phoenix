@@ -133,6 +133,8 @@ export type AgentSession = {
   id: string | null;
   /** Brief human-readable title for the conversation. */
   title: string;
+  /** Whether the server should omit this session from durable history. */
+  isTemporary: boolean;
   /** Messages in AI SDK UIMessage format. */
   messages: AgentUIMessage[];
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
@@ -311,7 +313,7 @@ export interface AgentState extends AgentProps {
   toggleOpen: () => void;
   setPosition: (position: AgentPosition) => void;
   setFabPlacement: (placement: AgentFabPlacement) => void;
-  createSession: () => string;
+  createSession: (options?: { isTemporary?: boolean }) => string;
   deleteSession: (sessionId: string) => void;
   forkSession: (params: {
     sourceSessionId: string;
@@ -668,7 +670,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     setFabPlacement: (fabPlacement) => {
       set({ fabPlacement }, false, { type: "setFabPlacement" });
     },
-    createSession: () => {
+    createSession: ({ isTemporary = false } = {}) => {
       const sessionId = generateUUID();
       set(
         (state) => {
@@ -676,6 +678,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             clientKey: sessionId,
             id: null,
             title: "",
+            isTemporary,
             messages: [],
             context: [],
             modelConfig: { ...state.defaultModelConfig },
@@ -704,6 +707,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             clientKey: sessionId,
             id: null,
             title: buildForkTitle(source),
+            isTemporary: false,
             messages,
             // Carry over the source session's context and model so the fork
             // continues the same conversation under the same configuration.

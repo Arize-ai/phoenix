@@ -3127,6 +3127,7 @@ class AgentSession(HasId):
         nullable=True,  # sessions may be created while auth is disabled
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
+    is_temporary: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.false())
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3149,6 +3150,12 @@ class AgentSession(HasId):
             "ix_agent_sessions_user_id_updated_at",
             "user_id",
             updated_at.desc(),
+        ),
+        Index(
+            "ix_agent_sessions_temporary_updated_at",
+            "updated_at",
+            postgresql_where=text("is_temporary IS TRUE"),
+            sqlite_where=text("is_temporary IS TRUE"),
         ),
         dict(sqlite_autoincrement=True),
     )

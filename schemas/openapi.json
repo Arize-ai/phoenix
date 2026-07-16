@@ -8373,6 +8373,11 @@
             ],
             "title": "Agentsessionid"
           },
+          "persist": {
+            "type": "boolean",
+            "title": "Persist",
+            "default": true
+          },
           "editPermission": {
             "type": "string",
             "enum": [
@@ -8501,6 +8506,11 @@
               }
             ],
             "title": "Agentsessionid"
+          },
+          "persist": {
+            "type": "boolean",
+            "title": "Persist",
+            "default": true
           },
           "editPermission": {
             "type": "string",

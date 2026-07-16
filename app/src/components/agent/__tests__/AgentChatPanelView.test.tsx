@@ -61,6 +61,40 @@ describe("AgentChatHeader", () => {
     vi.restoreAllMocks();
   });
 
+  it("creates a temporary chat from the header", () => {
+    const onCreateTemporarySession = vi.fn();
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="PXI"
+            orderedSessions={[]}
+            activeSessionId={null}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onCreateTemporarySession={onCreateTemporarySession}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const temporaryChatButton = container.querySelector(
+      'button[aria-label="New temporary chat"]'
+    );
+    expect(temporaryChatButton).not.toBeNull();
+
+    act(() => {
+      temporaryChatButton!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+
+    expect(onCreateTemporarySession).toHaveBeenCalledTimes(1);
+  });
+
   it("switches from pinned to floating mode", () => {
     const onPositionChange = vi.fn();
 

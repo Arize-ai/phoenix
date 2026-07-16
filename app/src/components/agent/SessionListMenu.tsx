@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
+  Badge,
   Button,
   Flex,
   Icon,
@@ -45,6 +46,7 @@ export type AgentSessionListItem = {
   title: string;
   messages: AgentUIMessage[];
   createdAt: number;
+  isTemporary?: boolean;
   isDeleteDisabled?: boolean;
 };
 
@@ -188,7 +190,10 @@ function SessionMenuItem({
       }
     >
       <Flex direction="column" gap="size-50">
-        <Text>{displayName}</Text>
+        <Flex direction="row" alignItems="center" gap="size-50">
+          <Text>{displayName}</Text>
+          {session.isTemporary ? <Badge>Temporary</Badge> : null}
+        </Flex>
         {dateLabel && (
           <Text size="XS" color="text-300">
             {dateLabel}
