@@ -176,9 +176,6 @@ export function AssistantMessageActions({
   children?: ReactNode;
 }) {
   const { viewer } = useViewer();
-  const storeLocalTraces = useAgentContext(
-    (state) => state.observability.storeLocalTraces
-  );
   const assistantProjectName = useAgentContext(
     (state) => state.agentsConfig.assistantProjectName
   );
@@ -189,8 +186,8 @@ export function AssistantMessageActions({
   const messageText = getAssistantMessageText(message);
   const hasMessageText = messageText.trim().length > 0;
   const metadata = getAssistantMessageMetadata(message);
-  const canAnnotate = storeLocalTraces && metadata?.trace != null;
-  const canOpenTrace = storeLocalTraces && metadata?.trace != null;
+  const canAnnotate = metadata?.trace != null;
+  const canOpenTrace = metadata?.trace != null;
 
   if (!hasMessageText && !canAnnotate && !canOpenTrace && !children) {
     return null;

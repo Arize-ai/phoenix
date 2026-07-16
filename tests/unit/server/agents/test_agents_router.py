@@ -378,6 +378,26 @@ def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
     assert metadata.trace.root_span_id == turn_trace_context.root_span_id
 
 
+def test_message_metadata_omits_local_trace_link_when_not_ingested() -> None:
+    turn_trace_context = TurnTraceContext(
+        trace_id="1" * 32,
+        root_span_id="2" * 16,
+        started_at=datetime(2026, 7, 10, 12, tzinfo=timezone.utc),
+    )
+
+    metadata = _build_message_metadata_chunk(
+        span_context=None,
+        turn_trace_context=turn_trace_context,
+        session_id="session-1",
+        usage=RunUsage(),
+        include_trace=False,
+    ).message_metadata
+
+    assert metadata is not None
+    assert metadata.trace is None
+    assert metadata.turn_trace_context == turn_trace_context
+
+
 def test_zero_turn_ids_are_replaced() -> None:
     now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
     turn_ids = _resolve_turn_trace_ids(
@@ -772,6 +792,7 @@ def _build_backend_trace(
 
 async def test_chat_stream_metadata_uses_turn_trace_context(
     db: DbSessionFactory,
+    app: FastAPI,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -783,6 +804,7 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
         return TestModel(call_tools=[])
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    await _enable_local_trace_recording(app)
     session_id = "11111111-1111-4111-8111-111111111111"
 
     response = await httpx_client.post(
@@ -795,6 +817,7 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
                 "rootSpanId": root_span_id,
                 "startedAt": datetime.now(timezone.utc).isoformat(),
             },
+            ingestTraces=True,
         ),
     )
     assert response.status_code == 200
@@ -816,6 +839,10 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert agent_session_rowid is not None
         stored_messages = await _load_session_messages(session, agent_session_rowid)
+        assert (
+            await session.scalar(select(models.Trace.id).where(models.Trace.trace_id == trace_id))
+            is not None
+        )
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
     assert assistant_messages
     assert assistant_messages[-1]["metadata"]["trace"] == {
@@ -1209,11 +1236,30 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
     )
     assert second_response.status_code == 200
 
+    second_metadata_chunks = [
+        chunk["messageMetadata"]
+        for chunk in _stream_chunks(second_response.text)
+        if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
+    ]
+    assert len(second_metadata_chunks) == 1
+    assert second_metadata_chunks[0]["trace"] == {
+        "traceId": second_trace_id,
+        "rootSpanId": "b" * 16,
+    }
+
     assert tracer_project_names == [original_project_name, original_project_name]
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.project_name == original_project_name
+        stored_messages = await _load_session_messages(session, agent_session.id)
+        assistant_messages = [
+            message for message in stored_messages if message["role"] == "assistant"
+        ]
+        assert assistant_messages[-1]["metadata"]["trace"] == {
+            "traceId": second_trace_id,
+            "rootSpanId": "b" * 16,
+        }
         traces = (
             await session.scalars(
                 select(models.Trace).where(

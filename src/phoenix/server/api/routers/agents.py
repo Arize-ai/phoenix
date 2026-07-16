@@ -455,23 +455,26 @@ def _build_assistant_message_metadata(
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
     usage: RunUsage,
+    include_trace: bool = True,
 ) -> AssistantMessageMetadata:
     """Build the metadata payload attached to the turn's assistant message."""
-    trace_ids = (
-        AssistantMessageMetadataTraceIds(
-            trace_id=turn_trace_context.trace_id,
-            root_span_id=turn_trace_context.root_span_id,
-        )
-        if turn_trace_context is not None
-        else (
+    trace_ids = None
+    if include_trace:
+        trace_ids = (
             AssistantMessageMetadataTraceIds(
-                trace_id=format_trace_id(span_context.trace_id),
-                root_span_id=format_span_id(span_context.span_id),
+                trace_id=turn_trace_context.trace_id,
+                root_span_id=turn_trace_context.root_span_id,
             )
-            if span_context is not None
-            else None
+            if turn_trace_context is not None
+            else (
+                AssistantMessageMetadataTraceIds(
+                    trace_id=format_trace_id(span_context.trace_id),
+                    root_span_id=format_span_id(span_context.span_id),
+                )
+                if span_context is not None
+                else None
+            )
         )
-    )
     return AssistantMessageMetadata(
         session_id=session_id,
         trace=trace_ids,
@@ -486,6 +489,7 @@ def _build_message_metadata_chunk(
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
     usage: RunUsage,
+    include_trace: bool = True,
 ) -> MessageMetadataChunk:
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     return MessageMetadataChunk(
@@ -494,6 +498,7 @@ def _build_message_metadata_chunk(
             session_id=session_id,
             turn_trace_context=turn_trace_context,
             usage=usage,
+            include_trace=include_trace,
         )
     )
 
@@ -1964,6 +1969,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 turn_trace_context=resolved_turn_trace_context,
                 session_id=otel_session_id,
                 usage=result.usage,
+                include_trace=ingest_traces,
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
