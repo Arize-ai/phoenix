@@ -10,11 +10,13 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import httpx
 import pytest
 from fastapi import FastAPI
 from openinference.instrumentation import OITracer, TraceConfig
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
 from pydantic_ai import RunUsage
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
@@ -241,10 +243,12 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.user_id is None
+        assert UUID(agent_session.project_session_id).version == 4
+        assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
         messages = await _load_session_messages(session, agent_session.id)
-        persisted_session_id = str(agent_session.id)
+        persisted_session_id = agent_session.project_session_id
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
@@ -277,6 +281,13 @@ async def test_chat_turn_persists_session_transcript(
     assert "data-session-created" in second_response.text
     # Only a session's first turn summarizes; later turns keep the stored title.
     assert "data-session-summary" not in second_response.text
+    second_metadata_chunks = [
+        chunk["messageMetadata"]
+        for chunk in _stream_chunks(second_response.text)
+        if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
+    ]
+    assert len(second_metadata_chunks) == 1
+    assert second_metadata_chunks[0]["sessionId"] == persisted_session_id
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
@@ -774,21 +785,16 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
     }
 
 
-async def test_chat_turn_without_messages_persists_no_session(
+async def test_chat_turn_without_messages_returns_bad_request(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A turn that produces no transcript (empty message history) must not
-    leave behind an empty agent_sessions row."""
-
-    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
-        return TestModel(call_tools=[])
-
-    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    """An empty message history is rejected without persisting a session."""
     session_id = "22222222-2222-4222-8222-222222222222"
 
-    await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
+    response = await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
+    assert response.status_code == 400
+    assert response.text == "At least one message is required"
 
     async with db() as session:
         assert (await session.scalars(select(models.AgentSession))).all() == []
@@ -1074,7 +1080,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Merging backend spans into a browser-ingested trace groups the trace
-    under a project session keyed by the persisted agent-session row ID, without tripping
+    under a project session keyed by the persisted agent session ID, without tripping
     SQLAlchemy's transient-object relationship warnings on autoflush."""
     await _enable_local_trace_recording(app)
     await _ingest_browser_trace(db)
@@ -1087,11 +1093,11 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         assert response.status_code == 200
 
     async with db() as session:
-        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
-        assert agent_session_rowid is not None
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
         project_session = await session.scalar(
             select(models.ProjectSession).where(
-                models.ProjectSession.session_id == str(agent_session_rowid)
+                models.ProjectSession.session_id == agent_session.project_session_id
             )
         )
         assert project_session is not None
@@ -1100,3 +1106,92 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         )
         assert merged_trace is not None
         assert merged_trace.project_session_rowid == project_session.id
+
+
+async def test_resumed_chat_turn_keeps_original_trace_project(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A session's persisted project remains authoritative after configuration changes."""
+    await _enable_local_trace_recording(app)
+    tracer_project_names: list[str] = []
+
+    async def _fake_build_model(
+        *args: object,
+        tracer_provider: TracerProvider | None = None,
+        **kwargs: object,
+    ) -> OpenInferenceModelWrapper:
+        assert tracer_provider is not None
+        project_name = tracer_provider.resource.attributes[ResourceAttributes.PROJECT_NAME]
+        assert isinstance(project_name, str)
+        tracer_project_names.append(project_name)
+        tracer = OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig())
+        return OpenInferenceModelWrapper(TestModel(call_tools=[]), tracer=tracer)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    original_project_name = "original-assistant-project"
+    changed_project_name = "changed-assistant-project"
+    first_trace_id = "8" * 32
+    second_trace_id = "a" * 32
+    session_request_id = "88888888-8888-4888-8888-888888888888"
+
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", original_project_name)
+    first_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_request_id,
+            [_user_message("first question")],
+            ingestTraces=True,
+            turnTraceContext={
+                "traceId": first_trace_id,
+                "rootSpanId": "9" * 16,
+                "startedAt": _BROWSER_TURN_TIME.isoformat(),
+            },
+        ),
+    )
+    assert first_response.status_code == 200
+    agent_session_id = _created_agent_session_id(first_response.text)
+
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", changed_project_name)
+    second_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_request_id,
+            [_user_message("second question", message_id="msg-user-2")],
+            agent_session_id=agent_session_id,
+            ingestTraces=True,
+            turnTraceContext={
+                "traceId": second_trace_id,
+                "rootSpanId": "b" * 16,
+                "startedAt": (_BROWSER_TURN_TIME + timedelta(minutes=1)).isoformat(),
+            },
+        ),
+    )
+    assert second_response.status_code == 200
+
+    assert tracer_project_names == [original_project_name, original_project_name]
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.project_name == original_project_name
+        traces = (
+            await session.scalars(
+                select(models.Trace).where(
+                    models.Trace.trace_id.in_([first_trace_id, second_trace_id])
+                )
+            )
+        ).all()
+        assert len(traces) == 2
+        assert len({trace.project_rowid for trace in traces}) == 1
+        assert len({trace.project_session_rowid for trace in traces}) == 1
+        project = await session.get(models.Project, traces[0].project_rowid)
+        assert project is not None
+        assert project.name == original_project_name
+        assert (
+            await session.scalar(
+                select(func.count()).where(models.Project.name == changed_project_name)
+            )
+            == 0
+        )
