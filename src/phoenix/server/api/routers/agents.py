@@ -1556,7 +1556,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         session_created_data: SessionCreatedData
-        otel_session_id = str(uuid4())
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
@@ -1585,7 +1584,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if body.agent_session_id is None:
                     agent_session = await _create_agent_session(
                         session,
-                        otel_session_id=otel_session_id,
+                        otel_session_id=str(uuid4()),
                         user_id=request_user_id,
                         messages=body.messages,
                         project_name=project_name,
