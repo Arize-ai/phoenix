@@ -2,11 +2,11 @@ import { css } from "@emotion/react";
 import { useId, useState } from "react";
 
 import {
+  Button,
   DisclosureArrow,
   RichTooltip,
   Text,
   TooltipTrigger,
-  TriggerWrap,
 } from "@phoenix/components";
 import {
   SegmentChart,
@@ -95,16 +95,37 @@ const chatTokenUsageDetailsCSS = css`
     align-items: center;
     gap: var(--global-dimension-static-size-50);
   }
+`;
 
-  .chat-token-usage-details__segment-trigger {
+const promptLegendTriggerCSS = css`
+  & {
+    all: unset;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-static-size-50);
     border-radius: var(--global-rounding-small);
     cursor: help;
-    outline: none;
+  }
 
-    &:focus-visible {
-      outline: var(--global-border-size-thick) solid var(--focus-ring-color);
-      outline-offset: var(--focus-ring-offset);
-    }
+  &[data-size="S"] {
+    height: auto;
+    padding: 0;
+  }
+
+  &[data-variant="quiet"],
+  &[data-variant="quiet"]:hover:not([disabled]) {
+    border-color: transparent;
+    background-color: transparent;
+  }
+
+  .chat-token-usage-details__segment-text {
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+  }
+
+  &:focus-visible {
+    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 `;
 
@@ -171,7 +192,12 @@ function TokenSegmentContent({ segment }: { segment: TokenSegment }) {
         style={{ backgroundColor: segment.color }}
         aria-hidden="true"
       />
-      <Text size="XS" color="text-500" fontFamily="mono">
+      <Text
+        className="chat-token-usage-details__segment-text"
+        size="XS"
+        color="text-500"
+        fontFamily="mono"
+      >
         {formatIntShort(segment.value)} {segment.name}
       </Text>
     </>
@@ -188,12 +214,15 @@ function PromptTokenLegendItem({
   return (
     <li className="chat-token-usage-details__segment">
       <TooltipTrigger delay={0} closeDelay={0}>
-        <TriggerWrap
-          className="chat-token-usage-details__segment chat-token-usage-details__segment-trigger"
+        <Button
+          className="chat-token-usage-details__segment-trigger"
+          css={promptLegendTriggerCSS}
+          size="S"
+          variant="quiet"
           aria-label={`${formatInt(promptSegment.value)} prompt tokens. Show cache details`}
         >
           <TokenSegmentContent segment={promptSegment} />
-        </TriggerWrap>
+        </Button>
         <RichTooltip css={promptDetailsTooltipCSS} placement="top" offset={3}>
           <Text
             className="chat-token-usage-details__tooltip-title"
