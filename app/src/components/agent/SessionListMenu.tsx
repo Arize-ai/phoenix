@@ -188,7 +188,7 @@ function SessionMenuItem({
       }
     >
       <Flex direction="column" gap="size-50">
-        <Flex direction="row" alignItems="center" gap="size-50">
+        <Flex direction="row" alignItems="center" gap="size-100">
           <Text>{displayName}</Text>
           {session.isTemporary ? <Badge>Temporary</Badge> : null}
         </Flex>
