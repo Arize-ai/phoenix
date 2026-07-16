@@ -150,7 +150,7 @@ describe("ChatTokenUsage", () => {
     expect(container.textContent).not.toContain("Prompt");
   });
 
-  it("reveals prompt cache details on hover and restores the summary afterward", async () => {
+  it("shows prompt cache details in a tooltip from the legend", async () => {
     const user = userEvent.setup();
 
     act(() => {
@@ -172,24 +172,38 @@ describe("ChatTokenUsage", () => {
 
     expect(promptTrigger).not.toBeNull();
     expect(container.textContent).toContain("32K Prompt");
-    expect(container.textContent).not.toContain("Cache read");
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
 
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" })
+    );
     await act(async () => user.hover(promptTrigger!));
 
-    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("true");
-    expect(container.textContent).toContain("8.0K Uncached");
-    expect(container.textContent).toContain("21K Cache read");
-    expect(container.textContent).toContain("3.0K Cache write");
-    expect(container.textContent).not.toContain("1.2K Completion");
+    await vi.waitFor(() => {
+      const tooltip = document.querySelector('[role="tooltip"]');
+      expect(tooltip?.textContent).toContain("Prompt details");
+      expect(tooltip?.textContent).toContain("8.0K Uncached");
+      expect(tooltip?.textContent).toContain("21K Cache read");
+      expect(tooltip?.textContent).toContain("3.0K Cache write");
+    });
+    expect(container.textContent).toContain("32K Prompt");
+    expect(container.textContent).toContain("1.2K Completion");
+
+    const chart = container.querySelector<HTMLElement>(
+      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+    );
+    expect(chart?.children).toHaveLength(2);
 
     await act(async () => user.unhover(promptTrigger!));
 
-    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("false");
-    expect(container.textContent).toContain("32K Prompt");
-    expect(container.textContent).toContain("1.2K Completion");
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    });
   });
 
-  it("reveals prompt cache details on keyboard focus", () => {
+  it("shows prompt cache details when the legend receives keyboard focus", async () => {
+    const user = userEvent.setup();
+
     act(() => {
       root.render(
         <ThemeProvider themeMode="dark" disableBodyTheme>
@@ -207,14 +221,16 @@ describe("ChatTokenUsage", () => {
       '[aria-label="32,000 prompt tokens. Show cache details"]'
     );
 
-    act(() => promptTrigger!.focus());
+    await act(async () => user.tab());
 
-    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("true");
-    expect(container.textContent).toContain("32K Cache read");
-    expect(container.textContent).not.toContain("Uncached");
+    expect(document.activeElement).toBe(promptTrigger);
 
-    act(() => promptTrigger!.blur());
+    await vi.waitFor(() => {
+      const tooltip = document.querySelector('[role="tooltip"]');
+      expect(tooltip?.textContent).toContain("32K Cache read");
+      expect(tooltip?.textContent).not.toContain("Uncached");
+    });
 
-    expect(promptTrigger?.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => promptTrigger!.blur());
   });
 });

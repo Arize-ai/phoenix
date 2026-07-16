@@ -1,11 +1,16 @@
 import { css } from "@emotion/react";
 import { useId, useState } from "react";
 
-import { DisclosureArrow, Text } from "@phoenix/components";
+import {
+  DisclosureArrow,
+  RichTooltip,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components";
 import {
   SegmentChart,
   useCategoryChartColors,
-  useGrayscaleCategoricalColors,
 } from "@phoenix/components/chart";
 import { TokenCount } from "@phoenix/components/trace";
 import { formatInt, formatIntShort } from "@phoenix/utils/numberFormatUtils";
@@ -74,25 +79,6 @@ const chatTokenUsageDetailsCSS = css`
     gap: var(--global-dimension-static-size-100);
   }
 
-  .chat-token-usage-details__chart {
-    position: relative;
-  }
-
-  .chat-token-usage-details__prompt-trigger {
-    position: absolute;
-    inset-block: 0;
-    inset-inline-start: 0;
-    min-width: 1%;
-    border-radius: var(--global-rounding-medium);
-    cursor: pointer;
-    outline: none;
-
-    &:focus-visible {
-      outline: var(--global-border-size-thick) solid var(--focus-ring-color);
-      outline-offset: var(--focus-ring-offset);
-    }
-  }
-
   .chat-token-usage-details__segments {
     display: flex;
     align-items: center;
@@ -110,11 +96,43 @@ const chatTokenUsageDetailsCSS = css`
     gap: var(--global-dimension-static-size-50);
   }
 
-  .chat-token-usage-details__swatch {
-    width: var(--global-dimension-static-size-100);
-    height: var(--global-dimension-static-size-100);
-    flex: none;
-    border-radius: var(--global-rounding-full);
+  .chat-token-usage-details__segment-trigger {
+    border-radius: var(--global-rounding-small);
+    cursor: help;
+    outline: none;
+
+    &:focus-visible {
+      outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+`;
+
+const tokenSegmentSwatchCSS = css`
+  width: var(--global-dimension-static-size-100);
+  height: var(--global-dimension-static-size-100);
+  flex: none;
+  border-radius: var(--global-rounding-full);
+`;
+
+const promptDetailsTooltipCSS = css`
+  .chat-token-usage-details__tooltip-title {
+    margin-bottom: var(--global-dimension-static-size-100);
+  }
+
+  .chat-token-usage-details__tooltip-segments {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-static-size-75);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .chat-token-usage-details__tooltip-segment {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-static-size-50);
   }
 `;
 
@@ -144,6 +162,66 @@ function getClampedTokenCount({
   return Math.min(Math.max(value, 0), Math.max(maximum, 0));
 }
 
+function TokenSegmentContent({ segment }: { segment: TokenSegment }) {
+  return (
+    <>
+      <span
+        className="chat-token-usage-details__swatch"
+        css={tokenSegmentSwatchCSS}
+        style={{ backgroundColor: segment.color }}
+        aria-hidden="true"
+      />
+      <Text size="XS" color="text-500" fontFamily="mono">
+        {formatIntShort(segment.value)} {segment.name}
+      </Text>
+    </>
+  );
+}
+
+function PromptTokenLegendItem({
+  promptSegment,
+  promptDetailsSegments,
+}: {
+  promptSegment: TokenSegment;
+  promptDetailsSegments: TokenSegment[];
+}) {
+  return (
+    <li className="chat-token-usage-details__segment">
+      <TooltipTrigger delay={0} closeDelay={0}>
+        <TriggerWrap
+          className="chat-token-usage-details__segment chat-token-usage-details__segment-trigger"
+          aria-label={`${formatInt(promptSegment.value)} prompt tokens. Show cache details`}
+        >
+          <TokenSegmentContent segment={promptSegment} />
+        </TriggerWrap>
+        <RichTooltip css={promptDetailsTooltipCSS} placement="top" offset={3}>
+          <Text
+            className="chat-token-usage-details__tooltip-title"
+            size="XS"
+            color="text-700"
+            weight="heavy"
+          >
+            Prompt details
+          </Text>
+          <ul
+            className="chat-token-usage-details__tooltip-segments"
+            aria-label="Prompt token types"
+          >
+            {promptDetailsSegments.map((segment) => (
+              <li
+                className="chat-token-usage-details__tooltip-segment"
+                key={segment.name}
+              >
+                <TokenSegmentContent segment={segment} />
+              </li>
+            ))}
+          </ul>
+        </RichTooltip>
+      </TooltipTrigger>
+    </li>
+  );
+}
+
 export function ChatTokenUsageDetails({
   total,
   prompt,
@@ -151,10 +229,6 @@ export function ChatTokenUsageDetails({
   promptDetails,
 }: ChatTokenUsageDetailsProps) {
   const colors = useCategoryChartColors();
-  const grayscaleColors = useGrayscaleCategoricalColors();
-  const [isPromptHovered, setIsPromptHovered] = useState(false);
-  const [isPromptFocused, setIsPromptFocused] = useState(false);
-  const promptLegendId = useId();
   const cacheRead = getClampedTokenCount({
     value: promptDetails?.cacheRead ?? 0,
     maximum: prompt,
@@ -165,8 +239,6 @@ export function ChatTokenUsageDetails({
   });
   const uncachedPrompt = Math.max(prompt - cacheRead - cacheWrite, 0);
   const hasPromptDetails = prompt > 0 && (cacheRead > 0 || cacheWrite > 0);
-  const isPromptBreakdownActive =
-    hasPromptDetails && (isPromptHovered || isPromptFocused);
   const defaultSegments: TokenSegment[] = [
     { name: "Prompt", value: prompt, color: colors.category1 },
     { name: "Completion", value: completion, color: colors.category2 },
@@ -175,22 +247,7 @@ export function ChatTokenUsageDetails({
     { name: "Uncached", value: uncachedPrompt, color: colors.category1 },
     { name: "Cache read", value: cacheRead, color: colors.category5 },
     { name: "Cache write", value: cacheWrite, color: colors.category4 },
-  ];
-  const chartSegments = isPromptBreakdownActive
-    ? [
-        ...promptSegments,
-        {
-          name: "Completion",
-          value: completion,
-          color: grayscaleColors.gray3,
-        },
-      ]
-    : defaultSegments;
-  const legendSegments = isPromptBreakdownActive
-    ? promptSegments.filter((segment) => segment.value > 0)
-    : defaultSegments;
-  const promptPercentage =
-    total > 0 ? Math.min(Math.max((prompt / total) * 100, 0), 100) : 0;
+  ].filter((segment) => segment.value > 0);
 
   return (
     <div
@@ -199,57 +256,38 @@ export function ChatTokenUsageDetails({
       role="region"
       aria-label="Token usage breakdown"
     >
-      <div className="chat-token-usage-details__chart">
-        <div aria-hidden="true">
-          <SegmentChart
-            height={6}
-            minimumSegmentPercentage={1}
-            totalValue={total}
-            segments={chartSegments}
-          />
-        </div>
-        {hasPromptDetails ? (
-          <button
-            className="chat-token-usage-details__prompt-trigger button--reset"
-            type="button"
-            style={{ width: `${promptPercentage}%` }}
-            aria-controls={promptLegendId}
-            aria-expanded={isPromptBreakdownActive}
-            aria-label={`${formatInt(prompt)} prompt tokens. Show cache details`}
-            onMouseEnter={() => setIsPromptHovered(true)}
-            onMouseLeave={() => setIsPromptHovered(false)}
-            onFocus={() => setIsPromptFocused(true)}
-            onBlur={() => setIsPromptFocused(false)}
-          />
-        ) : null}
+      <div aria-hidden="true">
+        <SegmentChart
+          height={6}
+          minimumSegmentPercentage={1}
+          totalValue={total}
+          segments={defaultSegments}
+        />
       </div>
-      <div
-        className="chat-token-usage-details__legend"
-        id={promptLegendId}
-        aria-live="polite"
-      >
+      <div className="chat-token-usage-details__legend">
         <Text size="XS" color="text-700" weight="heavy">
-          {isPromptBreakdownActive ? "Prompt" : "Total"}
+          Total
         </Text>
         <ul
           className="chat-token-usage-details__segments"
           aria-label="Token types"
         >
-          {legendSegments.map((segment) => (
-            <li
-              className="chat-token-usage-details__segment"
-              key={segment.name}
-            >
-              <span
-                className="chat-token-usage-details__swatch"
-                style={{ backgroundColor: segment.color }}
-                aria-hidden="true"
+          {defaultSegments.map((segment) =>
+            segment.name === "Prompt" && hasPromptDetails ? (
+              <PromptTokenLegendItem
+                key={segment.name}
+                promptSegment={segment}
+                promptDetailsSegments={promptSegments}
               />
-              <Text size="XS" color="text-500" fontFamily="mono">
-                {formatIntShort(segment.value)} {segment.name}
-              </Text>
-            </li>
-          ))}
+            ) : (
+              <li
+                className="chat-token-usage-details__segment"
+                key={segment.name}
+              >
+                <TokenSegmentContent segment={segment} />
+              </li>
+            )
+          )}
         </ul>
       </div>
     </div>

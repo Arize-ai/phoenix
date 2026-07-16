@@ -47,7 +47,7 @@ export const Expanded: Story = {
   },
 };
 
-/** Hovering or focusing Prompt reveals its uncached, cache-read, and cache-write composition. */
+/** Hovering or focusing the Prompt legend shows its uncached, cache-read, and cache-write composition in a tooltip. */
 export const ExpandedWithPromptDetails: Story = {
   args: {
     promptDetails: {
@@ -65,9 +65,12 @@ export const ExpandedWithPromptDetails: Story = {
         name: "32,000 prompt tokens. Show cache details",
       })
     );
-    await expect(canvas.getByText("8.0K Uncached")).toBeVisible();
-    await expect(canvas.getByText("21K Cache read")).toBeVisible();
-    await expect(canvas.getByText("3.0K Cache write")).toBeVisible();
+    const tooltip = await within(canvasElement.ownerDocument.body).findByRole(
+      "tooltip"
+    );
+    await expect(within(tooltip).getByText("8.0K Uncached")).toBeVisible();
+    await expect(within(tooltip).getByText("21K Cache read")).toBeVisible();
+    await expect(within(tooltip).getByText("3.0K Cache write")).toBeVisible();
   },
 };
 
