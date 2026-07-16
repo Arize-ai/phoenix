@@ -21,6 +21,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
     FreeformOutputConfig,
+    OutputConfig,
     OutputConfigType,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -45,6 +46,7 @@ logger = logging.getLogger(__name__)
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 
 AnnotatorKind = Literal["LLM", "CODE"]
+EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
 
 
 class EvalExecutionError(Exception):
@@ -59,6 +61,7 @@ class HydratedWorkUnit:
 
     annotation_name: str
     annotator_kind: AnnotatorKind
+    evaluator_kind: EvaluatorKind
     evaluator: BaseEvaluator
     input_mapping: InputMapping
     output_configs: Sequence[OutputConfigType]
@@ -125,16 +128,31 @@ class OnlineEvalExecutor:
             if span is None:
                 return None
             context = span_eval_context(span)
+            input_mapping = (
+                InputMapping.model_validate(resolved.input_mapping)
+                if resolved.input_mapping is not None
+                else _EMPTY_INPUT_MAPPING
+            )
             if isinstance(evaluator_orm, models.LLMEvaluator):
                 return await self._hydrate_llm(
-                    session, evaluator_orm, resolved.name, resolved.version_ref, context
+                    session,
+                    evaluator_orm,
+                    resolved.name,
+                    resolved.version_ref,
+                    input_mapping,
+                    context,
                 )
             if isinstance(evaluator_orm, models.CodeEvaluator):
                 return await self._hydrate_code(
-                    session, evaluator_orm, resolved.name, resolved.version_ref, context
+                    session,
+                    evaluator_orm,
+                    resolved.name,
+                    resolved.version_ref,
+                    input_mapping,
+                    context,
                 )
             if isinstance(evaluator_orm, models.BuiltinEvaluator):
-                return self._hydrate_builtin(evaluator_orm, resolved.name, context)
+                return self._hydrate_builtin(evaluator_orm, resolved.name, input_mapping, context)
             return None
 
     async def _hydrate_llm(
@@ -143,6 +161,7 @@ class OnlineEvalExecutor:
         evaluator_orm: models.LLMEvaluator,
         annotation_name: str,
         prompt_version_id: int,
+        input_mapping: InputMapping,
         context: dict[str, Any],
     ) -> Optional[HydratedWorkUnit]:
         prompt_version = await session.get(models.PromptVersion, prompt_version_id)
@@ -184,8 +203,9 @@ class OnlineEvalExecutor:
         return HydratedWorkUnit(
             annotation_name=annotation_name,
             annotator_kind="LLM",
+            evaluator_kind="LLM",
             evaluator=evaluator,
-            input_mapping=_EMPTY_INPUT_MAPPING,
+            input_mapping=input_mapping,
             output_configs=evaluator_orm.output_configs,
             context=context,
         )
@@ -196,6 +216,7 @@ class OnlineEvalExecutor:
         evaluator_orm: models.CodeEvaluator,
         annotation_name: str,
         code_version_id: int,
+        input_mapping: InputMapping,
         context: dict[str, Any],
     ) -> Optional[HydratedWorkUnit]:
         if self._sandbox_session_manager is None:
@@ -228,13 +249,16 @@ class OnlineEvalExecutor:
                 f"Code evaluator {evaluator_orm.id}: no sandbox backend available for "
                 f"config {sandbox_config.id}"
             )
-        output_configs: list[OutputConfigType] = [
-            config
-            for config in evaluator_orm.output_configs
+        output_configs: list[OutputConfigType] = []
+        for config in evaluator_orm.output_configs:
+            if config.name is None:
+                continue
+            output_config = OutputConfig.model_validate(config.model_dump()).root
             if isinstance(
-                config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
-            )
-        ]
+                output_config,
+                (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+            ):
+                output_configs.append(output_config)
         evaluator = CodeEvaluatorRunner(
             name=evaluator_orm.name.root,
             description=evaluator_orm.description,
@@ -252,8 +276,9 @@ class OnlineEvalExecutor:
         return HydratedWorkUnit(
             annotation_name=annotation_name,
             annotator_kind="CODE",
+            evaluator_kind="CODE",
             evaluator=evaluator,
-            input_mapping=evaluator_orm.input_mapping,
+            input_mapping=input_mapping,
             output_configs=output_configs,
             context=context,
         )
@@ -262,6 +287,7 @@ class OnlineEvalExecutor:
         self,
         evaluator_orm: models.BuiltinEvaluator,
         annotation_name: str,
+        input_mapping: InputMapping,
         context: dict[str, Any],
     ) -> HydratedWorkUnit:
         evaluator_cls = get_builtin_evaluator_by_key(evaluator_orm.key)
@@ -270,8 +296,9 @@ class OnlineEvalExecutor:
         return HydratedWorkUnit(
             annotation_name=annotation_name,
             annotator_kind="CODE",
+            evaluator_kind="BUILTIN",
             evaluator=evaluator_cls(),
-            input_mapping=_EMPTY_INPUT_MAPPING,
+            input_mapping=input_mapping,
             output_configs=evaluator_orm.output_configs,
             context=context,
         )
@@ -281,15 +308,37 @@ class OnlineEvalExecutor:
     ) -> None:
         """Run the eval and write successful results as span annotations under
         the unit's identifier. DO_NOTHING makes the write first-write-wins, so
-        re-runs of the same unit are no-ops. Raises when any result errored so
-        the caller retries; successes already written dedupe on the retry. No
-        DB session is open while the evaluator runs."""
+        re-runs of the same unit are no-ops. Raises before writing unless the
+        evaluator returns one complete, error-free result set. No DB session is
+        open while the evaluator runs."""
         results = await hydrated.evaluator.evaluate(
             context=hydrated.context,
             input_mapping=hydrated.input_mapping,
             name=hydrated.annotation_name,
             output_configs=hydrated.output_configs,
         )
+        errored = [result for result in results if result["error"] is not None]
+        if errored:
+            raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")
+        if hydrated.evaluator_kind != "BUILTIN":
+            # Built-ins retain their evaluator-defined result-name contract.
+            multi_output = len(hydrated.output_configs) > 1
+            expected_names = {
+                (
+                    f"{hydrated.annotation_name}.{config.name}"
+                    if multi_output
+                    else hydrated.annotation_name
+                )
+                for config in hydrated.output_configs
+            }
+            returned_names = {result["name"] for result in results}
+            if returned_names != expected_names:
+                missing = sorted(expected_names - returned_names)
+                unexpected = sorted(returned_names - expected_names)
+                raise EvalExecutionError(
+                    "evaluator returned an incomplete result set: "
+                    f"missing={missing}, unexpected={unexpected}"
+                )
         records = [
             {
                 "span_rowid": unit.span_rowid,
@@ -304,7 +353,6 @@ class OnlineEvalExecutor:
                 "user_id": None,
             }
             for result in results
-            if result["error"] is None
         ]
         if records:
             async with self._db() as session:
@@ -323,12 +371,5 @@ class OnlineEvalExecutor:
             # re-run emits no event and dataloader caches aren't re-invalidated.
             if self._event_queue is not None and inserted_ids:
                 self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
-        errored = [result for result in results if result["error"] is not None]
-        if errored:
-            # Chain the original exception (when the evaluator captured one) so
-            # the consumer can classify transient infrastructure failures —
-            # provider outages, network timeouts — and retry them without
-            # burning attempts.
-            raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")
         if not records:
             raise EvalExecutionError("evaluator returned no results")

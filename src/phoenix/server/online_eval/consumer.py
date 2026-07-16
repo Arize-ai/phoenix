@@ -4,8 +4,8 @@ Runs on every replica; instances compete for work through coordinator claims.
 Each cycle claims a batch of work units and processes them concurrently:
 hydrate behind the staleness guard (stale units are expired, never executed),
 evaluate with lease heartbeats, write annotations, then complete — or fail
-with a cooldown. Shutdown drains in-flight evals instead of cancelling them,
-so LLM spend already paid gets committed.
+with a cooldown. Shutdown gives in-flight evals a grace period, then cancels
+stragglers before sandbox teardown.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Callable, Optional
+from typing import Awaitable, Callable, Optional
 
 import httpx
 from sqlalchemy import select
@@ -47,9 +47,23 @@ TICK_INTERVAL_SECONDS = 5.0
 CLAIM_BATCH_SIZE = 10
 ERROR_COOLDOWN_SECONDS = 60.0
 DRAIN_TIMEOUT_SECONDS = 10.0
+EXECUTION_DEADLINE_SECONDS = 600.0
 _CONSUMER_GROUP = "default"
 
 _TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 429})
+_TRANSITION_RETRY_DELAYS_SECONDS = (1.0, 2.0, 4.0)
+
+
+class EvalExecutionTimeout(Exception):
+    """An online evaluation exceeded its per-unit execution deadline."""
+
+
+async def _cancel_and_await(task: asyncio.Task[None]) -> None:
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 def is_transient_error(exc: BaseException) -> bool:
@@ -80,7 +94,12 @@ def is_transient_error(exc: BaseException) -> bool:
             status_code >= 500 or status_code in _TRANSIENT_HTTP_STATUS_CODES
         ):
             return True
-        node = node.__cause__ if node.__cause__ is not None else node.__context__
+        if node.__cause__ is not None:
+            node = node.__cause__
+        elif node.__suppress_context__:
+            node = None
+        else:
+            node = node.__context__
     return False
 
 
@@ -97,6 +116,7 @@ class OnlineEvalConsumer(DaemonTask):
         coordinator: Optional[EvalWorkCoordinator] = None,
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
         claim_batch_size: int = CLAIM_BATCH_SIZE,
+        execution_deadline_seconds: float = EXECUTION_DEADLINE_SECONDS,
     ) -> None:
         super().__init__()
         self._db = db
@@ -113,6 +133,7 @@ class OnlineEvalConsumer(DaemonTask):
         self._consumer_id = f"consumer-{token_hex(8)}"
         self._tick_interval_seconds = tick_interval_seconds
         self._claim_batch_size = claim_batch_size
+        self._execution_deadline_seconds = execution_deadline_seconds
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._publish_metrics = get_env_enable_prometheus()
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
@@ -164,11 +185,12 @@ class OnlineEvalConsumer(DaemonTask):
     async def stop(self) -> None:
         self._running = False
         if self._pending_tasks:
-            # Wait for in-flight evals without cancelling them: asyncio.wait
-            # leaves timed-out tasks running rather than killing them mid-write,
-            # and any unit that outlives the grace window is reclaimed through
-            # its lapsed lease.
-            await asyncio.wait(set(self._pending_tasks), timeout=DRAIN_TIMEOUT_SECONDS)
+            # Gracefully drain in-flight evals, then cancel and await stragglers.
+            _, pending = await asyncio.wait(set(self._pending_tasks), timeout=DRAIN_TIMEOUT_SECONDS)
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
         await super().stop()
 
     async def _cycle(self) -> None:
@@ -217,33 +239,63 @@ class OnlineEvalConsumer(DaemonTask):
                 ERROR_COOLDOWN_SECONDS if transient else ERROR_COOLDOWN_SECONDS * (2**unit.attempts)
             )
             cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
-            try:
-                failed = await self._coordinator.fail(
+            error = str(exc)
+            failed = await self._retry_transition(
+                action="record failure",
+                work_unit_id=unit.work_unit_id,
+                transition=lambda: self._coordinator.fail(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=self._consumer_id,
-                    error=str(exc),
+                    error=error,
                     cooldown_until=cooldown_until,
                     count_attempt=not transient,
-                )
-                if not failed:
-                    logger.warning(
-                        f"Online-eval work unit {unit.work_unit_id} failure was not recorded "
-                        "after its claim was lost"
-                    )
-            except Exception:
-                logger.exception(
-                    f"Failed to record failure for online-eval work unit {unit.work_unit_id}"
+                ),
+            )
+            if failed is False:
+                logger.warning(
+                    f"Online-eval work unit {unit.work_unit_id} failure was not recorded "
+                    "after its claim was lost"
                 )
         else:
-            completed = await self._coordinator.complete(
+            completed = await self._retry_transition(
+                action="complete",
                 work_unit_id=unit.work_unit_id,
-                claimed_by=self._consumer_id,
+                transition=lambda: self._coordinator.complete(
+                    work_unit_id=unit.work_unit_id,
+                    claimed_by=self._consumer_id,
+                ),
             )
-            if not completed:
+            if completed is False:
                 logger.warning(
                     f"Online-eval work unit {unit.work_unit_id} finished after its claim "
                     "was lost; the annotation write is idempotent"
                 )
+
+    async def _retry_transition(
+        self,
+        *,
+        action: str,
+        work_unit_id: int,
+        transition: Callable[[], Awaitable[bool]],
+    ) -> Optional[bool]:
+        for delay_seconds in _TRANSITION_RETRY_DELAYS_SECONDS:
+            try:
+                return await transition()
+            except Exception:
+                logger.warning(
+                    f"Failed to {action} for online-eval work unit {work_unit_id}; "
+                    f"retrying in {delay_seconds:g}s",
+                    exc_info=True,
+                )
+                await asyncio.sleep(delay_seconds)
+        try:
+            return await transition()
+        except Exception:
+            logger.exception(
+                f"Failed to {action} for online-eval work unit {work_unit_id} after "
+                "3 retries; leaving the row for lease-lapse reclaim"
+            )
+            return None
 
     async def _evaluate_with_heartbeat(
         self,
@@ -252,11 +304,26 @@ class OnlineEvalConsumer(DaemonTask):
     ) -> None:
         eval_task = asyncio.create_task(self._executor.evaluate_and_annotate(unit, hydrated))
         heartbeat_enabled = True
+        deadline_at = asyncio.get_running_loop().time() + self._execution_deadline_seconds
         try:
             while True:
-                done, _ = await asyncio.wait({eval_task}, timeout=HEARTBEAT_INTERVAL_SECONDS)
+                remaining_seconds = deadline_at - asyncio.get_running_loop().time()
+                if remaining_seconds <= 0:
+                    await _cancel_and_await(eval_task)
+                    raise EvalExecutionTimeout(
+                        f"evaluation exceeded {self._execution_deadline_seconds:g}s deadline"
+                    ) from None
+                done, _ = await asyncio.wait(
+                    {eval_task},
+                    timeout=min(HEARTBEAT_INTERVAL_SECONDS, remaining_seconds),
+                )
                 if done:
                     break
+                if asyncio.get_running_loop().time() >= deadline_at:
+                    await _cancel_and_await(eval_task)
+                    raise EvalExecutionTimeout(
+                        f"evaluation exceeded {self._execution_deadline_seconds:g}s deadline"
+                    ) from None
                 # A lost claim does not cancel the eval: the result is still
                 # valid under this unit's identifier and the write dedupes
                 # against whichever consumer got there first.
@@ -279,5 +346,5 @@ class OnlineEvalConsumer(DaemonTask):
                     )
         finally:
             if not eval_task.done():
-                eval_task.cancel()
+                await _cancel_and_await(eval_task)
         await eval_task

@@ -86,7 +86,9 @@ class EvalWorkCoordinator(Protocol):
         work_unit_id: int,
         claimed_by: str,
     ) -> bool:
-        """Transition a claimed unit RUNNING -> DONE. Returns False if the claim was lost."""
+        """Transition a claimed unit RUNNING -> DONE. Returns True when the unit is
+        already DONE so callers can safely retry an ambiguous commit. Returns False for
+        any other lost claim."""
         ...
 
     async def fail(

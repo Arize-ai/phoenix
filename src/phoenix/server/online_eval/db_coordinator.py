@@ -27,6 +27,8 @@ from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_ident
 from phoenix.server.types import DbSessionFactory
 
 _CONSUMER_GROUP = "default"
+TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
+STALE_FINGERPRINT_ERROR = "stale config fingerprint"
 
 
 def work_unit_lease_lapsed(now: datetime) -> ColumnElement[bool]:
@@ -162,9 +164,11 @@ class DbEvalWorkCoordinator:
         work_unit_id: int,
         claimed_by: str,
     ) -> bool:
+        """Complete a claimed unit, treating an already-DONE row as success."""
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claimed_by=claimed_by,
+            already_status="DONE",
             status="DONE",
         )
 
@@ -183,6 +187,14 @@ class DbEvalWorkCoordinator:
         }
         if count_attempt:
             values["attempts"] = models.EvalWorkUnit.attempts + 1
+        else:
+            retry_age_cutoff = datetime.now(timezone.utc) - timedelta(
+                seconds=TRANSIENT_RETRY_MAX_AGE_SECONDS
+            )
+            values["attempts"] = case(
+                (models.EvalWorkUnit.created_at < retry_age_cutoff, self._max_attempts),
+                else_=models.EvalWorkUnit.attempts,
+            )
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claimed_by=claimed_by,
@@ -200,6 +212,7 @@ class DbEvalWorkCoordinator:
             work_unit_id=work_unit_id,
             claimed_by=claimed_by,
             status="EXPIRED",
+            error=STALE_FINGERPRINT_ERROR,
         )
 
     async def _fenced_transition(
@@ -207,6 +220,7 @@ class DbEvalWorkCoordinator:
         *,
         work_unit_id: int,
         claimed_by: str,
+        already_status: Optional[str] = None,
         **values: Any,
     ) -> bool:
         async with self._db() as session:
@@ -219,9 +233,15 @@ class DbEvalWorkCoordinator:
                 )
                 .values(**values)
             )
-            await session.commit()
             rowcount = result.rowcount  # type: ignore[attr-defined]
-            return bool(rowcount == 1)
+            transitioned = bool(rowcount == 1)
+            if not transitioned and already_status is not None:
+                status = await session.scalar(
+                    select(models.EvalWorkUnit.status).where(models.EvalWorkUnit.id == work_unit_id)
+                )
+                transitioned = status == already_status
+            await session.commit()
+            return transitioned
 
     async def lag(self) -> QueueLag:
         now = datetime.now(timezone.utc)

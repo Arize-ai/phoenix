@@ -9,7 +9,11 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
+from phoenix.server.online_eval.db_coordinator import (
+    STALE_FINGERPRINT_ERROR,
+    TRANSIENT_RETRY_MAX_AGE_SECONDS,
+    DbEvalWorkCoordinator,
+)
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS
 from phoenix.server.types import DbSessionFactory
 
@@ -86,7 +90,7 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
     for unit_id in unit_ids:
         assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
         assert (await _get_unit(db, unit_id)).status == "DONE"
-    assert not await coordinator.complete(work_unit_id=unit_ids[0], claimed_by="consumer-1")
+    assert await coordinator.complete(work_unit_id=unit_ids[0], claimed_by="consumer-1")
 
 
 async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(
@@ -145,13 +149,78 @@ async def test_failed_unit_with_exhausted_attempts_is_not_claimable(db: DbSessio
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
 
 
+async def test_aged_transient_failure_is_parked_as_exhausted_error(
+    db: DbSessionFactory,
+) -> None:
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = DbEvalWorkCoordinator(db)
+    await coordinator.claim(claimed_by="consumer-1", limit=1)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(
+                created_at=datetime.now(timezone.utc)
+                - timedelta(seconds=TRANSIENT_RETRY_MAX_AGE_SECONDS + 1)
+            )
+        )
+
+    assert await coordinator.fail(
+        work_unit_id=unit_id,
+        claimed_by="consumer-1",
+        error="provider unavailable",
+        cooldown_until=datetime.now(timezone.utc) - timedelta(seconds=1),
+        count_attempt=False,
+    )
+
+    row = await _get_unit(db, unit_id)
+    assert row.status == "ERROR"
+    assert row.attempts == MAX_ATTEMPTS
+    assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
+    lag = await coordinator.lag()
+    assert lag.retryable_error_count == 0
+    assert lag.exhausted_error_count == 1
+
+
+async def test_fresh_transient_failure_remains_retryable_after_cooldown(
+    db: DbSessionFactory,
+) -> None:
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = DbEvalWorkCoordinator(db)
+    await coordinator.claim(claimed_by="consumer-1", limit=1)
+    cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=60)
+
+    assert await coordinator.fail(
+        work_unit_id=unit_id,
+        claimed_by="consumer-1",
+        error="provider unavailable",
+        cooldown_until=cooldown_until,
+        count_attempt=False,
+    )
+    row = await _get_unit(db, unit_id)
+    assert row.attempts == 0
+    assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
+
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(cooldown_until=datetime.now(timezone.utc) - timedelta(seconds=1))
+        )
+    claimed = await coordinator.claim(claimed_by="consumer-2", limit=1)
+    assert [unit.work_unit_id for unit in claimed] == [unit_id]
+    assert claimed[0].attempts == 0
+
+
 async def test_expire_is_terminal(db: DbSessionFactory) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
     coordinator = DbEvalWorkCoordinator(db)
 
     await coordinator.claim(claimed_by="consumer-1", limit=1)
     assert await coordinator.expire(work_unit_id=unit_id, claimed_by="consumer-1")
-    assert (await _get_unit(db, unit_id)).status == "EXPIRED"
+    row = await _get_unit(db, unit_id)
+    assert row.status == "EXPIRED"
+    assert row.error == STALE_FINGERPRINT_ERROR
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
     assert not await coordinator.expire(work_unit_id=unit_id, claimed_by="consumer-1")
 
