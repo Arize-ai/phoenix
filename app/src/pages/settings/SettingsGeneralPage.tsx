@@ -24,9 +24,17 @@ import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
 const gridCSS = css`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  // minmax(0, 1fr) lets the columns shrink below their content's min-content
+  // width so a wide card can't blow the layout out past the viewport.
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--global-dimension-size-200);
   width: 100%;
+
+  // Stack the side-by-side cards on narrow screens so they don't squeeze
+  // their contents.
+  @media (max-width: 700px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 `;
 
 const fullWidthCSS = css`

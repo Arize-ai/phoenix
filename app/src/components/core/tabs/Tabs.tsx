@@ -33,9 +33,15 @@ function useHorizontalOverflow() {
 
   const update = () => {
     const el = elementRef.current;
-    // The fade affordance only applies to horizontal tab lists; skip
-    // measuring vertical ones so they never report horizontal overflow.
-    if (!el || el.getAttribute("data-orientation") !== "horizontal") {
+    if (!el) {
+      return;
+    }
+    // The fade affordance only applies to horizontal tab lists; clear any
+    // overflow state left over from before an orientation flip so vertical
+    // lists never report horizontal overflow.
+    if (el.getAttribute("data-orientation") !== "horizontal") {
+      setHasOverflowAtStart(false);
+      setHasOverflowAtEnd(false);
       return;
     }
     const { scrollLeft, scrollWidth, clientWidth } = el;
