@@ -13,7 +13,6 @@ from evals.pxi.offline_evals.conversation import (
 )
 from evals.pxi.offline_evals.evaluators import user_friction
 from evals.pxi.offline_evals.rendering import render_conversation
-from phoenix.db.types.annotation_configs import OptimizationDirection
 
 
 def _span(
@@ -226,7 +225,8 @@ def test_spec_configuration() -> None:
     spec = user_friction.USER_FRICTION
     assert spec.name == "user_friction"
     assert spec.annotator_kind == "LLM"
-    assert spec.optimization_direction is OptimizationDirection.MINIMIZE
+    assert spec.input_scope == "trace"
+    assert spec.annotation_target == "span"
     assert spec.root_span_name == "pxi.turn"
     with mock.patch.dict("os.environ", {"PXI_USER_FRICTION_PROVIDER": "openai"}):
         assert spec.required_env_fn() == ("OPENAI_API_KEY",)

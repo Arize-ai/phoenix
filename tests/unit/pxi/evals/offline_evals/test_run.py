@@ -260,7 +260,7 @@ def test_flushes_before_starting_the_next_evaluator() -> None:
 def test_sampling_is_deterministic() -> None:
     sampled_spec = TOOL_COUNT_PER_TURN.__class__(
         name="sampled",
-        target="trace",
+        input_scope="trace",
         root_span_name="pxi.turn",
         evaluate=TOOL_COUNT_PER_TURN.evaluate,
         sample_rate=0.5,

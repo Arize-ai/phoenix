@@ -139,10 +139,14 @@ def run_evaluators(
 ) -> dict[str, RunSummary]:
     if not specs:
         return {}
-    unsupported = [spec.name for spec in specs if spec.target != "trace"]
+    unsupported = [
+        spec.name
+        for spec in specs
+        if spec.input_scope != "trace" or spec.annotation_target != "span"
+    ]
     if unsupported:
         raise NotImplementedError(
-            f"offline runner does not yet support non-trace evaluators: {unsupported}"
+            f"offline runner supports trace input with root-span annotations only: {unsupported}"
         )
     missing_env = {
         spec.name: missing

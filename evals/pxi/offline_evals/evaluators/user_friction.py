@@ -25,7 +25,6 @@ from evals.pxi.offline_evals.message_origin import classify_user_message
 from evals.pxi.offline_evals.models import EvaluationResult, EvaluatorSpec
 from evals.pxi.offline_evals.rendering import render_conversation
 from evals.pxi.offline_evals.topology import PXI_TURN_ROOT_NAME
-from phoenix.db.types.annotation_configs import OptimizationDirection
 
 logger = logging.getLogger(__name__)
 
@@ -131,11 +130,11 @@ def evaluate_user_friction(root: v1.Span, spans: Sequence[v1.Span]) -> Evaluatio
 
 USER_FRICTION = EvaluatorSpec(
     name="user_friction",
-    target="trace",
+    input_scope="trace",
     root_span_name=PXI_TURN_ROOT_NAME,
     evaluate=evaluate_user_friction,
+    annotation_target="span",
     annotator_kind="LLM",
     sample_rate=1.0,
-    optimization_direction=OptimizationDirection.MINIMIZE,
     required_env_fn=required_env,
 )

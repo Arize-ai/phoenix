@@ -6,9 +6,8 @@ from typing import Any, Literal
 
 from phoenix.client.__generated__ import v1
 
-from phoenix.db.types.annotation_configs import OptimizationDirection
-
-TargetLevel = Literal["span", "trace", "session"]
+InputScope = Literal["trace"]
+AnnotationTarget = Literal["span"]
 
 
 @dataclass(frozen=True)
@@ -36,14 +35,14 @@ class EvaluatorSpec:
     """The small amount of scheduling policy that varies by evaluator."""
 
     name: str
-    target: TargetLevel
+    input_scope: InputScope
     root_span_name: str
     evaluate: EvaluateArtifact
+    annotation_target: AnnotationTarget = "span"
     applies_to: AppliesToArtifact = always_applies
     annotator_kind: Literal["CODE", "LLM"] = "CODE"
     sample_rate: float = 1.0
     identifier: str = "pxi-offline-evals"
-    optimization_direction: OptimizationDirection = OptimizationDirection.NONE
     required_env_fn: Callable[[], tuple[str, ...]] = no_required_env
     """Env vars that must be set for this evaluator to run (e.g. LLM API keys)."""
 

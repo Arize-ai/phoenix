@@ -25,13 +25,13 @@ missed scheduled runs without evaluating the same turn twice.
 `tool_count_per_turn` is the first offline evaluator. It records the number of
 top-level PXI tool invocations, including errored tools, browser tools, server
 tools, and `call_subagent`. Tools invoked inside a subagent are excluded. The
-score is descriptive and uses `OptimizationDirection.NONE`; it has no quality
-threshold or label.
+score is descriptive; it has no quality threshold or label.
 
 `user_friction` is the first offline LLM evaluator. It wraps the built-in
 `UserFrictionEvaluator` from phoenix-evals and labels whether a turn's user
 message expresses friction (correction, retry, frustration, or challenge) with
-the assistant's preceding behavior; `OptimizationDirection.MINIMIZE`. The
+the assistant's preceding behavior. Its score is `1.0` for `friction` and `0.0`
+for `no_friction`, so lower aggregate values are better. The
 conversation history is reconstructed from the turn's own last LLM span — the
 history the agent itself saw — and rendered with the canonical two-tier
 rendering from the user-friction validation work (compact prior turns,
@@ -44,6 +44,11 @@ of the `user-friction-alignment-v0.5` gold set) and is configurable via
 `PXI_USER_FRICTION_PROVIDER` / `PXI_USER_FRICTION_MODEL`; the matching provider
 API key (e.g. `OPENAI_API_KEY`) must be set or the runner fails fast before
 discovering any turns.
+
+Both evaluators consume a trace-shaped input and attach their result as a span
+annotation on the trace's root `pxi.turn` span. The runner does not create or
+update project annotation configs; configure display or optimization metadata
+in Phoenix separately when needed.
 
 Run them locally against the standard Phoenix client environment variables:
 

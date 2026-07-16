@@ -10,7 +10,6 @@ from evals.pxi.offline_evals.evaluators.tool_count_per_turn import (
     evaluate_tool_count_per_turn,
 )
 from evals.pxi.offline_evals.topology import InvalidTurnTrace
-from phoenix.db.types.annotation_configs import OptimizationDirection
 
 
 def _span(
@@ -86,7 +85,8 @@ def test_counts_browser_and_server_tools_but_not_subagent_tools() -> None:
     assert result.metadata == {
         "tool_names": ["set_spans_filter", "bash", "read_skill_resource", "call_subagent"]
     }
-    assert TOOL_COUNT_PER_TURN.optimization_direction is OptimizationDirection.NONE
+    assert TOOL_COUNT_PER_TURN.input_scope == "trace"
+    assert TOOL_COUNT_PER_TURN.annotation_target == "span"
     assert TOOL_COUNT_PER_TURN.sample_rate == 1.0
 
 
