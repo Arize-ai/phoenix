@@ -1,3 +1,5 @@
+import { css } from "@emotion/react";
+
 import {
   Button,
   Icon,
@@ -5,6 +7,11 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+
+const temporaryChatTooltipCSS = css`
+  max-width: none;
+  white-space: nowrap;
+`;
 
 /**
  * Toggle for a new chat's temporary mode, shown beneath the composer until
@@ -40,7 +47,9 @@ export function TemporaryChatToggle({
           />
         }
       />
-      <Tooltip>{label}</Tooltip>
+      <Tooltip placement="left" css={temporaryChatTooltipCSS}>
+        {label}
+      </Tooltip>
     </TooltipTrigger>
   );
 }
