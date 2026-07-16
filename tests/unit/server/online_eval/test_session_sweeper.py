@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
+from phoenix.server.online_eval import session_sweeper
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -89,6 +91,31 @@ async def test_materializes_generation_zero_and_prunes_resolved_activity(
     assert unit.status == "PENDING"
     assert activity_count == 0
     assert cursor.claimed_by == sweeper._sweeper_id
+
+
+async def test_materializes_oldest_activity_beyond_id_order_limit(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(session_sweeper, "_MAX_ACTIVITY_ROWS_PER_TICK", 2)
+    for _ in range(3):
+        project_id, _, _ = await _add_session_activity(db, age_seconds=0)
+        await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    project_id, oldest_project_session_id, _ = await _add_session_activity(
+        db,
+        age_seconds=600,
+    )
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+
+    await SessionEvalSweeper(db)._tick()
+
+    async with db() as session:
+        project_session_ids = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit.project_session_rowid)
+            )
+        )
+    assert project_session_ids == [oldest_project_session_id]
 
 
 async def test_retains_activity_until_each_criteria_delay_elapses(
