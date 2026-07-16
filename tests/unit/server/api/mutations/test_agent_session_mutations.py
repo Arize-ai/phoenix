@@ -26,6 +26,7 @@ async def test_delete_agent_session_cascades_snapshot(
         agent_session = models.AgentSession(
             user_id=None,
             title="doomed session",
+            project_name="assistant_agent",
             created_at=now,
             updated_at=now,
         )

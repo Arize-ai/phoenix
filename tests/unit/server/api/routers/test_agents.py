@@ -54,9 +54,11 @@ class TestAgentSessionPersistence:
                 agent_session_id=None,
                 user_id=None,
                 messages=messages,
+                project_name="assistant_agent",
             )
             assert created is not None
             created_rowid = created.id
+            created_session_id = created.session_id
 
         async with db() as session:
             loaded = await _create_or_load_agent_session(
@@ -64,9 +66,11 @@ class TestAgentSessionPersistence:
                 agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
                 user_id=None,
                 messages=messages,
+                project_name="assistant_agent",
             )
             assert loaded is not None
             assert loaded.id == created_rowid
+            assert loaded.session_id == created_session_id
             await session.execute(
                 delete(models.AgentSession).where(models.AgentSession.id == created_rowid)
             )
@@ -88,19 +92,28 @@ class TestAgentSessionPersistence:
                 agent_session_id=None,
                 user_id=None,
                 messages=[],
+                project_name="assistant_agent",
             )
         assert created is None
 
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
         async with db() as session:
-            first = models.AgentSession(user_id=None, title="first")
+            first = models.AgentSession(
+                user_id=None,
+                title="first",
+                project_name="assistant_agent",
+            )
             session.add(first)
             await session.flush()
             first_rowid = first.id
             await session.delete(first)
 
         async with db() as session:
-            second = models.AgentSession(user_id=None, title="second")
+            second = models.AgentSession(
+                user_id=None,
+                title="second",
+                project_name="assistant_agent",
+            )
             session.add(second)
             await session.flush()
             assert second.id > first_rowid

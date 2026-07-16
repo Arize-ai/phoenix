@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import httpx
 import pytest
@@ -241,10 +242,12 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.user_id is None
+        assert UUID(agent_session.session_id).version == 4
+        assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
         messages = await _load_session_messages(session, agent_session.id)
-        persisted_session_id = str(agent_session.id)
+        persisted_session_id = agent_session.session_id
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
@@ -277,6 +280,13 @@ async def test_chat_turn_persists_session_transcript(
     assert "data-session-created" in second_response.text
     # Only a session's first turn summarizes; later turns keep the stored title.
     assert "data-session-summary" not in second_response.text
+    second_metadata_chunks = [
+        chunk["messageMetadata"]
+        for chunk in _stream_chunks(second_response.text)
+        if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
+    ]
+    assert len(second_metadata_chunks) == 1
+    assert second_metadata_chunks[0]["sessionId"] == persisted_session_id
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
@@ -1074,7 +1084,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Merging backend spans into a browser-ingested trace groups the trace
-    under a project session keyed by the persisted agent-session row ID, without tripping
+    under a project session keyed by the persisted agent session ID, without tripping
     SQLAlchemy's transient-object relationship warnings on autoflush."""
     await _enable_local_trace_recording(app)
     await _ingest_browser_trace(db)
@@ -1087,11 +1097,11 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         assert response.status_code == 200
 
     async with db() as session:
-        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
-        assert agent_session_rowid is not None
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
         project_session = await session.scalar(
             select(models.ProjectSession).where(
-                models.ProjectSession.session_id == str(agent_session_rowid)
+                models.ProjectSession.session_id == agent_session.session_id
             )
         )
         assert project_session is not None

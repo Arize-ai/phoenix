@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timezone
 from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from uuid import uuid4
 
 import orjson
 import sqlalchemy as sa
@@ -3120,6 +3121,12 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
 
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
+    session_id: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: str(uuid4()),
+    )
+    project_name: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,  # sessions may be created while auth is disabled
@@ -3142,6 +3149,7 @@ class AgentSession(HasId):
         back_populates="agent_session",
     )
     __table_args__ = (
+        UniqueConstraint("project_name", "session_id"),
         Index(
             "ix_agent_sessions_user_id_updated_at",
             "user_id",

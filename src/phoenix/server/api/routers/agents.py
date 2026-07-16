@@ -1160,12 +1160,17 @@ async def _create_or_load_agent_session(
     agent_session_id: str | None,
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
+    project_name: str,
 ) -> models.AgentSession | None:
     """Create a session on first send or load an owner-qualified session."""
     if agent_session_id is None:
         if not messages:
             return None
-        created_agent_session = models.AgentSession(user_id=user_id, title="")
+        created_agent_session = models.AgentSession(
+            user_id=user_id,
+            title="",
+            project_name=project_name,
+        )
         session.add(created_agent_session)
         await session.flush()
         session.add_all(
@@ -1540,6 +1545,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         session_created_data: SessionCreatedData | None = None
+        otel_session_id = body.id
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
@@ -1570,10 +1576,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     agent_session_id=body.agent_session_id,
                     user_id=request_user_id,
                     messages=body.messages,
+                    project_name=project_name,
                 )
                 session_needs_title = agent_session is None or not agent_session.title
                 agent_session_rowid = agent_session.id if agent_session is not None else None
                 if agent_session is not None:
+                    otel_session_id = agent_session.session_id
                     session_created_data = SessionCreatedData(
                         id=str(GlobalID("AgentSession", str(agent_session.id))),
                         title=agent_session.title,
@@ -1720,7 +1728,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if tracer is not None
             else None
         )
-        otel_session_id = str(agent_session_rowid) if agent_session_rowid is not None else body.id
 
         async def _summarize_untitled_session() -> str | None:
             try:
