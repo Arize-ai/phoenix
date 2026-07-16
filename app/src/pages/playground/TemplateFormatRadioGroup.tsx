@@ -32,7 +32,8 @@ export function TemplateFormatRadioGroup({
     >
       <ToggleButtonGroup
         size={size}
-        defaultSelectedKeys={[templateFormat]}
+        selectedKeys={[templateFormat]}
+        disallowEmptySelection
         aria-label="Template Format"
         onSelectionChange={(v) => {
           if (v.size === 0) {
