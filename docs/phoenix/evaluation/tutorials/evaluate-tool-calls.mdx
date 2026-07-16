@@ -1,0 +1,117 @@
+---
+title: "How to Evaluate Tool-Calling Agents"
+description: "Evaluate whether an agent selects the right tools and invokes them with the correct arguments, using Phoenix's built-in Tool Selection and Tool Invocation evaluators."
+---
+
+When an agent calls tools, two things can go wrong independently:
+
+1. **Tool selection** — did the agent pick the *right* tool (or correctly decide no tool was needed)?
+2. **Tool invocation** — given the right tool, were the *arguments* correct and well-formed?
+
+Phoenix ships built-in evaluators for both. They are complementary — Tool Selection catches wrong-tool errors, Tool Invocation catches malformed-call errors — and are best run together for complete tool-calling coverage.
+
+This tutorial walks through evaluating a travel-planning assistant end to end: upload a labeled dataset and a tool-equipped prompt, run an experiment to generate tool calls, then score those calls with both evaluators and iterate.
+
+<Card title="Companion notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/tool_calling_eval_dataset.ipynb">
+  Uploads the `travel-assistant-tool-calling` dataset and `travel-assistant` prompt to your Phoenix instance — the starting point for this walkthrough. Open in Colab or run it locally.
+</Card>
+
+## The dataset
+
+The companion notebook loads a curated dataset of **30 travel-assistant queries**, each with a ground-truth `expected_tool_calls` label, covering three scenarios:
+
+| Pattern | Count | What it tests |
+|---|---|---|
+| Single-tool | 18 | One tool needed — parameter extraction, implicit dates, ambiguous phrasing |
+| Parallel (2 tools) | 10 | Two tools needed at once — every two-tool combination |
+| No tool needed | 2 | General questions the assistant should answer directly |
+
+It also creates a `travel-assistant` prompt with six tools attached (`search_flights`, `get_weather`, `search_hotels`, `get_directions`, `convert_currency`, `search_restaurants`) and `tool_choice` set to call zero or more tools depending on the query.
+
+<Note>
+Run the companion notebook first. It uploads the dataset and prompt to Phoenix (an in-process server, Phoenix Cloud, or an existing local instance) and prints where to find them.
+</Note>
+
+## Run the evaluation
+
+<Steps>
+  <Step title="Run an experiment">
+    In Phoenix, open **Datasets → `travel-assistant-tool-calling` → New Experiment**. Select the `travel-assistant` prompt in the Playground and run it. Phoenix runs the prompt across all 30 examples and records each run — including the tool calls the model produced — as an experiment.
+  </Step>
+  <Step title="Add the built-in evaluators">
+    After the experiment completes, click **Add Evaluator** and add both:
+
+    - **Tool Selection** — did the model choose the right tool(s)?
+    - **Tool Invocation** — were the tool arguments correct?
+
+    Map each evaluator's `input` to your dataset's query column. Both return a `correct` / `incorrect` label with a `1.0` / `0.0` score and an explanation.
+  </Step>
+  <Step title="(Optional) Compare against the labels">
+    Add a custom **Matches Expected** LLM evaluator that compares the experiment's output tool calls against the labeled `expected_tool_calls` column. This gives you a direct alignment signal on top of the two rubric-based evaluators.
+  </Step>
+  <Step title="Inspect and iterate">
+    Review the per-example explanations to find failure patterns, then act on them:
+
+    - Systematic issues (e.g. the model assuming a date) → fix the **system prompt**.
+    - The evaluator being too strict → adjust the **evaluator prompt**.
+    - A missing capability (e.g. "current date") → **extend the tool set**.
+
+    Rerun the experiment and compare versions side by side.
+  </Step>
+</Steps>
+
+## Run the evaluators in code
+
+For CI or programmatic checks, run the same evaluators with the `phoenix-evals` SDK instead of the UI. Each evaluator takes a judge `LLM` and three inputs: the conversation `input`, the `available_tools`, and the model's `tool_selection`. Human-readable formats generally score more accurately than raw JSON.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import ToolSelectionEvaluator, ToolInvocationEvaluator
+
+llm = LLM(provider="openai", model="gpt-4o")
+
+tool_selection_eval = ToolSelectionEvaluator(llm=llm)
+tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
+
+eval_input = {
+    "input": "User: I need to book a flight from New York to Los Angeles tomorrow morning",
+    "available_tools": (
+        "search_flights: Search available flights between two cities on a given date.\n"
+        "get_weather: Get current weather or forecast for a location."
+    ),
+    "tool_selection": 'search_flights(origin="JFK", destination="LAX", date="2024-01-15")',
+}
+
+print(tool_selection_eval.evaluate(eval_input)[0])   # Score(label='correct', score=1.0, ...)
+print(tool_invocation_eval.evaluate(eval_input)[0])
+```
+
+To score a whole dataset at once, bind each evaluator's inputs to your dataframe columns and run them in batch:
+
+```python
+from phoenix.evals import bind_evaluator, async_evaluate_dataframe
+from phoenix.trace import suppress_tracing
+
+bound = [
+    bind_evaluator(tool_selection_eval, input_mapping={
+        "input": "input", "available_tools": "available_tools", "tool_selection": "tool_selection",
+    }),
+    bind_evaluator(tool_invocation_eval, input_mapping={
+        "input": "input", "available_tools": "available_tools", "tool_selection": "tool_selection",
+    }),
+]
+
+with suppress_tracing():
+    results_df = await async_evaluate_dataframe(tool_calls_df, bound, concurrency=10)
+```
+
+## Learn more
+
+<Columns cols={2}>
+  <Card title="Tool Selection evaluator" icon="wrench" href="/docs/phoenix/evaluation/pre-built-metrics/tool-selection">
+    Inputs, output interpretation, and correctness criteria.
+  </Card>
+  <Card title="Tool Invocation evaluator" icon="gear" href="/docs/phoenix/evaluation/pre-built-metrics/tool-invocation">
+    Evaluate argument correctness for a chosen tool.
+  </Card>
+</Columns>
