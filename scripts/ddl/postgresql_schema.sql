@@ -440,11 +440,15 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
 -- ---------------------
 CREATE TABLE public.agent_sessions (
     id bigserial NOT NULL,
+    project_session_id VARCHAR NOT NULL,
+    project_name VARCHAR NOT NULL,
     user_id BIGINT,
     title VARCHAR NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
+    CONSTRAINT uq_agent_sessions_project_session_id_project_name
+        UNIQUE (project_session_id, project_name),
     CONSTRAINT fk_agent_sessions_user_id_users FOREIGN KEY
         (user_id)
         REFERENCES public.users (id)
