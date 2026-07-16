@@ -26,6 +26,9 @@ from ._tool_response_handling_classification_evaluator_config import (
 from ._tool_selection_classification_evaluator_config import (
     TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
+from ._user_friction_classification_evaluator_config import (
+    USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 
 __all__ = [
     "ClassificationEvaluatorConfig",
@@ -39,4 +42,5 @@ __all__ = [
     "TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG",
+    "USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG",
 ]
