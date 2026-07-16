@@ -103,6 +103,7 @@ export function AgentChatHeader({
   orderedSessions,
   activeSessionId,
   isActiveSessionTemporary = false,
+  isActiveSessionUnsent = true,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
@@ -118,6 +119,7 @@ export function AgentChatHeader({
   orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
   isActiveSessionTemporary?: boolean;
+  isActiveSessionUnsent?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
@@ -134,9 +136,10 @@ export function AgentChatHeader({
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
-  // Only surface the beta badge on the empty/new session, where there is no
-  // summary yet competing for space in the header.
-  const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
+  // Only surface the beta badge on a fresh, unsent chat — once a message is
+  // submitted the badge yields the header to the (incoming) session title.
+  const showBetaBadge =
+    sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME && isActiveSessionUnsent;
 
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
