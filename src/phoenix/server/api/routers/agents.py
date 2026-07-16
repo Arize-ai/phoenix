@@ -1158,16 +1158,15 @@ async def _load_phoenix_user_email(
 async def _create_agent_session(
     session: AsyncSession,
     *,
-    session_id: str,
+    otel_session_id: str,
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
     project_name: str,
-) -> models.AgentSession | None:
-    """Create a session on first send when the request has messages."""
-    if not messages:
-        return None
+) -> models.AgentSession:
+    """Create a session for a request with messages."""
+    assert messages
     created_agent_session = models.AgentSession(
-        session_id=session_id,
+        session_id=otel_session_id,
         user_id=user_id,
         title="",
         project_name=project_name,
@@ -1514,6 +1513,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
         body = request_body.root
+        if not body.messages:
+            raise HTTPException(status_code=400, detail="At least one message is required")
         request_received_at = datetime.now(timezone.utc)
         attach_user_id = _resolve_attach_user_id(body.attach_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
@@ -1554,7 +1555,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
-        session_created_data: SessionCreatedData | None = None
+        session_created_data: SessionCreatedData
         otel_session_id = str(uuid4())
         try:
             async with request.app.state.db() as session:
@@ -1584,7 +1585,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if body.agent_session_id is None:
                     agent_session = await _create_agent_session(
                         session,
-                        session_id=otel_session_id,
+                        otel_session_id=otel_session_id,
                         user_id=request_user_id,
                         messages=body.messages,
                         project_name=project_name,
@@ -1595,20 +1596,19 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         agent_session_id=body.agent_session_id,
                         user_id=request_user_id,
                     )
-                session_needs_title = agent_session is None or not agent_session.title
-                agent_session_rowid = agent_session.id if agent_session is not None else None
-                if agent_session is not None:
-                    otel_session_id = agent_session.session_id
-                    session_created_data = SessionCreatedData(
-                        id=str(GlobalID("AgentSession", str(agent_session.id))),
-                        title=agent_session.title,
-                        created_at=agent_session.created_at,
-                        updated_at=agent_session.updated_at,
-                    )
-                    initial_bash_snapshot = await _load_bash_snapshot(
-                        session,
-                        agent_session_rowid=agent_session.id,
-                    )
+                session_needs_title = not agent_session.title
+                agent_session_rowid = agent_session.id
+                otel_session_id = agent_session.session_id
+                session_created_data = SessionCreatedData(
+                    id=str(GlobalID("AgentSession", str(agent_session.id))),
+                    title=agent_session.title,
+                    created_at=agent_session.created_at,
+                    updated_at=agent_session.updated_at,
+                )
+                initial_bash_snapshot = await _load_bash_snapshot(
+                    session,
+                    agent_session_rowid=agent_session.id,
+                )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -1760,10 +1760,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             except Exception:
                 logger.exception(
                     "Failed to summarize new agent session %r",
-                    session_created_data.id if session_created_data is not None else None,
+                    session_created_data.id,
                 )
                 return None
-            if summary is not None and agent_session_rowid is not None:
+            if summary is not None:
                 await _persist_agent_session_title(
                     request.app.state.db,
                     agent_session_rowid=agent_session_rowid,
@@ -1821,7 +1821,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         # are emitted once, right after the stream's opening `start`
                         # message chunk and before the model's own output.
                         forced_skills_streamed = not forced_skills
-                        session_created_streamed = session_created_data is None
+                        session_created_streamed = False
                         async with aclosing(raw_stream) as stream:
                             async for agent_message_chunk in stream:
                                 if isinstance(agent_message_chunk, ToolInputAvailableChunk):
@@ -1838,7 +1838,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                     agent_message_chunk,
                                     StartChunk,
                                 ):
-                                    assert session_created_data is not None
                                     yield SessionCreatedChunk(data=session_created_data)
                                     session_created_streamed = True
                                 if not forced_skills_streamed and isinstance(
@@ -1893,19 +1892,18 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else:
                         summary_task.cancel()
                 try:
-                    if agent_session_rowid is not None:
-                        await _persist_agent_session_turn(
-                            request.app.state.db,
-                            agent_session_rowid=agent_session_rowid,
-                            user_id=request_user_id,
-                            messages=await _build_session_transcript(
-                                request_messages=body.messages,
-                                message_chunks=emitted_message_chunks,
-                                session_id=otel_session_id,
-                            ),
-                            bashkit_snapshot=captured_bash_snapshot,
-                            title=session_title,
-                        )
+                    await _persist_agent_session_turn(
+                        request.app.state.db,
+                        agent_session_rowid=agent_session_rowid,
+                        user_id=request_user_id,
+                        messages=await _build_session_transcript(
+                            request_messages=body.messages,
+                            message_chunks=emitted_message_chunks,
+                            session_id=otel_session_id,
+                        ),
+                        bashkit_snapshot=captured_bash_snapshot,
+                        title=session_title,
+                    )
                 except Exception:
                     logger.exception(
                         "Failed to persist agent session %r",

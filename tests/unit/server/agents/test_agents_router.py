@@ -784,21 +784,16 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
     }
 
 
-async def test_chat_turn_without_messages_persists_no_session(
+async def test_chat_turn_without_messages_returns_bad_request(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A turn that produces no transcript (empty message history) must not
-    leave behind an empty agent_sessions row."""
-
-    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
-        return TestModel(call_tools=[])
-
-    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    """An empty message history is rejected without persisting a session."""
     session_id = "22222222-2222-4222-8222-222222222222"
 
-    await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
+    response = await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
+    assert response.status_code == 400
+    assert response.text == "At least one message is required"
 
     async with db() as session:
         assert (await session.scalars(select(models.AgentSession))).all() == []

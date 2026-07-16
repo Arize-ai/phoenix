@@ -6,6 +6,7 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import pytest
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from sqlalchemy import delete, func, select
@@ -52,7 +53,7 @@ class TestAgentSessionPersistence:
         async with db() as session:
             created = await _create_agent_session(
                 session,
-                session_id="11111111-1111-4111-8111-111111111111",
+                otel_session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 messages=messages,
                 project_name="assistant_agent",
@@ -85,16 +86,16 @@ class TestAgentSessionPersistence:
             assert updated_rowid is None
             assert await session.scalar(select(models.AgentSession.id)) is None
 
-    async def test_create_requires_messages(self, db: DbSessionFactory) -> None:
+    async def test_create_asserts_messages_are_nonempty(self, db: DbSessionFactory) -> None:
         async with db() as session:
-            created = await _create_agent_session(
-                session,
-                session_id="11111111-1111-4111-8111-111111111111",
-                user_id=None,
-                messages=[],
-                project_name="assistant_agent",
-            )
-        assert created is None
+            with pytest.raises(AssertionError):
+                await _create_agent_session(
+                    session,
+                    otel_session_id="11111111-1111-4111-8111-111111111111",
+                    user_id=None,
+                    messages=[],
+                    project_name="assistant_agent",
+                )
 
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
         async with db() as session:
