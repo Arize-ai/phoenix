@@ -15,6 +15,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Literal, TypeVar
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_session, using_user
@@ -1160,6 +1161,7 @@ async def _create_or_load_agent_session(
     agent_session_id: str | None,
     user_id: int | None,
     messages: Sequence[PhoenixUIMessage],
+    new_session_id: str,
     project_name: str,
 ) -> models.AgentSession | None:
     """Create a session on first send or load an owner-qualified session."""
@@ -1167,6 +1169,7 @@ async def _create_or_load_agent_session(
         if not messages:
             return None
         created_agent_session = models.AgentSession(
+            session_id=new_session_id,
             user_id=user_id,
             title="",
             project_name=project_name,
@@ -1545,7 +1548,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         session_created_data: SessionCreatedData | None = None
-        otel_session_id = body.id
+        otel_session_id = str(uuid4())
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
@@ -1576,6 +1579,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     agent_session_id=body.agent_session_id,
                     user_id=request_user_id,
                     messages=body.messages,
+                    new_session_id=otel_session_id,
                     project_name=project_name,
                 )
                 session_needs_title = agent_session is None or not agent_session.title

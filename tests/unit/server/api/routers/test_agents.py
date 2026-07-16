@@ -54,9 +54,11 @@ class TestAgentSessionPersistence:
                 agent_session_id=None,
                 user_id=None,
                 messages=messages,
+                new_session_id="11111111-1111-4111-8111-111111111111",
                 project_name="assistant_agent",
             )
             assert created is not None
+            assert created.session_id == "11111111-1111-4111-8111-111111111111"
             created_rowid = created.id
             created_session_id = created.session_id
 
@@ -66,6 +68,7 @@ class TestAgentSessionPersistence:
                 agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
                 user_id=None,
                 messages=messages,
+                new_session_id="22222222-2222-4222-8222-222222222222",
                 project_name="assistant_agent",
             )
             assert loaded is not None
@@ -92,6 +95,7 @@ class TestAgentSessionPersistence:
                 agent_session_id=None,
                 user_id=None,
                 messages=[],
+                new_session_id="11111111-1111-4111-8111-111111111111",
                 project_name="assistant_agent",
             )
         assert created is None
@@ -99,6 +103,7 @@ class TestAgentSessionPersistence:
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
         async with db() as session:
             first = models.AgentSession(
+                session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 title="first",
                 project_name="assistant_agent",
@@ -110,6 +115,7 @@ class TestAgentSessionPersistence:
 
         async with db() as session:
             second = models.AgentSession(
+                session_id="22222222-2222-4222-8222-222222222222",
                 user_id=None,
                 title="second",
                 project_name="assistant_agent",
