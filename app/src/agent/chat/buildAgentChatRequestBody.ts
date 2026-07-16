@@ -26,7 +26,7 @@ type BuildAgentChatRequestBodyOptions = {
   id: string;
   /** Node ID for agent session. */
   agentSessionId?: string | null;
-  /** Full UI message history sent with the request. */
+  /** Full local UI message history used to select the incremental payload. */
   messages: AgentUIMessage[];
   /** Reason the transport is sending this request. */
   trigger: "submit-message" | "regenerate-message";
@@ -49,7 +49,8 @@ type BuildAgentChatRequestBodyOptions = {
   toolTimings?: ClientToolTimingRecorder | null;
 };
 
-type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
+type BuildAgentChatRequestBodyResult =
+  components["schemas"]["AgentChatRequest"];
 
 /**
  * Browser-recorded execution timings added to the `phoenix` namespace of
@@ -131,15 +132,10 @@ export function buildAgentChatRequestBody({
     buildSubagentsContext(capabilities),
     ...contexts,
   ];
-  return {
+  const commonBody = {
     ...body,
     id,
     agentSessionId,
-    messages: toServerSafeUIMessages(
-      enrichMessagesWithClientToolTimings({ messages, toolTimings })
-    ),
-    trigger,
-    messageId,
     ingestTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     attachUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
@@ -147,6 +143,35 @@ export function buildAgentChatRequestBody({
     contexts: requestContexts,
     model: modelSelection,
     turnTraceContext: turnTraceContext ?? undefined,
+  };
+  if (trigger === "regenerate-message") {
+    return { ...commonBody, trigger, messageId };
+  }
+  const message = toServerSafeUIMessages(
+    enrichMessagesWithClientToolTimings({
+      messages: messages.slice(-1),
+      toolTimings,
+    })
+  )[0];
+  if (message == null) {
+    throw new Error("A chat submission requires a message");
+  }
+  if (message.role !== "assistant") {
+    const parentMessageId = messages.at(-2)?.id;
+    return { ...commonBody, trigger, message, parentMessageId };
+  }
+  const toolResponses = message.parts.filter(
+    (part) =>
+      isToolUIPart(part) &&
+      (part.state === "approval-responded" ||
+        part.state === "output-available" ||
+        part.state === "output-denied" ||
+        part.state === "output-error")
+  );
+  return {
+    ...commonBody,
+    trigger,
+    message: { id: message.id, role: message.role, parts: toolResponses },
   };
 }
 

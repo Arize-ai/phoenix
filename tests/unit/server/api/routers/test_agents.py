@@ -21,7 +21,10 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    AgentChatRegenerateMessage,
+    AgentChatSubmitMessage,
     _create_agent_session,
+    _hydrate_agent_session_messages,
     _interleave_agent_and_subagent_message_chunks,
     _load_agent_session,
     _load_phoenix_user_email,
@@ -49,7 +52,8 @@ class TestAgentSessionPersistence:
         self,
         db: DbSessionFactory,
     ) -> None:
-        messages = [PhoenixUIMessage(id="message-1", role="user", parts=[])]
+        message = PhoenixUIMessage(id="message-1", role="user", parts=[])
+        messages = [message]
         async with db() as session:
             created = await _create_agent_session(
                 session,
@@ -62,6 +66,12 @@ class TestAgentSessionPersistence:
             assert created.project_session_id == "11111111-1111-4111-8111-111111111111"
             created_rowid = created.id
             created_project_session_id = created.project_session_id
+            persisted_message = await session.scalar(
+                select(models.AgentSessionMessage.message).where(
+                    models.AgentSessionMessage.agent_session_id == created_rowid
+                )
+            )
+            assert persisted_message == message
 
         async with db() as session:
             loaded = await _load_agent_session(
@@ -120,6 +130,120 @@ class TestAgentSessionPersistence:
             session.add(second)
             await session.flush()
             assert second.id > first_rowid
+
+    def test_hydrates_user_message_from_persisted_transcript(self) -> None:
+        persisted = [PhoenixUIMessage(id="user-1", role="user", parts=[])]
+        next_message = PhoenixUIMessage(id="user-2", role="user", parts=[])
+        request = AgentChatSubmitMessage(
+            id="client-session",
+            message=next_message,
+            model={
+                "providerType": "builtin",
+                "provider": "OPENAI",
+                "modelName": "gpt-test",
+            },
+        )
+
+        assert _hydrate_agent_session_messages(
+            persisted_messages=persisted,
+            request_data=request,
+        ) == [*persisted, next_message]
+
+    def test_tool_response_updates_latest_persisted_assistant_message(self) -> None:
+        user_message = PhoenixUIMessage(id="user-1", role="user", parts=[])
+        pending_assistant = PhoenixUIMessage.model_validate(
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-read_prompt",
+                        "toolCallId": "call-1",
+                        "state": "input-available",
+                        "input": {"id": "prompt-1"},
+                    }
+                ],
+            }
+        )
+        resolved_assistant = PhoenixUIMessage.model_validate(
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-read_prompt",
+                        "toolCallId": "call-1",
+                        "state": "output-available",
+                        "input": {"id": "prompt-1"},
+                        "output": {"name": "Prompt"},
+                    }
+                ],
+            }
+        )
+        request = AgentChatSubmitMessage(
+            id="client-session",
+            message=resolved_assistant,
+            model={
+                "providerType": "builtin",
+                "provider": "OPENAI",
+                "modelName": "gpt-test",
+            },
+        )
+
+        assert _hydrate_agent_session_messages(
+            persisted_messages=[user_message, pending_assistant],
+            request_data=request,
+        ) == [user_message, resolved_assistant]
+
+    def test_user_message_selects_persisted_parent_after_rewind(self) -> None:
+        messages = [
+            PhoenixUIMessage(id="user-1", role="user", parts=[]),
+            PhoenixUIMessage(id="assistant-1", role="assistant", parts=[]),
+            PhoenixUIMessage(id="user-2", role="user", parts=[]),
+            PhoenixUIMessage(id="assistant-2", role="assistant", parts=[]),
+        ]
+        next_message = PhoenixUIMessage(id="user-3", role="user", parts=[])
+        request = AgentChatSubmitMessage(
+            id="client-session",
+            message=next_message,
+            parentMessageId="assistant-1",
+            model={
+                "providerType": "builtin",
+                "provider": "OPENAI",
+                "modelName": "gpt-test",
+            },
+        )
+
+        assert _hydrate_agent_session_messages(
+            persisted_messages=messages,
+            request_data=request,
+        ) == [*messages[:2], next_message]
+
+    def test_regeneration_selects_persisted_prefix(self) -> None:
+        messages = [
+            PhoenixUIMessage(id="user-1", role="user", parts=[]),
+            PhoenixUIMessage(id="assistant-1", role="assistant", parts=[]),
+            PhoenixUIMessage(id="user-2", role="user", parts=[]),
+            PhoenixUIMessage(id="assistant-2", role="assistant", parts=[]),
+        ]
+        request = AgentChatRegenerateMessage(
+            trigger="regenerate-message",
+            id="client-session",
+            messageId="user-1",
+            model={
+                "providerType": "builtin",
+                "provider": "OPENAI",
+                "modelName": "gpt-test",
+            },
+        )
+
+        assert (
+            _hydrate_agent_session_messages(
+                persisted_messages=messages,
+                request_data=request,
+            )
+            == messages[:1]
+        )
 
 
 class TestPersistDbTracesAndEmitEvent:

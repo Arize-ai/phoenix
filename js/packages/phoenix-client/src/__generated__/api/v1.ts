@@ -1548,6 +1548,114 @@ export interface components {
             data: components["schemas"]["DatasetLabel"];
         };
         /**
+         * AgentChatRegenerateMessage
+         * @description Regenerate a persisted assistant response.
+         */
+        AgentChatRegenerateMessage: {
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
+             */
+            requestedSkills?: string[];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messageid */
+            messageId?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AgentChatRequest
+         * @description Incremental request for a database-backed assistant session.
+         */
+        AgentChatRequest: components["schemas"]["AgentChatSubmitMessage"] | components["schemas"]["AgentChatRegenerateMessage"];
+        /**
+         * AgentChatSubmitMessage
+         * @description Submit one new user message or one assistant tool-response update.
+         */
+        AgentChatSubmitMessage: {
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
+             */
+            requestedSkills?: string[];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            message: components["schemas"]["PhoenixUIMessage"];
+            /** Parentmessageid */
+            parentMessageId?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * AgentSpanContext
          * @description Span the user has selected.
          *
@@ -1785,7 +1893,7 @@ export interface components {
             /** Id */
             id: string;
             /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
+            messages: components["schemas"]["UIMessage"][];
             /** Messageid */
             messageId?: string | null;
             /**
@@ -1843,7 +1951,7 @@ export interface components {
             /** Id */
             id: string;
             /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
+            messages: components["schemas"]["UIMessage"][];
             /**
              * Ingesttraces
              * @default false
@@ -5473,6 +5581,23 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /**
+         * UIMessage
+         * @description A message as displayed in the UI by Vercel AI Elements.
+         */
+        UIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            /** Metadata */
+            metadata?: unknown | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -10385,7 +10510,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChatRequest"];
+                "application/json": components["schemas"]["AgentChatRequest"];
             };
         };
         responses: {

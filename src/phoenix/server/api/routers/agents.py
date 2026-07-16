@@ -271,6 +271,7 @@ class _ChatMessageMixin(_ObservabilityMixin):
 
     model_config = ConfigDict(
         protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
+        extra="allow",
     )
 
     contexts: list[ChatContext] = Field(default_factory=list)
@@ -285,7 +286,6 @@ class _ChatMessageMixin(_ObservabilityMixin):
             "Unknown or context-unavailable names are ignored."
         ),
     )
-    messages: list[PhoenixUIMessage]
     model: AgentModelSelection
     turn_trace_context: TurnTraceContext | None = None
 
@@ -309,18 +309,57 @@ class ChatRequest(
     """Discriminated union of chat request payloads."""
 
 
+class AgentChatSubmitMessage(_ChatMessageMixin):
+    """Submit one new user message or one assistant tool-response update."""
+
+    trigger: Literal["submit-message"] = "submit-message"
+    id: str
+    message: PhoenixUIMessage
+    parent_message_id: str | None = None
+
+
+class AgentChatRegenerateMessage(_ChatMessageMixin):
+    """Regenerate a persisted assistant response."""
+
+    trigger: Literal["regenerate-message"]
+    id: str
+    message_id: str | None = None
+
+
+class AgentChatRequest(
+    RootModel[
+        Annotated[
+            AgentChatSubmitMessage | AgentChatRegenerateMessage,
+            Field(discriminator="trigger"),
+        ]
+    ]
+):
+    """Incremental request for a database-backed assistant session."""
+
+
 _PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
     PydanticAIRequestData
 )
 
 
 def _to_pydantic_ai_request_data(
-    request_data: ChatSubmitMessage | ChatRegenerateMessage,
+    request_data: (
+        ChatSubmitMessage
+        | ChatRegenerateMessage
+        | AgentChatSubmitMessage
+        | AgentChatRegenerateMessage
+    ),
+    *,
+    messages: Sequence[PhoenixUIMessage] | None = None,
 ) -> PydanticAIRequestData:
     """Validate vendored wire types into pydantic-ai's runtime request classes."""
-    return _PydanticAIRequestDataAdapter.validate_python(
-        request_data.model_dump(mode="json", by_alias=True, exclude_none=True)
-    )
+    data = request_data.model_dump(mode="json", by_alias=True, exclude_none=True)
+    if messages is not None:
+        data["messages"] = [
+            message.model_dump(mode="json", by_alias=True, exclude_none=True)
+            for message in messages
+        ]
+    return _PydanticAIRequestDataAdapter.validate_python(data)
 
 
 logger = logging.getLogger(__name__)
@@ -1204,6 +1243,101 @@ async def _load_agent_session(
     return loaded_agent_session
 
 
+async def _load_agent_session_messages(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+) -> list[PhoenixUIMessage]:
+    return list(
+        await session.scalars(
+            select(models.AgentSessionMessage.message)
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .order_by(models.AgentSessionMessage.position)
+        )
+    )
+
+
+def _hydrate_agent_session_messages(
+    *,
+    persisted_messages: Sequence[PhoenixUIMessage],
+    request_data: AgentChatSubmitMessage | AgentChatRegenerateMessage,
+) -> list[PhoenixUIMessage]:
+    messages = list(persisted_messages)
+    if isinstance(request_data, AgentChatSubmitMessage):
+        message = request_data.message
+        if message.role == "user":
+            if request_data.parent_message_id is not None:
+                for index, persisted_message in enumerate(messages):
+                    if persisted_message.id == request_data.parent_message_id:
+                        return [*messages[: index + 1], message]
+                if (
+                    messages
+                    and messages[-1].role == "assistant"
+                    and messages[-1].id == "subagent-message"
+                ):
+                    # Assistant IDs persisted before server-issued stream IDs
+                    # cannot be matched to their browser-generated counterparts.
+                    return [*messages, message]
+                raise HTTPException(status_code=400, detail="Parent message not found in session")
+            return [*messages, message]
+        if message.role != "assistant":
+            raise HTTPException(
+                status_code=400, detail="Only user messages and tool responses are accepted"
+            )
+        if not messages or messages[-1].role != "assistant" or messages[-1].id != message.id:
+            raise HTTPException(
+                status_code=400,
+                detail="A tool response must update the latest assistant message",
+            )
+        persisted_assistant = messages[-1]
+        persisted_part_indices_by_tool_call_id = {
+            tool_call_id: index
+            for index, part in enumerate(persisted_assistant.parts)
+            if (tool_call_id := getattr(part, "tool_call_id", None)) is not None
+        }
+        merged_parts = list(persisted_assistant.parts)
+        allowed_states = {
+            "approval-responded",
+            "output-available",
+            "output-denied",
+            "output-error",
+        }
+        for tool_response in message.parts:
+            tool_call_id = getattr(tool_response, "tool_call_id", None)
+            state = getattr(tool_response, "state", None)
+            part_index = persisted_part_indices_by_tool_call_id.get(tool_call_id)
+            if tool_call_id is None or state not in allowed_states or part_index is None:
+                raise HTTPException(status_code=400, detail="Invalid tool response")
+            persisted_part = merged_parts[part_index]
+            if (
+                getattr(persisted_part, "type", None) != getattr(tool_response, "type", None)
+                or getattr(persisted_part, "input", None) != getattr(tool_response, "input", None)
+                or getattr(persisted_part, "tool_name", None)
+                != getattr(tool_response, "tool_name", None)
+            ):
+                raise HTTPException(
+                    status_code=400, detail="Tool response does not match the session"
+                )
+            merged_parts[part_index] = tool_response
+        if not message.parts:
+            raise HTTPException(status_code=400, detail="At least one tool response is required")
+        merged_assistant = persisted_assistant.model_copy(update={"parts": merged_parts})
+        return [*messages[:-1], merged_assistant]
+
+    if not messages:
+        raise HTTPException(status_code=400, detail="Cannot regenerate an empty session")
+    if request_data.message_id is None:
+        if messages[-1].role == "assistant":
+            messages.pop()
+        return messages
+    for index, message in enumerate(messages):
+        if message.id != request_data.message_id:
+            continue
+        end = index if message.role == "assistant" else index + 1
+        return messages[:end]
+    raise HTTPException(status_code=400, detail="Regeneration message not found in session")
+
+
 async def _update_agent_session(
     session: AsyncSession,
     *,
@@ -1354,6 +1488,23 @@ async def _build_session_transcript(
             session_id,
         )
         return list(request_messages)
+    if (
+        request_messages
+        and request_messages[-1].role == "assistant"
+        and request_messages[-1].id == persisted_assistant_message.id
+    ):
+        previous_assistant_message = request_messages[-1]
+        continued_assistant_message = previous_assistant_message.model_copy(
+            update={
+                "metadata": persisted_assistant_message.metadata
+                or previous_assistant_message.metadata,
+                "parts": [
+                    *previous_assistant_message.parts,
+                    *persisted_assistant_message.parts,
+                ],
+            }
+        )
+        return [*request_messages[:-1], continued_assistant_message]
     return [*request_messages, persisted_assistant_message]
 
 
@@ -1506,15 +1657,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     async def chat(
         agent_id: str,
         request: Request,
-        request_body: ChatRequest,
+        request_body: AgentChatRequest,
     ) -> Response:
         if agent_id != _ASSISTANT_AGENT_ID:
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
         body = request_body.root
-        if not body.messages:
-            raise HTTPException(status_code=400, detail="At least one message is required")
+        incoming_message = body.message if isinstance(body, AgentChatSubmitMessage) else None
         request_received_at = datetime.now(timezone.utc)
         attach_user_id = _resolve_attach_user_id(body.attach_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
@@ -1527,7 +1677,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         configured_project_name = get_env_phoenix_agents_assistant_project_name()
 
         resolved_contexts = resolve_contexts(body.contexts)
-        if (browser_clock := _resolve_browser_clock(body.messages)) is not None:
+        if (
+            incoming_message is not None
+            and (browser_clock := _resolve_browser_clock([incoming_message])) is not None
+        ):
             resolved_contexts.app = browser_clock
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
@@ -1545,19 +1698,35 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         try:
             async with request.app.state.db() as session:
                 if body.agent_session_id is None:
+                    if incoming_message is None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Regeneration requires a persisted session",
+                        )
                     agent_session = await _create_agent_session(
                         session,
                         otel_session_id=str(uuid4()),
                         user_id=request_user_id,
-                        messages=body.messages,
+                        messages=[incoming_message],
                         project_name=configured_project_name,
                     )
+                    messages = [incoming_message]
                 else:
                     agent_session = await _load_agent_session(
                         session,
                         agent_session_id=body.agent_session_id,
                         user_id=request_user_id,
                     )
+                    persisted_messages = await _load_agent_session_messages(
+                        session,
+                        agent_session_rowid=agent_session.id,
+                    )
+                    messages = _hydrate_agent_session_messages(
+                        persisted_messages=persisted_messages,
+                        request_data=body,
+                    )
+                if (browser_clock := _resolve_browser_clock(messages)) is not None:
+                    resolved_contexts.app = browser_clock
                 project_name = agent_session.project_name
                 tracer = (
                     Tracer(
@@ -1708,13 +1877,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if body.requested_skills:
             available_skills = get_skills_for_contexts(resolved_contexts)
             forced_skills = resolve_requested_skills(
-                messages=body.messages,
+                messages=messages,
                 requested_skill_names=body.requested_skills,
                 available_skills=available_skills,
             )
             if forced_skills:
-                body.messages = inject_requested_skills(
-                    messages=body.messages,
+                messages = inject_requested_skills(
+                    messages=messages,
                     requested_skill_names=body.requested_skills,
                     available_skills=available_skills,
                     load_skill_template=agent_prompts.load_skill,
@@ -1722,8 +1891,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
-            run_input=_to_pydantic_ai_request_data(body),
+            run_input=_to_pydantic_ai_request_data(body, messages=messages),
             accept=request.headers.get("accept"),
+            server_message_id=(
+                incoming_message.id
+                if incoming_message is not None and incoming_message.role == "assistant"
+                else str(uuid4())
+            ),
         )
         deps = AgentDependencies(
             contexts=resolved_contexts,
@@ -1801,7 +1975,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     _synthesize_client_tool_spans(
                         tracer=tracer,
                         turn_ids=turn_ids,
-                        messages=body.messages,
+                        messages=messages,
                         received_at=request_received_at,
                         session_id=otel_session_id,
                     )
@@ -1897,7 +2071,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         agent_session_rowid=agent_session_rowid,
                         user_id=request_user_id,
                         messages=await _build_session_transcript(
-                            request_messages=body.messages,
+                            request_messages=messages,
                             message_chunks=emitted_message_chunks,
                             session_id=otel_session_id,
                         ),
@@ -1915,7 +2089,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             tracer=tracer,
                             turn_ids=turn_ids,
                             session_id=otel_session_id,
-                            input_text=_get_last_user_text(body.messages),
+                            input_text=_get_last_user_text(messages),
                             output_text=turn_final_output_text,
                             error_message=(
                                 None

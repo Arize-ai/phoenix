@@ -1566,6 +1566,37 @@ class TraceData(TypedDict):
     spans: NotRequired[Sequence[TraceSpanData]]
 
 
+class UIMessage(TypedDict):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: Sequence[
+        Union[
+            TextUIPart,
+            ReasoningUIPart,
+            ToolInputStreamingPart,
+            ToolInputAvailablePart,
+            ToolOutputAvailablePart,
+            ToolOutputErrorPart,
+            ToolApprovalRequestedPart,
+            ToolApprovalRespondedPart,
+            ToolOutputDeniedPart,
+            DynamicToolInputStreamingPart,
+            DynamicToolInputAvailablePart,
+            DynamicToolOutputAvailablePart,
+            DynamicToolOutputErrorPart,
+            DynamicToolApprovalRequestedPart,
+            DynamicToolApprovalRespondedPart,
+            DynamicToolOutputDeniedPart,
+            SourceUrlUIPart,
+            SourceDocumentUIPart,
+            FileUIPart,
+            DataUIPart,
+            StepStartUIPart,
+        ]
+    ]
+    metadata: NotRequired[Any]
+
+
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1591,6 +1622,75 @@ class AssistantMessageMetadata(TypedDict):
     trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
+
+
+class ChatRegenerateMessage(TypedDict):
+    id: str
+    messages: Sequence[UIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    trigger: Literal["regenerate-message"]
+    messageId: NotRequired[str]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    agentSessionId: NotRequired[str]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
+
+
+class ChatSubmitMessage(TypedDict):
+    id: str
+    messages: Sequence[UIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    trigger: Literal["submit-message"]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    agentSessionId: NotRequired[str]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):
@@ -1667,46 +1767,44 @@ class PromptMessage(TypedDict):
     ]
 
 
-class ChatRegenerateMessage(TypedDict):
-    id: str
-    messages: Sequence[PhoenixUIMessage]
+class AgentChatRegenerateMessage(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    id: str
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    agentSessionId: NotRequired[str]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
     trigger: Literal["regenerate-message"]
     messageId: NotRequired[str]
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
-    contexts: NotRequired[
-        Sequence[
-            Union[
-                AppContext,
-                ProjectContext,
-                TraceContext,
-                SessionContext,
-                PromptContext,
-                PromptVersionContext,
-                AgentSpanContext,
-                PlaygroundContext,
-                CodeEvaluatorContext,
-                LlmEvaluatorContext,
-                DatasetContext,
-                GraphQLContext,
-                WebAccessContext,
-                SubagentsContext,
-            ]
-        ]
-    ]
-    agentSessionId: NotRequired[str]
-    editPermission: NotRequired[Literal["manual", "bypass"]]
-    requestedSkills: NotRequired[Sequence[str]]
-    turnTraceContext: NotRequired[TurnTraceContext]
 
 
-class ChatSubmitMessage(TypedDict):
-    id: str
-    messages: Sequence[PhoenixUIMessage]
+class AgentChatSubmitMessage(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["submit-message"]
+    id: str
+    message: PhoenixUIMessage
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
@@ -1734,6 +1832,8 @@ class ChatSubmitMessage(TypedDict):
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
+    trigger: Literal["submit-message"]
+    parentMessageId: NotRequired[str]
 
 
 class PromptChatTemplate(TypedDict):

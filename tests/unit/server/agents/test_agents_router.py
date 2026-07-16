@@ -47,6 +47,7 @@ from phoenix.server.agents.data_stream_protocol import (
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
+    _build_session_transcript,
     _emit_turn_root_span,
     _get_span_context,
     _persist_db_traces,
@@ -84,7 +85,7 @@ def _chat_body(
         "trigger": "submit-message",
         "id": session_id,
         "agentSessionId": agent_session_id,
-        "messages": messages,
+        **({"message": messages[-1]} if messages else {}),
         "model": {
             "providerType": "builtin",
             "provider": "OPENAI",
@@ -256,6 +257,8 @@ async def test_chat_turn_persists_session_transcript(
     assistant_messages = [message for message in messages if message["role"] == "assistant"]
     assert assistant_messages
     assert assistant_messages[-1] == await _accumulate_streamed_assistant_message(chunks)
+    start_chunks = [chunk for chunk in chunks if chunk.get("type") == "start"]
+    assert start_chunks[0]["messageId"] == assistant_messages[-1]["id"]
     metadata = assistant_messages[-1]["metadata"]
     assert metadata["sessionId"] == persisted_session_id
     assert metadata["usage"]["tokens"]["total"] > 0
@@ -269,10 +272,8 @@ async def test_chat_turn_persists_session_transcript(
         json={
             **body,
             "agentSessionId": agent_session_id,
-            "messages": [
-                *messages,
-                _user_message("And experiments?", message_id="msg-user-2"),
-            ],
+            "message": _user_message("And experiments?", message_id="msg-user-2"),
+            "parentMessageId": messages[-1]["id"],
         },
     )
     assert second_response.status_code == 200
@@ -292,6 +293,44 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.title == "a"
+        resumed_messages = await _load_session_messages(session, agent_session.id)
+        assert resumed_messages[: len(messages)] == messages
+        assert resumed_messages[len(messages)]["id"] == "msg-user-2"
+
+
+async def test_build_session_transcript_continues_existing_assistant_message() -> None:
+    assistant_message = PhoenixUIMessage.model_validate(
+        {
+            "id": "assistant-1",
+            "role": "assistant",
+            "parts": [
+                {
+                    "type": "tool-read_prompt",
+                    "toolCallId": "call-1",
+                    "state": "output-available",
+                    "input": {"id": "prompt-1"},
+                    "output": {"name": "Prompt"},
+                }
+            ],
+        }
+    )
+    chunks: list[BaseChunk] = [
+        StartChunk(message_id=assistant_message.id),
+        TextStartChunk(id="text-1"),
+        TextDeltaChunk(id="text-1", delta="Done"),
+        TextEndChunk(id="text-1"),
+    ]
+
+    transcript = await _build_session_transcript(
+        request_messages=[assistant_message],
+        message_chunks=chunks,
+        session_id="session-1",
+    )
+
+    assert len(transcript) == 1
+    assert transcript[0].id == assistant_message.id
+    assert transcript[0].parts[0] == assistant_message.parts[0]
+    assert transcript[0].parts[1].type == "text"
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
@@ -833,7 +872,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         _chat_url(),
         json=_chat_body(
             session_id,
-            [*stored_messages, _user_message("second question", message_id="msg-user-2")],
+            [_user_message("second question", message_id="msg-user-2")],
             agent_session_id=agent_session_id,
         ),
     )
@@ -899,7 +938,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         _chat_url(),
         json=_chat_body(
             session_id,
-            [*stored_messages, _user_message("thanks", message_id="msg-user-2")],
+            [_user_message("thanks", message_id="msg-user-2")],
             agent_session_id=agent_session_id,
         ),
     )
@@ -915,7 +954,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         _chat_url(),
         json=_chat_body(
             session_id,
-            [*stored_messages, _user_message("read it back", message_id="msg-user-3")],
+            [_user_message("read it back", message_id="msg-user-3")],
             agent_session_id=agent_session_id,
         ),
     )

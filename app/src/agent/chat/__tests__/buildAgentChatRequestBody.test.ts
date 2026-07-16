@@ -22,7 +22,135 @@ const agentsConfig = {
   allowRemoteExport: false,
 };
 
+const userMessage: AgentUIMessage = {
+  id: "user-1",
+  role: "user",
+  parts: [{ type: "text", text: "Hello" }],
+};
+
 describe("buildAgentChatRequestBody", () => {
+  it("sends only the next message instead of the local transcript", () => {
+    const nextMessage: AgentUIMessage = {
+      id: "user-2",
+      role: "user",
+      parts: [{ type: "text", text: "Next question" }],
+    };
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage, nextMessage],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body).toMatchObject({
+      message: nextMessage,
+      parentMessageId: userMessage.id,
+    });
+    expect(body).not.toHaveProperty("messages");
+  });
+
+  it("regenerates by message id without sending a message", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      agentSessionId: "agent-session-1",
+      messages: [userMessage],
+      trigger: "regenerate-message",
+      messageId: userMessage.id,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body).toMatchObject({
+      trigger: "regenerate-message",
+      messageId: userMessage.id,
+    });
+    expect(body).not.toHaveProperty("message");
+    expect(body).not.toHaveProperty("messages");
+  });
+
+  it("sends only resolved tool parts for an assistant continuation", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      agentSessionId: "agent-session-1",
+      messages: [
+        userMessage,
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "Checking the prompt" },
+            {
+              type: "tool-read_prompt",
+              toolCallId: "call-1",
+              state: "output-available",
+              input: { id: "prompt-1" },
+              output: { name: "Prompt" },
+            },
+          ],
+        },
+      ],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.message).toEqual({
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        expect.objectContaining({
+          toolCallId: "call-1",
+          state: "output-available",
+        }),
+      ],
+    });
+  });
+
   it("echoes the active turn trace context", () => {
     const turnTraceContext = {
       traceId: "1".repeat(32),
@@ -32,7 +160,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [],
+      messages: [userMessage],
       trigger: "submit-message",
       messageId: undefined,
       capabilities: createDefaultAgentCapabilities(),
@@ -60,7 +188,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: { existing: true },
       id: "session-1",
-      messages: [] as AgentUIMessage[],
+      messages: [userMessage],
       trigger: "submit-message",
       messageId: undefined,
       capabilities: createDefaultAgentCapabilities(),
@@ -102,7 +230,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
+      messages: [userMessage],
       trigger: "submit-message",
       messageId: undefined,
       capabilities,
@@ -132,7 +260,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
+      messages: [userMessage],
       trigger: "submit-message",
       messageId: undefined,
       capabilities: {} as AgentCapabilities,
@@ -170,7 +298,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
+      messages: [userMessage],
       trigger: "submit-message",
       messageId: undefined,
       capabilities: createDefaultAgentCapabilities(),
@@ -206,7 +334,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
+      messages: [userMessage],
       trigger: "submit-message",
       messageId: undefined,
       capabilities: createDefaultAgentCapabilities(),
@@ -237,7 +365,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
+      messages: [userMessage],
       trigger: "submit-message",
       messageId: undefined,
       capabilities: createDefaultAgentCapabilities(),
