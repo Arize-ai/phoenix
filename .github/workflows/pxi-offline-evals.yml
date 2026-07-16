@@ -12,7 +12,14 @@ on:
         description: Phoenix project containing PXI traces
         required: true
         default: pxi_dev
-        type: string
+        type: choice
+        options:
+          - pxi_dev
+      dry_run:
+        description: Evaluate without writing annotations
+        required: true
+        default: true
+        type: boolean
 
 concurrency:
   group: pxi-offline-evals
@@ -48,6 +55,11 @@ jobs:
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Evaluate and annotate recent turns
-        run: >-
-          uv run python -m evals.pxi.offline_evals.run
-          --project "${PHOENIX_PROJECT}"
+        env:
+          PXI_DRY_RUN: ${{ inputs.dry_run || false }}
+        run: |
+          args=(--project "${PHOENIX_PROJECT}")
+          if [[ "${PXI_DRY_RUN}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          uv run python -m evals.pxi.offline_evals.run "${args[@]}"
