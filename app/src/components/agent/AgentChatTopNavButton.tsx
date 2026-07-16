@@ -9,7 +9,7 @@ import {
   MODAL_FLOATING_UI_Z_INDEX,
   NON_MODAL_FLOATING_Z_INDEX,
 } from "@phoenix/components/core/zIndex";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   useActiveDrawerElement,
   useActiveModalPortalContainerElement,
@@ -125,9 +125,11 @@ function DrawerAnchoredButton({
  */
 export function AgentChatTopNavButton() {
   const isAssistantAgentEnabled = useAssistantAgentEnabled();
+  const agentStore = useAgentStore();
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
+  const [shouldFlashOnReturnHome, setShouldFlashOnReturnHome] = useState(false);
   const isStreaming = useAgentContext((state) =>
     activeSessionId
       ? state.chatStatusBySessionId[activeSessionId] === "streaming"
@@ -135,6 +137,17 @@ export function AgentChatTopNavButton() {
   );
   const drawer = useActiveDrawerElement();
   const modalContainer = useActiveModalPortalContainerElement();
+
+  useEffect(() => {
+    return agentStore.subscribe((state, previousState) => {
+      if (state.isOpen === previousState.isOpen) {
+        return;
+      }
+      const didCloseDetachedPanel =
+        previousState.isOpen && !state.isOpen && state.position === "detached";
+      setShouldFlashOnReturnHome(didCloseDetachedPanel);
+    });
+  }, [agentStore]);
 
   useHotkeys(
     OPEN_AGENT_HOTKEY,
@@ -167,7 +180,8 @@ export function AgentChatTopNavButton() {
           size="S"
           variant="quiet"
           aria-expanded={isOpen}
-          shouldFlash={isStreaming}
+          shouldFlash={isStreaming || shouldFlashOnReturnHome}
+          onAnimationEnd={() => setShouldFlashOnReturnHome(false)}
           onPress={() => toggleOpen()}
         />
         <AgentChatWidgetTooltip />
