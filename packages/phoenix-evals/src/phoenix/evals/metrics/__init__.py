@@ -10,6 +10,7 @@ from .refusal import RefusalEvaluator
 from .tool_invocation import ToolInvocationEvaluator
 from .tool_response_handling import ToolResponseHandlingEvaluator
 from .tool_selection import ToolSelectionEvaluator
+from .user_friction import UserFrictionEvaluator
 
 __all__ = [
     "ConcisenessEvaluator",
@@ -24,4 +25,5 @@ __all__ = [
     "ToolInvocationEvaluator",
     "ToolResponseHandlingEvaluator",
     "ToolSelectionEvaluator",
+    "UserFrictionEvaluator",
 ]
