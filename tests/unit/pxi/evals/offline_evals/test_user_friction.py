@@ -170,6 +170,19 @@ def test_applies_to_requires_prior_human_turn() -> None:
     assert not user_friction.applies_to_user_friction(first_root, [first_root])
 
 
+def test_non_human_latest_message_is_not_applicable() -> None:
+    """Injected/non-human final user messages skip — no fallback to earlier turns."""
+    non_human_messages = [
+        "<phoenix_ui_context>{'page': 'traces'}</phoenix_ui_context>",  # frontend UI context
+        '{"parts": [{"tool_return": "ok"}]}',  # agent-loop continuation
+        '{"data": null, "errors": [{"message": "boom"}]}',  # tool error payload
+    ]
+    for message in non_human_messages:
+        root, spans = _two_turn_trace(message)
+        assert not user_friction.applies_to_user_friction(root, spans), message
+        assert user_friction.evaluate_user_friction(root, spans) is None, message
+
+
 def test_evaluate_maps_judge_score_to_annotation() -> None:
     root, spans = _two_turn_trace("no, I asked for this week")
     score = mock.Mock(score=1.0, label="friction", explanation="user corrects the assistant")

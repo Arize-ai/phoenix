@@ -59,17 +59,21 @@ def _judge():  # type: ignore[no-untyped-def]  # heavy import deferred
 
 
 def _target_turn(root: v1.Span, turns: Sequence[Turn]) -> Turn | None:
-    """The turn being labeled: the last human user turn in the transcript.
+    """The turn being labeled: the transcript's final turn — this trace's own.
 
-    Sanity-checked against the root span's ``input.value`` (the turn's user
-    message as ingested); a mismatch is logged but does not disqualify the
-    turn, since the transcript is the judge-facing source of truth.
+    The final turn's user message must be human-authored
+    (:func:`classify_user_message`); injected UI context, agent-loop
+    continuations, and tool-error payloads are not evaluable, and falling
+    back to an earlier human turn would attach a judgment about a previous
+    trace's message to this root. Sanity-checked against the root span's
+    ``input.value`` (the turn's user message as ingested); a mismatch is
+    logged but does not disqualify the turn, since the transcript is the
+    judge-facing source of truth.
     """
-    target: Turn | None = None
-    for turn in turns:
-        if classify_user_message(turn.user_message).is_human:
-            target = turn
-    if target is None:
+    if not turns:
+        return None
+    target = turns[-1]
+    if not classify_user_message(target.user_message).is_human:
         return None
     root_input = root.get("attributes", {}).get("input.value")
     if isinstance(root_input, str) and root_input.strip() != target.user_message.strip():
