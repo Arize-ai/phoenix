@@ -142,6 +142,7 @@ from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMi
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
@@ -641,6 +642,7 @@ def _lifespan(
     sandbox_session_manager: SandboxSessionManager,
     sandbox_runtime: SandboxRuntimeContext,
     online_eval_producer: Optional[OnlineEvalProducer] = None,
+    online_eval_consumer: Optional[OnlineEvalConsumer] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -701,10 +703,10 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Entered after sandbox_session_manager so the stacked consumer PR
-            # can enter its consumer next to the producer with the teardown
-            # ordering it needs (code evals run through sandbox sessions, so
-            # the consumer must stop before the manager does).
+            # Enter the consumer before the producer so teardown stops admission
+            # before draining work; both stop before sandbox_session_manager.
+            if online_eval_consumer is not None:
+                await stack.enter_async_context(online_eval_consumer)
             if online_eval_producer is not None:
                 await stack.enter_async_context(online_eval_producer)
             if docs_mcp_server is not None:
@@ -1070,8 +1072,15 @@ def create_app(
         sandbox_runtime=sandbox_runtime,
     )
     online_eval_producer: Optional[OnlineEvalProducer] = None
-    if get_env_online_eval_enabled():
+    online_eval_consumer: Optional[OnlineEvalConsumer] = None
+    if get_env_online_eval_enabled() and not read_only:
         online_eval_producer = OnlineEvalProducer(db)
+        online_eval_consumer = OnlineEvalConsumer(
+            db,
+            decrypt=encryption_service.decrypt,
+            sandbox_session_manager=sandbox_session_manager,
+            event_queue=dml_event_handler,
+        )
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1124,6 +1133,7 @@ def create_app(
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
             online_eval_producer=online_eval_producer,
+            online_eval_consumer=online_eval_consumer,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1351,6 +1361,7 @@ def create_app(
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
     app.state.online_eval_producer = online_eval_producer
+    app.state.online_eval_consumer = online_eval_consumer
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and
     # GraphQL surfaces answer from the same (startup-validated) value.
