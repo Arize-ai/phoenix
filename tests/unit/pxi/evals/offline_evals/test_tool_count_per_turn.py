@@ -96,3 +96,48 @@ def test_rejects_incomplete_parent_chain() -> None:
 
     with pytest.raises(InvalidTurnTrace, match="missing ancestor"):
         evaluate_tool_count_per_turn(root, [root, tool])
+
+
+def test_zero_tool_trace_has_zero_score() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+
+    result = evaluate_tool_count_per_turn(root, [root])
+
+    assert result.score == 0.0
+    assert result.metadata == {"tool_names": []}
+    assert result.explanation == "0 top-level PXI tool calls in this turn"
+
+
+def test_rejects_a_non_root_turn_span() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id="parent", start=0)
+
+    with pytest.raises(InvalidTurnTrace, match="span root is not a 'pxi.turn' root"):
+        evaluate_tool_count_per_turn(root, [root])
+
+
+def test_rejects_a_trace_that_omits_the_turn_root() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+
+    with pytest.raises(InvalidTurnTrace, match="trace does not contain turn root root"):
+        evaluate_tool_count_per_turn(root, [])
+
+
+def test_rejects_a_detached_tool() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+    tool = _span("tool", name="bash", kind="TOOL", parent_id=None, start=1)
+
+    with pytest.raises(
+        InvalidTurnTrace,
+        match="tool span tool does not descend from turn root root",
+    ):
+        evaluate_tool_count_per_turn(root, [root, tool])
+
+
+def test_rejects_an_ancestor_cycle() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+    first = _span("first", name="agent", kind="AGENT", parent_id="second", start=1)
+    second = _span("second", name="model", kind="LLM", parent_id="first", start=2)
+    tool = _span("tool", name="bash", kind="TOOL", parent_id="first", start=3)
+
+    with pytest.raises(InvalidTurnTrace, match="cycle found above tool span tool"):
+        evaluate_tool_count_per_turn(root, [root, first, second, tool])
