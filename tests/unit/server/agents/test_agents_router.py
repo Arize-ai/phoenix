@@ -242,12 +242,12 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.user_id is None
-        assert UUID(agent_session.session_id).version == 4
+        assert UUID(agent_session.project_session_id).version == 4
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
         messages = await _load_session_messages(session, agent_session.id)
-        persisted_session_id = agent_session.session_id
+        persisted_session_id = agent_session.project_session_id
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
@@ -1096,7 +1096,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         assert agent_session is not None
         project_session = await session.scalar(
             select(models.ProjectSession).where(
-                models.ProjectSession.session_id == agent_session.session_id
+                models.ProjectSession.session_id == agent_session.project_session_id
             )
         )
         assert project_session is not None

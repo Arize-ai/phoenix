@@ -24,7 +24,7 @@ async def test_delete_agent_session_cascades_snapshot(
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         agent_session = models.AgentSession(
-            session_id="11111111-1111-4111-8111-111111111111",
+            project_session_id="11111111-1111-4111-8111-111111111111",
             user_id=None,
             title="doomed session",
             project_name="assistant_agent",

@@ -19,7 +19,7 @@ async def _seed_agent_session(
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
-            session_id=str(uuid4()),
+            project_session_id=str(uuid4()),
             user_id=None,
             title=title,
             project_name="assistant_agent",

@@ -1166,7 +1166,7 @@ async def _create_agent_session(
     """Create a session for a request with messages."""
     assert messages
     created_agent_session = models.AgentSession(
-        session_id=otel_session_id,
+        project_session_id=otel_session_id,
         user_id=user_id,
         title="",
         project_name=project_name,
@@ -1597,7 +1597,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     )
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
-                otel_session_id = agent_session.session_id
+                otel_session_id = agent_session.project_session_id
                 session_created_data = SessionCreatedData(
                     id=str(GlobalID("AgentSession", str(agent_session.id))),
                     title=agent_session.title,

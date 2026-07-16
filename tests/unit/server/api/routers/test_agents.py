@@ -59,9 +59,9 @@ class TestAgentSessionPersistence:
                 project_name="assistant_agent",
             )
             assert created is not None
-            assert created.session_id == "11111111-1111-4111-8111-111111111111"
+            assert created.project_session_id == "11111111-1111-4111-8111-111111111111"
             created_rowid = created.id
-            created_session_id = created.session_id
+            created_project_session_id = created.project_session_id
 
         async with db() as session:
             loaded = await _load_agent_session(
@@ -71,7 +71,7 @@ class TestAgentSessionPersistence:
             )
             assert loaded is not None
             assert loaded.id == created_rowid
-            assert loaded.session_id == created_session_id
+            assert loaded.project_session_id == created_project_session_id
             await session.execute(
                 delete(models.AgentSession).where(models.AgentSession.id == created_rowid)
             )
@@ -100,7 +100,7 @@ class TestAgentSessionPersistence:
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
         async with db() as session:
             first = models.AgentSession(
-                session_id="11111111-1111-4111-8111-111111111111",
+                project_session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 title="first",
                 project_name="assistant_agent",
@@ -112,7 +112,7 @@ class TestAgentSessionPersistence:
 
         async with db() as session:
             second = models.AgentSession(
-                session_id="22222222-2222-4222-8222-222222222222",
+                project_session_id="22222222-2222-4222-8222-222222222222",
                 user_id=None,
                 title="second",
                 project_name="assistant_agent",
