@@ -14,6 +14,7 @@ from evals.pxi.offline_evals.conversation import (
     transcript,
 )
 from evals.pxi.offline_evals.evaluators import user_friction
+from evals.pxi.offline_evals.message_origin import MessageOrigin, classify_user_message
 from evals.pxi.offline_evals.rendering import render_conversation, render_turn_detailed
 
 
@@ -300,6 +301,35 @@ def test_non_human_latest_message_is_not_applicable() -> None:
         root, spans = _two_turn_trace(message)
         assert not user_friction.applies_to_user_friction(root, spans), message
         assert user_friction.evaluate_user_friction(root, spans) is None, message
+
+
+@pytest.mark.parametrize(
+    ("message", "is_human", "kind"),
+    [
+        ("   ", False, "empty"),
+        (
+            "<phoenix_ui_context>{'page': 'traces'}</phoenix_ui_context>",
+            False,
+            "frontend_ui_context",
+        ),
+        ('{"parts": [{"tool_return": "ok"}]}', False, "agent_continuation"),
+        ('{"data": null, "errors": [{"message": "boom"}]}', False, "tool_error_payload"),
+        (
+            '{"message": {"role": "assistant", "content": "continuing"}}',
+            False,
+            "agent_message_payload",
+        ),
+        ('{"query": "show error traces"}', True, "human"),
+        ('{"message": {"role": "user", "content": "hello"}}', True, "human"),
+        ("plain user text", True, "human"),
+    ],
+)
+def test_classifies_every_user_message_origin(
+    message: str,
+    is_human: bool,
+    kind: str,
+) -> None:
+    assert classify_user_message(message) == MessageOrigin(is_human, kind)
 
 
 @pytest.mark.parametrize("root_input", [None, "a different user message"])
