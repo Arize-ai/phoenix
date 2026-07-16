@@ -26,7 +26,10 @@ from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 
 from tests.integration._helpers import (
+    _ADMIN,
     _MEMBER,
+    _VIEWER,
+    UserRoleInput,
     _AppInfo,
     _get_ssl_context,
     _GetUser,
@@ -55,6 +58,23 @@ def _register_public_client(app: _AppInfo, *, resource: str | None = None) -> _O
         redirect_uri=redirect_uri,
         app=app,
         resource=resource,
+    )
+
+
+def _mcp_token_for(app: _AppInfo, get_user: _GetUser, role: UserRoleInput) -> str:
+    """Mint an MCP-scoped access token for a fresh user with ``role``."""
+    oauth_client = _register_public_client(app, resource=f"{_base_url(app)}/mcp")
+    user = get_user(app, role).log_in(app)
+    return oauth_client.complete_flow(user)["access_token"]
+
+
+def _mcp_transport(app: _AppInfo, access_token: str) -> StreamableHttpTransport:
+    return StreamableHttpTransport(
+        f"{_base_url(app)}/mcp",
+        headers={"Authorization": f"Bearer {access_token}"},
+        # The package app may serve TLS with a test-only certificate; trust it
+        # the same way _httpx_client does.
+        verify=_get_ssl_context(app.env) or False,
     )
 
 
@@ -335,6 +355,95 @@ class TestMcpResourceIndicator:
         assert parse_qs(urlparse(location).query)["error"] == ["invalid_target"]
 
 
+class TestMcpToolAuthorization:
+    """The generated tool surface must enforce the caller's role, not merely hide tools.
+
+    Every ``/v1`` route is exposed as a tool, and a tool call dispatches in-process to
+    ``/v1`` carrying the caller's authenticated principal (``_InternalIdentityDispatch``
+    in ``mcp_server.py``). An admin-gated route (``Depends(require_admin)``) must
+    therefore still ``403`` a member reached through its tool. Progressive disclosure
+    hides the admin ``users`` group, but hiding is not authorization: any caller may
+    reveal it with ``enable_tool_group``, so ``require_admin`` on the dispatched
+    principal is the real backstop. A member receiving the user list here would be a
+    confused-deputy privilege escalation through ``/mcp`` — the audit's highest-ranked,
+    previously untested claim.
+    """
+
+    @pytest.mark.parametrize(
+        "role, is_admin",
+        [(_ADMIN, True), (_MEMBER, False), (_VIEWER, False)],
+        ids=["admin", "member", "viewer"],
+    )
+    async def test_admin_gated_tool_enforces_caller_role(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        role: UserRoleInput,
+        is_admin: bool,
+    ) -> None:
+        token = _mcp_token_for(_app, _get_user, role)
+        async with Client(_mcp_transport(_app, token)) as mcp_client:
+            # Reveal the admin ``users`` group the way any caller can. This is a
+            # surface reveal, not an authorization grant — it only makes ``getUsers``
+            # callable so that any denial below must come from ``require_admin`` at
+            # the route, not from the tool being hidden.
+            await mcp_client.call_tool("enable_tool_group", {"group": "users"})
+            # getUsers == GET /v1/users, gated by require_admin.
+            result = await mcp_client.call_tool("getUsers", {}, raise_on_error=False)
+
+        text = "".join(getattr(block, "text", "") for block in (result.content or []))
+        if is_admin:
+            # Positive control: the admin is allowed, proving the tool works and the
+            # route is a genuine privilege gate rather than broken for everyone.
+            assert not result.is_error, f"admin was denied getUsers: {text}"
+            assert '"role"' in text  # the users payload carries each user's role
+        else:
+            # A non-admin (member or viewer) must be denied by require_admin on the
+            # dispatched principal. A non-error result — the admin-only user list — is
+            # privilege escalation.
+            assert result.is_error, f"{role} reached admin-only getUsers via /mcp: {text}"
+            assert '"email"' not in text and '"role"' not in text, text
+
+    @pytest.mark.parametrize(
+        "role, is_viewer", [(_MEMBER, False), (_VIEWER, True)], ids=["member", "viewer"]
+    )
+    async def test_viewer_write_restriction_is_enforced(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        role: UserRoleInput,
+        is_viewer: bool,
+    ) -> None:
+        """Viewers are read-only, so a viewer must not perform a mutation through a
+        tool that ``/v1`` would ``403``.
+
+        ``deleteAnnotationConfig`` == ``DELETE /v1/annotation_configs/{id}``, which
+        ``restrict_access_by_viewers`` blocks for viewers before the handler runs. A
+        viewer is ``403``'d; a member passes that check and only then fails on the
+        fake id (``422``). The distinguishing signal is therefore ``403`` versus
+        not-``403`` — a viewer reaching past the ``403`` would be a read-only user
+        mutating through ``/mcp``.
+        """
+        token = _mcp_token_for(_app, _get_user, role)
+        async with Client(_mcp_transport(_app, token)) as mcp_client:
+            await mcp_client.call_tool("enable_tool_group", {"group": "annotation_configs"})
+            # A fake id: a viewer is blocked before it is inspected; a member reaches
+            # the id-format check and gets 422.
+            result = await mcp_client.call_tool(
+                "deleteAnnotationConfig", {"config_id": "fake-id"}, raise_on_error=False
+            )
+
+        text = "".join(getattr(block, "text", "") for block in (result.content or []))
+        assert result.is_error, text  # both roles error; the reason differs by role
+        lowered = text.lower()
+        if is_viewer:
+            assert "403" in text or "forbidden" in lowered, f"viewer not blocked on write: {text}"
+        else:
+            assert "403" not in text and "forbidden" not in lowered, (
+                f"member wrongly blocked: {text}"
+            )
+
+
 @pytest.fixture(scope="module")
 def _app_mcp_code_mode(
     _ports: Iterator[int],
@@ -391,3 +500,79 @@ class TestMcpCodeMode:
             )
         text = "".join(getattr(block, "text", "") for block in result.content)
         assert '"default"' in text
+
+    @pytest.mark.parametrize(
+        "role, is_admin",
+        [(_ADMIN, True), (_MEMBER, False), (_VIEWER, False)],
+        ids=["admin", "member", "viewer"],
+    )
+    async def test_execute_call_tool_enforces_caller_role(
+        self,
+        _app_mcp_code_mode: _AppInfo,
+        _get_user: _GetUser,
+        role: UserRoleInput,
+        is_admin: bool,
+    ) -> None:
+        """Code Mode's sandboxed ``call_tool`` must not widen the caller's authority.
+
+        A non-admin reaching an admin-gated route through ``execute`` -> ``call_tool``
+        must be denied the same ``require_admin`` ``403`` as the direct dispatch. A
+        non-admin receiving the user list is privilege escalation through the sandbox,
+        which is why this pairs with ``TestMcpToolAuthorization`` for the direct path.
+        """
+        app = _app_mcp_code_mode
+        token = _mcp_token_for(app, _get_user, role)
+        async with Client(_mcp_transport(app, token)) as mcp_client:
+            # getUsers == GET /v1/users, gated by require_admin.
+            result = await mcp_client.call_tool(
+                "execute",
+                {"code": 'return await call_tool("getUsers", {})'},
+                raise_on_error=False,
+            )
+        text = "".join(getattr(block, "text", "") for block in (result.content or []))
+        if is_admin:
+            assert not result.is_error, f"admin execute was denied getUsers: {text}"
+            assert '"role"' in text  # the users payload carries each user's role
+        else:
+            # The in-sandbox call must be denied; it must NOT return the user list.
+            assert result.is_error, f"{role} escalated to getUsers via execute: {text}"
+            assert '"email"' not in text and '"role"' not in text, text
+
+    @pytest.mark.parametrize(
+        "role, is_viewer", [(_MEMBER, False), (_VIEWER, True)], ids=["member", "viewer"]
+    )
+    async def test_execute_call_tool_enforces_viewer_write_restriction(
+        self,
+        _app_mcp_code_mode: _AppInfo,
+        _get_user: _GetUser,
+        role: UserRoleInput,
+        is_viewer: bool,
+    ) -> None:
+        """The read-only viewer restriction must also hold through ``execute``.
+
+        A viewer mutating through ``execute`` -> ``call_tool`` must hit the same
+        ``restrict_access_by_viewers`` ``403`` as the direct path; a member passes it
+        and fails only on the fake id (``422``). Distinguished by ``403`` versus
+        not-``403``.
+        """
+        app = _app_mcp_code_mode
+        token = _mcp_token_for(app, _get_user, role)
+        async with Client(_mcp_transport(app, token)) as mcp_client:
+            result = await mcp_client.call_tool(
+                "execute",
+                {
+                    "code": 'return await call_tool("deleteAnnotationConfig", {"config_id": "fake-id"})'
+                },
+                raise_on_error=False,
+            )
+        text = "".join(getattr(block, "text", "") for block in (result.content or []))
+        assert result.is_error, text
+        lowered = text.lower()
+        if is_viewer:
+            assert "403" in text or "forbidden" in lowered, (
+                f"viewer not blocked via execute: {text}"
+            )
+        else:
+            assert "403" not in text and "forbidden" not in lowered, (
+                f"member wrongly blocked: {text}"
+            )
