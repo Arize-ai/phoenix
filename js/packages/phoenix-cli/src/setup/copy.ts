@@ -158,6 +158,31 @@ export const CONNECT = {
 // Auth-on credential entry
 // ---------------------------------------------------------------------------
 
+export const CREDENTIALS = {
+  methodMessage: "How do you want to connect to Phoenix?",
+  loginLabel: "Log in with your browser (recommended)",
+  loginHint: "approve once in Phoenix; setup creates an API key for you",
+  pasteLabel: "Paste an existing API key",
+  pasteHint: "create or copy one in Phoenix under Settings",
+  authorizationUrl: (url: string) =>
+    [
+      "Complete the login in your browser. If it didn't open, visit:",
+      url,
+      "",
+      "Press Ctrl-C to skip and paste an API key instead.",
+    ].join("\n"),
+  browserOpenFailed: (detail: string) =>
+    `Couldn't open a browser (${detail}). Open the URL above by hand, or press Ctrl-C to paste an API key instead.`,
+  keyCreated: (name: string) =>
+    `Logged in — created API key "${name}" for this project.`,
+  // Covers both ways out of the login: declining consent, and Ctrl-C.
+  loginCancelled: "Login didn't finish — paste an API key instead.",
+  loginFailed: (detail: string) =>
+    `Browser login didn't complete (${detail}) — paste an API key instead.`,
+  keyCreateFailed: (detail: string) =>
+    `Logged in, but couldn't create an API key (${detail}) — paste one instead.`,
+} as const;
+
 export const API_KEY = {
   instructionsTitle: "Phoenix API key",
   instructions: [

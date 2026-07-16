@@ -38,8 +38,14 @@ export interface ScriptedPrompter extends Prompter {
 /**
  * A prompter that answers prompts from a FIFO script. Selects verify the
  * scripted answer is one of the offered option values.
+ *
+ * `interruptWaits` stands in for Ctrl-C during an interruptible wait: the work
+ * is handed an already-aborted signal, as if the user gave up on it.
  */
-export function scriptedPrompter(answers: ScriptedAnswer[]): ScriptedPrompter {
+export function scriptedPrompter(
+  answers: ScriptedAnswer[],
+  { interruptWaits = false }: { interruptWaits?: boolean } = {}
+): ScriptedPrompter {
   const queue = [...answers];
   const transcript: string[] = [];
   const output: string[] = [];
@@ -108,6 +114,15 @@ export function scriptedPrompter(answers: ScriptedAnswer[]): ScriptedPrompter {
         );
       }
       return value;
+    },
+    async runInterruptible<T>(
+      work: (signal: AbortSignal) => Promise<T>
+    ): Promise<T> {
+      const interrupted = new AbortController();
+      if (interruptWaits) {
+        interrupted.abort();
+      }
+      return work(interrupted.signal);
     },
     note(message: string): void {
       output.push(message);
@@ -201,6 +216,7 @@ export interface FakeDepsOverrides {
   clock?: Partial<Clock>;
   writeClipboard?: SetupDeps["writeClipboard"];
   fetchDocs?: SetupDeps["fetchDocs"];
+  oauthLogin?: SetupDeps["oauthLogin"];
   /** Transport beneath the real Phoenix client `createClient` builds. */
   fetch?: typeof fetch;
 }
@@ -227,6 +243,11 @@ export function buildFakeDeps(overrides: FakeDepsOverrides = {}): SetupDeps {
     writeClipboard: overrides.writeClipboard ?? (async () => true),
     createClient: ({ endpoint, apiKey }) =>
       createPhoenixClient({ config: { endpoint, apiKey }, fetch }),
+    // Default fake: no OAuth support, so existing lanes stay on paste.
+    oauthLogin: overrides.oauthLogin ?? {
+      isSupported: async () => false,
+      login: async () => ({ status: "error", detail: "oauth not faked" }),
+    },
     fetchDocs:
       overrides.fetchDocs ??
       (async (options) => ({

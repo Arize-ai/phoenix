@@ -11,20 +11,11 @@ import {
 } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 import {
-  OAUTH_LOGIN_TIMEOUT_MS,
-  type PastedRedirectPrompt,
-  buildAuthorizationUrl,
-  exchangeAuthorizationCode,
-  generatePkcePair,
-  generateState,
-  openBrowser,
   resolveTargetProfileName,
   revokeOAuthToken,
-  startLoginCallbackServer,
+  runBrowserLoginFlow,
   tokenResponseToOAuthTokens,
-  waitForPastedRedirectUrl,
   withSettingsLock,
-  withTimeout,
 } from "../oauth";
 import {
   type OAuthTokens,
@@ -410,117 +401,74 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
     const profileHasApiKey = Boolean(
       settingsAtLogin.profiles[targetProfileName]?.apiKey
     );
-    const pkce = generatePkcePair();
-    const state = generateState();
-    const callbackServer = await startLoginCallbackServer({
-      expectedState: state,
-    });
-    let pastedRedirectPrompt: PastedRedirectPrompt | undefined;
-    try {
-      const authorizationUrl = buildAuthorizationUrl({
-        endpoint,
-        redirectUri: callbackServer.redirectUri,
-        state,
-        codeChallenge: pkce.challenge,
-      });
-      writeError({ message: `Open this URL to log in:\n${authorizationUrl}` });
-
-      let browserOpened = false;
-      if (options.browser !== false) {
-        try {
-          await openBrowser(authorizationUrl);
-          browserOpened = true;
-        } catch (error) {
-          writeError({
-            message: `Could not open a browser automatically: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          });
-        }
-      }
-
-      pastedRedirectPrompt =
-        options.input !== false && (!browserOpened || options.browser === false)
-          ? waitForPastedRedirectUrl({ expectedState: state })
-          : undefined;
-      const callbackPromise =
-        pastedRedirectPrompt === undefined
-          ? callbackServer.resultPromise
-          : Promise.race([
-              callbackServer.resultPromise,
-              pastedRedirectPrompt.resultPromise,
-            ]);
-      const callbackResult = await withTimeout({
-        promise: callbackPromise,
-        timeoutMs: OAUTH_LOGIN_TIMEOUT_MS,
-      });
-
-      if (callbackResult.status === "access_denied") {
-        writeError({ message: "OAuth login cancelled." });
-        process.exit(ExitCode.CANCELLED);
-      }
-      if (callbackResult.status === "invalid") {
-        writeError({ message: callbackResult.message });
-        process.exit(ExitCode.FAILURE);
-      }
-
-      const tokenResponse = await exchangeAuthorizationCode({
-        endpoint,
-        code: callbackResult.code,
-        redirectUri: callbackServer.redirectUri,
-        verifier: pkce.verifier,
-      });
-      const oauthTokens = tokenResponseToOAuthTokens({
-        response: tokenResponse,
-      });
-      // Re-read and write under the settings lock so a token rotation running
-      // in another px process cannot be clobbered by this stale snapshot.
-      await withSettingsLock(getSettingsPath(), async () => {
-        saveSettings(
-          persistOAuthTokens({
-            settingsFile: loadSettings({ strict: true }),
-            profileName: targetProfileName,
-            endpoint,
-            oauthTokens,
-          })
-        );
-      });
-
-      const user = await verifyViewerOrExit({
-        ...config,
-        endpoint,
-        oauthTokens,
-        profileName: targetProfileName,
-        apiKey: undefined,
-        credentialSource: "oauth",
-      });
-      if (profileHasApiKey) {
+    const loginResult = await runBrowserLoginFlow({
+      endpoint,
+      onAuthorizationUrl: (url) =>
+        writeError({ message: `Open this URL to log in:\n${url}` }),
+      openBrowserWindow: options.browser !== false,
+      onBrowserOpenFailed: (error) =>
         writeError({
-          message:
-            `Note: profile "${targetProfileName}" also has an API key, which takes precedence over the OAuth session. ` +
-            "Remove the API key from the profile to use OAuth credentials.",
-        });
-      }
-      writeOutput({
-        message: formatAuthOutput(
-          {
-            endpoint,
-            profile: targetProfileName,
-            credentialSource: "oauth",
-            expiresAt: oauthTokens.expiresAt,
-            user,
-            status:
-              user.auth_method === "ANONYMOUS" ? "anonymous" : "authenticated",
-          },
-          options.format
-        ),
-      });
-    } finally {
-      // Release stdin when the loopback callback won the race — an open
-      // readline interface would keep the process alive after success.
-      pastedRedirectPrompt?.close();
-      await callbackServer.close();
+          message: `Could not open a browser automatically: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        }),
+      allowPastedRedirect: options.input !== false,
+    });
+
+    if (loginResult.status === "cancelled") {
+      writeError({ message: "OAuth login cancelled." });
+      process.exit(ExitCode.CANCELLED);
     }
+    if (loginResult.status === "invalid") {
+      writeError({ message: loginResult.message });
+      process.exit(ExitCode.FAILURE);
+    }
+
+    const oauthTokens = tokenResponseToOAuthTokens({
+      response: loginResult.tokens,
+    });
+    // Re-read and write under the settings lock so a token rotation running
+    // in another px process cannot be clobbered by this stale snapshot.
+    await withSettingsLock(getSettingsPath(), async () => {
+      saveSettings(
+        persistOAuthTokens({
+          settingsFile: loadSettings({ strict: true }),
+          profileName: targetProfileName,
+          endpoint,
+          oauthTokens,
+        })
+      );
+    });
+
+    const user = await verifyViewerOrExit({
+      ...config,
+      endpoint,
+      oauthTokens,
+      profileName: targetProfileName,
+      apiKey: undefined,
+      credentialSource: "oauth",
+    });
+    if (profileHasApiKey) {
+      writeError({
+        message:
+          `Note: profile "${targetProfileName}" also has an API key, which takes precedence over the OAuth session. ` +
+          "Remove the API key from the profile to use OAuth credentials.",
+      });
+    }
+    writeOutput({
+      message: formatAuthOutput(
+        {
+          endpoint,
+          profile: targetProfileName,
+          credentialSource: "oauth",
+          expiresAt: oauthTokens.expiresAt,
+          user,
+          status:
+            user.auth_method === "ANONYMOUS" ? "anonymous" : "authenticated",
+        },
+        options.format
+      ),
+    });
   } catch (error) {
     if (
       error instanceof AuthRequiredError ||
