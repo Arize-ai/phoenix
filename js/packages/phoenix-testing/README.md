@@ -1,14 +1,8 @@
 # @arizeai/phoenix-testing
 
-Testing utilities that mock the [Phoenix](https://github.com/Arize-ai/phoenix) server with [MSW (Mock Service Worker)](https://mswjs.io/). Request handlers are generated at runtime from the Phoenix OpenAPI definition (`schemas/openapi.json`, embedded in this package) via [`@mswjs/source`](https://source.mswjs.io/), so every documented endpoint answers with a schema-conformant response without any hand-written mock code.
+Internal workspace testing utilities that mock the Phoenix server with [MSW (Mock Service Worker)](https://mswjs.io/). Request handlers are generated at runtime from the repository's OpenAPI definition (`schemas/openapi.json`) via [`@mswjs/source`](https://source.mswjs.io/), so every documented endpoint answers with a schema-conformant response without any hand-written mock code.
 
-## Installation
-
-```bash
-pnpm add -D @arizeai/phoenix-testing
-```
-
-`msw` is included as a dependency — no extra install needed.
+This package is private and only supported inside the Phoenix pnpm workspace.
 
 ## Usage
 
@@ -56,31 +50,20 @@ server.use(
 
 Handlers passed to `createPhoenixMockServer({ handlers })` or registered with `server.use(...)` take precedence over the generated ones, so a test can pin down exactly the responses it cares about while every other endpoint keeps answering with generated placeholder data.
 
-### Browser / custom setups
-
-The root export is environment-agnostic. To compose the handlers into your own MSW setup (e.g. `setupWorker` in the browser):
-
-```ts
-import { createPhoenixOpenApiHandlers } from "@arizeai/phoenix-testing";
-import { setupWorker } from "msw/browser";
-
-const worker = setupWorker(...(await createPhoenixOpenApiHandlers()));
-```
-
 ## API
 
-| Export                                                     | Description                                                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `createPhoenixMockServer({ baseUrl, handlers })` (`/node`) | MSW server for Node.js with generated handlers for every Phoenix endpoint.           |
-| `createPhoenixOpenApiHandlers({ baseUrl })`                | The generated MSW request handlers, for composing into your own setup.               |
-| `createPhoenixHttp({ baseUrl })`                           | Type-safe `http` namespace for writing custom Phoenix handler overrides.             |
-| `getPhoenixOpenApiDocument({ baseUrl })`                   | A copy of the embedded Phoenix OpenAPI document with `servers` pointed at `baseUrl`. |
-| `DEFAULT_PHOENIX_MOCK_BASE_URL`                            | `"http://localhost:6006"` — the default base URL handlers are bound to.              |
-| `pathsV1`, `componentsV1`, `operationsV1`                  | OpenAPI types generated from the Phoenix API definition (via `openapi-typescript`).  |
+| Export                                                     | Description                                                                             |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `createPhoenixMockServer({ baseUrl, handlers })` (`/node`) | MSW server for Node.js with generated handlers for every Phoenix endpoint.              |
+| `createPhoenixOpenApiHandlers({ baseUrl })`                | The generated MSW request handlers, for composing into your own setup.                  |
+| `createPhoenixHttp({ baseUrl })`                           | Type-safe `http` namespace for writing custom Phoenix handler overrides.                |
+| `getPhoenixOpenApiDocument({ baseUrl })`                   | A copy of the workspace's Phoenix OpenAPI document with `servers` pointed at `baseUrl`. |
+| `DEFAULT_PHOENIX_MOCK_BASE_URL`                            | `"http://localhost:6006"` — the default base URL handlers are bound to.                 |
+| `pathsV1`, `componentsV1`, `operationsV1`                  | OpenAPI types generated from the Phoenix API definition (via `openapi-typescript`).     |
 
 ## Regenerating the mocks
 
-The generated OpenAPI types and the embedded OpenAPI document are derived from `schemas/openapi.json` at the repository root:
+The generated OpenAPI types are derived from `schemas/openapi.json` at the repository root:
 
 ```bash
 pnpm run generate

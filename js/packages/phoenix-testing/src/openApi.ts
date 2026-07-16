@@ -1,8 +1,17 @@
+import { readFileSync } from "node:fs";
 import { fromOpenApi } from "@mswjs/source/open-api";
 import type { RequestHandler } from "msw";
 
-import { phoenixOpenApiDocument } from "./__generated__/document.js";
 import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
+
+// This is an internal workspace package, so the repository schema is available
+// both when Vitest loads src/ and when Node loads dist/ after `pnpm -r build`.
+const phoenixOpenApiDocument = JSON.parse(
+  readFileSync(
+    new URL("../../../../schemas/openapi.json", import.meta.url),
+    "utf8"
+  )
+) as Record<string, unknown>;
 
 /**
  * Get a copy of the Phoenix OpenAPI document with its `servers` entry pointed

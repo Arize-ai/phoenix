@@ -13,7 +13,7 @@ describe("getPhoenixOpenApiDocument", () => {
     expect(document.servers).toEqual([{ url: "https://phoenix.example.com" }]);
   });
 
-  it("returns a copy so callers cannot mutate the embedded document", () => {
+  it("returns a copy so callers cannot mutate the workspace document", () => {
     const first = getPhoenixOpenApiDocument();
     const second = getPhoenixOpenApiDocument();
     expect(first).not.toBe(second);

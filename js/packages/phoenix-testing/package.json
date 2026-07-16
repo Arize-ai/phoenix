@@ -1,6 +1,7 @@
 {
   "name": "@arizeai/phoenix-testing",
   "version": "0.0.0",
+  "private": true,
   "description": "MSW-based testing utilities that mock the Phoenix server from its OpenAPI definition",
   "keywords": [
     "arize",
@@ -9,21 +10,6 @@
     "openapi",
     "phoenix",
     "testing"
-  ],
-  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-testing",
-  "bugs": {
-    "url": "https://github.com/Arize-ai/phoenix/issues"
-  },
-  "license": "Apache-2.0",
-  "author": "oss@arize.com",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Arize-ai/phoenix.git"
-  },
-  "files": [
-    "dist",
-    "src",
-    "package.json"
   ],
   "type": "module",
   "main": "dist/index.js",
@@ -44,7 +30,7 @@
   "scripts": {
     "build": "tsc --build tsconfig.json",
     "clean": "rimraf dist",
-    "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts && node ./scripts/embed-openapi-document.mjs",
+    "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
     "prebuild": "pnpm run clean && pnpm run generate",
     "test": "vitest run",
     "test:watch": "vitest watch",
