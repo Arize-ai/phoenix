@@ -100,6 +100,11 @@ Whether to disable the agent assistant feature (the /chat endpoint). Defaults to
 meaning the assistant is enabled by default. Set to True on the Phoenix server to turn
 it off for the whole deployment.
 """
+ENV_PHOENIX_ENABLE_MCP_SERVER = "PHOENIX_ENABLE_MCP_SERVER"
+"""
+Whether to mount the in-process MCP server at /mcp. Defaults to True. When
+enabled, the MCP server reuses Phoenix's existing bearer-token authentication.
+"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
@@ -3531,6 +3536,10 @@ def get_env_disable_migrations() -> bool:
 
 def get_env_disable_agent_assistant() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_AGENT_ASSISTANT, False)
+
+
+def get_env_enable_mcp_server() -> bool:
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_SERVER, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:

@@ -489,6 +489,7 @@ class _AccessTokenStore(
         return token_id, AccessTokenClaims(
             token_id=token_id,
             subject=_fail_closed_subject(record.user_id, grant_id=grant_id, scopes=scopes),
+            audience=_scopes_tuple(record.audience),
             issued_at=record.created_at,
             expiration_time=record.expires_at,
             attributes=AccessTokenAttributes(
@@ -511,6 +512,7 @@ class _AccessTokenStore(
             expires_at=claim.expiration_time,
             refresh_token_id=refresh_token_id,
             scopes=list(claim.attributes.scopes) if claim.attributes.scopes is not None else None,
+            audience=list(claim.audience) if claim.audience is not None else None,
         )
 
 
@@ -537,6 +539,7 @@ class _RefreshTokenStore(
         return token_id, RefreshTokenClaims(
             token_id=token_id,
             subject=_fail_closed_subject(record.user_id, grant_id=grant_id, scopes=scopes),
+            audience=_scopes_tuple(record.audience),
             issued_at=record.created_at,
             expiration_time=record.expires_at,
             attributes=RefreshTokenAttributes(
@@ -557,6 +560,7 @@ class _RefreshTokenStore(
             expires_at=claims.expiration_time,
             oauth2_grant_id=claims.attributes.grant_id,
             scopes=list(claims.attributes.scopes) if claims.attributes.scopes is not None else None,
+            audience=list(claims.audience) if claims.audience is not None else None,
         )
 
     @cached_property
