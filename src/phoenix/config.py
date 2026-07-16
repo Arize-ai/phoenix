@@ -102,8 +102,19 @@ it off for the whole deployment.
 """
 ENV_PHOENIX_ENABLE_MCP_SERVER = "PHOENIX_ENABLE_MCP_SERVER"
 """
-Whether to mount the in-process MCP server at /mcp. Defaults to True. When
-enabled, the MCP server reuses Phoenix's existing bearer-token authentication.
+Whether to mount the in-process MCP server (generated from the /v1 REST API) at
+/mcp. Defaults to True. When enabled, the MCP server reuses Phoenix's existing
+bearer-token authentication.
+"""
+ENV_PHOENIX_MCP_CODE_MODE = "PHOENIX_MCP_CODE_MODE"
+"""
+Whether the mounted MCP server presents its tools through FastMCP's code-mode
+surface. Defaults to True. Under code mode, clients see discovery meta-tools
+(search, get_schema, tags, list_tools) plus an `execute` tool that runs
+LLM-written Python in a sandbox where `call_tool(name, params)` is the only
+available function. Set to False to present the group-gated progressive-
+disclosure tool list instead. Has no effect unless PHOENIX_ENABLE_MCP_SERVER is
+also set.
 """
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
@@ -3540,6 +3551,10 @@ def get_env_disable_agent_assistant() -> bool:
 
 def get_env_enable_mcp_server() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_SERVER, True)
+
+
+def get_env_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_MCP_CODE_MODE, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:

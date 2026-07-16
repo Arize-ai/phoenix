@@ -474,6 +474,11 @@ def _env(
         # exercises it directly, and every other test doubles as evidence that
         # the mount does not interfere with the rest of the surface.
         "PHOENIX_ENABLE_MCP_SERVER": "true",
+        # Pin the group-gated progressive-disclosure surface for the shared
+        # package app. Code mode is the global default, but it replaces the tool
+        # surface wholesale, so the package app keeps the group-gated list;
+        # _app_mcp_code_mode is the dedicated fixture that opts into code mode.
+        "PHOENIX_MCP_CODE_MODE": "false",
     }
 
 

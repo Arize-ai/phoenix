@@ -1155,16 +1155,17 @@ def create_app(
     app.openapi = _openapi  # type: ignore[method-assign]
     mcp_http_app = None
     if mcp_mount_path is not None:
-        # Mount before the static UI ("/") catch-all so requests to the MCP
-        # endpoint are not swallowed by it. The app's lifespan (its session
-        # manager) is entered in ``_lifespan`` above.
+        # Build after ``app.openapi`` is customized so the generated tools mirror
+        # the same /v1 schema, and mount before the static UI ("/") catch-all so
+        # requests to the MCP endpoint are not swallowed by it. The app's
+        # lifespan (its session manager) is entered in ``_lifespan`` above.
         from phoenix.server.mcp_server import (
             BearerAuthGuard,
             MountPathNormalizer,
             create_phoenix_mcp_app,
         )
 
-        mcp_http_app = create_phoenix_mcp_app()
+        mcp_http_app = create_phoenix_mcp_app(app)
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
         app.mount(

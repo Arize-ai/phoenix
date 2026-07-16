@@ -6,9 +6,9 @@ HTTP 401 whose WWW-Authenticate header names the protected-resource metadata —
 signal MCP clients bootstrap their OAuth flow from; (2) the path-inserted RFC 9728
 document describes /mcp as the resource and Phoenix as its authorization server;
 (3) the authorization-code flow accepts the MCP endpoint as an RFC 8707 resource
-indicator, and the minted token authorizes a real MCP session end to end. The
-server advertises no tools yet, so the authenticated session is verified through
-``initialize`` and an empty ``tools/list``.
+indicator, and the minted token authorizes real MCP tool calls end to end. The
+resource indicator is also binding: a code or grant authorized for /mcp cannot be
+redeemed or refreshed for a different resource.
 
 These tests run against the package-scoped ``_app`` (which enables the MCP mount —
 see the package ``_env`` fixture), so they execute on the same database backend as
@@ -18,7 +18,7 @@ the rest of the suite (SQLite or PostgreSQL per ``CI_TEST_DB_BACKEND``).
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Any
+from typing import Any, Iterator
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -31,9 +31,10 @@ from tests.integration._helpers import (
     _get_ssl_context,
     _GetUser,
     _httpx_client,
+    _server,
 )
 
-from .conftest import _OAuthPublicClient
+from .conftest import _oauth2_app_env, _OAuthPublicClient
 
 
 def _base_url(app: _AppInfo) -> str:
@@ -111,7 +112,7 @@ class TestMcpProtectedResourceMetadata:
 
 
 class TestMcpResourceIndicator:
-    async def test_flow_with_mcp_resource_mints_token_that_authorizes_a_session(
+    async def test_flow_with_mcp_resource_mints_token_that_authorizes_tool_calls(
         self,
         _app: _AppInfo,
         _get_user: _GetUser,
@@ -132,11 +133,61 @@ class TestMcpResourceIndicator:
             verify=_get_ssl_context(_app.env) or False,
         )
         async with Client(transport) as mcp_client:
-            # Entering the client runs `initialize`, which the unauthenticated
-            # tests above show is rejected without a token. The server advertises
-            # no tools yet, so the authenticated session proves itself through an
-            # empty tools/list rather than a tool call.
-            assert await mcp_client.list_tools() == []
+            tool_names = {tool.name for tool in await mcp_client.list_tools()}
+            assert "getProjects" in tool_names  # the default-visible tool group
+            result = await mcp_client.call_tool("getProjects", {})
+        # The tool call dispatched in-process to GET /v1/projects under the granted
+        # user's identity; the database contains the "default" project.
+        text = "".join(getattr(block, "text", "") for block in result.content)
+        assert '"default"' in text
+
+    async def test_mcp_audience_token_is_rejected_at_v1(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        """RFC 8707 audience confinement at access time: a token minted for the
+        /mcp resource authenticates at /mcp but must be rejected if presented
+        directly to the /v1 REST API, so it cannot be replayed against the broader
+        surface. Audience is bound at issuance; this asserts it is also enforced at
+        the resource server, not only at the token endpoint."""
+        mcp_url = f"{_base_url(_app)}/mcp"
+        oauth_client = _register_public_client(_app, resource=mcp_url)
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        access_token = oauth_client.complete_flow(user)["access_token"]
+
+        # The token is valid at the resource it was minted for.
+        transport = StreamableHttpTransport(
+            mcp_url,
+            headers={"Authorization": f"Bearer {access_token}"},
+            verify=_get_ssl_context(_app.env) or False,
+        )
+        async with Client(transport) as mcp_client:
+            assert await mcp_client.list_tools()
+
+        # The same otherwise-valid token is rejected at /v1: its audience is /mcp.
+        response = _httpx_client(_app).get(
+            "v1/projects", headers={"Authorization": f"Bearer {access_token}"}
+        )
+        assert response.status_code == 401
+
+    async def test_unscoped_token_is_accepted_at_v1(
+        self,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        """Regression: a token minted with no resource indicator is unscoped and
+        must still authenticate at /v1 — audience confinement rejects only tokens
+        bound to a different resource, never unscoped tokens (API keys, sessions,
+        plain OAuth access tokens)."""
+        oauth_client = _register_public_client(_app)
+        user = _get_user(_app, _MEMBER).log_in(_app)
+        access_token = oauth_client.complete_flow(user)["access_token"]
+
+        response = _httpx_client(_app).get(
+            "v1/projects", headers={"Authorization": f"Bearer {access_token}"}
+        )
+        assert response.status_code == 200
 
     def test_code_authorized_for_mcp_cannot_mint_tokens_for_another_resource(
         self,
@@ -282,3 +333,61 @@ class TestMcpResourceIndicator:
         location = response.headers["location"]
         assert location.startswith(oauth_client.redirect_uri)
         assert parse_qs(urlparse(location).query)["error"] == ["invalid_target"]
+
+
+@pytest.fixture(scope="module")
+def _app_mcp_code_mode(
+    _ports: Iterator[int],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[_AppInfo]:
+    """A server with auth, the /mcp mount, and PHOENIX_MCP_CODE_MODE all enabled.
+
+    Code mode replaces the tool surface, so it cannot share the package app.
+    SQLite only: the code-mode surface is request plumbing over the same /v1
+    paths the package app already exercises on both backends.
+    """
+    env = _oauth2_app_env(
+        port=next(_ports),
+        grpc_port=next(_ports),
+        database=str(tmp_path_factory.mktemp("oauth2_mcp_code_mode") / "phoenix.db"),
+        extra={
+            "PHOENIX_ENABLE_MCP_SERVER": "true",
+            "PHOENIX_MCP_CODE_MODE": "true",
+            "PHOENIX_DISABLE_RATE_LIMIT": "true",
+        },
+    )
+    with _server(_AppInfo(env)) as app:
+        yield app
+
+
+class TestMcpCodeMode:
+    async def test_oauth_token_drives_sandboxed_execute_end_to_end(
+        self,
+        _app_mcp_code_mode: _AppInfo,
+        _get_user: _GetUser,
+    ) -> None:
+        """The full code-mode chain under auth: OAuth token -> discovery meta-tools
+        -> execute -> sandboxed call_tool -> in-process /v1 dispatch. If the
+        caller's authenticated identity did not propagate into the sandbox's tool
+        calls, the /v1 dispatch would 401 and execute would fail."""
+        app = _app_mcp_code_mode
+        mcp_url = f"{_base_url(app)}/mcp"
+        oauth_client = _register_public_client(app, resource=mcp_url)
+        user = _get_user(app, _MEMBER).log_in(app)
+        token_response = oauth_client.complete_flow(user)
+
+        transport = StreamableHttpTransport(
+            mcp_url,
+            headers={"Authorization": f"Bearer {token_response['access_token']}"},
+            verify=_get_ssl_context(app.env) or False,
+        )
+        async with Client(transport) as mcp_client:
+            tool_names = {tool.name for tool in await mcp_client.list_tools()}
+            assert tool_names == {"search", "get_schema", "tags", "list_tools", "execute"}
+
+            result = await mcp_client.call_tool(
+                "execute",
+                {"code": 'return await call_tool("getProjects", {})'},
+            )
+        text = "".join(getattr(block, "text", "") for block in result.content)
+        assert '"default"' in text
