@@ -156,6 +156,7 @@ def run_evaluators(
     }
     if missing_env:
         raise RuntimeError(f"missing required environment variables: {missing_env}")
+    identifiers = {spec.name: spec.resolve_identifier() for spec in specs}
 
     current = now or datetime.now(timezone.utc)
     roots = client.spans.get_spans(
@@ -182,7 +183,7 @@ def run_evaluators(
         for root in roots:
             if root["name"] != spec.root_span_name:
                 continue
-            key = (span_id(root), spec.name, spec.identifier)
+            key = (span_id(root), spec.name, identifiers[spec.name])
             if key in existing:
                 summary.already_annotated += 1
             elif not _sampled(spec, trace_id(root)):
@@ -217,7 +218,7 @@ def run_evaluators(
             "name": spec.name,
             "annotator_kind": spec.annotator_kind,
             "span_id": span_id(root),
-            "identifier": spec.identifier,
+            "identifier": identifiers[spec.name],
             "result": {"score": result.score},
         }
         if result.explanation is not None:

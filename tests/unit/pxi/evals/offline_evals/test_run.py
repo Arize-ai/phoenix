@@ -87,7 +87,11 @@ class _BatchFakeSpans:
         return [span for trace_id in trace_ids for span in self.traces[trace_id]]
 
 
-def _existing(span_id: str, *, identifier: str = "pxi-offline-evals") -> v1.SpanAnnotation:
+def _existing(
+    span_id: str,
+    *,
+    identifier: str = "pxi-offline-evals:tool-count-per-turn:v1",
+) -> v1.SpanAnnotation:
     return {
         "id": "annotation-1",
         "name": "tool_count_per_turn",
@@ -186,7 +190,7 @@ def test_filters_existing_annotations_before_hydrating_traces() -> None:
             "name": "tool_count_per_turn",
             "annotator_kind": "CODE",
             "span_id": "new-root",
-            "identifier": "pxi-offline-evals",
+            "identifier": "pxi-offline-evals:tool-count-per-turn:v1",
             "result": {
                 "score": 1.0,
                 "explanation": "1 top-level PXI tool call in this turn",
@@ -268,7 +272,7 @@ def test_serializes_categorical_label_as_annotation_result() -> None:
             "name": "categorical",
             "annotator_kind": "CODE",
             "span_id": "root",
-            "identifier": "pxi-offline-evals",
+            "identifier": "pxi-offline-evals:tool-count-per-turn:v1",
             "result": {"score": 1.0, "label": "friction"},
             "metadata": {"provider": "openai"},
         }

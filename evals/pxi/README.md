@@ -55,6 +55,13 @@ annotation on the trace's root `pxi.turn` span. The runner does not create or
 update project annotation configs; configure display or optimization metadata
 in Phoenix separately when needed.
 
+Annotation identifiers are evaluator-specific versioned checkpoints. Increment
+an evaluator's `vN` identifier whenever its scoring semantics or rubric
+changes; the next overlapping run then backfills recent roots under the new
+identity without overwriting the previous series. The `user_friction`
+identifier also includes provider and model, so model overrides create a
+distinct result series automatically.
+
 Run them locally against the standard Phoenix client environment variables:
 
 ```bash

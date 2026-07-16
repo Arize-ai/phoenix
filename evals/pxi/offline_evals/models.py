@@ -43,12 +43,16 @@ class EvaluatorSpec:
     annotator_kind: Literal["CODE", "LLM"] = "CODE"
     sample_rate: float = 1.0
     identifier: str = "pxi-offline-evals"
+    identifier_fn: Callable[[], str] | None = None
     required_env_fn: Callable[[], tuple[str, ...]] = no_required_env
     """Env vars that must be set for this evaluator to run (e.g. LLM API keys)."""
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.sample_rate <= 1.0:
             raise ValueError("sample_rate must be between 0 and 1")
+
+    def resolve_identifier(self) -> str:
+        return self.identifier_fn() if self.identifier_fn is not None else self.identifier
 
 
 @dataclass

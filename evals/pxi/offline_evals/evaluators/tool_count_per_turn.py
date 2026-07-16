@@ -33,4 +33,5 @@ TOOL_COUNT_PER_TURN = EvaluatorSpec(
     evaluate=evaluate_tool_count_per_turn,
     annotation_target="span",
     sample_rate=1.0,
+    identifier="pxi-offline-evals:tool-count-per-turn:v1",
 )

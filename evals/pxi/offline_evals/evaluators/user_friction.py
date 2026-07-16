@@ -56,6 +56,10 @@ def required_env() -> tuple[str, ...]:
     return _PROVIDER_ENV_KEYS.get(_provider(), ())
 
 
+def _identifier() -> str:
+    return f"pxi-offline-evals:user-friction:v1:{_provider()}:{_model()}"
+
+
 @lru_cache(maxsize=1)
 def _judge():  # type: ignore[no-untyped-def]  # heavy import deferred
     from phoenix.evals.llm import LLM
@@ -152,5 +156,6 @@ USER_FRICTION = EvaluatorSpec(
     annotation_target="span",
     annotator_kind="LLM",
     sample_rate=1.0,
+    identifier_fn=_identifier,
     required_env_fn=required_env,
 )

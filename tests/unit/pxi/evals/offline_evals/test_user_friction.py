@@ -339,8 +339,15 @@ def test_spec_configuration() -> None:
     assert spec.input_scope == "trace"
     assert spec.annotation_target == "span"
     assert spec.root_span_name == "pxi.turn"
-    with mock.patch.dict("os.environ", {"PXI_USER_FRICTION_PROVIDER": "openai"}):
+    with mock.patch.dict(
+        "os.environ",
+        {
+            "PXI_USER_FRICTION_PROVIDER": "openai",
+            "PXI_USER_FRICTION_MODEL": "gpt-test",
+        },
+    ):
         assert spec.required_env_fn() == ("OPENAI_API_KEY",)
+        assert spec.resolve_identifier() == "pxi-offline-evals:user-friction:v1:openai:gpt-test"
 
 
 def test_unknown_provider_fails_during_environment_validation() -> None:
