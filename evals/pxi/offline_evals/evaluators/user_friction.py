@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PROVIDER = "openai"
 DEFAULT_MODEL = "gpt-5.5"
+MAX_JUDGE_INPUT_CHARS = 50_000
 _PROVIDER_ENV_KEYS = {
     "openai": ("OPENAI_API_KEY",),
     "anthropic": ("ANTHROPIC_API_KEY",),
@@ -99,6 +100,13 @@ def _judge_inputs(root: v1.Span, spans: Sequence[v1.Span]) -> tuple[str, str] | 
         return None
     conversation = render_conversation(list(turns), target.index)
     if not conversation.strip():
+        return None
+    if len(conversation) + len(target.user_message) > MAX_JUDGE_INPUT_CHARS:
+        logger.warning(
+            "user_friction: skipping trace %s because rendered input exceeds %s characters",
+            root.get("context", {}).get("trace_id"),
+            MAX_JUDGE_INPUT_CHARS,
+        )
         return None
     return conversation, target.user_message
 

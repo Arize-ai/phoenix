@@ -7,12 +7,13 @@ from phoenix.client.__generated__ import v1
 
 from evals.pxi.offline_evals.conversation import (
     Message,
+    Turn,
     messages_from_attributes,
     segment_turns,
     transcript,
 )
 from evals.pxi.offline_evals.evaluators import user_friction
-from evals.pxi.offline_evals.rendering import render_conversation
+from evals.pxi.offline_evals.rendering import render_conversation, render_turn_detailed
 
 
 def _span(
@@ -161,6 +162,103 @@ def test_render_conversation_details_reacted_to_turn() -> None:
     assert "### User\nshow me traces from today" in rendered
     assert "> Tool: set_time_range" in rendered  # detailed tier
     assert "looks wrong" not in rendered  # target message excluded from history
+
+
+def test_render_conversation_matches_canonical_two_tier_format() -> None:
+    compact_call = {"id": "compact", "name": "search", "args": {}}
+    successful_call = {"id": "success", "name": "fetch", "args": {}}
+    errored_call = {"id": "error", "name": "save", "args": {}}
+    ask_call = {
+        "id": "ask",
+        "name": "ask_user",
+        "args": {
+            "questions": [
+                {
+                    "prompt": "Continue?",
+                    "options": [{"label": "Yes"}, {"label": "No"}],
+                }
+            ]
+        },
+    }
+    turns = [
+        Turn(
+            user_message="first question",
+            messages=[
+                Message(role="user", content="first question"),
+                Message(
+                    role="assistant",
+                    content="Looking it up.",
+                    tool_calls=[compact_call],
+                ),
+                Message(role="tool", content="ok"),
+            ],
+            tool_calls=[compact_call],
+            index=0,
+        ),
+        Turn(
+            user_message="second question",
+            messages=[
+                Message(role="user", content="second question"),
+                Message(
+                    role="assistant",
+                    content="Working.",
+                    tool_calls=[successful_call, errored_call, ask_call],
+                ),
+                Message(role="tool", content="ok"),
+                Message(role="tool", content="ERROR: denied"),
+                Message(role="tool", content="Yes"),
+            ],
+            tool_calls=[successful_call, errored_call, ask_call],
+            index=1,
+        ),
+        Turn(
+            user_message="target message",
+            messages=[Message(role="user", content="target message")],
+            tool_calls=[],
+            index=2,
+        ),
+    ]
+
+    assert render_conversation(turns, target_index=2) == (
+        "### User\nfirst question\n"
+        "> Tools (1): search ✓\n"
+        "### Assistant\nLooking it up.\n\n"
+        "### User\nsecond question\n"
+        "### Assistant\nWorking.\n"
+        "> Tool: fetch\n"
+        "> Tool: save\n"
+        "> Error: ERROR: denied\n"
+        '[agent asked: "Continue?" — options: Yes / No]'
+    )
+
+
+def test_detailed_rendering_truncates_errors_after_220_characters() -> None:
+    call = {"id": "error", "name": "save", "args": {}}
+
+    def render_error(error: str) -> str:
+        turn = Turn(
+            user_message="save it",
+            messages=[
+                Message(role="user", content="save it"),
+                Message(role="assistant", content="", tool_calls=[call]),
+                Message(role="tool", content=error),
+            ],
+            tool_calls=[call],
+            index=0,
+        )
+        return render_turn_detailed(turn)
+
+    at_limit = "error " + "x" * 214
+    over_limit = "error " + "x" * 215
+    assert f"> Error: {at_limit}" in render_error(at_limit)
+    assert f"> Error: {over_limit[:220]}…" in render_error(over_limit)
+
+
+def test_oversized_judge_input_is_not_applicable() -> None:
+    root, spans = _two_turn_trace("no, I asked for this week")
+
+    with mock.patch.object(user_friction, "MAX_JUDGE_INPUT_CHARS", 10):
+        assert user_friction.evaluate_user_friction(root, spans) is None
 
 
 def test_applies_to_requires_prior_human_turn() -> None:
