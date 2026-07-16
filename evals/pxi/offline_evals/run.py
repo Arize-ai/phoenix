@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import logging
+import math
 import os
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
@@ -238,6 +239,16 @@ def _default_project() -> str:
     return os.getenv("PHOENIX_PROJECT") or os.getenv("PHOENIX_PROJECT_NAME") or DEFAULT_PROJECT
 
 
+def _positive_float(value: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive finite number") from error
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive finite number")
+    return parsed
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Evaluate recent, already-ingested PXI turns.")
     parser.add_argument(
@@ -247,8 +258,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Evaluator to run; repeat for multiple evaluators (default: all).",
     )
     parser.add_argument("--project", default=_default_project())
-    parser.add_argument("--lookback-hours", type=float, default=48.0)
-    parser.add_argument("--settle-minutes", type=float, default=5.0)
+    parser.add_argument(
+        "--lookback-hours",
+        type=_positive_float,
+        default=48.0,
+        help="Trace discovery lookback in hours (default: 48).",
+    )
+    parser.add_argument(
+        "--settle-minutes",
+        type=_positive_float,
+        default=5.0,
+        help="Minimum age of a completed turn in minutes (default: 5).",
+    )
     parser.add_argument(
         "--dry-run", action="store_true", help="Evaluate without writing annotations."
     )
@@ -257,7 +278,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    args = build_arg_parser().parse_args(argv)
+    parser = build_arg_parser()
+    args = parser.parse_args(argv)
+    if timedelta(hours=args.lookback_hours) <= timedelta(minutes=args.settle_minutes):
+        parser.error("--lookback-hours must cover more time than --settle-minutes")
     selected = args.eval or list(EVALUATORS)
     specs = [EVALUATORS[name] for name in selected]
     summaries = run_evaluators(

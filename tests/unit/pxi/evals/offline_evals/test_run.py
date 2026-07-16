@@ -433,3 +433,16 @@ def test_main_returns_nonzero_when_an_evaluator_errors() -> None:
         ),
     ):
         assert run_module.main(["--eval", "tool_count_per_turn"]) == 1
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "not-a-number"])
+def test_time_window_flags_require_positive_finite_values(value: str) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        run_module.build_arg_parser().parse_args(["--lookback-hours", value])
+
+
+def test_lookback_must_exceed_settle_delay(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        run_module.main(["--lookback-hours", "1", "--settle-minutes", "60"])
+
+    assert "--lookback-hours must cover more time than --settle-minutes" in capsys.readouterr().err
