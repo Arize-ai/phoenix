@@ -115,7 +115,7 @@ export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
       ) : null}
       <TooltipTrigger>
         <Pressable>
-          <TokenCount size="S" color="text-300" role="button" tabIndex={0}>
+          <TokenCount size="XS" color="text-300" role="button" tabIndex={0}>
             {usage.tokenCount.total}
           </TokenCount>
         </Pressable>
