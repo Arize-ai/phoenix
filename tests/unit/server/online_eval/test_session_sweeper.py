@@ -111,9 +111,7 @@ async def test_materializes_oldest_activity_beyond_id_order_limit(
 
     async with db() as session:
         project_session_ids = list(
-            await session.scalars(
-                select(models.EvalSessionWorkUnit.project_session_rowid)
-            )
+            await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
         )
     assert project_session_ids == [oldest_project_session_id]
 
