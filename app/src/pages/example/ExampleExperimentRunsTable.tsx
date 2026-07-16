@@ -15,6 +15,7 @@ import {
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -25,6 +26,17 @@ import type { ExampleExperimentRunsTableFragment$key } from "./__generated__/Exa
 import type { ExampleExperimentRunsTableQuery } from "./__generated__/ExampleExperimentRunsTableQuery.graphql";
 
 const PAGE_SIZE = 100;
+
+const experimentRunsTableCSS = css`
+  table-layout: fixed;
+
+  th,
+  td {
+    overflow: hidden;
+  }
+`;
+
+const EXPERIMENT_RUN_COLUMN_WIDTHS = ["20%", "28%", "12%", "30%", "10%"];
 
 export function ExampleExperimentsTableEmpty() {
   return (
@@ -135,7 +147,11 @@ export function ExampleExperimentRunsTable({
         // eslint-disable-next-line react/prop-types
         const maybeError = props.row.original?.error;
         if (maybeError !== null) {
-          return <Text color="danger">{maybeError}</Text>;
+          return (
+            <Truncate maxWidth="100%" title={maybeError}>
+              <Text color="danger">{maybeError}</Text>
+            </Truncate>
+          );
         }
         return <TextCell {...props} />;
       },
@@ -247,7 +263,12 @@ export function ExampleExperimentRunsTable({
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={tableCSS}>
+      <table css={[tableCSS, experimentRunsTableCSS]}>
+        <colgroup>
+          {EXPERIMENT_RUN_COLUMN_WIDTHS.map((width, index) => (
+            <col key={index} style={{ width }} />
+          ))}
+        </colgroup>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
