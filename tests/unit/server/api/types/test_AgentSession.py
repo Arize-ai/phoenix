@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -16,6 +16,7 @@ async def _seed_agent_session(
     title: str,
     updated_at: datetime,
     messages: list[dict[str, Any]] | None = None,
+    expires_at: datetime | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
@@ -25,6 +26,7 @@ async def _seed_agent_session(
             project_name="assistant_agent",
             created_at=updated_at,
             updated_at=updated_at,
+            expires_at=expires_at,
         )
         session.add(agent_session)
         await session.flush()
@@ -94,6 +96,40 @@ async def test_agent_sessions_orders_by_recency_and_paginates(
     connection = next_page.data["agentSessions"]
     assert [edge["node"]["title"] for edge in connection["edges"]] == ["oldest session"]
     assert connection["pageInfo"]["hasNextPage"] is False
+
+
+async def test_agent_sessions_excludes_temporary_sessions(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    now = datetime.now(timezone.utc)
+    persistent_id = await _seed_agent_session(
+        db,
+        title="persistent",
+        updated_at=now,
+    )
+    temporary_id = await _seed_agent_session(
+        db,
+        title="temporary",
+        updated_at=now,
+        expires_at=now + timedelta(days=1),
+    )
+
+    response = await gql_client.execute(query=_LIST_QUERY)
+
+    assert not response.errors
+    assert response.data is not None
+    assert [edge["node"]["id"] for edge in response.data["agentSessions"]["edges"]] == [
+        persistent_id
+    ]
+
+    detail_response = await gql_client.execute(
+        query=_DETAIL_QUERY,
+        variables={"id": temporary_id},
+    )
+    assert not detail_response.errors
+    assert detail_response.data is not None
+    assert detail_response.data["agentSession"]["id"] == temporary_id
 
 
 async def test_agent_session_loads_transcript_by_id(
