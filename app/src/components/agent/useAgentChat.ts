@@ -2,7 +2,7 @@ import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
 import { useCallback, useEffect, useRef } from "react";
-import { useRelayEnvironment } from "react-relay";
+import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 
 import {
   buildAgentChatRequestBody,
@@ -46,9 +46,13 @@ import {
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
+import { useNotifyError } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import type { useAgentChatForkMutation } from "./__generated__/useAgentChatForkMutation.graphql";
+import type { useAgentChatTruncateMutation } from "./__generated__/useAgentChatTruncateMutation.graphql";
 import { refetchAgentSessions } from "./agentSessionRelay";
 
 type TurnClientState = {
@@ -91,6 +95,38 @@ export function useAgentChat({
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
+  const notifyError = useNotifyError();
+  const [commitTruncate] = useMutation<useAgentChatTruncateMutation>(graphql`
+    mutation useAgentChatTruncateMutation($id: ID!, $lastMessageId: String) {
+      truncateAgentSession(input: { id: $id, lastMessageId: $lastMessageId }) {
+        agentSession {
+          id
+          messages
+          updatedAt
+        }
+      }
+    }
+  `);
+  const [commitFork] = useMutation<useAgentChatForkMutation>(graphql`
+    mutation useAgentChatForkMutation(
+      $sourceSessionId: ID!
+      $lastMessageId: String
+    ) {
+      forkAgentSession(
+        input: {
+          sourceSessionId: $sourceSessionId
+          lastMessageId: $lastMessageId
+        }
+      ) {
+        agentSession {
+          id
+          title
+          createdAt
+          messages
+        }
+      }
+    }
+  `);
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -462,6 +498,25 @@ export function useAgentChat({
       if (!result) {
         return null;
       }
+      const persistedSessionId = store.getState().sessionMap[sessionId]?.id;
+      if (persistedSessionId) {
+        const previousMessages = chatInstance.messages;
+        commitTruncate({
+          variables: {
+            id: persistedSessionId,
+            lastMessageId: result.messages.at(-1)?.id ?? null,
+          },
+          onError: (error) => {
+            setMessages(previousMessages);
+            store.getState().setSessionMessages(sessionId, previousMessages);
+            const messages = getErrorMessagesFromRelayMutationError(error);
+            notifyError({
+              title: "Session could not be rewound",
+              message: messages?.[0] ?? error.message,
+            });
+          },
+        });
+      }
       clearDroppedToolState({
         previous: chatInstance.messages,
         next: result.messages,
@@ -475,6 +530,8 @@ export function useAgentChat({
       chatInstance,
       clearDroppedToolState,
       clearError,
+      commitTruncate,
+      notifyError,
       sessionId,
       setMessages,
       store,
@@ -496,13 +553,60 @@ export function useAgentChat({
         return null;
       }
       clearError();
-      return store.getState().forkSession({
-        sourceSessionId: sessionId,
-        messages: result.messages,
-        restoredInput: result.restoredInput,
+      const sourceSession = store.getState().sessionMap[sessionId];
+      if (!sourceSession?.id) {
+        notifyError({
+          title: "Session could not be branched",
+          message: "The session must be persisted before it can be branched.",
+        });
+        return null;
+      }
+      commitFork({
+        variables: {
+          sourceSessionId: sourceSession.id,
+          lastMessageId: result.messages.at(-1)?.id ?? null,
+        },
+        onCompleted: (response) => {
+          const forkedSession = response.forkAgentSession.agentSession;
+          const forkedMessages = Array.isArray(forkedSession.messages)
+            ? (forkedSession.messages as AgentUIMessage[])
+            : [];
+          store.getState().cacheSession({
+            clientKey: forkedSession.id,
+            id: forkedSession.id,
+            title: forkedSession.title,
+            messages: forkedMessages,
+            context: [...sourceSession.context],
+            modelConfig: { ...sourceSession.modelConfig },
+            createdAt: Date.parse(forkedSession.createdAt as string),
+          });
+          if (result.restoredInput) {
+            store
+              .getState()
+              .setDraftInput(forkedSession.id, result.restoredInput);
+          }
+          store.getState().setActiveSession(forkedSession.id);
+          void refetchAgentSessions({ environment: relayEnvironment });
+        },
+        onError: (error) => {
+          const messages = getErrorMessagesFromRelayMutationError(error);
+          notifyError({
+            title: "Session could not be branched",
+            message: messages?.[0] ?? error.message,
+          });
+        },
       });
+      return null;
     },
-    [chatInstance, clearError, sessionId, store]
+    [
+      chatInstance,
+      clearError,
+      commitFork,
+      notifyError,
+      relayEnvironment,
+      sessionId,
+      store,
+    ]
   );
 
   const retryMessage = useCallback(
