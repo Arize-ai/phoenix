@@ -8,10 +8,65 @@ live-model PXI server-side evals as Phoenix experiments.
 - `harness/` runs live PXI agent experiments against Phoenix datasets.
 - `datasets/` stores YAML datasets shared by harness and CI workflows.
 - `evaluators/` stores code evaluators for PXI tool behavior.
+- `offline_evals/` evaluates already-ingested PXI traces and annotates them.
 - `trace_ingest/` is reserved for future trace-to-dataset tooling.
 
 Fast unit coverage for the harness and evaluators lives under
 `tests/unit/pxi/evals/`.
+
+## Offline production evals
+
+The offline runner evaluates recent `pxi.turn` traces after ingestion. It uses
+annotations as its checkpoint: before hydrating a trace or invoking an
+evaluator, it skips turn roots that already carry the evaluator's annotation
+name and identifier. The default 48-hour overlap therefore recovers from
+missed scheduled runs without evaluating the same turn twice.
+
+`tool_count_per_turn` is the first offline evaluator. It records the number of
+top-level PXI tool invocations, including errored tools, browser tools, server
+tools, and `call_subagent`. Tools invoked inside a subagent are excluded. The
+score is descriptive and uses `OptimizationDirection.NONE`; it has no quality
+threshold or label.
+
+`user_friction` is the first offline LLM evaluator. It wraps the built-in
+`UserFrictionEvaluator` from phoenix-evals and labels whether a turn's user
+message expresses friction (correction, retry, frustration, or challenge) with
+the assistant's preceding behavior; `OptimizationDirection.MINIMIZE`. The
+conversation history is reconstructed from the turn's own last LLM span — the
+history the agent itself saw — and rendered with the canonical two-tier
+rendering from the user-friction validation work (compact prior turns,
+detailed reacted-to turn), so the production judge sees exactly what the
+validation labels were built on. Turns whose user message is not
+human-authored, and first messages with no preceding assistant behavior to
+react to, are skipped as not-applicable rather than spending a judge call. The
+judge defaults to OpenAI `gpt-5.5` (validated against the 91-example dev split
+of the `user-friction-alignment-v0.5` gold set) and is configurable via
+`PXI_USER_FRICTION_PROVIDER` / `PXI_USER_FRICTION_MODEL`; the matching provider
+API key (e.g. `OPENAI_API_KEY`) must be set or the runner fails fast before
+discovering any turns.
+
+Run them locally against the standard Phoenix client environment variables:
+
+```bash
+PHOENIX_PROJECT=pxi_dev \
+uv run python -m evals.pxi.offline_evals.run --dry-run
+```
+
+The runner waits five minutes before considering a turn settled and evaluates
+all applicable turns by default. Evaluator declarations carry an independent
+applicability predicate and deterministic `sample_rate`, so filtered, sampled
+LLM evaluators share trace loading with all-traffic code evaluators without
+changing scheduler logic. An evaluator exception is contained to that turn:
+it is logged, counted in the summary's `errors`, and the run continues (the
+process exits non-zero so scheduled runs surface the failure).
+
+The scheduled workflow runs twice daily at 00:17 and 12:17 UTC and can also be
+started manually. The CLI entrypoint above supports local runs at any time.
+Workflow logs contain aggregate counts, not trace inputs or outputs.
+
+The initial scheduled project is `pxi_dev`. The Phoenix Cloud production PXI
+traces are in `pxi_phoenix_cloud`; add that project only after validating the
+runner on new-format development traces.
 
 ## Run Locally
 
