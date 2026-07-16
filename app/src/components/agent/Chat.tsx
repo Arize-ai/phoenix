@@ -88,13 +88,14 @@ function shouldShowThinkingIndicator({
 
   const latestMessage = messages.at(-1);
   if (latestMessage?.role !== "assistant") {
-    return false;
+    return true;
   }
 
-  const latestRelevantPart = latestMessage.parts.findLast(
-    (part) => part.type !== "text" || part.text.trim() !== ""
+  const latestVisiblePart = latestMessage.parts.findLast(
+    (part) =>
+      isToolUIPart(part) || (part.type === "text" && part.text.trim() !== "")
   );
-  return latestRelevantPart != null && isToolUIPart(latestRelevantPart);
+  return latestVisiblePart == null || isToolUIPart(latestVisiblePart);
 }
 
 function createPendingElicitationDraft(

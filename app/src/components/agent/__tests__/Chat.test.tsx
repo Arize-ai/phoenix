@@ -93,7 +93,7 @@ function renderChatView(
     chatKey?: string;
     chatMessages?: AgentUIMessage[];
     error?: Error;
-    status?: "ready" | "error";
+    status?: "submitted" | "streaming" | "ready" | "error";
     initialDraftInputBySessionId?: Record<string, string>;
     sendMessage?: ChatViewSendMessage;
     retryMessage?: (messageId?: string) => void;
@@ -313,6 +313,67 @@ describe("ChatView", () => {
     expect(retryMessage).toHaveBeenCalledWith("assistant-message");
     expect(container.textContent).toContain("Show technical details");
     expect(container.textContent).toContain("provider unavailable");
+  });
+
+  it.each([
+    {
+      name: "while submitted",
+      status: "submitted" as const,
+      chatMessages: unansweredUserMessages,
+    },
+    {
+      name: "before the streaming assistant has parts",
+      status: "streaming" as const,
+      chatMessages: [
+        messages[0]!,
+        { id: "assistant-message", role: "assistant", parts: [] },
+      ] as AgentUIMessage[],
+    },
+    {
+      name: "while the streaming assistant has only step boundaries",
+      status: "streaming" as const,
+      chatMessages: [
+        messages[0]!,
+        {
+          id: "assistant-message",
+          role: "assistant",
+          parts: [{ type: "step-start" }],
+        },
+      ] as AgentUIMessage[],
+    },
+    {
+      name: "after a streaming tool call",
+      status: "streaming" as const,
+      chatMessages: [
+        messages[0]!,
+        {
+          id: "assistant-message",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "Checking." },
+            {
+              type: "tool-read_prompt",
+              toolCallId: "call-1",
+              state: "input-available",
+              input: {},
+            },
+          ],
+        },
+      ] as AgentUIMessage[],
+    },
+  ])("shows Thinking... $name", ({ status, chatMessages }) => {
+    renderChatView(root, { status, chatMessages });
+
+    expect(container.textContent).toContain("Thinking...");
+  });
+
+  it("hides Thinking... once streaming text is visible", () => {
+    renderChatView(root, {
+      status: "streaming",
+      chatMessages: messages,
+    });
+
+    expect(container.textContent).not.toContain("Thinking...");
   });
 
   it("shows interrupted recovery when history ends on a user message", () => {
