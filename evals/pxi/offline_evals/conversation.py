@@ -14,9 +14,9 @@ index-numbered keys, e.g.::
 
 We unflatten them with the same :func:`phoenix.trace.attributes.unflatten`
 helper the ingestion path uses, then normalize into :class:`Message` objects.
-This module is a port of the validated ``user-friction-eval`` pipeline's
-``conversation.py`` (which operated on pandas DataFrames) onto raw
-``v1.Span`` dicts.
+The reconstruction matches the one used to build the user-friction gold
+labels, so the production judge sees the same transcripts the labels were
+made from.
 """
 
 from __future__ import annotations

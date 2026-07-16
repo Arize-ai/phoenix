@@ -1,8 +1,9 @@
 """Canonical readable conversation rendering for the user_friction eval.
 
-THE single rendering used by the human labeling sheet, the LLM annotators,
-and the production judge — parity by construction with the validated
-``user-friction-eval`` pipeline's ``render.py`` (markdown compact v0.5).
+THE single rendering (markdown compact v0.5) used by the human labeling
+sheet, the LLM annotators, and this production judge. Changing it breaks
+parity with the ``user-friction-alignment-v0.5`` gold labels — re-validate
+judge accuracy before altering the format.
 
 Two tiers:
 - Prior turns (everything before the turn being reacted to): user/assistant

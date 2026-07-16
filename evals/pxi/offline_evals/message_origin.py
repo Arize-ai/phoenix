@@ -1,7 +1,9 @@
 """Classify whether a reconstructed user-role message is human-authored.
 
-Verbatim port of the validated ``user-friction-eval`` pipeline's
-``message_origin.py`` — keep the two in sync.
+PXI sessions inject non-human user-role messages (frontend UI context,
+agent-loop continuations, tool-error payloads). This classification is the
+same one used when building the user-friction gold labels, so production
+skips exactly what labeling skipped.
 """
 
 from __future__ import annotations
