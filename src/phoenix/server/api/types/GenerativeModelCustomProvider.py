@@ -15,10 +15,7 @@ from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
-from phoenix.server.api.types.GenerativeProvider import (
-    MINIMAX_MODEL_NAMES,
-    GenerativeProviderKey,
-)
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.RedactedString import RedactedString
 
 if TYPE_CHECKING:
@@ -512,7 +509,4 @@ class GenerativeModelCustomProvider(Node):
         else:
             assert_never(sdk)
 
-        model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
-        if sdk == "anthropic":
-            model_names.extend(MINIMAX_MODEL_NAMES)
-        return model_names
+        return PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
