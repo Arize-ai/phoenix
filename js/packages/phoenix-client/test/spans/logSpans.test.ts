@@ -1,5 +1,5 @@
 import { createPhoenixHttp } from "@arizeai/phoenix-testing";
-import { createPhoenixMockServer } from "@arizeai/phoenix-testing/node";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createClient } from "../../src";
@@ -28,10 +28,10 @@ const testSpan: Span = {
   status_code: "OK",
 };
 
-let server: Awaited<ReturnType<typeof createPhoenixMockServer>>;
+let server: Server;
 
 beforeAll(async () => {
-  server = await createPhoenixMockServer();
+  server = await createMockServer();
   server.listen({ onUnhandledRequest: "error" });
 });
 

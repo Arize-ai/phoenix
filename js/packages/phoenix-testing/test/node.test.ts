@@ -1,17 +1,16 @@
-import type { SetupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createPhoenixHttp } from "../src/index.js";
-import { createPhoenixMockServer } from "../src/node.js";
+import { createMockServer, type Server } from "../src/node.js";
 
 const BASE_URL = "http://localhost:6006";
 
 const http = createPhoenixHttp();
 
-let server: SetupServer;
+let server: Server;
 
 beforeAll(async () => {
-  server = await createPhoenixMockServer();
+  server = await createMockServer();
   server.listen({ onUnhandledRequest: "error" });
 });
 
@@ -23,7 +22,7 @@ afterAll(() => {
   server.close();
 });
 
-describe("createPhoenixMockServer", () => {
+describe("createMockServer", () => {
   it("answers spec'd endpoints with schema-conformant generated data", async () => {
     const response = await fetch(`${BASE_URL}/v1/projects`);
     expect(response.status).toBe(200);

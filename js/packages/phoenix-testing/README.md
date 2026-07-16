@@ -10,10 +10,10 @@ This package is private and only supported inside the Phoenix pnpm workspace.
 
 ```ts
 // vitest example
-import { createPhoenixMockServer } from "@arizeai/phoenix-testing/node";
+import { createMockServer } from "@arizeai/phoenix-testing/node";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
-const server = await createPhoenixMockServer();
+const server = await createMockServer();
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
@@ -48,18 +48,19 @@ server.use(
 );
 ```
 
-Handlers passed to `createPhoenixMockServer({ handlers })` or registered with `server.use(...)` take precedence over the generated ones, so a test can pin down exactly the responses it cares about while every other endpoint keeps answering with generated placeholder data.
+Handlers passed to `createMockServer({ handlers })` or registered with `server.use(...)` take precedence over the generated ones, so a test can pin down exactly the responses it cares about while every other endpoint keeps answering with generated placeholder data.
 
 ## API
 
-| Export                                                     | Description                                                                             |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `createPhoenixMockServer({ baseUrl, handlers })` (`/node`) | MSW server for Node.js with generated handlers for every Phoenix endpoint.              |
-| `createPhoenixOpenApiHandlers({ baseUrl })`                | The generated MSW request handlers, for composing into your own setup.                  |
-| `createPhoenixHttp({ baseUrl })`                           | Type-safe `http` namespace for writing custom Phoenix handler overrides.                |
-| `getPhoenixOpenApiDocument({ baseUrl })`                   | A copy of the workspace's Phoenix OpenAPI document with `servers` pointed at `baseUrl`. |
-| `DEFAULT_PHOENIX_MOCK_BASE_URL`                            | `"http://localhost:6006"` — the default base URL handlers are bound to.                 |
-| `pathsV1`, `componentsV1`, `operationsV1`                  | OpenAPI types generated from the Phoenix API definition (via `openapi-typescript`).     |
+| Export                                              | Description                                                                             |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `createMockServer({ baseUrl, handlers })` (`/node`) | MSW server for Node.js with generated handlers for every Phoenix endpoint.              |
+| `Server` (`/node`)                                  | The mock server type returned by `createMockServer`.                                    |
+| `createPhoenixOpenApiHandlers({ baseUrl })`         | The generated MSW request handlers, for composing into your own setup.                  |
+| `createPhoenixHttp({ baseUrl })`                    | Type-safe `http` namespace for writing custom Phoenix handler overrides.                |
+| `getPhoenixOpenApiDocument({ baseUrl })`            | A copy of the workspace's Phoenix OpenAPI document with `servers` pointed at `baseUrl`. |
+| `DEFAULT_PHOENIX_MOCK_BASE_URL`                     | `"http://localhost:6006"` — the default base URL handlers are bound to.                 |
+| `pathsV1`, `componentsV1`, `operationsV1`           | OpenAPI types generated from the Phoenix API definition (via `openapi-typescript`).     |
 
 ## Regenerating the mocks
 
