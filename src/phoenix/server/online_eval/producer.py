@@ -147,6 +147,37 @@ class _ActiveCriteria:
         )
         return self.span_filter(stmt)
 
+    def materializable_scan_stmt(
+        self, low_exclusive: int, high_inclusive: int
+    ) -> Select[tuple[int]]:
+        return self.scan_stmt(low_exclusive, high_inclusive).where(
+            ~exists(
+                select(1).where(
+                    models.SpanAnnotation.span_rowid == models.Span.id,
+                    models.SpanAnnotation.name == self.name,
+                    models.SpanAnnotation.identifier == self.identifier,
+                )
+            ),
+            or_(
+                ~exists(
+                    select(1).where(
+                        models.EvalWorkUnit.span_rowid == models.Span.id,
+                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
+                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
+                    )
+                ),
+                exists(
+                    select(1).where(
+                        models.EvalWorkUnit.span_rowid == models.Span.id,
+                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
+                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
+                        models.EvalWorkUnit.status == "EXPIRED",
+                        models.EvalWorkUnit.error == STALE_FINGERPRINT_ERROR,
+                    )
+                ),
+            ),
+        )
+
     def sampled(self, span_ids: list[int]) -> list[int]:
         return [sid for sid in span_ids if sample_key(sid) < self.sampling_rate]
 
@@ -519,7 +550,11 @@ class OnlineEvalProducer(DaemonTask):
     ) -> tuple[bool, int]:
         async with self._db() as session:
             for index, criteria in enumerate(active):
-                span_ids = list(await session.scalars(criteria.scan_stmt(low_exclusive, frontier)))
+                span_ids = list(
+                    await session.scalars(
+                        criteria.materializable_scan_stmt(low_exclusive, frontier)
+                    )
+                )
                 sampled_span_ids = criteria.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
                 await self._insert_work_units(session, criteria, admitted_span_ids)
@@ -531,6 +566,7 @@ class OnlineEvalProducer(DaemonTask):
                         f"Online-eval producer frontier truncated at insertion budget; "
                         f"{budget} budget remaining"
                     )
+                    await self._fence_mutating_session(session)
                     return False, budget
             advanced = await session.scalar(
                 update(models.EvalWorkCursor)
@@ -583,33 +619,7 @@ class OnlineEvalProducer(DaemonTask):
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
             for index, criteria in enumerate(active):
-                stmt = criteria.scan_stmt(low_exclusive, watermark).where(
-                    ~exists(
-                        select(1).where(
-                            models.SpanAnnotation.span_rowid == models.Span.id,
-                            models.SpanAnnotation.name == criteria.name,
-                            models.SpanAnnotation.identifier == criteria.identifier,
-                        )
-                    ),
-                    or_(
-                        ~exists(
-                            select(1).where(
-                                models.EvalWorkUnit.span_rowid == models.Span.id,
-                                models.EvalWorkUnit.evaluator_id == criteria.evaluator_id,
-                                models.EvalWorkUnit.config_fingerprint == criteria.fingerprint,
-                            )
-                        ),
-                        exists(
-                            select(1).where(
-                                models.EvalWorkUnit.span_rowid == models.Span.id,
-                                models.EvalWorkUnit.evaluator_id == criteria.evaluator_id,
-                                models.EvalWorkUnit.config_fingerprint == criteria.fingerprint,
-                                models.EvalWorkUnit.status == "EXPIRED",
-                                models.EvalWorkUnit.error == STALE_FINGERPRINT_ERROR,
-                            )
-                        ),
-                    ),
-                )
+                stmt = criteria.materializable_scan_stmt(low_exclusive, watermark)
                 span_ids = list(await session.scalars(stmt))
                 sampled_span_ids = criteria.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
@@ -623,7 +633,23 @@ class OnlineEvalProducer(DaemonTask):
                         f"{budget} budget remaining"
                     )
                     break
+            await self._fence_mutating_session(session)
         return budget
+
+    async def _fence_mutating_session(self, session: AsyncSession) -> None:
+        renewed = await session.scalar(
+            update(models.EvalWorkCursor)
+            .where(
+                models.EvalWorkCursor.grain == self._grain,
+                models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
+                models.EvalWorkCursor.claimed_by == self._producer_id,
+            )
+            .values(claimed_at=datetime.now(timezone.utc))
+            .returning(models.EvalWorkCursor.id)
+        )
+        if renewed is None:
+            self._lease_held = False
+            raise _CursorLeaseLost
 
     async def _insert_work_units(
         self,

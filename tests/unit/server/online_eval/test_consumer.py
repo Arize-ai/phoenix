@@ -112,9 +112,11 @@ class _StubSandboxSessionManager:
 
     def __init__(self) -> None:
         self.session = _StubSandboxSession()
+        self.session_keys: list[str] = []
 
     @asynccontextmanager
-    async def acquire(self, _backend: Any, _session_key: str) -> AsyncIterator[_StubSandboxSession]:
+    async def acquire(self, _backend: Any, session_key: str) -> AsyncIterator[_StubSandboxSession]:
+        self.session_keys.append(session_key)
         yield self.session
 
 
@@ -496,6 +498,48 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
     assert len(await _annotations(db)) == 1
 
 
+async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
+    db: DbSessionFactory,
+    synced_builtin_evaluators: None,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"remapped": {"text": "the mapped value is present"}},
+        )
+        evaluator_id = await session.scalar(
+            select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+        )
+        assert evaluator_id is not None
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator_id,
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+            input_mapping=InputMapping(
+                path_mapping={"text": "attributes.remapped.text"},
+                literal_mapping={"words": "mapped value"},
+            ),
+        )
+        session.add(criteria)
+        await session.flush()
+        criteria_id = criteria.id
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+
+    assert (await _get_unit(db, unit_id)).status == "DONE"
+    (annotation,) = await _annotations(db)
+    assert annotation.label == "true"
+    assert annotation.score == 1.0
+
+
 async def test_code_criteria_input_mapping_override_is_used_during_execution(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -538,8 +582,63 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
     assert "mapped context" in executed_code
     assert "criteria literal" in executed_code
     assert "evaluator default" not in executed_code
+    assert manager.session_keys == [f"online-eval:{evaluator_id}:test-replica"]
     annotation = (await _annotations(db))[0]
     assert annotation.score == 0.75
+
+
+@pytest.mark.parametrize(
+    ("configuration_state", "error_message"),
+    [
+        ("missing", "has no sandbox config"),
+        ("disabled", "is missing or disabled"),
+        ("provider_disabled", "sandbox provider 'WASM' is missing or disabled"),
+    ],
+)
+async def test_code_hydration_configuration_failure_counts_attempt(
+    db: DbSessionFactory,
+    configuration_state: str,
+    error_message: str,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_code_criteria(
+        db,
+        project.id,
+        criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+    )
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        assert evaluator is not None
+        if configuration_state == "missing":
+            evaluator.sandbox_config_id = None
+        else:
+            assert evaluator.sandbox_config_id is not None
+            sandbox_config = await session.get(models.SandboxConfig, evaluator.sandbox_config_id)
+            assert sandbox_config is not None
+            if configuration_state == "disabled":
+                sandbox_config.enabled = False
+            else:
+                provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
+                assert provider is not None
+                provider.enabled = False
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        sandbox_session_manager=cast(Any, _StubSandboxSessionManager()),
+    )
+    await consumer._cycle()
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status == "ERROR"
+    assert unit.attempts == 1
+    assert unit.error is not None
+    assert error_message in unit.error
+    assert await _annotations(db) == []
 
 
 async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
@@ -900,6 +999,51 @@ async def test_failure_transition_retries_raised_exceptions(
     await consumer._process_unit(unit)
 
     assert fail_calls == 4
+    row = await _get_unit(db, unit_id)
+    assert row.status == "ERROR"
+    assert row.attempts == 1
+
+
+async def test_failure_transition_retries_after_ambiguous_commit(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
+
+    async def _evaluate(*_: Any, **__: Any) -> None:
+        raise ValueError("bad evaluator")
+
+    original_fail = consumer._coordinator.fail
+    fail_calls = 0
+
+    async def _ambiguous_fail(**kwargs: Any) -> bool:
+        nonlocal fail_calls
+        fail_calls += 1
+        failed = await original_fail(**kwargs)
+        if fail_calls == 1:
+            raise ConnectionError("commit acknowledgement lost")
+        return failed
+
+    monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0, 0.0, 0.0))
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
+    monkeypatch.setattr(consumer._coordinator, "fail", _ambiguous_fail)
+
+    await consumer._process_unit(unit)
+
+    assert fail_calls == 2
     row = await _get_unit(db, unit_id)
     assert row.status == "ERROR"
     assert row.attempts == 1
