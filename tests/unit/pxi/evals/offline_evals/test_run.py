@@ -11,7 +11,7 @@ from phoenix.client.__generated__ import v1
 from evals.pxi.offline_evals import run as run_module
 from evals.pxi.offline_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
 from evals.pxi.offline_evals.models import EvaluationResult, RunSummary
-from evals.pxi.offline_evals.run import _sampled, run_evaluators
+from evals.pxi.offline_evals.run import _fetch_batch_spans, _sampled, run_evaluators
 
 
 def _span(
@@ -76,6 +76,17 @@ class _FakeClient:
         self.spans = spans
 
 
+class _BatchFakeSpans:
+    def __init__(self, traces: dict[str, list[v1.Span]]) -> None:
+        self.traces = traces
+        self.requests: list[list[str]] = []
+
+    def get_spans(self, **kwargs: Any) -> list[v1.Span]:
+        trace_ids = kwargs["trace_ids"]
+        self.requests.append(trace_ids)
+        return [span for trace_id in trace_ids for span in self.traces[trace_id]]
+
+
 def _existing(span_id: str, *, identifier: str = "pxi-offline-evals") -> v1.SpanAnnotation:
     return {
         "id": "annotation-1",
@@ -89,6 +100,57 @@ def _existing(span_id: str, *, identifier: str = "pxi-offline-evals") -> v1.Span
         "source": "API",
         "user_id": None,
     }
+
+
+def test_fetch_batch_spans_splits_an_exactly_full_multi_trace_response() -> None:
+    first_root = _span("a-root", trace_id="a", name="pxi.turn", kind="AGENT", parent_id=None)
+    first_tool = _span("a-tool", trace_id="a", name="bash", kind="TOOL", parent_id="a-root")
+    second_root = _span("b-root", trace_id="b", name="pxi.turn", kind="AGENT", parent_id=None)
+    second_tool = _span("b-tool", trace_id="b", name="bash", kind="TOOL", parent_id="b-root")
+    spans = _BatchFakeSpans({"a": [first_root, first_tool], "b": [second_root, second_tool]})
+
+    with mock.patch.object(run_module, "MAX_SPANS_PER_BATCH", 4):
+        fetched = _fetch_batch_spans(
+            _FakeClient(spans),  # type: ignore[arg-type]
+            project="pxi_dev",
+            batch=["a", "b"],
+        )
+
+    assert spans.requests == [["a", "b"], ["a"], ["b"]]
+    assert [span["context"]["span_id"] for span in fetched] == [
+        "a-root",
+        "a-tool",
+        "b-root",
+        "b-tool",
+    ]
+
+
+def test_fetch_batch_spans_rejects_one_trace_at_the_safety_limit() -> None:
+    traces = {
+        "oversized": [
+            _span(
+                f"span-{index}",
+                trace_id="oversized",
+                name="pxi.turn" if index == 0 else "bash",
+                kind="AGENT" if index == 0 else "TOOL",
+                parent_id=None if index == 0 else "span-0",
+            )
+            for index in range(4)
+        ]
+    }
+    spans = _BatchFakeSpans(traces)
+
+    with (
+        mock.patch.object(run_module, "MAX_SPANS_PER_BATCH", 4),
+        pytest.raises(RuntimeError, match="trace oversized alone reached the span safety limit"),
+    ):
+        _fetch_batch_spans(
+            _FakeClient(spans),  # type: ignore[arg-type]
+            project="pxi_dev",
+            batch=["oversized"],
+        )
+
+    assert spans.requests == [["oversized"]]
 
 
 def test_filters_existing_annotations_before_hydrating_traces() -> None:
