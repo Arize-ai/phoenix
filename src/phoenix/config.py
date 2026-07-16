@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
+from math import isfinite
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -306,7 +307,58 @@ Defaults to 20000.
 """
 ENV_PHOENIX_ONLINE_EVAL_ENABLED = "PHOENIX_ONLINE_EVAL_ENABLED"
 """
-Whether to run the online-eval producer daemon. Defaults to false.
+Whether to run the online-eval producer and consumer daemons. Defaults to false.
+"""
+ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS = "PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS"
+"""
+How long an observed span high-water id must age before the online-eval producer scans up
+to it. Defaults to 60.
+"""
+ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS = "PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS"
+"""
+How often the online-eval producer re-sweeps recent spans for work units missed by the
+frontier scan. Defaults to 3600.
+
+Configure this together with PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS: gap-free
+re-coverage requires the lookback span ids to be at least the instance-wide ingest rate
+multiplied by this interval. Spans share one id sequence, so the relevant rate is the sum
+across all projects and tenants.
+"""
+ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS = (
+    "PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS"
+)
+"""
+How far behind the producer watermark, measured in span ids, the backstop sweep looks.
+Defaults to 100000.
+
+With the default 3600-second interval, 100000 ids provides gap-free re-coverage only below
+about 28 spans per second instance-wide. Above that rate, rows can leave the lookback between
+sweeps, so the backstop no longer bounds exceptional loss from late-visible spans or skipped
+criteria. The reaper floor is aligned to this lookback; changes to the lookback and interval
+must preserve the coverage relationship and move the reaper floor with them.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK = "PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK"
+"""
+The maximum span-id range the online-eval producer advances through in one tick.
+Defaults to 10000.
+
+Higher values increase catch-up throughput at the cost of larger per-tick transactions;
+lower values reduce transaction size but take longer to catch up to the observed frontier.
+"""
+ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS = "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS"
+"""
+How long a PENDING online-eval work unit may wait before the reaper marks it EXPIRED.
+Defaults to 0 (disabled).
+"""
+ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
+"""
+How long terminal online-eval work units are kept before the reaper deletes them.
+Defaults to 604800 (7 days).
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
+"""
+The outstanding work-unit count above which the online-eval producer stops materializing
+new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
@@ -3171,6 +3223,115 @@ def get_env_online_eval_enabled() -> bool:
     Gets the value of the PHOENIX_ONLINE_EVAL_ENABLED environment variable.
     """
     return _bool_val(ENV_PHOENIX_ONLINE_EVAL_ENABLED, False)
+
+
+def get_env_online_eval_frontier_lag_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS, 60.0)
+    if not isfinite(seconds) or seconds < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS}: "
+            f"{seconds}. Value must be a finite non-negative number."
+        )
+    return seconds
+
+
+def get_env_online_eval_backstop_interval_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS, 3600.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
+
+
+def get_env_online_eval_backstop_lookback_span_ids() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS environment variable.
+    """
+    span_ids = _int_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS, 100_000)
+    if span_ids < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS}: "
+            f"{span_ids}. Value must be a non-negative integer."
+        )
+    return span_ids
+
+
+def get_env_online_eval_max_span_ids_per_tick() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK environment variable.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    max_span_ids = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK, 10_000)
+    if max_span_ids <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK}: "
+            f"{max_span_ids}. Value must be a positive integer."
+        )
+    return max_span_ids
+
+
+def get_env_online_eval_pending_ttl_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS environment variable.
+
+    Defaults to 0, which disables TTL-based shedding: pending work units wait
+    until a consumer claims them, however long that takes (the admission gate
+    bounds queue growth). Setting a positive TTL opts into load shedding —
+    pending units older than the TTL are expired terminally and are NEVER
+    evaluated or re-materialized, so only set this if dropping evals on old
+    spans under sustained backlog is acceptable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
+    if not isfinite(seconds) or seconds < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS}: "
+            f"{seconds}. Value must be a finite non-negative number."
+        )
+    return seconds
+
+
+def get_env_online_eval_retention_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_RETENTION_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
+
+
+def get_env_online_eval_max_outstanding() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING environment variable.
+
+    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
+    """
+    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 10_000)
+    if max_outstanding <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING}: "
+            f"{max_outstanding}. Value must be a positive integer."
+        )
+    return max_outstanding
 
 
 def get_env_client_headers() -> dict[str, str]:

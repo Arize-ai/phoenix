@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Optional, get_args
+from typing import Any, Callable, Optional, get_args
 from unittest.mock import MagicMock
 from urllib.parse import quote, unquote, urlparse
 
@@ -8,6 +8,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
+import phoenix.config as phoenix_config
 from phoenix.config import (
     AssignableUserRoleName,
     OAuth2ClientConfig,
@@ -24,6 +25,186 @@ from phoenix.config import (
     get_env_tls_enabled_for_http,
 )
 from phoenix.db.models import UserRoleName
+
+
+class TestGetEnvOnlineEval:
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value", "expected"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
+                phoenix_config.get_env_online_eval_frontier_lag_seconds,
+                "0",
+                0.0,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+                "0.001",
+                0.001,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS,
+                phoenix_config.get_env_online_eval_pending_ttl_seconds,
+                "0",
+                0.0,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+                "0.001",
+                0.001,
+            ),
+        ],
+    )
+    def test_float_boundaries(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], float],
+        value: str,
+        expected: float,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        assert getter() == expected
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
+                phoenix_config.get_env_online_eval_frontier_lag_seconds,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+                "0",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS,
+                phoenix_config.get_env_online_eval_pending_ttl_seconds,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+                "0",
+            ),
+        ],
+    )
+    def test_float_domains(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], float],
+        value: str,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        with pytest.raises(ValueError, match=env_name):
+            getter()
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
+                phoenix_config.get_env_online_eval_frontier_lag_seconds,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS,
+                phoenix_config.get_env_online_eval_pending_ttl_seconds,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+    def test_float_domains_reject_non_finite_values(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], float],
+        value: str,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        with pytest.raises(ValueError, match=env_name):
+            getter()
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value", "expected"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS,
+                phoenix_config.get_env_online_eval_backstop_lookback_span_ids,
+                "0",
+                0,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_outstanding,
+                "1",
+                1,
+            ),
+        ],
+    )
+    def test_integer_boundaries(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], int],
+        value: str,
+        expected: int,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        assert getter() == expected
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS,
+                phoenix_config.get_env_online_eval_backstop_lookback_span_ids,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_outstanding,
+                "0",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_outstanding,
+                "-1",
+            ),
+        ],
+    )
+    def test_integer_domains(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], int],
+        value: str,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        with pytest.raises(ValueError, match=env_name):
+            getter()
 
 
 class TestPostgresConnectionString:
