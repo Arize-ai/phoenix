@@ -29,8 +29,8 @@ const iconBaseCSS = css`
   justify-content: center;
   box-sizing: border-box;
   &[data-size="XS"] {
-    width: var(--global-dimension-static-size-250);
-    height: var(--global-dimension-static-size-250);
+    width: var(--global-dimension-size-250);
+    height: var(--global-dimension-size-250);
     font-size: var(--global-font-size-xs);
   }
   &[data-size="S"] {

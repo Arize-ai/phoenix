@@ -46,13 +46,13 @@ export interface ChartSelectorOption<K extends Key = Key> {
 const chartMenuItemContentCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-static-size-25);
+  gap: var(--global-dimension-size-25);
   min-width: 0;
 `;
 
 const chartMenuItemIconCSS = css`
-  margin-inline: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100);
+  margin-inline: var(--global-dimension-size-50)
+    var(--global-dimension-size-100);
 `;
 
 function ChartMenuItem<K extends Key>({

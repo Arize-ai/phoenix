@@ -8,7 +8,7 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 const tokenCostsItemCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   align-items: center;
 
   &[data-size="S"] {

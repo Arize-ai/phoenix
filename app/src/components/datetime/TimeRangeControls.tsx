@@ -49,11 +49,11 @@ const timeRangeControlsCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   width: fit-content;
   box-sizing: border-box;
   /* Uniform inset so each button's hover pill floats evenly in the shell. */
-  padding: var(--global-dimension-static-size-50);
+  padding: var(--global-dimension-size-50);
   background-color: var(--global-input-field-background-color);
   border: var(--global-border-size-thin) solid
     var(--global-input-field-border-color);

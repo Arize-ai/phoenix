@@ -16,20 +16,20 @@ export function Toolbar(props: ToolbarProps) {
     <div
       role="toolbar"
       css={css`
-        padding: var(--global-dimension-static-size-50)
-          var(--global-dimension-static-size-200);
+        padding: var(--global-dimension-size-50)
+          var(--global-dimension-size-200);
         display: flex;
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        gap: var(--global-dimension-static-size-100);
+        gap: var(--global-dimension-size-100);
         border-bottom: 1px solid var(--global-border-color-default);
         flex: none;
         min-height: 29px;
         .toolbar__main {
           display: flex;
           flex-direction: row;
-          gap: var(--global-dimension-static-size-100);
+          gap: var(--global-dimension-size-100);
         }
       `}
     >
