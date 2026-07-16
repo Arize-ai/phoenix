@@ -3144,7 +3144,7 @@ class AgentSession(HasId):
         back_populates="agent_session",
     )
     __table_args__ = (
-        UniqueConstraint("project_name", "project_session_id"),
+        UniqueConstraint("project_session_id", "project_name"),
         Index(
             "ix_agent_sessions_user_id_updated_at",
             "user_id",

@@ -74,7 +74,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.UniqueConstraint("project_name", "project_session_id"),
+        sa.UniqueConstraint("project_session_id", "project_name"),
         sqlite_autoincrement=True,
     )
     op.create_index(

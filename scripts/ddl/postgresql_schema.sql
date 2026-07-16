@@ -421,8 +421,8 @@ CREATE TABLE public.agent_sessions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
-    CONSTRAINT uq_agent_sessions_project_name_project_session_id
-        UNIQUE (project_name, project_session_id),
+    CONSTRAINT uq_agent_sessions_project_session_id_project_name
+        UNIQUE (project_session_id, project_name),
     CONSTRAINT fk_agent_sessions_user_id_users FOREIGN KEY
         (user_id)
         REFERENCES public.users (id)
