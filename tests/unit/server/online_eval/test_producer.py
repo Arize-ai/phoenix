@@ -9,8 +9,15 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
+from phoenix.server.online_eval.db_coordinator import (
+    STALE_FINGERPRINT_ERROR,
+    DbEvalWorkCoordinator,
+)
+from phoenix.server.online_eval.derivation import (
+    MAX_ATTEMPTS,
+    annotation_identifier,
+    config_fingerprint,
+)
 from phoenix.server.online_eval.producer import (
     OnlineEvalProducer,
     resolve_criteria,
@@ -230,6 +237,35 @@ async def test_tick_advances_at_most_one_id_chunk(
     assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:4]]
 
 
+async def test_materialization_budget_truncates_without_advancing(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "3")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(2)]
+    await _seed_criteria(db, project.id)
+    await _seed_criteria(db, project.id)
+    low_exclusive = spans[0].id - 1
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=low_exclusive,
+        observed_high_water_id=spans[-1].id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    async with db() as session:
+        unit_count = await session.scalar(select(func.count()).select_from(models.EvalWorkUnit))
+    assert unit_count == 3
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == low_exclusive
+    assert await producer._admission_budget() == 0
+
+
 @pytest.mark.parametrize("value", ["0", "-1"])
 async def test_max_span_ids_per_tick_must_be_positive(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, value: str
@@ -325,7 +361,7 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
             )
         )
 
-    await producer._backstop_sweep(active, watermark)
+    await producer._backstop_sweep(active, watermark, 10)
 
     async with db() as session:
         units = list(await session.scalars(select(models.EvalWorkUnit)))
@@ -334,6 +370,141 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
     assert by_span[late_span.id].status == "PENDING"
     assert annotated_span.id not in by_span
     assert by_span[expired_span.id].status == "EXPIRED"
+
+
+async def test_backstop_stops_at_insertion_budget(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+    await _seed_criteria(db, project.id)
+
+    producer = OnlineEvalProducer(db)
+    active = await producer._load_active_criteria()
+    remaining = await producer._backstop_sweep(active, spans[-1].id, 2)
+
+    assert remaining == 0
+    assert len(await _work_unit_span_rowids(db)) == 2
+
+
+async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    await _seed_cursor(
+        db,
+        produced_through_id=spans[0].id - 1,
+        observed_high_water_id=spans[-1].id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    async with db() as session:
+        evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert evaluator is not None
+        assert criteria is not None
+        original_key = evaluator.key
+        original_synced_at = evaluator.synced_at
+        resolved = await resolve_criteria(session, criteria, evaluator)
+        assert resolved is not None
+        original_fingerprint = config_fingerprint(resolved)
+        evaluator.key = f"{original_key}-changed"
+
+    coordinator = DbEvalWorkCoordinator(db)
+    claimed = await coordinator.claim(claimed_by="consumer", limit=3)
+    assert len(claimed) == 3
+    for unit in claimed:
+        assert await coordinator.expire(
+            work_unit_id=unit.work_unit_id,
+            claimed_by="consumer",
+        )
+
+    async with db() as session:
+        evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert evaluator is not None
+        assert criteria is not None
+        evaluator.key = original_key
+        evaluator.synced_at = original_synced_at
+        session.add(
+            models.SpanAnnotation(
+                span_rowid=spans[1].id,
+                name=criteria.name.root,
+                label="done",
+                score=1.0,
+                explanation=None,
+                metadata_={},
+                annotator_kind="LLM",
+                identifier=annotation_identifier(original_fingerprint),
+                source="API",
+                user_id=None,
+            )
+        )
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.span_rowid == spans[2].id)
+            .values(status="DONE")
+        )
+
+    producer._backstop_interval_seconds = 0
+    await producer._tick()
+
+    async with db() as session:
+        units = list(
+            await session.scalars(
+                select(models.EvalWorkUnit).order_by(models.EvalWorkUnit.span_rowid)
+            )
+        )
+    assert [unit.config_fingerprint for unit in units] == [original_fingerprint] * 3
+    assert units[0].status == "PENDING"
+    assert units[0].attempts == 0
+    assert units[0].error is None
+    assert units[0].claimed_by is None
+    assert units[0].claimed_at is None
+    assert units[0].cooldown_until is None
+    assert units[1].status == "EXPIRED"
+    assert units[1].error == STALE_FINGERPRINT_ERROR
+    assert units[2].status == "DONE"
+
+
+async def test_ttl_expired_row_is_not_resurrected(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS", "1")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    await _seed_cursor(
+        db,
+        produced_through_id=span.id - 1,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit).values(created_at=_now() - timedelta(seconds=10))
+        )
+
+    await producer._reap(_now(), span.id)
+    active = await producer._load_active_criteria()
+    await producer._backstop_sweep(active, span.id, 10)
+
+    async with db() as session:
+        unit = (await session.scalars(select(models.EvalWorkUnit))).one()
+    assert unit.status == "EXPIRED"
+    assert unit.error == "pending ttl exceeded"
 
 
 async def test_reaper_transitions_and_deletes(
@@ -401,14 +572,15 @@ async def test_reaper_transitions_and_deletes(
 
     async with db() as session:
         remaining = {
-            unit.id: unit.status for unit in await session.scalars(select(models.EvalWorkUnit))
+            unit.id: (unit.status, unit.error)
+            for unit in await session.scalars(select(models.EvalWorkUnit))
         }
-    assert remaining.get(ids["stale_pending"]) == "EXPIRED"
-    assert remaining.get(ids["fresh_pending"]) == "PENDING"
+    assert remaining.get(ids["stale_pending"]) == ("EXPIRED", "pending ttl exceeded")
+    assert remaining.get(ids["fresh_pending"]) == ("PENDING", None)
     assert ids["done_outside"] not in remaining
-    assert remaining.get(ids["done_inside"]) == "DONE"
+    assert remaining.get(ids["done_inside"]) == ("DONE", None)
     assert ids["exhausted_error_outside"] not in remaining
-    assert remaining.get(ids["retryable_error_outside"]) == "ERROR"
+    assert remaining.get(ids["retryable_error_outside"]) == ("ERROR", None)
 
 
 async def test_reaper_default_keeps_old_pending_work(
@@ -559,7 +731,7 @@ async def test_admission_gate_skips_materialization(
     assert cursor.produced_through_id == 0
 
 
-async def test_admission_gate_counts_nonterminal_backlog(db: DbSessionFactory) -> None:
+async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory) -> None:
     """The gate bounds all backlog that will eventually demand consumer
     capacity: RUNNING and retryable-ERROR rows count alongside PENDING (under
     a provider outage the pending population migrates into retryable ERROR),
@@ -581,12 +753,12 @@ async def test_admission_gate_counts_nonterminal_backlog(db: DbSessionFactory) -
         )
 
     producer = OnlineEvalProducer(db)
-    producer._max_outstanding = 0
-    assert await producer._admission_gate_open()
+    producer._max_outstanding = 1
+    assert await producer._admission_budget() == 1
 
     async with db() as session:
         session.add(_unit("ERROR", attempts=MAX_ATTEMPTS))
-    assert await producer._admission_gate_open()  # exhausted ERROR is terminal
+    assert await producer._admission_budget() == 1
 
     async with db() as session:
         session.add(_unit("RUNNING", claimed_by="consumer-1", claimed_at=_now()))
@@ -596,7 +768,7 @@ async def test_admission_gate_counts_nonterminal_backlog(db: DbSessionFactory) -
                 select(models.EvalWorkUnit.id).order_by(models.EvalWorkUnit.id.desc()).limit(1)
             )
         ).one()
-    assert not await producer._admission_gate_open()  # RUNNING counts
+    assert await producer._admission_budget() == 0
 
     async with db() as session:
         await session.execute(
@@ -604,11 +776,11 @@ async def test_admission_gate_counts_nonterminal_backlog(db: DbSessionFactory) -
             .where(models.EvalWorkUnit.id == running_id)
             .values(status="DONE")
         )
-    assert await producer._admission_gate_open()
+    assert await producer._admission_budget() == 1
 
     async with db() as session:
         session.add(_unit("ERROR", attempts=1))
-    assert not await producer._admission_gate_open()  # retryable ERROR counts
+    assert await producer._admission_budget() == 0
 
 
 async def test_unexpected_criteria_load_error_fails_closed(
@@ -706,3 +878,66 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
     assert cursor.claimed_by == producer._producer_id
     assert cursor.produced_through_id == span.id
     assert sorted(await _work_unit_span_rowids(db)) == [span.id]
+
+
+async def test_lost_lease_rolls_back_materialization_and_aborts_tick(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=span.id - 1,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    insert_work_units = producer._insert_work_units
+
+    async def _insert_then_lose_lease(
+        session: Any,
+        criteria: Any,
+        span_ids: list[int],
+    ) -> None:
+        await insert_work_units(session, criteria, span_ids)
+        await session.execute(
+            update(models.EvalWorkCursor)
+            .where(models.EvalWorkCursor.id == cursor_id)
+            .values(claimed_by="rival-producer")
+        )
+
+    monkeypatch.setattr(producer, "_insert_work_units", _insert_then_lose_lease)
+
+    with caplog.at_level("WARNING"):
+        await producer._tick()
+
+    assert await _work_unit_span_rowids(db) == []
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == span.id - 1
+    assert cursor.claimed_by == producer._producer_id
+    assert (
+        sum("tick aborted after losing its lease" in record.message for record in caplog.records)
+        == 1
+    )
+
+
+async def test_renew_lease_refreshes_claimed_at(db: DbSessionFactory) -> None:
+    producer = OnlineEvalProducer(db)
+    old = _now() - timedelta(seconds=60)
+    cursor_id = await _seed_cursor(
+        db,
+        claimed_by=producer._producer_id,
+        claimed_at=old,
+    )
+    renewed_at = _now()
+
+    await producer._renew_lease(renewed_at)
+
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.claimed_at == renewed_at
