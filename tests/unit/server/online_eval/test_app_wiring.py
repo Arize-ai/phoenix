@@ -18,6 +18,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
     TestBulkInserter,
@@ -43,6 +44,7 @@ async def test_online_eval_daemons_absent_by_default(db: DbSessionFactory) -> No
     app = _create_app(db)
     assert app.state.online_eval_producer is None
     assert app.state.online_eval_consumer is None
+    assert app.state.online_eval_session_sweeper is None
 
 
 async def test_online_eval_daemons_absent_in_read_only_mode(
@@ -53,6 +55,7 @@ async def test_online_eval_daemons_absent_in_read_only_mode(
     app = _create_app(db, read_only=True)
     assert app.state.online_eval_producer is None
     assert app.state.online_eval_consumer is None
+    assert app.state.online_eval_session_sweeper is None
 
 
 async def test_enabled_app_runs_seeded_criteria_end_to_end(
@@ -67,9 +70,13 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
         app = _create_app(db)
         producer = app.state.online_eval_producer
         consumer = app.state.online_eval_consumer
+        session_sweeper = app.state.online_eval_session_sweeper
         assert isinstance(producer, OnlineEvalProducer)
         assert isinstance(consumer, OnlineEvalConsumer)
+        assert isinstance(session_sweeper, SessionEvalSweeper)
         await stack.enter_async_context(LifespanManager(app))
+        await producer.stop()
+        await session_sweeper.stop()
 
         async with db() as session:
             project = await _add_project(session)

@@ -83,6 +83,11 @@ input AddProjectCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput = null
   filterCondition: String! = ""
   enabled: Boolean! = true
+
+  """
+  Seconds of inactivity before a SESSION evaluation. Null uses the default delay.
+  """
+  evaluationDelaySeconds: Int = null
 }
 
 input AddSpansToDatasetInput {
@@ -860,6 +865,11 @@ input CreateProjectCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput = null
   filterCondition: String! = ""
   enabled: Boolean! = true
+
+  """
+  Seconds of inactivity before a SESSION evaluation. Null uses the default delay.
+  """
+  evaluationDelaySeconds: Int = null
 }
 
 input CreateProjectInput {
@@ -881,6 +891,11 @@ input CreateProjectLLMEvaluatorInput {
   promptVersionId: ID
   filterCondition: String! = ""
   enabled: Boolean! = true
+
+  """
+  Seconds of inactivity before a SESSION evaluation. Null uses the default delay.
+  """
+  evaluationDelaySeconds: Int = null
 }
 
 input CreateProjectSessionAnnotationInput {
@@ -2472,27 +2487,27 @@ type Mutation {
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
 
   """
-  Create an LLM project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  Create an LLM project evaluator. SPAN evaluators run on matching spans; unfiltered SESSION evaluators with full sampling run after their evaluation delay. TRACE evaluators are stored but not scheduled.
   """
   createProjectLlmEvaluator(input: CreateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Update an LLM project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  Update an LLM project evaluator. SPAN evaluators run on matching spans; unfiltered SESSION evaluators with full sampling run after their evaluation delay. TRACE evaluators are stored but not scheduled.
   """
   updateProjectLlmEvaluator(input: UpdateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN evaluators run on matching spans; unfiltered SESSION evaluators with full sampling run after their evaluation delay. TRACE evaluators are stored but not scheduled.
   """
   addProjectCodeEvaluator(input: AddProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Create a CODE project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  Create a CODE project evaluator. SPAN evaluators run on matching spans; unfiltered SESSION evaluators with full sampling run after their evaluation delay. TRACE evaluators are stored but not scheduled.
   """
   createProjectCodeEvaluator(input: CreateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN evaluators run on matching spans; unfiltered SESSION evaluators with full sampling run after their evaluation delay. TRACE evaluators are stored but not scheduled.
   """
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
   deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
@@ -2913,9 +2928,14 @@ type ProjectEvaluator implements Node {
   samplingRate: Float!
 
   """
-  SPAN is currently executable; TRACE and SESSION are stored but remain inactive until their runtimes are available.
+  SPAN evaluators run on matching spans; unfiltered SESSION evaluators with full sampling run after their evaluation delay. TRACE evaluators are stored but not scheduled.
   """
   evaluationTarget: EvaluationTarget!
+
+  """
+  Seconds of inactivity before a SESSION evaluation. Null uses the default of 300 seconds.
+  """
+  evaluationDelaySeconds: Int
   inputMapping: EvaluatorInputMapping!
   enabled: Boolean!
   createdAt: DateTime!
@@ -4675,6 +4695,11 @@ input UpdateProjectCodeEvaluatorInput {
   Project-specific CODE input mapping patch. Omit to preserve the current setting, use null to inherit the evaluator input mapping, or provide an object to override it.
   """
   inputMapping: EvaluatorInputMappingInput
+
+  """
+  SESSION evaluation delay in seconds. Omit to preserve the current setting or use null to restore the default delay.
+  """
+  evaluationDelaySeconds: Int
 }
 
 input UpdateProjectLLMEvaluatorInput {
@@ -4689,6 +4714,11 @@ input UpdateProjectLLMEvaluatorInput {
   enabled: Boolean!
   description: String = null
   promptVersionId: ID
+
+  """
+  SESSION evaluation delay in seconds. Omit to preserve the current setting or use null to restore the default delay.
+  """
+  evaluationDelaySeconds: Int
 }
 
 input UpdateSandboxConfigInput {

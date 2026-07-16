@@ -36,6 +36,9 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.online_eval.session_policy import (
+    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+)
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
@@ -1130,13 +1133,23 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "SPAN is currently executable; TRACE and SESSION are "
-            "stored but remain inactive until their runtimes are available."
+            "SPAN evaluators run on matching spans; unfiltered SESSION "
+            "evaluators with full sampling run after their evaluation delay. TRACE evaluators "
+            "are stored but not scheduled."
         )
     )
     async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
         record = await self._get_record(info)
         return EvaluationTarget(record.evaluation_target)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Seconds of inactivity before a SESSION evaluation. Null uses the default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds."
+        )
+    )
+    async def evaluation_delay_seconds(self, info: Info[Context, None]) -> Optional[int]:
+        return (await self._get_record(info)).evaluation_delay_seconds
 
     @strawberry.field
     async def input_mapping(self, info: Info[Context, None]) -> EvaluatorInputMapping:
