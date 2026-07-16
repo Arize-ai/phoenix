@@ -36,6 +36,21 @@ def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
     return rho < spec.sample_rate
 
 
+def _ended_before(root: v1.Span, cutoff: datetime) -> bool:
+    value = root.get("end_time")
+    if not isinstance(value, str):
+        logger.warning("skipping root %s without an end time", span_id(root))
+        return False
+    try:
+        end_time = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        logger.warning("skipping root %s with invalid end time %r", span_id(root), value)
+        return False
+    if end_time.tzinfo is None:
+        end_time = end_time.replace(tzinfo=timezone.utc)
+    return end_time <= cutoff
+
+
 def _existing_annotation_keys(
     client: Client,
     *,
@@ -127,7 +142,7 @@ def run_evaluators(
     roots = client.spans.get_spans(
         project_identifier=project,
         start_time=current - lookback,
-        end_time=current - settle_delay,
+        end_time=current,
         parent_id="null",
         name=sorted({spec.root_span_name for spec in specs}),
         limit=MAX_CANDIDATE_ROOTS,
@@ -135,6 +150,7 @@ def run_evaluators(
     )
     if len(roots) == MAX_CANDIDATE_ROOTS:
         raise RuntimeError("candidate discovery reached its safety limit; reduce the run window")
+    roots = [root for root in roots if _ended_before(root, current - settle_delay)]
 
     summaries = {
         spec.name: RunSummary(discovered=sum(root["name"] == spec.root_span_name for root in roots))

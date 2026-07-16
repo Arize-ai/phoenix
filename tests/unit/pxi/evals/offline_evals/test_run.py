@@ -48,9 +48,11 @@ class _FakeSpans:
         self.hydrated_trace_ids: list[str] = []
         self.writes: list[v1.SpanAnnotationData] = []
         self.get_spans_calls = 0
+        self.get_spans_requests: list[dict[str, Any]] = []
 
     def get_spans(self, **kwargs: Any) -> list[v1.Span]:
         self.get_spans_calls += 1
+        self.get_spans_requests.append(kwargs)
         if trace_ids := kwargs.get("trace_ids"):
             self.hydrated_trace_ids.extend(trace_ids)
             return [span for trace_id in trace_ids for span in self.traces[trace_id]]
@@ -146,6 +148,35 @@ def test_different_identifier_does_not_suppress_evaluator() -> None:
     assert summary.evaluated == 1
     assert summary.annotations == 1
     assert spans.writes == []
+
+
+def test_settle_delay_uses_root_completion_time() -> None:
+    settled_root = _span(
+        "settled-root", trace_id="settled-trace", name="pxi.turn", kind="AGENT", parent_id=None
+    )
+    recent_root = _span(
+        "recent-root", trace_id="recent-trace", name="pxi.turn", kind="AGENT", parent_id=None
+    )
+    settled_root["end_time"] = "2026-07-09T01:54:00+00:00"
+    recent_root["end_time"] = "2026-07-09T01:59:00+00:00"
+    spans = _FakeSpans(
+        [settled_root, recent_root],
+        {"settled-trace": [settled_root], "recent-trace": [recent_root]},
+        [],
+    )
+    current = datetime(2026, 7, 9, 2, tzinfo=timezone.utc)
+
+    summary = run_evaluators(
+        _FakeClient(spans),  # type: ignore[arg-type]
+        project="pxi_dev",
+        specs=[TOOL_COUNT_PER_TURN],
+        now=current,
+    )["tool_count_per_turn"]
+
+    assert spans.get_spans_requests[0]["end_time"] == current
+    assert spans.hydrated_trace_ids == ["settled-trace"]
+    assert summary.discovered == 1
+    assert summary.evaluated == 1
 
 
 def test_serializes_categorical_label_as_annotation_result() -> None:
