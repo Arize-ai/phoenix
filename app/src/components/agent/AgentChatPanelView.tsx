@@ -13,6 +13,7 @@ import {
   LinkButton,
   RichTooltip,
   Text,
+  Tooltip,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
@@ -109,7 +110,7 @@ function TemporaryChatToggle({
   onToggle: () => void;
 }) {
   const stateDescription = isTemporary
-    ? "Temporary chat: won't appear in history and expires 24 hours after your last message."
+    ? "Chat is temporary and won't be saved to history."
     : "Chat is saved to history.";
   const icon = <Icon svg={isTemporary ? <Icons.EyeOff /> : <Icons.Eye />} />;
   if (isReadOnly) {
@@ -131,10 +132,7 @@ function TemporaryChatToggle({
             {icon}
           </span>
         </Pressable>
-        <RichTooltip>
-          <TooltipArrow />
-          <Text size="XS">{stateDescription}</Text>
-        </RichTooltip>
+        <Tooltip>{stateDescription}</Tooltip>
       </TooltipTrigger>
     );
   }
@@ -149,15 +147,7 @@ function TemporaryChatToggle({
         onPress={onToggle}
         leadingVisual={icon}
       />
-      <RichTooltip>
-        <TooltipArrow />
-        <Text size="XS">
-          {stateDescription}{" "}
-          {isTemporary
-            ? "Click to make it saved."
-            : "Click to make it temporary."}
-        </Text>
-      </RichTooltip>
+      <Tooltip>{stateDescription}</Tooltip>
     </TooltipTrigger>
   );
 }
