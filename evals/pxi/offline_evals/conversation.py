@@ -1,10 +1,10 @@
 """Conversation reconstruction from an ingested PXI turn trace.
 
-The *last* ``LLM`` span in a ``pxi.turn`` trace carries the full input message
-history (all prior turns in the session, as the agent saw them) plus the final
-assistant output, so a single trace reconstructs the entire transcript — no
-session-level fetching is required. We then segment that transcript into turns
-(split on ``user`` messages).
+The *last* top-level ``LLM`` span in a ``pxi.turn`` trace carries the full
+input message history (all prior turns in the session, as the agent saw them)
+plus the final assistant output, so a single trace reconstructs the entire
+transcript — no session-level fetching is required. We then segment that
+transcript into turns (split on ``user`` messages).
 
 The Phoenix REST API returns span attributes fully flattened with dotted,
 index-numbered keys, e.g.::
@@ -12,8 +12,9 @@ index-numbered keys, e.g.::
     llm.input_messages.2.message.role
     llm.input_messages.2.message.tool_calls.0.tool_call.function.name
 
-This module unflattens those keys back into normalized :class:`Message`
-objects. It is a port of the validated ``user-friction-eval`` pipeline's
+We unflatten them with the same :func:`phoenix.trace.attributes.unflatten`
+helper the ingestion path uses, then normalize into :class:`Message` objects.
+This module is a port of the validated ``user-friction-eval`` pipeline's
 ``conversation.py`` (which operated on pandas DataFrames) onto raw
 ``v1.Span`` dicts.
 """
@@ -22,21 +23,18 @@ from __future__ import annotations
 
 import json
 import logging
-import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from phoenix.client.__generated__ import v1
 
+from phoenix.trace.attributes import get_attribute_value, unflatten
+
 logger = logging.getLogger(__name__)
 
-INPUT_MESSAGES_PREFIX = "llm.input_messages"
-OUTPUT_MESSAGES_PREFIX = "llm.output_messages"
-
-_MESSAGE_KEY = re.compile(r"^(?P<index>\d+)\.message\.(?P<rest>.+)$")
-_TOOL_CALL_KEY = re.compile(r"^tool_calls\.(?P<index>\d+)\.tool_call\.(?P<rest>.+)$")
-_CONTENTS_TEXT_KEY = re.compile(r"^contents\.(?P<index>\d+)\.message_content\.text$")
+INPUT_MESSAGES_KEY = "llm.input_messages"
+OUTPUT_MESSAGES_KEY = "llm.output_messages"
 
 
 @dataclass
@@ -72,74 +70,97 @@ def _parse_tool_args(args: Any) -> Any:
     return args
 
 
+def _normalize_tool_calls(raw: Any) -> list[dict[str, Any]]:
+    """Normalize an unflattened tool-call list to ``{id, name, args}`` dicts."""
+    if not isinstance(raw, list):
+        return []
+    calls: list[dict[str, Any]] = []
+    for entry in raw:
+        call = entry.get("tool_call") if isinstance(entry, dict) else None
+        if not isinstance(call, dict):
+            continue
+        function = call.get("function")
+        function = function if isinstance(function, dict) else {}
+        calls.append(
+            {
+                "id": call.get("id"),
+                "name": function.get("name"),
+                "args": _parse_tool_args(function.get("arguments")),
+            }
+        )
+    return calls
+
+
 def _normalize_message(raw: dict[str, Any]) -> Message:
-    """Normalize one unflattened message dict to a :class:`Message`."""
+    """Normalize one unflattened OpenInference message dict to a :class:`Message`."""
     role = str(raw.get("role") or "")
     content = raw.get("content")
     if not isinstance(content, str):
         content = "" if content is None else json.dumps(content, default=str)
-    if not content and raw.get("contents"):
-        parts = raw["contents"]
-        content = "\n".join(parts[key] for key in sorted(parts) if isinstance(parts[key], str))
-    tool_calls = [
-        {
-            "id": call.get("id"),
-            "name": call.get("function.name"),
-            "args": _parse_tool_args(call.get("function.arguments")),
-        }
-        for _, call in sorted(raw.get("tool_calls", {}).items())
-    ]
-    return Message(role=role, content=content, tool_calls=tool_calls)
+    if not content and isinstance(raw.get("contents"), list):
+        parts = [
+            text
+            for part in raw["contents"]
+            if isinstance(part, dict)
+            and isinstance(text := get_attribute_value(part, "message_content.text"), str)
+        ]
+        content = "\n".join(parts)
+    return Message(
+        role=role,
+        content=content,
+        tool_calls=_normalize_tool_calls(raw.get("tool_calls")),
+    )
 
 
 def messages_from_attributes(
-    attributes: Mapping[str, Any], prefix: str = INPUT_MESSAGES_PREFIX
+    attributes: dict[str, Any], key: str = INPUT_MESSAGES_KEY
 ) -> list[Message]:
     """Unflatten dotted, index-numbered message attributes into messages."""
-    collected: dict[int, dict[str, Any]] = {}
-    marker = prefix + "."
-    for key, value in attributes.items():
-        if not key.startswith(marker):
-            continue
-        match = _MESSAGE_KEY.match(key[len(marker) :])
-        if match is None:
-            continue
-        message = collected.setdefault(int(match["index"]), {})
-        rest = match["rest"]
-        tool_call = _TOOL_CALL_KEY.match(rest)
-        if tool_call is not None:
-            calls = message.setdefault("tool_calls", {})
-            calls.setdefault(int(tool_call["index"]), {})[tool_call["rest"]] = value
-            continue
-        contents = _CONTENTS_TEXT_KEY.match(rest)
-        if contents is not None:
-            message.setdefault("contents", {})[int(contents["index"])] = value
-            continue
-        message[rest] = value
-    return [_normalize_message(collected[index]) for index in sorted(collected)]
+    value = get_attribute_value(unflatten(attributes.items()), key)
+    if not isinstance(value, list):
+        return []
+    return [
+        _normalize_message(message)
+        for entry in value
+        if isinstance(entry, dict) and isinstance(message := entry.get("message"), dict)
+    ]
 
 
 def _last_llm_span(spans: Sequence[v1.Span]) -> v1.Span | None:
+    """The trace's final top-level ``LLM`` span.
+
+    Subagents (e.g. ``call_subagent``) nest their own LLM spans inside the
+    same trace, and one of those can start after the main agent's final call —
+    picking it would reconstruct the subagent's internal conversation instead
+    of the user-facing transcript. Prefer LLM spans that are direct children
+    of the trace root; fall back to all LLM spans only when none are.
+    Ties on ``start_time`` keep the later span, matching the validation
+    pipeline's stable sort.
+    """
     llm_spans = [span for span in spans if span.get("span_kind") == "LLM"]
     if not llm_spans:
         return None
-    return max(llm_spans, key=lambda span: span["start_time"])
+    root_ids = {span["context"]["span_id"] for span in spans if span.get("parent_id") in (None, "")}
+    top_level = [span for span in llm_spans if span.get("parent_id") in root_ids]
+    candidates = top_level or llm_spans
+    return sorted(candidates, key=lambda span: span["start_time"])[-1]
 
 
 def transcript(spans: Sequence[v1.Span]) -> list[Message]:
     """Reconstruct the full message transcript from a turn's trace spans.
 
-    Uses the last ``LLM`` span: its ``input_messages`` are the history fed to
-    the model, and its ``output_messages`` are the final assistant reply we
-    append. Returns an empty list if the trace has no LLM span.
+    Uses the last top-level ``LLM`` span: its ``input_messages`` are the
+    history fed to the model, and its ``output_messages`` are the final
+    assistant reply we append. Returns an empty list if the trace has no
+    LLM span.
     """
     last_llm = _last_llm_span(spans)
     if last_llm is None:
         logger.warning("Trace has no LLM span; cannot reconstruct transcript")
         return []
-    attributes = last_llm.get("attributes", {})
-    return messages_from_attributes(attributes, INPUT_MESSAGES_PREFIX) + messages_from_attributes(
-        attributes, OUTPUT_MESSAGES_PREFIX
+    attributes = dict(last_llm.get("attributes", {}))
+    return messages_from_attributes(attributes, INPUT_MESSAGES_KEY) + messages_from_attributes(
+        attributes, OUTPUT_MESSAGES_KEY
     )
 
 

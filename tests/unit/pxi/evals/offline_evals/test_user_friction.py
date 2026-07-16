@@ -135,6 +135,27 @@ def test_transcript_uses_last_llm_span_and_appends_output() -> None:
     assert turns[0].tool_calls[0]["name"] == "set_time_range"
 
 
+def test_transcript_ignores_later_subagent_llm_span() -> None:
+    """A subagent's LLM span starting after the main agent's final call must not
+    hijack transcript reconstruction (regression: trace 6e6a106d in pxi_dev)."""
+    root, spans = _two_turn_trace("no, I asked for this week")
+    subagent = _span("subagent", name="ServerAgent.iter", kind="AGENT", parent_id="root", start=5)
+    nested_llm = _span(
+        "nested-llm",
+        name="model",
+        kind="LLM",
+        parent_id="subagent",
+        start=9,  # later than the top-level LLM span
+        attributes=_flat_messages(
+            "llm.input_messages",
+            [{"role": "user", "content": "internal subagent task prompt"}],
+        ),
+    )
+    messages = transcript([*spans, subagent, nested_llm])
+    assert messages[0].content == "show me traces from today"
+    assert all("subagent task" not in m.content for m in messages)
+
+
 def test_render_conversation_details_reacted_to_turn() -> None:
     turns = segment_turns(transcript(_two_turn_trace("looks wrong")[1]))
     rendered = render_conversation(turns, target_index=1)

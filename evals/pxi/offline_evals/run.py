@@ -57,6 +57,33 @@ def _existing_annotation_keys(
     }
 
 
+def _fetch_batch_spans(client: Client, *, project: str, batch: Sequence[str]) -> list[v1.Span]:
+    """Fetch all spans for a batch of trace ids, splitting the batch when full.
+
+    ``get_spans`` paginates internally up to ``limit``, so a response of
+    exactly ``MAX_SPANS_PER_BATCH`` spans may be truncated. That can happen
+    from aggregate volume alone (many medium-sized traces per batch), so
+    rather than failing the run, halve the batch and retry; only a single
+    trace exceeding the limit on its own is an error.
+    """
+    spans = client.spans.get_spans(
+        project_identifier=project,
+        trace_ids=list(batch),
+        limit=MAX_SPANS_PER_BATCH,
+        timeout=DEFAULT_TIMEOUT_SECONDS,
+    )
+    if len(spans) < MAX_SPANS_PER_BATCH:
+        return list(spans)
+    if len(batch) == 1:
+        raise RuntimeError(
+            f"trace {batch[0]} alone reached the span safety limit ({MAX_SPANS_PER_BATCH})"
+        )
+    middle = len(batch) // 2
+    return _fetch_batch_spans(client, project=project, batch=batch[:middle]) + _fetch_batch_spans(
+        client, project=project, batch=batch[middle:]
+    )
+
+
 def _load_trace_spans(
     client: Client, *, project: str, trace_ids: Iterable[str]
 ) -> dict[str, list[v1.Span]]:
@@ -64,17 +91,7 @@ def _load_trace_spans(
     grouped: dict[str, list[v1.Span]] = defaultdict(list)
     for offset in range(0, len(ids), TRACE_ID_BATCH_SIZE):
         batch = ids[offset : offset + TRACE_ID_BATCH_SIZE]
-        spans = client.spans.get_spans(
-            project_identifier=project,
-            trace_ids=batch,
-            limit=MAX_SPANS_PER_BATCH,
-            timeout=DEFAULT_TIMEOUT_SECONDS,
-        )
-        if len(spans) == MAX_SPANS_PER_BATCH:
-            raise RuntimeError(
-                "trace hydration reached its safety limit; reduce the run window or batch size"
-            )
-        for span in spans:
+        for span in _fetch_batch_spans(client, project=project, batch=batch):
             grouped[trace_id(span)].append(span)
     for spans in grouped.values():
         spans.sort(key=lambda span: span["start_time"])

@@ -105,6 +105,10 @@ def _judge_inputs(root: v1.Span, spans: Sequence[v1.Span]) -> tuple[str, str] | 
 
 
 def applies_to_user_friction(root: v1.Span, spans: Sequence[v1.Span]) -> bool:
+    """Whether a turn is judgeable. Not wired into the spec: the runner treats a
+    ``None`` result from :func:`evaluate_user_friction` as not-applicable, and
+    wiring this as ``applies_to`` would run the full transcript reconstruction
+    twice per turn."""
     return _judge_inputs(root, spans) is not None
 
 
@@ -129,7 +133,6 @@ USER_FRICTION = EvaluatorSpec(
     target="trace",
     root_span_name=PXI_TURN_ROOT_NAME,
     evaluate=evaluate_user_friction,
-    applies_to=applies_to_user_friction,
     annotator_kind="LLM",
     sample_rate=1.0,
     optimization_direction=OptimizationDirection.MINIMIZE,
