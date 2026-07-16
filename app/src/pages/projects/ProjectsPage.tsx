@@ -54,7 +54,7 @@ import {
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -880,7 +880,7 @@ function ProjectsTable({
           width: 100%;
         `}
       >
-        <table css={tableCSS} data-testid="projects-table">
+        <table css={selectableTableCSS} data-testid="projects-table">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
