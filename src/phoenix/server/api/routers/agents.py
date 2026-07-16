@@ -1820,7 +1820,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         # are emitted once, right after the stream's opening `start`
                         # message chunk and before the model's own output.
                         forced_skills_streamed = not forced_skills
-                        session_created_streamed = False
+                        session_created_chunk_emitted = False
                         async with aclosing(raw_stream) as stream:
                             async for agent_message_chunk in stream:
                                 if isinstance(agent_message_chunk, ToolInputAvailableChunk):
@@ -1833,12 +1833,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         )
                                     )
                                 yield agent_message_chunk
-                                if not session_created_streamed and isinstance(
+                                if not session_created_chunk_emitted and isinstance(
                                     agent_message_chunk,
                                     StartChunk,
                                 ):
                                     yield SessionCreatedChunk(data=session_created_data)
-                                    session_created_streamed = True
+                                    session_created_chunk_emitted = True
                                 if not forced_skills_streamed and isinstance(
                                     agent_message_chunk,
                                     StartChunk,
