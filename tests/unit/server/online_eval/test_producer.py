@@ -24,7 +24,7 @@ from phoenix.server.online_eval.producer import (
 )
 from phoenix.server.types import DbSessionFactory
 
-from ..._helpers import _add_project, _add_span, _add_trace
+from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
 def _now() -> datetime:
@@ -187,6 +187,165 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
+
+
+async def test_tick_records_latest_activity_for_runnable_sessions(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        first_project_session = await _add_project_session(session, project)
+        first_trace = await _add_trace(session, project, first_project_session)
+        first_span = await _add_span(session, first_trace)
+        latest_first_span = await _add_span(session, first_trace)
+        second_project_session = await _add_project_session(session, project)
+        second_trace = await _add_trace(session, project, second_project_session)
+        second_span = await _add_span(session, second_trace)
+        ungrouped_trace = await _add_trace(session, project)
+        await _add_span(session, ungrouped_trace)
+        other_project = await _add_project(session)
+        other_project_session = await _add_project_session(session, other_project)
+        other_trace = await _add_trace(session, other_project, other_project_session)
+        high_water_span = await _add_span(session, other_trace)
+        project_id = project.id
+        first_project_session_id = first_project_session.id
+        second_project_session_id = second_project_session.id
+        first_span_id = first_span.id
+        latest_first_span_id = latest_first_span.id
+        second_span_id = second_span.id
+        high_water_span_id = high_water_span.id
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    cursor_id = await _seed_cursor(
+        db,
+        observed_high_water_id=high_water_span_id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    async with db() as session:
+        activity = list(await session.scalars(select(models.EvalSessionActivity)))
+        trace_activity_count = await session.scalar(
+            select(func.count()).select_from(models.EvalTraceActivity)
+        )
+        session_work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+        trace_work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalTraceWorkUnit)
+        )
+    assert {row.project_session_rowid: row.last_seen_span_id for row in activity} == {
+        first_project_session_id: latest_first_span_id,
+        second_project_session_id: second_span_id,
+    }
+    assert first_span_id != latest_first_span_id
+    assert all(row.observed_at is not None for row in activity)
+    assert trace_activity_count == 0
+    assert session_work_count == 0
+    assert trace_work_count == 0
+    assert await _work_unit_span_rowids(db) == []
+    assert (await _get_cursor(db, cursor_id)).produced_through_id == high_water_span_id
+
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkCursor)
+            .where(models.EvalWorkCursor.id == cursor_id)
+            .values(
+                produced_through_id=0,
+                observed_high_water_id=high_water_span_id,
+                observed_at=_now() - timedelta(seconds=120),
+            )
+        )
+    await producer._tick()
+    async with db() as session:
+        replayed = list(await session.scalars(select(models.EvalSessionActivity)))
+    assert {row.project_session_rowid: row.last_seen_span_id for row in replayed} == {
+        first_project_session_id: latest_first_span_id,
+        second_project_session_id: second_span_id,
+    }
+
+
+@pytest.mark.parametrize(
+    ("evaluation_target", "filter_condition", "sampling_rate"),
+    [
+        ("TRACE", "", 1.0),
+        ("SESSION", "span_kind == 'LLM'", 1.0),
+        ("SESSION", "", 0.5),
+    ],
+)
+async def test_deferred_criteria_do_not_record_activity_or_work(
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+    filter_condition: str,
+    sampling_rate: float,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        project_id = project.id
+        span_id = span.id
+    await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target=evaluation_target,
+        filter_condition=filter_condition,
+        sampling_rate=sampling_rate,
+    )
+    await _seed_cursor(
+        db,
+        observed_high_water_id=span_id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    async with db() as session:
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionActivity)) == 0
+        )
+        assert await session.scalar(select(func.count()).select_from(models.EvalTraceActivity)) == 0
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
+        )
+        assert await session.scalar(select(func.count()).select_from(models.EvalTraceWorkUnit)) == 0
+    assert await _work_unit_span_rowids(db) == []
+
+
+async def test_cursor_advance_rolls_back_activity_and_work_after_lease_loss(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        project_id = project.id
+        span_id = span.id
+    await _seed_criteria(db, project_id, evaluation_target="SPAN")
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _seed_cursor(
+        db,
+        observed_high_water_id=span_id,
+        observed_at=_now() - timedelta(seconds=120),
+        claimed_by="rival-producer",
+        claimed_at=_now(),
+    )
+
+    producer = OnlineEvalProducer(db)
+    active = await producer._load_active_criteria()
+    project_ids = await producer._load_session_activity_project_ids()
+
+    with pytest.raises(producer_module._CursorLeaseLost):
+        await producer._materialize_and_advance(active, project_ids, 0, span_id, 10)
+    async with db() as session:
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionActivity)) == 0
+        )
+    assert await _work_unit_span_rowids(db) == []
 
 
 @pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
