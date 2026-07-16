@@ -328,8 +328,8 @@ def test_flushes_before_starting_the_next_evaluator() -> None:
     [
         ("sampled", "trace-1", 0.5, True),
         ("sampled", "trace-2", 0.5, False),
-        ("user_friction", "abc", 0.25, True),
-        ("user_friction", "xyz", 0.25, False),
+        ("user_friction", "abc", 0.25, False),
+        ("user_friction", "xyz", 0.25, True),
         ("sampled", "trace-1", 0.0, False),
         ("sampled", "trace-1", 1.0, True),
     ],
@@ -342,6 +342,26 @@ def test_sampling_is_deterministic_across_runs(
 ) -> None:
     spec = replace(TOOL_COUNT_PER_TURN, name=name, sample_rate=sample_rate)
     assert _sampled(spec, artifact_id) is expected
+
+
+def test_sampling_is_consistent_across_evaluators() -> None:
+    """Evaluators sample by trace, not by (evaluator, trace).
+
+    Equal rates select identical traces; a lower rate selects a strict subset
+    of a higher rate — so sampled traces are never partially annotated.
+    """
+    trace_ids = [f"trace-{i}" for i in range(200)]
+    first = replace(TOOL_COUNT_PER_TURN, name="first", sample_rate=0.5)
+    second = replace(TOOL_COUNT_PER_TURN, name="second", sample_rate=0.5)
+    narrow = replace(TOOL_COUNT_PER_TURN, name="narrow", sample_rate=0.25)
+
+    selected_first = {tid for tid in trace_ids if _sampled(first, tid)}
+    selected_second = {tid for tid in trace_ids if _sampled(second, tid)}
+    selected_narrow = {tid for tid in trace_ids if _sampled(narrow, tid)}
+
+    assert selected_first == selected_second
+    assert selected_narrow <= selected_first
+    assert 0 < len(selected_narrow) < len(selected_first) < len(trace_ids)
 
 
 def test_applicability_filter_skips_evaluation() -> None:

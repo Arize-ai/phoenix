@@ -29,11 +29,19 @@ ANNOTATION_WRITE_BATCH_SIZE = 100
 
 
 def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
+    """Deterministic sampling keyed on the artifact alone, not the evaluator.
+
+    Every evaluator derives the same rho for a given trace, so evaluators with
+    equal sample rates select exactly the same traces, and a lower-rate
+    evaluator's selection is a strict subset of a higher-rate one's. Sampled
+    traces therefore carry every applicable annotation instead of a random
+    partial set.
+    """
     if spec.sample_rate >= 1.0:
         return True
     if spec.sample_rate <= 0.0:
         return False
-    digest = hashlib.sha256(f"{spec.name}:{artifact_id}".encode()).digest()
+    digest = hashlib.sha256(artifact_id.encode()).digest()
     rho = int.from_bytes(digest[:8], "big") / 2**64
     return rho < spec.sample_rate
 
