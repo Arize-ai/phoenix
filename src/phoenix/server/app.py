@@ -642,13 +642,12 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Entered after sandbox_session_manager for the same teardown-order
-            # reason as experiment_runner: the consumer runs code evals through
-            # sandbox sessions, so it must stop before the manager does.
-            if online_eval_producer is not None:
-                await stack.enter_async_context(online_eval_producer)
+            # Enter the consumer before the producer so teardown stops admission
+            # before draining work; both stop before sandbox_session_manager.
             if online_eval_consumer is not None:
                 await stack.enter_async_context(online_eval_consumer)
+            if online_eval_producer is not None:
+                await stack.enter_async_context(online_eval_producer)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during
                 # startup. Never let its initialization (which can hang until a
@@ -967,7 +966,7 @@ def create_app(
     )
     online_eval_producer: Optional[OnlineEvalProducer] = None
     online_eval_consumer: Optional[OnlineEvalConsumer] = None
-    if get_env_online_eval_enabled():
+    if get_env_online_eval_enabled() and not read_only:
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
             db,

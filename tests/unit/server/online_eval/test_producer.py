@@ -467,7 +467,18 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
             criteria_id=criteria_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             status="RUNNING",
-            attempts=MAX_ATTEMPTS,
+            attempts=MAX_ATTEMPTS - 1,
+            claimed_at=lapsed,
+            claimed_by="consumer-1",
+        )
+        failed_lapsed_unit = models.EvalWorkUnit(
+            span_rowid=span.id,
+            evaluator_id=evaluator_id,
+            criteria_id=criteria_id,
+            config_fingerprint=f"fp-{token_hex(8)}",
+            status="RUNNING",
+            attempts=MAX_ATTEMPTS - 1,
+            error="provider failed",
             claimed_at=lapsed,
             claimed_by="consumer-1",
         )
@@ -477,22 +488,33 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
             criteria_id=criteria_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             status="RUNNING",
-            attempts=MAX_ATTEMPTS,
+            attempts=MAX_ATTEMPTS - 1,
             claimed_at=now,
             claimed_by="consumer-1",
         )
-        session.add_all([lapsed_unit, fresh_unit])
+        session.add_all([lapsed_unit, failed_lapsed_unit, fresh_unit])
         await session.flush()
-        lapsed_id, fresh_id = lapsed_unit.id, fresh_unit.id
+        lapsed_id, failed_lapsed_id, fresh_id = (
+            lapsed_unit.id,
+            failed_lapsed_unit.id,
+            fresh_unit.id,
+        )
 
     producer = OnlineEvalProducer(db)
     await producer._reap(now, span.id)
 
     async with db() as session:
         lapsed_row = await session.get(models.EvalWorkUnit, lapsed_id)
+        failed_lapsed_row = await session.get(models.EvalWorkUnit, failed_lapsed_id)
         fresh_row = await session.get(models.EvalWorkUnit, fresh_id)
     assert lapsed_row is not None
     assert lapsed_row.status == "ERROR"
+    assert lapsed_row.attempts == MAX_ATTEMPTS
+    assert lapsed_row.error == "lease lapsed with attempts exhausted"
+    assert failed_lapsed_row is not None
+    assert failed_lapsed_row.status == "ERROR"
+    assert failed_lapsed_row.attempts == MAX_ATTEMPTS
+    assert failed_lapsed_row.error == "provider failed"
     assert fresh_row is not None
     assert fresh_row.status == "RUNNING"
     competitor = DbEvalWorkCoordinator(db)
@@ -502,7 +524,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
 async def test_admission_gate_skips_materialization(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "0")
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -510,13 +532,16 @@ async def test_admission_gate_skips_materialization(
         backlog_span = await _add_span(session, trace)
     evaluator_id, criteria_id = await _seed_criteria(db, project.id)
     async with db() as session:
-        session.add(
-            models.EvalWorkUnit(
-                span_rowid=backlog_span.id,
-                evaluator_id=evaluator_id,
-                criteria_id=criteria_id,
-                config_fingerprint=f"fp-{token_hex(8)}",
-            )
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=backlog_span.id,
+                    evaluator_id=evaluator_id,
+                    criteria_id=criteria_id,
+                    config_fingerprint=f"fp-{token_hex(8)}",
+                )
+                for _ in range(2)
+            ]
         )
     cursor_id = await _seed_cursor(
         db,
@@ -529,7 +554,7 @@ async def test_admission_gate_skips_materialization(
 
     async with db() as session:
         unit_count = await session.scalar(select(func.count()).select_from(models.EvalWorkUnit))
-    assert unit_count == 1
+    assert unit_count == 2
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == 0
 

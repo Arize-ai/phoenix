@@ -30,10 +30,12 @@ from phoenix.server.online_eval.coordinator import (
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.executor import HydratedWorkUnit, OnlineEvalExecutor
 from phoenix.server.prometheus import (
+    ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
     ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS,
     ONLINE_EVAL_PENDING_WORK_UNITS,
+    ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
 )
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -45,6 +47,7 @@ TICK_INTERVAL_SECONDS = 5.0
 CLAIM_BATCH_SIZE = 10
 ERROR_COOLDOWN_SECONDS = 60.0
 DRAIN_TIMEOUT_SECONDS = 10.0
+_CONSUMER_GROUP = "default"
 
 _TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 429})
 
@@ -92,16 +95,14 @@ class OnlineEvalConsumer(DaemonTask):
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         coordinator: Optional[EvalWorkCoordinator] = None,
-        consumer_group: str = "default",
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
         claim_batch_size: int = CLAIM_BATCH_SIZE,
     ) -> None:
         super().__init__()
         self._db = db
         self._grain: models.EvalWorkGrain = "SPAN"
-        self._consumer_group = consumer_group
         self._coordinator: EvalWorkCoordinator = coordinator or DbEvalWorkCoordinator(
-            db, grain=self._grain, consumer_group=self._consumer_group
+            db, grain=self._grain
         )
         self._executor = OnlineEvalExecutor(
             db,
@@ -133,6 +134,8 @@ class OnlineEvalConsumer(DaemonTask):
         lag = await self._coordinator.lag()
         ONLINE_EVAL_PENDING_WORK_UNITS.set(lag.pending_count)
         ONLINE_EVAL_RUNNING_WORK_UNITS.set(lag.running_count)
+        ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)
+        ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.set(lag.exhausted_error_count)
         ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS.set(lag.frontier_gap)
         ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.set(lag.oldest_pending_age_seconds or 0.0)
         async with self._db.read() as session:
@@ -143,7 +146,7 @@ class OnlineEvalConsumer(DaemonTask):
                         models.EvalWorkCursor.observed_at,
                     ).where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     )
                 )
             ).first()
@@ -190,10 +193,15 @@ class OnlineEvalConsumer(DaemonTask):
         try:
             hydrated = await self._executor.hydrate(unit)
             if hydrated is None:
-                await self._coordinator.expire(
+                expired = await self._coordinator.expire(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=self._consumer_id,
                 )
+                if not expired:
+                    logger.warning(
+                        f"Online-eval work unit {unit.work_unit_id} could not expire after its "
+                        "claim was lost"
+                    )
                 return
             await self._evaluate_with_heartbeat(unit, hydrated)
         except Exception as exc:
@@ -210,13 +218,18 @@ class OnlineEvalConsumer(DaemonTask):
             )
             cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
             try:
-                await self._coordinator.fail(
+                failed = await self._coordinator.fail(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=self._consumer_id,
                     error=str(exc),
                     cooldown_until=cooldown_until,
                     count_attempt=not transient,
                 )
+                if not failed:
+                    logger.warning(
+                        f"Online-eval work unit {unit.work_unit_id} failure was not recorded "
+                        "after its claim was lost"
+                    )
             except Exception:
                 logger.exception(
                     f"Failed to record failure for online-eval work unit {unit.work_unit_id}"
@@ -238,6 +251,7 @@ class OnlineEvalConsumer(DaemonTask):
         hydrated: HydratedWorkUnit,
     ) -> None:
         eval_task = asyncio.create_task(self._executor.evaluate_and_annotate(unit, hydrated))
+        heartbeat_enabled = True
         try:
             while True:
                 done, _ = await asyncio.wait({eval_task}, timeout=HEARTBEAT_INTERVAL_SECONDS)
@@ -246,11 +260,19 @@ class OnlineEvalConsumer(DaemonTask):
                 # A lost claim does not cancel the eval: the result is still
                 # valid under this unit's identifier and the write dedupes
                 # against whichever consumer got there first.
+                if not heartbeat_enabled:
+                    continue
                 try:
-                    await self._coordinator.heartbeat(
+                    heartbeat_succeeded = await self._coordinator.heartbeat(
                         work_unit_id=unit.work_unit_id,
                         claimed_by=self._consumer_id,
                     )
+                    if not heartbeat_succeeded:
+                        logger.warning(
+                            f"Online-eval work unit {unit.work_unit_id} heartbeat stopped after "
+                            "its claim was lost"
+                        )
+                        heartbeat_enabled = False
                 except Exception:
                     logger.exception(
                         f"Heartbeat failed for online-eval work unit {unit.work_unit_id}"

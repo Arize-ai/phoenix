@@ -2,7 +2,7 @@
 
 Materializes span-grain eval work units from enabled project evaluator criteria.
 The producer runs on every replica but self-elects each tick via the
-``eval_work_cursors`` CAS lease, so exactly one replica per (grain, consumer_group)
+``eval_work_cursors`` CAS lease, so exactly one replica per grain
 scans spans and writes work rows at a time. Each tick: renew the lease, reap
 expired/aged work rows, scan the lag-gated span id window per criteria, and
 idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
@@ -53,6 +53,7 @@ TICK_INTERVAL_SECONDS = 10.0
 
 _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
+_CONSUMER_GROUP = "default"
 
 
 async def resolve_criteria(
@@ -154,13 +155,11 @@ class OnlineEvalProducer(DaemonTask):
         self,
         db: DbSessionFactory,
         *,
-        consumer_group: str = "default",
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
         self._db = db
         self._grain: models.EvalWorkGrain = "SPAN"
-        self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
         self._producer_id = f"producer-{token_hex(8)}"
         self._frontier_lag_seconds = get_env_online_eval_frontier_lag_seconds()
@@ -231,8 +230,8 @@ class OnlineEvalProducer(DaemonTask):
         if gate_open and time.monotonic() - self._last_backstop_at >= (
             self._backstop_interval_seconds
         ):
-            self._last_backstop_at = time.monotonic()
             await self._backstop_sweep(active, produced_through_id)
+            self._last_backstop_at = time.monotonic()
 
     async def _acquire_cursor(self, now: datetime) -> Optional[models.EvalWorkCursor]:
         stale = now - timedelta(seconds=CURSOR_LEASE_TTL_SECONDS)
@@ -242,7 +241,7 @@ class OnlineEvalProducer(DaemonTask):
                     update(models.EvalWorkCursor)
                     .where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                         or_(
                             models.EvalWorkCursor.claimed_by.is_(None),
                             models.EvalWorkCursor.claimed_by == self._producer_id,
@@ -259,7 +258,7 @@ class OnlineEvalProducer(DaemonTask):
                 row_exists = await session.scalar(
                     select(models.EvalWorkCursor.id).where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     )
                 )
                 if row_exists is not None:
@@ -269,7 +268,7 @@ class OnlineEvalProducer(DaemonTask):
                     insert_on_conflict(
                         {
                             "grain": self._grain,
-                            "consumer_group": self._consumer_group,
+                            "consumer_group": _CONSUMER_GROUP,
                             "produced_through_id": produced_through_id,
                         },
                         table=models.EvalWorkCursor,
@@ -314,7 +313,7 @@ class OnlineEvalProducer(DaemonTask):
                     update(models.EvalWorkCursor)
                     .where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                         models.EvalWorkCursor.claimed_by == self._producer_id,
                     )
                     .values(claimed_by=None, claimed_at=None)
@@ -332,10 +331,17 @@ class OnlineEvalProducer(DaemonTask):
                 update(models.EvalWorkUnit)
                 .where(
                     models.EvalWorkUnit.status == "RUNNING",
-                    models.EvalWorkUnit.attempts >= MAX_ATTEMPTS,
+                    models.EvalWorkUnit.attempts >= MAX_ATTEMPTS - 1,
                     work_unit_lease_lapsed(now),
                 )
-                .values(status="ERROR")
+                .values(
+                    status="ERROR",
+                    attempts=MAX_ATTEMPTS,
+                    error=func.coalesce(
+                        models.EvalWorkUnit.error,
+                        "lease lapsed with attempts exhausted",
+                    ),
+                )
             )
             if self._pending_ttl_seconds > 0:
                 pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
@@ -479,7 +485,7 @@ class OnlineEvalProducer(DaemonTask):
                 update(models.EvalWorkCursor)
                 .where(
                     models.EvalWorkCursor.grain == self._grain,
-                    models.EvalWorkCursor.consumer_group == self._consumer_group,
+                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
                 .values(produced_through_id=frontier)
@@ -507,7 +513,7 @@ class OnlineEvalProducer(DaemonTask):
                 update(models.EvalWorkCursor)
                 .where(
                     models.EvalWorkCursor.grain == self._grain,
-                    models.EvalWorkCursor.consumer_group == self._consumer_group,
+                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
                 .values(observed_high_water_id=high_water, observed_at=observed_at)

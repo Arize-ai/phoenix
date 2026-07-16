@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
+from math import isfinite
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -3228,21 +3229,42 @@ def get_env_online_eval_frontier_lag_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS environment variable.
     """
-    return _float_val(ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS, 60.0)
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS, 60.0)
+    if not isfinite(seconds) or seconds < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS}: "
+            f"{seconds}. Value must be a finite non-negative number."
+        )
+    return seconds
 
 
 def get_env_online_eval_backstop_interval_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS environment variable.
     """
-    return _float_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS, 3600.0)
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS, 3600.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
 
 
 def get_env_online_eval_backstop_lookback_span_ids() -> int:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS environment variable.
     """
-    return _int_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS, 100_000)
+    span_ids = _int_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS, 100_000)
+    if span_ids < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS}: "
+            f"{span_ids}. Value must be a non-negative integer."
+        )
+    return span_ids
 
 
 def get_env_online_eval_max_span_ids_per_tick() -> int:
@@ -3273,14 +3295,28 @@ def get_env_online_eval_pending_ttl_seconds() -> float:
     evaluated or re-materialized, so only set this if dropping evals on old
     spans under sustained backlog is acceptable.
     """
-    return _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
+    if not isfinite(seconds) or seconds < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS}: "
+            f"{seconds}. Value must be a finite non-negative number."
+        )
+    return seconds
 
 
 def get_env_online_eval_retention_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_RETENTION_SECONDS environment variable.
     """
-    return _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
 
 
 def get_env_online_eval_max_outstanding() -> int:
@@ -3289,7 +3325,13 @@ def get_env_online_eval_max_outstanding() -> int:
 
     Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
     """
-    return _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 10_000)
+    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 10_000)
+    if max_outstanding <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING}: "
+            f"{max_outstanding}. Value must be a positive integer."
+        )
+    return max_outstanding
 
 
 def get_env_client_headers() -> dict[str, str]:

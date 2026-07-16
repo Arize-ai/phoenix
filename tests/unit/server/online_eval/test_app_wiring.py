@@ -29,17 +29,28 @@ from ..._helpers import _add_project, _add_span, _add_trace
 from .test_consumer import _patch_playground_client, _seed_llm_criteria, _StubLLMClient
 
 
-def _create_app(db: DbSessionFactory):  # type: ignore[no-untyped-def]
+def _create_app(db: DbSessionFactory, *, read_only: bool = False):  # type: ignore[no-untyped-def]
     return create_app(
         db=db,
         authentication_enabled=False,
         serve_ui=False,
         bulk_inserter_factory=TestBulkInserter,
+        read_only=read_only,
     )
 
 
 async def test_online_eval_daemons_absent_by_default(db: DbSessionFactory) -> None:
     app = _create_app(db)
+    assert app.state.online_eval_producer is None
+    assert app.state.online_eval_consumer is None
+
+
+async def test_online_eval_daemons_absent_in_read_only_mode(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+
+    app = _create_app(db, read_only=True)
     assert app.state.online_eval_producer is None
     assert app.state.online_eval_consumer is None
 

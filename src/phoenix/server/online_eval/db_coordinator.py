@@ -10,9 +10,8 @@ claim as False via the update rowcount.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.sql.elements import ColumnElement
@@ -27,6 +26,8 @@ from phoenix.server.online_eval.coordinator import (
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
 from phoenix.server.types import DbSessionFactory
 
+_CONSUMER_GROUP = "default"
+
 
 def work_unit_lease_lapsed(now: datetime) -> ColumnElement[bool]:
     return models.EvalWorkUnit.claimed_at < now - timedelta(seconds=LEASE_TTL_SECONDS)
@@ -40,12 +41,10 @@ class DbEvalWorkCoordinator:
         db: DbSessionFactory,
         *,
         grain: models.EvalWorkGrain = "SPAN",
-        consumer_group: str = "default",
         max_attempts: int = MAX_ATTEMPTS,
     ) -> None:
         self._db = db
         self._grain = grain
-        self._consumer_group = consumer_group
         self._max_attempts = max_attempts
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
@@ -53,7 +52,7 @@ class DbEvalWorkCoordinator:
             models.EvalWorkUnit.status == "PENDING",
             and_(
                 models.EvalWorkUnit.status == "RUNNING",
-                models.EvalWorkUnit.attempts < self._max_attempts,
+                models.EvalWorkUnit.attempts < self._max_attempts - 1,
                 work_unit_lease_lapsed(now),
             ),
             and_(
@@ -227,19 +226,37 @@ class DbEvalWorkCoordinator:
     async def lag(self) -> QueueLag:
         now = datetime.now(timezone.utc)
         async with self._db.read() as session:
-            counts: dict[str, int] = {
-                status: count
-                for status, count in (
+            error_exhausted = case(
+                (
+                    and_(
+                        models.EvalWorkUnit.status == "ERROR",
+                        models.EvalWorkUnit.attempts >= self._max_attempts,
+                    ),
+                    True,
+                ),
+                else_=False,
+            ).label("error_exhausted")
+            counts: dict[tuple[str, bool], int] = {
+                (status, exhausted): count
+                for status, exhausted, count in (
                     await session.execute(
-                        select(models.EvalWorkUnit.status, func.count())
-                        .where(models.EvalWorkUnit.status.in_(["PENDING", "RUNNING"]))
-                        .group_by(models.EvalWorkUnit.status)
+                        select(models.EvalWorkUnit.status, error_exhausted, func.count())
+                        .where(models.EvalWorkUnit.status.in_(["PENDING", "RUNNING", "ERROR"]))
+                        .group_by(models.EvalWorkUnit.status, error_exhausted)
                     )
                 ).all()
             }
-            oldest_pending_created_at = await session.scalar(
+            oldest_work_created_at = await session.scalar(
                 select(models.EvalWorkUnit.created_at)
-                .where(models.EvalWorkUnit.status == "PENDING")
+                .where(
+                    or_(
+                        models.EvalWorkUnit.status == "PENDING",
+                        and_(
+                            models.EvalWorkUnit.status == "ERROR",
+                            models.EvalWorkUnit.attempts < self._max_attempts,
+                        ),
+                    )
+                )
                 .order_by(models.EvalWorkUnit.created_at)
                 .limit(1)
             )
@@ -250,7 +267,7 @@ class DbEvalWorkCoordinator:
                         models.EvalWorkCursor.observed_high_water_id,
                     ).where(
                         models.EvalWorkCursor.grain == self._grain,
-                        models.EvalWorkCursor.consumer_group == self._consumer_group,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     )
                 )
             ).first()
@@ -258,13 +275,15 @@ class DbEvalWorkCoordinator:
         if cursor is not None and cursor.observed_high_water_id is not None:
             frontier_gap = max(cursor.observed_high_water_id - cursor.produced_through_id, 0)
         oldest_pending_age_seconds = (
-            max((now - oldest_pending_created_at).total_seconds(), 0.0)
-            if oldest_pending_created_at is not None
+            max((now - oldest_work_created_at).total_seconds(), 0.0)
+            if oldest_work_created_at is not None
             else None
         )
         return QueueLag(
-            pending_count=counts.get("PENDING", 0),
-            running_count=counts.get("RUNNING", 0),
+            pending_count=counts.get(("PENDING", False), 0),
+            running_count=counts.get(("RUNNING", False), 0),
+            retryable_error_count=counts.get(("ERROR", False), 0),
+            exhausted_error_count=counts.get(("ERROR", True), 0),
             frontier_gap=frontier_gap,
             oldest_pending_age_seconds=oldest_pending_age_seconds,
         )

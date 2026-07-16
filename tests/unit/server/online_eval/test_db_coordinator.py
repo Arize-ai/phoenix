@@ -10,6 +10,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
@@ -211,6 +212,27 @@ async def test_lapsed_lease_with_exhausted_attempts_is_not_claimable(
     assert row.attempts == 1
 
 
+async def test_lapsed_unit_is_claimed_exactly_max_attempts_times(db: DbSessionFactory) -> None:
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = DbEvalWorkCoordinator(db)
+    execution_count = 0
+
+    for execution_count in range(1, MAX_ATTEMPTS + 1):
+        claimed = await coordinator.claim(claimed_by=f"consumer-{execution_count}", limit=1)
+        assert [unit.work_unit_id for unit in claimed] == [unit_id]
+        async with db() as session:
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(models.EvalWorkUnit.id == unit_id)
+                .values(
+                    claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+                )
+            )
+
+    assert execution_count == 3
+    assert await coordinator.claim(claimed_by="consumer-4", limit=1) == []
+
+
 async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
     db: DbSessionFactory,
 ) -> None:
@@ -219,10 +241,13 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
     empty = await coordinator.lag()
     assert empty.pending_count == 0
     assert empty.running_count == 0
+    assert empty.retryable_error_count == 0
+    assert empty.exhausted_error_count == 0
     assert empty.frontier_gap == 0
     assert empty.oldest_pending_age_seconds is None
 
-    unit_ids = await _seed_work_units(db, 4)
+    unit_ids = await _seed_work_units(db, 6)
+    now = datetime.now(timezone.utc)
     async with db() as session:
         await session.execute(
             update(models.EvalWorkUnit)
@@ -233,6 +258,24 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
             update(models.EvalWorkUnit)
             .where(models.EvalWorkUnit.id == unit_ids[1])
             .values(status="DONE")
+        )
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_ids[2])
+            .values(
+                status="ERROR",
+                attempts=MAX_ATTEMPTS - 1,
+                created_at=now - timedelta(seconds=120),
+            )
+        )
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_ids[3])
+            .values(
+                status="ERROR",
+                attempts=MAX_ATTEMPTS,
+                created_at=now - timedelta(seconds=3600),
+            )
         )
         session.add(
             models.EvalWorkCursor(
@@ -246,9 +289,11 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
     lag = await coordinator.lag()
     assert lag.pending_count == 2
     assert lag.running_count == 1
+    assert lag.retryable_error_count == 1
+    assert lag.exhausted_error_count == 1
     assert lag.frontier_gap == 7
     assert lag.oldest_pending_age_seconds is not None
-    assert lag.oldest_pending_age_seconds >= 0.0
+    assert 100.0 <= lag.oldest_pending_age_seconds < 300.0
 
 
 @pytest.mark.postgres_only

@@ -44,10 +44,13 @@ class ClaimedWorkUnit:
 class QueueLag:
     """Observable backlog; all fields are zero when no cursor or work rows exist.
     ``frontier_gap`` is the spans.id distance between the producer's eligible frontier
-    and its watermark; ``oldest_pending_age_seconds`` is None when the queue is empty."""
+    and its watermark; ``oldest_pending_age_seconds`` covers PENDING and retryable ERROR
+    work and is None when that backlog is empty."""
 
     pending_count: int
     running_count: int
+    retryable_error_count: int
+    exhausted_error_count: int
     frontier_gap: int
     oldest_pending_age_seconds: Optional[float]
 
