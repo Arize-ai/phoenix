@@ -185,7 +185,6 @@ class OnlineEvalConsumer(DaemonTask):
     async def stop(self) -> None:
         self._running = False
         if self._pending_tasks:
-            # Gracefully drain in-flight evals, then cancel and await stragglers.
             _, pending = await asyncio.wait(set(self._pending_tasks), timeout=DRAIN_TIMEOUT_SECONDS)
             for task in pending:
                 task.cancel()
