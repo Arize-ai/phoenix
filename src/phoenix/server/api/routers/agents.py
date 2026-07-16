@@ -1524,21 +1524,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             allow_local_traces=recording.allow_local_traces,
             allow_remote_export=recording.allow_remote_export,
         )
-        project_name = get_env_phoenix_agents_assistant_project_name()
-        tracer = (
-            Tracer(
-                span_cost_calculator=request.app.state.span_cost_calculator,
-                enable_remote_export=export_remote_traces,
-                project_name=project_name,
-            )
-            if (ingest_traces or export_remote_traces)
-            else None
-        )
-        tracer_provider = tracer.tracer_provider if tracer is not None else None
-        agent_span_recorder: _AgentSpanContextRecorder | None = None
-        if tracer is not None:
-            agent_span_recorder = _AgentSpanContextRecorder()
-            tracer.tracer_provider.add_span_processor(agent_span_recorder)
+        configured_project_name = get_env_phoenix_agents_assistant_project_name()
 
         resolved_contexts = resolve_contexts(body.contexts)
         if (browser_clock := _resolve_browser_clock(body.messages)) is not None:
@@ -1558,6 +1544,35 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         session_created_data: SessionCreatedData
         try:
             async with request.app.state.db() as session:
+                if body.agent_session_id is None:
+                    agent_session = await _create_agent_session(
+                        session,
+                        otel_session_id=str(uuid4()),
+                        user_id=request_user_id,
+                        messages=body.messages,
+                        project_name=configured_project_name,
+                    )
+                else:
+                    agent_session = await _load_agent_session(
+                        session,
+                        agent_session_id=body.agent_session_id,
+                        user_id=request_user_id,
+                    )
+                project_name = agent_session.project_name
+                tracer = (
+                    Tracer(
+                        span_cost_calculator=request.app.state.span_cost_calculator,
+                        enable_remote_export=export_remote_traces,
+                        project_name=project_name,
+                    )
+                    if (ingest_traces or export_remote_traces)
+                    else None
+                )
+                tracer_provider = tracer.tracer_provider if tracer is not None else None
+                agent_span_recorder: _AgentSpanContextRecorder | None = None
+                if tracer is not None:
+                    agent_span_recorder = _AgentSpanContextRecorder()
+                    tracer.tracer_provider.add_span_processor(agent_span_recorder)
                 model = await build_model(
                     body.model,
                     session=session,
@@ -1581,20 +1596,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session=session,
                     phoenix_user=phoenix_user,
                 )
-                if body.agent_session_id is None:
-                    agent_session = await _create_agent_session(
-                        session,
-                        otel_session_id=str(uuid4()),
-                        user_id=request_user_id,
-                        messages=body.messages,
-                        project_name=project_name,
-                    )
-                else:
-                    agent_session = await _load_agent_session(
-                        session,
-                        agent_session_id=body.agent_session_id,
-                        user_id=request_user_id,
-                    )
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
                 otel_session_id = agent_session.project_session_id
