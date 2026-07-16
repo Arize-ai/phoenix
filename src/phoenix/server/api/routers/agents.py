@@ -1168,6 +1168,14 @@ async def _create_or_load_agent_session(
         created_agent_session = models.AgentSession(user_id=user_id, title="")
         session.add(created_agent_session)
         await session.flush()
+        session.add_all(
+            models.AgentSessionMessage(
+                agent_session_id=created_agent_session.id,
+                position=position,
+                message=message,
+            )
+            for position, message in enumerate(messages)
+        )
         return created_agent_session
     try:
         agent_session_rowid = from_global_id_with_expected_type(
@@ -1206,6 +1214,28 @@ async def _update_agent_session(
         .values(**values)
         .returning(models.AgentSession.id)
     )
+
+
+async def _persist_agent_session_title(
+    db: DbSessionFactory,
+    *,
+    agent_session_rowid: int,
+    user_id: int | None,
+    title: str,
+) -> None:
+    try:
+        async with db() as session:
+            await _update_agent_session(
+                session,
+                agent_session_rowid=agent_session_rowid,
+                user_id=user_id,
+                title=title,
+            )
+    except Exception:
+        logger.exception(
+            "Failed to persist title for agent session %r",
+            str(GlobalID("AgentSession", str(agent_session_rowid))),
+        )
 
 
 async def _upsert_agent_session_snapshot(
@@ -1699,7 +1729,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     using_session(session_id=otel_session_id),
                     _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
-                    result = await summarize_messages(
+                    summary = await summarize_messages(
                         messages=adapter.messages,
                         model=model,
                     )
@@ -1709,7 +1739,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session_created_data.id if session_created_data is not None else None,
                 )
                 return None
-            return result.summary.strip() or None
+            if summary is not None and agent_session_rowid is not None:
+                await _persist_agent_session_title(
+                    request.app.state.db,
+                    agent_session_rowid=agent_session_rowid,
+                    user_id=request_user_id,
+                    title=summary,
+                )
+            return summary
 
         turn_final_output_text: str | None = None
         turn_is_terminal = False
