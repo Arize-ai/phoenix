@@ -1,7 +1,7 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 
 import {
@@ -76,8 +76,7 @@ const turnClientStateByChat = new WeakMap<
  * in the app-level runtime registry, then binds the current React surface to
  * whichever runtime instance should own the session right now.
  *
- * Durable state still lives in the agent store:
- * - messages are mirrored into Zustand so an idle chat can be reconstructed
+ * App-local metadata still lives in the agent store:
  * - pending elicitation is store-backed and survives remounts
  * - titles arrive in-band from the chat stream and are store-backed
  */
@@ -148,12 +147,7 @@ export function useAgentChat({
           sessionId,
           chatApiUrl,
           createChat: () => {
-            // Rehydrate from store-backed messages so evicted idle runtimes can
-            // be recreated without losing visible conversation history.
-            const runtimeMessages =
-              store.getState().sessionMap[sessionId]?.messages ??
-              initialMessages ??
-              [];
+            const runtimeMessages = initialMessages ?? [];
             const turnTraceContext = createTurnTraceContextManager();
             const toolTimings = createClientToolTimingRecorder();
             const turnCompletionGate = createTurnCompletionGate({
@@ -161,7 +155,7 @@ export function useAgentChat({
                 turnTraceContext.clear();
                 toolTimings.clear();
               },
-              finalize: ({ finalMessages, message }) => {
+              finalize: ({ message }) => {
                 const usage = getAssistantMessageMetadata(message)?.usage;
                 if (usage != null) {
                   store.getState().setSessionUsage(sessionId, {
@@ -170,11 +164,6 @@ export function useAgentChat({
                       ? { promptDetails: usage.promptDetails }
                       : {}),
                   });
-                }
-                // Finalized history is mirrored into the durable store so idle
-                // runtimes can be reclaimed and later reconstructed from state.
-                if (finalMessages) {
-                  store.getState().setSessionMessages(sessionId, finalMessages);
                 }
               },
             });
@@ -389,20 +378,6 @@ export function useAgentChat({
     );
   };
 
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-
-  // Persist the latest in-memory transcript when this binding unmounts because
-  // the visible surface moved, the active session changed, or the model swap
-  // caused the runtime instance to be replaced.
-  useEffect(() => {
-    return () => {
-      if (sessionId && messagesRef.current.length > 0) {
-        store.getState().setSessionMessages(sessionId, messagesRef.current);
-      }
-    };
-  }, [sessionId, store]);
-
   // Elicitation responses are written back through the runtime-owned chat so
   // the pending tool call resolves against the correct assistant turn.
   const handleElicitationSubmit = (output: ElicitToolOutput) => {
@@ -508,7 +483,6 @@ export function useAgentChat({
           },
           onError: (error) => {
             setMessages(previousMessages);
-            store.getState().setSessionMessages(sessionId, previousMessages);
             const messages = getErrorMessagesFromRelayMutationError(error);
             notifyError({
               title: "Session could not be rewound",
@@ -523,7 +497,6 @@ export function useAgentChat({
       });
       setMessages(result.messages);
       clearError();
-      store.getState().setSessionMessages(sessionId, result.messages);
       return result.restoredInput;
     },
     [
@@ -568,14 +541,10 @@ export function useAgentChat({
         },
         onCompleted: (response) => {
           const forkedSession = response.forkAgentSession.agentSession;
-          const forkedMessages = Array.isArray(forkedSession.messages)
-            ? (forkedSession.messages as AgentUIMessage[])
-            : [];
           store.getState().cacheSession({
             clientKey: forkedSession.id,
             id: forkedSession.id,
             title: forkedSession.title,
-            messages: forkedMessages,
             context: [...sourceSession.context],
             modelConfig: { ...sourceSession.modelConfig },
             createdAt: Date.parse(forkedSession.createdAt as string),

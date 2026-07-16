@@ -26,6 +26,7 @@ const chatSessionUsageCSS = css`
 
 type ChatSessionUsage = {
   sessionId: string;
+  messages: AgentUIMessage[];
 };
 
 type CachePromptDetails = {
@@ -38,7 +39,7 @@ type CacheUsageDisplay = {
   promptDetails: CachePromptDetails | undefined;
 };
 
-function getLatestAssistantMessageUsage(
+export function getLatestAssistantMessageUsage(
   messages: AgentUIMessage[]
 ): AgentSessionUsage | null {
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -96,12 +97,11 @@ export function getCacheUsageDisplay({
   };
 }
 
-export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
-  const usage = useAgentContext((state) => {
-    const session = state.sessionMap[sessionId];
-    if (!session) return null;
-    return getLatestAssistantMessageUsage(session.messages) ?? session.usage;
-  });
+export const ChatSessionUsage = ({ sessionId, messages }: ChatSessionUsage) => {
+  const storedUsage = useAgentContext(
+    (state) => state.sessionMap[sessionId]?.usage ?? null
+  );
+  const usage = getLatestAssistantMessageUsage(messages) ?? storedUsage;
   if (!usage) return null;
   const { summaryText, promptDetails } = getCacheUsageDisplay({
     promptDetails: usage.tokenCount.promptDetails,

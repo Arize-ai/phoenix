@@ -22,6 +22,7 @@ import { Button, Flex, Text } from "@phoenix/components";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useNotifyError } from "@phoenix/contexts";
+import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -35,6 +36,7 @@ import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SESSION_PAGE_SIZE,
 } from "./agentSessionRelay";
+import { shouldHydrateAgentSession } from "./agentSessionRuntime";
 import { ChatView } from "./Chat";
 import type { AgentSessionListItem } from "./SessionListMenu";
 import {
@@ -132,6 +134,7 @@ function AgentSessionsContent({
     query
   );
   const store = useAgentStore();
+  const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const sessionMap = useAgentContext((state) => state.sessionMap);
@@ -179,7 +182,6 @@ function AgentSessionsContent({
       clientKey,
       id: node.id,
       title: runtimeSession?.title || node.title,
-      messages: runtimeSession?.messages ?? [],
       createdAt: Date.parse(node.createdAt as string),
       isDeleteDisabled:
         chatStatusBySessionId[clientKey] === "submitted" ||
@@ -202,7 +204,6 @@ function AgentSessionsContent({
           clientKey: activeLocalSession.clientKey,
           id: activeLocalSession.id,
           title: activeLocalSession.title,
-          messages: activeLocalSession.messages,
           createdAt: activeLocalSession.createdAt,
           isDeleteDisabled:
             chatStatusBySessionId[activeLocalSession.clientKey] ===
@@ -305,6 +306,13 @@ function AgentSessionsContent({
   const activeRuntimeSession = activeSessionId
     ? sessionMap[activeSessionId]
     : undefined;
+  const activeSessionHasRuntime = activeSessionId
+    ? runtime.hasChat(activeSessionId)
+    : false;
+  const shouldHydrateActiveSession = shouldHydrateAgentSession({
+    hasRuntime: activeSessionHasRuntime,
+    persistedSessionId: activeRuntimeSession?.id,
+  });
   const sessionDisplayName = activeSession
     ? getSessionDisplayName(activeSession)
     : activeRuntimeSession
@@ -358,13 +366,7 @@ function AgentSessionsContent({
         onClose={panelState.closePanel}
       />
       {activeSessionId ? (
-        activeRuntimeSession ? (
-          <AgentChatController
-            key={activeSessionId}
-            sessionId={activeSessionId}
-            initialMessages={activeRuntimeSession.messages}
-          />
-        ) : (
+        shouldHydrateActiveSession ? (
           <Suspense fallback={<Loading />}>
             <AgentSessionTranscript
               key={activeSessionId}
@@ -372,6 +374,11 @@ function AgentSessionsContent({
               onMissing={handleMissingSession}
             />
           </Suspense>
+        ) : (
+          <AgentChatController
+            key={activeSessionId}
+            sessionId={activeSessionId}
+          />
         )
       ) : (
         <Loading />
@@ -427,7 +434,6 @@ function AgentSessionTranscript({
       clientKey: sessionId,
       id: agentSession.id,
       title: agentSession.title,
-      messages,
       context: [],
       modelConfig: { ...defaultModelConfig },
       createdAt: Date.parse(agentSession.createdAt as string),
@@ -447,7 +453,7 @@ function AgentChatController({
   initialMessages,
 }: {
   sessionId: string;
-  initialMessages: AgentUIMessage[];
+  initialMessages?: AgentUIMessage[];
 }) {
   const { chatApiUrl, modelSelection, menuValue, handleModelChange } =
     useAgentChatPanelState();
@@ -489,7 +495,7 @@ function AgentChatController({
       onModelChange={handleModelChange}
       autoFocusInput
     >
-      <ChatSessionUsage sessionId={sessionId} />
+      <ChatSessionUsage sessionId={sessionId} messages={messages} />
     </ChatView>
   );
 }

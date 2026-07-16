@@ -334,7 +334,9 @@ export function Chat({
       emptyStateSubtext={emptyStateSubtext}
       emptyStateQuickActions={emptyStateQuickActions}
     >
-      {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
+      {sessionId ? (
+        <ChatSessionUsage sessionId={sessionId} messages={messages} />
+      ) : null}
     </ChatView>
   );
 }

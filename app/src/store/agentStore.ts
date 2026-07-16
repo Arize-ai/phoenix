@@ -1,9 +1,8 @@
-import { isTextUIPart, type ChatStatus } from "ai";
+import type { ChatStatus } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
   agentContextKey,
   type AgentContext,
@@ -123,8 +122,7 @@ export type PendingAgentMessage = {
 };
 
 /**
- * An agent conversation session containing messages, context references,
- * and its own model configuration (initially cloned from the default).
+ * App-local metadata for an agent conversation session.
  */
 export type AgentSession = {
   /** Stable client-side key used to identify the session in React. */
@@ -133,8 +131,6 @@ export type AgentSession = {
   id: string | null;
   /** Brief human-readable title for the conversation. */
   title: string;
-  /** Messages in AI SDK UIMessage format. */
-  messages: AgentUIMessage[];
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
   /** Model configuration scoped to this session. */
@@ -171,42 +167,6 @@ const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
 const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
   edits: "manual",
 };
-
-/** Prefix applied to a branched session's title to denote its origin. */
-const FORK_TITLE_PREFIX = "(branch) ";
-
-/** Max length for a derived (non-LLM) fork title before truncation. */
-const FORK_TITLE_MAX_LENGTH = 50;
-
-/**
- * Builds the title for a session branched from `source`. Reuses the source's
- * LLM-generated title when available, otherwise derives a short label from
- * its first user message, then prefixes it with `(branch)`. Seeding a non-empty
- * title here also prevents the async summarizer from overwriting it.
- */
-function buildForkTitle(source: AgentSession): string {
-  let base = source.title.trim();
-  if (!base) {
-    const firstUserMessage = source.messages.find(
-      (message) => message.role === "user"
-    );
-    const text = firstUserMessage?.parts
-      .filter(isTextUIPart)
-      .map((part) => part.text)
-      .join(" ")
-      .trim();
-    base = text
-      ? text.length > FORK_TITLE_MAX_LENGTH
-        ? `${text.slice(0, FORK_TITLE_MAX_LENGTH)}...`
-        : text
-      : "";
-  }
-  // Avoid stacking "(branch) (branch) ..." when branching from a branch.
-  if (base.startsWith(FORK_TITLE_PREFIX)) {
-    return base;
-  }
-  return base ? `${FORK_TITLE_PREFIX}${base}` : FORK_TITLE_PREFIX.trim();
-}
 
 export function getCurrentTraceConsentSettings(
   agentsConfig: AgentServerConfig
@@ -313,11 +273,6 @@ export interface AgentState extends AgentProps {
   setFabPlacement: (placement: AgentFabPlacement) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
-  forkSession: (params: {
-    sourceSessionId: string;
-    messages: AgentUIMessage[];
-    restoredInput?: string | null;
-  }) => string | null;
   setActiveSession: (sessionId: string | null) => void;
   updateSessionTitle: (sessionId: string, title: string) => void;
   updateSessionModelConfig: (
@@ -326,11 +281,8 @@ export interface AgentState extends AgentProps {
   ) => void;
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
-  setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setSessionPersisted: (clientKey: string, id: string) => void;
-  /**
-   * Adds a server-loaded transcript to the app-local runtime cache.
-   */
+  /** Adds server-loaded session metadata to the app-local cache. */
   cacheSession: (session: AgentSession) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
@@ -676,7 +628,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             clientKey: sessionId,
             id: null,
             title: "",
-            messages: [],
             context: [],
             modelConfig: { ...state.defaultModelConfig },
             createdAt: Date.now(),
@@ -691,40 +642,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "createSession" }
       );
       return sessionId;
-    },
-    forkSession: ({ sourceSessionId, messages, restoredInput }) => {
-      const sessionId = generateUUID();
-      let created = false;
-      set(
-        (state) => {
-          const source = state.sessionMap[sourceSessionId];
-          if (!source) return state;
-          created = true;
-          const session: AgentSession = {
-            clientKey: sessionId,
-            id: null,
-            title: buildForkTitle(source),
-            messages,
-            // Carry over the source session's context and model so the fork
-            // continues the same conversation under the same configuration.
-            context: [...source.context],
-            modelConfig: { ...source.modelConfig },
-            createdAt: Date.now(),
-          };
-          const draftInputBySessionId = restoredInput
-            ? { ...state.draftInputBySessionId, [sessionId]: restoredInput }
-            : state.draftInputBySessionId;
-          return {
-            sessions: [...state.sessions, sessionId],
-            sessionMap: { ...state.sessionMap, [sessionId]: session },
-            activeSessionId: sessionId,
-            draftInputBySessionId,
-          };
-        },
-        false,
-        { type: "forkSession" }
-      );
-      return created ? sessionId : null;
     },
     deleteSession: (sessionId) => {
       set(
@@ -847,22 +764,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "removeSessionContext" }
       );
     },
-    setSessionMessages: (sessionId, messages) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: { ...session, messages },
-            },
-          };
-        },
-        false,
-        { type: "setSessionMessages" }
-      );
-    },
     setSessionPersisted: (clientKey, id) => {
       set(
         (state) => {
@@ -894,10 +795,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
                     ...session,
                     ...existing,
                     title: existing.title || session.title,
-                    messages:
-                      existing.messages.length > 0
-                        ? existing.messages
-                        : session.messages,
                   }
                 : session,
             },

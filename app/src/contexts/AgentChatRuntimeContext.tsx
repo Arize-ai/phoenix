@@ -26,6 +26,8 @@ type AgentChatRuntime = {
     chatApiUrl: string;
     createChat: () => Chat<AgentUIMessage>;
   }) => Chat<AgentUIMessage>;
+  /** Returns whether a session already has a live browser transcript runtime. */
+  hasChat: (sessionId: string) => boolean;
   /**
    * Reconciles the runtime registry against current app state, reclaiming chats
    * that no longer need to remain imperative singletons.
@@ -45,10 +47,8 @@ type AgentChatRuntime = {
  * Policy:
  * - deleted sessions are always evicted
  * - the active session is always retained, even when idle
- * - inactive sessions are retained only while a response is in flight so
- *   streaming can survive surface changes or session switches
- * - idle inactive sessions are reconstructed from store-backed messages when
- *   revisited, so their runtime can be reclaimed eagerly
+ * - inactive sessions are retained while a response or tool continuation is active
+ * - inactive idle sessions can be evicted and later rehydrated from Relay
  */
 export function shouldRetainChatRuntime({
   sessionId,
@@ -63,14 +63,12 @@ export function shouldRetainChatRuntime({
   status: ChatStatus;
   hasPendingToolOutput?: boolean;
 }) {
-  if (!liveSessionIds.has(sessionId)) {
-    return false;
-  }
-
   if (sessionId === activeSessionId) {
     return true;
   }
-
+  if (!liveSessionIds.has(sessionId)) {
+    return false;
+  }
   return (
     status === "submitted" || status === "streaming" || hasPendingToolOutput
   );
@@ -84,11 +82,10 @@ const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
  * The important split is:
  * - React components are disposable view bindings
  * - AI SDK `Chat` instances are imperative runtimes owned here
- * - Zustand remains the durable source of truth for session metadata/messages
+ * - Relay hydrates committed transcripts and Zustand stores session metadata
  *
  * That lets requests continue while the visible surface moves between layouts,
- * while still allowing idle runtimes to be reclaimed and reconstructed from
- * store-backed state when revisited.
+ * while active work survives remounts and idle sessions rehydrate from Relay.
  */
 export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
   const store = useAgentStore();
@@ -133,6 +130,7 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
         });
         return chat;
       },
+      hasChat: (sessionId) => chatRegistry.has(sessionId),
       pruneChats: ({ activeSessionId, liveSessionIds }) => {
         const liveSessionIdSet = new Set(liveSessionIds);
         for (const sessionId of chatRegistry.keys()) {
@@ -151,9 +149,6 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
             continue;
           }
 
-          // Once a chat no longer needs to remain runtime-resident, the store
-          // becomes the only durable source of truth until the chat is created
-          // again for a future surface/session visit.
           entry?.unsubscribe();
           chatRegistry.delete(sessionId);
           store.getState().setSessionChatStatus(sessionId, "ready");

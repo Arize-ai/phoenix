@@ -14,6 +14,17 @@ describe("shouldRetainChatRuntime", () => {
     ).toBe(true);
   });
 
+  it("retains the active session before Relay metadata is cached", () => {
+    expect(
+      shouldRetainChatRuntime({
+        sessionId: "session-a",
+        activeSessionId: "session-a",
+        liveSessionIds: new Set(),
+        status: "ready",
+      })
+    ).toBe(true);
+  });
+
   it("retains inactive sessions while a response is in flight", () => {
     expect(
       shouldRetainChatRuntime({
@@ -23,18 +34,9 @@ describe("shouldRetainChatRuntime", () => {
         status: "streaming",
       })
     ).toBe(true);
-
-    expect(
-      shouldRetainChatRuntime({
-        sessionId: "session-a",
-        activeSessionId: "session-b",
-        liveSessionIds: new Set(["session-a", "session-b"]),
-        status: "submitted",
-      })
-    ).toBe(true);
   });
 
-  it("evicts inactive idle sessions that still exist in the store", () => {
+  it("evicts inactive idle sessions for Relay rehydration", () => {
     expect(
       shouldRetainChatRuntime({
         sessionId: "session-a",
@@ -45,7 +47,7 @@ describe("shouldRetainChatRuntime", () => {
     ).toBe(false);
   });
 
-  it("retains inactive ready sessions while tool output is pending", () => {
+  it("retains inactive sessions with pending tool output", () => {
     expect(
       shouldRetainChatRuntime({
         sessionId: "session-a",
@@ -61,7 +63,7 @@ describe("shouldRetainChatRuntime", () => {
     expect(
       shouldRetainChatRuntime({
         sessionId: "session-a",
-        activeSessionId: "session-a",
+        activeSessionId: "session-b",
         liveSessionIds: new Set(["session-b"]),
         status: "streaming",
       })

@@ -1,6 +1,35 @@
 import { describe, expect, it } from "vitest";
 
-import { getCacheUsageDisplay } from "../ChatSessionUsage";
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+
+import {
+  getCacheUsageDisplay,
+  getLatestAssistantMessageUsage,
+} from "../ChatSessionUsage";
+
+describe("getLatestAssistantMessageUsage", () => {
+  it("reads usage from the latest assistant message", () => {
+    const messages: AgentUIMessage[] = [
+      { id: "user-1", role: "user", parts: [] },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        metadata: {
+          type: "assistant",
+          sessionId: "session-1",
+          usage: {
+            tokens: { prompt: 10, completion: 5, total: 15 },
+          },
+        },
+        parts: [],
+      },
+    ];
+
+    expect(getLatestAssistantMessageUsage(messages)).toEqual({
+      tokenCount: { prompt: 10, completion: 5, total: 15 },
+    });
+  });
+});
 
 describe("getCacheUsageDisplay", () => {
   it("renders only cache read when cache write is zero", () => {

@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
   Button,
   Flex,
@@ -43,7 +42,6 @@ export type AgentSessionListItem = {
   clientKey: string;
   id: string | null;
   title: string;
-  messages: AgentUIMessage[];
   createdAt: number;
   isDeleteDisabled?: boolean;
 };

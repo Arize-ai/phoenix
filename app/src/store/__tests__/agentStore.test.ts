@@ -162,15 +162,6 @@ describe("agentStore", () => {
     });
   });
 
-  describe("setSessionMessages", () => {
-    it("no-ops for unknown session", () => {
-      const store = createAgentStore();
-      const before = store.getState();
-      store.getState().setSessionMessages("nonexistent", []);
-      expect(store.getState().sessionMap).toBe(before.sessionMap);
-    });
-  });
-
   describe("session retention", () => {
     it("retains prior sessions when creating a new session", () => {
       const store = createAgentStore();
@@ -187,13 +178,12 @@ describe("agentStore", () => {
   });
 
   describe("cacheSession", () => {
-    it("adds a server-loaded transcript to the runtime cache", () => {
+    it("adds server-loaded metadata to the runtime cache", () => {
       const store = createAgentStore();
       store.getState().cacheSession({
         clientKey: "remote",
         id: "remote-node-id",
         title: "remote session",
-        messages: [{ id: "m1", role: "user", parts: [] }],
         context: [],
         modelConfig: store.getState().defaultModelConfig,
         createdAt: 1,
@@ -203,26 +193,20 @@ describe("agentStore", () => {
       expect(state.sessions).toEqual(["remote"]);
       expect(state.sessionMap["remote"]).toMatchObject({
         title: "remote session",
-        messages: [{ id: "m1", role: "user", parts: [] }],
         createdAt: 1,
       });
       expect(state.activeSessionId).toBeNull();
     });
 
-    it("preserves live messages while backfilling a server title", () => {
+    it("preserves local metadata while backfilling a server title", () => {
       const store = createAgentStore();
       const localSessionId = store.getState().createSession();
-      store
-        .getState()
-        .setSessionMessages(localSessionId, [
-          { id: "m1", role: "user", parts: [{ type: "text", text: "hi" }] },
-        ]);
+      store.getState().addSessionContext(localSessionId, "span:123");
 
       store.getState().cacheSession({
         clientKey: localSessionId,
         id: "local-node-id",
         title: "server title",
-        messages: [],
         context: [],
         modelConfig: store.getState().defaultModelConfig,
         createdAt: 1,
@@ -231,136 +215,8 @@ describe("agentStore", () => {
       const state = store.getState();
       expect(state.sessions).toEqual([localSessionId]);
       const localSession = state.sessionMap[localSessionId];
-      expect(localSession?.messages).toHaveLength(1);
       expect(localSession?.title).toBe("server title");
-    });
-  });
-
-  describe("forkSession", () => {
-    it("creates a new active session retaining the source session", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-      const messages = [{ id: "user-1", role: "user" as const, parts: [] }];
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages,
-      });
-
-      expect(forkId).not.toBeNull();
-      const state = store.getState();
-      expect(state.activeSessionId).toBe(forkId);
-      // Source session is preserved alongside the fork.
-      expect(state.sessionMap[sourceId]).toBeDefined();
-      expect(state.sessionMap[forkId!].messages).toEqual(messages);
-    });
-
-    it("copies the source session's model config and context", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-      store
-        .getState()
-        .updateSessionModelConfig(sourceId, { modelName: "gpt-4o" });
-      store.getState().addSessionContext(sourceId, "span:123");
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
-
-      const forked = store.getState().sessionMap[forkId!];
-      expect(forked.modelConfig.modelName).toBe("gpt-4o");
-      expect(forked.context).toEqual(["span:123"]);
-    });
-
-    it("stages restored input as the forked session draft", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-        restoredInput: "edit me",
-      });
-
-      expect(store.getState().draftInputBySessionId[forkId!]).toBe("edit me");
-    });
-
-    it("prefixes the source title with (branch)", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-      store.getState().updateSessionTitle(sourceId, "Debugging traces");
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
-
-      expect(store.getState().sessionMap[forkId!].title).toBe(
-        "(branch) Debugging traces"
-      );
-    });
-
-    it("derives the fork title from the first user message when the source is untitled", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [
-          {
-            id: "user-1",
-            role: "user" as const,
-            parts: [{ type: "text" as const, text: "How do I trace OpenAI?" }],
-          },
-        ],
-      });
-
-      // The source session still has the messages too (fork copies them), but
-      // here we assert the fork derives its own label from its messages.
-      store.getState().setSessionMessages(sourceId, [
-        {
-          id: "user-1",
-          role: "user",
-          parts: [{ type: "text", text: "How do I trace OpenAI?" }],
-        },
-      ]);
-      const refork = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
-      expect(store.getState().sessionMap[refork!].title).toBe(
-        "(branch) How do I trace OpenAI?"
-      );
-      expect(forkId).not.toBeNull();
-    });
-
-    it("does not stack the (branch) prefix when branching from a branch", () => {
-      const store = createAgentStore();
-      const sourceId = store.getState().createSession();
-      store.getState().updateSessionTitle(sourceId, "(branch) Original");
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: sourceId,
-        messages: [],
-      });
-
-      expect(store.getState().sessionMap[forkId!].title).toBe(
-        "(branch) Original"
-      );
-    });
-
-    it("returns null and no-ops for an unknown source session", () => {
-      const store = createAgentStore();
-      const before = store.getState().sessions;
-
-      const forkId = store.getState().forkSession({
-        sourceSessionId: "missing",
-        messages: [],
-      });
-
-      expect(forkId).toBeNull();
-      expect(store.getState().sessions).toBe(before);
+      expect(localSession?.context).toEqual(["span:123"]);
     });
   });
 
