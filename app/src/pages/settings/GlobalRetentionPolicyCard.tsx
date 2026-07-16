@@ -131,7 +131,12 @@ export const GlobalRetentionPolicyCard = () => {
     <Card title="Default Project Retention Policy">
       {error && <Alert variant="danger">{error}</Alert>}
       <View padding="size-200">
-        <Flex direction="row" gap="size-200" justifyContent="space-between" wrap>
+        <Flex
+          direction="row"
+          gap="size-200"
+          justifyContent="space-between"
+          wrap
+        >
           <View paddingTop="size-100" flex="1 1 300px">
             <Text>
               The default retention policy for all projects that do not have
