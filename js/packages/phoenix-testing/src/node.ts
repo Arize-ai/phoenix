@@ -38,6 +38,4 @@ export async function createMockServer({
   return setupServer(...handlers, ...openApiHandlers);
 }
 
-export { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
-export { createPhoenixHttp } from "./http.js";
-export { createPhoenixOpenApiHandlers } from "./openApi.js";
+export * from "./index.js";

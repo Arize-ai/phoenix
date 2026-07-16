@@ -37,6 +37,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arizeai/phoenix-config": "workspace:*",
     "@mswjs/source": "^0.5.0",
     "msw": "^2.15.0",
     "openapi-msw": "^2.0.0"
