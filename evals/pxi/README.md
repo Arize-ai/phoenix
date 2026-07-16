@@ -45,6 +45,11 @@ of the `user-friction-alignment-v0.5` gold set) and is configurable via
 API key (e.g. `OPENAI_API_KEY`) must be set or the runner fails fast before
 discovering any turns.
 
+Supported provider overrides are `openai` (`OPENAI_API_KEY`), `anthropic`
+(`ANTHROPIC_API_KEY`), and `google` (`GOOGLE_GENERATIVE_AI_API_KEY`). Unknown
+provider names and missing credentials fail once at startup before trace
+discovery.
+
 Both evaluators consume a trace-shaped input and attach their result as a span
 annotation on the trace's root `pxi.turn` span. The runner does not create or
 update project annotation configs; configure display or optimization metadata

@@ -341,3 +341,17 @@ def test_spec_configuration() -> None:
     assert spec.root_span_name == "pxi.turn"
     with mock.patch.dict("os.environ", {"PXI_USER_FRICTION_PROVIDER": "openai"}):
         assert spec.required_env_fn() == ("OPENAI_API_KEY",)
+
+
+def test_unknown_provider_fails_during_environment_validation() -> None:
+    with (
+        mock.patch.dict("os.environ", {"PXI_USER_FRICTION_PROVIDER": "opneai"}),
+        pytest.raises(
+            ValueError,
+            match=(
+                "unsupported PXI_USER_FRICTION_PROVIDER 'opneai'; expected one of: "
+                "anthropic, google, openai"
+            ),
+        ),
+    ):
+        user_friction.USER_FRICTION.required_env_fn()

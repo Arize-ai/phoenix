@@ -39,7 +39,13 @@ _PROVIDER_ENV_KEYS = {
 
 
 def _provider() -> str:
-    return os.getenv("PXI_USER_FRICTION_PROVIDER") or DEFAULT_PROVIDER
+    provider = os.getenv("PXI_USER_FRICTION_PROVIDER") or DEFAULT_PROVIDER
+    if provider not in _PROVIDER_ENV_KEYS:
+        choices = ", ".join(sorted(_PROVIDER_ENV_KEYS))
+        raise ValueError(
+            f"unsupported PXI_USER_FRICTION_PROVIDER {provider!r}; expected one of: {choices}"
+        )
+    return provider
 
 
 def _model() -> str:
