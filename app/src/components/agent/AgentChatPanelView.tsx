@@ -13,7 +13,6 @@ import {
   LinkButton,
   RichTooltip,
   Text,
-  Tooltip,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
@@ -31,6 +30,7 @@ import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
 import type { AgentSessionListItem } from "./SessionListMenu";
 import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
+import { TemporarySessionIcon } from "./TemporarySessionIcon";
 
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 520;
@@ -96,63 +96,6 @@ const panelContentCSS = css`
 `;
 
 /**
- * Two-state indicator for the active chat's persistence mode. Interactive on
- * unsent drafts, where it decides whether the first send creates a temporary
- * session; read-only on existing sessions, whose mode is fixed at creation.
- */
-function TemporaryChatToggle({
-  isTemporary,
-  isReadOnly,
-  onToggle,
-}: {
-  isTemporary: boolean;
-  isReadOnly: boolean;
-  onToggle: () => void;
-}) {
-  const stateDescription = isTemporary
-    ? "Chat is temporary and won't be saved to history."
-    : "Chat is saved to history.";
-  const icon = <Icon svg={isTemporary ? <Icons.EyeOff /> : <Icons.Eye />} />;
-  if (isReadOnly) {
-    return (
-      <TooltipTrigger delay={0}>
-        <Pressable>
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label={isTemporary ? "Temporary chat" : "Saved chat"}
-            css={css`
-              display: inline-flex;
-              flex: none;
-              cursor: default;
-              padding: 0 var(--global-dimension-size-50);
-              color: var(--global-text-color-700);
-            `}
-          >
-            {icon}
-          </span>
-        </Pressable>
-        <Tooltip>{stateDescription}</Tooltip>
-      </TooltipTrigger>
-    );
-  }
-  return (
-    <TooltipTrigger delay={0}>
-      <Button
-        variant="quiet"
-        size="S"
-        aria-label={
-          isTemporary ? "Make this a saved chat" : "Make this a temporary chat"
-        }
-        onPress={onToggle}
-        leadingVisual={icon}
-      />
-      <Tooltip>{stateDescription}</Tooltip>
-    </TooltipTrigger>
-  );
-}
-
-/**
  * Shared header for assistant chat surfaces.
  */
 export function AgentChatHeader({
@@ -160,13 +103,11 @@ export function AgentChatHeader({
   orderedSessions,
   activeSessionId,
   isActiveSessionTemporary = false,
-  isTemporaryToggleReadOnly = true,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
-  onToggleTemporary = () => undefined,
   hasNextSessionPage,
   isLoadingNextSessionPage,
   onLoadNextSessionPage,
@@ -177,13 +118,11 @@ export function AgentChatHeader({
   orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
   isActiveSessionTemporary?: boolean;
-  isTemporaryToggleReadOnly?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
-  onToggleTemporary?: () => void;
   hasNextSessionPage?: boolean;
   isLoadingNextSessionPage?: boolean;
   onLoadNextSessionPage?: () => void;
@@ -206,6 +145,7 @@ export function AgentChatHeader({
         <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
           {sessionDisplayName}
         </Text>
+        {isActiveSessionTemporary ? <TemporarySessionIcon /> : null}
         {showBetaBadge ? (
           <TooltipTrigger delay={0}>
             <Pressable>
@@ -251,11 +191,6 @@ export function AgentChatHeader({
           aria-label="New chat"
           onPress={onCreateSession}
           leadingVisual={<Icon svg={<Icons.Plus />} />}
-        />
-        <TemporaryChatToggle
-          isTemporary={isActiveSessionTemporary}
-          isReadOnly={isTemporaryToggleReadOnly}
-          onToggle={onToggleTemporary}
         />
         <LinkButton
           variant="quiet"
