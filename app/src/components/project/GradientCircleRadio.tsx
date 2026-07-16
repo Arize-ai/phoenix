@@ -40,7 +40,7 @@ const gradientCircleRadioCSS = css`
 
   /* Focus visible state */
   &[data-focus-visible] {
-    outline: 2px solid var(--global-color-primary);
+    outline: var(--focus-ring-thickness) solid var(--global-color-primary);
     outline-offset: 2px;
   }
 

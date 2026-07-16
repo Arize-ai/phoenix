@@ -43,7 +43,8 @@ const baseRadioCSS = css(`
   }
 
   &[data-focus-visible]:before {
-    outline: 2px solid var(--global-input-field-border-color-active);
+    outline: var(--focus-ring-thickness) solid
+      var(--global-input-field-border-color-active);
     outline-offset: 2px;
   }
 

@@ -101,7 +101,7 @@ export const promptInputSubmitCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 
@@ -148,7 +148,7 @@ export const promptInputButtonCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 

@@ -72,7 +72,7 @@ const switchCSS = css`
   }
 
   &[data-focus-visible] .indicator {
-    outline: 2px solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: 2px;
   }
 
