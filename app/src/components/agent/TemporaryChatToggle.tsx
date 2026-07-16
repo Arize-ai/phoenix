@@ -29,7 +29,15 @@ export function TemporaryChatToggle({
         aria-label={label}
         onPress={onToggle}
         leadingVisual={
-          <Icon svg={isTemporary ? <Icons.EyeOff /> : <Icons.Eye />} />
+          <Icon
+            svg={
+              isTemporary ? (
+                <Icons.ChatEphemeralityOn />
+              ) : (
+                <Icons.ChatEphemeralityOff />
+              )
+            }
+          />
         }
       />
       <Tooltip>{label}</Tooltip>
