@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bc48b202531ba63176881034c936edd0>>
+ * @generated SignedSource<<0b82baf799800f37768bc3937cc2cd08>>
  * @lightSyntaxTransform
  */
 
@@ -75,6 +75,7 @@ export type SessionsTable_sessions$data = {
         };
         readonly traceLatencyMsP50: number | null;
         readonly traceLatencyMsP99: number | null;
+        readonly userId: string | null;
         readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationSummaryGroup">;
       };
     }>;
@@ -253,6 +254,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "sessionId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "userId",
                   "storageKey": null
                 },
                 {
@@ -613,6 +621,6 @@ return {
 };
 })();
 
-(node as any).hash = "69a156077f90546ab0cc28a2b1e7a901";
+(node as any).hash = "98b3aa82f458ea6c6dbba4f424f3c15e";
 
 export default node;

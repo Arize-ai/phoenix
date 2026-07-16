@@ -145,6 +145,16 @@ class ProjectSession(Node):
             truncated_value=truncate_value(record.truncated_value),
         )
 
+    @strawberry.field(
+        description='The first non-null "user.id" span attribute in the session, '
+        "identifying the end user of the traced application.",
+    )  # type: ignore
+    async def user_id(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        return await info.context.data_loaders.session_user_ids.load(self.id)
+
     @strawberry.field
     async def token_usage(
         self,

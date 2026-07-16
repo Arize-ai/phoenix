@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01c328027789e7813b8e88e2934e1872>>
+ * @generated SignedSource<<d91138ff34f7efcf2abd80bc13304df3>>
  * @lightSyntaxTransform
  */
 
@@ -82,6 +82,7 @@ export type SpansTable_spans$data = {
           readonly traceId: string;
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
         };
+        readonly userId: string | null;
         readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
@@ -337,6 +338,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "userId",
                   "storageKey": null
                 },
                 {
@@ -635,6 +643,6 @@ return {
 };
 })();
 
-(node as any).hash = "7a6b7fc962a099a5847db8f15ab8c73d";
+(node as any).hash = "51045140a23d184f16ce8fd1444f682a";
 
 export default node;

@@ -5,6 +5,7 @@ export * from "./PercentCell";
 export * from "./TextCell";
 export * from "./CompactJSONCell";
 export * from "./CellWithControlsWrap";
+export * from "./CopyableTextCell";
 export * from "./LoadMoreRow";
 export * from "./TableEmpty";
 export * from "./TableEmptyWrap";

@@ -128,6 +128,8 @@ The following LLM provider SDKs are supported:
 - OpenAI: `openai` [openai](https://www.npmjs.com/package/openai)
 - Anthropic: `anthropic` [@anthropic-ai/sdk](https://www.npmjs.com/package/@anthropic-ai/sdk)
 
+> **Note:** These provider SDKs are optional peer dependencies — installing `@arizeai/phoenix-client` does not pull them in. Install the one you convert to yourself, e.g. `npm install ai`, `npm install openai`, or `npm install @anthropic-ai/sdk`. Calling `toSDK({ sdk: "ai" | "openai" | "anthropic" })` without the matching SDK installed fails at runtime.
+
 ```ts
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";

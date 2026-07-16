@@ -27,6 +27,12 @@ export interface SetupOutput {
     /** Pages that failed to download; the agent reads those from the web. */
     failed: number;
   };
+  /** The docs MCP offer; "configured" means the docs prefetch was replaced. */
+  docsMcp?: {
+    outcome: "configured" | "declined" | "failed";
+    agents: string[];
+    files: string[];
+  };
   instrumentation?: {
     lane: "agent" | "clipboard" | "manual";
     agent?: string;
@@ -39,7 +45,7 @@ export interface SetupOutput {
 }
 
 export function toSetupOutput(report: SetupReport): SetupOutput {
-  const { docs, instrumentation } = report;
+  const { docs, docsMcp, instrumentation } = report;
   return {
     endpoint: report.connection.endpoint,
     project: report.connection.projectName,
@@ -53,6 +59,16 @@ export function toSetupOutput(report: SetupReport): SetupOutput {
       pages: docs.written,
       failed: docs.failed,
     },
+    // The report already omits a skipped offer; the guard also narrows the
+    // outcome union for the flat envelope.
+    docsMcp:
+      docsMcp && docsMcp.outcome !== "skipped"
+        ? {
+            outcome: docsMcp.outcome,
+            agents: docsMcp.agents,
+            files: docsMcp.files,
+          }
+        : undefined,
     instrumentation:
       instrumentation &&
       (instrumentation.kind === "agent"

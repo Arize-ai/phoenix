@@ -146,7 +146,7 @@ const chatCSS = css`
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    column-gap: var(--global-dimension-static-size-100);
+    column-gap: var(--global-dimension-size-100);
     row-gap: 0;
     /* Match the prompt input footer's horizontal inset so the permission
        selector and token usage line up with the tools/submit row above. */

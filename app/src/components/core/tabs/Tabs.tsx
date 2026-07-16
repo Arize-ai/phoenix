@@ -71,14 +71,14 @@ const tabsCSS = css`
     overflow: hidden;
     box-sizing: border-box;
     .react-aria-TabPanel[data-padded="true"] {
-      padding-top: var(--global-dimension-static-size-200);
+      padding-top: var(--global-dimension-size-200);
     }
   }
 
   &[data-orientation="vertical"] {
     flex-direction: row;
     .react-aria-TabPanel[data-padded="true"] {
-      padding-left: var(--global-dimension-static-size-200);
+      padding-left: var(--global-dimension-size-200);
     }
   }
 `;
@@ -165,7 +165,7 @@ const tabListCSS = css`
     // that the list can be scrolled. Each side's fade width collapses to 0
     // when that side has no hidden tabs, and the mask is dropped entirely
     // when everything fits.
-    --tab-fade-size: var(--global-dimension-static-size-400);
+    --tab-fade-size: var(--global-dimension-size-400);
     --tab-fade-start: 0px;
     --tab-fade-end: 0px;
     &[data-overflow-start="true"] {
@@ -269,8 +269,7 @@ export function LazyTabPanel({
 }
 
 const tabCSS = css`
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   cursor: default;
   outline: none;
   position: relative;

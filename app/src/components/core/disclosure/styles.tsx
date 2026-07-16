@@ -21,7 +21,7 @@ export const disclosureGroupCSS = css`
   &[data-size="S"] > * {
     .react-aria-Heading {
       .react-aria-Button[slot="trigger"] {
-        padding: var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-size-50);
       }
     }
   }
@@ -43,8 +43,7 @@ export const disclosureCSS = css`
     gap: 8px;
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
-    padding: var(--global-dimension-static-size-100)
-      var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
 
     // style trigger
     color: var(--global-text-color-900);

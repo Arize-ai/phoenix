@@ -848,10 +848,14 @@ def _gql(
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
     operation_name: Optional[str] = None,
+    raise_on_errors: bool = True,
 ) -> tuple[dict[str, Any], Headers]:
     json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
     resp = _httpx_client(app, auth).post("graphql", json=json_)
-    return _json(resp), resp.headers
+    if raise_on_errors:
+        return _json(resp), resp.headers
+    resp.raise_for_status()
+    return cast(dict[str, Any], resp.json()), resp.headers
 
 
 def _get_gql_spans(
@@ -2225,17 +2229,23 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/projects/fake-id-{}/traces"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
+    # API keys (the authenticated user's own personal keys)
+    (200, "GET", "v1/user/api_keys"),
 )
 
 # Admin-only endpoints (user management, project CRUD)
 # Non-admins always receive 403, admins get expected_admin_status
 _ADMIN_ONLY_ENDPOINTS = (
     (200, "GET", "v1/users"),
+    (200, "GET", "v1/users/api_keys"),
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
+    (200, "GET", "v1/system/api_keys"),
+    (422, "POST", "v1/system/api_keys"),
+    (422, "DELETE", "v1/system/api_keys/fake-id-{}"),
 )
 
 # Write operations blocked for viewers (POST/PUT/DELETE)
@@ -2290,6 +2300,43 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
 )
 
 
+# Self-service credential writes are intentionally available to viewers.
+_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
+    (422, "POST", "v1/user/api_keys"),
+    (422, "DELETE", "v1/user/api_keys/fake-id-{}"),
+)
+
+
+# Credential issuance requires a human session (or, where supported, the admin secret).
+# A user API key cannot issue another credential, even when its owner has the required role.
+_SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS = frozenset(
+    {
+        ("POST", "v1/user/api_keys"),
+        ("POST", "v1/system/api_keys"),
+    }
+)
+
+
+# Endpoints that refuse to act when authentication is disabled, returning 403.
+#
+# These issue credentials. Without authentication Phoenix has no notion of identity, so
+# minting an API key would hand a durable bearer token to an anonymous caller. They still
+# appear in the registries above, so that the role matrix covers them when authentication
+# IS enabled, but a no-auth app must reject them regardless of the status code recorded
+# there.
+_AUTH_REQUIRED_ENDPOINTS = frozenset(
+    {
+        ("GET", "v1/user/api_keys"),
+        ("GET", "v1/users/api_keys"),
+        ("POST", "v1/user/api_keys"),
+        ("DELETE", "v1/user/api_keys/fake-id-{}"),
+        ("GET", "v1/system/api_keys"),
+        ("POST", "v1/system/api_keys"),
+        ("DELETE", "v1/system/api_keys/fake-id-{}"),
+    }
+)
+
+
 def _join_paths(prefix: _RoutePath, path: _RoutePath) -> _RoutePath:
     if not prefix:
         return path
@@ -2327,6 +2374,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             _COMMON_RESOURCE_ENDPOINTS,
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
+            _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
         )
     }
 
@@ -2362,7 +2410,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
                 f"Add these to _helpers.py:\n"
                 f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
                 f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
-                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"  - Viewer-blocked writes → _VIEWER_BLOCKED_WRITE_OPERATIONS\n"
+                f"  - Viewer credential self-service → _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS\n\n"
                 f"Format: (expected_status_code, method, endpoint_path)\n"
                 f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
             )
@@ -2373,7 +2422,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             error_parts.append(
                 f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
                 f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
-                f"or _VIEWER_BLOCKED_WRITE_OPERATIONS in _helpers.py"
+                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, or "
+                f"_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS in _helpers.py"
             )
         raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
 

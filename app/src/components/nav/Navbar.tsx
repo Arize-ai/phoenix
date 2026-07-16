@@ -15,15 +15,15 @@ import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
 import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
-  padding: var(--global-dimension-static-size-100);
-  padding-right: var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-100);
+  padding-right: var(--global-dimension-size-200);
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
 
   .copy-action-menu__button {
     opacity: 0;
@@ -38,8 +38,7 @@ const topNavCSS = css`
 `;
 
 const sideNavCSS = css`
-  padding: var(--global-dimension-static-size-200)
-    var(--global-dimension-static-size-100);
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-100);
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
@@ -60,7 +59,7 @@ const sideNavCSS = css`
 
 export const navLinkCSS = css`
   --nav-link-icon-size: calc(
-    var(--nav-collapsed-width) - var(--global-dimension-static-size-200)
+    var(--nav-collapsed-width) - var(--global-dimension-size-200)
   );
 
   width: 100%;
@@ -112,11 +111,11 @@ const brandCSS = css`
   color: var(--global-text-color-900);
   font-size: var(--global-font-size-xl);
   text-decoration: none;
-  margin: 0 0 var(--global-dimension-static-size-200) 0;
+  margin: 0 0 var(--global-dimension-size-200) 0;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-150);
+  gap: var(--global-dimension-size-150);
   overflow: hidden;
   & > * {
     flex: none;

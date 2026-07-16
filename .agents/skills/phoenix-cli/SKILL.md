@@ -88,7 +88,12 @@ px setup --no-input --instrument --agent claude --yolo --format raw
 
 `--yolo` matters: a background agent has no terminal to approve its edits on,
 so without it the run stalls until trace verification times out. `--language
-python` skips the agent's language detection. `--format raw` prints
+python` skips the agent's language detection. `--docs-mcp` connects the
+Phoenix docs MCP server to the hand-off agent (`claude mcp add` for claude,
+config-file merge for cursor/opencode; codex unsupported) and skips the
+`.px/docs` download — the agent searches docs on demand instead; any failure
+falls back to the download. `--no-docs-mcp` suppresses the interactive offer.
+`--format raw` prints
 `{"endpoint","project","files","instrumentation","tracesVerified","tracesUrl"}`
 — check `tracesVerified`, which is set only when the API confirmed a trace
 arriving, not when the agent claims it finished.
@@ -135,7 +140,9 @@ px auth status --profile staging              # check a named profile's connecti
 
 Named profiles let you switch between multiple Phoenix instances (local, staging, cloud) without juggling environment variables. Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`).
 
-Configuration priority (highest to lowest): CLI flags > env vars > active profile > built-in defaults.
+Configuration priority (highest to lowest): CLI flags > env vars > active profile > nearest `.env.phoenix` file > built-in defaults.
+
+The CLI also discovers the nearest `.env.phoenix` file at or above the current working directory (the same file `px setup` writes). Credentials are resolved as one group, so a process API key is never combined with file-provided headers. Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
 ```bash
 px profile list                              # list all profiles (shows active profile)

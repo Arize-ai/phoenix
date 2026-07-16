@@ -101,6 +101,7 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
+USER_ID = SpanAttributes.USER_ID.split(".")
 
 
 class SubValues(Values, roles.CompoundElementRole):
@@ -921,6 +922,15 @@ class Span(HasId):
     @classmethod
     def _output_mime_type_expression(cls) -> ColumnElement[Any]:
         return cls.attributes[OUTPUT_MIME_TYPE]
+
+    @hybrid_property
+    def user_id(self) -> Any:
+        return get_attribute_value(self.attributes, USER_ID)
+
+    @user_id.inplace.expression
+    @classmethod
+    def _user_id_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[USER_ID]
 
     @hybrid_property
     def metadata_(self) -> Any:

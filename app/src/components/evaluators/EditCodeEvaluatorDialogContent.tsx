@@ -1291,7 +1291,7 @@ const outputConfigValuesGridCSS = css`
   width: 100%;
   display: grid;
   grid-template-columns: 3fr 1fr;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
   align-items: start;
 `;
 

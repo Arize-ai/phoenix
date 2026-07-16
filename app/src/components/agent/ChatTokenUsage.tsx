@@ -28,7 +28,7 @@ const chatTokenUsageCSS = css`
   .chat-token-usage__trigger {
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-25);
+    gap: var(--global-dimension-size-25);
     border-radius: var(--global-rounding-small);
     color: var(--global-text-color-300);
     cursor: pointer;
@@ -69,14 +69,14 @@ const chatTokenUsageCSS = css`
 const chatTokenUsageDetailsCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-static-size-100);
-  padding-top: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+  padding-top: var(--global-dimension-size-100);
 
   .chat-token-usage-details__legend {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--global-dimension-static-size-100);
+    gap: var(--global-dimension-size-100);
   }
 
   .chat-token-usage-details__segments {
@@ -84,7 +84,7 @@ const chatTokenUsageDetailsCSS = css`
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: var(--global-dimension-static-size-200);
+    gap: var(--global-dimension-size-200);
     list-style: none;
     margin: 0;
     padding: 0;
@@ -93,7 +93,7 @@ const chatTokenUsageDetailsCSS = css`
   .chat-token-usage-details__segment {
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-50);
+    gap: var(--global-dimension-size-50);
   }
 `;
 
@@ -102,7 +102,7 @@ const promptLegendTriggerCSS = css`
     all: unset;
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-50);
+    gap: var(--global-dimension-size-50);
     border-radius: var(--global-rounding-small);
     cursor: help;
   }
@@ -130,21 +130,21 @@ const promptLegendTriggerCSS = css`
 `;
 
 const tokenSegmentSwatchCSS = css`
-  width: var(--global-dimension-static-size-100);
-  height: var(--global-dimension-static-size-100);
+  width: var(--global-dimension-size-100);
+  height: var(--global-dimension-size-100);
   flex: none;
   border-radius: var(--global-rounding-full);
 `;
 
 const promptDetailsTooltipCSS = css`
   .chat-token-usage-details__tooltip-title {
-    margin-bottom: var(--global-dimension-static-size-100);
+    margin-bottom: var(--global-dimension-size-100);
   }
 
   .chat-token-usage-details__tooltip-segments {
     display: flex;
     flex-direction: column;
-    gap: var(--global-dimension-static-size-75);
+    gap: var(--global-dimension-size-75);
     list-style: none;
     margin: 0;
     padding: 0;
@@ -153,7 +153,7 @@ const promptDetailsTooltipCSS = css`
   .chat-token-usage-details__tooltip-segment {
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-50);
+    gap: var(--global-dimension-size-50);
   }
 `;
 
