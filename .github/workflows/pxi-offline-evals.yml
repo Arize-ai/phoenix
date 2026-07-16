@@ -26,12 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
-  PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
   PHOENIX_PROJECT: ${{ inputs.project || 'pxi_dev' }}
-  # LLM judge for the user_friction evaluator (provider/model configurable
-  # via PXI_USER_FRICTION_PROVIDER / PXI_USER_FRICTION_MODEL).
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 jobs:
   evaluate:
@@ -56,6 +51,13 @@ jobs:
         run: uv sync --frozen
       - name: Evaluate and annotate recent turns
         env:
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          PXI_USER_FRICTION_PROVIDER: ${{ vars.PXI_USER_FRICTION_PROVIDER || 'openai' }}
+          PXI_USER_FRICTION_MODEL: ${{ vars.PXI_USER_FRICTION_MODEL || 'gpt-5.5' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
           PXI_DRY_RUN: ${{ inputs.dry_run || false }}
         run: |
           args=(--project "${PHOENIX_PROJECT}")

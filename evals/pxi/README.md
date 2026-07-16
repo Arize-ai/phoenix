@@ -81,6 +81,12 @@ The scheduled workflow runs twice daily at 00:17 and 12:17 UTC and can also be
 started manually. The CLI entrypoint above supports local runs at any time.
 Workflow logs contain aggregate counts, not trace inputs or outputs.
 
+Scheduled judge configuration comes from the
+`PXI_USER_FRICTION_PROVIDER` and `PXI_USER_FRICTION_MODEL` GitHub repository
+variables, defaulting to `openai` and `gpt-5.5`. Store the matching provider
+credential in the correspondingly named Actions secret. Phoenix and provider
+credentials are exposed only to the final evaluation step.
+
 The initial scheduled project is `pxi_dev`. The Phoenix Cloud production PXI
 traces are in `pxi_phoenix_cloud`; add that project only after validating the
 runner on new-format development traces.
