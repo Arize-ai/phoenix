@@ -824,16 +824,15 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
     }
 
 
-async def test_chat_turn_without_messages_returns_bad_request(
+async def test_chat_turn_without_message_fails_validation(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    """An empty message history is rejected without persisting a session."""
+    """A submission without its incremental message persists no session."""
     session_id = "22222222-2222-4222-8222-222222222222"
 
     response = await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
-    assert response.status_code == 400
-    assert response.text == "At least one message is required"
+    assert response.status_code == 422
 
     async with db() as session:
         assert (await session.scalars(select(models.AgentSession))).all() == []

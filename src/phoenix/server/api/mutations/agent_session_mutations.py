@@ -1,6 +1,7 @@
 """Mutations for persisted assistant chat sessions."""
 
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import strawberry
 from sqlalchemy import Select, delete, select
@@ -185,6 +186,8 @@ class AgentSessionMutationMixin:
                 last_message_id=input.last_message_id,
             )
             forked_session = models.AgentSession(
+                project_session_id=str(uuid4()),
+                project_name=source_session.project_name,
                 user_id=source_session.user_id,
                 title=_fork_title(source_session.title),
             )

@@ -47,7 +47,12 @@ _FORK_MUTATION = """
 
 async def _create_session_with_transcript(db: DbSessionFactory) -> tuple[int, str]:
     async with db() as session:
-        agent_session = models.AgentSession(user_id=None, title="Original")
+        agent_session = models.AgentSession(
+            project_session_id="11111111-1111-4111-8111-111111111111",
+            project_name="assistant_agent",
+            user_id=None,
+            title="Original",
+        )
         session.add(agent_session)
         await session.flush()
         messages = [
