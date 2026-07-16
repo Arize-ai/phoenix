@@ -13,7 +13,7 @@
         ],
         "summary": "List annotation configurations",
         "description": "Retrieve a paginated list of all annotation configurations in the system.",
-        "operationId": "list_annotation_configs_v1_annotation_configs_get",
+        "operationId": "listAnnotationConfigs",
         "parameters": [
           {
             "name": "cursor",
@@ -85,7 +85,7 @@
           "annotation_configs"
         ],
         "summary": "Create an annotation configuration",
-        "operationId": "create_annotation_config_v1_annotation_configs_post",
+        "operationId": "createAnnotationConfig",
         "requestBody": {
           "required": true,
           "content": {
@@ -136,7 +136,7 @@
           "annotation_configs"
         ],
         "summary": "Get an annotation configuration by ID or name",
-        "operationId": "get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get",
+        "operationId": "getAnnotationConfig",
         "parameters": [
           {
             "name": "config_identifier",
@@ -190,7 +190,7 @@
           "annotation_configs"
         ],
         "summary": "Update an annotation configuration",
-        "operationId": "update_annotation_config_v1_annotation_configs__config_id__put",
+        "operationId": "updateAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -252,7 +252,7 @@
           "annotation_configs"
         ],
         "summary": "Delete an annotation configuration",
-        "operationId": "delete_annotation_config_v1_annotation_configs__config_id__delete",
+        "operationId": "deleteAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -6798,7 +6798,7 @@
         "tags": [
           "spans"
         ],
-        "summary": "Annotate Span Documents",
+        "summary": "Create span document annotations",
         "operationId": "annotateSpanDocuments",
         "parameters": [
           {
