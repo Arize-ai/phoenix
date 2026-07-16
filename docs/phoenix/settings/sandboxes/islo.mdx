@@ -8,7 +8,12 @@ description: "Run code evaluators in Islo's isolated cloud sandboxes."
 ## Setup
 
 1. **Create an Islo account** at [islo.dev](https://islo.dev/) if you don't already have one.
-2. **Create an API key** at [app.islo.dev/api-keys](https://app.islo.dev/api-keys).
+2. **Create an API key with the Islo CLI.** Install the CLI, run `islo login`, then create a key:
+
+   ```bash
+   islo api-key create phoenix --expires 90 --show
+   ```
+
 3. **Add the credential to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Islo** row, click the gear icon, and paste the value as `ISLO_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
 4. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Islo**, set the timeout and any environment variables or dependencies, and save.
 

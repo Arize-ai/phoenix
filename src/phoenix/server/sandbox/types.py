@@ -465,7 +465,8 @@ class IsloCredentials(_BaseModel):
     ISLO_API_KEY: SecretStr = Field(
         title="Islo API Key",
         description=(
-            "API key for the Islo sandbox service. Create one at https://app.islo.dev/api-keys"
+            "API key for the Islo sandbox service. Create one with "
+            "`islo api-key create phoenix --expires 90 --show`."
         ),
     )
 
