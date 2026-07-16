@@ -183,6 +183,8 @@ def run_evaluators(
         }
         if result.explanation is not None:
             annotation["result"]["explanation"] = result.explanation
+        if result.label is not None:
+            annotation["result"]["label"] = result.label
         if result.metadata:
             annotation["metadata"] = result.metadata
         annotations.append(annotation)

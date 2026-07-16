@@ -14,6 +14,7 @@ TargetLevel = Literal["span", "trace", "session"]
 @dataclass(frozen=True)
 class EvaluationResult:
     score: float
+    label: str | None = None
     explanation: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 

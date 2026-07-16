@@ -87,7 +87,8 @@ def test_user_friction_on_real_trace() -> None:
         result = user_friction.evaluate_user_friction(root, spans)
     assert result is not None
     assert result.score == 0.0
-    assert result.metadata["label"] == "no_friction"
+    assert result.label == "no_friction"
+    assert result.metadata == {"model": "gpt-5.5", "provider": "openai"}
     judge.evaluate.assert_called_once()
     eval_input = judge.evaluate.call_args.args[0]
     assert eval_input["user_message"] == "can you save this trace to a dataset?"

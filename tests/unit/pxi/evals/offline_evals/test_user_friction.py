@@ -213,8 +213,9 @@ def test_evaluate_maps_judge_score_to_annotation() -> None:
         result = user_friction.evaluate_user_friction(root, spans)
     assert result is not None
     assert result.score == 1.0
+    assert result.label == "friction"
     assert result.explanation == "user corrects the assistant"
-    assert result.metadata["label"] == "friction"
+    assert result.metadata == {"model": "gpt-5.5", "provider": "openai"}
     judge.evaluate.assert_called_once()
     eval_input = judge.evaluate.call_args.args[0]
     assert eval_input["user_message"] == "no, I asked for this week"

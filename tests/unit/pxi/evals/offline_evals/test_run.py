@@ -10,7 +10,7 @@ from phoenix.client.__generated__ import v1
 
 from evals.pxi.offline_evals import run as run_module
 from evals.pxi.offline_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
-from evals.pxi.offline_evals.models import RunSummary
+from evals.pxi.offline_evals.models import EvaluationResult, RunSummary
 from evals.pxi.offline_evals.run import _sampled, run_evaluators
 
 
@@ -146,6 +146,38 @@ def test_different_identifier_does_not_suppress_evaluator() -> None:
     assert summary.evaluated == 1
     assert summary.annotations == 1
     assert spans.writes == []
+
+
+def test_serializes_categorical_label_as_annotation_result() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    spans = _FakeSpans([root], {"trace": [root]}, [])
+    spec = replace(
+        TOOL_COUNT_PER_TURN,
+        name="categorical",
+        evaluate=lambda _root, _spans: EvaluationResult(
+            score=1.0,
+            label="friction",
+            metadata={"provider": "openai"},
+        ),
+    )
+
+    run_evaluators(
+        _FakeClient(spans),  # type: ignore[arg-type]
+        project="pxi_dev",
+        specs=[spec],
+        now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+    )
+
+    assert spans.writes == [
+        {
+            "name": "categorical",
+            "annotator_kind": "CODE",
+            "span_id": "root",
+            "identifier": "pxi-offline-evals",
+            "result": {"score": 1.0, "label": "friction"},
+            "metadata": {"provider": "openai"},
+        }
+    ]
 
 
 def test_sampling_is_deterministic() -> None:

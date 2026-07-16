@@ -123,8 +123,9 @@ def evaluate_user_friction(root: v1.Span, spans: Sequence[v1.Span]) -> Evaluatio
     score = scores[0]
     return EvaluationResult(
         score=float(score.score),
+        label=score.label,
         explanation=score.explanation,
-        metadata={"label": score.label, "model": _model(), "provider": _provider()},
+        metadata={"model": _model(), "provider": _provider()},
     )
 
 
