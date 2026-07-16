@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 from unittest import mock
 
+import pytest
 from phoenix.client.__generated__ import v1
 
 from evals.pxi.offline_evals.conversation import (
@@ -299,6 +300,18 @@ def test_non_human_latest_message_is_not_applicable() -> None:
         root, spans = _two_turn_trace(message)
         assert not user_friction.applies_to_user_friction(root, spans), message
         assert user_friction.evaluate_user_friction(root, spans) is None, message
+
+
+@pytest.mark.parametrize("root_input", [None, "a different user message"])
+def test_root_input_must_match_transcript_target(root_input: str | None) -> None:
+    root, spans = _two_turn_trace("no, I asked for this week")
+    if root_input is None:
+        root["attributes"].pop("input.value")
+    else:
+        root["attributes"]["input.value"] = root_input
+
+    assert not user_friction.applies_to_user_friction(root, spans)
+    assert user_friction.evaluate_user_friction(root, spans) is None
 
 
 def test_evaluate_maps_judge_score_to_annotation() -> None:

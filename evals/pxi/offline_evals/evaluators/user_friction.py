@@ -66,9 +66,9 @@ def _target_turn(root: v1.Span, turns: Sequence[Turn]) -> Turn | None:
     continuations, and tool-error payloads are not evaluable, and falling
     back to an earlier human turn would attach a judgment about a previous
     trace's message to this root. Sanity-checked against the root span's
-    ``input.value`` (the turn's user message as ingested); a mismatch is
-    logged but does not disqualify the turn, since the transcript is the
-    judge-facing source of truth.
+    ``input.value`` (the turn's user message as ingested); a missing value or
+    mismatch disqualifies the turn so a judgment is never checkpointed on the
+    wrong root.
     """
     if not turns:
         return None
@@ -76,11 +76,13 @@ def _target_turn(root: v1.Span, turns: Sequence[Turn]) -> Turn | None:
     if not classify_user_message(target.user_message).is_human:
         return None
     root_input = root.get("attributes", {}).get("input.value")
-    if isinstance(root_input, str) and root_input.strip() != target.user_message.strip():
+    if not isinstance(root_input, str) or root_input.strip() != target.user_message.strip():
         logger.warning(
-            "user_friction: transcript target differs from root input.value (trace %s)",
+            "user_friction: skipping trace %s because transcript target differs from "
+            "root input.value",
             root.get("context", {}).get("trace_id"),
         )
+        return None
     return target
 
 
