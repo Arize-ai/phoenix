@@ -151,6 +151,35 @@ function AssistantDisplaySettings() {
   );
 }
 
+function TemporaryChatDefaultSetting() {
+  const newChatsAreTemporaryByDefault = useAgentContext(
+    (state) => state.newChatsAreTemporaryByDefault
+  );
+  const setNewChatsAreTemporaryByDefault = useAgentContext(
+    (state) => state.setNewChatsAreTemporaryByDefault
+  );
+  return (
+    <ul css={settingsListCSS}>
+      <li css={settingRowCSS}>
+        <Switch
+          labelPlacement="start"
+          isSelected={newChatsAreTemporaryByDefault}
+          onChange={setNewChatsAreTemporaryByDefault}
+          css={settingSwitchCSS}
+        >
+          <span className="assistant-personal-settings__label">
+            <Text weight="heavy">New chats are temporary by default</Text>
+            <Text color="text-500" size="S">
+              Temporary chats don&apos;t appear in history and expire 24 hours
+              after your last message.
+            </Text>
+          </span>
+        </Switch>
+      </li>
+    </ul>
+  );
+}
+
 function AssistantSettingsSectionTrigger({
   title,
   description,
@@ -178,6 +207,7 @@ function PersonalSettingsSection() {
         options are available.
       </Text>
       <AssistantDisplaySettings />
+      <TemporaryChatDefaultSetting />
       <AgentSettingsForm>
         <AgentWebAccessSettings />
         {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (

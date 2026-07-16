@@ -95,17 +95,88 @@ const panelContentCSS = css`
 `;
 
 /**
+ * Two-state indicator for the active chat's persistence mode. Interactive on
+ * unsent drafts, where it decides whether the first send creates a temporary
+ * session; read-only on existing sessions, whose mode is fixed at creation.
+ */
+function TemporaryChatToggle({
+  isTemporary,
+  isReadOnly,
+  onToggle,
+}: {
+  isTemporary: boolean;
+  isReadOnly: boolean;
+  onToggle: () => void;
+}) {
+  const stateDescription = isTemporary
+    ? "Temporary chat: won't appear in history and expires 24 hours after your last message."
+    : "Chat is saved to history.";
+  const icon = <Icon svg={isTemporary ? <Icons.EyeOff /> : <Icons.Eye />} />;
+  if (isReadOnly) {
+    return (
+      <TooltipTrigger delay={0}>
+        <Pressable>
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label={isTemporary ? "Temporary chat" : "Saved chat"}
+            css={css`
+              display: inline-flex;
+              flex: none;
+              cursor: default;
+              padding: 0 var(--global-dimension-size-50);
+              color: var(--global-text-color-700);
+            `}
+          >
+            {icon}
+          </span>
+        </Pressable>
+        <RichTooltip>
+          <TooltipArrow />
+          <Text size="XS">{stateDescription}</Text>
+        </RichTooltip>
+      </TooltipTrigger>
+    );
+  }
+  return (
+    <TooltipTrigger delay={0}>
+      <Button
+        variant="quiet"
+        size="S"
+        aria-label={
+          isTemporary ? "Make this a saved chat" : "Make this a temporary chat"
+        }
+        onPress={onToggle}
+        leadingVisual={icon}
+      />
+      <RichTooltip>
+        <TooltipArrow />
+        <Text size="XS">
+          {stateDescription}{" "}
+          {isTemporary
+            ? "Click to make it saved."
+            : "Click to make it temporary."}
+        </Text>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
+
+/**
  * Shared header for assistant chat surfaces.
  */
 export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
+  isActiveSessionTemporary = false,
+  isTemporaryToggleReadOnly = true,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
+  onToggleTemporary = () => undefined,
   hasNextSessionPage,
   isLoadingNextSessionPage,
   onLoadNextSessionPage,
@@ -115,11 +186,14 @@ export function AgentChatHeader({
   sessionDisplayName: string;
   orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
+  isActiveSessionTemporary?: boolean;
+  isTemporaryToggleReadOnly?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
+  onToggleTemporary?: () => void;
   hasNextSessionPage?: boolean;
   isLoadingNextSessionPage?: boolean;
   onLoadNextSessionPage?: () => void;
@@ -187,6 +261,11 @@ export function AgentChatHeader({
           aria-label="New chat"
           onPress={onCreateSession}
           leadingVisual={<Icon svg={<Icons.Plus />} />}
+        />
+        <TemporaryChatToggle
+          isTemporary={isActiveSessionTemporary}
+          isReadOnly={isTemporaryToggleReadOnly}
+          onToggle={onToggleTemporary}
         />
         <LinkButton
           variant="quiet"

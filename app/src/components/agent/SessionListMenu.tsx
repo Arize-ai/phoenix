@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import {
+  Badge,
   Button,
   Flex,
   Icon,
@@ -43,6 +44,7 @@ export type AgentSessionListItem = {
   id: string;
   title: string;
   createdAt: number;
+  isTemporary?: boolean;
   isDeleteDisabled?: boolean;
 };
 
@@ -186,7 +188,10 @@ function SessionMenuItem({
       }
     >
       <Flex direction="column" gap="size-50">
-        <Text>{displayName}</Text>
+        <Flex direction="row" alignItems="center" gap="size-50">
+          <Text>{displayName}</Text>
+          {session.isTemporary ? <Badge>Temporary</Badge> : null}
+        </Flex>
         {dateLabel && (
           <Text size="XS" color="text-300">
             {dateLabel}

@@ -61,6 +61,72 @@ describe("AgentChatHeader", () => {
     vi.restoreAllMocks();
   });
 
+  it("toggles a draft's temporary mode from the header", () => {
+    const onToggleTemporary = vi.fn();
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="PXI"
+            orderedSessions={[]}
+            activeSessionId="draft-1"
+            isActiveSessionTemporary={false}
+            isTemporaryToggleReadOnly={false}
+            onToggleTemporary={onToggleTemporary}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const toggleButton = container.querySelector(
+      'button[aria-label="Make this a temporary chat"]'
+    );
+    expect(toggleButton).not.toBeNull();
+
+    act(() => {
+      toggleButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onToggleTemporary).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a read-only mode indicator for an existing session", () => {
+    const onToggleTemporary = vi.fn();
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="PXI"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            isActiveSessionTemporary={true}
+            isTemporaryToggleReadOnly={true}
+            onToggleTemporary={onToggleTemporary}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    // No interactive toggle button is rendered for an existing session —
+    // only the state indicator.
+    expect(
+      container.querySelector('button[aria-label="Make this a saved chat"]')
+    ).toBeNull();
+    expect(
+      container.querySelector('span[aria-label="Temporary chat"]')
+    ).not.toBeNull();
+  });
+
   it("switches from pinned to floating mode", () => {
     const onPositionChange = vi.fn();
 
