@@ -5367,6 +5367,291 @@ class TestAnnotationScoreTimeSeries:
         }
 
 
+class TestAnnotationMetricsTimeSeries:
+    @pytest.fixture
+    async def _annotation_metrics_data(self, db: DbSessionFactory) -> models.Project:
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:20:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            session_one = await _add_project_session(session, project, start_time=hour_one)
+            session_two = await _add_project_session(session, project, start_time=hour_two)
+            trace_one = await _add_trace(session, project, session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, session_two, start_time=hour_two)
+            span_one = await _add_span(session, trace_one, start_time=hour_one)
+            span_two = await _add_span(session, trace_two, start_time=hour_two)
+
+            annotation_values = [
+                ("mixed", "pass", 0.2, None),
+                ("mixed", "fail", 0.4, None),
+                ("mixed", None, 0.6, None),
+                ("mixed", None, None, "explanation only"),
+                ("empty", None, None, "explanation only"),
+                ("label-only", "yes", None, None),
+                ("score-only", None, 0.5, None),
+            ]
+            for model, parent_id_field, parent_id in (
+                (models.SpanAnnotation, "span_rowid", span_one.id),
+                (models.TraceAnnotation, "trace_rowid", trace_one.id),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    session_one.id,
+                ),
+            ):
+                session.add_all(
+                    [
+                        model(
+                            **{parent_id_field: parent_id},
+                            name=name,
+                            label=label,
+                            score=score,
+                            explanation=explanation,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=str(index),
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index, (name, label, score, explanation) in enumerate(annotation_values)
+                    ]
+                )
+            for model, parent_id_field, parent_id in (
+                (models.SpanAnnotation, "span_rowid", span_two.id),
+                (models.TraceAnnotation, "trace_rowid", trace_two.id),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    session_two.id,
+                ),
+            ):
+                session.add(
+                    model(
+                        **{parent_id_field: parent_id},
+                        name="mixed",
+                        label="pass",
+                        score=0.8,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        identifier="hour-two",
+                        source="APP",
+                        user_id=None,
+                    )
+                )
+        return project
+
+    async def test_annotation_metrics_time_series_at_all_levels(
+        self,
+        _annotation_metrics_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                names
+                data {
+                    timestamp
+                    annotationSummaries {
+                        name
+                        count
+                        scoreCount
+                        labelCount
+                        meanScore
+                        labelFractions { label fraction }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(_annotation_metrics_data.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            metrics = response.data["node"][level]
+            assert metrics["names"] == ["empty", "label-only", "mixed", "score-only"]
+            assert [point["timestamp"] for point in metrics["data"]] == [
+                "2024-01-01T01:00:00+00:00",
+                "2024-01-01T02:00:00+00:00",
+                "2024-01-01T03:00:00+00:00",
+            ]
+            hour_one_summaries = {
+                summary["name"]: summary for summary in metrics["data"][0]["annotationSummaries"]
+            }
+            assert hour_one_summaries["empty"] == {
+                "name": "empty",
+                "count": 0,
+                "scoreCount": 0,
+                "labelCount": 0,
+                "meanScore": None,
+                "labelFractions": [],
+            }
+            assert hour_one_summaries["label-only"] == {
+                "name": "label-only",
+                "count": 1,
+                "scoreCount": 0,
+                "labelCount": 1,
+                "meanScore": None,
+                "labelFractions": [{"label": "yes", "fraction": 1.0}],
+            }
+            assert hour_one_summaries["score-only"] == {
+                "name": "score-only",
+                "count": 1,
+                "scoreCount": 1,
+                "labelCount": 0,
+                "meanScore": pytest.approx(0.5),
+                "labelFractions": [],
+            }
+            mixed_summary = hour_one_summaries["mixed"]
+            assert mixed_summary["count"] == 3
+            assert mixed_summary["scoreCount"] == 3
+            assert mixed_summary["labelCount"] == 2
+            assert mixed_summary["meanScore"] == pytest.approx(0.4)
+            assert mixed_summary["labelFractions"] == [
+                {"label": "fail", "fraction": pytest.approx(1 / 2)},
+                {"label": "pass", "fraction": pytest.approx(1 / 2)},
+            ]
+            assert metrics["data"][2]["annotationSummaries"] == []
+
+    async def test_label_fractions_are_bounded_by_latest_bucket_frequency(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:15:00+00:00")
+        hour_three = datetime.fromisoformat("2024-01-01T03:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_session_one = await _add_project_session(session, project, start_time=hour_one)
+            project_session_two = await _add_project_session(session, project, start_time=hour_two)
+            project_session_three = await _add_project_session(
+                session, project, start_time=hour_three
+            )
+            trace_one = await _add_trace(session, project, project_session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, project_session_two, start_time=hour_two)
+            trace_three = await _add_trace(
+                session, project, project_session_three, start_time=hour_three
+            )
+            labels_by_trace = (
+                (trace_one, [f"label-{index:02d}" for index in range(15)]),
+                (
+                    trace_two,
+                    ["label-00"] * 10 + [f"label-{index:02d}" for index in range(1, 15)],
+                ),
+            )
+            for trace, labels in labels_by_trace:
+                session.add_all(
+                    [
+                        models.TraceAnnotation(
+                            trace_rowid=trace.id,
+                            name="quality",
+                            label=label,
+                            score=None,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="CODE",
+                            identifier=str(index),
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index, label in enumerate(labels)
+                    ]
+                )
+            session.add(
+                models.TraceAnnotation(
+                    trace_rowid=trace_three.id,
+                    name="quality",
+                    label=None,
+                    score=0.9,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    identifier="score-only-tail",
+                    source="APP",
+                    user_id=None,
+                )
+            )
+
+        query = """
+          query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+            node(id: $id) {
+              ... on Project {
+                traceAnnotationMetricsTimeSeries(
+                  timeRange: $timeRange
+                  timeBinConfig: $timeBinConfig
+                ) {
+                  data {
+                    annotationSummaries {
+                      name
+                      count
+                      scoreCount
+                      labelCount
+                      labelFractions { label fraction }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        data = response.data["node"]["traceAnnotationMetricsTimeSeries"]["data"]
+        expected_labels = [f"label-{index:02d}" for index in range(12)]
+        first_summary = data[0]["annotationSummaries"][0]
+        second_summary = data[1]["annotationSummaries"][0]
+        third_summary = data[2]["annotationSummaries"][0]
+        assert first_summary["count"] == first_summary["labelCount"] == 15
+        assert second_summary["count"] == second_summary["labelCount"] == 24
+        assert [item["label"] for item in first_summary["labelFractions"]] == expected_labels
+        assert [item["label"] for item in second_summary["labelFractions"]] == expected_labels
+        assert sum(item["fraction"] for item in first_summary["labelFractions"]) == pytest.approx(
+            12 / 15
+        )
+        assert third_summary["scoreCount"] == 1
+        assert third_summary["labelFractions"] == []
+
+
 async def test_trace_resolves_by_otel_id_and_global_node_id(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
