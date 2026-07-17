@@ -7514,8 +7514,9 @@
           "chat"
         ],
         "summary": "Run Server Agent",
-        "description": "Stream a chat turn from the GraphQL server agent.\n\nThis is the endpoint the PXI CLI talks to directly (no pre-configured\nagent record): it builds a fresh server agent per request from the\ncaller-supplied model and contexts, then streams the reply back as\nVercel-AI chunks.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
+        "description": "Stream a chat turn from the GraphQL server agent.\n\nDeprecated: use ``/agents/server/chat`` for persisted sessions.\n\nThis is the endpoint the PXI CLI talks to directly (no pre-configured\nagent record): it builds a fresh server agent per request from the\ncaller-supplied model and contexts, then streams the reply back as\nVercel-AI chunks.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
         "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "session_id",

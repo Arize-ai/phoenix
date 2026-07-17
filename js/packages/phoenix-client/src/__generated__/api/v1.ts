@@ -1448,7 +1448,10 @@ export interface paths {
         put?: never;
         /**
          * Run Server Agent
+         * @deprecated
          * @description Stream a chat turn from the GraphQL server agent.
+         *
+         *     Deprecated: use ``/agents/server/chat`` for persisted sessions.
          *
          *     This is the endpoint the PXI CLI talks to directly (no pre-configured
          *     agent record): it builds a fresh server agent per request from the

@@ -420,6 +420,7 @@ CREATE TABLE public.agent_sessions (
     title VARCHAR NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    agent_id VARCHAR NOT NULL DEFAULT 'assistant'::character varying,
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
     CONSTRAINT uq_agent_sessions_project_session_id_project_name
         UNIQUE (project_session_id, project_name),

@@ -3120,6 +3120,11 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
 
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
+    agent_id: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        server_default="assistant",
+    )
     project_session_id: Mapped[str] = mapped_column(String, nullable=False)
     project_name: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(

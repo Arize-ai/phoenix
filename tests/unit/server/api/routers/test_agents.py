@@ -53,6 +53,7 @@ class TestAgentSessionPersistence:
         async with db() as session:
             created = await _create_agent_session(
                 session,
+                agent_id="assistant",
                 otel_session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 messages=messages,
@@ -66,6 +67,7 @@ class TestAgentSessionPersistence:
         async with db() as session:
             loaded = await _load_agent_session(
                 session,
+                agent_id="assistant",
                 agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
                 user_id=None,
             )
@@ -91,6 +93,7 @@ class TestAgentSessionPersistence:
             with pytest.raises(AssertionError):
                 await _create_agent_session(
                     session,
+                    agent_id="assistant",
                     otel_session_id="11111111-1111-4111-8111-111111111111",
                     user_id=None,
                     messages=[],

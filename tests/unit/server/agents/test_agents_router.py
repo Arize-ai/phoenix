@@ -69,8 +69,8 @@ def _user_message(text: str, *, message_id: str = "msg-user-1") -> dict[str, Any
     }
 
 
-def _chat_url() -> str:
-    return "/agents/assistant/chat"
+def _chat_url(agent_id: str = "assistant") -> str:
+    return f"/agents/{agent_id}/chat"
 
 
 def _chat_body(
@@ -242,6 +242,7 @@ async def test_chat_turn_persists_session_transcript(
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
+        assert agent_session.agent_id == "assistant"
         assert agent_session.user_id is None
         assert UUID(agent_session.project_session_id).version == 4
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
@@ -292,6 +293,150 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.title == "a"
+
+
+async def test_server_chat_turn_persists_and_resumes_session(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "12121212-1212-4212-8212-121212121212"
+    body = _chat_body(session_id, [_user_message("What projects exist?")])
+
+    first_response = await httpx_client.post(_chat_url("server"), json=body)
+    assert first_response.status_code == 200
+    agent_session_id = _created_agent_session_id(first_response.text)
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.agent_id == "server"
+        first_messages = await _load_session_messages(session, agent_session.id)
+        assert len(first_messages) == 2
+        assert await session.scalar(select(models.AgentSessionSnapshot)) is None
+
+    second_response = await httpx_client.post(
+        _chat_url("server"),
+        json=_chat_body(
+            session_id,
+            [*first_messages, _user_message("And datasets?", message_id="msg-user-2")],
+            agent_session_id=agent_session_id,
+        ),
+    )
+    assert second_response.status_code == 200
+    assert _created_agent_session_id(second_response.text) == agent_session_id
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert len(await _load_session_messages(session, agent_session.id)) > len(first_messages)
+
+
+async def test_chat_sessions_cannot_resume_under_a_different_agent(
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    server_response = await httpx_client.post(
+        _chat_url("server"),
+        json=_chat_body("session-server", [_user_message("server question")]),
+    )
+    assistant_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body("session-assistant", [_user_message("assistant question")]),
+    )
+    assert server_response.status_code == 200
+    assert assistant_response.status_code == 200
+
+    server_session_id = _created_agent_session_id(server_response.text)
+    assistant_session_id = _created_agent_session_id(assistant_response.text)
+    cross_agent_responses = (
+        await httpx_client.post(
+            _chat_url(),
+            json=_chat_body(
+                "session-server",
+                [_user_message("wrong assistant")],
+                agent_session_id=server_session_id,
+            ),
+        ),
+        await httpx_client.post(
+            _chat_url("server"),
+            json=_chat_body(
+                "session-assistant",
+                [_user_message("wrong server")],
+                agent_session_id=assistant_session_id,
+            ),
+        ),
+    )
+    assert [response.status_code for response in cross_agent_responses] == [404, 404]
+
+
+async def test_server_chat_route_guards(
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = _chat_body("session-guards", [_user_message("hello")])
+
+    unknown_response = await httpx_client.post(_chat_url("unknown"), json=body)
+    assert unknown_response.status_code == 404
+
+    requested_skills_response = await httpx_client.post(
+        _chat_url("server"),
+        json={**body, "requestedSkills": ["phoenix-graphql"]},
+    )
+    assert requested_skills_response.status_code == 400
+
+    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
+    disabled_response = await httpx_client.post(_chat_url("server"), json=body)
+    assert disabled_response.status_code == 403
+
+
+async def test_legacy_server_chat_accepts_published_cli_request_shape(
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "34343434-3434-4434-8434-343434343434"
+    published_cli_payload = {
+        "id": session_id,
+        "trigger": "submit-message",
+        "messages": [_user_message("List my projects")],
+        "ingestTraces": False,
+        "exportRemoteTraces": False,
+        "attachUserId": False,
+        "editPermission": "manual",
+        "contexts": [
+            {
+                "type": "app",
+                "currentDateTime": "2026-07-16T12:00:00.000-04:00",
+                "timeZone": "America/New_York",
+            },
+            {"type": "graphql", "mutationsEnabled": False},
+            {"type": "web_access", "enabled": False},
+            {"type": "subagents", "enabled": False},
+        ],
+        "model": {
+            "providerType": "builtin",
+            "provider": "ANTHROPIC",
+            "modelName": "claude-sonnet-4-5",
+        },
+    }
+
+    response = await httpx_client.post(
+        f"/agents/server/sessions/{session_id}/chat",
+        json=published_cli_payload,
+    )
+
+    assert response.status_code == 200
+    assert "data: " in response.text
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:

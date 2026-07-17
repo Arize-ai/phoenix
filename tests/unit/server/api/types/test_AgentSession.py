@@ -15,10 +15,12 @@ async def _seed_agent_session(
     *,
     title: str,
     updated_at: datetime,
+    agent_id: str = "assistant",
     messages: list[dict[str, Any]] | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
+            agent_id=agent_id,
             project_session_id=str(uuid4()),
             user_id=None,
             title=title,
@@ -94,6 +96,32 @@ async def test_agent_sessions_orders_by_recency_and_paginates(
     connection = next_page.data["agentSessions"]
     assert [edge["node"]["title"] for edge in connection["edges"]] == ["oldest session"]
     assert connection["pageInfo"]["hasNextPage"] is False
+
+
+async def test_agent_sessions_excludes_server_agent_sessions(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    await _seed_agent_session(
+        db,
+        title="Assistant session",
+        updated_at=updated_at,
+    )
+    await _seed_agent_session(
+        db,
+        agent_id="server",
+        title="CLI session",
+        updated_at=updated_at,
+    )
+
+    response = await gql_client.execute(query=_LIST_QUERY, variables={"first": 20})
+
+    assert not response.errors
+    assert response.data is not None
+    assert [edge["node"]["title"] for edge in response.data["agentSessions"]["edges"]] == [
+        "Assistant session"
+    ]
 
 
 async def test_agent_session_loads_transcript_by_id(

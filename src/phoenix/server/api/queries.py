@@ -1637,7 +1637,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
     ) -> Connection[AgentSession]:
         page_size = first or 20
-        stmt = select(models.AgentSession)
+        stmt = select(models.AgentSession).where(models.AgentSession.agent_id == "assistant")
         if (viewer_id := info.context.user_id) is not None:
             stmt = stmt.where(models.AgentSession.user_id == viewer_id)
         after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
