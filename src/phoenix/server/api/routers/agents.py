@@ -15,6 +15,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, TypeVar
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_session, using_user
@@ -110,6 +111,7 @@ from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.session_persistence import make_agent_session_message_row
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
     iter_requested_skill_response_chunks,
@@ -1304,12 +1306,15 @@ async def _persist_agent_session_turn(
                     models.AgentSessionMessage.agent_session_id == agent_session_rowid,
                     models.AgentSessionMessage.position == next_position - 1,
                 )
-                .values(message=new_messages[0])
+                .values(
+                    message_id=new_messages[0].id,
+                    message=new_messages[0],
+                )
             )
             new_messages = new_messages[1:]
         session.add_all(
-            models.AgentSessionMessage(
-                agent_session_id=agent_session_rowid,
+            make_agent_session_message_row(
+                agent_session_rowid=agent_session_rowid,
                 position=position,
                 message=message,
             )
@@ -1580,6 +1585,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             agent=agent,
             run_input=_to_pydantic_ai_request_data(body, messages=transcript_messages),
             accept=request.headers.get("accept"),
+            server_message_id=str(uuid4()),
         )
         deps = AgentDependencies(
             contexts=resolved_contexts,

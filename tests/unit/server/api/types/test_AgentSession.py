@@ -6,6 +6,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.server.agents.session_persistence import make_agent_session_message_row
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -29,8 +30,8 @@ async def _seed_agent_session(
         session.add(agent_session)
         await session.flush()
         session.add_all(
-            models.AgentSessionMessage(
-                agent_session_id=agent_session.id,
+            make_agent_session_message_row(
+                agent_session_rowid=agent_session.id,
                 position=position,
                 message=PhoenixUIMessage.model_validate(message),
             )

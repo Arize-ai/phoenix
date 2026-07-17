@@ -46,6 +46,7 @@ from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
+from phoenix.server.agents.session_persistence import make_agent_session_message_row
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _emit_turn_root_span,
@@ -123,8 +124,8 @@ async def _create_agent_session_row(
         session.add(agent_session)
         await session.flush()
         session.add_all(
-            models.AgentSessionMessage(
-                agent_session_id=agent_session.id,
+            make_agent_session_message_row(
+                agent_session_rowid=agent_session.id,
                 position=position,
                 message=PhoenixUIMessage.model_validate(message),
             )
@@ -279,6 +280,10 @@ async def test_chat_turn_persists_session_transcript(
     assistant_messages = [message for message in messages if message["role"] == "assistant"]
     assert assistant_messages
     assert assistant_messages[-1] == await _accumulate_streamed_assistant_message(chunks)
+    assert UUID(assistant_messages[-1]["id"]).version == 4
+    start_chunks = [chunk for chunk in chunks if chunk.get("type") == "start"]
+    assert start_chunks
+    assert start_chunks[-1]["messageId"] == assistant_messages[-1]["id"]
     metadata = assistant_messages[-1]["metadata"]
     assert metadata["sessionId"] == persisted_session_id
     assert metadata["usage"]["tokens"]["total"] > 0
@@ -286,6 +291,15 @@ async def test_chat_turn_persists_session_transcript(
     # request's message validation, so every stored message must round-trip.
     for message in messages:
         PhoenixUIMessage.model_validate(message)
+    async with db() as session:
+        stored_message_rows = (
+            await session.scalars(
+                select(models.AgentSessionMessage).order_by(models.AgentSessionMessage.position)
+            )
+        ).all()
+        assert [row.message_id for row in stored_message_rows] == [
+            row.message.id for row in stored_message_rows
+        ]
 
     # Later turns carry only the new message; the server merges it into the
     # transcript it already owns.

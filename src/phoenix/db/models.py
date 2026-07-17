@@ -3298,6 +3298,7 @@ class AgentSessionMessage(HasId):
         nullable=False,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
+    message_id: Mapped[str] = mapped_column(String, nullable=False)
     message: Mapped[PhoenixUIMessage] = mapped_column(_UIMessage, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     agent_session: Mapped[AgentSession] = relationship(
@@ -3306,6 +3307,7 @@ class AgentSessionMessage(HasId):
     )
     __table_args__ = (
         UniqueConstraint("agent_session_id", "position"),
+        UniqueConstraint("message_id"),
         dict(sqlite_autoincrement=True),
     )
 

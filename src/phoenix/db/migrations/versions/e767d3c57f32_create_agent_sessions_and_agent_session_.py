@@ -93,6 +93,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("position", sa.Integer, nullable=False),
+        sa.Column("message_id", sa.String, nullable=False, unique=True),
         sa.Column("message", JSON_, nullable=False),
         sa.Column(
             "created_at",

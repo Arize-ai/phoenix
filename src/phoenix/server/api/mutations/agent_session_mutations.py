@@ -6,6 +6,7 @@ from uuid import uuid4
 import strawberry
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -23,6 +24,7 @@ from phoenix.db.types.data_stream_protocol import (
     ToolOutputErrorPart,
     ToolUIPart,
 )
+from phoenix.server.agents.session_persistence import make_agent_session_message_row
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -142,18 +144,51 @@ async def _load_owned_agent_session(
     return agent_session
 
 
-async def _load_session_messages(
+async def _load_session_message_prefix(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
+    message_id: str,
 ) -> list[PhoenixUIMessage]:
+    target_message = aliased(models.AgentSessionMessage)
+    target_position = (
+        select(target_message.position)
+        .where(
+            target_message.agent_session_id == agent_session_rowid,
+            target_message.message_id == message_id,
+        )
+        .scalar_subquery()
+    )
     return list(
         await session.scalars(
             select(models.AgentSessionMessage.message)
-            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .where(
+                models.AgentSessionMessage.agent_session_id == agent_session_rowid,
+                models.AgentSessionMessage.position <= target_position,
+            )
             .order_by(models.AgentSessionMessage.position)
         )
     )
+
+
+async def _load_session_message_target(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+    message_id: str,
+) -> Optional[tuple[int, PhoenixUIMessage]]:
+    row = (
+        await session.execute(
+            select(
+                models.AgentSessionMessage.position,
+                models.AgentSessionMessage.message,
+            ).where(
+                models.AgentSessionMessage.agent_session_id == agent_session_rowid,
+                models.AgentSessionMessage.message_id == message_id,
+            )
+        )
+    ).one_or_none()
+    return None if row is None else (row.position, row.message)
 
 
 def _message_rows(
@@ -161,8 +196,8 @@ def _message_rows(
     messages: Sequence[PhoenixUIMessage],
 ) -> list[models.AgentSessionMessage]:
     return [
-        models.AgentSessionMessage(
-            agent_session_id=agent_session_rowid,
+        make_agent_session_message_row(
+            agent_session_rowid=agent_session_rowid,
             position=position,
             message=message,
         )
@@ -272,28 +307,27 @@ class AgentSessionMutationMixin:
                 info=info,
                 agent_session_gid=input.id,
             )
-            messages = await _load_session_messages(
+            target = await _load_session_message_target(
                 session,
                 agent_session_rowid=agent_session.id,
+                message_id=input.message_id,
             )
-            rewound_messages = _rewind_messages(messages, input.message_id)
-            if rewound_messages is None:
+            if target is None:
                 raise NotFound(f"No message found for ID '{input.message_id}'")
-            target_position = next(
-                position
-                for position, message in enumerate(messages)
-                if message.id == input.message_id
-            )
-            target_message = messages[target_position]
+            target_position, target_message = target
             delete_from_position = target_position
             if target_message.role == "assistant":
+                stripped_message = _remove_pending_tool_parts(target_message)
                 await session.execute(
                     update(models.AgentSessionMessage)
                     .where(
                         models.AgentSessionMessage.agent_session_id == agent_session.id,
                         models.AgentSessionMessage.position == target_position,
                     )
-                    .values(message=rewound_messages[-1])
+                    .values(
+                        message_id=stripped_message.id,
+                        message=stripped_message,
+                    )
                 )
                 delete_from_position += 1
             await session.execute(
@@ -328,24 +362,28 @@ class AgentSessionMutationMixin:
                 info=info,
                 agent_session_gid=input.id,
             )
-            messages = await _load_session_messages(
+            message_prefix = await _load_session_message_prefix(
                 session,
                 agent_session_rowid=source_session.id,
+                message_id=input.message_id,
             )
-            rewound_messages = _rewind_messages(messages, input.message_id)
-            if rewound_messages is None:
+            retained_messages = _rewind_messages(message_prefix, input.message_id)
+            if retained_messages is None:
                 raise NotFound(f"No message found for ID '{input.message_id}'")
+            regenerated_messages = [
+                message.model_copy(update={"id": str(uuid4())}) for message in retained_messages
+            ]
             branch_session = models.AgentSession(
                 project_session_id=str(uuid4()),
                 user_id=info.context.user_id,
-                title=_build_branch_title(source_session.title, rewound_messages),
+                title=_build_branch_title(source_session.title, retained_messages),
                 # The branch continues the same conversation, so it stays in
                 # the source's trace project even if configuration has changed.
                 project_name=source_session.project_name,
             )
             session.add(branch_session)
             await session.flush()
-            session.add_all(_message_rows(branch_session.id, rewound_messages))
+            session.add_all(_message_rows(branch_session.id, regenerated_messages))
         return BranchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(branch_session),
             query=Query(),

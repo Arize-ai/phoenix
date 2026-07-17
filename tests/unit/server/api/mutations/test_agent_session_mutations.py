@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy import select
 from strawberry.relay import GlobalID
@@ -10,6 +11,7 @@ from phoenix.db.types.data_stream_protocol import (
     ToolInputAvailablePart,
     ToolOutputAvailablePart,
 )
+from phoenix.server.agents.session_persistence import make_agent_session_message_row
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -112,8 +114,8 @@ async def _seed_session_with_transcript(
         session.add(agent_session)
         await session.flush()
         session.add_all(
-            models.AgentSessionMessage(
-                agent_session_id=agent_session.id,
+            make_agent_session_message_row(
+                agent_session_rowid=agent_session.id,
                 position=position,
                 message=message,
             )
@@ -155,6 +157,7 @@ async def test_truncate_agent_session_at_a_user_message_removes_it_and_later_tur
             )
         ).all()
     assert [row.message.id for row in stored_message_rows] == ["user-1", "assistant-1"]
+    assert [row.message_id for row in stored_message_rows] == ["user-1", "assistant-1"]
     assert [row.id for row in stored_message_rows] == retained_message_rowids
 
 
@@ -183,6 +186,14 @@ async def test_truncate_agent_session_at_an_assistant_message_strips_pending_too
         part["toolCallId"] for part in messages[-1]["parts"] if part["type"].startswith("tool-")
     ]
     assert retained_tool_call_ids == ["tool-call-1"]
+    async with db() as session:
+        stored_message = await session.scalar(
+            select(models.AgentSessionMessage).where(
+                models.AgentSessionMessage.message_id == "assistant-2"
+            )
+        )
+        assert stored_message is not None
+        assert stored_message.message_id == stored_message.message.id
 
 
 async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
@@ -221,10 +232,10 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
     # The source is untitled, so the branch derives its title from the
     # truncated transcript's first user message.
     assert branch["title"] == "(branch) How do I trace OpenAI?"
-    assert [message["id"] for message in branch["messages"]] == [
-        "user-1",
-        "assistant-1",
-    ]
+    branch_message_ids = [message["id"] for message in branch["messages"]]
+    assert len(branch_message_ids) == 2
+    assert all(UUID(message_id).version == 4 for message_id in branch_message_ids)
+    assert set(branch_message_ids).isdisjoint({"user-1", "assistant-1"})
     async with db() as session:
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
         assert len(agent_sessions) == 2
@@ -246,6 +257,12 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
         ).all()
         assert len(source_messages) == len(_transcript_messages())
         assert len(branch_messages) == 2
+        assert [row.message_id for row in branch_messages] == [
+            row.message.id for row in branch_messages
+        ]
+        assert set(row.message_id for row in branch_messages).isdisjoint(
+            row.message_id for row in source_messages
+        )
         # The branch mints its own OTel session identity but stays in the
         # source's trace project.
         source_session, branch_session = sorted(
@@ -270,6 +287,43 @@ async def test_branch_agent_session_reuses_the_source_title_with_a_branch_prefix
     assert (
         response.data["branchAgentSession"]["agentSession"]["title"] == "(branch) Debugging traces"
     )
+
+
+async def test_branch_agent_session_strips_pending_tool_calls_from_assistant_target(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    source_agent_session_id = await _seed_session_with_transcript(db)
+
+    response = await gql_client.execute(
+        query=_BRANCH_MUTATION,
+        variables={"id": source_agent_session_id, "messageId": "assistant-2"},
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    messages = response.data["branchAgentSession"]["agentSession"]["messages"]
+    retained_tool_call_ids = [
+        part["toolCallId"] for part in messages[-1]["parts"] if part["type"].startswith("tool-")
+    ]
+    assert retained_tool_call_ids == ["tool-call-1"]
+
+
+async def test_branch_agent_session_with_unknown_message_id_is_not_found(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    source_agent_session_id = await _seed_session_with_transcript(db)
+
+    response = await gql_client.execute(
+        query=_BRANCH_MUTATION,
+        variables={"id": source_agent_session_id, "messageId": "missing"},
+    )
+
+    assert response.errors
+    assert "No message found" in response.errors[0].message
+    async with db() as session:
+        assert len((await session.scalars(select(models.AgentSession))).all()) == 1
 
 
 async def test_create_agent_session_creates_empty_owned_session(
@@ -358,8 +412,8 @@ async def test_delete_agent_session_cascades_snapshot(
             )
         )
         session.add(
-            models.AgentSessionMessage(
-                agent_session_id=agent_session.id,
+            make_agent_session_message_row(
+                agent_session_rowid=agent_session.id,
                 position=0,
                 message=PhoenixUIMessage(id="m1", role="user", parts=[]),
             )

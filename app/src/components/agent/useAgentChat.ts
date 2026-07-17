@@ -245,6 +245,7 @@ export function useAgentChat({
       const chat = new Chat<AgentUIMessage>({
         id: targetSessionId,
         messages: seedMessages,
+        generateId: () => crypto.randomUUID(),
         transport: new DefaultChatTransport({
           api: chatApiUrl,
           fetch: authFetch,

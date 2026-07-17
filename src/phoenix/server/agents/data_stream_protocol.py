@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any
+from uuid import uuid4
 
 from pydantic import BaseModel
 from pydantic_ai.ui.vercel_ai.response_types import (
@@ -58,7 +59,6 @@ from phoenix.db.types.data_stream_protocol import (
     UIMessagePart,
 )
 
-_DEFAULT_MESSAGE_ID = "subagent-message"
 _UNKNOWN_TOOL_NAME = "unknown"
 
 _STATIC_TOOL_PART_TYPES = (
@@ -84,7 +84,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
     chunks: AsyncIterator[BaseChunk],
 ) -> AsyncIterator[UIMessage]:
     """Accumulate Vercel UI message stream chunks into progressive messages."""
-    message = UIMessage(id=_DEFAULT_MESSAGE_ID, role="assistant", parts=[])
+    message = UIMessage(id=str(uuid4()), role="assistant", parts=[])
     text_part_indices_by_id: dict[str, int] = {}
     reasoning_part_indices_by_id: dict[str, int] = {}
     tool_part_indices_by_call_id: dict[str, int] = {}

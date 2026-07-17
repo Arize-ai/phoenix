@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
+from uuid import UUID
 
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
@@ -54,6 +55,14 @@ async def _collect_messages(chunks: Sequence[BaseChunk]) -> list[UIMessage]:
 
 
 class TestAccumulateUIMessageChunksToUIMessages:
+    async def test_mints_a_unique_uuid_without_a_start_chunk(self) -> None:
+        first = await _collect_messages([TextStartChunk(id="text-1")])
+        second = await _collect_messages([TextStartChunk(id="text-2")])
+
+        assert UUID(first[-1].id).version == 4
+        assert UUID(second[-1].id).version == 4
+        assert first[-1].id != second[-1].id
+
     async def test_accumulates_text_reasoning_metadata_and_step_boundaries(self) -> None:
         messages = await _collect_messages(
             [
