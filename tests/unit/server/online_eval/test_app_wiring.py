@@ -87,17 +87,21 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
         async with db() as session:
             await session.execute(
                 insert_on_conflict(
-                    {"grain": "SPAN", "consumer_group": "default", "produced_through_id": 0},
+                    {
+                        "evaluation_target": "SPAN",
+                        "consumer_group": "default",
+                        "produced_through_id": 0,
+                    },
                     table=models.EvalWorkCursor,
                     dialect=db.dialect,
-                    unique_by=("grain", "consumer_group"),
+                    unique_by=("evaluation_target", "consumer_group"),
                     on_conflict=OnConflict.DO_NOTHING,
                 )
             )
             await session.execute(
                 update(models.EvalWorkCursor)
                 .where(
-                    models.EvalWorkCursor.grain == "SPAN",
+                    models.EvalWorkCursor.evaluation_target == "SPAN",
                     models.EvalWorkCursor.consumer_group == "default",
                 )
                 .values(
