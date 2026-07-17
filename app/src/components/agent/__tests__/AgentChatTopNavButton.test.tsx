@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
@@ -72,6 +72,7 @@ describe("AgentChatTopNavButton", () => {
     act(() => root.unmount());
     container.remove();
     agentStore = null;
+    vi.unstubAllGlobals();
   });
 
   it("uses the quiet PXI button and opens the assistant", () => {
@@ -112,6 +113,21 @@ describe("AgentChatTopNavButton", () => {
 
   it("does not flash when the pinned assistant closes", () => {
     renderButton();
+
+    act(() => agentStore?.getState().setIsOpen(true));
+    act(() => agentStore?.getState().setIsOpen(false));
+
+    const returnedButton =
+      container.querySelector<HTMLButtonElement>("button.pxi-button");
+    expect(returnedButton?.hasAttribute("data-pxi-should-flash")).toBe(false);
+  });
+
+  it("does not arm the flash when reduced motion is preferred", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({ matches: true } as MediaQueryList)
+    );
+    renderButton({ position: "detached" });
 
     act(() => agentStore?.getState().setIsOpen(true));
     act(() => agentStore?.getState().setIsOpen(false));

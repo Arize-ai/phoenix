@@ -81,6 +81,36 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setSessionResponsePending", () => {
+    it("removes settled sessions from the sparse pending lookup", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+
+      store.getState().setSessionResponsePending(sessionId, true);
+      expect(store.getState().isResponsePendingBySessionId[sessionId]).toBe(
+        true
+      );
+
+      store.getState().setSessionResponsePending(sessionId, false);
+      expect(
+        store.getState().isResponsePendingBySessionId[sessionId]
+      ).toBeUndefined();
+    });
+
+    it("does not recreate response state after its session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setSessionResponsePending(sessionId, true);
+      store.getState().deleteSession(sessionId);
+
+      store.getState().setSessionResponsePending(sessionId, false);
+
+      expect(
+        store.getState().isResponsePendingBySessionId[sessionId]
+      ).toBeUndefined();
+    });
+  });
+
   describe("pendingPatchExperiment cleanup", () => {
     function setPendingPatch(
       store: ReturnType<typeof createAgentStore>,

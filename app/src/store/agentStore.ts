@@ -369,7 +369,7 @@ export interface AgentState extends AgentProps {
   chatStatusBySessionId: Record<string, ChatStatus>;
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
   /** Whether a logical PXI turn is still awaiting its terminal response. */
-  isResponsePendingBySessionId: Record<string, boolean>;
+  isResponsePendingBySessionId: Partial<Record<string, boolean>>;
   setSessionResponsePending: (sessionId: string, isPending: boolean) => void;
 
   /**
@@ -1156,12 +1156,18 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     isResponsePendingBySessionId: {},
     setSessionResponsePending: (sessionId, isPending) => {
       set(
-        (state) => ({
-          isResponsePendingBySessionId: {
-            ...state.isResponsePendingBySessionId,
-            [sessionId]: isPending,
-          },
-        }),
+        (state) => {
+          if (!(sessionId in state.sessionMap)) {
+            return state;
+          }
+          const next = { ...state.isResponsePendingBySessionId };
+          if (isPending) {
+            next[sessionId] = true;
+          } else {
+            delete next[sessionId];
+          }
+          return { isResponsePendingBySessionId: next };
+        },
         false,
         { type: "setSessionResponsePending" }
       );

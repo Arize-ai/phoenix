@@ -143,7 +143,12 @@ export function AgentChatTopNavButton() {
       }
       const didCloseDetachedPanel =
         previousState.isOpen && !state.isOpen && state.position === "detached";
-      setShouldFlashOnReturnHome(didCloseDetachedPanel);
+      const prefersReducedMotion =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setShouldFlashOnReturnHome(
+        didCloseDetachedPanel && !prefersReducedMotion
+      );
     });
   }, [agentStore]);
 
