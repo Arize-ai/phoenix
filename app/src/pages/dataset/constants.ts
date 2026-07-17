@@ -13,13 +13,40 @@ export const EXPERIMENT_METRIC_CHART_KEYS = [
   "error_rate",
 ] as const;
 
-export type ExperimentMetricChartKey =
+export type BuiltInExperimentMetricChartKey =
   (typeof EXPERIMENT_METRIC_CHART_KEYS)[number];
+
+const EXPERIMENT_EVALUATION_METRIC_CHART_KEY_PREFIX = "evaluation:";
+
+export type ExperimentEvaluationMetricChartKey =
+  `${typeof EXPERIMENT_EVALUATION_METRIC_CHART_KEY_PREFIX}${string}`;
+
+export type ExperimentMetricChartKey =
+  | BuiltInExperimentMetricChartKey
+  | ExperimentEvaluationMetricChartKey;
+
+export function getExperimentEvaluationMetricChartKey(
+  evaluationName: string
+): ExperimentEvaluationMetricChartKey {
+  return `${EXPERIMENT_EVALUATION_METRIC_CHART_KEY_PREFIX}${evaluationName}`;
+}
+
+export function getExperimentEvaluationName(key: string): string | undefined {
+  if (!key.startsWith(EXPERIMENT_EVALUATION_METRIC_CHART_KEY_PREFIX)) {
+    return undefined;
+  }
+  const evaluationName = key.slice(
+    EXPERIMENT_EVALUATION_METRIC_CHART_KEY_PREFIX.length
+  );
+  return evaluationName.length > 0 ? evaluationName : undefined;
+}
 
 export const isExperimentMetricChartKey = (
   key: string
 ): key is ExperimentMetricChartKey =>
-  EXPERIMENT_METRIC_CHART_KEYS.includes(key as ExperimentMetricChartKey);
+  EXPERIMENT_METRIC_CHART_KEYS.includes(
+    key as BuiltInExperimentMetricChartKey
+  ) || getExperimentEvaluationName(key) != null;
 
 /**
  * The maximum number of metric charts that can be shown above the experiments

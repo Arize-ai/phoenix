@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc7eb94b6e4fdc81d582b2fef31c8029>>
+ * @generated SignedSource<<b2efca2d0a76274f40bfaddfb9387357>>
  * @lightSyntaxTransform
  */
 
@@ -108,31 +108,6 @@ v5 = [
     "args": null,
     "kind": "ScalarField",
     "name": "runCount",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "ExperimentAnnotationSummary",
-    "kind": "LinkedField",
-    "name": "annotationSummaries",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "annotationName",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "meanScore",
-        "storageKey": null
-      }
-    ],
     "storageKey": null
   },
   {
@@ -347,12 +322,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c2e5ffc009c7ad3a489cd73b22eeaa24",
+    "cacheID": "3a0af18c0728409044315230985351a8",
     "id": null,
     "metadata": {},
     "name": "useExperimentMetricsDataQuery",
     "operationKind": "query",
-    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
+    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
   }
 };
 })();
