@@ -13,6 +13,18 @@ const temporaryChatTooltipCSS = css`
   white-space: nowrap;
 `;
 
+const temporaryChatToggleCSS = css`
+  color: var(--global-text-color-300);
+
+  .theme--light & {
+    color: var(--global-text-color-500);
+  }
+
+  &[data-is-temporary="true"] {
+    color: var(--global-static-color-white-900);
+  }
+`;
+
 /**
  * Toggle for a new chat's temporary mode.
  * A session's mode is fixed at creation, so
@@ -35,6 +47,8 @@ export function TemporaryChatToggle({
         size="S"
         aria-label={label}
         onPress={onToggle}
+        css={temporaryChatToggleCSS}
+        data-is-temporary={isTemporary}
         leadingVisual={
           <Icon
             svg={
