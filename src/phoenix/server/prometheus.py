@@ -173,6 +173,32 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     documentation="Span ingest rate derived from successive online-eval cursor "
     "high-water observations",
 )
+ONLINE_EVAL_SESSION_PENDING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_pending_work_units",
+    documentation="Current number of session online-eval work units in PENDING status",
+)
+ONLINE_EVAL_SESSION_RUNNING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_running_work_units",
+    documentation="Current number of session online-eval work units in RUNNING status",
+)
+ONLINE_EVAL_SESSION_RETRYABLE_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_retryable_error_work_units",
+    documentation="Current number of retryable session online-eval work units in ERROR status",
+)
+ONLINE_EVAL_SESSION_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_exhausted_error_work_units",
+    documentation="Current number of exhausted session online-eval work units in ERROR status",
+)
+ONLINE_EVAL_SESSION_OLDEST_PENDING_AGE_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_oldest_pending_age_seconds",
+    documentation="Age in seconds of the oldest PENDING or retryable ERROR session online-eval "
+    "work unit (0 when the backlog is empty)",
+)
 
 
 def _join_paths(prefix: str, path: str) -> str:

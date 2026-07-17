@@ -162,6 +162,18 @@ class TestGetEnvOnlineEval:
                 "1",
                 1,
             ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+                phoenix_config.get_env_online_eval_max_transcript_bytes,
+                "256",
+                256,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
+                "1024",
+                1024,
+            ),
         ],
     )
     def test_integer_boundaries(
@@ -193,6 +205,16 @@ class TestGetEnvOnlineEval:
                 phoenix_config.get_env_online_eval_max_outstanding,
                 "-1",
             ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+                phoenix_config.get_env_online_eval_max_transcript_bytes,
+                "255",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
+                "1023",
+            ),
         ],
     )
     def test_integer_domains(
@@ -205,6 +227,19 @@ class TestGetEnvOnlineEval:
         monkeypatch.setenv(env_name, value)
         with pytest.raises(ValueError, match=env_name):
             getter()
+
+    def test_session_size_defaults(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv(
+            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+            raising=False,
+        )
+        monkeypatch.delenv(
+            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+            raising=False,
+        )
+
+        assert phoenix_config.get_env_online_eval_max_transcript_bytes() == 32_768
+        assert phoenix_config.get_env_online_eval_max_sandbox_payload_bytes() == 65_536
 
 
 class TestPostgresConnectionString:

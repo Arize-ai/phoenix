@@ -37,7 +37,11 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
 )
-from phoenix.server.dml_event import DmlEvent, SpanAnnotationInsertEvent
+from phoenix.server.dml_event import (
+    DmlEvent,
+    ProjectSessionAnnotationInsertEvent,
+    SpanAnnotationInsertEvent,
+)
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval.consumer import (
@@ -52,13 +56,14 @@ from phoenix.server.online_eval.executor import (
     EvalExecutionError,
     HydratedWorkUnit,
     OnlineEvalExecutor,
+    session_eval_context,
     span_eval_context,
 )
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 
-from ..._helpers import _add_project, _add_span, _add_trace
+from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
 class _StubLLMClient:
@@ -179,15 +184,39 @@ def _hydrated_stub(
     )
 
 
-def _claimed_unit(span_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUnit:
+def _claimed_unit(target_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUnit:
     now = datetime.now(timezone.utc)
     return ClaimedWorkUnit(
         work_unit_id=work_unit_id,
-        span_rowid=span_rowid,
+        evaluation_target="SPAN",
+        target_rowid=target_rowid,
+        generation=None,
         evaluator_id=1,
         criteria_id=1,
         config_fingerprint="fingerprint",
         identifier="online:fingerprint",
+        attempts=0,
+        claimed_by="consumer",
+        lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
+    )
+
+
+def _claimed_session_unit(
+    project_session_rowid: int,
+    *,
+    identifier: str,
+    work_unit_id: int = 1,
+) -> ClaimedWorkUnit:
+    now = datetime.now(timezone.utc)
+    return ClaimedWorkUnit(
+        work_unit_id=work_unit_id,
+        evaluation_target="SESSION",
+        target_rowid=project_session_rowid,
+        generation=0,
+        evaluator_id=1,
+        criteria_id=1,
+        config_fingerprint="fingerprint",
+        identifier=identifier,
         attempts=0,
         claimed_by="consumer",
         lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
@@ -200,6 +229,7 @@ async def _seed_llm_criteria(
     *,
     template_content: str = "Input: {{input}}\n\nOutput: {{output}}\n\nGood?",
     criteria_input_mapping: Optional[InputMapping] = None,
+    evaluation_target: models.EvaluationTarget = "SPAN",
 ) -> tuple[int, int]:
     """Create an LLM evaluator (prompt + version + tools) and an enabled criteria
     row, returning (evaluator_id, criteria_id)."""
@@ -279,7 +309,7 @@ async def _seed_llm_criteria(
             name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
-            evaluation_target="SPAN",
+            evaluation_target=evaluation_target,
             input_mapping=criteria_input_mapping,
         )
         session.add(criteria)
@@ -292,6 +322,7 @@ async def _seed_code_criteria(
     project_id: int,
     *,
     criteria_input_mapping: InputMapping,
+    evaluation_target: models.EvaluationTarget = "SPAN",
 ) -> tuple[int, int]:
     async with db() as session:
         language = await session.get(models.Language, "PYTHON")
@@ -354,7 +385,7 @@ async def _seed_code_criteria(
             name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
-            evaluation_target="SPAN",
+            evaluation_target=evaluation_target,
             input_mapping=criteria_input_mapping,
         )
         session.add(criteria)
@@ -362,7 +393,12 @@ async def _seed_code_criteria(
         return evaluator.id, criteria.id
 
 
-async def _seed_builtin_criteria(db: DbSessionFactory, project_id: int) -> tuple[int, int]:
+async def _seed_builtin_criteria(
+    db: DbSessionFactory,
+    project_id: int,
+    *,
+    evaluation_target: models.EvaluationTarget = "SPAN",
+) -> tuple[int, int]:
     async with db() as session:
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"eval-{token_hex(4)}"),
@@ -379,7 +415,7 @@ async def _seed_builtin_criteria(db: DbSessionFactory, project_id: int) -> tuple
             name=Identifier(root=f"criteria-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
-            evaluation_target="SPAN",
+            evaluation_target=evaluation_target,
         )
         session.add(criteria)
         await session.flush()
@@ -414,9 +450,48 @@ async def _materialize_unit(
         return unit.id, fingerprint
 
 
+async def _materialize_session_unit(
+    db: DbSessionFactory,
+    project_session_rowid: int,
+    evaluator_id: int,
+    criteria_id: int,
+    *,
+    generation: int = 0,
+) -> tuple[int, str]:
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        polymorphic = with_polymorphic(
+            models.Evaluator,
+            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+        )
+        evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
+        assert evaluator is not None
+        resolved = await resolve_criteria(session, criteria, evaluator)
+        assert resolved is not None
+        fingerprint = config_fingerprint(resolved)
+        unit = models.EvalSessionWorkUnit(
+            project_session_rowid=project_session_rowid,
+            evaluator_id=evaluator_id,
+            criteria_id=criteria_id,
+            config_fingerprint=fingerprint,
+            generation=generation,
+        )
+        session.add(unit)
+        await session.flush()
+        return unit.id, fingerprint
+
+
 async def _get_unit(db: DbSessionFactory, unit_id: int) -> models.EvalWorkUnit:
     async with db() as session:
         unit = await session.get(models.EvalWorkUnit, unit_id)
+        assert unit is not None
+        return unit
+
+
+async def _get_session_unit(db: DbSessionFactory, unit_id: int) -> models.EvalSessionWorkUnit:
+    async with db() as session:
+        unit = await session.get(models.EvalSessionWorkUnit, unit_id)
         assert unit is not None
         return unit
 
@@ -454,6 +529,83 @@ async def test_span_eval_context_nests_span_fields_under_metadata(
             "status_message": "test_status_message",
         },
     }
+
+
+async def _session_annotations(
+    db: DbSessionFactory,
+) -> list[models.ProjectSessionAnnotation]:
+    async with db() as session:
+        return list(await session.scalars(select(models.ProjectSessionAnnotation)))
+
+
+def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> None:
+    turns = [
+        {
+            "input": f"question-{index}-" + "🙂" * 40,
+            "output": f"answer-{index}-" + "界" * 40,
+            "metadata": {"index": index},
+        }
+        for index in range(3)
+    ]
+    retained_blocks = [f"User: {turn['input']}\nAssistant: {turn['output']}" for turn in turns[1:]]
+    expected_transcript = "[transcript truncated: first 1 turns omitted]\n\n" + "\n\n".join(
+        retained_blocks
+    )
+
+    context = session_eval_context(
+        session_id="session-1",
+        turns=turns,
+        num_traces=4,
+        duration_seconds=12.5,
+        token_count_total=123,
+        max_transcript_bytes=len(expected_transcript.encode("utf-8")),
+    )
+
+    assert set(context) == {
+        "input",
+        "output",
+        "last_output",
+        "first_input",
+        "turns",
+        "metadata",
+        "num_traces",
+        "duration_seconds",
+        "token_count_total",
+    }
+    assert context["input"] == expected_transcript
+    assert len(context["input"].encode("utf-8")) <= len(expected_transcript.encode("utf-8"))
+    assert context["turns"] == turns
+    assert context["first_input"] == turns[0]["input"]
+    assert context["last_output"] == turns[-1]["output"]
+    assert context["output"] == turns[-1]["output"]
+    assert context["metadata"] == {"session_id": "session-1"}
+    assert context["num_traces"] == 4
+    assert context["duration_seconds"] == 12.5
+    assert context["token_count_total"] == 123
+
+    all_omitted = session_eval_context(
+        session_id="session-1",
+        turns=[{"input": "x" * 500, "output": "y" * 500, "metadata": {}}],
+        num_traces=1,
+        duration_seconds=0.0,
+        token_count_total=0,
+        max_transcript_bytes=256,
+    )
+    assert all_omitted["input"] == "[transcript truncated: first 1 turns omitted]"
+
+    empty = session_eval_context(
+        session_id="empty-session",
+        turns=[],
+        num_traces=1,
+        duration_seconds=0.0,
+        token_count_total=0,
+        max_transcript_bytes=256,
+    )
+    assert empty["input"] == ""
+    assert empty["output"] is None
+    assert empty["last_output"] is None
+    assert empty["first_input"] is None
+    assert empty["turns"] == []
 
 
 async def test_happy_path_claims_evaluates_annotates_and_completes(
@@ -494,6 +646,223 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     # Nothing is claimable afterwards; a repeat cycle writes nothing new.
     await consumer._cycle()
     assert len(await _annotations(db)) == 1
+
+
+async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(
+            session,
+            project,
+            session_id="session-eval",
+            start_time=start_time,
+        )
+        project_session.end_time = start_time + timedelta(seconds=90)
+        trace_without_root = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=start_time + timedelta(seconds=5),
+        )
+        assert trace_without_root.project_session_rowid == project_session.id
+        later_trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=start_time + timedelta(seconds=20),
+        )
+        later_root = await _add_span(
+            session,
+            later_trace,
+            span_kind="CHAIN",
+            attributes={
+                "input": {"value": "second question"},
+                "output": {"value": "second answer"},
+                "metadata": {"turn": 2},
+            },
+        )
+        await _add_span(
+            session,
+            parent_span=later_root,
+            span_kind="LLM",
+            llm_token_count_prompt=5,
+            llm_token_count_completion=6,
+        )
+        earlier_trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=start_time + timedelta(seconds=10),
+        )
+        earlier_root = await _add_span(
+            session,
+            earlier_trace,
+            span_kind="CHAIN",
+            attributes={
+                "input": {"value": "first question"},
+                "output": {"value": "first answer"},
+                "metadata": {"turn": 1},
+            },
+        )
+        await _add_span(
+            session,
+            parent_span=earlier_root,
+            span_kind="LLM",
+            llm_token_count_prompt=3,
+            llm_token_count_completion=4,
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+        template_content=(
+            "{{input}}\nLAST={{last_output}}\nFIRST={{first_input}}\n"
+            "COUNT={{num_traces}}\nDURATION={{duration_seconds}}\n"
+            "TOKENS={{token_count_total}}\n"
+            "TURNS={{#turns}}{{input}}/{{output}}/{{metadata.turn}};{{/turns}}"
+        ),
+    )
+    unit_id, fingerprint = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+    events: SimpleQueue[DmlEvent] = SimpleQueue()
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        event_queue=events,
+        evaluation_target="SESSION",
+    )
+    await consumer._cycle()
+
+    assert (await _get_session_unit(db, unit_id)).status == "DONE"
+    assert len(client.requests) == 1
+    assert client.requests[0]["messages"][0]["content"] == (
+        "User: first question\nAssistant: first answer\n\n"
+        "User: second question\nAssistant: second answer\n"
+        "LAST=second answer\nFIRST=first question\nCOUNT=3\n"
+        "DURATION=90.0\nTOKENS=18\n"
+        "TURNS=first question/first answer/1;second question/second answer/2;"
+    )
+    (annotation,) = await _session_annotations(db)
+    assert annotation.project_session_id == project_session.id
+    assert annotation.label == "good"
+    assert annotation.score == 1.0
+    assert annotation.explanation == "looks good"
+    assert annotation.annotator_kind == "LLM"
+    assert annotation.source == "API"
+    assert annotation.identifier == annotation_identifier(fingerprint, 0)
+    assert events.get_nowait() == ProjectSessionAnnotationInsertEvent((annotation.id,))
+    assert events.empty()
+
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        annotation_name = criteria.name.root
+    duplicate = _claimed_session_unit(
+        project_session.id,
+        identifier=annotation_identifier(fingerprint, 0),
+        work_unit_id=unit_id,
+    )
+    duplicate_hydrated = _hydrated_stub(
+        results=[_evaluation_result(annotation_name)],
+        evaluator_kind="LLM",
+        output_configs=[_output_config("quality")],
+        annotation_name=annotation_name,
+    )
+    await consumer._executor.evaluate_and_annotate(duplicate, duplicate_hydrated)
+    assert len(await _session_annotations(db)) == 1
+    assert events.empty()
+
+
+async def test_session_generation_above_zero_expires_before_evaluator_call(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+        generation=1,
+    )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    await consumer._cycle()
+
+    assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
+    assert client.requests == []
+    assert await _session_annotations(db) == []
+
+
+async def test_session_code_hydration_supplies_configured_payload_cap(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_code_criteria(
+        db,
+        project.id,
+        criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        evaluation_target="SESSION",
+    )
+    await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    manager = _StubSandboxSessionManager()
+    captured_runner_arguments: dict[str, Any] = {}
+
+    async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
+        return _StubSandboxBackend()
+
+    def _build_runner(**kwargs: Any) -> _StubEvaluator:
+        captured_runner_arguments.update(kwargs)
+        return _StubEvaluator([])
+
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
+    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
+    executor = OnlineEvalExecutor(
+        db,
+        decrypt=lambda value: value,
+        sandbox_session_manager=cast(Any, manager),
+    )
+
+    hydrated = await executor.hydrate(unit)
+
+    assert hydrated is not None
+    assert captured_runner_arguments["max_payload_bytes"] == 2048
 
 
 async def test_llm_criteria_input_mapping_override_is_used_during_execution(

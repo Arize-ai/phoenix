@@ -1,7 +1,6 @@
-"""Execution glue for claimed online-eval work units: criteria-first hydration
-behind the staleness guard, span-level context assembly, ``BaseEvaluator.evaluate()``
-invocation, and the idempotent EvaluationResult -> SpanAnnotation write. Work-unit
-lifecycle transitions (complete/fail/expire) stay with the caller.
+"""Execution glue for claimed online-eval work units: criteria-first hydration,
+target context assembly, evaluator invocation, and idempotent annotation writes.
+Work-unit lifecycle transitions (complete/fail/expire) stay with the caller.
 """
 
 from __future__ import annotations
@@ -10,12 +9,17 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Optional, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
+from phoenix.config import (
+    get_env_online_eval_max_sandbox_payload_bytes,
+    get_env_online_eval_max_transcript_bytes,
+)
 from phoenix.db import models
+from phoenix.db.helpers import token_counts_by_session
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -33,10 +37,15 @@ from phoenix.server.api.evaluators import (
     get_builtin_evaluator_by_key,
 )
 from phoenix.server.api.helpers.playground_clients import get_playground_client
-from phoenix.server.dml_event import DmlEvent, SpanAnnotationInsertEvent
+from phoenix.server.dml_event import (
+    DmlEvent,
+    ProjectSessionAnnotationInsertEvent,
+    SpanAnnotationInsertEvent,
+)
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
 from phoenix.server.online_eval.derivation import config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
+from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -83,6 +92,50 @@ def span_eval_context(span: models.Span) -> dict[str, Any]:
     }
 
 
+def session_eval_context(
+    *,
+    session_id: str,
+    turns: Sequence[dict[str, Any]],
+    num_traces: int,
+    duration_seconds: float,
+    token_count_total: int,
+    max_transcript_bytes: int,
+) -> dict[str, Any]:
+    """Build the bounded transcript and structured context for a session evaluation."""
+    turn_blocks = [f"User: {turn['input']}\nAssistant: {turn['output']}" for turn in turns]
+    transcript = "\n\n".join(turn_blocks)
+    if len(transcript.encode("utf-8")) > max_transcript_bytes:
+        block_sizes = [len(block.encode("utf-8")) for block in turn_blocks]
+        suffix_sizes = [0] * (len(turn_blocks) + 1)
+        for index in range(len(turn_blocks) - 1, -1, -1):
+            separator_size = 2 if index + 1 < len(turn_blocks) else 0
+            suffix_sizes[index] = block_sizes[index] + separator_size + suffix_sizes[index + 1]
+        for omitted_turns in range(1, len(turn_blocks) + 1):
+            marker = f"[transcript truncated: first {omitted_turns} turns omitted]"
+            retained_size = suffix_sizes[omitted_turns]
+            candidate_size = len(marker.encode("utf-8"))
+            if retained_size:
+                candidate_size += 2 + retained_size
+            if candidate_size <= max_transcript_bytes:
+                retained = "\n\n".join(turn_blocks[omitted_turns:])
+                transcript = marker if not retained else f"{marker}\n\n{retained}"
+                break
+
+    first_input = turns[0]["input"] if turns else None
+    last_output = turns[-1]["output"] if turns else None
+    return {
+        "input": transcript,
+        "output": last_output,
+        "last_output": last_output,
+        "first_input": first_input,
+        "turns": list(turns),
+        "metadata": {"session_id": session_id},
+        "num_traces": num_traces,
+        "duration_seconds": duration_seconds,
+        "token_count_total": token_count_total,
+    }
+
+
 class OnlineEvalExecutor:
     """Hydrates and executes claimed work units against the eval runtime."""
 
@@ -111,6 +164,19 @@ class OnlineEvalExecutor:
             criteria = await session.get(models.ProjectEvaluatorCriteria, unit.criteria_id)
             if criteria is None or not criteria.enabled:
                 return None
+            if unit.evaluation_target == "SESSION":
+                if unit.generation != 0:
+                    return None
+                schedulable = await session.scalar(
+                    select(models.ProjectEvaluatorCriteria.id).where(
+                        models.ProjectEvaluatorCriteria.id == criteria.id,
+                        session_criteria_is_schedulable(models.ProjectEvaluatorCriteria),
+                    )
+                )
+                if schedulable is None:
+                    return None
+            elif unit.evaluation_target != "SPAN":
+                return None
             polymorphic = with_polymorphic(
                 models.Evaluator,
                 [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
@@ -123,10 +189,77 @@ class OnlineEvalExecutor:
             resolved = await resolve_criteria(session, criteria, evaluator_orm)
             if resolved is None or config_fingerprint(resolved) != unit.config_fingerprint:
                 return None
-            span = await session.get(models.Span, unit.span_rowid)
-            if span is None:
-                return None
-            context = span_eval_context(span)
+            max_payload_bytes: int | None = None
+            if unit.evaluation_target == "SPAN":
+                span = await session.get(models.Span, unit.target_rowid)
+                if span is None:
+                    return None
+                context = span_eval_context(span)
+            else:
+                project_session = await session.get(models.ProjectSession, unit.target_rowid)
+                if project_session is None or project_session.project_id != criteria.project_id:
+                    return None
+                root_span_ids = (
+                    select(
+                        models.Span.trace_rowid.label("trace_rowid"),
+                        func.min(models.Span.id).label("span_id"),
+                    )
+                    .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                    .where(
+                        models.Trace.project_session_rowid == project_session.id,
+                        models.Span.parent_id.is_(None),
+                    )
+                    .group_by(models.Span.trace_rowid)
+                    .subquery()
+                )
+                root_spans = (
+                    await session.scalars(
+                        select(models.Span)
+                        .join(root_span_ids, models.Span.id == root_span_ids.c.span_id)
+                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .order_by(
+                            models.Trace.start_time.asc(),
+                            models.Trace.id.asc(),
+                            models.Span.id.asc(),
+                        )
+                    )
+                ).all()
+                turns = [
+                    {
+                        "input": span.input_value,
+                        "output": span.output_value,
+                        "metadata": span.metadata_,
+                    }
+                    for span in root_spans
+                ]
+                num_traces = (
+                    await session.scalar(
+                        select(func.count(models.Trace.id)).where(
+                            models.Trace.project_session_rowid == project_session.id
+                        )
+                    )
+                    or 0
+                )
+                token_counts = (
+                    await session.execute(token_counts_by_session([project_session.id]))
+                ).one_or_none()
+                token_count_total = (
+                    (token_counts.prompt or 0) + (token_counts.completion or 0)
+                    if token_counts is not None
+                    else 0
+                )
+                context = session_eval_context(
+                    session_id=project_session.session_id,
+                    turns=turns,
+                    num_traces=num_traces,
+                    duration_seconds=max(
+                        0.0,
+                        (project_session.end_time - project_session.start_time).total_seconds(),
+                    ),
+                    token_count_total=token_count_total,
+                    max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
+                )
+                max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
             input_mapping = (
                 InputMapping.model_validate(resolved.input_mapping)
                 if resolved.input_mapping is not None
@@ -149,6 +282,7 @@ class OnlineEvalExecutor:
                     resolved.version_ref,
                     input_mapping,
                     context,
+                    max_payload_bytes=max_payload_bytes,
                 )
             if isinstance(evaluator_orm, models.BuiltinEvaluator):
                 return self._hydrate_builtin(evaluator_orm, resolved.name, input_mapping, context)
@@ -217,6 +351,8 @@ class OnlineEvalExecutor:
         code_version_id: int,
         input_mapping: InputMapping,
         context: dict[str, Any],
+        *,
+        max_payload_bytes: int | None = None,
     ) -> Optional[HydratedWorkUnit]:
         if self._sandbox_session_manager is None:
             raise ValueError(
@@ -271,6 +407,7 @@ class OnlineEvalExecutor:
             session_key=(
                 f"online-eval:{evaluator_orm.id}:{self._sandbox_session_manager.replica_id}"
             ),
+            max_payload_bytes=max_payload_bytes,
         )
         return HydratedWorkUnit(
             annotation_name=annotation_name,
@@ -305,7 +442,7 @@ class OnlineEvalExecutor:
     async def evaluate_and_annotate(
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
     ) -> None:
-        """Run the eval and write successful results as span annotations under
+        """Run the eval and write successful results as target annotations under
         the unit's identifier. DO_NOTHING makes the write first-write-wins, so
         re-runs of the same unit are no-ops. Raises before writing unless the
         evaluator returns one complete, error-free result set. No DB session is
@@ -338,9 +475,17 @@ class OnlineEvalExecutor:
                     "evaluator returned an incomplete result set: "
                     f"missing={missing}, unexpected={unexpected}"
                 )
+        if unit.evaluation_target == "SPAN":
+            target_values = {"span_rowid": unit.target_rowid}
+        elif unit.evaluation_target == "SESSION":
+            target_values = {"project_session_id": unit.target_rowid}
+        else:
+            raise EvalExecutionError(
+                f"unsupported online evaluation target {unit.evaluation_target!r}"
+            )
         records = [
             {
-                "span_rowid": unit.span_rowid,
+                **target_values,
                 "name": result["name"],
                 "label": result["label"],
                 "score": result["score"],
@@ -355,20 +500,36 @@ class OnlineEvalExecutor:
         ]
         if records:
             async with self._db() as session:
-                inserted_ids = (
-                    await session.scalars(
-                        insert_on_conflict(
-                            *records,
-                            table=models.SpanAnnotation,
-                            dialect=self._db.dialect,
-                            unique_by=("name", "span_rowid", "identifier"),
-                            on_conflict=OnConflict.DO_NOTHING,
-                        ).returning(models.SpanAnnotation.id)
-                    )
-                ).all()
+                if unit.evaluation_target == "SPAN":
+                    inserted_ids = (
+                        await session.scalars(
+                            insert_on_conflict(
+                                *records,
+                                table=models.SpanAnnotation,
+                                dialect=self._db.dialect,
+                                unique_by=("name", "span_rowid", "identifier"),
+                                on_conflict=OnConflict.DO_NOTHING,
+                            ).returning(models.SpanAnnotation.id)
+                        )
+                    ).all()
+                else:
+                    inserted_ids = (
+                        await session.scalars(
+                            insert_on_conflict(
+                                *records,
+                                table=models.ProjectSessionAnnotation,
+                                dialect=self._db.dialect,
+                                unique_by=("name", "project_session_id", "identifier"),
+                                on_conflict=OnConflict.DO_NOTHING,
+                            ).returning(models.ProjectSessionAnnotation.id)
+                        )
+                    ).all()
             # DO_NOTHING returns only rows actually inserted, so a deduped
             # re-run emits no event and dataloader caches aren't re-invalidated.
             if self._event_queue is not None and inserted_ids:
-                self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
+                if unit.evaluation_target == "SPAN":
+                    self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
+                else:
+                    self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
         if not records:
             raise EvalExecutionError("evaluator returned no results")
