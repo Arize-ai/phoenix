@@ -203,7 +203,6 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
-            "work_materialized_at",
             "created_at",
             "updated_at",
         }
@@ -236,7 +235,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping", "work_materialized_at"]),
+            nullable_column_names=frozenset(["input_mapping"]),
         )
 
 

@@ -3618,10 +3618,6 @@ class ProjectEvaluatorCriteria(HasId):
         nullable=False,
     )
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
-    # Stamped the first time a materializer creates evaluation work for this row, and
-    # never cleared. It records that work has ever existed, which outlives the work rows
-    # themselves — retention deletes them, so their presence cannot answer that question.
-    work_materialized_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
