@@ -1,7 +1,7 @@
-"""Consumer-side coordination seam for online-eval work distribution over the
-``eval_work_units`` table: claim/heartbeat/complete/fail transitions plus queue-lag
-observability. Producer-side operations (cursor lease, watermark advance, work-row
-materialization) are not part of this interface.
+"""Consumer-side coordination seam for online-eval work distribution: claim,
+heartbeat, completion, failure, expiration, and queue-lag observability. Producer-side
+operations (cursor lease, watermark advance, and work-row materialization) are not part
+of this interface.
 
 Work-unit lifecycle:
 
@@ -19,18 +19,20 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Protocol
 
+from phoenix.db import models
+
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
 
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit. ``identifier`` keys the annotation write so re-runs of the
-    same (span, evaluator, config) collide on the annotation unique constraint;
-    ``lease_expires_at`` is the claim time plus ``LEASE_TTL_SECONDS``."""
+    """A leased work unit with an idempotent annotation identifier."""
 
     work_unit_id: int
-    span_rowid: int
+    evaluation_target: models.EvaluationTarget
+    target_rowid: int
+    generation: Optional[int]
     evaluator_id: int
     criteria_id: int
     config_fingerprint: str

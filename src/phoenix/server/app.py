@@ -637,6 +637,7 @@ def _lifespan(
     sandbox_session_manager: SandboxSessionManager,
     online_eval_producer: Optional[OnlineEvalProducer] = None,
     online_eval_consumer: Optional[OnlineEvalConsumer] = None,
+    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None,
     online_eval_session_sweeper: Optional[SessionEvalSweeper] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
@@ -697,10 +698,12 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Enter the consumer before the producer so teardown stops admission
-            # before draining work; both stop before sandbox_session_manager.
+            # Enter consumers before the producer so teardown stops admission
+            # before draining work; all stop before sandbox_session_manager.
             if online_eval_consumer is not None:
                 await stack.enter_async_context(online_eval_consumer)
+            if online_eval_session_consumer is not None:
+                await stack.enter_async_context(online_eval_session_consumer)
             if online_eval_producer is not None:
                 await stack.enter_async_context(online_eval_producer)
             if online_eval_session_sweeper is not None:
@@ -1049,6 +1052,7 @@ def create_app(
     )
     online_eval_producer: Optional[OnlineEvalProducer] = None
     online_eval_consumer: Optional[OnlineEvalConsumer] = None
+    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None
     online_eval_session_sweeper: Optional[SessionEvalSweeper] = None
     if get_env_online_eval_enabled() and not read_only:
         claim_batch_size = get_env_online_eval_claim_batch_size()
@@ -1080,6 +1084,13 @@ def create_app(
             event_queue=dml_event_handler,
             tick_interval_seconds=tick_interval_seconds,
             claim_batch_size=claim_batch_size,
+        )
+        online_eval_session_consumer = OnlineEvalConsumer(
+            db,
+            decrypt=encryption_service.decrypt,
+            sandbox_session_manager=sandbox_session_manager,
+            event_queue=dml_event_handler,
+            evaluation_target="SESSION",
         )
         online_eval_session_sweeper = SessionEvalSweeper(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
@@ -1132,6 +1143,7 @@ def create_app(
             sandbox_session_manager=sandbox_session_manager,
             online_eval_producer=online_eval_producer,
             online_eval_consumer=online_eval_consumer,
+            online_eval_session_consumer=online_eval_session_consumer,
             online_eval_session_sweeper=online_eval_session_sweeper,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
@@ -1329,6 +1341,7 @@ def create_app(
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.online_eval_producer = online_eval_producer
     app.state.online_eval_consumer = online_eval_consumer
+    app.state.online_eval_session_consumer = online_eval_session_consumer
     app.state.online_eval_session_sweeper = online_eval_session_sweeper
     app.state.graphql_schema = graphql_schema
     app.state.build_graphql_context = _get_build_graphql_context_function(
