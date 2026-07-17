@@ -91,6 +91,26 @@ traffic never did. Deployments that expose Phoenix directly need none of this. F
   move to the next one. A proxy that substitutes a custom HTML error page (or any `200`) makes the probe look like a
   malformed discovery document, and clients abort instead of falling through.
 
+### GraphQL API keys can no longer create API keys
+
+Through Phoenix 18, the GraphQL mutations `createUserApiKey` and `createSystemApiKey` accepted API-key-authenticated callers for backward compatibility: a user API key could mint another user key for the same owner, and an `ADMIN`-role user key could mint a system key. This allowed a compromised key to issue a durable replacement before the original was revoked.
+
+As of Phoenix 19, both GraphQL mutations reject API-key-authenticated callers with an `Unauthorized` error, matching the policy the REST API-key endpoints (`POST /v1/user/api_keys`, `POST /v1/system/api_keys`) have enforced since their introduction:
+
+- User API keys are created from an authenticated human session.
+- System API keys are created from a human `ADMIN` session or with `PHOENIX_ADMIN_SECRET`.
+- API keys (user or system) cannot create API keys, on either surface.
+
+The GraphQL schema is unchanged, and listing and revoking keys work exactly as before, including with API-key authentication where previously permitted.
+
+**Migration:** If you have automation that uses an existing API key to mint new keys through GraphQL, switch it to one of the supported issuance origins:
+
+- Create keys interactively under **Settings → API Keys**, or
+- Authenticate the automation as a session (log in with user credentials to obtain an access token), or
+- For system keys, authenticate with `PHOENIX_ADMIN_SECRET` and call `POST /v1/system/api_keys` (or the GraphQL mutation).
+
+Keys created before the upgrade remain valid; only the ability of a key to create further keys is removed.
+
 ## v17.x to v18.0.0
 
 ### DB Index for Sessions Time Range

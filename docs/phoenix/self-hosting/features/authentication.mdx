@@ -159,13 +159,13 @@ There are two kinds of API keys in Phoenix: `system` and `user`.
 
 System keys act on behalf of the system as a whole rather than any particular user. They can only be created by admins, are not meaningfully associated with the admin who creates them except for auditing purposes, and do not disappear if that admin is deleted. A system key would be the recommended kind of key to use in programmatic interactions with Phoenix that do not involve a user (e.g., automated flows querying our REST APIs).
 
-The REST API requires an admin access-token session or `PHOENIX_ADMIN_SECRET` to create a system key. API keys cannot mint additional keys through REST.
+Creating a system key requires an admin access-token session or `PHOENIX_ADMIN_SECRET`, on both REST and GraphQL. API keys cannot mint additional keys.
 
 ### User Keys
 
 User API keys are associated with and act on behalf of the user to which they are issued. That user has the ability to view and delete their own user keys, and if the user is deleted, so are all of their associated user keys. A user might create their own user key into order to run an experiment in a notebook, for example.
 
-Creating a user key through REST requires an access-token session; an existing API key cannot mint a replacement. GraphQL continues to allow API-key-authenticated issuance for backward compatibility through Phoenix 18, but that behavior is deprecated for removal in Phoenix 19.
+Creating a user key requires an access-token session, on both REST and GraphQL; an existing API key cannot mint a replacement. Through Phoenix 18, GraphQL allowed API-key-authenticated issuance for backward compatibility; as of Phoenix 19 both surfaces enforce the same non-transitive policy. Workflows that used an API key for unattended key creation must instead provision keys from a logged-in session (for example, the Settings page or a script that authenticates with user credentials).
 
 ### Setting and Using API Keys with Environment Variables
 
