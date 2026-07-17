@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4d6714a60741d679b743757226c45cc6>>
+ * @generated SignedSource<<3b8957e02133ee0a8451eebe5a95b4e2>>
  * @lightSyntaxTransform
  */
 
@@ -18,7 +18,7 @@ export type SystemAPIKeysTableFragment$data = {
     readonly name: string;
   }>;
   readonly viewer: {
-    readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ViewerAPIKeysListFragment">;
   } | null;
   readonly " $fragmentType": "SystemAPIKeysTableFragment";
 };
@@ -98,7 +98,7 @@ const node: ReaderFragment = {
         {
           "args": null,
           "kind": "FragmentSpread",
-          "name": "APIKeysTableFragment"
+          "name": "ViewerAPIKeysListFragment"
         }
       ],
       "storageKey": null
@@ -108,6 +108,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "459f07f740e1b27f3839eedd3eff3083";
+(node as any).hash = "e6aa59faf8f449c0eb954a4e4b14761b";
 
 export default node;

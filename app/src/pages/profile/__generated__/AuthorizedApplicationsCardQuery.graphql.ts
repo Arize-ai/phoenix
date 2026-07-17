@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<642dfa51d969d4290304a82cb5f61e8b>>
+ * @generated SignedSource<<ab47a17a558145fe80f84c974c9e9b04>>
  * @lightSyntaxTransform
  */
 
@@ -9,17 +9,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type APIKeysTableQuery$variables = {
+export type AuthorizedApplicationsCardQuery$variables = {
   id: string;
 };
-export type APIKeysTableQuery$data = {
+export type AuthorizedApplicationsCardQuery$data = {
   readonly node: {
-    readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"AuthorizedApplicationsCardFragment">;
   };
 };
-export type APIKeysTableQuery = {
-  response: APIKeysTableQuery$data;
-  variables: APIKeysTableQuery$variables;
+export type AuthorizedApplicationsCardQuery = {
+  response: AuthorizedApplicationsCardQuery$data;
+  variables: AuthorizedApplicationsCardQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -49,7 +49,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "APIKeysTableQuery",
+    "name": "AuthorizedApplicationsCardQuery",
     "selections": [
       {
         "alias": null,
@@ -62,7 +62,7 @@ return {
           {
             "args": null,
             "kind": "FragmentSpread",
-            "name": "APIKeysTableFragment"
+            "name": "AuthorizedApplicationsCardFragment"
           }
         ],
         "storageKey": null
@@ -75,7 +75,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "APIKeysTableQuery",
+    "name": "AuthorizedApplicationsCardQuery",
     "selections": [
       {
         "alias": null,
@@ -99,9 +99,9 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "UserApiKey",
+                "concreteType": "OAuth2Grant",
                 "kind": "LinkedField",
-                "name": "apiKeys",
+                "name": "oauth2Grants",
                 "plural": true,
                 "selections": [
                   (v2/*:: as any*/),
@@ -109,14 +109,28 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "name",
+                    "name": "clientName",
                     "storageKey": null
                   },
                   {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "description",
+                    "name": "clientId",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "isFirstParty",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "scopes",
                     "storageKey": null
                   },
                   {
@@ -132,6 +146,13 @@ return {
                     "kind": "ScalarField",
                     "name": "expiresAt",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "lastUsedAt",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -146,16 +167,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cdfdedf08fd777fb83fabe0bce5ab3db",
+    "cacheID": "029d10852e516034e8112cb4dcd46584",
     "id": null,
     "metadata": {},
-    "name": "APIKeysTableQuery",
+    "name": "AuthorizedApplicationsCardQuery",
     "operationKind": "query",
-    "text": "query APIKeysTableQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...APIKeysTableFragment\n    id\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
+    "text": "query AuthorizedApplicationsCardQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...AuthorizedApplicationsCardFragment\n    id\n  }\n}\n\nfragment AuthorizedApplicationsCardFragment on User {\n  id\n  oauth2Grants {\n    id\n    clientName\n    clientId\n    isFirstParty\n    scopes\n    createdAt\n    expiresAt\n    lastUsedAt\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6c32098d55e4cba859dcec73f3ccd28c";
+(node as any).hash = "38f9e9e768ac7af283995fb1258ad34c";
 
 export default node;

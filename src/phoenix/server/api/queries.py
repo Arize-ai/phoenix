@@ -102,6 +102,7 @@ from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
 )
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -423,6 +424,17 @@ class Query:
         async with info.context.db.read() as session:
             api_keys = await session.scalars(stmt)
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
+        async with info.context.db.read() as session:
+            grants = await session.scalars(
+                select(models.OAuth2Grant)
+                .where(models.OAuth2Grant.revoked_at.is_(None))
+                .options(joinedload(models.OAuth2Grant.client))
+                .order_by(models.OAuth2Grant.last_used_at.desc().nullslast())
+            )
+        return [OAuth2Grant(id=grant.id, db_record=grant) for grant in grants]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
@@ -1062,6 +1074,8 @@ class Query:
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
             return ProjectSession(id=node_id)
+        elif type_name == OAuth2Grant.__name__:
+            return OAuth2Grant(id=node_id)
         elif type_name == Prompt.__name__:
             return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:

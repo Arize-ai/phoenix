@@ -36,6 +36,7 @@ import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
 import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { SettingsUsersPage } from "@phoenix/pages/settings/SettingsUsersPage";
+import { UserDetailsDrawer } from "@phoenix/pages/settings/UserDetailsDrawer";
 
 import type {
   DatasetLoaderData,
@@ -66,6 +67,7 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
+  OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
   ProfilePage,
@@ -143,6 +145,15 @@ export const appRouteObjects = createRoutesFromElements(
       */}
     <Route path="/v1/*" element={<Navigate to="/" replace />} />
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/oauth2/consent" element={<OAuth2ConsentPage />} />
+    {/*
+        When authentication is enabled the server handles /oauth2/authorize
+        before the SPA ever sees it. This route only renders when the server
+        is running without authentication and falls through to the SPA — the
+        page then shows an "authentication is not enabled" fallback instead
+        of crashing on an unknown route.
+      */}
+    <Route path="/oauth2/authorize" element={<OAuth2ConsentPage />} />
     <Route path="/logout" element={<LoggedOutPage />} />
     <Route
       path="/reset-password"
@@ -756,7 +767,9 @@ export const appRouteObjects = createRoutesFromElements(
                   "Manage users and members: add or invite a user, change a user's role, reset a password, or delete a user.",
               },
             }}
-          />
+          >
+            <Route path=":userId" element={<UserDetailsDrawer />} />
+          </Route>
           <Route
             path="api-keys"
             element={<SettingsAPIKeysPage />}

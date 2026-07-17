@@ -23,8 +23,8 @@ test("can create user key", async ({ page }) => {
     .getByRole("button", { name: "dismiss" })
     .click();
 
-  // Verify the named key appears in the table - which means key creation succeeded
-  await expect(page.getByRole("cell", { name: keyName })).toBeVisible();
+  // Verify the named key appears in the list - which means key creation succeeded
+  await expect(page.getByText(keyName, { exact: true })).toBeVisible();
 });
 
 test("should not be able to create a new project", async ({ page }) => {

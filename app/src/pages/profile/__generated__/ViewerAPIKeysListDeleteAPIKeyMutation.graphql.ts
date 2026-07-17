@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<937aba96b1d928b31f26ca2d85b4186a>>
+ * @generated SignedSource<<a4dcca388f0826ef09aa96d4a6bbbc12>>
  * @lightSyntaxTransform
  */
 
@@ -12,21 +12,21 @@ import { FragmentRefs } from "relay-runtime";
 export type DeleteApiKeyInput = {
   id: string;
 };
-export type APIKeysTableDeleteAPIKeyMutation$variables = {
+export type ViewerAPIKeysListDeleteAPIKeyMutation$variables = {
   input: DeleteApiKeyInput;
 };
-export type APIKeysTableDeleteAPIKeyMutation$data = {
+export type ViewerAPIKeysListDeleteAPIKeyMutation$data = {
   readonly deleteUserApiKey: {
     readonly query: {
       readonly viewer: {
-        readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
+        readonly " $fragmentSpreads": FragmentRefs<"ViewerAPIKeysListFragment">;
       } | null;
     };
   };
 };
-export type APIKeysTableDeleteAPIKeyMutation = {
-  response: APIKeysTableDeleteAPIKeyMutation$data;
-  variables: APIKeysTableDeleteAPIKeyMutation$variables;
+export type ViewerAPIKeysListDeleteAPIKeyMutation = {
+  response: ViewerAPIKeysListDeleteAPIKeyMutation$data;
+  variables: ViewerAPIKeysListDeleteAPIKeyMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -56,7 +56,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "APIKeysTableDeleteAPIKeyMutation",
+    "name": "ViewerAPIKeysListDeleteAPIKeyMutation",
     "selections": [
       {
         "alias": null,
@@ -85,7 +85,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "APIKeysTableFragment"
+                    "name": "ViewerAPIKeysListFragment"
                   }
                 ],
                 "storageKey": null
@@ -104,7 +104,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "APIKeysTableDeleteAPIKeyMutation",
+    "name": "ViewerAPIKeysListDeleteAPIKeyMutation",
     "selections": [
       {
         "alias": null,
@@ -183,16 +183,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4bdd87573f4445b94a5d22dca4c9da3b",
+    "cacheID": "42bf66fb80d565913b8583e13318e83d",
     "id": null,
     "metadata": {},
-    "name": "APIKeysTableDeleteAPIKeyMutation",
+    "name": "ViewerAPIKeysListDeleteAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation APIKeysTableDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteUserApiKey(input: $input) {\n    query {\n      viewer {\n        ...APIKeysTableFragment\n        id\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
+    "text": "mutation ViewerAPIKeysListDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteUserApiKey(input: $input) {\n    query {\n      viewer {\n        ...ViewerAPIKeysListFragment\n        id\n      }\n    }\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8d26517ce1b7bca6482fbd3dcdd320e3";
+(node as any).hash = "ea1311a5baac4dc68f6e6f7a6b3e5151";
 
 export default node;

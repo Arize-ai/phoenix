@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Flex } from "@phoenix/components";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
+import { AuthorizedApplicationsCard } from "./AuthorizedApplicationsCard";
 import { ViewerAPIKeys } from "./ViewerAPIKeys";
 import { ViewerPreferences } from "./ViewerPreferences";
 import { ViewerProfileCard } from "./ViewerProfileCard";
@@ -36,6 +37,7 @@ export function ProfilePage() {
         <Flex direction="column" gap="size-200">
           {viewer && <ViewerProfileCard />}
           {viewer && <ViewerAPIKeys viewer={viewer} />}
+          {viewer && <AuthorizedApplicationsCard viewer={viewer} />}
           <ViewerPreferences />
         </Flex>
       </div>

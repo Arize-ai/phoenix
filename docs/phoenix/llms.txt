@@ -228,7 +228,8 @@
 ### Developer Tools
 
 - [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Claude Code, Cursor, and AI coding assistant integration
-- [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants to Phoenix via Model Context Protocol
+- [Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp): Connect MCP clients to the /mcp endpoint built into the Phoenix server (beta)
+- [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants to Phoenix via the @arizeai/phoenix-mcp npm package (maintenance mode)
 
 ### LLM Providers
 

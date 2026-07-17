@@ -38,6 +38,20 @@ export class InvalidArgumentError extends Error {
   }
 }
 
+export class AuthRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthRequiredError";
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
 /**
  * Infer a semantic exit code from an unknown error value.
  *
@@ -50,6 +64,14 @@ export class InvalidArgumentError extends Error {
 export function getExitCodeForError(error: unknown): ExitCode {
   if (error instanceof InvalidArgumentError) {
     return ExitCode.INVALID_ARGUMENT;
+  }
+
+  if (error instanceof AuthRequiredError) {
+    return ExitCode.AUTH_REQUIRED;
+  }
+
+  if (error instanceof NetworkError) {
+    return ExitCode.NETWORK_ERROR;
   }
 
   // TypeError is thrown by the Fetch API for network-level failures

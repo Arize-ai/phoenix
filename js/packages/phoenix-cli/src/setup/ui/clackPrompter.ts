@@ -106,6 +106,23 @@ export function createClackPrompter(): Prompter {
       return answer;
     },
 
+    async runInterruptible<T>(
+      work: (signal: AbortSignal) => Promise<T>
+    ): Promise<T> {
+      // Attaching a listener also suppresses Node's default terminate-on-SIGINT
+      // for the duration, which is the point: with no clack prompt on screen
+      // there is nothing to raise SetupCancelledError, so an unhandled Ctrl-C
+      // would kill the process and discard the answers already given.
+      const interrupted = new AbortController();
+      const onInterrupt = () => interrupted.abort();
+      process.once("SIGINT", onInterrupt);
+      try {
+        return await work(interrupted.signal);
+      } finally {
+        process.off("SIGINT", onInterrupt);
+      }
+    },
+
     note(message: string, title?: string): void {
       // A heading over an indented body, not clack's boxed `note`: clack's guide
       // rail already sets the block apart, and the box adds a border that has to

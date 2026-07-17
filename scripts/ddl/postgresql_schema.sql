@@ -49,6 +49,30 @@ CREATE TABLE public.languages (
 );
 
 
+-- Table: oauth2_clients
+-- ---------------------
+CREATE TABLE public.oauth2_clients (
+    id bigserial NOT NULL,
+    client_id VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    logo_uri VARCHAR,
+    redirect_uris JSONB NOT NULL,
+    grant_types JSONB NOT NULL,
+    token_endpoint_auth_method VARCHAR NOT NULL,
+    is_first_party BOOLEAN NOT NULL DEFAULT false,
+    metadata JSONB,
+    registration_client_ip VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_oauth2_clients PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX ix_oauth2_clients_client_id ON public.oauth2_clients
+    USING btree (client_id);
+CREATE INDEX ix_oauth2_clients_registration_client_ip ON public.oauth2_clients
+    USING btree (registration_client_ip, created_at);
+
+
 -- Table: project_trace_retention_policies
 -- ---------------------------------------
 CREATE TABLE public.project_trace_retention_policies (
@@ -288,6 +312,8 @@ CREATE INDEX ix_spans_start_time ON public.spans
     USING btree (start_time);
 CREATE INDEX ix_spans_trace_rowid ON public.spans
     USING btree (trace_rowid);
+CREATE INDEX ix_spans_user_id ON public.spans
+    USING btree ((((attributes #>> '{user,id}'::text[]))::character varying)) WHERE (((attributes #>> '{user,id}'::text[]))::character varying IS NOT NULL);
 
 
 -- Table: span_costs
@@ -419,6 +445,8 @@ CREATE TABLE public.api_keys (
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE,
+    scopes JSONB,
+    audience JSONB,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users FOREIGN KEY
         (user_id)
@@ -1127,6 +1155,69 @@ CREATE TABLE public.generative_model_custom_providers (
 );
 
 
+-- Table: oauth2_authorization_codes
+-- ---------------------------------
+CREATE TABLE public.oauth2_authorization_codes (
+    id bigserial NOT NULL,
+    code_hash VARCHAR NOT NULL,
+    user_id BIGINT NOT NULL,
+    oauth2_client_id BIGINT NOT NULL,
+    redirect_uri VARCHAR NOT NULL,
+    code_challenge VARCHAR NOT NULL,
+    code_challenge_method VARCHAR NOT NULL,
+    scopes JSONB,
+    resource VARCHAR,
+    audience JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT pk_oauth2_authorization_codes PRIMARY KEY (id),
+    CONSTRAINT fk_oauth2_authorization_codes_oauth2_client_id_oauth2_clients
+        FOREIGN KEY
+        (oauth2_client_id)
+        REFERENCES public.oauth2_clients (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_oauth2_authorization_codes_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX ix_oauth2_authorization_codes_code_hash ON public.oauth2_authorization_codes
+    USING btree (code_hash);
+CREATE INDEX ix_oauth2_authorization_codes_expires_at ON public.oauth2_authorization_codes
+    USING btree (expires_at);
+
+
+-- Table: oauth2_grants
+-- --------------------
+CREATE TABLE public.oauth2_grants (
+    id bigserial NOT NULL,
+    user_id BIGINT NOT NULL,
+    oauth2_client_id BIGINT NOT NULL,
+    scopes JSONB,
+    audience JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP WITH TIME ZONE,
+    last_used_at TIMESTAMP WITH TIME ZONE,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT pk_oauth2_grants PRIMARY KEY (id),
+    CONSTRAINT fk_oauth2_grants_oauth2_client_id_oauth2_clients
+        FOREIGN KEY
+        (oauth2_client_id)
+        REFERENCES public.oauth2_clients (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_oauth2_grants_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_oauth2_grants_oauth2_client_id ON public.oauth2_grants
+    USING btree (oauth2_client_id);
+CREATE INDEX ix_oauth2_grants_user_id ON public.oauth2_grants
+    USING btree (user_id);
+
+
 -- Table: password_reset_tokens
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
@@ -1352,10 +1443,18 @@ CREATE INDEX ix_llm_evaluators_prompt_version_tag_id ON public.llm_evaluators
 -- ---------------------
 CREATE TABLE public.refresh_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    oauth2_grant_id BIGINT,
+    scopes JSONB,
+    audience JSONB,
+    consumed_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
+    CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants FOREIGN KEY
+        (oauth2_grant_id)
+        REFERENCES public.oauth2_grants (id)
+        ON DELETE CASCADE,
     CONSTRAINT fk_refresh_tokens_user_id_users FOREIGN KEY
         (user_id)
         REFERENCES public.users (id)
@@ -1364,6 +1463,8 @@ CREATE TABLE public.refresh_tokens (
 
 CREATE INDEX ix_refresh_tokens_expires_at ON public.refresh_tokens
     USING btree (expires_at);
+CREATE INDEX ix_refresh_tokens_oauth2_grant_id ON public.refresh_tokens
+    USING btree (oauth2_grant_id);
 CREATE INDEX ix_refresh_tokens_user_id ON public.refresh_tokens
     USING btree (user_id);
 
@@ -1372,10 +1473,12 @@ CREATE INDEX ix_refresh_tokens_user_id ON public.refresh_tokens
 -- --------------------
 CREATE TABLE public.access_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    refresh_token_id INTEGER,
+    refresh_token_id INTEGER NOT NULL,
+    scopes JSONB,
+    audience JSONB,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
         FOREIGN KEY

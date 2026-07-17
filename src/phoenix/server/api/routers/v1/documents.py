@@ -38,6 +38,7 @@ class AnnotateSpanDocumentsResponseBody(ResponseBody[list[InsertedSpanDocumentAn
     "/document_annotations",
     dependencies=[Depends(is_not_locked)],
     operation_id="annotateSpanDocuments",
+    summary="Create span document annotations",
     responses=add_errors_to_responses(
         [
             {

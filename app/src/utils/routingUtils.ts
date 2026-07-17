@@ -94,6 +94,43 @@ export const createRedirectUrlWithReturn = ({
 };
 
 /**
+ * Path prefixes within the app's URL space that are served by the backend
+ * rather than the SPA router. Reaching them requires a full document load —
+ * a client-side route transition would render the router's no-match page
+ * instead of issuing an HTTP request.
+ */
+const SERVER_OWNED_PATH_PREFIXES = ["/oauth2/authorize"];
+
+/**
+ * Returns true when the given app-relative URL is handled by the backend
+ * rather than the SPA router, meaning navigation to it must be a full
+ * document load (e.g. window.location.assign) rather than a router
+ * transition.
+ */
+export function isServerOwnedPath(url: string): boolean {
+  return SERVER_OWNED_PATH_PREFIXES.some(
+    (prefix) =>
+      url === prefix ||
+      url.startsWith(`${prefix}?`) ||
+      url.startsWith(`${prefix}/`)
+  );
+}
+
+/**
+ * Performs a full document load to an app-relative path. The path is resolved
+ * against the current origin and the result is required to stay on it, so a
+ * value that parses as an absolute, protocol-relative, or non-http(s) URL
+ * cannot navigate off-site no matter what upstream sanitization missed.
+ */
+export function assignAppRelativeLocation(path: string): void {
+  const destination = new URL(prependBasename(path), window.location.origin);
+  if (destination.origin !== window.location.origin) {
+    return;
+  }
+  window.location.assign(destination.href);
+}
+
+/**
  * Security check for redirect urls
  * @param {unknown} url - the potential redirect
  * @returns {boolean} isValid - whether or not the provided value is valid

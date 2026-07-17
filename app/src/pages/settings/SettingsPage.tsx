@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import { Suspense } from "react";
 import type { Key } from "react-aria-components";
 import { Collection } from "react-aria-components";
-import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
+import { Navigate, Outlet, useMatch, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 import {
@@ -52,7 +52,7 @@ const settingsTabPanelCSS = css`
   }
 `;
 
-const TABS: { id: string; label: string }[] = [
+const TABS = [
   { id: "general", label: "General" },
   { id: "users", label: "Users" },
   { id: "api-keys", label: "API Keys" },
@@ -65,13 +65,20 @@ const TABS: { id: string; label: string }[] = [
   { id: "prompts", label: "Prompts" },
   { id: "data", label: "Data Retention" },
   { id: "agents", label: "Assistant" },
-];
+] as const satisfies readonly { id: string; label: string }[];
+
+type SettingsTabId = (typeof TABS)[number]["id"];
+
+function isSettingsTabId(value: string | undefined): value is SettingsTabId {
+  return TABS.some((tab) => tab.id === value);
+}
 
 export function SettingsPage() {
-  const { pathname } = useLocation();
   const navigate = useNavigate();
   const isLargeScreen = useMediaQuery(VERTICAL_TABS_MEDIA_QUERY);
-  const tab = pathname.split("/settings")[1].replace("/", "");
+  // Matches nested routes (e.g. /settings/users/:userId) so the tab stays
+  // selected while a child route like the user details drawer is open.
+  const tab = useMatch("/settings/:tab/*")?.params.tab;
   const onChangeTab = (tab: Key) => {
     if (typeof tab === "string") {
       navigate(`/settings/${tab}`, { replace: true });
@@ -81,7 +88,7 @@ export function SettingsPage() {
   const canManageSecrets = useViewerCanManageSecrets();
   const canManageSandboxes = useViewerCanManageSandboxes();
   // Tabs absent from this map are visible to everyone.
-  const tabVisibility: Record<string, boolean> = {
+  const tabVisibility: Partial<Record<SettingsTabId, boolean>> = {
     agents: !window.Config.agentAssistantDisabled,
     users: isAdmin,
     "api-keys": isAdmin,
@@ -89,10 +96,7 @@ export function SettingsPage() {
     sandboxes: canManageSandboxes,
   };
   const tabs = TABS.filter((tab) => tabVisibility[tab.id] ?? true);
-  if (!tab) {
-    return <Navigate to="/settings/general" replace />;
-  }
-  if (!tabs.some((item) => item.id === tab)) {
+  if (!isSettingsTabId(tab) || !tabs.some((item) => item.id === tab)) {
     return <Navigate to="/settings/general" replace />;
   }
   return (

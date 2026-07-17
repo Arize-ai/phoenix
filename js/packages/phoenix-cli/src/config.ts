@@ -10,6 +10,7 @@ import {
 } from "@arizeai/phoenix-config";
 
 import {
+  type OAuthTokens,
   type ProfileEntry,
   getProfileByName,
   getStoredActiveProfile,
@@ -40,6 +41,23 @@ export interface PhoenixConfig {
    * API key for authentication
    */
   apiKey?: string;
+
+  /**
+   * OAuth tokens from the selected profile. Used only when no API key is
+   * configured by CLI flag, environment variable, or profile.
+   */
+  oauthTokens?: OAuthTokens;
+
+  /**
+   * Selected profile name. Present when config came from an explicit or active
+   * profile and used to persist refreshed OAuth tokens.
+   */
+  profileName?: string;
+
+  /**
+   * Source of the credential that will be used for API requests.
+   */
+  credentialSource?: "flag" | "env" | "profile-key" | "oauth" | "none";
 
   /**
    * Custom headers
@@ -92,8 +110,6 @@ function loadConfigFromEnvironmentWithSources(): {
     config.headers = headers;
   }
 
-  // Resolve the project from PHOENIX_PROJECT (canonical) or the
-  // PHOENIX_PROJECT_NAME alias.
   const project = getProjectFromEnvironment();
   if (project) {
     config.project = project;
@@ -174,14 +190,14 @@ export function loadConfigFromProfile(profileName?: string): PhoenixConfig {
         `Profile "${profileName}" (from --profile) does not exist. Run \`px profile list\` to see available profiles.`
       );
     }
-    return profileEntryToConfig(active.entry);
+    return profileEntryToConfig(active.entry, active.name);
   }
 
   const active = getStoredActiveProfile(settingsFile);
   if (!active) {
     return {};
   }
-  return profileEntryToConfig(active.entry);
+  return profileEntryToConfig(active.entry, active.name);
 }
 
 /**
@@ -189,12 +205,17 @@ export function loadConfigFromProfile(profileName?: string): PhoenixConfig {
  * (e.g. an apiKey set on a different profile) are simply omitted so the
  * downstream merge in `resolveConfig` can layer env vars / defaults on top.
  */
-function profileEntryToConfig(entry: ProfileEntry): PhoenixConfig {
+function profileEntryToConfig(
+  entry: ProfileEntry,
+  profileName: string
+): PhoenixConfig {
   const config: PhoenixConfig = {};
   if (entry.endpoint) config.endpoint = entry.endpoint;
   if (entry.apiKey) config.apiKey = entry.apiKey;
+  if (entry.oauthTokens) config.oauthTokens = entry.oauthTokens;
   if (entry.project) config.project = entry.project;
   if (entry.headers) config.headers = entry.headers;
+  config.profileName = profileName;
   return config;
 }
 
@@ -238,20 +259,54 @@ export function resolveConfig({
     Object.entries(cliOptions).filter(([, value]) => value !== undefined)
   ) as Partial<PhoenixConfig>;
 
-  const config = {
+  // OAuth tokens are only valid against the endpoint that issued them. When
+  // --endpoint or PHOENIX_HOST points the command at a different server, drop
+  // the tokens so they are never sent to — or refreshed against — a host that
+  // did not issue them.
+  const resolvedEndpoint =
+    definedCliOptions.endpoint ??
+    processEnvConfig.endpoint ??
+    profileConfig.endpoint ??
+    envFileConfig.endpoint ??
+    builtInDefaults.endpoint;
+  const boundProfileConfig =
+    profileConfig.oauthTokens && profileConfig.endpoint !== resolvedEndpoint
+      ? { ...profileConfig, oauthTokens: undefined }
+      : profileConfig;
+
+  const credentialSource = getCredentialSource({
+    cliOptions: definedCliOptions,
+    processEnvConfig,
+    envFileConfig,
+    profileConfig: boundProfileConfig,
+  });
+
+  const oauthTokens =
+    credentialSource === "oauth" ? boundProfileConfig.oauthTokens : undefined;
+
+  const config: PhoenixConfig = {
     ...builtInDefaults,
     ...envFileConfig,
     ...profileConfig,
     ...processEnvConfig,
     ...definedCliOptions,
+    credentialSource,
+    oauthTokens,
   };
+
+  // Profile OAuth outranks `.env.phoenix` API keys. The spread above can leave
+  // a file-tier apiKey in place when the profile only has oauthTokens — clear
+  // it so clients do not prefer the lower-tier key.
+  if (credentialSource === "oauth") {
+    config.apiKey = undefined;
+  }
 
   const usesFileEndpoint =
     endpointSource?.kind === "env-file" &&
     definedCliOptions.endpoint === undefined &&
     processEnvConfig.endpoint === undefined &&
     profileConfig.endpoint === undefined;
-  const credentialSource =
+  const warningCredentialSource =
     definedCliOptions.apiKey !== undefined ||
     definedCliOptions.headers !== undefined
       ? "CLI options"
@@ -264,12 +319,42 @@ export function resolveConfig({
           : undefined;
   if (usesFileEndpoint) {
     warnIfUsingFileEndpointWithCredentials({
-      credentialSource,
+      credentialSource: warningCredentialSource,
       endpointSource,
       endpointVariable: ENV_PHOENIX_HOST,
     });
   }
   return config;
+}
+
+function getCredentialSource({
+  cliOptions,
+  processEnvConfig,
+  envFileConfig,
+  profileConfig,
+}: {
+  cliOptions: Partial<PhoenixConfig>;
+  processEnvConfig: PhoenixConfig;
+  envFileConfig: PhoenixConfig;
+  profileConfig: PhoenixConfig;
+}): PhoenixConfig["credentialSource"] {
+  if (cliOptions.apiKey) {
+    return "flag";
+  }
+  // Process env outranks the profile; `.env.phoenix` does not.
+  if (processEnvConfig.apiKey) {
+    return "env";
+  }
+  if (profileConfig.apiKey) {
+    return "profile-key";
+  }
+  if (profileConfig.oauthTokens) {
+    return "oauth";
+  }
+  if (envFileConfig.apiKey) {
+    return "env";
+  }
+  return "none";
 }
 
 /**

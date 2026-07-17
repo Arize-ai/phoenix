@@ -18,17 +18,17 @@ import {
   OneTimeAPIKeyDialog,
 } from "@phoenix/components/auth";
 
-import type { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
 import type {
   ViewerAPIKeysCreateUserAPIKeyMutation,
   ViewerAPIKeysCreateUserAPIKeyMutation$data,
 } from "./__generated__/ViewerAPIKeysCreateUserAPIKeyMutation.graphql";
-import { APIKeysTable } from "./APIKeysTable";
+import type { ViewerAPIKeysListFragment$key } from "./__generated__/ViewerAPIKeysListFragment.graphql";
+import { ViewerAPIKeysList } from "./ViewerAPIKeysList";
 
 export function ViewerAPIKeys({
   viewer,
 }: {
-  viewer: APIKeysTableFragment$key;
+  viewer: ViewerAPIKeysListFragment$key;
 }) {
   const [showCreateAPIKeyResponse, setShowCreateAPIKeyResponse] =
     useState<ViewerAPIKeysCreateUserAPIKeyMutation$data | null>(null);
@@ -44,7 +44,7 @@ export function ViewerAPIKeys({
           apiKey {
             id
             user {
-              ...APIKeysTableFragment
+              ...ViewerAPIKeysListFragment
             }
           }
         }
@@ -96,7 +96,7 @@ export function ViewerAPIKeys({
         }
       >
         {error && <Alert variant="danger">{error}</Alert>}
-        <APIKeysTable query={viewer} />
+        <ViewerAPIKeysList query={viewer} />
       </Card>
       <DialogTrigger
         isOpen={!!showCreateAPIKeyResponse}

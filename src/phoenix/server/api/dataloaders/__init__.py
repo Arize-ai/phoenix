@@ -111,6 +111,7 @@ from .trace_errors_by_type import TraceErrorsByTypeDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
 from .trace_span_counts_by_kind import TraceSpanCountsByKindDataLoader
+from .user_credential_counts import UserCredentialCountsDataLoader
 from .user_ids import UserIdsDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
@@ -284,6 +285,7 @@ class DataLoaders:
     trace_root_spans: TraceRootSpansDataLoader
     trace_span_counts_by_kind: TraceSpanCountsByKindDataLoader
     trace_user_ids: UserIdsDataLoader
+    user_credential_counts: UserCredentialCountsDataLoader
     user_roles: UserRolesDataLoader
     user_api_key_fields: TableFieldsDataLoader
     user_fields: TableFieldsDataLoader
@@ -472,6 +474,7 @@ def build_data_loaders(
         trace_user_ids=UserIdsDataLoader(db, "trace"),
         project_by_name=ProjectByNameDataLoader(db),
         project_has_traces=ProjectHasTracesDataLoader(db),
+        user_credential_counts=UserCredentialCountsDataLoader(db),
         users=UsersDataLoader(db),
         user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),
         user_fields=TableFieldsDataLoader(db, models.User),

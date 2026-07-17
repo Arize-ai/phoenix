@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f547c615797bf4b10ef999fa6be9ebd2>>
+ * @generated SignedSource<<d6fe40032cff07222de650c4e42c3786>>
  * @lightSyntaxTransform
  */
 
@@ -9,23 +9,26 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type APIKeysTableFragment$data = {
-  readonly apiKeys: ReadonlyArray<{
+export type AuthorizedApplicationsCardFragment$data = {
+  readonly id: string;
+  readonly oauth2Grants: ReadonlyArray<{
+    readonly clientId: string;
+    readonly clientName: string;
     readonly createdAt: string;
-    readonly description: string | null;
     readonly expiresAt: string | null;
     readonly id: string;
-    readonly name: string;
+    readonly isFirstParty: boolean;
+    readonly lastUsedAt: string | null;
+    readonly scopes: ReadonlyArray<string>;
   }>;
-  readonly id: string;
-  readonly " $fragmentType": "APIKeysTableFragment";
+  readonly " $fragmentType": "AuthorizedApplicationsCardFragment";
 };
-export type APIKeysTableFragment$key = {
-  readonly " $data"?: APIKeysTableFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
+export type AuthorizedApplicationsCardFragment$key = {
+  readonly " $data"?: AuthorizedApplicationsCardFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"AuthorizedApplicationsCardFragment">;
 };
 
-import APIKeysTableQuery_graphql from './APIKeysTableQuery.graphql';
+import AuthorizedApplicationsCardQuery_graphql from './AuthorizedApplicationsCardQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
@@ -44,21 +47,22 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": APIKeysTableQuery_graphql,
+      "operation": AuthorizedApplicationsCardQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "APIKeysTableFragment",
+  "name": "AuthorizedApplicationsCardFragment",
   "selections": [
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
-      "concreteType": "UserApiKey",
+      "concreteType": "OAuth2Grant",
       "kind": "LinkedField",
-      "name": "apiKeys",
+      "name": "oauth2Grants",
       "plural": true,
       "selections": [
         (v0/*:: as any*/),
@@ -66,14 +70,28 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "name",
+          "name": "clientName",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "description",
+          "name": "clientId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isFirstParty",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "scopes",
           "storageKey": null
         },
         {
@@ -89,17 +107,23 @@ return {
           "kind": "ScalarField",
           "name": "expiresAt",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "lastUsedAt",
+          "storageKey": null
         }
       ],
       "storageKey": null
-    },
-    (v0/*:: as any*/)
+    }
   ],
   "type": "User",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "6c32098d55e4cba859dcec73f3ccd28c";
+(node as any).hash = "38f9e9e768ac7af283995fb1258ad34c";
 
 export default node;
