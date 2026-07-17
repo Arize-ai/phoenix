@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { cloneElement, createElement, isValidElement, useState } from "react";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import type {
   DefaultLegendContentProps,
   LegendPayload,
@@ -49,6 +49,7 @@ type InteractiveLegendContentProps = RechartsLegendContentProps & {
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
   onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
+  trailingContent?: ReactNode;
 };
 
 export type InteractiveLegendProps = LegendProps & {
@@ -59,6 +60,8 @@ export type InteractiveLegendProps = LegendProps & {
    * without a data key are rendered as static, non-interactive items.
    */
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
+  /** Content displayed beside the legend items, such as a series-limit control. */
+  trailingContent?: ReactNode;
 };
 
 export type UseInteractiveLegendProps = {
@@ -136,6 +139,24 @@ const legendStaticItemCSS = css`
   min-height: var(--global-dimension-size-200);
   padding: 0 var(--global-dimension-size-25);
   line-height: var(--global-line-height-xs);
+`;
+
+const legendWithTrailingContentCSS = css`
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--global-dimension-size-100);
+  width: 100%;
+`;
+
+const legendItemsContainerCSS = css`
+  flex: 1 1 auto;
+  min-width: 0;
+`;
+
+const legendTrailingContentCSS = css`
+  flex: none;
+  margin-inline-start: auto;
 `;
 
 function getInteractiveDataKey(
@@ -470,6 +491,7 @@ function InteractiveLegendContent({
   onToggleDataKey,
   payload,
   additionalLegendItems,
+  trailingContent,
   ...contentProps
 }: InteractiveLegendContentProps) {
   const enhancedPayload = getEnhancedPayload({
@@ -488,7 +510,7 @@ function InteractiveLegendContent({
     }
   };
 
-  return renderBaseLegendContent({
+  const legendContent = renderBaseLegendContent({
     baseContent,
     contentProps: {
       ...contentProps,
@@ -497,6 +519,17 @@ function InteractiveLegendContent({
       payload: enhancedPayload,
     },
   });
+
+  if (trailingContent == null) {
+    return legendContent;
+  }
+
+  return (
+    <div css={legendWithTrailingContentCSS}>
+      <div css={legendItemsContainerCSS}>{legendContent}</div>
+      <div css={legendTrailingContentCSS}>{trailingContent}</div>
+    </div>
+  );
 }
 
 /**
@@ -539,6 +572,7 @@ export function InteractiveLegend({
   hiddenDataKeys,
   onToggleDataKey,
   additionalLegendItems,
+  trailingContent,
   ...legendProps
 }: InteractiveLegendProps) {
   return (
@@ -550,6 +584,7 @@ export function InteractiveLegend({
           hiddenDataKeys={hiddenDataKeys}
           onToggleDataKey={onToggleDataKey}
           additionalLegendItems={additionalLegendItems}
+          trailingContent={trailingContent}
         />
       }
     />
