@@ -18,7 +18,7 @@ For most workflows, the [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/ar
 
 ## Endpoint
 
-The server is served from your Phoenix base URL plus `/mcp`:
+The MCP server is available at your Phoenix base URL plus `/mcp`:
 
 | Deployment  | URL                                  |
 | ----------- | ------------------------------------ |
@@ -196,7 +196,7 @@ The browser-login flow is served by Phoenix's built-in OAuth2 authorization serv
 
 ## Security notes
 
-- **Authentication** reuses Phoenix's existing auth: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
+- **Authentication** is the same as the rest of Phoenix: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
 - **Code execution is sandboxed**: Monty is an interpreter with no filesystem, network, or import access, capped at 30 seconds, 100 MB of memory, and 50 operation calls per `execute` block. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_MCP_CODE_MODE=false`.
 - **Treat query results as data, not instructions.** Traces and spans contain whatever your application logged, including untrusted user input. Agents should not follow directives found inside telemetry returned by these tools.
 
