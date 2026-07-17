@@ -28,10 +28,9 @@ LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit with an idempotent annotation identifier.
-
-    ``generation`` is None exactly for SPAN units and is the zero-based session
-    generation for SESSION units. A SESSION unit with ``generation=None`` is invalid.
+    """A leased work unit with an idempotent annotation identifier; ``generation`` is None
+    exactly for SPAN units and the zero-based session generation for SESSION units — a SESSION
+    unit with ``generation=None`` is invalid.
     """
 
     work_unit_id: int

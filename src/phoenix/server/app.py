@@ -647,8 +647,7 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Enter consumers before the producer so teardown stops admission
-            # before draining work; all stop before sandbox_session_manager.
+            # Teardown: consumers stop before producer; all before sandbox_session_manager.
             if online_eval_consumer is not None:
                 await stack.enter_async_context(online_eval_consumer)
             if online_eval_session_consumer is not None:

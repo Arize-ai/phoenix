@@ -103,13 +103,10 @@ def session_eval_context(
     token_count_total: int,
     max_transcript_bytes: int,
 ) -> dict[str, Any]:
-    """Build session context from the bounded set of root turns loaded by hydration.
-
-    The transcript byte cap applies only to the rendered ``input`` string, and
-    truncation-marker accounting covers only the loaded turns. Structured ``turns``
-    remain intact for explicit mappings. Top-level ``metadata`` identifies the Phoenix
-    session, while ``turns[i].metadata`` is span metadata; ``session_id`` is also exposed
-    directly for zero-configuration mappings.
+    """Build session context from the root turns loaded by hydration. The transcript byte cap
+    bounds only the rendered ``input`` string (structured ``turns`` stay complete for explicit
+    mappings), the truncation marker counts only loaded turns, and top-level ``metadata`` is
+    Phoenix session identity while ``turns[i].metadata`` is span metadata.
     """
     turn_blocks = [
         "User: "
