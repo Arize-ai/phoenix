@@ -62,8 +62,7 @@ vi.mock("@phoenix/pages/dataset/metrics/chartCatalog", async () => {
           key,
           name: key,
           description: key,
-          isPanelComponent: isEvaluationChart,
-          Component:
+          Panel:
             key === "annotation_scores" || isEvaluationChart
               ? AnnotationMetricChart
               : CoreMetricChart,

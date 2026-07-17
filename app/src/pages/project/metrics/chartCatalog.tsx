@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { ComponentType } from "react";
 
-import type { ChartTypeIconType } from "@phoenix/components/chart";
+import { ChartPanel, type ChartTypeIconType } from "@phoenix/components/chart";
 import type {
   BuiltInProjectMetricChartKey,
   ProjectMetricChartKey,
@@ -51,9 +51,18 @@ export type ProjectMetricChart = {
    * chart pickers so a chart can be recognized by its shape.
    */
   chartType: ChartTypeIconType;
-  /** The component supplies its own ChartPanel, including custom actions. */
-  isPanelComponent?: boolean;
-  Component: (props: ProjectMetricViewProps) => ReactNode;
+  Panel: ComponentType<ProjectMetricPanelProps>;
+};
+
+type ProjectMetricPanelProps = ProjectMetricViewProps & {
+  fillHeight?: boolean;
+};
+
+type ProjectMetricChartDefinition = Omit<
+  ProjectMetricChart,
+  "key" | "Panel"
+> & {
+  Component: ComponentType<ProjectMetricViewProps>;
 };
 
 /**
@@ -63,7 +72,7 @@ export type ProjectMetricChart = {
  */
 const CHART_DEFINITIONS: Record<
   BuiltInProjectMetricChartKey,
-  Omit<ProjectMetricChart, "key">
+  ProjectMetricChartDefinition
 > = {
   traffic: {
     name: "Traffic",
@@ -163,18 +172,41 @@ const CHART_DEFINITIONS: Record<
   },
 };
 
+function createProjectMetricPanel({
+  name,
+  description,
+  Component,
+}: ProjectMetricChartDefinition): ComponentType<ProjectMetricPanelProps> {
+  return function ProjectMetricPanel({ fillHeight = false, ...props }) {
+    return (
+      <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
+        <Component {...props} />
+      </ChartPanel>
+    );
+  };
+}
+
 /**
  * The canonical chart objects, built once so repeated lookups return stable
  * references.
  */
 const CHARTS_BY_KEY = Object.fromEntries(
-  PROJECT_METRIC_CHART_KEYS.map((key) => [
-    key,
-    { key, ...CHART_DEFINITIONS[key] },
-  ])
+  PROJECT_METRIC_CHART_KEYS.map((key) => {
+    const definition = CHART_DEFINITIONS[key];
+    return [
+      key,
+      {
+        key,
+        name: definition.name,
+        description: definition.description,
+        chartType: definition.chartType,
+        Panel: createProjectMetricPanel(definition),
+      },
+    ];
+  })
 ) as Record<BuiltInProjectMetricChartKey, ProjectMetricChart>;
 
-// Cache generated descriptors so their Component closures stay stable and a
+// Cache generated descriptors so their Panel closures stay stable and a
 // stream refresh does not remount a selected evaluation chart.
 const EVALUATION_CHARTS_BY_KEY = new Map<
   ProjectMetricChartKey,
@@ -198,9 +230,8 @@ export const getProjectMetricChart = (
     name: evaluationName,
     description: "Evaluation results over time",
     chartType: "line",
-    isPanelComponent: true,
-    Component: (props) => {
-      const panelProps = { ...props, evaluationName, fillHeight: true };
+    Panel: ({ fillHeight = false, ...props }) => {
+      const panelProps = { ...props, evaluationName, fillHeight };
       switch (view) {
         case "spans":
           return <SpanEvaluationMetricPanel {...panelProps} />;

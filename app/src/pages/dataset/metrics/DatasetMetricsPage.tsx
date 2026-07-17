@@ -3,7 +3,6 @@ import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
-import { ChartPanel } from "@phoenix/components/chart";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
 
@@ -112,10 +111,6 @@ function MetricPanel({
   datasetId: string;
   chartKey: ExperimentMetricChartKey;
 }) {
-  const { name, description, Component } = getExperimentMetricChart(chartKey);
-  return (
-    <ChartPanel title={name} subtitle={description}>
-      <Component datasetId={datasetId} />
-    </ChartPanel>
-  );
+  const { Panel } = getExperimentMetricChart(chartKey);
+  return <Panel datasetId={datasetId} />;
 }

@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { ComponentType } from "react";
 
-import type { ChartTypeIconType } from "@phoenix/components/chart";
+import { ChartPanel, type ChartTypeIconType } from "@phoenix/components/chart";
 import type {
   BuiltInExperimentMetricChartKey,
   ExperimentMetricChartKey,
@@ -33,9 +33,18 @@ export type ExperimentMetricChart = {
    * The chart's visual archetype, shown as a glyph in the chart selector
    */
   chartType: ChartTypeIconType;
-  /** The component supplies its own ChartPanel, including custom actions. */
-  isPanelComponent?: boolean;
-  Component: (props: ExperimentMetricViewProps) => ReactNode;
+  Panel: ComponentType<ExperimentMetricPanelProps>;
+};
+
+type ExperimentMetricPanelProps = ExperimentMetricViewProps & {
+  fillHeight?: boolean;
+};
+
+type ExperimentMetricChartDefinition = Omit<
+  ExperimentMetricChart,
+  "key" | "Panel"
+> & {
+  Component: ComponentType<ExperimentMetricViewProps>;
 };
 
 /**
@@ -44,7 +53,7 @@ export type ExperimentMetricChart = {
  */
 const CHART_DEFINITIONS: Record<
   BuiltInExperimentMetricChartKey,
-  Omit<ExperimentMetricChart, "key">
+  ExperimentMetricChartDefinition
 > = {
   annotation_scores: {
     name: "Annotation scores",
@@ -78,18 +87,41 @@ const CHART_DEFINITIONS: Record<
   },
 };
 
+function createExperimentMetricPanel({
+  name,
+  description,
+  Component,
+}: ExperimentMetricChartDefinition): ComponentType<ExperimentMetricPanelProps> {
+  return function ExperimentMetricPanel({ fillHeight = false, ...props }) {
+    return (
+      <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
+        <Component {...props} />
+      </ChartPanel>
+    );
+  };
+}
+
 /**
  * The canonical chart objects, built once so repeated lookups return stable
  * references.
  */
 const CHARTS_BY_KEY = Object.fromEntries(
-  EXPERIMENT_METRIC_CHART_KEYS.map((key) => [
-    key,
-    { key, ...CHART_DEFINITIONS[key] },
-  ])
+  EXPERIMENT_METRIC_CHART_KEYS.map((key) => {
+    const definition = CHART_DEFINITIONS[key];
+    return [
+      key,
+      {
+        key,
+        name: definition.name,
+        description: definition.description,
+        chartType: definition.chartType,
+        Panel: createExperimentMetricPanel(definition),
+      },
+    ];
+  })
 ) as Record<BuiltInExperimentMetricChartKey, ExperimentMetricChart>;
 
-// Cache generated descriptors so their Component closures stay stable and a
+// Cache generated descriptors so their Panel closures stay stable and a
 // table refresh does not remount a selected evaluation chart.
 const EVALUATION_CHARTS_BY_KEY = new Map<
   ExperimentMetricChartKey,
@@ -112,12 +144,11 @@ export const getExperimentMetricChart = (
     name: evaluationName,
     description: "Evaluation results by experiment",
     chartType: "line",
-    isPanelComponent: true,
-    Component: (props) => (
+    Panel: ({ fillHeight = false, ...props }) => (
       <ExperimentEvaluationMetricPanel
         {...props}
         evaluationName={evaluationName}
-        fillHeight
+        fillHeight={fillHeight}
       />
     ),
   };

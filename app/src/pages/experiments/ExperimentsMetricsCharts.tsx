@@ -8,7 +8,6 @@ import {
 } from "react-resizable-panels";
 
 import { View } from "@phoenix/components";
-import { ChartPanel } from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getExperimentMetricCharts } from "@phoenix/pages/dataset/metrics/chartCatalog";
@@ -64,21 +63,9 @@ export function ExperimentsMetricsCharts() {
         zIndex={2}
       >
         <div css={chartsGridCSS}>
-          {charts.map((chart) => {
-            const { key, name, description, Component } = chart;
-            return chart.isPanelComponent ? (
-              <Component key={key} datasetId={datasetId} />
-            ) : (
-              <ChartPanel
-                key={key}
-                title={name}
-                subtitle={description}
-                fillHeight
-              >
-                <Component datasetId={datasetId} />
-              </ChartPanel>
-            );
-          })}
+          {charts.map(({ key, Panel }) => (
+            <Panel key={key} datasetId={datasetId} fillHeight />
+          ))}
         </div>
       </View>
     </ExperimentMetricsDataProvider>
