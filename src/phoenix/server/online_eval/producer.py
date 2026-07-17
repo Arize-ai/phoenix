@@ -1,8 +1,8 @@
 """Online-eval producer daemon.
 
-Materializes span-grain eval work units from enabled project evaluator criteria.
+Materializes span-level eval work units from enabled project evaluator criteria.
 The producer runs on every replica but self-elects each tick via the
-``eval_work_cursors`` CAS lease, so exactly one replica per grain
+``eval_work_cursors`` CAS lease, so exactly one replica per evaluation target
 scans spans and writes work rows at a time. Each tick: renew the lease, reap
 expired/aged work rows, scan the lag-gated span id window per criteria, and
 idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
@@ -185,7 +185,7 @@ class _ActiveCriteria:
 class OnlineEvalProducer(DaemonTask):
     """Materialize online-eval work from the span arrival log.
 
-    For every grain, ``produced_through_id`` is a position in the span arrival
+    For each evaluation target, ``produced_through_id`` is a position in the span arrival
     log; trace and session producers consume the same log before applying their
     readiness rules.
     """
@@ -198,7 +198,7 @@ class OnlineEvalProducer(DaemonTask):
     ) -> None:
         super().__init__()
         self._db = db
-        self._grain: models.EvalWorkGrain = "SPAN"
+        self._evaluation_target: models.EvaluationTarget = "SPAN"
         self._tick_interval_seconds = tick_interval_seconds
         self._producer_id = f"producer-{token_hex(8)}"
         self._frontier_lag_seconds = get_env_online_eval_frontier_lag_seconds()
@@ -287,7 +287,7 @@ class OnlineEvalProducer(DaemonTask):
                 cursor: Optional[models.EvalWorkCursor] = await session.scalar(
                     update(models.EvalWorkCursor)
                     .where(
-                        models.EvalWorkCursor.grain == self._grain,
+                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                         models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                         or_(
                             models.EvalWorkCursor.claimed_by.is_(None),
@@ -304,7 +304,7 @@ class OnlineEvalProducer(DaemonTask):
             async with self._db() as session:
                 row_exists = await session.scalar(
                     select(models.EvalWorkCursor.id).where(
-                        models.EvalWorkCursor.grain == self._grain,
+                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                         models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     )
                 )
@@ -314,13 +314,13 @@ class OnlineEvalProducer(DaemonTask):
                 await session.execute(
                     insert_on_conflict(
                         {
-                            "grain": self._grain,
+                            "evaluation_target": self._evaluation_target,
                             "consumer_group": _CONSUMER_GROUP,
                             "produced_through_id": produced_through_id,
                         },
                         table=models.EvalWorkCursor,
                         dialect=self._db.dialect,
-                        unique_by=("grain", "consumer_group"),
+                        unique_by=("evaluation_target", "consumer_group"),
                         on_conflict=OnConflict.DO_NOTHING,
                     )
                 )
@@ -359,7 +359,7 @@ class OnlineEvalProducer(DaemonTask):
                 await session.execute(
                     update(models.EvalWorkCursor)
                     .where(
-                        models.EvalWorkCursor.grain == self._grain,
+                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                         models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                         models.EvalWorkCursor.claimed_by == self._producer_id,
                     )
@@ -373,7 +373,7 @@ class OnlineEvalProducer(DaemonTask):
             renewed = await session.scalar(
                 update(models.EvalWorkCursor)
                 .where(
-                    models.EvalWorkCursor.grain == self._grain,
+                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                     models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
@@ -571,7 +571,7 @@ class OnlineEvalProducer(DaemonTask):
             advanced = await session.scalar(
                 update(models.EvalWorkCursor)
                 .where(
-                    models.EvalWorkCursor.grain == self._grain,
+                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                     models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
@@ -599,7 +599,7 @@ class OnlineEvalProducer(DaemonTask):
             await session.execute(
                 update(models.EvalWorkCursor)
                 .where(
-                    models.EvalWorkCursor.grain == self._grain,
+                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                     models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
@@ -640,7 +640,7 @@ class OnlineEvalProducer(DaemonTask):
         renewed = await session.scalar(
             update(models.EvalWorkCursor)
             .where(
-                models.EvalWorkCursor.grain == self._grain,
+                models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                 models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                 models.EvalWorkCursor.claimed_by == self._producer_id,
             )
