@@ -12,3 +12,17 @@ export function shouldHydrateAgentSession({
 }): boolean {
   return !hasRuntime && persistedSessionId !== null;
 }
+
+/**
+ * Resolves the Relay identity without replacing the browser client key used by
+ * the chat runtime. Newly-created sessions intentionally use different values.
+ */
+export function getPersistedAgentSessionId({
+  cachedSessionId,
+  listedSessionId,
+}: {
+  cachedSessionId: string | null | undefined;
+  listedSessionId: string | null | undefined;
+}): string | null {
+  return cachedSessionId ?? listedSessionId ?? null;
+}

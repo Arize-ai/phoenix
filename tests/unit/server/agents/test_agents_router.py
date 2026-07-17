@@ -37,6 +37,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
 from sqlalchemy import func, select
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
@@ -246,6 +247,10 @@ async def test_chat_turn_persists_session_transcript(
         assert agent_session.user_id is None
         assert UUID(agent_session.project_session_id).version == 4
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
+        relay_session_id = GlobalID.from_id(agent_session_id)
+        assert relay_session_id.type_name == models.AgentSession.__name__
+        assert int(relay_session_id.node_id) == agent_session.id
+        assert agent_session_id != agent_session.project_session_id
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
         messages = await _load_session_messages(session, agent_session.id)

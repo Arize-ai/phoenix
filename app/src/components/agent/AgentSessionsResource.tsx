@@ -36,7 +36,10 @@ import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SESSION_PAGE_SIZE,
 } from "./agentSessionRelay";
-import { shouldHydrateAgentSession } from "./agentSessionRuntime";
+import {
+  getPersistedAgentSessionId,
+  shouldHydrateAgentSession,
+} from "./agentSessionRuntime";
 import { ChatView } from "./Chat";
 import type { AgentSessionListItem } from "./SessionListMenu";
 import {
@@ -309,9 +312,13 @@ function AgentSessionsContent({
   const activeSessionHasRuntime = activeSessionId
     ? runtime.hasChat(activeSessionId)
     : false;
+  const activePersistedSessionId = getPersistedAgentSessionId({
+    cachedSessionId: activeRuntimeSession?.id,
+    listedSessionId: activeSession?.id,
+  });
   const shouldHydrateActiveSession = shouldHydrateAgentSession({
     hasRuntime: activeSessionHasRuntime,
-    persistedSessionId: activeRuntimeSession?.id,
+    persistedSessionId: activePersistedSessionId,
   });
   const sessionDisplayName = activeSession
     ? getSessionDisplayName(activeSession)
@@ -366,11 +373,12 @@ function AgentSessionsContent({
         onClose={panelState.closePanel}
       />
       {activeSessionId ? (
-        shouldHydrateActiveSession ? (
+        shouldHydrateActiveSession && activePersistedSessionId ? (
           <Suspense fallback={<Loading />}>
             <AgentSessionTranscript
               key={activeSessionId}
-              sessionId={activeSessionId}
+              clientKey={activeSessionId}
+              persistedSessionId={activePersistedSessionId}
               onMissing={handleMissingSession}
             />
           </Suspense>
@@ -388,10 +396,12 @@ function AgentSessionsContent({
 }
 
 function AgentSessionTranscript({
-  sessionId,
+  clientKey,
+  persistedSessionId,
   onMissing,
 }: {
-  sessionId: string;
+  clientKey: string;
+  persistedSessionId: string;
   onMissing: (sessionId: string) => void;
 }) {
   const data = useLazyLoadQuery<AgentSessionsResourceSessionQuery>(
@@ -408,7 +418,7 @@ function AgentSessionTranscript({
         }
       }
     `,
-    { id: sessionId },
+    { id: persistedSessionId },
     { fetchPolicy: "store-or-network" }
   );
   const store = useAgentStore();
@@ -427,24 +437,24 @@ function AgentSessionTranscript({
 
   useEffect(() => {
     if (!agentSession) {
-      onMissing(sessionId);
+      onMissing(clientKey);
       return;
     }
     store.getState().cacheSession({
-      clientKey: sessionId,
+      clientKey,
       id: agentSession.id,
       title: agentSession.title,
       context: [],
       modelConfig: { ...defaultModelConfig },
       createdAt: Date.parse(agentSession.createdAt as string),
     });
-  }, [agentSession, defaultModelConfig, messages, onMissing, sessionId, store]);
+  }, [agentSession, clientKey, defaultModelConfig, messages, onMissing, store]);
 
   if (!agentSession) {
     return <Loading />;
   }
   return (
-    <AgentChatController sessionId={sessionId} initialMessages={messages} />
+    <AgentChatController sessionId={clientKey} initialMessages={messages} />
   );
 }
 
