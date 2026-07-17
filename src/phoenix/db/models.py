@@ -3404,6 +3404,8 @@ class EvalWorkUnit(HasId):
 
 
 class EvalSessionWorkUnit(HasId):
+    """A session eval task addressed once per session generation."""
+
     __tablename__ = "eval_session_work_units"
     project_session_rowid: Mapped[int] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
@@ -3473,6 +3475,8 @@ class EvalSessionWorkUnit(HasId):
 
 
 class EvalTraceWorkUnit(HasId):
+    """A trace eval task addressed once per trace generation."""
+
     __tablename__ = "eval_trace_work_units"
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
@@ -3542,19 +3546,21 @@ class EvalTraceWorkUnit(HasId):
 
 
 class EvalSessionActivity(HasId):
+    """Latest observed span activity, one row per project session."""
+
     __tablename__ = "eval_session_activity"
     project_session_rowid: Mapped[int] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    last_seen_span_id: Mapped[int] = mapped_column(
-        ForeignKey("spans.id", ondelete="CASCADE"),
-        nullable=False,
+    last_seen_span_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("spans.id", ondelete="SET NULL"),
+        nullable=True,
     )
     observed_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
-    last_seen_span: Mapped["Span"] = relationship("Span")
+    last_seen_span: Mapped[Optional["Span"]] = relationship("Span")
 
     __table_args__ = (
         UniqueConstraint("project_session_rowid"),
@@ -3563,19 +3569,21 @@ class EvalSessionActivity(HasId):
 
 
 class EvalTraceActivity(HasId):
+    """Latest observed span activity, one row per trace."""
+
     __tablename__ = "eval_trace_activity"
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    last_seen_span_id: Mapped[int] = mapped_column(
-        ForeignKey("spans.id", ondelete="CASCADE"),
-        nullable=False,
+    last_seen_span_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("spans.id", ondelete="SET NULL"),
+        nullable=True,
     )
     observed_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
-    trace: Mapped["Trace"] = relationship("Trace", foreign_keys=[trace_rowid])
-    last_seen_span: Mapped["Span"] = relationship("Span", foreign_keys=[last_seen_span_id])
+    trace: Mapped["Trace"] = relationship("Trace")
+    last_seen_span: Mapped[Optional["Span"]] = relationship("Span")
 
     __table_args__ = (
         UniqueConstraint("trace_rowid"),

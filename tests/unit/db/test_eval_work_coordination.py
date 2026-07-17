@@ -226,7 +226,7 @@ async def test_per_grain_work_units_are_generation_aware(db: DbSessionFactory) -
             await session.flush()
 
 
-async def test_activity_rows_retain_latest_span_relationships(db: DbSessionFactory) -> None:
+async def test_activity_rows_survive_latest_span_deletion(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
@@ -239,11 +239,11 @@ async def test_activity_rows_retain_latest_span_relationships(db: DbSessionFacto
             [
                 models.EvalSessionActivity(
                     project_session_rowid=project_session_id,
-                    last_seen_span_id=span_id,
+                    last_seen_span_rowid=span_id,
                 ),
                 models.EvalTraceActivity(
                     trace_rowid=trace_id,
-                    last_seen_span_id=span_id,
+                    last_seen_span_rowid=span_id,
                 ),
             ]
         )
@@ -263,12 +263,26 @@ async def test_activity_rows_retain_latest_span_relationships(db: DbSessionFacto
         )
         assert session_activity is not None
         assert session_activity.project_session.id == project_session_id
+        assert session_activity.last_seen_span is not None
         assert session_activity.last_seen_span.id == span_id
         assert session_activity.observed_at is not None
         assert trace_activity is not None
         assert trace_activity.trace.id == trace_id
+        assert trace_activity.last_seen_span is not None
         assert trace_activity.last_seen_span.id == span_id
         assert trace_activity.observed_at is not None
+
+        fetched_span = await session.get(models.Span, span_id)
+        assert fetched_span is not None
+        await session.delete(fetched_span)
+
+    async with db() as session:
+        session_activity = await session.scalar(select(models.EvalSessionActivity))
+        trace_activity = await session.scalar(select(models.EvalTraceActivity))
+        assert session_activity is not None
+        assert session_activity.last_seen_span_rowid is None
+        assert trace_activity is not None
+        assert trace_activity.last_seen_span_rowid is None
 
 
 async def test_project_evaluator_criteria_defaults_and_relationships(

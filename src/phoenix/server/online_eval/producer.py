@@ -644,11 +644,11 @@ class OnlineEvalProducer(DaemonTask):
         records = [
             {
                 "project_session_rowid": project_session_rowid,
-                "last_seen_span_id": last_seen_span_id,
+                "last_seen_span_rowid": last_seen_span_rowid,
                 "observed_at": func.now(),
             }
-            for project_session_rowid, last_seen_span_id in rows
-            if project_session_rowid is not None and last_seen_span_id is not None
+            for project_session_rowid, last_seen_span_rowid in rows
+            if project_session_rowid is not None and last_seen_span_rowid is not None
         ]
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
             await session.execute(

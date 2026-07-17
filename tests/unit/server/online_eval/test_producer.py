@@ -1,3 +1,4 @@
+from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
@@ -191,6 +192,7 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
 
 async def test_tick_records_latest_activity_for_runnable_sessions(
     db: DbSessionFactory,
+    dialect: str,
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
@@ -209,6 +211,7 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
         high_water_span = await _add_span(session, other_trace)
         project_id = project.id
         first_project_session_id = first_project_session.id
+        first_trace_id = first_trace.id
         second_project_session_id = second_project_session.id
         first_span_id = first_span.id
         latest_first_span_id = latest_first_span.id
@@ -235,10 +238,13 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
         trace_work_count = await session.scalar(
             select(func.count()).select_from(models.EvalTraceWorkUnit)
         )
-    assert {row.project_session_rowid: row.last_seen_span_id for row in activity} == {
+    assert {row.project_session_rowid: row.last_seen_span_rowid for row in activity} == {
         first_project_session_id: latest_first_span_id,
         second_project_session_id: second_span_id,
     }
+    first_observed_at = next(
+        row.observed_at for row in activity if row.project_session_rowid == first_project_session_id
+    )
     assert first_span_id != latest_first_span_id
     assert all(row.observed_at is not None for row in activity)
     assert trace_activity_count == 0
@@ -247,23 +253,36 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
     assert await _work_unit_span_rowids(db) == []
     assert (await _get_cursor(db, cursor_id)).produced_through_id == high_water_span_id
 
+    if dialect == "sqlite":
+        await sleep(1)
+    async with db() as session:
+        fetched_first_trace = await session.get(models.Trace, first_trace_id)
+        assert fetched_first_trace is not None
+        newer_first_span = await _add_span(session, fetched_first_trace)
+        newer_first_span_id = newer_first_span.id
+    assert newer_first_span_id > high_water_span_id
+
     async with db() as session:
         await session.execute(
             update(models.EvalWorkCursor)
             .where(models.EvalWorkCursor.id == cursor_id)
             .values(
-                produced_through_id=0,
-                observed_high_water_id=high_water_span_id,
+                produced_through_id=high_water_span_id,
+                observed_high_water_id=newer_first_span_id,
                 observed_at=_now() - timedelta(seconds=120),
             )
         )
     await producer._tick()
     async with db() as session:
         replayed = list(await session.scalars(select(models.EvalSessionActivity)))
-    assert {row.project_session_rowid: row.last_seen_span_id for row in replayed} == {
-        first_project_session_id: latest_first_span_id,
+    assert {row.project_session_rowid: row.last_seen_span_rowid for row in replayed} == {
+        first_project_session_id: newer_first_span_id,
         second_project_session_id: second_span_id,
     }
+    updated_first_activity = next(
+        row for row in replayed if row.project_session_rowid == first_project_session_id
+    )
+    assert updated_first_activity.observed_at > first_observed_at
 
 
 @pytest.mark.parametrize(
@@ -274,7 +293,7 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
         ("SESSION", "", 0.5),
     ],
 )
-async def test_deferred_criteria_do_not_record_activity_or_work(
+async def test_ineligible_criteria_do_not_record_activity_or_work(
     db: DbSessionFactory,
     evaluation_target: models.EvaluationTarget,
     filter_condition: str,
