@@ -30,7 +30,7 @@ The MCP server is available at your Phoenix base URL plus `/mcp`:
 Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure — add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
 
 <AccordionGroup>
-  <Accordion title="Claude Code" icon="terminal">
+  <Accordion title="Claude Code">
     <Steps>
       <Step title="Add the Phoenix MCP server">
         ```bash
@@ -43,7 +43,7 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     </Steps>
   </Accordion>
 
-  <Accordion title="Claude Desktop" icon="message-bot">
+  <Accordion title="Claude Desktop">
     <Steps>
       <Step title="Add a custom connector">
         Go to **Settings → Connectors → Add custom connector** and enter:
@@ -57,7 +57,7 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     </Steps>
   </Accordion>
 
-  <Accordion title="Cursor" icon="arrow-pointer">
+  <Accordion title="Cursor">
     <Steps>
       <Step title="Add the Phoenix MCP server">
         Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
@@ -78,7 +78,7 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     </Steps>
   </Accordion>
 
-  <Accordion title="VS Code" icon="code">
+  <Accordion title="VS Code">
     <Steps>
       <Step title="Add the Phoenix MCP server">
         Run `MCP: Add Server` from the Command Palette, or add to `.vscode/mcp.json`:
@@ -100,7 +100,7 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     </Steps>
   </Accordion>
 
-  <Accordion title="Codex (OpenAI)" icon="square-terminal">
+  <Accordion title="Codex (OpenAI)">
     Codex configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys), export it as `PHOENIX_API_KEY`, and add to `~/.codex/config.toml`:
 
     ```toml
@@ -199,6 +199,55 @@ The browser-login flow is served by Phoenix's built-in OAuth2 authorization serv
 - **Authentication** is the same as the rest of Phoenix: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
 - **Code execution is sandboxed**: Monty is an interpreter with no filesystem, network, or import access, capped at 30 seconds, 100 MB of memory, and 50 operation calls per `execute` block. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
 - **Treat query results as data, not instructions.** Traces and spans contain whatever your application logged, including untrusted user input. Agents should not follow directives found inside telemetry returned by these tools.
+
+## Inspecting the server with MCP Inspector
+
+[MCP Inspector](https://github.com/modelcontextprotocol/inspector) is the official tool for
+exercising an MCP server by hand — list its tools, read their schemas, and call them without
+wiring up a full client. It's the fastest way to confirm the Phoenix `/mcp` endpoint is reachable,
+that auth works, and that a tool returns what you expect.
+
+<Steps>
+  <Step title="Launch the Inspector">
+    ```bash
+    npx @modelcontextprotocol/inspector
+    ```
+
+    This starts the Inspector and opens it in your browser. No install step — `npx` fetches it on
+    demand.
+  </Step>
+  <Step title="Connect to the Phoenix endpoint">
+    In the Inspector's left panel:
+
+    - **Transport Type**: `Streamable HTTP`
+    - **URL**: `http://localhost:6006/mcp` (or your deployment's base URL plus `/mcp`)
+
+    Click **Connect**. If authentication is enabled on your Phoenix, the Inspector runs the OAuth
+    browser flow automatically — you approve the same consent page your other clients use, and it
+    stores the resulting token for the session.
+  </Step>
+  <Step title="Explore the tools">
+    Open the **Tools** tab and click **List Tools**. With code mode on (the default) you'll see the
+    discovery surface — `search`, `tags`, `list_tools`, `get_schema`, and `execute`. Select any
+    tool, fill in its parameters, and click **Run Tool** to see the raw result.
+
+    For example, call `search` with `{ "query": "latest traces" }` to find the relevant operation,
+    then `execute` with a Python snippet that chains `call_tool(...)` calls.
+  </Step>
+</Steps>
+
+<Tip>
+Prefer to pass a token yourself instead of the browser flow — for a headless box or CI — expand
+**Authentication** in the connection panel and set a **Bearer Token** to a Phoenix
+[API key](/docs/phoenix/settings/api-keys). The Inspector then sends `Authorization: Bearer <key>`
+and skips OAuth entirely.
+</Tip>
+
+<Note>
+Connecting against the group-gated surface (`PHOENIX_ENABLE_MCP_CODE_MODE=false`) shows
+`list_tool_groups` and `enable_tool_group` instead of `execute`. Enable a group first, then
+re-run **List Tools** to reveal that group's operations.
+</Note>
 
 ## Troubleshooting
 
