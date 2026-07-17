@@ -49,12 +49,14 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import type { paths } from "@phoenix/api/__generated__/v1";
 import { authFetch } from "@phoenix/authFetch";
 import { useNotifyError } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { useAgentChatBranchAgentSessionMutation } from "./__generated__/useAgentChatBranchAgentSessionMutation.graphql";
 import type { useAgentChatCreateAgentSessionMutation } from "./__generated__/useAgentChatCreateAgentSessionMutation.graphql";
@@ -73,6 +75,19 @@ const turnClientStateByChat = new WeakMap<
   Chat<AgentUIMessage>,
   TurnClientState
 >();
+
+const CHAT_PATH_TEMPLATE =
+  "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
+const ASSISTANT_AGENT_ID = "assistant";
+
+function buildAgentChatApiUrl(sessionId: string): string {
+  return prependBasename(
+    CHAT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
+  );
+}
 
 const createAgentSessionMutation = graphql`
   mutation useAgentChatCreateAgentSessionMutation(
@@ -150,7 +165,6 @@ const branchAgentSessionMutation = graphql`
  */
 export function useAgentChat({
   sessionId,
-  chatApiUrl,
   modelSelection,
   initialMessages,
 }: {
@@ -159,7 +173,6 @@ export function useAgentChat({
    * not-yet-persisted new-chat draft.
    */
   sessionId: string | null;
-  chatApiUrl: string;
   modelSelection: AgentModelSelection;
   /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
@@ -210,6 +223,7 @@ export function useAgentChat({
       targetSessionId: string,
       seedMessages: AgentUIMessage[]
     ): Chat<AgentUIMessage> => {
+      const chatApiUrl = buildAgentChatApiUrl(targetSessionId);
       const turnTraceContext = createTurnTraceContextManager();
       const toolTimings = createClientToolTimingRecorder();
       const turnCompletionGate = createTurnCompletionGate({
@@ -243,7 +257,6 @@ export function useAgentChat({
               body: buildAgentChatRequestBody({
                 body,
                 id,
-                agentSessionId: targetSessionId,
                 messages,
                 capabilities: store.getState().capabilities,
                 observability: store.getState().observability,
@@ -313,24 +326,29 @@ export function useAgentChat({
       turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
       return chat;
     },
-    [chatApiUrl, relayEnvironment, store]
+    [relayEnvironment, store]
   );
 
   // Resolve the imperative runtime instance for this session/model pair. The
   // runtime owns replacement semantics when the transport changes, while the
   // hook simply binds the current render surface to the selected instance.
   // Draft surfaces have no runtime until the first send creates a session.
-  const chatInstance = isDraft
-    ? null
-    : runtime.getOrCreateChat({
-        sessionId,
-        chatApiUrl,
-        createChat: (previousMessages) =>
-          createChatForSession(
-            sessionId,
-            previousMessages ?? initialMessages ?? []
-          ),
-      });
+  const persistedSessionId = isDraft ? null : sessionId;
+  const chatApiUrl = persistedSessionId
+    ? buildAgentChatApiUrl(persistedSessionId)
+    : null;
+  const chatInstance =
+    chatApiUrl && persistedSessionId
+      ? runtime.getOrCreateChat({
+          sessionId: persistedSessionId,
+          chatApiUrl,
+          createChat: (previousMessages) =>
+            createChatForSession(
+              persistedSessionId,
+              previousMessages ?? initialMessages ?? []
+            ),
+        })
+      : null;
 
   // `useChat` subscribes the current React tree to the already-created runtime
   // instance. Draft surfaces expose an inert chat shape until the first send.
@@ -445,9 +463,10 @@ export function useAgentChat({
       onCompleted: (response) => {
         isCreatingSessionRef.current = false;
         const newSessionId = response.createAgentSession.agentSession.id;
+        const newChatApiUrl = buildAgentChatApiUrl(newSessionId);
         const newChat = runtime.getOrCreateChat({
           sessionId: newSessionId,
-          chatApiUrl,
+          chatApiUrl: newChatApiUrl,
           createChat: (previousMessages) =>
             createChatForSession(newSessionId, previousMessages ?? []),
         });
@@ -663,12 +682,13 @@ export function useAgentChat({
         onCompleted: (response) => {
           const payload = response.branchAgentSession;
           const branchSessionId = payload.agentSession.id;
+          const branchChatApiUrl = buildAgentChatApiUrl(branchSessionId);
           const branchMessages = Array.isArray(payload.agentSession.messages)
             ? (payload.agentSession.messages as AgentUIMessage[])
             : [];
           runtime.getOrCreateChat({
             sessionId: branchSessionId,
-            chatApiUrl,
+            chatApiUrl: branchChatApiUrl,
             createChat: (previousMessages) =>
               createChatForSession(
                 branchSessionId,
@@ -692,7 +712,6 @@ export function useAgentChat({
       });
     },
     [
-      chatApiUrl,
       chatInstance,
       clearError,
       commitBranchAgentSession,

@@ -1735,7 +1735,6 @@ class ChatRequest(TypedDict):
             ]
         ]
     ]
-    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]

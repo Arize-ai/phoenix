@@ -376,7 +376,7 @@ function AgentChatController({
   sessionId: string;
   initialMessages: AgentUIMessage[];
 }) {
-  const { chatApiUrl, modelSelection, menuValue, handleModelChange } =
+  const { modelSelection, menuValue, handleModelChange } =
     useAgentChatPanelState();
   const {
     messages,
@@ -391,7 +391,6 @@ function AgentChatController({
     forkFromMessage,
   } = useAgentChat({
     sessionId,
-    chatApiUrl,
     modelSelection,
     initialMessages,
   });

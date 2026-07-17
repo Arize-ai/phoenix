@@ -71,21 +71,18 @@ def _user_message(text: str, *, message_id: str = "msg-user-1") -> dict[str, Any
     }
 
 
-def _chat_url() -> str:
-    return "/agents/assistant/chat"
+def _chat_url(agent_session_id: str) -> str:
+    return f"/agents/assistant/sessions/{agent_session_id}/chat"
 
 
 def _chat_body(
     session_id: str,
     message: dict[str, Any] | None,
-    *,
-    agent_session_id: str | None = None,
     **overrides: Any,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "trigger": "submit-message",
         "id": session_id,
-        "agentSessionId": agent_session_id,
         "model": {
             "providerType": "builtin",
             "provider": "OPENAI",
@@ -249,10 +246,9 @@ async def test_chat_turn_persists_session_transcript(
     body = _chat_body(
         session_id,
         _user_message("What datasets exist?"),
-        agent_session_id=agent_session_id,
     )
 
-    response = await httpx_client.post(_chat_url(), json=body)
+    response = await httpx_client.post(_chat_url(agent_session_id), json=body)
     assert response.status_code == 200
     chunks = _stream_chunks(response.text)
     # A new session's first turn streams the LLM session title as a transient
@@ -294,7 +290,7 @@ async def test_chat_turn_persists_session_transcript(
     # Later turns carry only the new message; the server merges it into the
     # transcript it already owns.
     second_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json={
             **body,
             "message": _user_message("And experiments?", message_id="msg-user-2"),
@@ -785,11 +781,10 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
     agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
 
     response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             _user_message("hello"),
-            agent_session_id=agent_session_id,
             turnTraceContext={
                 "traceId": trace_id,
                 "rootSpanId": root_span_id,
@@ -833,32 +828,13 @@ async def test_chat_turn_without_a_message_is_rejected(
     agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
 
     response = await httpx_client.post(
-        _chat_url(),
-        json=_chat_body(session_id, None, agent_session_id=agent_session_id),
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, None),
     )
     assert response.status_code == 422
 
     async with db() as session:
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
-
-
-async def test_chat_turn_without_agent_session_id_returns_bad_request(
-    db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    """Sessions are created imperatively via the createAgentSession mutation;
-    the chat route refuses to create them implicitly."""
-    session_id = "99999999-9999-4999-8999-999999999999"
-
-    response = await httpx_client.post(
-        _chat_url(),
-        json=_chat_body(session_id, _user_message("hello")),
-    )
-    assert response.status_code == 400
-    assert "agentSessionId is required" in response.text
-
-    async with db() as session:
-        assert (await session.scalars(select(models.AgentSession))).all() == []
 
 
 async def test_chat_turn_with_unknown_agent_session_id_returns_not_found(
@@ -867,11 +843,10 @@ async def test_chat_turn_with_unknown_agent_session_id_returns_not_found(
     session_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 
     response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(str(GlobalID("AgentSession", "999999"))),
         json=_chat_body(
             session_id,
             _user_message("hello"),
-            agent_session_id=str(GlobalID("AgentSession", "999999")),
         ),
     )
     assert response.status_code == 404
@@ -988,11 +963,10 @@ async def test_chat_endpoint_rejects_regenerate_requests(
     )
 
     response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             None,
-            agent_session_id=agent_session_id,
             trigger="regenerate-message",
             messageId="assistant-1",
         ),
@@ -1017,11 +991,10 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
     )
 
     first_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             _user_message("first question"),
-            agent_session_id=agent_session_id,
         ),
     )
     assert first_response.status_code == 200
@@ -1034,11 +1007,10 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         assert stored_messages
 
     second_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             _user_message("second question", message_id="msg-user-2"),
-            agent_session_id=agent_session_id,
         ),
     )
     assert second_response.status_code == 200
@@ -1077,11 +1049,10 @@ async def test_bash_shell_state_persists_across_chat_turns(
     )
 
     first_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             _user_message("write a note"),
-            agent_session_id=agent_session_id,
         ),
     )
     assert first_response.status_code == 200
@@ -1104,11 +1075,10 @@ async def test_bash_shell_state_persists_across_chat_turns(
     )
 
     second_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             _user_message("thanks", message_id="msg-user-2"),
-            agent_session_id=agent_session_id,
         ),
     )
     assert second_response.status_code == 200
@@ -1120,11 +1090,10 @@ async def test_bash_shell_state_persists_across_chat_turns(
         stored_messages = await _load_session_messages(session, agent_session_rowid)
 
     third_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             _user_message("read it back", message_id="msg-user-3"),
-            agent_session_id=agent_session_id,
         ),
     )
     assert third_response.status_code == 200
@@ -1215,11 +1184,10 @@ async def _post_traced_chat_turn(
     agent_session_id: str,
 ) -> httpx.Response:
     return await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
             _user_message("What datasets exist?"),
-            agent_session_id=agent_session_id,
             ingestTraces=True,
             turnTraceContext={
                 "traceId": _BROWSER_TRACE_ID,
@@ -1352,11 +1320,10 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", original_project_name)
     agent_session_id = await _create_agent_session_row(db, project_session_id=session_request_id)
     first_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_request_id,
             _user_message("first question"),
-            agent_session_id=agent_session_id,
             ingestTraces=True,
             turnTraceContext={
                 "traceId": first_trace_id,
@@ -1369,11 +1336,10 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
 
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", changed_project_name)
     second_response = await httpx_client.post(
-        _chat_url(),
+        _chat_url(agent_session_id),
         json=_chat_body(
             session_request_id,
             _user_message("second question", message_id="msg-user-2"),
-            agent_session_id=agent_session_id,
             ingestTraces=True,
             turnTraceContext={
                 "traceId": second_trace_id,

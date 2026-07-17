@@ -246,7 +246,6 @@ class _ChatRequestMixin(_ObservabilityMixin):
     )
 
     contexts: list[ChatContext] = Field(default_factory=list)
-    agent_session_id: str | None = None
     edit_permission: Literal["manual", "bypass"] = "manual"
     requested_skills: list[str] = Field(
         default_factory=list,
@@ -1369,9 +1368,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
-    @router.post("/agents/{agent_id}/chat")
+    @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
     async def chat(
         agent_id: str,
+        session_id: str,
         request: Request,
         request_body: ChatRequest,
     ) -> Response:
@@ -1400,18 +1400,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
         if graphql_mutations_enabled and is_viewer:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
-        if body.agent_session_id is None:
-            raise HTTPException(
-                status_code=400,
-                detail="agentSessionId is required; create the session first",
-            )
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         try:
             async with request.app.state.db() as session:
                 agent_session = await _load_agent_session(
                     session,
-                    agent_session_id=body.agent_session_id,
+                    agent_session_id=session_id,
                     user_id=request_user_id,
                 )
                 persisted_messages = await _load_persisted_messages(

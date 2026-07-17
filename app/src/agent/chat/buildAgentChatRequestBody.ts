@@ -23,8 +23,6 @@ type BuildAgentChatRequestBodyOptions = {
   body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
-  /** Node ID for agent session. */
-  agentSessionId?: string | null;
   /**
    * Full UI message history from the transport. The server owns the session
    * transcript, so only the trailing message is sent: the turn's new user
@@ -110,7 +108,6 @@ function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
 export function buildAgentChatRequestBody({
   body,
   id,
-  agentSessionId = null,
   messages,
   capabilities,
   observability,
@@ -134,7 +131,6 @@ export function buildAgentChatRequestBody({
   const base = {
     ...body,
     id,
-    agentSessionId,
     ingestTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     attachUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
