@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 import {
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
@@ -104,7 +104,7 @@ export function AgentObservabilitySettings({
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const setObservability = useAgentContext((state) => state.setObservability);
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAdminOrAuthDisabled();
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
   const isTracingForced = agentsConfig.forceTracing;
 
