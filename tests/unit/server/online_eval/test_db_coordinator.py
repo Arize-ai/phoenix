@@ -348,7 +348,7 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
         )
         session.add(
             models.EvalWorkCursor(
-                grain="SPAN",
+                evaluation_target="SPAN",
                 consumer_group="default",
                 produced_through_id=5,
                 observed_high_water_id=12,
