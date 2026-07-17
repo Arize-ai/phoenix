@@ -2295,7 +2295,7 @@ class OAuth2Client(HasId):
     grant_types: Mapped[list[str]] = mapped_column(JsonList, nullable=False)
     token_endpoint_auth_method: Mapped[str] = mapped_column(String, nullable=False)
     is_first_party: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
-    metadata_: Mapped[Optional[dict[str, Any]]] = mapped_column("metadata_", JSON_, nullable=True)
+    metadata_: Mapped[Optional[dict[str, Any]]] = mapped_column("metadata", JSON_, nullable=True)
     # Server-observed peer address at registration. Kept out of metadata_, which holds
     # unvalidated client-supplied fields, so no request body can forge this provenance.
     # NULL for clients that were seeded rather than dynamically registered.

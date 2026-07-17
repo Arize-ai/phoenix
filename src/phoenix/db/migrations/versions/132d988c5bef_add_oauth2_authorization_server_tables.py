@@ -64,7 +64,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.false(),
         ),
-        sa.Column("metadata_", JSON_, nullable=True),
+        sa.Column("metadata", JSON_, nullable=True),
         sa.Column("registration_client_ip", sa.String(), nullable=True),
         sa.Column(
             "created_at",

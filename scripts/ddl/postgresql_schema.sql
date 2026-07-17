@@ -60,7 +60,7 @@ CREATE TABLE public.oauth2_clients (
     grant_types JSONB NOT NULL,
     token_endpoint_auth_method VARCHAR NOT NULL,
     is_first_party BOOLEAN NOT NULL DEFAULT false,
-    metadata_ JSONB,
+    metadata JSONB,
     registration_client_ip VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
