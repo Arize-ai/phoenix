@@ -46,7 +46,9 @@ test.describe("Settings Tables", () => {
     ).toBeVisible();
     await expect(page.getByRole("cell", { name: keyName })).toBeVisible();
 
-    // User API keys now live in the user details drawer
+    // User API keys now live in the user details drawer on the Users tab
+    await page.goto("/settings/users");
+    await page.waitForURL("**/settings/users");
     await page.getByRole("link", { name: "member", exact: true }).click();
     const dialog = page.getByRole("dialog", {
       name: "User details for member",
