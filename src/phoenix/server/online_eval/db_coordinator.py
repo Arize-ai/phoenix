@@ -30,7 +30,6 @@ from phoenix.server.types import DbSessionFactory
 _CONSUMER_GROUP = "default"
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
 STALE_FINGERPRINT_ERROR = "stale config fingerprint"
-LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 
 _WorkUnitModel = type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit]
 
@@ -94,23 +93,6 @@ class DbEvalWorkCoordinator:
         now = datetime.now(timezone.utc)
         work_unit_model = self._work_unit_model
         async with self._db() as session:
-            if self._evaluation_target == "SESSION":
-                await session.execute(
-                    update(work_unit_model)
-                    .where(
-                        work_unit_model.status == "RUNNING",
-                        work_unit_model.attempts >= self._max_attempts - 1,
-                        work_unit_lease_lapsed(now, work_unit_model),
-                    )
-                    .values(
-                        status="ERROR",
-                        attempts=self._max_attempts,
-                        error=func.coalesce(
-                            work_unit_model.error,
-                            LEASE_ATTEMPTS_EXHAUSTED_ERROR,
-                        ),
-                    )
-                )
             candidates = select(work_unit_model.id).where(self._claimable(now))
             candidates = candidates.order_by(work_unit_model.id).limit(limit)
             claim_values = {

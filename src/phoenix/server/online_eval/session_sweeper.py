@@ -16,7 +16,9 @@ from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.derivation import config_fingerprint
+from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
+from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_policy import (
     effective_session_evaluation_delay_seconds,
@@ -196,6 +198,22 @@ class SessionEvalSweeper(DaemonTask):
         return criteria_rows
 
     async def _sweep(self, session: AsyncSession, database_now: datetime) -> None:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(
+                models.EvalSessionWorkUnit.status == "RUNNING",
+                models.EvalSessionWorkUnit.attempts >= MAX_ATTEMPTS - 1,
+                work_unit_lease_lapsed(database_now, models.EvalSessionWorkUnit),
+            )
+            .values(
+                status="ERROR",
+                attempts=MAX_ATTEMPTS,
+                error=func.coalesce(
+                    models.EvalSessionWorkUnit.error,
+                    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+                ),
+            )
+        )
         criteria_by_project: defaultdict[int, list[_SessionCriteria]] = defaultdict(list)
         for criteria in await self._load_criteria(session):
             criteria_by_project[criteria.project_id].append(criteria)

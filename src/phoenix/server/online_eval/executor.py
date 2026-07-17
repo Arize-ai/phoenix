@@ -15,6 +15,7 @@ from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
 from phoenix.config import (
+    ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
     get_env_online_eval_max_sandbox_payload_bytes,
     get_env_online_eval_max_transcript_bytes,
 )
@@ -53,6 +54,7 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 logger = logging.getLogger(__name__)
 
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
+_MAX_SESSION_EVAL_TURNS = 1_000
 
 AnnotatorKind = Literal["LLM", "CODE"]
 EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
@@ -101,10 +103,24 @@ def session_eval_context(
     token_count_total: int,
     max_transcript_bytes: int,
 ) -> dict[str, Any]:
-    """Build the bounded transcript and structured context for a session evaluation."""
-    turn_blocks = [f"User: {turn['input']}\nAssistant: {turn['output']}" for turn in turns]
+    """Build session context from the bounded set of root turns loaded by hydration.
+
+    The transcript byte cap applies only to the rendered ``input`` string, and
+    truncation-marker accounting covers only the loaded turns. Structured ``turns``
+    remain intact for explicit mappings. Top-level ``metadata`` identifies the Phoenix
+    session, while ``turns[i].metadata`` is span metadata; ``session_id`` is also exposed
+    directly for zero-configuration mappings.
+    """
+    turn_blocks = [
+        "User: "
+        f"{'' if turn['input'] is None else turn['input']}\n"
+        "Assistant: "
+        f"{'' if turn['output'] is None else turn['output']}"
+        for turn in turns
+    ]
     transcript = "\n\n".join(turn_blocks)
-    if len(transcript.encode("utf-8")) > max_transcript_bytes:
+    transcript_bytes = len(transcript.encode("utf-8"))
+    if transcript_bytes > max_transcript_bytes:
         block_sizes = [len(block.encode("utf-8")) for block in turn_blocks]
         suffix_sizes = [0] * (len(turn_blocks) + 1)
         for index in range(len(turn_blocks) - 1, -1, -1):
@@ -117,8 +133,15 @@ def session_eval_context(
             if retained_size:
                 candidate_size += 2 + retained_size
             if candidate_size <= max_transcript_bytes:
+                if omitted_turns == len(turn_blocks):
+                    raise EvalExecutionError(
+                        f"Session transcript is {transcript_bytes} bytes, exceeding the "
+                        f"{max_transcript_bytes}-byte cap, and no complete turns fit after "
+                        f"truncation. Raise {ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES} "
+                        "to evaluate this session."
+                    )
                 retained = "\n\n".join(turn_blocks[omitted_turns:])
-                transcript = marker if not retained else f"{marker}\n\n{retained}"
+                transcript = f"{marker}\n\n{retained}"
                 break
 
     first_input = turns[0]["input"] if turns else None
@@ -129,6 +152,7 @@ def session_eval_context(
         "last_output": last_output,
         "first_input": first_input,
         "turns": list(turns),
+        "session_id": session_id,
         "metadata": {"session_id": session_id},
         "num_traces": num_traces,
         "duration_seconds": duration_seconds,
@@ -159,7 +183,10 @@ class OnlineEvalExecutor:
         version state no longer matches the one materialized on the unit. Stale
         units must be expired, never executed. The session closes before any
         LLM call happens; hydration failures that are not staleness raise and
-        take the retryable failure path."""
+        take the retryable failure path. Session hydration loads at most the
+        ``_MAX_SESSION_EVAL_TURNS`` most recent root turns and restores chronological
+        order before rendering; transcript truncation therefore accounts only for
+        those loaded turns."""
         async with self._db() as session:
             criteria = await session.get(models.ProjectEvaluatorCriteria, unit.criteria_id)
             if criteria is None or not criteria.enabled:
@@ -212,15 +239,32 @@ class OnlineEvalExecutor:
                     .group_by(models.Span.trace_rowid)
                     .subquery()
                 )
+                most_recent_root_spans = (
+                    select(
+                        root_span_ids.c.span_id,
+                        models.Trace.start_time.label("trace_start_time"),
+                        models.Trace.id.label("trace_id"),
+                    )
+                    .join(models.Trace, root_span_ids.c.trace_rowid == models.Trace.id)
+                    .order_by(
+                        models.Trace.start_time.desc(),
+                        models.Trace.id.desc(),
+                        root_span_ids.c.span_id.desc(),
+                    )
+                    .limit(_MAX_SESSION_EVAL_TURNS)
+                    .subquery()
+                )
                 root_spans = (
                     await session.scalars(
                         select(models.Span)
-                        .join(root_span_ids, models.Span.id == root_span_ids.c.span_id)
-                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .join(
+                            most_recent_root_spans,
+                            models.Span.id == most_recent_root_spans.c.span_id,
+                        )
                         .order_by(
-                            models.Trace.start_time.asc(),
-                            models.Trace.id.asc(),
-                            models.Span.id.asc(),
+                            most_recent_root_spans.c.trace_start_time.asc(),
+                            most_recent_root_spans.c.trace_id.asc(),
+                            most_recent_root_spans.c.span_id.asc(),
                         )
                     )
                 ).all()
@@ -408,6 +452,10 @@ class OnlineEvalExecutor:
                 f"online-eval:{evaluator_orm.id}:{self._sandbox_session_manager.replica_id}"
             ),
             max_payload_bytes=max_payload_bytes,
+            payload_limit_remediation=(
+                "Reduce the mapped session inputs or raise the limit with "
+                "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
+            ),
         )
         return HydratedWorkUnit(
             annotation_name=annotation_name,

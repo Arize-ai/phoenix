@@ -2586,6 +2586,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
         evaluator_version_id: Optional[str] = None,
         session_key: Optional[str] = None,
         max_payload_bytes: Optional[int] = None,
+        payload_limit_remediation: str = (
+            "Reduce the mapped inputs or raise the caller's payload limit."
+        ),
     ) -> None:
         self._name = name
         self._description = description
@@ -2596,6 +2599,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._timeout = timeout
         self._evaluator_version_id = evaluator_version_id
         self._max_payload_bytes = max_payload_bytes
+        self._payload_limit_remediation = payload_limit_remediation
         # ``session_key`` is required on the managed path; the ephemeral
         # path does not consult it.
         if sandbox_session_manager is not None and session_key is None:
@@ -2766,9 +2770,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 if payload_bytes > self._max_payload_bytes:
                     err = (
                         f"Rendered sandbox payload is {payload_bytes} bytes, which exceeds the "
-                        f"allowed {self._max_payload_bytes} bytes. Reduce the mapped session "
-                        "inputs or raise the limit with "
-                        "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
+                        f"allowed {self._max_payload_bytes} bytes. "
+                        f"{self._payload_limit_remediation}"
                     )
                     evaluator_span.set_status(Status(StatusCode.ERROR, err))
                     return [

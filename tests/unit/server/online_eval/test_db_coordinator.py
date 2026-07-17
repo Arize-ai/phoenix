@@ -10,7 +10,6 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
 from phoenix.server.online_eval.db_coordinator import (
-    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     STALE_FINGERPRINT_ERROR,
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
     DbEvalWorkCoordinator,
@@ -458,15 +457,15 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
     async with db() as session:
         exhausted_lease = await session.get(models.EvalSessionWorkUnit, unit_ids[1])
         assert exhausted_lease is not None
-        assert exhausted_lease.status == "ERROR"
-        assert exhausted_lease.attempts == MAX_ATTEMPTS
-        assert exhausted_lease.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
+        assert exhausted_lease.status == "RUNNING"
+        assert exhausted_lease.attempts == MAX_ATTEMPTS - 1
+        assert exhausted_lease.error is None
 
     lag = await coordinator.lag()
     assert lag.pending_count == 0
-    assert lag.running_count == 1
+    assert lag.running_count == 2
     assert lag.retryable_error_count == 1
-    assert lag.exhausted_error_count == 2
+    assert lag.exhausted_error_count == 1
     assert lag.frontier_gap == 0
     assert lag.oldest_pending_age_seconds is not None
     assert 100.0 <= lag.oldest_pending_age_seconds < 300.0

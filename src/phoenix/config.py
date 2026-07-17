@@ -3345,7 +3345,11 @@ def get_env_online_eval_max_outstanding() -> int:
 
 
 def get_env_online_eval_max_transcript_bytes() -> int:
-    """Get the maximum UTF-8 byte size of a session evaluation transcript."""
+    """Get the session transcript cap, whose minimum is 256 UTF-8 bytes.
+
+    The cap bounds only the rendered ``input`` string. Structured ``turns`` values used
+    by explicit mappings are not truncated.
+    """
     max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES, 32_768)
     if max_bytes < 256:
         raise ValueError(
@@ -3357,7 +3361,7 @@ def get_env_online_eval_max_transcript_bytes() -> int:
 
 
 def get_env_online_eval_max_sandbox_payload_bytes() -> int:
-    """Get the maximum UTF-8 byte size of a session sandbox payload."""
+    """Get the session sandbox payload cap, whose minimum is 1024 UTF-8 bytes."""
     max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
     if max_bytes < 1_024:
         raise ValueError(

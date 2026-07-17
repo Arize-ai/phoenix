@@ -567,6 +567,7 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
         "last_output",
         "first_input",
         "turns",
+        "session_id",
         "metadata",
         "num_traces",
         "duration_seconds",
@@ -578,20 +579,41 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     assert context["first_input"] == turns[0]["input"]
     assert context["last_output"] == turns[-1]["output"]
     assert context["output"] == turns[-1]["output"]
+    assert context["session_id"] == "session-1"
     assert context["metadata"] == {"session_id": "session-1"}
     assert context["num_traces"] == 4
     assert context["duration_seconds"] == 12.5
     assert context["token_count_total"] == 123
 
-    all_omitted = session_eval_context(
-        session_id="session-1",
-        turns=[{"input": "x" * 500, "output": "y" * 500, "metadata": {}}],
+    omitted_turn = {"input": "x" * 500, "output": "y" * 500, "metadata": {}}
+    omitted_transcript = f"User: {omitted_turn['input']}\nAssistant: {omitted_turn['output']}"
+    with pytest.raises(EvalExecutionError) as exc_info:
+        session_eval_context(
+            session_id="session-1",
+            turns=[omitted_turn],
+            num_traces=1,
+            duration_seconds=0.0,
+            token_count_total=0,
+            max_transcript_bytes=256,
+        )
+    error = str(exc_info.value)
+    assert f"{len(omitted_transcript.encode('utf-8'))} bytes" in error
+    assert "256-byte cap" in error
+    assert "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES" in error
+    assert "Raise" in error
+
+    null_values = session_eval_context(
+        session_id="null-session",
+        turns=[{"input": None, "output": None, "metadata": {"raw": True}}],
         num_traces=1,
         duration_seconds=0.0,
         token_count_total=0,
         max_transcript_bytes=256,
     )
-    assert all_omitted["input"] == "[transcript truncated: first 1 turns omitted]"
+    assert null_values["input"] == "User: \nAssistant: "
+    assert null_values["first_input"] is None
+    assert null_values["last_output"] is None
+    assert null_values["turns"] == [{"input": None, "output": None, "metadata": {"raw": True}}]
 
     empty = session_eval_context(
         session_id="empty-session",
@@ -651,6 +673,7 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(executor_module, "_MAX_SESSION_EVAL_TURNS", 2)
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         project = await _add_project(session)
@@ -661,6 +684,22 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
             start_time=start_time,
         )
         project_session.end_time = start_time + timedelta(seconds=90)
+        oldest_trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=start_time + timedelta(seconds=1),
+        )
+        await _add_span(
+            session,
+            oldest_trace,
+            span_kind="CHAIN",
+            attributes={
+                "input": {"value": "omitted oldest question"},
+                "output": {"value": "omitted oldest answer"},
+                "metadata": {"turn": 0},
+            },
+        )
         trace_without_root = await _add_trace(
             session,
             project,
@@ -748,7 +787,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert client.requests[0]["messages"][0]["content"] == (
         "User: first question\nAssistant: first answer\n\n"
         "User: second question\nAssistant: second answer\n"
-        "LAST=second answer\nFIRST=first question\nCOUNT=3\n"
+        "LAST=second answer\nFIRST=first question\nCOUNT=4\n"
         "DURATION=90.0\nTOKENS=18\n"
         "TURNS=first question/first answer/1;second question/second answer/2;"
     )
@@ -811,7 +850,148 @@ async def test_session_generation_above_zero_expires_before_evaluator_call(
         decrypt=lambda value: value,
         evaluation_target="SESSION",
     )
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+    assert await consumer._executor.hydrate(unit) is None
+    await consumer._process_unit(unit)
+
+    assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
+    assert client.requests == []
+    assert await _session_annotations(db) == []
+
+
+async def test_marker_only_session_transcript_counts_attempt_without_evaluation(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    input_value = "x" * 500
+    output_value = "y" * 500
+    transcript = f"User: {input_value}\nAssistant: {output_value}"
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            trace,
+            attributes={
+                "input": {"value": input_value},
+                "output": {"value": output_value},
+            },
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES", "256")
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
     await consumer._cycle()
+
+    unit = await _get_session_unit(db, unit_id)
+    assert unit.status == "ERROR"
+    assert unit.attempts == 1
+    assert unit.error is not None
+    assert f"{len(transcript.encode('utf-8'))} bytes" in unit.error
+    assert "256-byte cap" in unit.error
+    assert "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES" in unit.error
+    assert client.requests == []
+    assert await _session_annotations(db) == []
+
+
+async def test_cross_project_session_unit_expires_before_evaluator_call(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        criteria_project = await _add_project(session)
+        session_project = await _add_project(session)
+        foreign_project_session = await _add_project_session(session, session_project)
+        trace = await _add_trace(session, session_project, foreign_project_session)
+        await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        criteria_project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        foreign_project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+    assert await consumer._executor.hydrate(unit) is None
+    await consumer._process_unit(unit)
+
+    assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
+    assert client.requests == []
+    assert await _session_annotations(db) == []
+
+
+async def test_session_criteria_becoming_unschedulable_expires_before_evaluator_call(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(filter_condition="span_kind == 'LLM'")
+        )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+    assert await consumer._executor.hydrate(unit) is None
+    await consumer._process_unit(unit)
 
     assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
     assert client.requests == []
@@ -863,6 +1043,11 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
 
     assert hydrated is not None
     assert captured_runner_arguments["max_payload_bytes"] == 2048
+    assert (
+        captured_runner_arguments["payload_limit_remediation"]
+        == "Reduce the mapped session inputs or raise the limit with "
+        "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
+    )
 
 
 async def test_llm_criteria_input_mapping_override_is_used_during_execution(

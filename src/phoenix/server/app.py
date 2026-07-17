@@ -74,6 +74,8 @@ from phoenix.config import (
     get_env_host,
     get_env_max_spans_queue_size,
     get_env_online_eval_enabled,
+    get_env_online_eval_max_sandbox_payload_bytes,
+    get_env_online_eval_max_transcript_bytes,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -976,6 +978,8 @@ def create_app(
     online_eval_session_consumer: Optional[OnlineEvalConsumer] = None
     online_eval_session_sweeper: Optional[SessionEvalSweeper] = None
     if get_env_online_eval_enabled() and not read_only:
+        get_env_online_eval_max_transcript_bytes()
+        get_env_online_eval_max_sandbox_payload_bytes()
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
             db,

@@ -12,7 +12,11 @@ import pytest
 from asgi_lifespan import LifespanManager
 from sqlalchemy import select, update
 
-from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_ENABLED
+from phoenix.config import (
+    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+    ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+)
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
@@ -58,6 +62,44 @@ async def test_online_eval_daemons_absent_in_read_only_mode(
     assert app.state.online_eval_consumer is None
     assert app.state.online_eval_session_consumer is None
     assert app.state.online_eval_session_sweeper is None
+
+
+@pytest.mark.parametrize(
+    ("env_name", "value"),
+    [
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+            "255",
+            id="transcript-below-floor",
+        ),
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+            "not-an-integer",
+            id="transcript-not-integer",
+        ),
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+            "1023",
+            id="sandbox-below-floor",
+        ),
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+            "not-an-integer",
+            id="sandbox-not-integer",
+        ),
+    ],
+)
+async def test_enabled_app_validates_session_byte_limits_at_startup(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    env_name: str,
+    value: str,
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    monkeypatch.setenv(env_name, value)
+
+    with pytest.raises(ValueError, match=env_name):
+        _create_app(db)
 
 
 async def test_enabled_app_runs_seeded_criteria_end_to_end(

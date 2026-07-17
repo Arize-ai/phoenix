@@ -23,11 +23,16 @@ from phoenix.db import models
 
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
+LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit with an idempotent annotation identifier."""
+    """A leased work unit with an idempotent annotation identifier.
+
+    ``generation`` is None exactly for SPAN units and is the zero-based session
+    generation for SESSION units. A SESSION unit with ``generation=None`` is invalid.
+    """
 
     work_unit_id: int
     evaluation_target: models.EvaluationTarget
