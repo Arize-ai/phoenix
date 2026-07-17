@@ -3,10 +3,8 @@
 ## Purpose
 
 Phoenix exposes API-key management through REST and GraphQL. This document defines who may
-issue, inspect, use, and revoke each kind of key. Equivalent operations normally grant the
-same authority on both surfaces, even when REST and GraphQL represent a denial differently.
-The only current exception is legacy GraphQL issuance, which is scheduled for removal at
-the next major version.
+issue, inspect, use, and revoke each kind of key. Equivalent operations grant the same
+authority on both surfaces, even when REST and GraphQL represent a denial differently.
 
 This is a normative policy model. Authorization is derived from independently evaluated
 facts about the credential, principal, action, resource, and environment; route names and
@@ -54,15 +52,14 @@ Threat-model references use `D1` through `D9` to refer to these decisions.
    viewer session, may create, list, and revoke the user's API keys. A new key inherits the
    user's current database role and cannot increase that role's authority.
 5. **D5 — API-key personal self-service.** A user API key may list and revoke its owner's
-   user keys. REST does not allow it to issue a replacement. GraphQL retains transitive
-   issuance for compatibility until the next major version, creating an accepted
-   persistence risk on that legacy surface.
+   user keys. It cannot issue a replacement on either surface. (GraphQL retained
+   transitive issuance for compatibility through Phoenix 18.)
 6. **D6 — User-key administration.** `ADMIN`-role human principals may inventory and revoke
    any human user's API keys. `PHOENIX_ADMIN_SECRET` has the same administrative revocation
    authority.
-7. **D7 — System-key issuance.** REST system-key issuance requires an `ADMIN` human session
-   or `PHOENIX_ADMIN_SECRET`; API keys cannot issue credentials. GraphQL retains issuance by
-   an `ADMIN`-role user key for compatibility until the next major version.
+7. **D7 — System-key issuance.** System-key issuance requires an `ADMIN` human session or
+   `PHOENIX_ADMIN_SECRET` on both surfaces; API keys cannot issue credentials. (GraphQL
+   retained issuance by an `ADMIN`-role user key for compatibility through Phoenix 18.)
 8. **D8 — Authentication required.** Credential management fails closed when
    authentication is disabled.
 9. **D9 — Complete authorization.** Authorization checks credential kind, principal
@@ -113,8 +110,8 @@ can be eliminated without removing the corresponding issuance capability.
 | Threat | Description | Policy response |
 |---|---|---|
 | Workload-to-control-plane escalation | A leaked or stolen SYSTEM-role key is used to manage credentials, users, or settings. | SYSTEM keys are workload credentials and credential-management operations deny them by default (D1, D3, D9). |
-| Privilege persistence | A compromised user API key mints a same-role replacement through legacy GraphQL and outlives revocation of the original. | Accepted GraphQL compatibility risk until the next major version. REST prevents transitive issuance. GraphQL role inheritance prevents escalation but not persistence; containment requires revoking every key owned by the affected user, or deleting the user when active replacement issuance cannot be ruled out (D5). |
-| Issuance-origin compromise | A compromised human session or admin secret—or an admin-role user key through legacy GraphQL—uses legitimate issuance authority to create durable credentials. | Issued keys have bounded authority and are independently inventoried and revoked. Invalidating the issuer does not by itself revoke keys already issued (D4, D5, D7). |
+| Privilege persistence | A compromised user API key mints a same-role replacement and outlives revocation of the original. | Both surfaces deny API-key-authenticated issuance, so revoking the compromised key is effective containment for that credential (D5). Replacements minted through legacy GraphQL issuance before the Phoenix 19 upgrade may still exist; inventory the affected user's keys when the compromise predates the upgrade. |
+| Issuance-origin compromise | A compromised human session or admin secret uses legitimate issuance authority to create durable credentials. | Issued keys have bounded authority and are independently inventoried and revoked. Invalidating the issuer does not by itself revoke keys already issued (D4, D5, D7). |
 | Peer-credential tampering | One system credential enumerates or revokes other system credentials because all system keys share the internal system-user owner. | Ownership alone is never sufficient; system-key management requires admin authority on a SYSTEM resource (D2, D9). |
 | Key-ID enumeration | Revoke or delete endpoints are probed to learn which key IDs exist. | Unauthorized, missing, and wrong-class targets return one indistinguishable denial. |
 | Resource-class confusion | A client-supplied GlobalID is relabeled to cross the user/system boundary in the shared table. | Resource class is derived from the owner's database role, not the presented type name (D9). |
@@ -127,7 +124,7 @@ can be eliminated without removing the corresponding issuance capability.
 | Principal | Representation | Authority |
 |---|---|---|
 | Human session | `PhoenixUser` authenticated by an access token | Current database role; may issue a user key |
-| User-key holder | `PhoenixUser` authenticated by a user API key | Current database role; REST issuance denied, legacy GraphQL issuance retained until the next major version |
+| User-key holder | `PhoenixUser` authenticated by a user API key | Current database role; credential issuance denied |
 | System-key holder | `PhoenixUser` authenticated by a SYSTEM-role API key | Non-admin workload access |
 | Admin-secret principal | `PhoenixSystemUser` authenticated by `PHOENIX_ADMIN_SECRET` | Bootstrap/admin access; may issue system keys |
 | Unauthenticated caller | No authenticated `PhoenixUser` | No credential-management access |
@@ -143,9 +140,9 @@ explicitly; the ambiguous phrase "system user" does not imply administrator auth
 ### User API Keys
 
 A user API key is associated with a human user and acts on that user's behalf. Creation
-uses the user's current database role. REST requires a human session to issue a key;
-GraphQL temporarily permits an existing user key for compatibility. The owner may list and
-revoke the key; an admin may inventory and revoke it as a control-plane operation.
+uses the user's current database role and requires a human session on both surfaces. The
+owner may list and revoke the key; an admin may inventory and revoke it as a control-plane
+operation.
 
 ### System API Keys
 
@@ -196,11 +193,7 @@ SYSTEM-role API key
 A credential cannot implicitly mint a durable replacement, transform itself into another
 principal class, or create a credential with greater authority.
 
-- REST denies issuance by every API key.
-- Until the next major version, GraphQL permits a user API key to create another user key
-  for the same owner with that owner's current database role.
-- Until the next major version, GraphQL permits an `ADMIN`-role user key to create a system
-  key.
+- Both surfaces deny issuance by every API key.
 - A SYSTEM-role key cannot transform itself into a human-role key through a personal-key
   operation.
 - A human session may create a user key as explicit delegation to a durable credential; the
@@ -208,12 +201,12 @@ principal class, or create a credential with greater authority.
 - An `ADMIN` human session or the configured admin secret may create a system key as an
   explicit control-plane operation.
 
-GraphQL's compatibility behavior is authority-bounded but transitive: a compromised user
-key can preserve access by issuing a replacement before revocation. Role inheritance
-prevents privilege escalation, but it does not contain persistence. Phoenix does not copy
-that legacy risk into the new REST surface. At the next major version, GraphQL converges on
-REST's explicit, non-transitive model: human sessions and the admin secret are issuance
-origins, while API keys issued by those origins cannot issue another key.
+Through Phoenix 18, GraphQL retained a compatibility behavior that was authority-bounded
+but transitive: a compromised user key could preserve access by issuing a replacement
+before revocation. Role inheritance prevented privilege escalation, but it did not contain
+persistence. As of Phoenix 19, both surfaces enforce the explicit, non-transitive model:
+human sessions and the admin secret are issuance origins, while API keys issued by those
+origins cannot issue another key.
 
 The admin secret is a root bootstrap authority, so compromise can create persistent
 workload credentials. Rotating the secret contains future use but does not revoke
@@ -267,12 +260,12 @@ their admin permission.
 
 | Operation | Session VIEWER | Session MEMBER | Session ADMIN | User key VIEWER | User key MEMBER | User key ADMIN | SYSTEM key | Admin secret | Auth disabled |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Create own user key | ✅ Allow | ✅ Allow | ✅ Allow | REST ❌ / GraphQL ✅² | REST ❌ / GraphQL ✅² | REST ❌ / GraphQL ✅² | ❌ Deny | ❌ Deny | ❌ Deny |
+| Create own user key | ✅ Allow | ✅ Allow | ✅ Allow | ❌ Deny | ❌ Deny | ❌ Deny | ❌ Deny | ❌ Deny | ❌ Deny |
 | List own user keys | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | Empty¹ | Empty¹ | ❌ Deny |
 | Revoke own user key | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | ❌ Deny | ❌ Deny | ❌ Deny |
 | List all users' keys | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ✅ Allow | ❌ Deny |
 | Revoke another user's key | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ✅ Allow | ❌ Deny |
-| Create system key | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ❌ Deny | REST ❌ / GraphQL ✅² | ❌ Deny | ✅ Allow | ❌ Deny |
+| Create system key | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ❌ Deny | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny |
 | List system keys | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ✅ Allow | ❌ Deny |
 | Revoke system key | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ❌ Deny | ✅ Allow | ❌ Deny | ✅ Allow | ❌ Deny |
 
@@ -287,11 +280,6 @@ returns an empty `viewer { apiKeys }` field. A system-backed principal owns no u
 keys, so the truthful result is an empty list rather than an error, and a client can list
 personal keys through either surface interchangeably. See
 [REST and GraphQL Equivalence](#rest-and-graphql-equivalence).
-
-² GraphQL preserves API-key-authenticated issuance through the current major version for
-backward compatibility. The new REST surface adopts the non-transitive target policy
-immediately. See
-[Compatibility and Next-Major Direction](#compatibility-and-next-major-direction).
 
 Deployment mode applies after the principal/resource decision:
 
@@ -318,9 +306,7 @@ Shared DB-backed policy functions resolve principal role and key owner role for 
 and GraphQL. Personal owner operations require a human identity and a non-SYSTEM resource.
 Administrative user-key operations require admin authority and a non-SYSTEM resource.
 System-key operations require admin authority and a SYSTEM resource. Issuance additionally
-checks credential kind and role. REST denies issuance by every API key. GraphQL temporarily
-retains role-bounded user-key issuance for compatibility; SYSTEM keys cannot mint
-credentials on either surface.
+checks credential kind and role: both surfaces deny issuance by every API key.
 
 This design keeps the established lifecycle in which system credentials survive deletion
 of the admin who created them. Distinct service principals per workload were considered
@@ -330,11 +316,10 @@ isolation without changing persistence.
 
 ## REST and GraphQL Equivalence
 
-REST and GraphQL normally make the same authorization decision for equivalent operations:
+REST and GraphQL make the same authorization decision for equivalent operations:
 
 - The same credential kind, principal, action, and resource class must produce the same
-  authorization decision, except for the explicitly versioned GraphQL issuance
-  compatibility behavior described below.
+  authorization decision.
 - A principal backed by the internal system user owns no user-class keys, so listing its
   personal collection returns empty on both surfaces: REST responds `200` with no keys and
   GraphQL returns an empty `viewer { apiKeys }` field. A client can therefore swap surfaces
@@ -356,6 +341,7 @@ Equivalent authority does not require identical error taxonomy:
 | Scenario | REST | GraphQL | Rationale |
 |---|---|---|---|
 | SYSTEM key invokes personal-key mutation | `403 Forbidden` before target lookup | `NotFound` or `Unauthorized`, depending on the mutation | Categorical credential-kind denial; REST does not inspect the target and therefore leaks no target existence |
+| API key invokes an issuance mutation | `403 Forbidden` | `Unauthorized` | Credential issuance starts from a session or admin-secret origin |
 | Admin secret creates a personal key | `403 Forbidden` | `Unauthorized` | The internal system user has no human owner branch |
 | Unauthorized cross-user revocation | `404 Not Found` | `NotFound` | Missing and unauthorized targets are intentionally indistinguishable |
 | GlobalID has the wrong presentation type or malformed encoding | `422 Unprocessable Entity` | GraphQL `errors` response | Request shape is invalid before resource authorization |
@@ -363,11 +349,6 @@ Equivalent authority does not require identical error taxonomy:
 
 Client code may depend on each surface's documented error contract, but it must not infer
 different authority from these representational differences.
-
-The sole current authorization difference is credential issuance by a user API key. REST
-denies it because the REST endpoints are new. GraphQL retains it until the next major
-version to avoid breaking existing clients. This exception is narrow, documented, and
-scheduled for removal rather than treated as a transport-specific policy.
 
 ## Surface Enforcement
 
@@ -405,11 +386,11 @@ exposing the bearer secret itself.
 | Field | Policy |
 |---|---|
 | `viewer { apiKeys }` | Returns only non-SYSTEM keys owned by the viewer |
-| `createUserApiKey` | Auth-enabled human session or user API key; current DB role |
+| `createUserApiKey` | Auth-enabled human session creates a key with current DB role; API keys denied |
 | `deleteUserApiKey` | Auth-enabled owner or admin, including admin-secret principal; non-SYSTEM resource; non-enumerating denial |
 | `userApiKeys` | Admin inventories all non-SYSTEM keys |
 | `systemApiKeys` | Admin lists SYSTEM keys |
-| `createSystemApiKey` | `ADMIN`-role human principal or admin-secret principal creates a SYSTEM key |
+| `createSystemApiKey` | `ADMIN` human session or admin-secret principal creates a SYSTEM key; API keys denied |
 | `deleteSystemApiKey` | Admin revokes a verified SYSTEM resource |
 
 GraphQL GlobalID validation verifies the requested presentation type. Authorization also
@@ -422,31 +403,27 @@ system-backed principal sees an empty list — the same result REST returns for 
 principal.
 
 Personal `createUserApiKey` and `deleteUserApiKey` mutations intentionally omit
-`IsNotViewer`: viewer credential self-service is allowed by D4 and D5. GraphQL
-`createUserApiKey` and `createSystemApiKey` retain API-key-authenticated issuance only as
-the compatibility exception scheduled for removal in the next major version.
-Administrative system-key mutations remain admin-gated. GraphQL queries remain available
-in read-only mode, while `IsNotReadOnly` denies credential issuance and revocation.
+`IsNotViewer`: viewer credential self-service is allowed by D4 and D5. `createUserApiKey`
+and `createSystemApiKey` deny API-key-authenticated callers with an `Unauthorized` error;
+issuance starts from a session or the admin-secret principal. Administrative system-key
+mutations remain admin-gated. GraphQL queries remain available in read-only mode, while
+`IsNotReadOnly` denies credential issuance and revocation.
 
-## Compatibility and Next-Major Direction
+## Issuance Compatibility History
 
-API-key-authenticated issuance remains supported only in GraphQL through the current major
-version. Removing that legacy authority is a behavioral breaking change even when the
-schema remains unchanged, so it must not be shipped as documentation or internal
-authorization cleanup alone. The new REST endpoints enforce non-transitive issuance from
-their first release and therefore carry no migration obligation.
+Through Phoenix 18, GraphQL permitted API-key-authenticated issuance for backward
+compatibility: a user API key could create another user key for the same owner, and an
+`ADMIN`-role user key could create a system key. The REST API-key endpoints, introduced
+later, enforced non-transitive issuance from their first release.
 
-Before the next major version, maintainers must determine whether supported clients rely on
-unattended key creation and define a replacement. Valid strategies include a constrained
-rotation operation, a narrower provisioning capability, or removal with migration
-guidance. Rotation is not automatically a complete replacement for programmatic
-provisioning, so its semantics must be defined against the actual supported workflow.
-
-At the next major-version boundary, GraphQL should converge on REST's explicit,
-non-transitive issuance authority: human sessions may issue user keys, human admin sessions
-and the admin secret may issue system keys, and delegated API keys may not issue another
-credential. This work is tracked in
-[`Arize-ai/phoenix#14396`](https://github.com/Arize-ai/phoenix/issues/14396).
+Phoenix 19 removed the GraphQL compatibility behavior
+([`Arize-ai/phoenix#14396`](https://github.com/Arize-ai/phoenix/issues/14396)). Both
+surfaces now enforce the same policy: human sessions may issue user keys, human `ADMIN`
+sessions and the admin secret may issue system keys, and delegated API keys may not issue
+another credential. The GraphQL schema is unchanged; the mutations deny API-key callers
+with an `Unauthorized` error. Workflows that relied on unattended key creation must
+provision keys from a session-authenticated context instead; see `MIGRATION.md` for the
+operator-facing guidance.
 
 ## Role Resolution and Lifecycle
 
@@ -465,8 +442,7 @@ use the new role immediately.
 
 Credential issuance and personal-key classification query the database directly. A role
 change consequently applies immediately when a human session creates a credential on
-either surface or when a user API key uses legacy GraphQL issuance, without waiting for
-token-store cache refresh. `PhoenixSystemUser` carries no token claims, and authorization
+either surface, without waiting for token-store cache refresh. `PhoenixSystemUser` carries no token claims, and authorization
 never relies solely on cached claims. REST may use a credential's claims for an early
 fail-closed SYSTEM rejection, but permitted role-based decisions use current database
 state. Credential kind is resolved from the authenticated credential itself and is not
@@ -511,12 +487,12 @@ Plaintext keys must not be persisted, returned by list operations, or written to
 Names, descriptions, owner metadata, timestamps, and identifiers are management metadata,
 not bearer secrets.
 
-Because legacy GraphQL lets current-version user keys issue replacements, revoking only the
-credential observed to be compromised is not sufficient containment. Responders must
-revoke every key owned by the affected user. If active replacement issuance cannot be
-ruled out, deleting the user is the definitive containment action. Likewise, rotating a
-compromised admin secret does not revoke SYSTEM keys created with it; those keys require
-separate inventory and revocation.
+API keys cannot issue replacements on either surface, so revoking a compromised key
+contains that credential. Responders should still inventory the affected user's keys when
+the compromise may predate the Phoenix 19 upgrade, because legacy GraphQL issuance could
+have minted replacements before enforcement began. Likewise, rotating a compromised admin
+secret does not revoke SYSTEM keys created with it; those keys require separate inventory
+and revocation.
 
 Authorization is evaluated against authoritative state at the decision point. Operations
 that span authorization and mutation must fail closed if the caller, owner, or target no
@@ -554,10 +530,9 @@ The capability matrix must be enforced with real bearer credentials across REST 
 GraphQL. Coverage must include:
 
 - session-based viewer create/list/revoke self-service;
-- REST rejection of user-key and SYSTEM-key credential issuance;
-- GraphQL user-key issuance with immediate database-role inheritance;
-- GraphQL admin-role user-key system issuance;
-- rejection of SYSTEM-key credential issuance;
+- REST and GraphQL rejection of credential issuance by every API-key credential kind,
+  including an `ADMIN`-role user key invoking system-key issuance;
+- admin-secret system-key issuance with personal-key issuance denied;
 - owner revocation through a user key;
 - admin organization-wide inventory and cross-user revocation, including the admin secret;
 - identical missing/unauthorized revocation denial;
