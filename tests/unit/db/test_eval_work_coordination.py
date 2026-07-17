@@ -299,7 +299,7 @@ async def test_project_evaluator_criteria_rejects_unknown_target(
 
 async def test_eval_work_cursor_defaults(db: DbSessionFactory) -> None:
     async with db() as session:
-        cursor = models.EvalWorkCursor(grain="SPAN", consumer_group="default")
+        cursor = models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default")
         session.add(cursor)
         await session.flush()
         cursor_id = cursor.id
@@ -315,23 +315,23 @@ async def test_eval_work_cursor_defaults(db: DbSessionFactory) -> None:
         assert fetched.claimed_by is None
 
 
-async def test_eval_work_cursor_unique_grain_group(db: DbSessionFactory) -> None:
+async def test_eval_work_cursor_unique_target_group(db: DbSessionFactory) -> None:
     async with db() as session:
-        session.add(models.EvalWorkCursor(grain="SPAN", consumer_group="default"))
+        session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
         await session.flush()
 
     with pytest.raises(Exception):
         async with db() as session:
-            session.add(models.EvalWorkCursor(grain="SPAN", consumer_group="default"))
+            session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
             await session.flush()
 
 
-async def test_eval_work_cursor_rejects_unknown_grain(db: DbSessionFactory) -> None:
+async def test_eval_work_cursor_rejects_unknown_evaluation_target(db: DbSessionFactory) -> None:
     with pytest.raises(Exception):
         async with db() as session:
             session.add(
                 models.EvalWorkCursor(
-                    grain="DOCUMENT",
+                    evaluation_target="DOCUMENT",
                     consumer_group="default",
                 )
             )

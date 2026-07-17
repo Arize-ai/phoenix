@@ -1130,7 +1130,7 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Evaluation grain. SPAN is currently executable; TRACE and SESSION are "
+            "SPAN is currently executable; TRACE and SESSION are "
             "stored but remain inactive until their runtimes are available."
         )
     )
