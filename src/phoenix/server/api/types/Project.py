@@ -19,7 +19,10 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
-from phoenix.server.api.annotation_metrics import get_bounded_annotation_labels
+from phoenix.server.api.annotation_metrics import (
+    build_entity_weighted_annotation_metrics_stmt,
+    build_top_annotation_labels_stmt,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
@@ -1853,22 +1856,13 @@ class Project(Node):
         bucket = date_trunc(
             info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
         )
-        stmt = (
+        stmt: Select[Any] = (
             select(
-                bucket,
-                models.SpanAnnotation.name,
-                models.SpanAnnotation.label,
-                func.count()
-                .filter(
-                    or_(
-                        models.SpanAnnotation.score.is_not(None),
-                        models.SpanAnnotation.label.is_not(None),
-                    )
-                )
-                .label("record_count"),
-                func.count(models.SpanAnnotation.label).label("label_count"),
-                func.count(models.SpanAnnotation.score).label("score_count"),
-                func.sum(models.SpanAnnotation.score).label("score_sum"),
+                bucket.label("bucket"),
+                models.Span.id.label("entity_id"),
+                models.SpanAnnotation.name.label("name"),
+                models.SpanAnnotation.label.label("label"),
+                models.SpanAnnotation.score.label("score"),
             )
             .join_from(
                 models.SpanAnnotation,
@@ -1881,8 +1875,12 @@ class Project(Node):
                 onclause=models.Span.trace_rowid == models.Trace.id,
             )
             .where(models.Trace.project_rowid == self.id)
-            .group_by(bucket, models.SpanAnnotation.name, models.SpanAnnotation.label)
-            .order_by(bucket, models.SpanAnnotation.name, models.SpanAnnotation.label)
+            .where(
+                or_(
+                    models.SpanAnnotation.score.is_not(None),
+                    models.SpanAnnotation.label.is_not(None),
+                )
+            )
         )
         return await _annotation_metrics_time_series(
             db=info.context.db,
@@ -1904,22 +1902,13 @@ class Project(Node):
         bucket = date_trunc(
             info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
         )
-        stmt = (
+        stmt: Select[Any] = (
             select(
-                bucket,
-                models.TraceAnnotation.name,
-                models.TraceAnnotation.label,
-                func.count()
-                .filter(
-                    or_(
-                        models.TraceAnnotation.score.is_not(None),
-                        models.TraceAnnotation.label.is_not(None),
-                    )
-                )
-                .label("record_count"),
-                func.count(models.TraceAnnotation.label).label("label_count"),
-                func.count(models.TraceAnnotation.score).label("score_count"),
-                func.sum(models.TraceAnnotation.score).label("score_sum"),
+                bucket.label("bucket"),
+                models.Trace.id.label("entity_id"),
+                models.TraceAnnotation.name.label("name"),
+                models.TraceAnnotation.label.label("label"),
+                models.TraceAnnotation.score.label("score"),
             )
             .join_from(
                 models.TraceAnnotation,
@@ -1927,8 +1916,12 @@ class Project(Node):
                 onclause=models.TraceAnnotation.trace_rowid == models.Trace.id,
             )
             .where(models.Trace.project_rowid == self.id)
-            .group_by(bucket, models.TraceAnnotation.name, models.TraceAnnotation.label)
-            .order_by(bucket, models.TraceAnnotation.name, models.TraceAnnotation.label)
+            .where(
+                or_(
+                    models.TraceAnnotation.score.is_not(None),
+                    models.TraceAnnotation.label.is_not(None),
+                )
+            )
         )
         return await _annotation_metrics_time_series(
             db=info.context.db,
@@ -1950,22 +1943,13 @@ class Project(Node):
         bucket = date_trunc(
             info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
         )
-        stmt = (
+        stmt: Select[Any] = (
             select(
-                bucket,
-                models.ProjectSessionAnnotation.name,
-                models.ProjectSessionAnnotation.label,
-                func.count()
-                .filter(
-                    or_(
-                        models.ProjectSessionAnnotation.score.is_not(None),
-                        models.ProjectSessionAnnotation.label.is_not(None),
-                    )
-                )
-                .label("record_count"),
-                func.count(models.ProjectSessionAnnotation.label).label("label_count"),
-                func.count(models.ProjectSessionAnnotation.score).label("score_count"),
-                func.sum(models.ProjectSessionAnnotation.score).label("score_sum"),
+                bucket.label("bucket"),
+                models.ProjectSession.id.label("entity_id"),
+                models.ProjectSessionAnnotation.name.label("name"),
+                models.ProjectSessionAnnotation.label.label("label"),
+                models.ProjectSessionAnnotation.score.label("score"),
             )
             .join_from(
                 models.ProjectSessionAnnotation,
@@ -1974,15 +1958,11 @@ class Project(Node):
                 == models.ProjectSession.id,
             )
             .where(models.ProjectSession.project_id == self.id)
-            .group_by(
-                bucket,
-                models.ProjectSessionAnnotation.name,
-                models.ProjectSessionAnnotation.label,
-            )
-            .order_by(
-                bucket,
-                models.ProjectSessionAnnotation.name,
-                models.ProjectSessionAnnotation.label,
+            .where(
+                or_(
+                    models.ProjectSessionAnnotation.score.is_not(None),
+                    models.ProjectSessionAnnotation.label.is_not(None),
+                )
             )
         )
         return await _annotation_metrics_time_series(
@@ -2314,93 +2294,57 @@ async def _annotation_metrics_time_series(
     stride: _TimeBinStride,
     utc_offset_minutes: int,
 ) -> AnnotationMetricsTimeSeries:
-    """Build summaries from grouped label rows and fill in empty time bins.
-
-    Label fractions are conditional on having a label, matching the standalone
-    annotation-summary convention. Score-only results remain available through
-    the score fields without creating an unlabeled distribution category.
-    """
+    """Build bounded, entity-weighted summaries and fill in empty time bins."""
     if time_range.start is None:
         raise BadRequest("Start time is required")
     stmt = stmt.where(time_range.start <= start_time_col)
     if time_range.end:
         stmt = stmt.where(start_time_col < time_range.end)
 
+    selected_labels_by_name: dict[str, list[str]] = {}
+    async with db.read() as session:
+        async for name, label in await session.stream(build_top_annotation_labels_stmt(stmt)):
+            selected_labels_by_name.setdefault(name, []).append(label)
+    selected_label_pairs = [
+        (name, label) for name, labels in selected_labels_by_name.items() for label in labels
+    ]
+
     rows_by_timestamp_and_name: dict[tuple[datetime, str], list[dict[str, Any]]] = {}
     unique_names: set[str] = set()
+    metrics_stmt = build_entity_weighted_annotation_metrics_stmt(
+        stmt,
+        selected_label_pairs,
+    )
     async with db.read() as session:
-        async for result_row in await session.stream(stmt):
-            timestamp = _as_datetime(result_row[0])
-            name = result_row[1]
+        async for result_row in await session.stream(metrics_stmt):
+            timestamp = _as_datetime(result_row.bucket)
+            name = result_row.name
             unique_names.add(name)
             rows_by_timestamp_and_name.setdefault((timestamp, name), []).append(
                 {
-                    "label": result_row[2],
-                    "record_count": result_row[3],
-                    "label_count": result_row[4],
-                    "score_count": result_row[5],
-                    "score_sum": result_row[6],
+                    "label": result_row.label,
+                    "record_count": result_row.record_count,
+                    "label_count": result_row.label_count,
+                    "score_count": result_row.score_count,
+                    "score_sum": result_row.score_sum,
+                    "avg_label_fraction": result_row.avg_label_fraction,
+                    "avg_score": result_row.avg_score,
                 }
             )
 
     summaries_by_timestamp: dict[datetime, list[AnnotationSummary]] = {}
-    latest_label_rows_by_name: dict[str, tuple[datetime, list[dict[str, Any]]]] = {}
     for (timestamp, name), rows in rows_by_timestamp_and_name.items():
-        label_rows = [row for row in rows if row["label"] is not None]
-        if label_rows and (
-            name not in latest_label_rows_by_name or timestamp > latest_label_rows_by_name[name][0]
-        ):
-            latest_label_rows_by_name[name] = (timestamp, label_rows)
-    labels_by_name: dict[str, set[str]] = {}
-    for (_, name), rows in rows_by_timestamp_and_name.items():
-        labels_by_name.setdefault(name, set()).update(
-            row["label"] for row in rows if row["label"] is not None
-        )
-    reference_rows_by_name = {name: rows for name, (_, rows) in latest_label_rows_by_name.items()}
-    # Use one latest label-bearing bucket across the visible window so
-    # categories do not change identity or color from one time bin to the next.
-    selected_labels_by_name = {
-        name: get_bounded_annotation_labels(
-            labels,
-            ((row["label"], row["label_count"]) for row in reference_rows_by_name.get(name, [])),
-        )
-        for name, labels in labels_by_name.items()
-    }
-
-    for (timestamp, name), rows in rows_by_timestamp_and_name.items():
-        annotation_label_count = sum(row["label_count"] for row in rows)
-        score_count = sum(row["score_count"] for row in rows)
-        score_sum = sum(row["score_sum"] or 0 for row in rows)
-        mean_score = score_sum / score_count if score_count else None
-        rows_by_label = {row["label"]: row for row in rows if row["label"] is not None}
-        selected_labels = selected_labels_by_name[name]
-        summary_rows = [
-            dict(rows_by_label[label]) for label in selected_labels if label in rows_by_label
-        ]
-        omitted_rows = [row for row in rows if row["label"] not in selected_labels]
-        if omitted_rows:
-            # Keep omitted labels in aggregate coverage and mean calculations
-            # without exposing their individual values through GraphQL.
-            summary_rows.append(
-                {
-                    "label": None,
-                    "record_count": sum(row["record_count"] for row in omitted_rows),
-                    "label_count": sum(row["label_count"] for row in omitted_rows),
-                    "score_count": sum(row["score_count"] for row in omitted_rows),
-                    "score_sum": sum(row["score_sum"] or 0 for row in omitted_rows),
-                }
+        label_order = {
+            label: index for index, label in enumerate(selected_labels_by_name.get(name, []))
+        }
+        rows.sort(
+            key=lambda row: (
+                row["label"] is None,
+                label_order.get(row["label"], len(label_order)),
             )
-        for summary_row in summary_rows:
-            summary_row["avg_label_fraction"] = (
-                summary_row["label_count"] / annotation_label_count
-                if summary_row["label"] is not None and annotation_label_count
-                else None
-            )
-            # AnnotationSummary consumes one row per label and expects the
-            # evaluation-wide mean to be available on each of those rows.
-            summary_row["avg_score"] = mean_score
+        )
         summaries_by_timestamp.setdefault(timestamp, []).append(
-            AnnotationSummary(name=name, df=DataFrame(summary_rows))
+            AnnotationSummary(name=name, df=DataFrame(rows))
         )
 
     min_time = min([*summaries_by_timestamp, time_range.start])
