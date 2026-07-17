@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { createPhoenixHttp } from "../src/index.js";
+import { createHttp } from "../src/index.js";
 import { createMockServer, type Server } from "../src/node.js";
 
 const BASE_URL = "http://localhost:6006";
 
-const http = createPhoenixHttp();
+const http = createHttp();
 
 let server: Server;
 

@@ -24,12 +24,12 @@ Every operation in the Phoenix OpenAPI definition now responds with data generat
 
 ### Pin down specific responses, type-safely
 
-`createPhoenixHttp` returns an [`openapi-msw`](https://github.com/christoph-fricke/openapi-msw) `http` namespace bound to the Phoenix API's `paths`. Paths, path params, request bodies, and response bodies are all type-checked against the OpenAPI definition:
+`createHttp` returns an [`openapi-msw`](https://github.com/christoph-fricke/openapi-msw) `http` namespace bound to the Phoenix API's `paths`. Paths, path params, request bodies, and response bodies are all type-checked against the OpenAPI definition:
 
 ```ts
-import { createPhoenixHttp } from "@arizeai/phoenix-testing";
+import { createHttp } from "@arizeai/phoenix-testing";
 
-const http = createPhoenixHttp();
+const http = createHttp();
 
 server.use(
   http.get("/v1/datasets/{id}", ({ params, response }) =>
@@ -57,7 +57,7 @@ Handlers passed to `createMockServer({ handlers })` or registered with `server.u
 | `createMockServer({ baseUrl, handlers })` (`/node`) | MSW server for Node.js with generated handlers for every Phoenix endpoint.              |
 | `Server` (`/node`)                                  | The mock server type returned by `createMockServer`.                                    |
 | `createPhoenixOpenApiHandlers({ baseUrl })`         | The generated MSW request handlers, for composing into your own setup.                  |
-| `createPhoenixHttp({ baseUrl })`                    | Type-safe `http` namespace for writing custom Phoenix handler overrides.                |
+| `createHttp({ baseUrl })`                    | Type-safe `http` namespace for writing custom Phoenix handler overrides.                |
 | `getPhoenixOpenApiDocument({ baseUrl })`            | A copy of the workspace's Phoenix OpenAPI document with `servers` pointed at `baseUrl`. |
 | `DEFAULT_PHOENIX_MOCK_BASE_URL`                     | `"http://localhost:6006"` — the default base URL handlers are bound to.                 |
 | `pathsV1`, `componentsV1`, `operationsV1`           | OpenAPI types generated from the Phoenix API definition (via `openapi-typescript`).     |

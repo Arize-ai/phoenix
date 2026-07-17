@@ -12,7 +12,7 @@ export type Server = SetupServer;
  * the Phoenix OpenAPI definition.
  *
  * Handlers passed via `handlers` are registered before the generated ones,
- * so they take precedence — use them (together with `createPhoenixHttp`) to
+ * so they take precedence — use them (together with `createHttp`) to
  * pin down the exact responses a test cares about while every other endpoint
  * still answers with a spec-conformant placeholder.
  *

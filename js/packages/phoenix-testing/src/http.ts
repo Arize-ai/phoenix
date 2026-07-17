@@ -9,7 +9,7 @@ import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
  * bodies, and response bodies are all type-checked against the Phoenix API:
  *
  * ```ts
- * const http = createPhoenixHttp();
+ * const http = createHttp();
  * const handler = http.get("/v1/datasets/{id}", ({ params, response }) =>
  *   response(200).json({ data: { ... } })
  * );
@@ -18,7 +18,7 @@ import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
  * @param params - configuration
  * @param params.baseUrl - the Phoenix server base URL requests are sent to
  */
-export function createPhoenixHttp({
+export function createHttp({
   baseUrl = DEFAULT_PHOENIX_MOCK_BASE_URL,
 }: {
   baseUrl?: string;

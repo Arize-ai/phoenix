@@ -3,7 +3,7 @@ export {
   createPhoenixOpenApiHandlers,
   getPhoenixOpenApiDocument,
 } from "./openApi.js";
-export { createPhoenixHttp } from "./http.js";
+export { createHttp } from "./http.js";
 export type {
   paths as pathsV1,
   components as componentsV1,

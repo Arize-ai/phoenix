@@ -1,20 +1,12 @@
-import { createPhoenixHttp } from "@arizeai/phoenix-testing";
+import { createHttp } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { createClient } from "../../src";
 import { logSpans, SpanCreationError } from "../../src/spans/logSpans";
 import type { Span } from "../../src/spans/logSpans";
+import { createTestClient } from "../testUtils";
 
-const BASE_URL = "http://localhost:6006";
-const http = createPhoenixHttp();
-
-function createTestClient() {
-  return createClient({
-    getEnvironmentOptions: () => ({}),
-    options: { baseUrl: BASE_URL },
-  });
-}
+const http = createHttp();
 
 const testSpan: Span = {
   name: "test-span",
