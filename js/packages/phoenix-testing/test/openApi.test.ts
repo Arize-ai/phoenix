@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createOpenApiHandlers,
-  getOpenApiDocument,
-} from "../src/index.js";
+import { createOpenApiHandlers, getOpenApiDocument } from "../src/index.js";
 
 describe("getOpenApiDocument", () => {
   it("points the document's servers at the given base URL", () => {

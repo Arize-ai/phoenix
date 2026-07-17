@@ -1,8 +1,5 @@
 export { DEFAULT_MOCK_BASE_URL } from "./constants.js";
-export {
-  createOpenApiHandlers,
-  getOpenApiDocument,
-} from "./openApi.js";
+export { createOpenApiHandlers, getOpenApiDocument } from "./openApi.js";
 export { createHttp } from "./http.js";
 export type {
   paths as pathsV1,
