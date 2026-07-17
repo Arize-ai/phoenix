@@ -210,6 +210,19 @@ class SessionSummaryChunk(DataChunk):
     transient: Literal[True] = True
 
 
+class TranscriptPersistedData(_CamelBaseModel):
+    message_id: str
+
+
+@register_openapi_schema
+class TranscriptPersistedChunk(DataChunk):
+    """Confirms that a streamed assistant message is durable."""
+
+    type: Literal["data-transcript-persisted"] = "data-transcript-persisted"
+    data: TranscriptPersistedData
+    transient: Literal[True] = True
+
+
 def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext | None:
     """Return the newest user-message browser-clock stamp, if any."""
     for message in reversed(messages):
@@ -1299,16 +1312,26 @@ async def _persist_agent_session_turn(
         )
         assert next_position is not None
         if new_messages[0].role == "assistant":
-            await session.execute(
+            updated_message_rowid = await session.scalar(
                 update(models.AgentSessionMessage)
                 .where(
                     models.AgentSessionMessage.agent_session_id == agent_session_rowid,
                     models.AgentSessionMessage.position == next_position - 1,
+                    models.AgentSessionMessage.message_id == new_messages[0].id,
                 )
                 .values(
                     message=new_messages[0],
                 )
+                .returning(models.AgentSessionMessage.id)
             )
+            if updated_message_rowid is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "The submitted assistant message is no longer the session's "
+                        "latest transcript message; reload the conversation"
+                    ),
+                )
             new_messages = new_messages[1:]
         session.add_all(
             models.AgentSessionMessage(
@@ -1342,6 +1365,7 @@ async def _build_generated_assistant_message(
     *,
     message_chunks: Sequence[BaseChunk],
     session_id: str,
+    initial_message: PhoenixUIMessage | None = None,
 ) -> PhoenixUIMessage | None:
     """Assemble the generated assistant message from chunks sent to the client."""
     latest_assistant_message: UIMessage | None = None
@@ -1351,10 +1375,13 @@ async def _build_generated_assistant_message(
             yield chunk
 
     try:
-        async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_message_chunks()):
+        async for message in accumulate_ui_message_chunks_to_ui_messages(
+            _iter_message_chunks(),
+            initial_message=initial_message,
+        ):
             latest_assistant_message = message
         if latest_assistant_message is None:
-            return None
+            return initial_message.model_copy(deep=True) if initial_message is not None else None
         return PhoenixUIMessage.model_validate(
             latest_assistant_message.model_dump(mode="json", by_alias=True, exclude_none=True)
         )
@@ -1583,7 +1610,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             agent=agent,
             run_input=_to_pydantic_ai_request_data(body, messages=transcript_messages),
             accept=request.headers.get("accept"),
-            server_message_id=str(uuid4()),
+            server_message_id=(
+                body.message.id if body.message.role == "assistant" else str(uuid4())
+            ),
         )
         deps = AgentDependencies(
             contexts=resolved_contexts,
@@ -1656,6 +1685,46 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             stream_error: BaseException | None = None
             summary_task: asyncio.Task[str | None] | None = None
             emitted_message_chunks: list[BaseChunk] = []
+            has_persisted_turn = False
+
+            async def _persist_turn(
+                *,
+                require_generated_assistant: bool,
+            ) -> TranscriptPersistedChunk:
+                nonlocal has_persisted_turn
+                session_title = (
+                    summary_task.result()
+                    if summary_task is not None
+                    and summary_task.done()
+                    and not summary_task.cancelled()
+                    else None
+                )
+                generated_assistant_message = await _build_generated_assistant_message(
+                    message_chunks=emitted_message_chunks,
+                    session_id=otel_session_id,
+                    initial_message=(body.message if body.message.role == "assistant" else None),
+                )
+                if generated_assistant_message is None and require_generated_assistant:
+                    raise RuntimeError("Failed to assemble the streamed assistant message")
+                if body.message.role == "assistant":
+                    turn_messages = [generated_assistant_message or body.message]
+                else:
+                    turn_messages = [body.message]
+                    if generated_assistant_message is not None:
+                        turn_messages.append(generated_assistant_message)
+                await _persist_agent_session_turn(
+                    request.app.state.db,
+                    agent_session_rowid=agent_session_rowid,
+                    user_id=request_user_id,
+                    new_messages=turn_messages,
+                    bashkit_snapshot=captured_bash_snapshot,
+                    title=session_title,
+                )
+                has_persisted_turn = True
+                return TranscriptPersistedChunk(
+                    data=TranscriptPersistedData(message_id=turn_messages[-1].id)
+                )
+
             try:
                 if tracer is not None and body.turn_trace_context is not None:
                     _synthesize_client_tool_spans(
@@ -1734,36 +1803,22 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     async for message_chunk in message_chunk_stream:
                         emitted_message_chunks.append(message_chunk)
                         yield message_chunk
+                    yield await _persist_turn(require_generated_assistant=True)
             except BaseException as exc:
                 stream_error = exc
                 raise
             finally:
-                session_title: str | None = None
                 if summary_task is not None:
-                    if summary_task.done() and not summary_task.cancelled():
-                        session_title = summary_task.result()
-                    else:
+                    if not summary_task.done():
                         summary_task.cancel()
-                try:
-                    turn_messages = [body.message]
-                    if generated_assistant_message := await _build_generated_assistant_message(
-                        message_chunks=emitted_message_chunks,
-                        session_id=otel_session_id,
-                    ):
-                        turn_messages.append(generated_assistant_message)
-                    await _persist_agent_session_turn(
-                        request.app.state.db,
-                        agent_session_rowid=agent_session_rowid,
-                        user_id=request_user_id,
-                        new_messages=turn_messages,
-                        bashkit_snapshot=captured_bash_snapshot,
-                        title=session_title,
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist agent session %r",
-                        str(GlobalID("AgentSession", str(agent_session_rowid))),
-                    )
+                if not has_persisted_turn:
+                    try:
+                        await _persist_turn(require_generated_assistant=False)
+                    except Exception:
+                        logger.exception(
+                            "Failed to persist agent session %r",
+                            str(GlobalID("AgentSession", str(agent_session_rowid))),
+                        )
                 if tracer is not None:
                     if turn_is_terminal or stream_error is not None:
                         _emit_turn_root_span(

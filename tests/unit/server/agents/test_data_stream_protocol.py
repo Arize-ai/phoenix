@@ -54,6 +54,20 @@ async def _collect_messages(chunks: Sequence[BaseChunk]) -> list[UIMessage]:
     ]
 
 
+async def _collect_messages_with_initial(
+    chunks: Sequence[BaseChunk],
+    *,
+    initial_message: UIMessage,
+) -> list[UIMessage]:
+    return [
+        message
+        async for message in accumulate_ui_message_chunks_to_ui_messages(
+            _iter_chunks(chunks),
+            initial_message=initial_message,
+        )
+    ]
+
+
 class TestAccumulateUIMessageChunksToUIMessages:
     async def test_mints_a_unique_uuid_without_a_start_chunk(self) -> None:
         first = await _collect_messages([TextStartChunk(id="text-1")])
@@ -62,6 +76,35 @@ class TestAccumulateUIMessageChunksToUIMessages:
         assert UUID(first[-1].id).version == 4
         assert UUID(second[-1].id).version == 4
         assert first[-1].id != second[-1].id
+
+    async def test_extends_an_initial_assistant_message(self) -> None:
+        initial_message = UIMessage(
+            id="message-1",
+            role="assistant",
+            metadata={"initial": True},
+            parts=[TextUIPart(text="before", state="done")],
+        )
+
+        messages = await _collect_messages_with_initial(
+            [
+                StartChunk(message_id="message-1"),
+                StartStepChunk(),
+                TextStartChunk(id="text-2"),
+                TextDeltaChunk(id="text-2", delta="after"),
+                TextEndChunk(id="text-2"),
+                MessageMetadataChunk(message_metadata={"continued": True}),
+            ],
+            initial_message=initial_message,
+        )
+
+        final_message = messages[-1]
+        assert final_message.id == initial_message.id
+        assert final_message.metadata == {"initial": True, "continued": True}
+        assert final_message.parts[0] == initial_message.parts[0]
+        assert isinstance(final_message.parts[1], StepStartUIPart)
+        assert isinstance(final_message.parts[2], TextUIPart)
+        assert final_message.parts[2].text == "after"
+        assert initial_message.parts == [TextUIPart(text="before", state="done")]
 
     async def test_accumulates_text_reasoning_metadata_and_step_boundaries(self) -> None:
         messages = await _collect_messages(

@@ -18315,6 +18315,57 @@
         ],
         "title": "ToolCallProviderMetadata",
         "type": "object"
+      },
+      "TranscriptPersistedChunk": {
+        "additionalProperties": false,
+        "description": "Confirms that a streamed assistant message is durable.",
+        "properties": {
+          "type": {
+            "const": "data-transcript-persisted",
+            "default": "data-transcript-persisted",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TranscriptPersistedData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "TranscriptPersistedChunk",
+        "type": "object"
+      },
+      "TranscriptPersistedData": {
+        "properties": {
+          "messageId": {
+            "title": "Messageid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "messageId"
+        ],
+        "title": "TranscriptPersistedData",
+        "type": "object"
       }
     }
   }

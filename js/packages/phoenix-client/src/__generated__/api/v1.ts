@@ -5870,6 +5870,35 @@ export interface components {
              */
             toolInputEmittedAt?: string | null;
         };
+        /**
+         * TranscriptPersistedChunk
+         * @description Confirms that a streamed assistant message is durable.
+         */
+        TranscriptPersistedChunk: {
+            /**
+             * Type
+             * @default data-transcript-persisted
+             * @constant
+             */
+            type?: "data-transcript-persisted";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["TranscriptPersistedData"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /** TranscriptPersistedData */
+        TranscriptPersistedData: {
+            /** Messageid */
+            messageId: string;
+        };
     };
     responses: never;
     parameters: never;

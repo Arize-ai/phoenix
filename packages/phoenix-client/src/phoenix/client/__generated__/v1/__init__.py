@@ -1098,6 +1098,10 @@ class ToolCallProviderMetadata(TypedDict):
     toolInputEmittedAt: NotRequired[str]
 
 
+class TranscriptPersistedData(TypedDict):
+    messageId: str
+
+
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
     data: DatasetLabel
 
@@ -1620,6 +1624,13 @@ class UpdateAnnotationConfigResponseBody(TypedDict):
 
 class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
+
+
+class TranscriptPersistedChunk(TypedDict):
+    type: Literal["data-transcript-persisted"]
+    data: TranscriptPersistedData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):

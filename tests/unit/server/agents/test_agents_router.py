@@ -41,7 +41,13 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
-from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TurnTraceContext, UIMessage
+from phoenix.db.types.data_stream_protocol import (
+    PhoenixUIMessage,
+    TextUIPart,
+    ToolOutputAvailablePart,
+    TurnTraceContext,
+    UIMessage,
+)
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
@@ -218,6 +224,28 @@ def _scripted_model(
     return FunctionModel(function=function, stream_function=stream_function)
 
 
+def _client_tool_model() -> FunctionModel:
+    """Request one client tool, then finish after its result is submitted."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        has_tool_result = any(
+            isinstance(part, ToolReturnPart) and part.tool_name == "list_datasets"
+            for part in messages[-1].parts
+        )
+        if has_tool_result:
+            yield "done"
+        else:
+            yield {1: DeltaToolCall(name="list_datasets", json_args="{}")}
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[])
+
+    return FunctionModel(function=function, stream_function=stream_function)
+
+
 def _mock_turn_models(monkeypatch: pytest.MonkeyPatch, *turn_models: FunctionModel) -> None:
     """Serve one scripted model per chat turn, in order."""
     remaining_models = iter(turn_models)
@@ -254,6 +282,17 @@ async def test_chat_turn_persists_session_transcript(
     # A new session's first turn streams the LLM session title as a transient
     # data chunk (TestModel fills the summary tool with generated args: "a").
     assert "data-session-summary" in response.text
+    start_chunks = [chunk for chunk in chunks if chunk.get("type") == "start"]
+    assert len(start_chunks) == 1
+    assert UUID(start_chunks[0]["messageId"]).version == 4
+    persistence_chunks = [
+        chunk for chunk in chunks if chunk.get("type") == "data-transcript-persisted"
+    ]
+    assert len(persistence_chunks) == 1
+    assert persistence_chunks[0]["data"]["messageId"] == start_chunks[0]["messageId"]
+    finish_index = next(index for index, chunk in enumerate(chunks) if chunk["type"] == "finish")
+    persistence_index = chunks.index(persistence_chunks[0])
+    assert persistence_index > finish_index
 
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
@@ -338,6 +377,80 @@ async def test_chat_turn_persists_session_transcript(
     assert user_message_ids == ["msg-user-1", "msg-user-2"]
     assert len(second_turn_messages) > len(messages)
     assert second_turn_message_rowids[: len(message_rowids)] == message_rowids
+
+
+async def test_client_tool_continuation_extends_the_persisted_assistant_message(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = "45454545-4545-4454-8454-454545454545"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Already titled",
+    )
+    model = _client_tool_model()
+    _mock_turn_models(monkeypatch, model, model)
+
+    first_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("list my datasets")),
+    )
+    assert first_response.status_code == 200
+    first_chunks = _stream_chunks(first_response.text)
+    first_start = next(chunk for chunk in first_chunks if chunk["type"] == "start")
+    assistant_message_id = first_start["messageId"]
+
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assert len(stored_messages) == 2
+    resolved_assistant_message = stored_messages[-1]
+    assert resolved_assistant_message["id"] == assistant_message_id
+    tool_part = next(
+        part for part in resolved_assistant_message["parts"] if part["type"] == "tool-list_datasets"
+    )
+    tool_part["state"] = "output-available"
+    tool_part["output"] = {"datasets": []}
+
+    continuation_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, resolved_assistant_message),
+    )
+    assert continuation_response.status_code == 200
+    continuation_chunks = _stream_chunks(continuation_response.text)
+    continuation_start = next(chunk for chunk in continuation_chunks if chunk["type"] == "start")
+    assert continuation_start["messageId"] == assistant_message_id
+    continuation_acknowledgement = next(
+        chunk for chunk in continuation_chunks if chunk["type"] == "data-transcript-persisted"
+    )
+    assert continuation_acknowledgement["data"]["messageId"] == assistant_message_id
+
+    async with db() as session:
+        stored_rows = (
+            await session.scalars(
+                select(models.AgentSessionMessage)
+                .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+                .order_by(models.AgentSessionMessage.position)
+            )
+        ).all()
+    assert len(stored_rows) == 2
+    persisted_assistant = stored_rows[-1]
+    assert persisted_assistant.message_id == assistant_message_id
+    assert persisted_assistant.message.id == assistant_message_id
+    persisted_tool_part = next(
+        part
+        for part in persisted_assistant.message.parts
+        if getattr(part, "tool_call_id", None) == tool_part["toolCallId"]
+    )
+    assert isinstance(persisted_tool_part, ToolOutputAvailablePart)
+    assert persisted_tool_part.output == {"datasets": []}
+    assert any(
+        isinstance(part, TextUIPart) and part.text == "done"
+        for part in persisted_assistant.message.parts
+    )
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:

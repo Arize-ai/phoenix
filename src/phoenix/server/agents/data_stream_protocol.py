@@ -82,12 +82,24 @@ _TOOL_PART_TYPES = (*_STATIC_TOOL_PART_TYPES, *_DYNAMIC_TOOL_PART_TYPES)
 
 async def accumulate_ui_message_chunks_to_ui_messages(
     chunks: AsyncIterator[BaseChunk],
+    *,
+    initial_message: UIMessage | None = None,
 ) -> AsyncIterator[UIMessage]:
     """Accumulate Vercel UI message stream chunks into progressive messages."""
-    message = UIMessage(id=str(uuid4()), role="assistant", parts=[])
+    message = (
+        UIMessage.model_validate(
+            initial_message.model_dump(mode="json", by_alias=True, exclude_none=True)
+        )
+        if initial_message is not None
+        else UIMessage(id=str(uuid4()), role="assistant", parts=[])
+    )
     text_part_indices_by_id: dict[str, int] = {}
     reasoning_part_indices_by_id: dict[str, int] = {}
-    tool_part_indices_by_call_id: dict[str, int] = {}
+    tool_part_indices_by_call_id = {
+        part.tool_call_id: index
+        for index, part in enumerate(message.parts)
+        if isinstance(part, _TOOL_PART_TYPES)
+    }
     tool_input_text_by_call_id: dict[str, str] = {}
 
     async for chunk in chunks:

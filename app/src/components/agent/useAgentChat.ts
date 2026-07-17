@@ -27,6 +27,7 @@ import {
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
+import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import { createTurnTraceContextManager } from "@phoenix/agent/chat/turnTraceContext";
 import {
@@ -226,6 +227,7 @@ export function useAgentChat({
       const chatApiUrl = buildAgentChatApiUrl(targetSessionId);
       const turnTraceContext = createTurnTraceContextManager();
       const toolTimings = createClientToolTimingRecorder();
+      const transcriptPersistence = createTranscriptPersistenceCoordinator();
       const turnCompletionGate = createTurnCompletionGate({
         endTurn: async () => {
           store.getState().setSessionResponsePending(targetSessionId, false);
@@ -310,11 +312,26 @@ export function useAgentChat({
             commitLocalUpdate(relayEnvironment, (relayStore) => {
               relayStore.get(targetSessionId)?.setValue(dataPart.data, "title");
             });
+          } else if (dataPart.type === "data-transcript-persisted") {
+            transcriptPersistence.acknowledge(dataPart.data);
           }
         },
-        sendAutomaticallyWhen: ({ messages }) =>
-          turnCompletionGate.handleSendAutomaticallyWhen({ messages }),
+        sendAutomaticallyWhen: async ({ messages }) => {
+          const shouldSendAutomatically =
+            await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
+          if (!shouldSendAutomatically) {
+            return false;
+          }
+          const assistantMessage = messages.at(-1);
+          if (assistantMessage?.role !== "assistant") {
+            return false;
+          }
+          return transcriptPersistence.waitForMessage({
+            messageId: assistantMessage.id,
+          });
+        },
         onError: (error) => {
+          transcriptPersistence.cancelPendingWaiters();
           turnCompletionGate.fail(error);
         },
         onFinish: ({ messages: finalMessages, message }) => {
