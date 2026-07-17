@@ -37,6 +37,8 @@ const buttonWrapperCSS = css`
 
 const detachedButtonCSS = css`
   position: fixed;
+  /* Mirror topNavCSS's padding tokens in components/nav/Navbar.tsx so the
+     detached button stays exactly where the in-flow button was. */
   top: var(--global-dimension-static-size-100);
   right: var(--global-dimension-static-size-200);
   z-index: ${NON_MODAL_FLOATING_Z_INDEX};
@@ -143,11 +145,23 @@ export function AgentChatTopNavButton() {
       }
       const didCloseDetachedPanel =
         previousState.isOpen && !state.isOpen && state.position === "detached";
+      // While a response is pending the button shows the thinking treatment,
+      // whose infinite animations override the flash animations in CSS — the
+      // flash would never play and never fire animationend, leaving it armed
+      // until the response settles. The thinking treatment already marks the
+      // button, so skip arming. The reverse race (a response becoming pending
+      // while armed) cannot occur: sends require the open panel, and opening
+      // disarms here.
+      const isActiveResponsePending =
+        state.activeSessionId != null &&
+        (state.isResponsePendingBySessionId[state.activeSessionId] ?? false);
       const prefersReducedMotion =
         typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       setShouldFlashOnReturnHome(
-        didCloseDetachedPanel && !prefersReducedMotion
+        didCloseDetachedPanel &&
+          !isActiveResponsePending &&
+          !prefersReducedMotion
       );
     });
   }, [agentStore]);
@@ -186,7 +200,7 @@ export function AgentChatTopNavButton() {
           aria-expanded={isOpen}
           isThinking={isResponsePending}
           shouldFlash={shouldFlashOnReturnHome}
-          onAnimationEnd={() => setShouldFlashOnReturnHome(false)}
+          onFlashEnd={() => setShouldFlashOnReturnHome(false)}
           onPress={() => toggleOpen()}
         />
         <AgentChatWidgetTooltip />

@@ -12,8 +12,20 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import type { AgentPosition, AgentStore } from "@phoenix/store/agentStore";
 
 import { AgentChatTopNavButton } from "../AgentChatTopNavButton";
+import { pxiGlowWipe } from "../pxiStyles";
 
 installTestStorage();
+
+function dispatchAnimationEnd(element: Element, animationName: string) {
+  // React registers its animationend listener under a vendor-prefixed name
+  // when the environment lacks AnimationEvent (as jsdom does); dispatch both
+  // spellings so the test survives either registration.
+  for (const type of ["animationend", "webkitAnimationEnd"]) {
+    const event = new Event(type, { bubbles: true });
+    Object.assign(event, { animationName });
+    element.dispatchEvent(event);
+  }
+}
 
 let agentStore: AgentStore | null = null;
 
@@ -120,6 +132,51 @@ describe("AgentChatTopNavButton", () => {
     const returnedButton =
       container.querySelector<HTMLButtonElement>("button.pxi-button");
     expect(returnedButton?.hasAttribute("data-pxi-should-flash")).toBe(false);
+  });
+
+  it("does not arm the flash when the detached assistant closes while a response is pending", () => {
+    renderButton({ position: "detached" });
+
+    act(() => {
+      const sessionId = agentStore?.getState().createSession();
+      if (sessionId) {
+        agentStore?.getState().setSessionResponsePending(sessionId, true);
+      }
+    });
+    act(() => agentStore?.getState().setIsOpen(true));
+    act(() => agentStore?.getState().setIsOpen(false));
+
+    const returnedButton =
+      container.querySelector<HTMLButtonElement>("button.pxi-button");
+    expect(returnedButton?.hasAttribute("data-pxi-should-flash")).toBe(false);
+    expect(returnedButton?.getAttribute("data-pxi-is-thinking")).toBe("true");
+  });
+
+  it("clears the flash only when the glow wipe animation ends", () => {
+    renderButton({ position: "detached" });
+
+    act(() => agentStore?.getState().setIsOpen(true));
+    act(() => agentStore?.getState().setIsOpen(false));
+
+    const button =
+      container.querySelector<HTMLButtonElement>("button.pxi-button");
+    expect(button?.getAttribute("data-pxi-should-flash")).toBe("true");
+
+    // animationend events from the button's other treatments bubble through
+    // the same handler and must not cut the flash short.
+    act(() => {
+      if (button) {
+        dispatchAnimationEnd(button, "some-other-animation");
+      }
+    });
+    expect(button?.getAttribute("data-pxi-should-flash")).toBe("true");
+
+    act(() => {
+      if (button) {
+        dispatchAnimationEnd(button, pxiGlowWipe.name);
+      }
+    });
+    expect(button?.hasAttribute("data-pxi-should-flash")).toBe(false);
   });
 
   it("does not arm the flash when reduced motion is preferred", () => {

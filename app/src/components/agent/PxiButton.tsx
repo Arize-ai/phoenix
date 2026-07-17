@@ -32,8 +32,14 @@ export interface PxiButtonProps extends Omit<
   isIconOnly?: boolean;
   /** Shows the continuous PXI thinking treatment and working label. */
   isThinking?: boolean;
-  /** Runs the PXI attention glow once when it changes from false to true. */
+  /**
+   * Runs the PXI attention glow once when it changes from false to true. The
+   * attribute does not self-reset: the owner must clear it via `onFlashEnd`
+   * before a later flash can retrigger.
+   */
   shouldFlash?: boolean;
+  /** Called when the attention glow finishes so the owner can reset `shouldFlash`. */
+  onFlashEnd?: () => void;
   size?: PxiButtonSize;
   variant?: PxiButtonVariant;
   ref?: Ref<HTMLButtonElement>;
@@ -182,6 +188,7 @@ export function PxiButton({
   isIconOnly = false,
   isThinking = false,
   shouldFlash = false,
+  onFlashEnd,
   size = "M",
   variant = "default",
   ...buttonProps
@@ -192,6 +199,14 @@ export function PxiButton({
   return (
     <Button
       {...buttonProps}
+      onAnimationEnd={(event) => {
+        buttonProps.onAnimationEnd?.(event);
+        // animationend events from the button's other treatments (glyph,
+        // conic band) bubble here too; only the glow wipe ends the flash.
+        if (event.animationName === pxiGlowWipe.name) {
+          onFlashEnd?.();
+        }
+      }}
       ref={ref}
       className={classNames("pxi-button", className)}
       size={size}
