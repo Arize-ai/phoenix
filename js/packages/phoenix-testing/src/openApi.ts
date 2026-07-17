@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { fromOpenApi } from "@mswjs/source/open-api";
 import type { RequestHandler } from "msw";
 
-import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
+import { DEFAULT_MOCK_BASE_URL } from "./constants.js";
 
 // This is an internal workspace package, so the repository schema is available
 // both when Vitest loads src/ and when Node loads dist/ after `pnpm -r build`.
-const phoenixOpenApiDocument = JSON.parse(
+const openApiDocument = JSON.parse(
   readFileSync(
     new URL("../../../../schemas/openapi.json", import.meta.url),
     "utf8"
@@ -21,13 +21,13 @@ const phoenixOpenApiDocument = JSON.parse(
  * @param params - configuration
  * @param params.baseUrl - the Phoenix server base URL requests are sent to
  */
-export function getPhoenixOpenApiDocument({
-  baseUrl = DEFAULT_PHOENIX_MOCK_BASE_URL,
+export function getOpenApiDocument({
+  baseUrl = DEFAULT_MOCK_BASE_URL,
 }: {
   baseUrl?: string;
 } = {}): Record<string, unknown> {
   return {
-    ...phoenixOpenApiDocument,
+    ...openApiDocument,
     servers: [{ url: baseUrl }],
   };
 }
@@ -40,19 +40,19 @@ export function getPhoenixOpenApiDocument({
  * mocks take precedence:
  *
  * ```ts
- * const handlers = await createPhoenixOpenApiHandlers();
+ * const handlers = await createOpenApiHandlers();
  * setupServer(...customHandlers, ...handlers);
  * ```
  *
  * @param params - configuration
  * @param params.baseUrl - the Phoenix server base URL requests are sent to
  */
-export async function createPhoenixOpenApiHandlers({
-  baseUrl = DEFAULT_PHOENIX_MOCK_BASE_URL,
+export async function createOpenApiHandlers({
+  baseUrl = DEFAULT_MOCK_BASE_URL,
 }: {
   baseUrl?: string;
 } = {}): Promise<RequestHandler[]> {
-  const document = getPhoenixOpenApiDocument({ baseUrl });
+  const document = getOpenApiDocument({ baseUrl });
   // The document is a runtime-validated JSON value; fromOpenApi's parameter
   // type is the openapi-types Document union, which structural typing of a
   // Record<string, unknown> cannot satisfy without a cast.

@@ -1,8 +1,8 @@
 import type { RequestHandler } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
 
-import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
-import { createPhoenixOpenApiHandlers } from "./openApi.js";
+import { DEFAULT_MOCK_BASE_URL } from "./constants.js";
+import { createOpenApiHandlers } from "./openApi.js";
 
 export type Server = SetupServer;
 
@@ -28,13 +28,13 @@ export type Server = SetupServer;
  * @param params.handlers - custom handlers that take precedence over the generated ones
  */
 export async function createMockServer({
-  baseUrl = DEFAULT_PHOENIX_MOCK_BASE_URL,
+  baseUrl = DEFAULT_MOCK_BASE_URL,
   handlers = [],
 }: {
   baseUrl?: string;
   handlers?: RequestHandler[];
 } = {}): Promise<Server> {
-  const openApiHandlers = await createPhoenixOpenApiHandlers({ baseUrl });
+  const openApiHandlers = await createOpenApiHandlers({ baseUrl });
   return setupServer(...handlers, ...openApiHandlers);
 }
 

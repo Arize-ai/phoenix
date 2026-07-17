@@ -5,4 +5,4 @@ import { DEFAULT_PHOENIX_BASE_URL } from "@arizeai/phoenix-config";
  * matches the default base URL of `@arizeai/phoenix-client`, so tests that
  * point the client at a local Phoenix server work without extra wiring.
  */
-export const DEFAULT_PHOENIX_MOCK_BASE_URL = DEFAULT_PHOENIX_BASE_URL;
+export const DEFAULT_MOCK_BASE_URL = DEFAULT_PHOENIX_BASE_URL;

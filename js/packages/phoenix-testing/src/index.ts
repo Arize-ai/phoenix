@@ -1,7 +1,7 @@
-export { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
+export { DEFAULT_MOCK_BASE_URL } from "./constants.js";
 export {
-  createPhoenixOpenApiHandlers,
-  getPhoenixOpenApiDocument,
+  createOpenApiHandlers,
+  getOpenApiDocument,
 } from "./openApi.js";
 export { createHttp } from "./http.js";
 export type {

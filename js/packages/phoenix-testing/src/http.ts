@@ -1,7 +1,7 @@
 import { createOpenApiHttp } from "openapi-msw";
 
 import type { paths } from "./__generated__/api/v1.js";
-import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
+import { DEFAULT_MOCK_BASE_URL } from "./constants.js";
 
 /**
  * Create a type-safe MSW `http` namespace bound to the Phoenix OpenAPI paths.
@@ -19,7 +19,7 @@ import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "./constants.js";
  * @param params.baseUrl - the Phoenix server base URL requests are sent to
  */
 export function createHttp({
-  baseUrl = DEFAULT_PHOENIX_MOCK_BASE_URL,
+  baseUrl = DEFAULT_MOCK_BASE_URL,
 }: {
   baseUrl?: string;
 } = {}) {

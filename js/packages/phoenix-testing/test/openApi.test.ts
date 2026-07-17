@@ -1,29 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  createPhoenixOpenApiHandlers,
-  getPhoenixOpenApiDocument,
+  createOpenApiHandlers,
+  getOpenApiDocument,
 } from "../src/index.js";
 
-describe("getPhoenixOpenApiDocument", () => {
+describe("getOpenApiDocument", () => {
   it("points the document's servers at the given base URL", () => {
-    const document = getPhoenixOpenApiDocument({
+    const document = getOpenApiDocument({
       baseUrl: "https://phoenix.example.com",
     });
     expect(document.servers).toEqual([{ url: "https://phoenix.example.com" }]);
   });
 
   it("returns a copy so callers cannot mutate the workspace document", () => {
-    const first = getPhoenixOpenApiDocument();
-    const second = getPhoenixOpenApiDocument();
+    const first = getOpenApiDocument();
+    const second = getOpenApiDocument();
     expect(first).not.toBe(second);
   });
 });
 
-describe("createPhoenixOpenApiHandlers", () => {
+describe("createOpenApiHandlers", () => {
   it("creates a handler for every operation in the OpenAPI definition", async () => {
-    const handlers = await createPhoenixOpenApiHandlers();
-    const document = getPhoenixOpenApiDocument();
+    const handlers = await createOpenApiHandlers();
+    const document = getOpenApiDocument();
     const paths = document.paths as Record<string, Record<string, unknown>>;
     const operationCount = Object.values(paths)
       .map((operations) => Object.keys(operations).length)

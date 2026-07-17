@@ -1,4 +1,4 @@
-import { DEFAULT_PHOENIX_MOCK_BASE_URL } from "@arizeai/phoenix-testing";
+import { DEFAULT_MOCK_BASE_URL } from "@arizeai/phoenix-testing";
 
 import { createClient } from "../src";
 
@@ -11,7 +11,7 @@ import { createClient } from "../src";
  * the mock server's base URL)
  */
 export function createTestClient({
-  baseUrl = DEFAULT_PHOENIX_MOCK_BASE_URL,
+  baseUrl = DEFAULT_MOCK_BASE_URL,
 }: {
   baseUrl?: string;
 } = {}) {
