@@ -13,7 +13,7 @@ Feedback is very welcome — please [open a GitHub issue](https://github.com/Ari
 </Warning>
 
 <Note>
-If you're working with a coding agent, the [Phoenix CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) (`px`) is the better default for repeatable, scriptable work — fetching traces, inspecting experiments, and managing datasets and prompts from the terminal. Use the MCP server for ad-hoc lookups and exploration in conversation. See [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) for setting up both.
+For most workflows, the [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) is the recommended interface and is the better default for coding agents (e.g., Claude Code, Codex, Cursor), covering fetching traces, debugging failures, inspecting experiments, and managing datasets and prompts. Use the MCP tools below for ad-hoc data access from your IDE. See [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) for setting up both.
 </Note>
 
 ## Endpoint
@@ -191,6 +191,8 @@ Both variables are set on the Phoenix server before startup:
 | --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `PHOENIX_ENABLE_MCP_SERVER` | `true`  | Master switch. Set to `false` to remove the `/mcp` endpoint entirely.                                                               |
 | `PHOENIX_MCP_CODE_MODE`     | `true`  | Set to `false` to disable code execution (the `execute` tool and the Monty sandbox) and expose plain, group-gated tools instead.    |
+
+The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls — a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
 
 ## Security notes
 
