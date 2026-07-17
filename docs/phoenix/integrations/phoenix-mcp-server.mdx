@@ -3,10 +3,13 @@ title: "MCP Servers"
 description: Connect AI assistants to Phoenix documentation and platform capabilities via the Model Context Protocol (MCP).
 ---
 
-Phoenix provides two MCP servers for AI assistants:
+Phoenix provides three MCP servers for AI assistants:
 
+- **[Remote MCP Server](/docs/phoenix/integrations/remote-mcp)** (beta) - Built into the Phoenix server at `<your-phoenix-url>/mcp` with no local install — the primary way to connect AI assistants to Phoenix going forward
 - **Phoenix Docs MCP** - Search Phoenix documentation in real-time
-- **Phoenix MCP Server** - Work directly with Phoenix projects, traces, sessions, prompts, datasets, experiments, and annotations
+- **Phoenix MCP Server** - Work directly with Phoenix projects, traces, sessions, prompts, datasets, experiments, and annotations via the `@arizeai/phoenix-mcp` npm package, now in maintenance mode
+
+This page covers the latter two; see the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) guide for the built-in server.
 
 ---
 
@@ -58,6 +61,10 @@ Add the following to your MCP settings configuration file:
 ---
 
 ## Phoenix MCP Server
+
+<Warning>
+**Maintenance mode.** `@arizeai/phoenix-mcp` continues to receive bug fixes, but new capabilities land in the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) built into the Phoenix server. Use this package when your Phoenix version doesn't serve the `/mcp` endpoint.
+</Warning>
 
 The Phoenix MCP Server (`@arizeai/phoenix-mcp`) connects AI assistants directly to your Phoenix instance for managing:
 
