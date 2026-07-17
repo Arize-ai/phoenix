@@ -8,6 +8,7 @@ import {
   PxiAnimatedGlyph,
   type PxiAnimatedGlyphSize,
 } from "./PxiAnimatedGlyph";
+import { PxiGlyph } from "./PxiGlyph";
 import {
   pxiConicBandCSS,
   pxiConicSpin,
@@ -15,6 +16,7 @@ import {
   pxiGlowFlashOpacity,
   pxiGlowWipe,
   pxiGlowWipeMaskCSS,
+  pxiThinkingGlowWipe,
 } from "./pxiStyles";
 
 export type PxiButtonSize = PxiAnimatedGlyphSize;
@@ -28,6 +30,8 @@ export interface PxiButtonProps extends Omit<
   label?: string;
   /** Collapses the button to a square icon button. */
   isIconOnly?: boolean;
+  /** Shows the continuous PXI thinking treatment and working label. */
+  isThinking?: boolean;
   /** Runs the PXI attention glow once when it changes from false to true. */
   shouldFlash?: boolean;
   size?: PxiButtonSize;
@@ -119,6 +123,40 @@ const pxiButtonCSS = css`
     }
   }
 
+  &[data-pxi-is-thinking="true"] {
+    background-color: var(--pxi-button-background-color-hover);
+
+    &::before {
+      opacity: 1;
+    }
+
+    .pxi-button__glow {
+      opacity: 1;
+      -webkit-mask-position: center;
+      mask-position: center;
+      animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
+    }
+
+    .pxi-button__glow::before {
+      opacity: 1;
+      animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+        infinite;
+    }
+
+    .pxi-button__thinking-glyph {
+      color: color-mix(
+        in srgb,
+        var(--pxi-treatment-color-middle) 78%,
+        var(--pxi-treatment-color-end)
+      );
+    }
+
+    .pxi-button__label {
+      color: var(--global-text-color-500);
+      font-style: italic;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     &::before {
       animation-play-state: paused;
@@ -126,6 +164,11 @@ const pxiButtonCSS = css`
 
     .pxi-button__glow,
     .pxi-button__glow::before {
+      animation: none !important;
+    }
+
+    .pxi-button__thinking-glyph > span {
+      opacity: 0.65;
       animation: none !important;
     }
   }
@@ -137,12 +180,15 @@ export function PxiButton({
   css: propCSS,
   label = "Solve with PXI",
   isIconOnly = false,
+  isThinking = false,
   shouldFlash = false,
   size = "M",
   variant = "default",
   ...buttonProps
 }: PxiButtonProps) {
   const isButtonIconOnly = isIconOnly;
+  const buttonLabel = isThinking ? "Working..." : label;
+  const thinkingGlyphSize = size === "S" ? 11 : 13;
   return (
     <Button
       {...buttonProps}
@@ -150,17 +196,28 @@ export function PxiButton({
       className={classNames("pxi-button", className)}
       size={size}
       variant={variant}
-      aria-label={isButtonIconOnly ? label : buttonProps["aria-label"]}
+      aria-label={isButtonIconOnly ? buttonLabel : buttonProps["aria-label"]}
+      data-pxi-is-thinking={isThinking ? "true" : undefined}
       data-pxi-should-flash={shouldFlash ? "true" : undefined}
       css={css(pxiButtonCSS, propCSS)}
       leadingVisual={
         <>
           <span className="pxi-button__glow" aria-hidden="true" />
-          <PxiAnimatedGlyph size={size} />
+          {isThinking ? (
+            <PxiGlyph
+              className="pxi-button__thinking-glyph"
+              animation="wave-reveal"
+              size={thinkingGlyphSize}
+            />
+          ) : (
+            <PxiAnimatedGlyph size={size} />
+          )}
         </>
       }
     >
-      {isButtonIconOnly ? undefined : label}
+      {isButtonIconOnly ? undefined : (
+        <span className="pxi-button__label">{buttonLabel}</span>
+      )}
     </Button>
   );
 }

@@ -368,6 +368,9 @@ export interface AgentState extends AgentProps {
   ) => void;
   chatStatusBySessionId: Record<string, ChatStatus>;
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
+  /** Whether a logical PXI turn is still awaiting its terminal response. */
+  isResponsePendingBySessionId: Record<string, boolean>;
+  setSessionResponsePending: (sessionId: string, isPending: boolean) => void;
 
   /**
    * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
@@ -633,6 +636,7 @@ function buildSessionRetentionPatch({
   | "sessionMap"
   | "pendingElicitationBySessionId"
   | "chatStatusBySessionId"
+  | "isResponsePendingBySessionId"
   | "draftInputBySessionId"
   | "pendingMessageBySessionId"
   | "pendingPatchExperimentsByToolCallId"
@@ -651,6 +655,10 @@ function buildSessionRetentionPatch({
     }),
     chatStatusBySessionId: pruneSessionScopedRecord({
       record: state.chatStatusBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+    isResponsePendingBySessionId: pruneSessionScopedRecord({
+      record: state.isResponsePendingBySessionId,
       retainedSessionIds: retainedSessionIdSet,
     }),
     draftInputBySessionId: pruneSessionScopedRecord({
@@ -847,6 +855,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           delete newPendingElicitationBySessionId[sessionId];
           const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
           delete newChatStatusBySessionId[sessionId];
+          const newIsResponsePendingBySessionId = {
+            ...state.isResponsePendingBySessionId,
+          };
+          delete newIsResponsePendingBySessionId[sessionId];
           const newDraftInputBySessionId = { ...state.draftInputBySessionId };
           delete newDraftInputBySessionId[sessionId];
           const newPendingMessageBySessionId = {
@@ -869,6 +881,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             activeSessionId: newActiveSessionId,
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
+            isResponsePendingBySessionId: newIsResponsePendingBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
             pendingPatchExperimentsByToolCallId:
@@ -1025,6 +1038,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           sessionMap: {},
           pendingElicitationBySessionId: {},
           chatStatusBySessionId: {},
+          isResponsePendingBySessionId: {},
           draftInputBySessionId: {},
           pendingMessageBySessionId: {},
           pendingPatchExperimentsByToolCallId: {},
@@ -1137,6 +1151,19 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setSessionChatStatus" }
+      );
+    },
+    isResponsePendingBySessionId: {},
+    setSessionResponsePending: (sessionId, isPending) => {
+      set(
+        (state) => ({
+          isResponsePendingBySessionId: {
+            ...state.isResponsePendingBySessionId,
+            [sessionId]: isPending,
+          },
+        }),
+        false,
+        { type: "setSessionResponsePending" }
       );
     },
 

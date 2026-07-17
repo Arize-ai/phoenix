@@ -13,7 +13,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "PXI-specific action composed from Phoenix's core Button. It supports the default and quiet variants at small and medium sizes.",
+          "PXI-specific action composed from Phoenix's core Button. It supports default and quiet variants, attention flashes, and a continuous thinking state.",
       },
     },
   },
@@ -77,6 +77,15 @@ export const SizesAndVariants: Story = {
 export const Disabled: Story = {
   args: {
     isDisabled: true,
+  },
+};
+
+export const Thinking: Story = {
+  args: {
+    label: "Ask PXI",
+    isThinking: true,
+    size: "S",
+    variant: "quiet",
   },
 };
 

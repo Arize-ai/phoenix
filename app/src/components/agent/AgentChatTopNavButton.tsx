@@ -130,9 +130,9 @@ export function AgentChatTopNavButton() {
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const [shouldFlashOnReturnHome, setShouldFlashOnReturnHome] = useState(false);
-  const isStreaming = useAgentContext((state) =>
+  const isResponsePending = useAgentContext((state) =>
     activeSessionId
-      ? state.chatStatusBySessionId[activeSessionId] === "streaming"
+      ? (state.isResponsePendingBySessionId[activeSessionId] ?? false)
       : false
   );
   const drawer = useActiveDrawerElement();
@@ -180,7 +180,8 @@ export function AgentChatTopNavButton() {
           size="S"
           variant="quiet"
           aria-expanded={isOpen}
-          shouldFlash={isStreaming || shouldFlashOnReturnHome}
+          isThinking={isResponsePending}
+          shouldFlash={shouldFlashOnReturnHome}
           onAnimationEnd={() => setShouldFlashOnReturnHome(false)}
           onPress={() => toggleOpen()}
         />

@@ -27,22 +27,11 @@ import {
   pxiGlowFlashOpacity,
   pxiGlowWipe,
   pxiGlowWipeMaskCSS,
+  pxiThinkingGlowWipe,
 } from "./pxiStyles";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
 export const OPEN_AGENT_HOTKEY = "mod+i";
-
-const thinkingBorderWipe = keyframes`
-  0% {
-    -webkit-mask-position: 170% center;
-    mask-position: 170% center;
-  }
-
-  100% {
-    -webkit-mask-position: -70% center;
-    mask-position: -70% center;
-  }
-`;
 
 const glyphBreathe = keyframes`
   0%, 100% {
@@ -166,7 +155,7 @@ const thinkingBorderCSS = css`
     -webkit-mask-position: center;
     mask-position: center;
     /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
-    animation: ${thinkingBorderWipe} 3600ms linear infinite both -0.5s;
+    animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
   }
 
   .agent-chat-widget__shimmer::before {
@@ -384,9 +373,9 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const hasOpenModal = activeModalPortalContainer !== null;
-  const isStreaming = useAgentContext((state) =>
+  const isResponsePending = useAgentContext((state) =>
     activeSessionId
-      ? state.chatStatusBySessionId[activeSessionId] === "streaming"
+      ? (state.isResponsePendingBySessionId[activeSessionId] ?? false)
       : false
   );
 
@@ -421,7 +410,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
       isHidden={isOpen}
       layer={hasOpenModal ? "modal" : "content"}
       placement={fabPlacement}
-      size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
+      size={isResponsePending ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
       onActivate={toggleOpen}
       onPlacementChange={setFabPlacement}
     >
@@ -429,7 +418,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
         <AgentChatWidgetButton
           ariaLabel="Open assistant"
           isDragHandle
-          isStreaming={isStreaming}
+          isStreaming={isResponsePending}
           onPress={(event) => {
             if (
               event.pointerType === "keyboard" ||

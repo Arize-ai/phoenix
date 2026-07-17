@@ -15,6 +15,18 @@ export const pxiGlowBreathe = keyframes`
   }
 `;
 
+export const pxiThinkingGlowWipe = keyframes`
+  0% {
+    -webkit-mask-position: 170% center;
+    mask-position: 170% center;
+  }
+
+  100% {
+    -webkit-mask-position: -70% center;
+    mask-position: -70% center;
+  }
+`;
+
 export const pxiContainedGlowBreathe = keyframes`
   0%, 100% {
     box-shadow: var(--pxi-glow-box-shadow-contained-rest);

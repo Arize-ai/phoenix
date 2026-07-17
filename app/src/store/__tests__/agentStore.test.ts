@@ -167,6 +167,7 @@ describe("agentStore", () => {
         questions: [],
       });
       store.getState().setSessionChatStatus(firstSessionId, "streaming");
+      store.getState().setSessionResponsePending(firstSessionId, true);
 
       const secondSessionId = store.getState().createSession();
 
@@ -178,6 +179,9 @@ describe("agentStore", () => {
       ).toBeUndefined();
       expect(
         store.getState().chatStatusBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(
+        store.getState().isResponsePendingBySessionId[firstSessionId]
       ).toBeUndefined();
     });
 

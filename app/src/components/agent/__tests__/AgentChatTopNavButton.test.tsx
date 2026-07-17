@@ -117,4 +117,46 @@ describe("AgentChatTopNavButton", () => {
       container.querySelector<HTMLButtonElement>("button.pxi-button");
     expect(returnedButton?.hasAttribute("data-pxi-should-flash")).toBe(false);
   });
+
+  it("shows the working state until the active response settles", () => {
+    renderButton();
+
+    act(() => {
+      const sessionId = agentStore?.getState().createSession();
+      if (sessionId) {
+        agentStore?.getState().setSessionResponsePending(sessionId, true);
+      }
+    });
+
+    const button =
+      container.querySelector<HTMLButtonElement>("button.pxi-button");
+    expect(button?.getAttribute("data-pxi-is-thinking")).toBe("true");
+    expect(button?.textContent).toBe("Working...");
+    expect(button?.querySelector(".pxi-button__label")?.textContent).toBe(
+      "Working..."
+    );
+    expect(button?.querySelector(".pxi-button__thinking-glyph")).not.toBeNull();
+    expect(button?.querySelector(".pxi-animated-glyph")).toBeNull();
+
+    act(() => {
+      const sessionId = agentStore?.getState().activeSessionId;
+      if (sessionId) {
+        agentStore?.getState().setSessionChatStatus(sessionId, "ready");
+      }
+    });
+
+    expect(button?.getAttribute("data-pxi-is-thinking")).toBe("true");
+    expect(button?.textContent).toBe("Working...");
+
+    act(() => {
+      const sessionId = agentStore?.getState().activeSessionId;
+      if (sessionId) {
+        agentStore?.getState().setSessionResponsePending(sessionId, false);
+      }
+    });
+
+    expect(button?.hasAttribute("data-pxi-is-thinking")).toBe(false);
+    expect(button?.textContent).toBe("Ask PXI");
+    expect(button?.querySelector(".pxi-animated-glyph")).not.toBeNull();
+  });
 });
