@@ -18,18 +18,18 @@ the rest of the suite (SQLite or PostgreSQL per ``CI_TEST_DB_BACKEND``).
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Any, Iterator
+from typing import Any, Iterator, cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 
+from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from tests.integration._helpers import (
     _ADMIN,
     _MEMBER,
     _VIEWER,
-    UserRoleInput,
     _AppInfo,
     _get_ssl_context,
     _GetUser,
@@ -65,7 +65,7 @@ def _mcp_token_for(app: _AppInfo, get_user: _GetUser, role: UserRoleInput) -> st
     """Mint an MCP-scoped access token for a fresh user with ``role``."""
     oauth_client = _register_public_client(app, resource=f"{_base_url(app)}/mcp")
     user = get_user(app, role).log_in(app)
-    return oauth_client.complete_flow(user)["access_token"]
+    return cast(str, oauth_client.complete_flow(user)["access_token"])
 
 
 def _mcp_transport(app: _AppInfo, access_token: str) -> StreamableHttpTransport:
