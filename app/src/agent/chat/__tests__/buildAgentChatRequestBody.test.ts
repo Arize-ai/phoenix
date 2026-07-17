@@ -60,6 +60,32 @@ describe("buildAgentChatRequestBody", () => {
     expect(body.turnTraceContext).toEqual(turnTraceContext);
   });
 
+  it("sends the expected transcript revision", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+      expectedRevision: 7,
+    });
+
+    expect(body.expectedRevision).toBe(7);
+  });
+
   it("merges the transport body with PXI chat metadata and omits client-supplied prompt overrides", () => {
     const body = buildAgentChatRequestBody({
       body: { requestedSkills: ["debug-trace"] },

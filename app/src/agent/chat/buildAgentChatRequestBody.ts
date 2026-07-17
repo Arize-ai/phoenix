@@ -43,6 +43,8 @@ type BuildAgentChatRequestBodyOptions = {
   modelSelection: AgentModelSelection;
   /** Server-minted identity echoed on continuation requests. */
   turnTraceContext?: TurnTraceContext | null;
+  /** Persisted transcript revision used for optimistic concurrency control. */
+  expectedRevision?: number;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
 };
@@ -116,6 +118,7 @@ export function buildAgentChatRequestBody({
   contexts,
   modelSelection,
   turnTraceContext = null,
+  expectedRevision = 0,
   toolTimings = null,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
@@ -138,6 +141,7 @@ export function buildAgentChatRequestBody({
     contexts: requestContexts,
     model: modelSelection,
     turnTraceContext: turnTraceContext ?? undefined,
+    expectedRevision,
   };
   const [message] = toServerSafeUIMessages(
     enrichMessagesWithClientToolTimings({

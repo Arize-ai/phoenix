@@ -1,5 +1,6 @@
 export type TranscriptPersistenceAcknowledgement = {
   messageId: string;
+  revision: number;
 };
 
 type PersistenceState =
@@ -9,14 +10,31 @@ type PersistenceState =
       status: "waiting";
       resolve: (hasPersistedMessage: boolean) => void;
     };
-
-/** Coordinates automatic continuations with durable assistant messages. */
-export function createTranscriptPersistenceCoordinator() {
+/** Coordinates automatic continuations with durable transcript revisions. */
+export function createTranscriptPersistenceCoordinator({
+  initialRevision,
+}: {
+  initialRevision: number;
+}) {
+  let currentRevision = initialRevision;
+  let resolvePendingAcknowledgement: (() => void) | null = null;
+  let pendingAcknowledgement = Promise.resolve();
   const persistenceByMessageId = new Map<string, PersistenceState>();
+
+  const beginRequest = () => {
+    pendingAcknowledgement = new Promise<void>((resolve) => {
+      resolvePendingAcknowledgement = resolve;
+    });
+    return currentRevision;
+  };
 
   const acknowledge = ({
     messageId,
+    revision,
   }: TranscriptPersistenceAcknowledgement): void => {
+    currentRevision = revision;
+    resolvePendingAcknowledgement?.();
+    resolvePendingAcknowledgement = null;
     const persistence = persistenceByMessageId.get(messageId);
     if (persistence?.status === "waiting") {
       persistenceByMessageId.set(messageId, { status: "consumed" });
@@ -45,6 +63,8 @@ export function createTranscriptPersistenceCoordinator() {
   };
 
   const cancelPendingWaiters = (): void => {
+    resolvePendingAcknowledgement?.();
+    resolvePendingAcknowledgement = null;
     for (const persistence of persistenceByMessageId.values()) {
       if (persistence.status === "waiting") {
         persistence.resolve(false);
@@ -53,9 +73,18 @@ export function createTranscriptPersistenceCoordinator() {
     persistenceByMessageId.clear();
   };
 
+  const reset = (revision: number) => {
+    currentRevision = revision;
+    cancelPendingWaiters();
+  };
+
   return {
     acknowledge,
+    beginRequest,
     cancelPendingWaiters,
+    getRevision: () => currentRevision,
+    reset,
+    waitForAcknowledgement: () => pendingAcknowledgement,
     waitForMessage,
   };
 }

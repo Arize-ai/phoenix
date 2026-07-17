@@ -275,6 +275,7 @@ async def test_chat_turn_persists_session_transcript(
     body = _chat_body(
         session_id,
         _user_message("What datasets exist?"),
+        expectedRevision=0,
     )
 
     response = await httpx_client.post(_chat_url(agent_session_id), json=body)
@@ -290,7 +291,12 @@ async def test_chat_turn_persists_session_transcript(
         chunk for chunk in chunks if chunk.get("type") == "data-transcript-persisted"
     ]
     assert len(persistence_chunks) == 1
-    assert persistence_chunks[0]["data"]["messageId"] == start_chunks[0]["messageId"]
+    assert (
+        persistence_chunks[0]["data"]["messageId"]
+        == start_chunks[0]["messageId"]
+        == (await _accumulate_streamed_assistant_message(chunks))["id"]
+    )
+    assert persistence_chunks[0]["data"]["revision"] == 1
     finish_index = next(index for index, chunk in enumerate(chunks) if chunk["type"] == "finish")
     persistence_index = chunks.index(persistence_chunks[0])
     assert persistence_index > finish_index
@@ -303,6 +309,7 @@ async def test_chat_turn_persists_session_transcript(
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
+        assert agent_session.revision == 1
         messages = await _load_session_messages(session, agent_session.id)
         message_rowids = list(
             await session.scalars(
@@ -347,6 +354,7 @@ async def test_chat_turn_persists_session_transcript(
         json={
             **body,
             "message": _user_message("And experiments?", message_id="msg-user-2"),
+            "expectedRevision": 1,
         },
     )
     assert second_response.status_code == 200
@@ -363,6 +371,7 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.title == "a"
+        assert agent_session.revision == 2
         second_turn_messages = await _load_session_messages(session, agent_session.id)
         second_turn_message_rowids = list(
             await session.scalars(
@@ -378,6 +387,78 @@ async def test_chat_turn_persists_session_transcript(
     assert user_message_ids == ["msg-user-1", "msg-user-2"]
     assert len(second_turn_messages) > len(messages)
     assert second_turn_message_rowids[: len(message_rowids)] == message_rowids
+
+
+async def test_chat_rejects_a_stale_transcript_revision(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    session_id = "12121212-1212-4121-8121-121212121212"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Already titled",
+    )
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        agent_session.revision = 2
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("stale request"),
+            expectedRevision=1,
+        ),
+    )
+
+    assert response.status_code == 409
+    assert "transcript revision" in response.text
+
+
+async def test_chat_accepts_an_assistant_continuation_at_the_acknowledged_revision(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "34343434-3434-4343-8343-343434343434"
+    assistant_message = {
+        "id": "assistant-1",
+        "role": "assistant",
+        "parts": [{"type": "text", "text": "tool requested"}],
+    }
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Already titled",
+        messages=[_user_message("use a tool"), assistant_message],
+    )
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        agent_session.revision = 1
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            assistant_message,
+            expectedRevision=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    persistence_chunks = [
+        chunk
+        for chunk in _stream_chunks(response.text)
+        if chunk.get("type") == "data-transcript-persisted"
+    ]
+    assert [chunk["data"]["revision"] for chunk in persistence_chunks] == [2]
 
 
 async def test_failed_chat_turn_does_not_persist_partial_transcript(
@@ -463,7 +544,7 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
 
     continuation_response = await httpx_client.post(
         _chat_url(agent_session_id),
-        json=_chat_body(session_id, resolved_assistant_message),
+        json=_chat_body(session_id, resolved_assistant_message, expectedRevision=1),
     )
     assert continuation_response.status_code == 200
     continuation_chunks = _stream_chunks(continuation_response.text)
@@ -472,7 +553,10 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     continuation_acknowledgement = next(
         chunk for chunk in continuation_chunks if chunk["type"] == "data-transcript-persisted"
     )
-    assert continuation_acknowledgement["data"]["messageId"] == assistant_message_id
+    assert continuation_acknowledgement["data"] == {
+        "messageId": assistant_message_id,
+        "revision": 2,
+    }
 
     async with db() as session:
         stored_rows = (
@@ -497,7 +581,6 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         isinstance(part, TextUIPart) and part.text == "done"
         for part in persisted_assistant.message.parts
     )
-
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
     trace_id = "931b2fbce00d0b18834637856fa72c7e"

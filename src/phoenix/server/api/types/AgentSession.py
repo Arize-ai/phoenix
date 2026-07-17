@@ -77,6 +77,17 @@ class AgentSession(Node):
         assert isinstance(updated_at, datetime)
         return updated_at
 
+    @strawberry.field(description="The persisted transcript revision.")  # type: ignore
+    async def revision(self, info: Info[Context, None]) -> int:
+        await self._ensure_access(info)
+        if self.db_record:
+            return self.db_record.revision
+        revision = await info.context.data_loaders.agent_session_fields.load(
+            (self.id, models.AgentSession.revision),
+        )
+        assert isinstance(revision, int)
+        return revision
+
     @strawberry.field(
         description="The persisted transcript as Vercel AI UIMessage JSON objects.",
     )  # type: ignore

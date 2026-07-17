@@ -61,6 +61,7 @@ def upgrade() -> None:
             nullable=True,  # sessions may be created while auth is disabled
         ),
         sa.Column("title", sa.String, nullable=False),
+        sa.Column("revision", sa.Integer, nullable=False, server_default="0"),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

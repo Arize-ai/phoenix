@@ -8900,6 +8900,18 @@
               }
             ]
           },
+          "expectedRevision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedrevision"
+          },
           "trigger": {
             "type": "string",
             "const": "submit-message",
@@ -18359,10 +18371,15 @@
           "messageId": {
             "title": "Messageid",
             "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
           }
         },
         "required": [
-          "messageId"
+          "messageId",
+          "revision"
         ],
         "title": "TranscriptPersistedData",
         "type": "object"

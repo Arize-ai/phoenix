@@ -321,6 +321,7 @@ function AgentSessionsContent({
           key={activeSessionId}
           sessionId={activeSessionId}
           initialMessages={[]}
+          initialRevision={0}
         />
       )}
     </>
@@ -365,16 +366,22 @@ function AgentSessionTranscript({
     return <Loading />;
   }
   return (
-    <AgentChatController sessionId={sessionId} initialMessages={messages} />
+    <AgentChatController
+      sessionId={sessionId}
+      initialMessages={messages}
+      initialRevision={agentSession.revision}
+    />
   );
 }
 
 function AgentChatController({
   sessionId,
   initialMessages,
+  initialRevision,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
+  initialRevision: number;
 }) {
   const { modelSelection, menuValue, handleModelChange } =
     useAgentChatPanelState();
@@ -393,6 +400,7 @@ function AgentChatController({
     sessionId,
     modelSelection,
     initialMessages,
+    initialRevision,
   });
 
   return (

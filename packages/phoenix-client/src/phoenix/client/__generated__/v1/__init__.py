@@ -1100,6 +1100,7 @@ class ToolCallProviderMetadata(TypedDict):
 
 class TranscriptPersistedData(TypedDict):
     messageId: str
+    revision: int
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
@@ -1749,6 +1750,7 @@ class ChatRequest(TypedDict):
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
+    expectedRevision: NotRequired[int]
     trigger: NotRequired[str]
 
 

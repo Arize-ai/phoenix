@@ -70,6 +70,9 @@ import {
 type TurnClientState = {
   turnTraceContext: ReturnType<typeof createTurnTraceContextManager>;
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
+  transcriptPersistence: ReturnType<
+    typeof createTranscriptPersistenceCoordinator
+  >;
 };
 
 const turnClientStateByChat = new WeakMap<
@@ -102,6 +105,7 @@ const createAgentSessionMutation = graphql`
           edgeTypeName: "AgentSessionEdge"
         ) {
         id
+        revision
         title
         createdAt
         updatedAt
@@ -117,6 +121,7 @@ const truncateAgentSessionMutation = graphql`
     truncateAgentSession(input: $input) {
       agentSession {
         id
+        revision
         title
         updatedAt
         messages
@@ -137,6 +142,7 @@ const branchAgentSessionMutation = graphql`
           edgeTypeName: "AgentSessionEdge"
         ) {
         id
+        revision
         title
         createdAt
         updatedAt
@@ -168,6 +174,7 @@ export function useAgentChat({
   sessionId,
   modelSelection,
   initialMessages,
+  initialRevision = 0,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -177,6 +184,8 @@ export function useAgentChat({
   modelSelection: AgentModelSelection;
   /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
+  /** Durable transcript revision accompanying the initial messages. */
+  initialRevision?: number;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
@@ -222,12 +231,15 @@ export function useAgentChat({
   const createChatForSession = useCallback(
     (
       targetSessionId: string,
-      seedMessages: AgentUIMessage[]
+      seedMessages: AgentUIMessage[],
+      seedRevision: number
     ): Chat<AgentUIMessage> => {
       const chatApiUrl = buildAgentChatApiUrl(targetSessionId);
       const turnTraceContext = createTurnTraceContextManager();
       const toolTimings = createClientToolTimingRecorder();
-      const transcriptPersistence = createTranscriptPersistenceCoordinator();
+      const transcriptPersistence = createTranscriptPersistenceCoordinator({
+        initialRevision: seedRevision,
+      });
       const turnCompletionGate = createTurnCompletionGate({
         endTurn: async () => {
           store.getState().setSessionResponsePending(targetSessionId, false);
@@ -256,6 +268,7 @@ export function useAgentChat({
             // this request reads the active turn trace context.
             turnCompletionGate.beginTurn();
             store.getState().setSessionResponsePending(targetSessionId, true);
+            const expectedRevision = transcriptPersistence.beginRequest();
             return {
               body: buildAgentChatRequestBody({
                 body,
@@ -268,6 +281,7 @@ export function useAgentChat({
                 contexts: selectActiveContexts(store.getState()),
                 modelSelection: modelSelectionRef.current,
                 turnTraceContext: turnTraceContext.getActive(),
+                expectedRevision,
                 toolTimings,
               }),
             };
@@ -341,7 +355,11 @@ export function useAgentChat({
           turnCompletionGate.handleFinish({ finalMessages, message });
         },
       });
-      turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
+      turnClientStateByChat.set(chat, {
+        turnTraceContext,
+        toolTimings,
+        transcriptPersistence,
+      });
       return chat;
     },
     [relayEnvironment, store]
@@ -363,7 +381,8 @@ export function useAgentChat({
           createChat: (previousMessages) =>
             createChatForSession(
               persistedSessionId,
-              previousMessages ?? initialMessages ?? []
+              previousMessages ?? initialMessages ?? [],
+              initialRevision
             ),
         })
       : null;
@@ -486,7 +505,7 @@ export function useAgentChat({
           sessionId: newSessionId,
           chatApiUrl: newChatApiUrl,
           createChat: (previousMessages) =>
-            createChatForSession(newSessionId, previousMessages ?? []),
+            createChatForSession(newSessionId, previousMessages ?? [], 0),
         });
         void newChat.sendMessage(
           { text, metadata: buildUserMessageMetadata() },
@@ -644,6 +663,9 @@ export function useAgentChat({
             const nextMessages = Array.isArray(payload.agentSession.messages)
               ? (payload.agentSession.messages as AgentUIMessage[])
               : [];
+            turnClientStateByChat
+              .get(chatInstance)
+              ?.transcriptPersistence.reset(payload.agentSession.revision);
             clearDroppedToolState({
               previous: chatInstance.messages,
               next: nextMessages,
@@ -710,7 +732,8 @@ export function useAgentChat({
             createChat: (previousMessages) =>
               createChatForSession(
                 branchSessionId,
-                previousMessages ?? branchMessages
+                previousMessages ?? branchMessages,
+                payload.agentSession.revision
               ),
           });
           const state = store.getState();

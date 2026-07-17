@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0cb8718c78feb422bfe0b1ec5bce8025>>
+ * @generated SignedSource<<9a23f00978de125482e30c707e06a672>>
  * @lightSyntaxTransform
  */
 
@@ -22,6 +22,7 @@ export type useAgentChatBranchAgentSessionMutation$data = {
       readonly createdAt: string;
       readonly id: string;
       readonly messages: any;
+      readonly revision: number;
       readonly title: string;
       readonly updatedAt: string;
     };
@@ -63,6 +64,13 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "id",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "revision",
       "storageKey": null
     },
     {
@@ -167,16 +175,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "04eb340c8daa087f32b5dab626ce5778",
+    "cacheID": "6c498d70bb61fb2bd4ab5f85007b7ecd",
     "id": null,
     "metadata": {},
     "name": "useAgentChatBranchAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      createdAt\n      updatedAt\n      messages\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      revision\n      title\n      createdAt\n      updatedAt\n      messages\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "efca9123e679b552d37b0e7e60745acc";
+(node as any).hash = "08791d9b102fdc93af08134aa1d49a9b";
 
 export default node;
