@@ -1,5 +1,5 @@
 """Execution glue for claimed online-eval work units: criteria-first hydration
-behind the staleness guard, span-grain context assembly, ``BaseEvaluator.evaluate()``
+behind the staleness guard, span-level context assembly, ``BaseEvaluator.evaluate()``
 invocation, and the idempotent EvaluationResult -> SpanAnnotation write. Work-unit
 lifecycle transitions (complete/fail/expire) stay with the caller.
 """
@@ -69,7 +69,7 @@ class HydratedWorkUnit:
 
 
 def span_eval_context(span: models.Span) -> dict[str, Any]:
-    """Span-grain evaluation context. ``input`` / ``output`` surface the span's
+    """Span-level evaluation context. ``input`` / ``output`` surface the span's
     IO values for direct template-variable binding; ``attributes`` exposes the
     full attribute tree to ``path_mapping`` expressions."""
     return {
