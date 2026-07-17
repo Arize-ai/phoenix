@@ -34,6 +34,8 @@ from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_se
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
+from phoenix.server.online_eval.db_coordinator import work_unit_lease_lapsed
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
@@ -277,6 +279,22 @@ class SessionEvalSweeper(DaemonTask):
         return criteria_rows
 
     async def _sweep(self, session: AsyncSession, database_now: datetime) -> int:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(
+                models.EvalSessionWorkUnit.status == "RUNNING",
+                models.EvalSessionWorkUnit.attempts >= MAX_ATTEMPTS - 1,
+                work_unit_lease_lapsed(database_now, models.EvalSessionWorkUnit),
+            )
+            .values(
+                status="ERROR",
+                attempts=MAX_ATTEMPTS,
+                error=func.coalesce(
+                    models.EvalSessionWorkUnit.error,
+                    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+                ),
+            )
+        )
         criteria = await self._load_criteria(session)
         work_budget = await self._admission_budget(session)
         eligible_pairs, eligible_pair_count = await self._load_eligible_pairs(

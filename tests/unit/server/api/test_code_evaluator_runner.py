@@ -412,8 +412,8 @@ class TestEvaluateErrorPaths:
         assert error is not None
         assert f"{payload_bytes} bytes" in error
         assert f"allowed {max_payload_bytes} bytes" in error
-        assert "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES" in error
-        assert "Reduce the mapped session inputs or raise the limit" in error
+        assert "Reduce the mapped inputs or raise the caller's payload limit." in error
+        assert "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES" not in error
         cast(AsyncMock, backend.execute).assert_not_awaited()
 
     async def test_inference_failure_returns_human_readable_python_error(self) -> None:
