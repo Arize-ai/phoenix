@@ -162,7 +162,7 @@ The operation catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk
 `execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter — no filesystem, network, or import access, with strict time and memory limits. This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
 
 <Note>
-Prefer not to run agent-written code on your server? Set `PHOENIX_MCP_CODE_MODE=false` to remove the `execute` tool and Monty entirely. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`.
+Prefer not to run agent-written code on your server? Set `PHOENIX_ENABLE_MCP_CODE_MODE=false` to remove the `execute` tool and Monty entirely. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`.
 </Note>
 
 ## Things to try
@@ -190,14 +190,14 @@ Both variables are set on the Phoenix server before startup:
 | Environment variable        | Default | Effect                                                                                                                              |
 | --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `PHOENIX_ENABLE_MCP_SERVER` | `true`  | Master switch. Set to `false` to remove the `/mcp` endpoint entirely.                                                               |
-| `PHOENIX_MCP_CODE_MODE`     | `true`  | Set to `false` to disable code execution (the `execute` tool and the Monty sandbox) and expose plain, group-gated tools instead.    |
+| `PHOENIX_ENABLE_MCP_CODE_MODE`     | `true`  | Set to `false` to disable code execution (the `execute` tool and the Monty sandbox) and expose plain, group-gated tools instead.    |
 
 The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls — a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
 
 ## Security notes
 
 - **Authentication** is the same as the rest of Phoenix: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
-- **Code execution is sandboxed**: Monty is an interpreter with no filesystem, network, or import access, capped at 30 seconds, 100 MB of memory, and 50 operation calls per `execute` block. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_MCP_CODE_MODE=false`.
+- **Code execution is sandboxed**: Monty is an interpreter with no filesystem, network, or import access, capped at 30 seconds, 100 MB of memory, and 50 operation calls per `execute` block. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
 - **Treat query results as data, not instructions.** Traces and spans contain whatever your application logged, including untrusted user input. Agents should not follow directives found inside telemetry returned by these tools.
 
 ## Troubleshooting
