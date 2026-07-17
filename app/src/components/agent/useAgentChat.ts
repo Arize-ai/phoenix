@@ -1,6 +1,11 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
+import {
+  DefaultChatTransport,
+  getToolName,
+  isTextUIPart,
+  isToolUIPart,
+} from "ai";
 import { useCallback, useRef } from "react";
 import {
   ConnectionHandler,
@@ -18,7 +23,6 @@ import {
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
-import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
 import {
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
@@ -52,12 +56,13 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import type { useAgentChatBranchAgentSessionMutation } from "./__generated__/useAgentChatBranchAgentSessionMutation.graphql";
 import type { useAgentChatCreateAgentSessionMutation } from "./__generated__/useAgentChatCreateAgentSessionMutation.graphql";
+import type { useAgentChatTruncateAgentSessionMutation } from "./__generated__/useAgentChatTruncateAgentSessionMutation.graphql";
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
   refetchAgentSession,
 } from "./agentSessionRelay";
-import { buildForkTitle } from "./sessionTitleUtils";
 
 type TurnClientState = {
   turnTraceContext: ReturnType<typeof createTurnTraceContextManager>;
@@ -89,6 +94,42 @@ const createAgentSessionMutation = graphql`
   }
 `;
 
+const truncateAgentSessionMutation = graphql`
+  mutation useAgentChatTruncateAgentSessionMutation(
+    $input: TruncateAgentSessionInput!
+  ) {
+    truncateAgentSession(input: $input) {
+      agentSession {
+        id
+        title
+        updatedAt
+        messages
+      }
+    }
+  }
+`;
+
+const branchAgentSessionMutation = graphql`
+  mutation useAgentChatBranchAgentSessionMutation(
+    $input: BranchAgentSessionInput!
+    $connections: [ID!]!
+  ) {
+    branchAgentSession(input: $input) {
+      agentSession
+        @prependNode(
+          connections: $connections
+          edgeTypeName: "AgentSessionEdge"
+        ) {
+        id
+        title
+        createdAt
+        updatedAt
+        messages
+      }
+    }
+  }
+`;
+
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
  * for a single agent session/model pair.
@@ -112,7 +153,6 @@ export function useAgentChat({
   chatApiUrl,
   modelSelection,
   initialMessages,
-  sessionTitle,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -123,8 +163,6 @@ export function useAgentChat({
   modelSelection: AgentModelSelection;
   /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
-  /** Current session title, used to derive titles for branched sessions. */
-  sessionTitle?: string;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
@@ -138,6 +176,14 @@ export function useAgentChat({
   const [commitCreateAgentSession] =
     useMutation<useAgentChatCreateAgentSessionMutation>(
       createAgentSessionMutation
+    );
+  const [commitTruncateAgentSession] =
+    useMutation<useAgentChatTruncateAgentSessionMutation>(
+      truncateAgentSessionMutation
+    );
+  const [commitBranchAgentSession] =
+    useMutation<useAgentChatBranchAgentSessionMutation>(
+      branchAgentSessionMutation
     );
   const sessionsConnectionId = ConnectionHandler.getConnectionID(
     "client:root",
@@ -541,75 +587,108 @@ export function useAgentChat({
     [pendingElicitation, sessionId, store]
   );
 
-  // Rewinds the active session in place to the chosen message, truncating the
-  // transcript and releasing stale tool state. Returns the user message text to
-  // restore into the input (user target) or null (assistant target / no-op).
+  // Rewinds the active session in place at the chosen message. The truncation
+  // itself runs server-side (`truncateAgentSession`); the runtime chat is then
+  // reset to the persisted transcript and stale tool state is released.
+  // Resolves to the user message text to restore into the input (user target)
+  // or null (assistant target / no-op / failure).
   const rewindToMessage = useCallback(
-    (messageId: string): string | null => {
-      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
-        return null;
+    (messageId: string): Promise<string | null> => {
+      if (
+        isDraft ||
+        !sessionId ||
+        !chatInstance ||
+        isRequestActive(chatInstance.status)
+      ) {
+        return Promise.resolve(null);
       }
-      const result = rewindMessages({
-        messages: chatInstance.messages,
-        messageId,
+      // A rewind at a user message removes it; remember its text now so it
+      // can be placed back into the prompt input once the truncation lands.
+      const restoredInput = getRemovedUserMessageText(
+        chatInstance.messages,
+        messageId
+      );
+      return new Promise((resolve) => {
+        commitTruncateAgentSession({
+          variables: { input: { id: sessionId, messageId } },
+          onCompleted: (response) => {
+            const payload = response.truncateAgentSession;
+            const nextMessages = Array.isArray(payload.agentSession.messages)
+              ? (payload.agentSession.messages as AgentUIMessage[])
+              : [];
+            clearDroppedToolState({
+              previous: chatInstance.messages,
+              next: nextMessages,
+            });
+            setMessages(nextMessages);
+            clearError();
+            resolve(restoredInput);
+          },
+          onError: (mutationError) => {
+            const errorMessages =
+              getErrorMessagesFromRelayMutationError(mutationError);
+            notifyError({
+              title: "Conversation could not be rewound",
+              message: errorMessages?.[0] ?? mutationError.message,
+            });
+            resolve(null);
+          },
+        });
       });
-      if (!result) {
-        return null;
-      }
-      clearDroppedToolState({
-        previous: chatInstance.messages,
-        next: result.messages,
-      });
-      setMessages(result.messages);
-      clearError();
-      return result.restoredInput;
     },
-    [chatInstance, clearDroppedToolState, clearError, sessionId, setMessages]
+    [
+      chatInstance,
+      clearDroppedToolState,
+      clearError,
+      commitTruncateAgentSession,
+      isDraft,
+      notifyError,
+      sessionId,
+      setMessages,
+    ]
   );
 
-  // Branches the active session into a new server session truncated to the
-  // chosen message, leaving the current session untouched. The branch's
-  // truncated transcript lives in its runtime chat until its first send
-  // persists it as part of that turn.
+  // Branches the active session into a new server session truncated at the
+  // chosen message, leaving the current session untouched. The server copies
+  // the truncated transcript and derives the branch title; the UI seeds a
+  // runtime chat from the returned transcript and activates it.
   const forkFromMessage = useCallback(
     (messageId: string): void => {
       if (isDraft || !sessionId || !chatInstance) {
         return;
       }
-      const result = rewindMessages({
-        messages: chatInstance.messages,
-        messageId,
-      });
-      if (!result) {
-        return;
-      }
       clearError();
-      commitCreateAgentSession({
+      // Branching at a user message drops it from the branch; remember its
+      // text now so the branch's composer starts with it.
+      const restoredInput = getRemovedUserMessageText(
+        chatInstance.messages,
+        messageId
+      );
+      commitBranchAgentSession({
         variables: {
-          input: {
-            title: buildForkTitle({
-              title: sessionTitle ?? "",
-              messages: result.messages,
-            }),
-          },
+          input: { id: sessionId, messageId },
           connections: [sessionsConnectionId],
         },
         onCompleted: (response) => {
-          const forkSessionId = response.createAgentSession.agentSession.id;
+          const payload = response.branchAgentSession;
+          const branchSessionId = payload.agentSession.id;
+          const branchMessages = Array.isArray(payload.agentSession.messages)
+            ? (payload.agentSession.messages as AgentUIMessage[])
+            : [];
           runtime.getOrCreateChat({
-            sessionId: forkSessionId,
+            sessionId: branchSessionId,
             chatApiUrl,
             createChat: (previousMessages) =>
               createChatForSession(
-                forkSessionId,
-                previousMessages ?? result.messages
+                branchSessionId,
+                previousMessages ?? branchMessages
               ),
           });
           const state = store.getState();
-          if (result.restoredInput) {
-            state.setDraftInput(forkSessionId, result.restoredInput);
+          if (restoredInput) {
+            state.setDraftInput(branchSessionId, restoredInput);
           }
-          state.setActiveSession(forkSessionId);
+          state.setActiveSession(branchSessionId);
         },
         onError: (mutationError) => {
           const errorMessages =
@@ -625,13 +704,12 @@ export function useAgentChat({
       chatApiUrl,
       chatInstance,
       clearError,
-      commitCreateAgentSession,
+      commitBranchAgentSession,
       createChatForSession,
       isDraft,
       notifyError,
       runtime,
       sessionId,
-      sessionTitle,
       sessionsConnectionId,
       store,
     ]
@@ -672,7 +750,7 @@ export function useAgentChat({
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
     retryMessage: (messageId?: string) => void;
-    rewindToMessage: (messageId: string) => string | null;
+    rewindToMessage: (messageId: string) => Promise<string | null>;
     forkFromMessage: (messageId: string) => void;
   };
 }
@@ -692,6 +770,24 @@ function removeInterruptedToolInputParts(
       }),
     };
   });
+}
+
+/**
+ * The text of the user message a rewind/branch at `messageId` removes, or null
+ * when the target is not a user message (assistant targets are retained).
+ */
+function getRemovedUserMessageText(
+  messages: AgentUIMessage[],
+  messageId: string
+): string | null {
+  const target = messages.find((message) => message.id === messageId);
+  if (!target || target.role !== "user") {
+    return null;
+  }
+  return target.parts
+    .filter(isTextUIPart)
+    .map((part) => part.text)
+    .join("");
 }
 
 function isRequestActive(status: ChatStatus): boolean {

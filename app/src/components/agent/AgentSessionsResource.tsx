@@ -321,7 +321,6 @@ function AgentSessionsContent({
           key={activeSessionId}
           sessionId={activeSessionId}
           initialMessages={[]}
-          sessionTitle={activeSession?.title}
         />
       )}
     </>
@@ -366,22 +365,16 @@ function AgentSessionTranscript({
     return <Loading />;
   }
   return (
-    <AgentChatController
-      sessionId={sessionId}
-      initialMessages={messages}
-      sessionTitle={agentSession.title}
-    />
+    <AgentChatController sessionId={sessionId} initialMessages={messages} />
   );
 }
 
 function AgentChatController({
   sessionId,
   initialMessages,
-  sessionTitle,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
-  sessionTitle?: string;
 }) {
   const { chatApiUrl, modelSelection, menuValue, handleModelChange } =
     useAgentChatPanelState();
@@ -402,7 +395,6 @@ function AgentChatController({
     chatApiUrl,
     modelSelection,
     initialMessages,
-    sessionTitle,
   });
 
   return (

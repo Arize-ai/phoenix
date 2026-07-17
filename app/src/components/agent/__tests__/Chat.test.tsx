@@ -97,8 +97,8 @@ function renderChatView(
     initialDraftInputBySessionId?: Record<string, string>;
     sendMessage?: ChatViewSendMessage;
     retryMessage?: (messageId?: string) => void;
-    rewindToMessage?: (messageId: string) => string | null;
-    forkFromMessage?: (messageId: string) => string | null;
+    rewindToMessage?: (messageId: string) => Promise<string | null>;
+    forkFromMessage?: (messageId: string) => void;
   } = {}
 ) {
   act(() => {
@@ -332,9 +332,9 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Branch before message");
   });
 
-  it("retries an interrupted user message without duplicating it", () => {
+  it("retries an interrupted user message without duplicating it", async () => {
     const sendMessage = vi.fn();
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
@@ -348,7 +348,7 @@ describe("ChatView", () => {
     );
     expect(retryButton).not.toBeUndefined();
 
-    act(() => {
+    await act(async () => {
       retryButton?.click();
     });
 
@@ -357,7 +357,7 @@ describe("ChatView", () => {
   });
 
   it("confirms editing an interrupted user message", () => {
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
@@ -413,7 +413,7 @@ describe("ChatView", () => {
   });
 
   it("confirms undoing a failed turn from the latest user message", () => {
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: messages,
       error: new Error("provider unavailable"),

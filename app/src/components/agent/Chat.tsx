@@ -320,10 +320,11 @@ export function ChatView({
   /** Retries an assistant response; absent on read-only surfaces. */
   retryMessage?: (messageId?: string) => void;
   /**
-   * Truncates the active session at a message; returns user text to restore.
-   * Absent on read-only surfaces, which hides the rewind/branch controls.
+   * Truncates the active session at a message; resolves to user text to
+   * restore. Absent on read-only surfaces, which hides the rewind/branch
+   * controls.
    */
-  rewindToMessage?: (messageId: string) => string | null;
+  rewindToMessage?: (messageId: string) => Promise<string | null>;
   /** Branches a new session from a message; absent hides the branch control. */
   forkFromMessage?: (messageId: string) => void;
   modelMenuValue: ModelMenuValue;
@@ -472,7 +473,7 @@ export function ChatView({
     return (request) => setRewindRequest(request);
   }, [hasChatSettled, rewindToMessage]);
 
-  const handleConfirmRewind = () => {
+  const handleConfirmRewind = async () => {
     if (!rewindRequest) {
       return;
     }
@@ -483,7 +484,7 @@ export function ChatView({
       // forked session receives restored text through draftInputBySessionId.
       forkFromMessage?.(messageId);
     } else {
-      const restoredInput = rewindToMessage?.(messageId);
+      const restoredInput = (await rewindToMessage?.(messageId)) ?? null;
       if (restoredInput != null) {
         setSessionDraftInput(restoredInput);
         textareaRef.current?.focus();
@@ -491,7 +492,7 @@ export function ChatView({
     }
   };
 
-  const handleRetryInterruptedMessage = () => {
+  const handleRetryInterruptedMessage = async () => {
     if (latestMessage?.role !== "user") {
       return;
     }
@@ -499,7 +500,9 @@ export function ChatView({
     if (!messageText) {
       return;
     }
-    rewindToMessage?.(latestMessage.id);
+    // The server-side truncation must land before re-sending, or the resent
+    // request would still carry the interrupted user turn.
+    await rewindToMessage?.(latestMessage.id);
     void scrollToBottom();
     sendMessage({ text: messageText });
   };
