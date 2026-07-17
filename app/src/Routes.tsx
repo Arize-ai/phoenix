@@ -28,12 +28,14 @@ import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvi
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
 import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
+import { SettingsAPIKeysPage } from "@phoenix/pages/settings/SettingsAPIKeysPage";
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
 import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
+import { SettingsUsersPage } from "@phoenix/pages/settings/SettingsUsersPage";
 
 import type {
   DatasetLoaderData,
@@ -739,7 +741,31 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "General Settings",
                 description:
-                  "Configure general Phoenix instance settings including hostname, platform version, database usage, users, system API keys, and the default project retention policy.",
+                  "Configure general Phoenix instance settings including hostname, platform version, database usage, and the default project retention policy.",
+              },
+            }}
+          />
+          <Route
+            path="users"
+            element={<SettingsUsersPage />}
+            handle={{
+              crumb: () => "Users",
+              agentRoute: {
+                label: "Users",
+                description:
+                  "Manage users and members: add or invite a user, change a user's role, reset a password, or delete a user.",
+              },
+            }}
+          />
+          <Route
+            path="api-keys"
+            element={<SettingsAPIKeysPage />}
+            handle={{
+              crumb: () => "API Keys",
+              agentRoute: {
+                label: "API Keys",
+                description:
+                  "Manage API keys: create system API keys and view or revoke system and user API keys for programmatic access.",
               },
             }}
           />

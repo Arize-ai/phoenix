@@ -11,16 +11,14 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
+import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 import { PlatformVersionStatus } from "@phoenix/components/nav";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import type { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsGeneralPageLoaderQuery.graphql";
-import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
 import { GlobalRetentionPolicyCard } from "@phoenix/pages/settings/GlobalRetentionPolicyCard";
 import type { settingsGeneralPageLoaderType } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { settingsGeneralPageLoaderGQL } from "@phoenix/pages/settings/settingsGeneralPageLoader";
-import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
 const gridCSS = css`
   display: grid;
@@ -74,14 +72,6 @@ export function SettingsGeneralPage() {
           <DBUsagePieChart query={data} />
         </View>
       </Card>
-      <IsAdmin>
-        <div css={fullWidthCSS}>
-          <APIKeysCard />
-        </div>
-        <div css={fullWidthCSS}>
-          <UsersCard />
-        </div>
-      </IsAdmin>
       <CanManageRetentionPolicy>
         <div css={fullWidthCSS}>
           <GlobalRetentionPolicyCard />
