@@ -62,7 +62,7 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
         column_names = {
             "id",
-            "grain",
+            "evaluation_target",
             "consumer_group",
             "produced_through_id",
             "observed_high_water_id",
@@ -75,14 +75,14 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
         index_names: set[str] = set()
         constraint_names = {
             "pk_eval_work_cursors",
-            "uq_eval_work_cursors_grain_consumer_group",
-            "ck_eval_work_cursors_`valid_grain`",
+            "uq_eval_work_cursors_evaluation_target_consumer_group",
+            "ck_eval_work_cursors_`valid_evaluation_target`",
         }
         if db_backend == "postgresql":
             index_names.update(
                 {
                     "pk_eval_work_cursors",
-                    "uq_eval_work_cursors_grain_consumer_group",
+                    "uq_eval_work_cursors_evaluation_target_consumer_group",
                 }
             )
         elif db_backend == "sqlite":
