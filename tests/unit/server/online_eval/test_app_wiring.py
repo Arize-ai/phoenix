@@ -14,6 +14,8 @@ from sqlalchemy import select, update
 
 from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+    ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED,
 )
 from phoenix.db import models
@@ -67,14 +69,52 @@ async def test_online_eval_daemons_absent_in_read_only_mode(
 async def test_session_sweeper_needs_its_own_flag(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Nothing executes session work units yet, so the sweeper stays off until it is
-    asked for explicitly — otherwise it fills the outstanding-work budget and wedges.
+    """Session sweeping is opt-in: it stays off until it is asked for explicitly —
+    otherwise it fills the outstanding-work budget and wedges.
     """
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
 
     app = _create_app(db)
     assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
     assert app.state.online_eval_session_sweeper is None
+
+
+@pytest.mark.parametrize(
+    ("env_name", "value"),
+    [
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+            "255",
+            id="transcript-below-floor",
+        ),
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+            "not-an-integer",
+            id="transcript-not-integer",
+        ),
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+            "1023",
+            id="sandbox-below-floor",
+        ),
+        pytest.param(
+            ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+            "not-an-integer",
+            id="sandbox-not-integer",
+        ),
+    ],
+)
+async def test_enabled_app_validates_session_byte_limits_at_startup(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    env_name: str,
+    value: str,
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    monkeypatch.setenv(env_name, value)
+
+    with pytest.raises(ValueError, match=env_name):
+        _create_app(db)
 
 
 async def test_enabled_app_runs_seeded_criteria_end_to_end(

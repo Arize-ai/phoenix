@@ -37,6 +37,7 @@ from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+from phoenix.server.online_eval.coordinator import LEASE_ATTEMPTS_EXHAUSTED_ERROR
 from phoenix.server.online_eval.db_coordinator import (
     STALE_FINGERPRINT_ERROR,
     work_unit_lease_lapsed,
@@ -512,7 +513,7 @@ class OnlineEvalProducer(DaemonTask):
                     attempts=MAX_ATTEMPTS,
                     error=func.coalesce(
                         models.EvalWorkUnit.error,
-                        "lease lapsed with attempts exhausted",
+                        LEASE_ATTEMPTS_EXHAUSTED_ERROR,
                     ),
                 )
             )

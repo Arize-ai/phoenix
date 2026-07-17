@@ -83,6 +83,8 @@ from phoenix.config import (
     get_env_online_eval_consumer_tick_interval_seconds,
     get_env_online_eval_enabled,
     get_env_online_eval_max_outstanding,
+    get_env_online_eval_max_sandbox_payload_bytes,
+    get_env_online_eval_max_transcript_bytes,
     get_env_online_eval_pending_ttl_seconds,
     get_env_online_eval_session_sweep_enabled,
     get_env_phoenix_agents_disable_bash,
@@ -1105,6 +1107,8 @@ def create_app(
                 claim_batch_size,
                 tick_interval_seconds,
             )
+        get_env_online_eval_max_transcript_bytes()
+        get_env_online_eval_max_sandbox_payload_bytes()
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
             db,
