@@ -19,10 +19,6 @@ import { AgentChatWidgetTooltip, OPEN_AGENT_HOTKEY } from "./AgentChatWidget";
 import { PxiButton } from "./PxiButton";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
-// Keep these in sync with topNavCSS in components/nav/Navbar.tsx so the
-// detached button stays exactly where the in-flow button was.
-const NAV_BUTTON_TOP_PX = 8;
-const NAV_BUTTON_RIGHT_PX = 16;
 // Gap between the button and an open drawer's left edge.
 const DRAWER_EDGE_GAP_PX = 12;
 // Keep at least this much room at the left viewport edge so an extremely wide
@@ -41,7 +37,8 @@ const buttonWrapperCSS = css`
 
 const detachedButtonCSS = css`
   position: fixed;
-  top: ${NAV_BUTTON_TOP_PX}px;
+  top: var(--global-dimension-static-size-100);
+  right: var(--global-dimension-static-size-200);
   z-index: ${NON_MODAL_FLOATING_Z_INDEX};
   &[data-layer="modal"] {
     z-index: ${MODAL_FLOATING_UI_Z_INDEX};
@@ -104,7 +101,7 @@ function DrawerAnchoredButton({
   return createPortal(
     <div
       css={detachedButtonCSS}
-      style={{ right: position?.rightPx ?? NAV_BUTTON_RIGHT_PX }}
+      style={{ right: position?.rightPx }}
       data-animate={(position?.animate ?? true) ? "true" : "false"}
     >
       {children}
@@ -196,11 +193,7 @@ export function AgentChatTopNavButton() {
   // layer (like the floating FAB does) so the button stays interactive.
   if (modalContainer) {
     return createPortal(
-      <div
-        css={detachedButtonCSS}
-        style={{ right: NAV_BUTTON_RIGHT_PX }}
-        data-layer="modal"
-      >
+      <div css={detachedButtonCSS} data-layer="modal">
         {button}
       </div>,
       modalContainer
