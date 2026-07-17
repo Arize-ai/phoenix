@@ -75,7 +75,7 @@ async def _seed_cursor(
 ) -> int:
     async with db() as session:
         cursor = models.EvalWorkCursor(
-            grain="SPAN",
+            evaluation_target="SPAN",
             consumer_group="default",
             produced_through_id=produced_through_id,
             observed_high_water_id=observed_high_water_id,
@@ -116,7 +116,7 @@ async def test_cold_start_initializes_cursor_at_current_high_water(
         cursor = (
             await session.scalars(
                 select(models.EvalWorkCursor).where(
-                    models.EvalWorkCursor.grain == "SPAN",
+                    models.EvalWorkCursor.evaluation_target == "SPAN",
                     models.EvalWorkCursor.consumer_group == "default",
                 )
             )

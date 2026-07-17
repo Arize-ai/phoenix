@@ -47,9 +47,11 @@ def upgrade() -> None:
             primary_key=True,
         ),
         sa.Column(
-            "grain",
+            "evaluation_target",
             sa.String(),
-            sa.CheckConstraint("grain IN ('SPAN', 'TRACE', 'SESSION')", name="valid_grain"),
+            sa.CheckConstraint(
+                "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
+            ),
             nullable=False,
         ),
         sa.Column("consumer_group", sa.String(), nullable=False),
@@ -75,7 +77,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("grain", "consumer_group"),
+        sa.UniqueConstraint("evaluation_target", "consumer_group"),
     )
     op.create_table(
         "project_evaluator_criteria",

@@ -183,7 +183,6 @@ GenerativeModelSDK: TypeAlias = Literal[
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR", "EXPIRED"]
-EvalWorkGrain: TypeAlias = Literal["SPAN"]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
@@ -3139,12 +3138,14 @@ class ProjectEvaluatorCriteria(HasId):
 
 class EvalWorkCursor(HasId):
     """Producer lease and position in the span arrival log, one row per
-    (grain, consumer_group). For every grain, produced_through_id is a Span.id
-    position in the shared arrival log rather than a grain-specific entity id."""
+    (evaluation_target, consumer_group). For each target, produced_through_id is a Span.id
+    position in the shared arrival log rather than a target-specific entity id."""
 
     __tablename__ = "eval_work_cursors"
-    grain: Mapped[EvalWorkGrain] = mapped_column(
-        CheckConstraint("grain IN ('SPAN', 'TRACE', 'SESSION')", name="valid_grain"),
+    evaluation_target: Mapped[EvaluationTarget] = mapped_column(
+        CheckConstraint(
+            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
+        ),
         nullable=False,
     )
     consumer_group: Mapped[str] = mapped_column(String, nullable=False)
@@ -3161,11 +3162,11 @@ class EvalWorkCursor(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    __table_args__ = (UniqueConstraint("grain", "consumer_group"),)
+    __table_args__ = (UniqueConstraint("evaluation_target", "consumer_group"),)
 
 
 class EvalWorkUnit(HasId):
-    """A span-grain eval task — run one evaluator against one span. The producer
+    """A span-level eval task — run one evaluator against one span. The producer
     materializes rows here; consumers claim, run, and complete them."""
 
     __tablename__ = "eval_work_units"
