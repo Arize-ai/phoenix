@@ -592,9 +592,6 @@ class OnlineEvalProducer(DaemonTask):
                     )
                     await self._fence_mutating_session(session)
                     return False, budget
-            # Session activity must commit atomically with the watermark advance:
-            # recording it on a truncated (non-advancing) pass would re-bump
-            # observed_at on every re-scan of the same window.
             await self._record_session_activity(
                 session,
                 session_activity_project_ids,
