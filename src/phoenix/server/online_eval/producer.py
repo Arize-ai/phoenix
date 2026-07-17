@@ -46,6 +46,7 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
+from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
 
@@ -554,12 +555,7 @@ class OnlineEvalProducer(DaemonTask):
             return list(
                 await session.scalars(
                     select(models.ProjectEvaluatorCriteria.project_id)
-                    .where(
-                        models.ProjectEvaluatorCriteria.enabled,
-                        models.ProjectEvaluatorCriteria.evaluation_target == "SESSION",
-                        models.ProjectEvaluatorCriteria.filter_condition == "",
-                        models.ProjectEvaluatorCriteria.sampling_rate == 1.0,
-                    )
+                    .where(session_criteria_is_schedulable(models.ProjectEvaluatorCriteria))
                     .distinct()
                 )
             )

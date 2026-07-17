@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Optional
 
-from sqlalchemy import delete, func, or_, select, type_coerce, update
+from sqlalchemy import and_, delete, func, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
@@ -20,6 +20,7 @@ from phoenix.server.online_eval.derivation import config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_policy import (
     effective_session_evaluation_delay_seconds,
+    session_criteria_is_schedulable,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
@@ -44,7 +45,7 @@ class _SessionCriteria:
     criteria_id: int
     project_id: int
     evaluator_id: int
-    fingerprint: Optional[str]
+    fingerprint: str
     delay_seconds: int
 
 
@@ -77,6 +78,14 @@ class SessionEvalSweeper(DaemonTask):
             await self._release_lease()
 
     async def _tick(self) -> None:
+        cursor_id = await self._acquire_cursor()
+        if cursor_id is None:
+            return
+        if not await self._materialize_and_renew(cursor_id):
+            self._lease_held = False
+            logger.warning("Session evaluation sweeper lost its lease")
+
+    async def _acquire_cursor(self) -> Optional[int]:
         for _ in range(2):
             async with self._db() as session:
                 database_now = await self._database_now(session)
@@ -95,48 +104,51 @@ class SessionEvalSweeper(DaemonTask):
                     .values(claimed_by=self._sweeper_id, claimed_at=database_now)
                     .returning(models.EvalWorkCursor.id)
                 )
-                if cursor_id is None:
-                    row_exists = await session.scalar(
-                        select(models.EvalWorkCursor.id).where(
-                            models.EvalWorkCursor.evaluation_target == "SESSION",
-                            models.EvalWorkCursor.consumer_group == self._consumer_group,
-                        )
-                    )
-                    if row_exists is not None:
-                        self._lease_held = False
-                        return
-                    await session.execute(
-                        insert_on_conflict(
-                            {
-                                "evaluation_target": "SESSION",
-                                "consumer_group": self._consumer_group,
-                                "produced_through_id": 0,
-                            },
-                            table=models.EvalWorkCursor,
-                            dialect=self._db.dialect,
-                            unique_by=("evaluation_target", "consumer_group"),
-                            on_conflict=OnConflict.DO_NOTHING,
-                        )
-                    )
-                    continue
-
+            if cursor_id is not None:
                 self._lease_held = True
-                await self._sweep(session, database_now)
-                renewed_at = await self._database_now(session)
-                renewed = await session.scalar(
-                    update(models.EvalWorkCursor)
-                    .where(
-                        models.EvalWorkCursor.id == cursor_id,
-                        models.EvalWorkCursor.claimed_by == self._sweeper_id,
+                return cursor_id
+            async with self._db() as session:
+                row_exists = await session.scalar(
+                    select(models.EvalWorkCursor.id).where(
+                        models.EvalWorkCursor.evaluation_target == "SESSION",
+                        models.EvalWorkCursor.consumer_group == self._consumer_group,
                     )
-                    .values(claimed_at=renewed_at)
-                    .returning(models.EvalWorkCursor.id)
                 )
-                if renewed is None:
-                    await session.rollback()
-                    self._lease_held = False
-                    logger.warning("Session evaluation sweeper lost its lease")
-                return
+                if row_exists is not None:
+                    break
+                await session.execute(
+                    insert_on_conflict(
+                        {
+                            "evaluation_target": "SESSION",
+                            "consumer_group": self._consumer_group,
+                            "produced_through_id": 0,
+                        },
+                        table=models.EvalWorkCursor,
+                        dialect=self._db.dialect,
+                        unique_by=("evaluation_target", "consumer_group"),
+                        on_conflict=OnConflict.DO_NOTHING,
+                    )
+                )
+        self._lease_held = False
+        return None
+
+    async def _materialize_and_renew(self, cursor_id: int) -> bool:
+        async with self._db() as session:
+            database_now = await self._database_now(session)
+            await self._sweep(session, database_now)
+            renewed_at = await self._database_now(session)
+            renewed = await session.scalar(
+                update(models.EvalWorkCursor)
+                .where(
+                    models.EvalWorkCursor.id == cursor_id,
+                    models.EvalWorkCursor.claimed_by == self._sweeper_id,
+                )
+                .values(claimed_at=renewed_at)
+                .returning(models.EvalWorkCursor.id)
+            )
+            if renewed is None:
+                await session.rollback()
+        return renewed is not None
 
     async def _database_now(self, session: AsyncSession) -> datetime:
         database_now = await session.scalar(select(type_coerce(func.now(), models.UtcTimeStamp())))
@@ -157,23 +169,28 @@ class SessionEvalSweeper(DaemonTask):
                     models.ProjectEvaluatorCriteria.evaluator_id == polymorphic_evaluator.id,
                 )
                 .where(
-                    models.ProjectEvaluatorCriteria.enabled,
-                    models.ProjectEvaluatorCriteria.evaluation_target == "SESSION",
-                    models.ProjectEvaluatorCriteria.filter_condition == "",
-                    models.ProjectEvaluatorCriteria.sampling_rate == 1.0,
+                    session_criteria_is_schedulable(models.ProjectEvaluatorCriteria),
                 )
             )
         ).all()
         criteria_rows: list[_SessionCriteria] = []
         for criteria, evaluator in rows:
             resolved = await resolve_criteria(session, criteria, evaluator)
+            if resolved is None:
+                logger.warning(
+                    f"Skipping criteria {criteria.id}: "
+                    f"no resolvable version for evaluator {evaluator.id}"
+                )
+                continue
             criteria_rows.append(
                 _SessionCriteria(
                     criteria_id=criteria.id,
                     project_id=criteria.project_id,
                     evaluator_id=criteria.evaluator_id,
-                    fingerprint=None if resolved is None else config_fingerprint(resolved),
-                    delay_seconds=effective_session_evaluation_delay_seconds(criteria),
+                    fingerprint=config_fingerprint(resolved),
+                    delay_seconds=effective_session_evaluation_delay_seconds(
+                        criteria.evaluation_delay_seconds
+                    ),
                 )
             )
         return criteria_rows
@@ -183,15 +200,36 @@ class SessionEvalSweeper(DaemonTask):
         for criteria in await self._load_criteria(session):
             criteria_by_project[criteria.project_id].append(criteria)
 
+        activity_stmt = select(
+            models.EvalSessionActivity,
+            models.ProjectSession.project_id,
+        ).join(
+            models.ProjectSession,
+            models.EvalSessionActivity.project_session_rowid == models.ProjectSession.id,
+        )
+        if criteria_by_project:
+            due_for_project = [
+                and_(
+                    models.ProjectSession.project_id == project_id,
+                    models.EvalSessionActivity.observed_at
+                    <= database_now
+                    - timedelta(
+                        seconds=min(criteria.delay_seconds for criteria in project_criteria)
+                    ),
+                )
+                for project_id, project_criteria in criteria_by_project.items()
+            ]
+            activity_stmt = activity_stmt.where(
+                or_(
+                    models.ProjectSession.project_id.not_in(criteria_by_project),
+                    *due_for_project,
+                )
+            )
         activity_rows = (
             await session.execute(
-                select(models.EvalSessionActivity, models.ProjectSession.project_id)
-                .join(
-                    models.ProjectSession,
-                    models.EvalSessionActivity.project_session_rowid == models.ProjectSession.id,
+                activity_stmt.order_by(models.EvalSessionActivity.observed_at).limit(
+                    _MAX_ACTIVITY_ROWS_PER_TICK
                 )
-                .order_by(models.EvalSessionActivity.observed_at)
-                .limit(_MAX_ACTIVITY_ROWS_PER_TICK)
             )
         ).all()
         if not activity_rows:
@@ -218,9 +256,6 @@ class SessionEvalSweeper(DaemonTask):
         for activity, project_id in activity_rows:
             activity_resolved = True
             for criteria in criteria_by_project[project_id]:
-                if criteria.fingerprint is None:
-                    activity_resolved = False
-                    continue
                 key = (
                     activity.project_session_rowid,
                     criteria.evaluator_id,

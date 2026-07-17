@@ -38,6 +38,7 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    MINIMUM_EVALUATION_DELAY_SECONDS,
 )
 
 if TYPE_CHECKING:
@@ -48,6 +49,14 @@ if TYPE_CHECKING:
     from .PromptVersionTag import PromptVersionTag
     from .SandboxConfig import SandboxConfig
     from .User import User
+
+_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+    "Evaluation grain. SPAN evaluators run on matching spans. Unfiltered SESSION evaluators "
+    "with full sampling are evaluated once: work is scheduled after the session first stays "
+    "quiet for the evaluation delay, and execution begins when a consumer claims it. Later "
+    "activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and "
+    "TRACE evaluators are stored but not yet scheduled."
+)
 
 
 @strawberry.enum
@@ -1132,11 +1141,7 @@ class ProjectEvaluator(Node):
         return (await self._get_record(info)).sampling_rate
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "SPAN evaluators run on matching spans; unfiltered SESSION "
-            "evaluators with full sampling run after their evaluation delay. TRACE evaluators "
-            "are stored but not scheduled."
-        )
+        description=_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION
     )
     async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
         record = await self._get_record(info)
@@ -1144,8 +1149,10 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Seconds of inactivity before a SESSION evaluation. Null uses the default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds."
+            "Seconds a SESSION must stay quiet before work is scheduled. Values must be at "
+            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Null uses the default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation."
         )
     )
     async def evaluation_delay_seconds(self, info: Info[Context, None]) -> Optional[int]:
