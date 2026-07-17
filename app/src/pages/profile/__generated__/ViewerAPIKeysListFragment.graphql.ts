@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f547c615797bf4b10ef999fa6be9ebd2>>
+ * @generated SignedSource<<024ed8f1723e9f6158103f60c729f87f>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type APIKeysTableFragment$data = {
+export type ViewerAPIKeysListFragment$data = {
   readonly apiKeys: ReadonlyArray<{
     readonly createdAt: string;
     readonly description: string | null;
@@ -18,14 +18,14 @@ export type APIKeysTableFragment$data = {
     readonly name: string;
   }>;
   readonly id: string;
-  readonly " $fragmentType": "APIKeysTableFragment";
+  readonly " $fragmentType": "ViewerAPIKeysListFragment";
 };
-export type APIKeysTableFragment$key = {
-  readonly " $data"?: APIKeysTableFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
+export type ViewerAPIKeysListFragment$key = {
+  readonly " $data"?: ViewerAPIKeysListFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ViewerAPIKeysListFragment">;
 };
 
-import APIKeysTableQuery_graphql from './APIKeysTableQuery.graphql';
+import ViewerAPIKeysListQuery_graphql from './ViewerAPIKeysListQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
@@ -44,14 +44,14 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": APIKeysTableQuery_graphql,
+      "operation": ViewerAPIKeysListQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "APIKeysTableFragment",
+  "name": "ViewerAPIKeysListFragment",
   "selections": [
     {
       "alias": null,
@@ -100,6 +100,6 @@ return {
 };
 })();
 
-(node as any).hash = "6c32098d55e4cba859dcec73f3ccd28c";
+(node as any).hash = "3615fac8794059167646b247b4d851f1";
 
 export default node;

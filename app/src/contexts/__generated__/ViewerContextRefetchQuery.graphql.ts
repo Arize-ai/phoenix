@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<602e9a124d32e62a60bf72d69fbb2546>>
+ * @generated SignedSource<<b7ba27145c0ff20fbbe7b99d95078006>>
  * @lightSyntaxTransform
  */
 
@@ -203,16 +203,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a9d822aa76e8f05ff9e961767a51a835",
+    "cacheID": "67fdf1bb616d5781701a75f68282f178",
     "id": null,
     "metadata": {},
     "name": "ViewerContextRefetchQuery",
     "operationKind": "query",
-    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment AuthorizedApplicationsCardFragment on User {\n  id\n  oauth2Grants {\n    id\n    clientName\n    clientId\n    isFirstParty\n    scopes\n    createdAt\n    expiresAt\n    lastUsedAt\n  }\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n    ...AuthorizedApplicationsCardFragment\n  }\n}\n"
+    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment AuthorizedApplicationsCardFragment on User {\n  id\n  oauth2Grants {\n    id\n    clientName\n    clientId\n    isFirstParty\n    scopes\n    createdAt\n    expiresAt\n    lastUsedAt\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...ViewerAPIKeysListFragment\n    ...AuthorizedApplicationsCardFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9491bd8a3906fd7087ac8e3a036fa724";
+(node as any).hash = "53341d080ff76da24b2f1bc9e36c4e23";
 
 export default node;

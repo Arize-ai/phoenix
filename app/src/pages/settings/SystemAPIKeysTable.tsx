@@ -57,7 +57,7 @@ export function SystemAPIKeysTable({
           expiresAt
         }
         viewer {
-          ...APIKeysTableFragment
+          ...ViewerAPIKeysListFragment
         }
       }
     `,

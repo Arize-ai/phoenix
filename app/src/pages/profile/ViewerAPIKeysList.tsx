@@ -4,17 +4,21 @@ import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 import { APIKeysList } from "@phoenix/components/auth";
 import { useNotifySuccess } from "@phoenix/contexts";
 
-import type { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
-import type { APIKeysTableQuery } from "./__generated__/APIKeysTableQuery.graphql";
+import type { ViewerAPIKeysListFragment$key } from "./__generated__/ViewerAPIKeysListFragment.graphql";
+import type { ViewerAPIKeysListQuery } from "./__generated__/ViewerAPIKeysListQuery.graphql";
 
-export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
+export function ViewerAPIKeysList({
+  query,
+}: {
+  query: ViewerAPIKeysListFragment$key;
+}) {
   const [data, refetch] = useRefetchableFragment<
-    APIKeysTableQuery,
-    APIKeysTableFragment$key
+    ViewerAPIKeysListQuery,
+    ViewerAPIKeysListFragment$key
   >(
     graphql`
-      fragment APIKeysTableFragment on User
-      @refetchable(queryName: "APIKeysTableQuery") {
+      fragment ViewerAPIKeysListFragment on User
+      @refetchable(queryName: "ViewerAPIKeysListQuery") {
         apiKeys {
           id
           name
@@ -29,11 +33,11 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
 
   const notifySuccess = useNotifySuccess();
   const [commit, isCommitting] = useMutation(graphql`
-    mutation APIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
+    mutation ViewerAPIKeysListDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
       deleteUserApiKey(input: $input) {
         query {
           viewer {
-            ...APIKeysTableFragment
+            ...ViewerAPIKeysListFragment
           }
         }
       }

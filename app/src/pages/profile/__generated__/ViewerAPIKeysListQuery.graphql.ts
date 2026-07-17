@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<642dfa51d969d4290304a82cb5f61e8b>>
+ * @generated SignedSource<<186c52c7c2ad294993d8ba8fb59e5abb>>
  * @lightSyntaxTransform
  */
 
@@ -9,17 +9,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type APIKeysTableQuery$variables = {
+export type ViewerAPIKeysListQuery$variables = {
   id: string;
 };
-export type APIKeysTableQuery$data = {
+export type ViewerAPIKeysListQuery$data = {
   readonly node: {
-    readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ViewerAPIKeysListFragment">;
   };
 };
-export type APIKeysTableQuery = {
-  response: APIKeysTableQuery$data;
-  variables: APIKeysTableQuery$variables;
+export type ViewerAPIKeysListQuery = {
+  response: ViewerAPIKeysListQuery$data;
+  variables: ViewerAPIKeysListQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -49,7 +49,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "APIKeysTableQuery",
+    "name": "ViewerAPIKeysListQuery",
     "selections": [
       {
         "alias": null,
@@ -62,7 +62,7 @@ return {
           {
             "args": null,
             "kind": "FragmentSpread",
-            "name": "APIKeysTableFragment"
+            "name": "ViewerAPIKeysListFragment"
           }
         ],
         "storageKey": null
@@ -75,7 +75,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "APIKeysTableQuery",
+    "name": "ViewerAPIKeysListQuery",
     "selections": [
       {
         "alias": null,
@@ -146,16 +146,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cdfdedf08fd777fb83fabe0bce5ab3db",
+    "cacheID": "caf3f64bc5beff56fd6b1e916a320268",
     "id": null,
     "metadata": {},
-    "name": "APIKeysTableQuery",
+    "name": "ViewerAPIKeysListQuery",
     "operationKind": "query",
-    "text": "query APIKeysTableQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...APIKeysTableFragment\n    id\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
+    "text": "query ViewerAPIKeysListQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ViewerAPIKeysListFragment\n    id\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6c32098d55e4cba859dcec73f3ccd28c";
+(node as any).hash = "3615fac8794059167646b247b4d851f1";
 
 export default node;

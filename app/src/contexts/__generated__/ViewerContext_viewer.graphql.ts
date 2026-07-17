@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6f339da13b6867d59b306b20b79ac0c7>>
+ * @generated SignedSource<<4fe0a85ac71e5aa374beac2b956d4e24>>
  * @lightSyntaxTransform
  */
 
@@ -21,7 +21,7 @@ export type ViewerContext_viewer$data = {
       readonly name: string;
     };
     readonly username: string;
-    readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment" | "AuthorizedApplicationsCardFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"AuthorizedApplicationsCardFragment" | "ViewerAPIKeysListFragment">;
   } | null;
   readonly " $fragmentType": "ViewerContext_viewer";
 };
@@ -115,7 +115,7 @@ const node: ReaderFragment = {
         {
           "args": null,
           "kind": "FragmentSpread",
-          "name": "APIKeysTableFragment"
+          "name": "ViewerAPIKeysListFragment"
         },
         {
           "args": null,
@@ -130,6 +130,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "9491bd8a3906fd7087ac8e3a036fa724";
+(node as any).hash = "53341d080ff76da24b2f1bc9e36c4e23";
 
 export default node;

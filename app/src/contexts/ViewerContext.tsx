@@ -100,7 +100,7 @@ export function ViewerProvider({
             name
           }
           authMethod
-          ...APIKeysTableFragment
+          ...ViewerAPIKeysListFragment
           ...AuthorizedApplicationsCardFragment
         }
       }
