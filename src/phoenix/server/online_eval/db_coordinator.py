@@ -42,11 +42,11 @@ class DbEvalWorkCoordinator:
         self,
         db: DbSessionFactory,
         *,
-        grain: models.EvalWorkGrain = "SPAN",
+        evaluation_target: models.EvaluationTarget = "SPAN",
         max_attempts: int = MAX_ATTEMPTS,
     ) -> None:
         self._db = db
-        self._grain = grain
+        self._evaluation_target = evaluation_target
         self._max_attempts = max_attempts
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
@@ -286,7 +286,7 @@ class DbEvalWorkCoordinator:
                         models.EvalWorkCursor.produced_through_id,
                         models.EvalWorkCursor.observed_high_water_id,
                     ).where(
-                        models.EvalWorkCursor.grain == self._grain,
+                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                         models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     )
                 )
