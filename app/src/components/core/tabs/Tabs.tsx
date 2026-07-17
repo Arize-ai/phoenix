@@ -135,8 +135,7 @@ const tabListCSS = css`
     --tab-pill-inset: var(--global-dimension-size-25)
       var(--global-dimension-size-50);
     .react-aria-Tab {
-      padding: var(--global-dimension-size-100)
-        var(--global-dimension-static-size-200);
+      padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
     }
 
     // The selected tab is marked with a filled pill behind its label (the
