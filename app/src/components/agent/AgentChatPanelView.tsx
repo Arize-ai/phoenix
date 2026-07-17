@@ -136,8 +136,6 @@ export function AgentChatHeader({
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
-  // Only surface the beta badge on a fresh, unsent chat — once a message is
-  // submitted the badge yields the header to the (incoming) session title.
   const showBetaBadge =
     sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME && isActiveSessionUnsent;
 

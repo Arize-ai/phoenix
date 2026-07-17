@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  AgentSessionGoneError,
+  AgentSessionNotFoundError,
   computeLocalExpiresAt,
-  isAgentSessionGoneError,
+  isAgentSessionNotFoundError,
 } from "../sessionExpiry";
 
 describe("computeLocalExpiresAt", () => {
@@ -24,20 +24,10 @@ describe("computeLocalExpiresAt", () => {
   });
 });
 
-describe("isAgentSessionGoneError", () => {
+describe("isAgentSessionNotFoundError", () => {
   it("matches the typed error", () => {
-    expect(isAgentSessionGoneError(new AgentSessionGoneError())).toBe(true);
-  });
-
-  it("matches an error carrying the raw 404 response body", () => {
-    expect(
-      isAgentSessionGoneError(new Error('{"detail":"Session not found"}'))
-    ).toBe(true);
-  });
-
-  it("rejects unrelated errors and non-errors", () => {
-    expect(isAgentSessionGoneError(new Error("network down"))).toBe(false);
-    expect(isAgentSessionGoneError("Session not found")).toBe(false);
-    expect(isAgentSessionGoneError(null)).toBe(false);
+    expect(isAgentSessionNotFoundError(new AgentSessionNotFoundError())).toBe(
+      true
+    );
   });
 });

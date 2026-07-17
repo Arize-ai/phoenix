@@ -9,9 +9,7 @@ const temporaryChatTooltipCSS = css`
 `;
 
 /**
- * Ephemerality indicator shown next to a temporary chat's title, both in the
- * chat header and in the session dropdown. Persistent sessions render no
- * icon, so its presence alone marks the chat as temporary.
+ * Ephemerality indicator for a temporary chat session.
  */
 export function TemporarySessionIcon() {
   return (
@@ -32,7 +30,7 @@ export function TemporarySessionIcon() {
         </span>
       </Pressable>
       <Tooltip placement="bottom" css={temporaryChatTooltipCSS}>
-        This chat is temporary and won&apos;t be saved
+        This chat is temporary and won't be saved
       </Tooltip>
     </TooltipTrigger>
   );

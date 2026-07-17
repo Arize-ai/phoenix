@@ -170,8 +170,8 @@ function TemporaryChatDefaultSetting() {
           <span className="assistant-personal-settings__label">
             <Text weight="heavy">New chats are temporary by default</Text>
             <Text color="text-500" size="S">
-              Temporary chats don&apos;t appear in history and expire 24 hours
-              after your last message.
+              Temporary chats don't appear in history and expire as soon as you
+              leave the page.
             </Text>
           </span>
         </Switch>

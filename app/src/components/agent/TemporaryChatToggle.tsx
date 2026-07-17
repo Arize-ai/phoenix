@@ -14,8 +14,8 @@ const temporaryChatTooltipCSS = css`
 `;
 
 /**
- * Toggle for a new chat's temporary mode, shown beneath the composer until
- * the first message is submitted. A session's mode is fixed at creation, so
+ * Toggle for a new chat's temporary mode.
+ * A session's mode is fixed at creation, so
  * the toggle never applies to an existing chat.
  */
 export function TemporaryChatToggle({
