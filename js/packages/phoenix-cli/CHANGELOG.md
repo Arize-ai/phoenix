@@ -1,5 +1,15 @@
 # @arizeai/phoenix-cli
 
+## 1.9.1
+
+### Patch Changes
+
+- d6b1cbb: Add a reusable refreshable-credential fetch wrapper to the Phoenix TypeScript
+  client, use it for OAuth-authenticated CLI API and PXI requests, and keep each
+  profile bound to the endpoint that issued its OAuth tokens.
+- Updated dependencies [d6b1cbb]
+  - @arizeai/phoenix-client@6.14.0
+
 ## 1.9.0
 
 ### Minor Changes
