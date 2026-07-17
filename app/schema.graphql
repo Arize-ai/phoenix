@@ -1001,6 +1001,11 @@ type Dataset implements Node {
 
   """Evaluation metrics for the most recent non-ephemeral experiments."""
   experimentAnnotationMetrics(first: Int! = 7): ExperimentAnnotationMetrics!
+
+  """
+  Names of all available experiment annotations for this dataset. (The list contains no duplicates.)
+  """
+  experimentAnnotationNames: [String!]!
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
