@@ -445,6 +445,8 @@ CREATE TABLE public.api_keys (
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE,
+    scopes JSONB,
+    audience JSONB,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users FOREIGN KEY
         (user_id)

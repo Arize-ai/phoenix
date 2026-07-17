@@ -2443,6 +2443,8 @@ class ApiKey(HasId):
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
