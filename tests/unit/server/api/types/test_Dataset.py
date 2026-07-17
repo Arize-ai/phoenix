@@ -1110,6 +1110,7 @@ class TestDatasetExperimentAnnotationMetricsResolver:
           query ($datasetId: ID!) {
             dataset: node(id: $datasetId) {
               ... on Dataset {
+                experimentAnnotationNames
                 experimentAnnotationMetrics(first: 1) {
                   names
                   baselineExperiment { ...dataPoint }
@@ -1138,6 +1139,13 @@ class TestDatasetExperimentAnnotationMetricsResolver:
 
         assert not response.errors
         assert response.data is not None
+        assert response.data["dataset"]["experimentAnnotationNames"] == [
+            "both",
+            "errored",
+            "explanation-only",
+            "latest-only",
+            "quality",
+        ]
         metrics = response.data["dataset"]["experimentAnnotationMetrics"]
         assert metrics["names"] == ["both", "latest-only", "quality"]
         assert metrics["baselineExperiment"]["experiment"] == {

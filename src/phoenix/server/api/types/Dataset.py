@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 import strawberry
-from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy import Text, and_, distinct, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
@@ -493,6 +493,24 @@ class Dataset(Node):
             dataset_id=self.id,
             first=first,
         )
+
+    @strawberry.field(
+        description="Names of all available experiment annotations for this dataset. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    async def experiment_annotation_names(
+        self,
+        info: Info[Context, None],
+    ) -> list[str]:
+        stmt = (
+            select(distinct(models.ExperimentRunAnnotation.name))
+            .join(models.ExperimentRun)
+            .join(models.Experiment)
+            .where(models.Experiment.dataset_id == self.id)
+            .order_by(models.ExperimentRunAnnotation.name)
+        )
+        async with info.context.db.read() as session:
+            return list(await session.scalars(stmt))
 
     @strawberry.field
     async def experiment_jobs(
