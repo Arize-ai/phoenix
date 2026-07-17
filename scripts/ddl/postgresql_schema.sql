@@ -465,8 +465,8 @@ CREATE TABLE public.agent_session_messages (
     id bigserial NOT NULL,
     agent_session_id BIGINT NOT NULL,
     position INTEGER NOT NULL,
-    message_id VARCHAR NOT NULL,
     message JSONB NOT NULL,
+    message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
     CONSTRAINT uq_agent_session_messages_agent_session_id_position

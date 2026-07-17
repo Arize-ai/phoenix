@@ -457,7 +457,7 @@ input BranchAgentSessionInput {
   id: ID!
 
   """
-  The transcript message (UIMessage id) to branch at, using the same truncation contract as truncateAgentSession.
+  The transcript message (UIMessage id) to branch at. A user message is excluded from the branch along with everything after it; an assistant message is included and everything after it is excluded.
   """
   messageId: String!
 }

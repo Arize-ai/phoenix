@@ -46,7 +46,6 @@ from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
-from phoenix.server.agents.session_persistence import make_agent_session_message_row
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _emit_turn_root_span,
@@ -124,8 +123,8 @@ async def _create_agent_session_row(
         session.add(agent_session)
         await session.flush()
         session.add_all(
-            make_agent_session_message_row(
-                agent_session_rowid=agent_session.id,
+            models.AgentSessionMessage(
+                agent_session_id=agent_session.id,
                 position=position,
                 message=PhoenixUIMessage.model_validate(message),
             )

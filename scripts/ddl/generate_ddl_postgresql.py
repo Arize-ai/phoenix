@@ -326,6 +326,8 @@ class PostgreSQLDDLExtractor:
                 c.column_default,
                 c.is_identity,
                 c.identity_generation,
+                c.is_generated,
+                c.generation_expression,
                 c.ordinal_position,
                 c.udt_name
             FROM information_schema.columns c
@@ -800,8 +802,9 @@ class PostgreSQLDDLExtractor:
         """Format a single column definition.
 
         Raises NotImplementedError for column features this generator cannot
-        render (identity columns, non-int/bigint serials) rather than silently
-        emitting valid-looking DDL that loses semantics.
+        render (identity columns, non-int/bigint serials, unknown generated
+        column kinds) rather than silently emitting valid-looking DDL that
+        loses semantics.
         """
         # Quote column name if it contains mixed case or special characters
         column_name = self._quote_identifier_if_needed(col["column_name"])
@@ -836,6 +839,14 @@ class PostgreSQLDDLExtractor:
             parts.append(self._format_data_type(col, original_data_type))
 
         # === Column Attributes ===
+        if col.get("is_generated") == "ALWAYS":
+            parts.append(f"GENERATED ALWAYS AS ({col['generation_expression']}) STORED")
+        elif col.get("is_generated") not in (None, "NEVER"):
+            raise NotImplementedError(
+                f"Column {col['column_name']} has unsupported generated column kind "
+                f"{col['is_generated']}"
+            )
+
         if col["is_nullable"] == "NO":
             parts.append("NOT NULL")
 

@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+import pytest
+from fastapi import FastAPI
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -11,7 +13,7 @@ from phoenix.db.types.data_stream_protocol import (
     ToolInputAvailablePart,
     ToolOutputAvailablePart,
 )
-from phoenix.server.agents.session_persistence import make_agent_session_message_row
+from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -57,6 +59,43 @@ _DELETE_MUTATION = """
     }
   }
 """
+
+
+@pytest.mark.parametrize(
+    ("mutation", "variables"),
+    [
+        (_CREATE_MUTATION, {"title": ""}),
+        (
+            _TRUNCATE_MUTATION,
+            {
+                "id": str(GlobalID("AgentSession", "1")),
+                "messageId": "message-1",
+            },
+        ),
+        (
+            _BRANCH_MUTATION,
+            {
+                "id": str(GlobalID("AgentSession", "1")),
+                "messageId": "message-1",
+            },
+        ),
+    ],
+    ids=("create", "truncate", "branch"),
+)
+async def test_agent_session_mutation_requires_enabled_agent_assistant(
+    app: FastAPI,
+    gql_client: AsyncGraphQLClient,
+    mutation: str,
+    variables: dict[str, str],
+) -> None:
+    await app.state.system_settings.update_agent_assistant_enabled(
+        AgentAssistantEnabledSetting(enabled=False)
+    )
+
+    response = await gql_client.execute(query=mutation, variables=variables)
+
+    assert response.errors
+    assert response.errors[0].message == "Agents are disabled"
 
 
 def _transcript_messages() -> list[PhoenixUIMessage]:
@@ -114,8 +153,8 @@ async def _seed_session_with_transcript(
         session.add(agent_session)
         await session.flush()
         session.add_all(
-            make_agent_session_message_row(
-                agent_session_rowid=agent_session.id,
+            models.AgentSessionMessage(
+                agent_session_id=agent_session.id,
                 position=position,
                 message=message,
             )
@@ -217,8 +256,11 @@ async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
 async def test_branch_agent_session_copies_the_truncated_transcript(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source_agent_session_id = await _seed_session_with_transcript(db)
+    configured_project_name = "configured-assistant-project"
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", configured_project_name)
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
@@ -229,9 +271,7 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
     payload = response.data["branchAgentSession"]
     branch = payload["agentSession"]
     assert branch["id"] != source_agent_session_id
-    # The source is untitled, so the branch derives its title from the
-    # truncated transcript's first user message.
-    assert branch["title"] == "(branch) How do I trace OpenAI?"
+    assert branch["title"] == ""
     branch_message_ids = [message["id"] for message in branch["messages"]]
     assert len(branch_message_ids) == 2
     assert all(UUID(message_id).version == 4 for message_id in branch_message_ids)
@@ -263,16 +303,17 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
         assert set(row.message_id for row in branch_messages).isdisjoint(
             row.message_id for row in source_messages
         )
-        # The branch mints its own OTel session identity but stays in the
-        # source's trace project.
+        # The branch mints its own OTel session identity and uses the currently
+        # configured trace project.
         source_session, branch_session = sorted(
             agent_sessions, key=lambda agent_session: agent_session.id
         )
         assert branch_session.project_session_id != source_session.project_session_id
-        assert branch_session.project_name == source_session.project_name
+        assert branch_session.project_name == configured_project_name
+        assert branch_session.project_name != source_session.project_name
 
 
-async def test_branch_agent_session_reuses_the_source_title_with_a_branch_prefix(
+async def test_branch_agent_session_copies_the_source_title(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -284,9 +325,7 @@ async def test_branch_agent_session_reuses_the_source_title_with_a_branch_prefix
     )
     assert not response.errors
     assert response.data is not None
-    assert (
-        response.data["branchAgentSession"]["agentSession"]["title"] == "(branch) Debugging traces"
-    )
+    assert response.data["branchAgentSession"]["agentSession"]["title"] == "Debugging traces"
 
 
 async def test_branch_agent_session_strips_pending_tool_calls_from_assistant_target(
@@ -412,8 +451,8 @@ async def test_delete_agent_session_cascades_snapshot(
             )
         )
         session.add(
-            make_agent_session_message_row(
-                agent_session_rowid=agent_session.id,
+            models.AgentSessionMessage(
+                agent_session_id=agent_session.id,
                 position=0,
                 message=PhoenixUIMessage(id="m1", role="user", parts=[]),
             )

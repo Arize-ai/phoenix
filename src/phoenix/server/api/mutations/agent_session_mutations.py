@@ -18,14 +18,12 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolOutputErrorPart,
     DynamicToolUIPart,
     PhoenixUIMessage,
-    TextUIPart,
     ToolOutputAvailablePart,
     ToolOutputDeniedPart,
     ToolOutputErrorPart,
     ToolUIPart,
 )
-from phoenix.server.agents.session_persistence import make_agent_session_message_row
-from phoenix.server.api.auth import IsNotReadOnly
+from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
@@ -42,9 +40,6 @@ _TERMINAL_TOOL_PART_TYPES = (
     DynamicToolOutputErrorPart,
     DynamicToolOutputDeniedPart,
 )
-
-_BRANCH_TITLE_PREFIX = "(branch) "
-_BRANCH_TITLE_MAX_LENGTH = 50
 
 
 def _remove_pending_tool_parts(message: PhoenixUIMessage) -> PhoenixUIMessage:
@@ -96,51 +91,17 @@ def _rewind_messages(
     return retained
 
 
-def _build_branch_title(source_title: str, messages: Sequence[PhoenixUIMessage]) -> str:
-    """Build the title for a session branched from a source conversation.
-
-    Reuses the source's title when available, otherwise derives a short label
-    from the branch's first user message, then prefixes it with ``(branch)``.
-    Seeding a non-empty title also prevents the async summarizer from
-    overwriting it on the branch's next turn.
-    """
-    base = source_title.strip()
-    if not base:
-        first_user_message = next(
-            (message for message in messages if message.role == "user"),
-            None,
-        )
-        if first_user_message is not None:
-            text = " ".join(
-                part.text for part in first_user_message.parts if isinstance(part, TextUIPart)
-            ).strip()
-            if len(text) > _BRANCH_TITLE_MAX_LENGTH:
-                text = f"{text[:_BRANCH_TITLE_MAX_LENGTH]}..."
-            base = text
-    # Avoid stacking "(branch) (branch) ..." when branching from a branch.
-    if base.startswith(_BRANCH_TITLE_PREFIX):
-        return base
-    return f"{_BRANCH_TITLE_PREFIX}{base}" if base else _BRANCH_TITLE_PREFIX.strip()
-
-
 async def _load_owned_agent_session(
     session: AsyncSession,
     *,
     info: Info[Context, None],
-    agent_session_gid: GlobalID,
+    agent_session_rowid: int,
 ) -> models.AgentSession:
     """Load a session the viewer owns, or raise a not-found error."""
-    try:
-        agent_session_rowid = from_global_id_with_expected_type(
-            agent_session_gid,
-            models.AgentSession.__name__,
-        )
-    except ValueError as exc:
-        raise BadRequest(str(exc)) from exc
     agent_session = await session.get(models.AgentSession, agent_session_rowid)
     viewer_id = info.context.user_id
     if agent_session is None or (viewer_id is not None and agent_session.user_id != viewer_id):
-        raise NotFound(f"No agent session found for ID '{agent_session_gid}'")
+        raise NotFound(f"No agent session found for row ID '{agent_session_rowid}'")
     return agent_session
 
 
@@ -191,20 +152,6 @@ async def _load_session_message_target(
     return None if row is None else (row.position, row.message)
 
 
-def _message_rows(
-    agent_session_rowid: int,
-    messages: Sequence[PhoenixUIMessage],
-) -> list[models.AgentSessionMessage]:
-    return [
-        make_agent_session_message_row(
-            agent_session_rowid=agent_session_rowid,
-            position=position,
-            message=message,
-        )
-        for position, message in enumerate(messages)
-    ]
-
-
 @strawberry.input
 class CreateAgentSessionInput:
     title: str = strawberry.field(
@@ -242,8 +189,10 @@ class BranchAgentSessionInput:
     id: GlobalID
     message_id: str = strawberry.field(
         description=(
-            "The transcript message (UIMessage id) to branch at, using the "
-            "same truncation contract as truncateAgentSession."
+            "The transcript message (UIMessage id) to branch at. A user "
+            "message is excluded from the branch along with everything after "
+            "it; an assistant message is included and everything after it is "
+            "excluded."
         ),
     )
 
@@ -269,15 +218,13 @@ class DeleteAgentSessionMutationPayload:
 
 @strawberry.type
 class AgentSessionMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled])  # type: ignore
     async def create_agent_session(
         self,
         info: Info[Context, None],
         input: CreateAgentSessionInput,
     ) -> CreateAgentSessionMutationPayload:
         """Create an empty persisted session owned by the viewer."""
-        if not info.context.settings.agent_assistant_enabled.enabled:
-            raise BadRequest("Agents are disabled")
         async with info.context.db() as session:
             agent_session = models.AgentSession(
                 project_session_id=str(uuid4()),
@@ -292,20 +239,25 @@ class AgentSessionMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled])  # type: ignore
     async def truncate_agent_session(
         self,
         info: Info[Context, None],
         input: TruncateAgentSessionInput,
     ) -> TruncateAgentSessionMutationPayload:
         """Rewind a session's transcript in place at the given message."""
-        if not info.context.settings.agent_assistant_enabled.enabled:
-            raise BadRequest("Agents are disabled")
+        try:
+            agent_session_rowid = from_global_id_with_expected_type(
+                input.id,
+                models.AgentSession.__name__,
+            )
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
         async with info.context.db() as session:
             agent_session = await _load_owned_agent_session(
                 session,
                 info=info,
-                agent_session_gid=input.id,
+                agent_session_rowid=agent_session_rowid,
             )
             target = await _load_session_message_target(
                 session,
@@ -325,7 +277,6 @@ class AgentSessionMutationMixin:
                         models.AgentSessionMessage.position == target_position,
                     )
                     .values(
-                        message_id=stripped_message.id,
                         message=stripped_message,
                     )
                 )
@@ -346,7 +297,7 @@ class AgentSessionMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled])  # type: ignore
     async def branch_agent_session(
         self,
         info: Info[Context, None],
@@ -354,13 +305,18 @@ class AgentSessionMutationMixin:
     ) -> BranchAgentSessionMutationPayload:
         """Create a new session from a source session truncated at the given
         message, leaving the source untouched."""
-        if not info.context.settings.agent_assistant_enabled.enabled:
-            raise BadRequest("Agents are disabled")
+        try:
+            agent_session_rowid = from_global_id_with_expected_type(
+                input.id,
+                models.AgentSession.__name__,
+            )
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
         async with info.context.db() as session:
             source_session = await _load_owned_agent_session(
                 session,
                 info=info,
-                agent_session_gid=input.id,
+                agent_session_rowid=agent_session_rowid,
             )
             message_prefix = await _load_session_message_prefix(
                 session,
@@ -376,20 +332,25 @@ class AgentSessionMutationMixin:
             branch_session = models.AgentSession(
                 project_session_id=str(uuid4()),
                 user_id=info.context.user_id,
-                title=_build_branch_title(source_session.title, retained_messages),
-                # The branch continues the same conversation, so it stays in
-                # the source's trace project even if configuration has changed.
-                project_name=source_session.project_name,
+                title=source_session.title,
+                project_name=get_env_phoenix_agents_assistant_project_name(),
             )
             session.add(branch_session)
             await session.flush()
-            session.add_all(_message_rows(branch_session.id, regenerated_messages))
+            session.add_all(
+                models.AgentSessionMessage(
+                    agent_session_id=branch_session.id,
+                    position=position,
+                    message=message,
+                )
+                for position, message in enumerate(regenerated_messages)
+            )
         return BranchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(branch_session),
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_agent_session(
         self,
         info: Info[Context, None],

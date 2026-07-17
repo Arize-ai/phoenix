@@ -6,7 +6,7 @@ from strawberry.permission import BasePermission
 from typing_extensions import override
 
 from phoenix.config import get_env_support_email
-from phoenix.server.api.exceptions import InsufficientStorage, Unauthorized
+from phoenix.server.api.exceptions import BadRequest, InsufficientStorage, Unauthorized
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -27,6 +27,20 @@ class IsAuthEnabled(Authorization):
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         return bool(info.context.auth_enabled)
+
+
+class IsAgentAssistantEnabled(BasePermission):
+    """Restrict operations that require the agent assistant to be enabled."""
+
+    message = "Agents are disabled"
+
+    @override
+    def on_unauthorized(self) -> None:
+        raise BadRequest(self.message)
+
+    @override
+    def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+        return bool(info.context.settings.agent_assistant_enabled.enabled)
 
 
 class IsNotViewer(Authorization):
