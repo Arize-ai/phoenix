@@ -1,39 +1,48 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { getTraces } from "../../src/traces/getTraces";
+import { createTestClient } from "../testUtils";
 
-const mockGet = vi.fn();
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    GET: mockGet,
-    use: () => {},
-  }),
-}));
+const http = createHttp();
 
-const defaultMockResponse = {
-  data: {
-    next_cursor: "next-cursor-123",
-    data: [
-      {
-        id: "VHJhY2U6MQ==",
-        trace_id: "trace-abc-123",
-        project_id: "UHJvamVjdDox",
-        start_time: "2024-01-01T00:00:00Z",
-        end_time: "2024-01-01T00:01:00Z",
-      },
-    ],
-  },
-  error: null,
-};
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 describe("getTraces", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGet.mockResolvedValue(defaultMockResponse);
-  });
-
   it("should get traces with basic parameters", async () => {
+    server.use(
+      http.get("/v1/projects/{project_identifier}/traces", ({ response }) =>
+        response(200).json({
+          next_cursor: "next-cursor-123",
+          data: [
+            {
+              id: "VHJhY2U6MQ==",
+              trace_id: "trace-abc-123",
+              project_id: "UHJvamVjdDox",
+              start_time: "2024-01-01T00:00:00Z",
+              end_time: "2024-01-01T00:01:00Z",
+            },
+          ],
+        })
+      )
+    );
+
     const result = await getTraces({
+      client: createTestClient(),
       project: { projectName: "test-project" },
     });
 
@@ -44,48 +53,68 @@ describe("getTraces", () => {
 
   describe("sessionId parameter", () => {
     it("should send session_identifier as array when given a single string", async () => {
+      let receivedSessionIdentifiers: string[] | undefined;
+
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/traces",
+          ({ query, response }) => {
+            receivedSessionIdentifiers = query.getAll("session_identifier");
+            return response(200).json({ next_cursor: null, data: [] });
+          }
+        )
+      );
+
       await getTraces({
+        client: createTestClient(),
         project: { projectName: "test-project" },
         sessionId: "sess-1",
       });
 
-      expect(mockGet).toHaveBeenCalledWith(
-        "/v1/projects/{project_identifier}/traces",
-        expect.objectContaining({
-          params: expect.objectContaining({
-            query: expect.objectContaining({
-              session_identifier: ["sess-1"],
-            }),
-          }),
-        })
-      );
+      expect(receivedSessionIdentifiers).toEqual(["sess-1"]);
     });
 
     it("should send session_identifier as array when given an array", async () => {
+      let receivedSessionIdentifiers: string[] | undefined;
+
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/traces",
+          ({ query, response }) => {
+            receivedSessionIdentifiers = query.getAll("session_identifier");
+            return response(200).json({ next_cursor: null, data: [] });
+          }
+        )
+      );
+
       await getTraces({
+        client: createTestClient(),
         project: { projectName: "test-project" },
         sessionId: ["sess-1", "sess-2"],
       });
 
-      expect(mockGet).toHaveBeenCalledWith(
-        "/v1/projects/{project_identifier}/traces",
-        expect.objectContaining({
-          params: expect.objectContaining({
-            query: expect.objectContaining({
-              session_identifier: ["sess-1", "sess-2"],
-            }),
-          }),
-        })
-      );
+      expect(receivedSessionIdentifiers).toEqual(["sess-1", "sess-2"]);
     });
 
     it("should not send session_identifier when sessionId is undefined", async () => {
+      let receivedSessionIdentifiers: string[] | undefined;
+
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/traces",
+          ({ query, response }) => {
+            receivedSessionIdentifiers = query.getAll("session_identifier");
+            return response(200).json({ next_cursor: null, data: [] });
+          }
+        )
+      );
+
       await getTraces({
+        client: createTestClient(),
         project: { projectName: "test-project" },
       });
 
-      const callArgs = mockGet.mock.calls[0]?.[1];
-      expect(callArgs.params.query).not.toHaveProperty("session_identifier");
+      expect(receivedSessionIdentifiers).toEqual([]);
     });
   });
 });
