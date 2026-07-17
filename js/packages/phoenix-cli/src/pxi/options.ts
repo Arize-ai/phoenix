@@ -134,6 +134,8 @@ type RawPxiOptions = {
    * @example true
    */
   attachUserId?: boolean;
+  /** `--no-progress`: suppress protocol selection and fallback notices. */
+  noProgress?: boolean;
 };
 
 /** Input to {@link resolvePxiRuntimeOptions}. */
@@ -252,6 +254,8 @@ export function resolvePxiRuntimeOptions({
     ingestTraces: Boolean(cliOptions.ingestTraces),
     exportRemoteTraces: Boolean(cliOptions.exportRemoteTraces),
     attachUserId: Boolean(cliOptions.attachUserId),
+    chatRoute: "legacy",
+    noProgress: Boolean(cliOptions.noProgress),
   };
 }
 
@@ -296,6 +300,7 @@ export function createPxiProgram(): Command {
       "--attach-user-id",
       "Attach the authenticated Phoenix user to PXI traces"
     )
+    .option("--no-progress", "Suppress PXI protocol progress notices")
     .addHelpText(
       "after",
       `

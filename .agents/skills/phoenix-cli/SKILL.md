@@ -62,6 +62,19 @@ export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 
 Always use `--format raw --no-progress` when piping to `jq`.
 
+### `pxi` — terminal agent chat
+
+`pxi` opens an interactive Phoenix agent session. With Phoenix 18.0.0 and
+newer it uses the persisted `/agents/server/chat` protocol, captures the
+server-assigned session ID, and resumes that session on later turns. It falls
+back automatically to the legacy session-path route for older servers or when
+server-version detection fails. Pass `--no-progress` to suppress the startup
+protocol and fallback notices.
+
+```bash
+pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
+```
+
 ### `px setup` — onboarding
 
 `px setup` connects the app in the current directory to a Phoenix deployment

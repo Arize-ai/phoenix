@@ -1,3 +1,4 @@
+import type { pathsV1 } from "@arizeai/phoenix-client";
 import {
   DefaultChatTransport,
   readUIMessageStream,
@@ -5,15 +6,21 @@ import {
 } from "ai";
 
 import type { PhoenixConfig } from "../config";
+import { writeProgress } from "../io";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
   PxiChatClient,
+  PxiChatRoute,
   PxiChatRequest,
   PxiContext,
   PxiMessage,
   PxiRuntimeOptions,
+  PxiSessionMetadata,
   PxiTransport,
 } from "./types";
+
+const AGENT_CHAT_PATH_TEMPLATE =
+  "/agents/{agent_id}/chat" satisfies keyof pathsV1;
 
 /**
  * Chat client for the Phoenix server-agent endpoint.
@@ -65,6 +72,12 @@ export function buildServerAgentChatUrl({
   return `${trimTrailingSlash(endpoint)}/agents/server/sessions/${encodeURIComponent(
     sessionId
   )}/chat`;
+}
+
+/** Build the persisted server-agent chat URL from the generated OpenAPI path. */
+export function buildAgentChatUrl({ endpoint }: { endpoint: string }): string {
+  const path = AGENT_CHAT_PATH_TEMPLATE.replace("{agent_id}", "server");
+  return `${trimTrailingSlash(endpoint)}${path}`;
 }
 
 /**
@@ -131,12 +144,15 @@ export function buildPxiContexts({
 export function buildPxiChatRequest({
   messages,
   options,
+  agentSessionId,
 }: {
   messages: PxiMessage[];
   options: PxiRuntimeOptions;
+  agentSessionId?: string;
 }): PxiChatRequest {
   return {
     id: options.sessionId,
+    ...(agentSessionId ? { agentSessionId } : {}),
     messages,
     trigger: "submit-message",
     ingestTraces: options.ingestTraces,
@@ -158,26 +174,67 @@ export function buildPxiChatRequest({
  * so per-request context (like the current time) stays fresh. Throws if no
  * endpoint is configured. `fetch` is injectable for testing.
  */
+type PxiChatSessionState = {
+  chatRoute: PxiChatRoute;
+  agentSessionId?: string;
+  title?: string;
+};
+
 export function createServerAgentTransport({
   options,
-  fetch,
+  sessionState = { chatRoute: options.chatRoute },
+  fetch: fetchImpl = globalThis.fetch,
 }: {
   options: PxiRuntimeOptions;
+  sessionState?: PxiChatSessionState;
   fetch?: typeof globalThis.fetch;
 }): PxiTransport {
   if (!options.config.endpoint) {
     throw new Error("Phoenix endpoint not configured.");
   }
 
+  const persistedUrl = buildAgentChatUrl({
+    endpoint: options.config.endpoint,
+  });
+  const legacyUrl = buildServerAgentChatUrl({
+    endpoint: options.config.endpoint,
+    sessionId: options.sessionId,
+  });
+
+  const fetchWithLegacyFallback: typeof globalThis.fetch = async (
+    _input,
+    init
+  ) => {
+    const requestUrl =
+      sessionState.chatRoute === "persisted" ? persistedUrl : legacyUrl;
+    const response = await fetchImpl(requestUrl, init);
+    const shouldRetryLegacy =
+      sessionState.chatRoute === "persisted" &&
+      (response.status === 404 || response.status === 405);
+    if (!shouldRetryLegacy) {
+      return response;
+    }
+    sessionState.chatRoute = "legacy";
+    writeProgress({
+      message: `PXI persisted chat route returned HTTP ${response.status}; retrying with the legacy protocol.`,
+      noProgress: options.noProgress,
+    });
+    return fetchImpl(legacyUrl, init);
+  };
+
   return new DefaultChatTransport<PxiMessage>({
-    api: buildServerAgentChatUrl({
-      endpoint: options.config.endpoint,
-      sessionId: options.sessionId,
-    }),
+    api: sessionState.chatRoute === "persisted" ? persistedUrl : legacyUrl,
     headers: buildPxiHeaders({ config: options.config }),
-    fetch,
+    fetch: fetchWithLegacyFallback,
     prepareSendMessagesRequest: ({ messages }) => ({
-      body: buildPxiChatRequest({ messages, options }),
+      body: buildPxiChatRequest({
+        messages,
+        options,
+        agentSessionId:
+          sessionState.chatRoute === "persisted"
+            ? sessionState.agentSessionId
+            : undefined,
+      }),
     }),
   });
 }
@@ -203,6 +260,70 @@ export async function streamAssistantMessage({
   return finalMessage;
 }
 
+function parseSessionMetadata({
+  chunk,
+}: {
+  chunk: UIMessageChunk;
+}): PxiSessionMetadata | null {
+  if (chunk.type !== "data-session-created") {
+    return null;
+  }
+  const data = chunk.data;
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("id" in data) ||
+    !("title" in data) ||
+    !("createdAt" in data) ||
+    !("updatedAt" in data) ||
+    typeof data.id !== "string" ||
+    typeof data.title !== "string" ||
+    typeof data.createdAt !== "string" ||
+    typeof data.updatedAt !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id: data.id,
+    title: data.title,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
+}
+
+function captureSessionChunks({
+  stream,
+  sessionState,
+  onSessionTitle,
+}: {
+  stream: ReadableStream<UIMessageChunk>;
+  sessionState: PxiChatSessionState;
+  onSessionTitle?: (title: string) => void;
+}): ReadableStream<UIMessageChunk> {
+  return stream.pipeThrough(
+    new TransformStream<UIMessageChunk, UIMessageChunk>({
+      transform(chunk, controller) {
+        const sessionMetadata = parseSessionMetadata({ chunk });
+        if (sessionMetadata !== null) {
+          sessionState.agentSessionId = sessionMetadata.id;
+          if (sessionMetadata.title) {
+            sessionState.title = sessionMetadata.title;
+            onSessionTitle?.(sessionMetadata.title);
+          }
+        } else if (
+          chunk.type === "data-session-summary" &&
+          typeof chunk.data === "string" &&
+          chunk.data
+        ) {
+          sessionState.title = chunk.data;
+          onSessionTitle?.(chunk.data);
+        }
+        controller.enqueue(chunk);
+      },
+    })
+  );
+}
+
 /**
  * Create the {@link PxiChatClient} the UI talks to. It sends the conversation
  * over the transport, streams the assistant reply back, and on failure wraps
@@ -212,22 +333,39 @@ export async function streamAssistantMessage({
  */
 export function createPxiChatClient({
   options,
-  transport = createServerAgentTransport({ options }),
+  transport,
+  fetch,
 }: {
   options: PxiRuntimeOptions;
   transport?: PxiTransport;
+  fetch?: typeof globalThis.fetch;
 }): PxiChatClient {
+  const sessionState: PxiChatSessionState = { chatRoute: options.chatRoute };
+  const resolvedTransport =
+    transport ?? createServerAgentTransport({ options, sessionState, fetch });
   return {
-    async sendMessage({ messages, abortSignal, onAssistantMessage }) {
+    async sendMessage({
+      messages,
+      abortSignal,
+      onAssistantMessage,
+      onSessionTitle,
+    }) {
       try {
-        const stream = await transport.sendMessages({
+        const stream = await resolvedTransport.sendMessages({
           trigger: "submit-message",
           chatId: options.sessionId,
           messageId: undefined,
           messages,
           abortSignal,
         });
-        return await streamAssistantMessage({ stream, onAssistantMessage });
+        return await streamAssistantMessage({
+          stream: captureSessionChunks({
+            stream,
+            sessionState,
+            onSessionTitle,
+          }),
+          onAssistantMessage,
+        });
       } catch (error) {
         throw formatPxiRuntimeError({
           error,

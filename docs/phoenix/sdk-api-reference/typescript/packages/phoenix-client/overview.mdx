@@ -36,7 +36,7 @@ That gives the agent version-matched docs plus the exact implementation and gene
 
 | Import | Purpose |
 |--------|---------|
-| `@arizeai/phoenix-client` | `createClient`, generated OpenAPI types, config helpers |
+| `@arizeai/phoenix-client` | `createClient`, generated OpenAPI types, config and server-version helpers |
 | `@arizeai/phoenix-client/prompts` | Prompt CRUD plus `toSDK` conversion |
 | `@arizeai/phoenix-client/datasets` | Dataset creation and retrieval |
 | `@arizeai/phoenix-client/experiments` | Experiment execution and lifecycle |
@@ -149,6 +149,28 @@ const prompt = await client.GET("/v1/prompts/{prompt_identifier}/latest", {
 ```
 
 The root export exposes generated API types: `pathsV1`, `componentsV1`, `operationsV1`, `Types`, and `PhoenixClient`.
+
+### Server Version Guards
+
+Use `client.getServerVersion()` when a client feature depends on a server-side
+capability. The root package also exports `SemanticVersion`,
+`parseSemanticVersion`, and `satisfiesMinVersion` for typed version checks.
+
+```ts
+import {
+  createClient,
+  satisfiesMinVersion,
+  type SemanticVersion,
+} from "@arizeai/phoenix-client";
+
+const client = createClient();
+const version = await client.getServerVersion();
+const minimumVersion: SemanticVersion = [18, 0, 0];
+
+if (!satisfiesMinVersion({ version, minVersion: minimumVersion })) {
+  throw new Error("This feature requires Phoenix 18.0.0 or newer.");
+}
+```
 
 Prefer this layer when:
 

@@ -127,6 +127,11 @@ pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
 npx -y @arizeai/phoenix-cli pxi                              # run without installing
 ```
 
+PXI uses persisted, resumable server sessions with Phoenix 18.0.0 and newer.
+It automatically falls back to the legacy chat protocol for older servers or
+when server-version detection is unavailable. The selected protocol is printed
+at startup; pass `--no-progress` to suppress protocol notices.
+
 Inside the chat, `/help`, `/clear`, and `/exit` are handled locally. See the
 [PXI documentation](https://arize.com/docs/phoenix/pxi) for the full flag and
 slash-command reference, model setup, and privacy controls.

@@ -41,6 +41,7 @@ describe("PXI options", () => {
     expect(help).toContain("--enable-web-access");
     expect(help).toContain("--custom-provider-id");
     expect(help).toContain("--skip-model-preflight");
+    expect(help).toContain("--no-progress");
   });
 
   it("defaults to the browser PXI model", () => {
@@ -93,6 +94,7 @@ describe("PXI options", () => {
 
     expect(options.config.project).toBeUndefined();
     expect(options.sessionId).toBe("session-1");
+    expect(options.chatRoute).toBe("legacy");
   });
 
   it("defaults model preflight to enabled", () => {

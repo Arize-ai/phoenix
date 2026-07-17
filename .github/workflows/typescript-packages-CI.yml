@@ -56,6 +56,10 @@ jobs:
       - name: Install Dependencies
         working-directory: ./js
         run: pnpm install --frozen-lockfile -r
+      - name: OpenAPI Client Codegen
+        run: |
+          make codegen-ts-client
+          git diff --exit-code
       - name: Build
         working-directory: ./js
         run: |

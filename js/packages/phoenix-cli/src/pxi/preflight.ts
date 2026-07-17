@@ -1,7 +1,36 @@
+import {
+  satisfiesMinVersion,
+  type PhoenixClient,
+  type SemanticVersion,
+} from "@arizeai/phoenix-client";
+
+import { createPhoenixClient } from "../client";
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
-import type { ModelSelection, PxiRuntimeOptions } from "./types";
+import type { ModelSelection, PxiChatRoute, PxiRuntimeOptions } from "./types";
+
+/** First Phoenix release containing persisted `POST /agents/server/chat`. */
+export const MIN_SERVER_VERSION_FOR_AGENT_CHAT: SemanticVersion = [18, 0, 0];
+
+/** Select the persisted protocol when the connected server advertises support. */
+export async function resolvePxiChatRoute({
+  client,
+}: {
+  client: Pick<PhoenixClient, "getServerVersion">;
+}): Promise<PxiChatRoute> {
+  try {
+    const version = await client.getServerVersion();
+    return satisfiesMinVersion({
+      version,
+      minVersion: MIN_SERVER_VERSION_FOR_AGENT_CHAT,
+    })
+      ? "persisted"
+      : "legacy";
+  } catch {
+    return "legacy";
+  }
+}
 
 /**
  * Pre-launch validation of the selected model.
@@ -390,6 +419,23 @@ export async function runPxiModelPreflight({
     data,
     modelSelection: options.modelSelection,
   });
+}
+
+/** Resolve the chat protocol and validate the selected model before rendering PXI. */
+export async function runPxiStartupPreflight({
+  options,
+  fetchImpl = globalThis.fetch,
+}: {
+  options: PxiRuntimeOptions;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<PxiRuntimeOptions> {
+  const client = createPhoenixClient({
+    config: options.config,
+    fetch: fetchImpl,
+  });
+  const chatRoute = await resolvePxiChatRoute({ client });
+  await runPxiModelPreflight({ options, fetchImpl });
+  return { ...options, chatRoute };
 }
 
 /**

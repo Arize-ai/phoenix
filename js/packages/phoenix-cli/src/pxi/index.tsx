@@ -4,10 +4,10 @@ import { render } from "ink";
 import React from "react";
 
 import { getExitCodeForError } from "../exitCodes";
-import { writeError } from "../io";
+import { writeError, writeProgress } from "../io";
 import { PxiApp } from "./App";
 import { parsePxiRuntimeOptions } from "./options";
-import { runPxiModelPreflight } from "./preflight";
+import { runPxiStartupPreflight } from "./preflight";
 
 /**
  * Entry point for the `pxi` command.
@@ -23,8 +23,12 @@ export async function main({
 }: {
   argv?: string[];
 } = {}): Promise<void> {
-  const options = await parsePxiRuntimeOptions({ argv });
-  await runPxiModelPreflight({ options });
+  const unresolvedOptions = await parsePxiRuntimeOptions({ argv });
+  const options = await runPxiStartupPreflight({ options: unresolvedOptions });
+  writeProgress({
+    message: `PXI chat protocol: ${options.chatRoute}`,
+    noProgress: options.noProgress,
+  });
   // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to
   // stdout from its constructor, before it switches the terminal into raw mode.
   // On a TTY still in canonical mode the terminal echoes its reply (`ESC[?0u`)

@@ -2,6 +2,7 @@ import type { UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAgentChatUrl,
   buildPxiChatRequest,
   buildPxiHeaders,
   buildServerAgentChatUrl,
@@ -41,6 +42,19 @@ function createChunkStream(
       controller.close();
     },
   });
+}
+
+function createSseResponse(chunks: UIMessageChunk[]): Response {
+  return new Response(
+    `${chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join("")}data: [DONE]\n\n`,
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "x-vercel-ai-ui-message-stream": "v1",
+      },
+    }
+  );
 }
 
 describe("PXI client", () => {
@@ -126,6 +140,108 @@ describe("PXI client", () => {
     ).toBe(
       "http://localhost:6006/agents/server/sessions/session%20with%20spaces/chat"
     );
+  });
+
+  it("builds the persisted server-agent chat URL", () => {
+    expect(buildAgentChatUrl({ endpoint: "http://localhost:6006/" })).toBe(
+      "http://localhost:6006/agents/server/chat"
+    );
+  });
+
+  it("includes a persisted session id only after one is assigned", () => {
+    const options = createRuntimeOptions();
+    const firstRequest = buildPxiChatRequest({
+      messages: [userMessage("first")],
+      options,
+    });
+    const resumedRequest = buildPxiChatRequest({
+      messages: [userMessage("second")],
+      options,
+      agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
+    });
+
+    expect(firstRequest).not.toHaveProperty("agentSessionId");
+    expect(resumedRequest.agentSessionId).toBe("QWdlbnRTZXNzaW9uOjE=");
+  });
+
+  it("captures transient session chunks and resumes the next turn", async () => {
+    const options = createRuntimeOptions();
+    options.chatRoute = "persisted";
+    const requestBodies: unknown[] = [];
+    const fetchImpl: typeof globalThis.fetch = async (_input, init) => {
+      requestBodies.push(JSON.parse(String(init?.body)));
+      return createSseResponse([
+        { type: "start", messageId: "assistant-1" },
+        {
+          type: "data-session-created",
+          data: {
+            id: "QWdlbnRTZXNzaW9uOjE=",
+            title: "",
+            createdAt: "2026-07-16T12:00:00Z",
+            updatedAt: "2026-07-16T12:00:00Z",
+          },
+          transient: true,
+        },
+        {
+          type: "data-session-summary",
+          data: "Project investigation",
+          transient: true,
+        },
+        { type: "text-start", id: "text-1" },
+        { type: "text-delta", id: "text-1", delta: "Done" },
+        { type: "text-end", id: "text-1" },
+        { type: "finish", finishReason: "stop" },
+      ]);
+    };
+    const titles: string[] = [];
+    const client = createPxiChatClient({ options, fetch: fetchImpl });
+
+    await client.sendMessage({
+      messages: [userMessage("first")],
+      onAssistantMessage: () => undefined,
+      onSessionTitle: (title) => titles.push(title),
+    });
+    await client.sendMessage({
+      messages: [userMessage("second")],
+      onAssistantMessage: () => undefined,
+      onSessionTitle: (title) => titles.push(title),
+    });
+
+    expect(requestBodies[0]).not.toHaveProperty("agentSessionId");
+    expect(requestBodies[1]).toMatchObject({
+      agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
+    });
+    expect(titles).toContain("Project investigation");
+  });
+
+  it("retries a missing persisted route once with the legacy URL", async () => {
+    const options = createRuntimeOptions({ noProgress: true });
+    options.chatRoute = "persisted";
+    const requestUrls: string[] = [];
+    const fetchImpl: typeof globalThis.fetch = async (input) => {
+      requestUrls.push(String(input));
+      if (requestUrls.length === 1) {
+        return new Response("Not found", { status: 404 });
+      }
+      return createSseResponse([
+        { type: "start", messageId: "assistant-1" },
+        { type: "text-start", id: "text-1" },
+        { type: "text-delta", id: "text-1", delta: "Done" },
+        { type: "text-end", id: "text-1" },
+        { type: "finish", finishReason: "stop" },
+      ]);
+    };
+    const client = createPxiChatClient({ options, fetch: fetchImpl });
+
+    await client.sendMessage({
+      messages: [userMessage("hello")],
+      onAssistantMessage: () => undefined,
+    });
+
+    expect(requestUrls).toEqual([
+      "http://localhost:6006/agents/server/chat",
+      "http://localhost:6006/agents/server/sessions/session-1/chat",
+    ]);
   });
 
   it("streams assistant text updates", async () => {

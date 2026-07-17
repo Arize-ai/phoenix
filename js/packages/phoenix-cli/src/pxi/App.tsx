@@ -637,6 +637,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   );
   const [status, setStatus] = useState<PxiStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [sessionTitle, setSessionTitle] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
   const chatClient = useMemo(
@@ -732,6 +733,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
           streamingAssistantMessageRef.current = assistantMessage;
           setMessages([...nextMessages, assistantMessage]);
         },
+        onSessionTitle: setSessionTitle,
       })
       .then((assistantMessage) => {
         if (abortController.signal.aborted) {
@@ -867,7 +869,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       <PxiBanner />
       <Text dimColor>
         endpoint: {options.config.endpoint} | model: {getModelLabel(options)} |
-        session: {options.sessionId}
+        session: {sessionTitle ?? options.sessionId}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Transcript

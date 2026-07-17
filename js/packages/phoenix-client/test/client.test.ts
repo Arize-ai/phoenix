@@ -30,3 +30,24 @@ describe("non-2xx responses", () => {
     expect((error as HttpError).message).toContain("401 Unauthorized");
   });
 });
+
+describe("server version", () => {
+  it("uses the configured transport for version detection", async () => {
+    const requestedUrls: string[] = [];
+    const client = createClient({
+      getEnvironmentOptions: () => ({}),
+      options: {
+        baseUrl: "https://phoenix.example.com",
+        fetch: async (request) => {
+          requestedUrls.push(request.url);
+          return new Response("18.0.0");
+        },
+      },
+    });
+
+    await expect(client.getServerVersion()).resolves.toEqual([18, 0, 0]);
+    expect(requestedUrls).toEqual([
+      "https://phoenix.example.com/arize_phoenix_version",
+    ]);
+  });
+});

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
-import { runPxiModelPreflight } from "../src/pxi/preflight";
+import {
+  MIN_SERVER_VERSION_FOR_AGENT_CHAT,
+  resolvePxiChatRoute,
+  runPxiModelPreflight,
+  runPxiStartupPreflight,
+} from "../src/pxi/preflight";
 
 type FetchCall = {
   url: string;
@@ -100,6 +105,56 @@ function createFetch({
 }
 
 describe("PXI model preflight", () => {
+  it("selects persisted chat for a supported server", async () => {
+    const route = await resolvePxiChatRoute({
+      client: { getServerVersion: async () => [18, 0, 0] },
+    });
+
+    expect(MIN_SERVER_VERSION_FOR_AGENT_CHAT).toEqual([18, 0, 0]);
+    expect(route).toBe("persisted");
+  });
+
+  it("selects legacy chat for an older server", async () => {
+    const route = await resolvePxiChatRoute({
+      client: { getServerVersion: async () => [17, 14, 0] },
+    });
+
+    expect(route).toBe("legacy");
+  });
+
+  it("selects legacy chat when server version detection fails", async () => {
+    const route = await resolvePxiChatRoute({
+      client: {
+        getServerVersion: async () => {
+          throw new Error("version endpoint unavailable");
+        },
+      },
+    });
+
+    expect(route).toBe("legacy");
+  });
+
+  it("returns startup options with the resolved chat protocol", async () => {
+    const options = createRuntimeOptions();
+    const fetchImpl: typeof globalThis.fetch = async (input) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.endsWith("/arize_phoenix_version")) {
+        return new Response("18.0.0");
+      }
+      return new Response(JSON.stringify({ data: createPreflightData() }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+
+    const resolvedOptions = await runPxiStartupPreflight({
+      options,
+      fetchImpl,
+    });
+
+    expect(options.chatRoute).toBe("legacy");
+    expect(resolvedOptions.chatRoute).toBe("persisted");
+  });
+
   it("uses configured endpoint, API key, and custom headers", async () => {
     const options = createRuntimeOptions({ apiKey: "secret" });
     options.config.headers = { "X-Phoenix": "pxi" };

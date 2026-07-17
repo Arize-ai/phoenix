@@ -102,9 +102,21 @@ export type PxiContext =
  */
 export type PxiEditPermission = "manual" | "bypass";
 
+/** Which server chat protocol PXI uses for this session. */
+export type PxiChatRoute = "persisted" | "legacy";
+
+/** Persisted session metadata delivered as a transient stream chunk. */
+export type PxiSessionMetadata = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** The request body POSTed to the Phoenix server-agent chat endpoint. */
 export type PxiChatRequest = {
   id: string;
+  agentSessionId?: string;
   messages: PxiMessage[];
   trigger: "submit-message";
   ingestTraces: boolean;
@@ -133,6 +145,8 @@ export type PxiRuntimeOptions = {
   ingestTraces: boolean;
   exportRemoteTraces: boolean;
   attachUserId: boolean;
+  chatRoute: PxiChatRoute;
+  noProgress: boolean;
 };
 
 /**
@@ -147,6 +161,7 @@ export type PxiChatClient = {
     messages: PxiMessage[];
     abortSignal?: AbortSignal;
     onAssistantMessage: (message: PxiMessage) => void;
+    onSessionTitle?: (title: string) => void;
   }) => Promise<PxiMessage | null>;
 };
 
