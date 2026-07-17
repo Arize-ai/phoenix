@@ -5804,6 +5804,45 @@ export interface components {
             enabled: boolean;
         };
         /**
+         * SessionCommittedChunk
+         * @description Terminal acknowledgement emitted only after transcript persistence commits.
+         */
+        SessionCommittedChunk: {
+            /**
+             * Type
+             * @default data-session-committed
+             * @constant
+             */
+            type?: "data-session-committed";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["SessionCommittedData"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /**
+         * SessionCommittedData
+         * @description Canonical metadata for a successfully persisted session transcript.
+         */
+        SessionCommittedData: {
+            /** Id */
+            id: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            /** Messageid */
+            messageId: string;
+        };
+        /**
          * SessionCreatedChunk
          * @description Transient canonical metadata for an owner-qualified persisted session.
          *

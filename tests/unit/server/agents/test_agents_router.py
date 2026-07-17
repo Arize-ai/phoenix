@@ -408,9 +408,7 @@ async def test_chat_stream_errors_when_assistant_conversion_fails(
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
         return TestModel(call_tools=[])
 
-    async def _invalid_reconstruction(
-        *args: object, **kwargs: object
-    ) -> AsyncIterator[UIMessage]:
+    async def _invalid_reconstruction(*args: object, **kwargs: object) -> AsyncIterator[UIMessage]:
         message = MagicMock(spec=UIMessage)
         message.model_dump.return_value = {
             "id": "assistant-1",
