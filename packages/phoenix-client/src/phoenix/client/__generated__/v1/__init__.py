@@ -1079,13 +1079,6 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
-class SessionCreatedData(TypedDict):
-    id: str
-    title: str
-    createdAt: str
-    updatedAt: str
-
-
 class SessionSummaryChunk(TypedDict):
     type: Literal["data-session-summary"]
     data: str
@@ -1627,13 +1620,6 @@ class UpdateAnnotationConfigResponseBody(TypedDict):
 
 class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
-
-
-class SessionCreatedChunk(TypedDict):
-    type: Literal["data-session-created"]
-    data: SessionCreatedData
-    id: NotRequired[str]
-    transient: NotRequired[bool]
 
 
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):

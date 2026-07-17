@@ -1,21 +1,20 @@
 import type { Chat } from "@ai-sdk/react";
-import type { ChatStatus } from "ai";
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
-import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 type AgentChatRuntime = {
   /**
    * Returns the runtime-owned AI SDK chat for a session/model pair, creating or
    * replacing it when necessary.
    *
-   * The registry key is the logical agent session id, while `chatApiUrl`
+   * The registry key is the session's Relay node ID, while `chatApiUrl`
    * captures the currently selected model/transport. When the URL changes we
    * replace the runtime chat for that session instead of keeping multiple idle
-   * variants alive.
+   * variants alive; the replacement is seeded with the previous instance's
+   * messages so the visible conversation carries over.
    */
   getOrCreateChat: ({
     sessionId,
@@ -24,57 +23,18 @@ type AgentChatRuntime = {
   }: {
     sessionId: string;
     chatApiUrl: string;
-    createChat: () => Chat<AgentUIMessage>;
+    createChat: (
+      previousMessages: AgentUIMessage[] | null
+    ) => Chat<AgentUIMessage>;
   }) => Chat<AgentUIMessage>;
+  /** Returns the resident chat for a session, if one exists. */
+  getChat: (sessionId: string) => Chat<AgentUIMessage> | null;
   /**
-   * Reconciles the runtime registry against current app state, reclaiming chats
-   * that no longer need to remain imperative singletons.
+   * Drops a session's runtime chat, e.g. when the session is deleted. The
+   * transcript's durable copy lives on the server.
    */
-  pruneChats: ({
-    activeSessionId,
-    liveSessionIds,
-  }: {
-    activeSessionId: string | null;
-    liveSessionIds: string[];
-  }) => void;
+  evictChat: (sessionId: string) => void;
 };
-
-/**
- * Retains chat runtimes only while they are still useful to the UI.
- *
- * Policy:
- * - deleted sessions are always evicted
- * - the active session is always retained, even when idle
- * - inactive sessions are retained only while a response is in flight so
- *   streaming can survive surface changes or session switches
- * - idle inactive sessions are reconstructed from store-backed messages when
- *   revisited, so their runtime can be reclaimed eagerly
- */
-export function shouldRetainChatRuntime({
-  sessionId,
-  activeSessionId,
-  liveSessionIds,
-  status,
-  hasPendingToolOutput = false,
-}: {
-  sessionId: string;
-  activeSessionId: string | null;
-  liveSessionIds: Set<string>;
-  status: ChatStatus;
-  hasPendingToolOutput?: boolean;
-}) {
-  if (!liveSessionIds.has(sessionId)) {
-    return false;
-  }
-
-  if (sessionId === activeSessionId) {
-    return true;
-  }
-
-  return (
-    status === "submitted" || status === "streaming" || hasPendingToolOutput
-  );
-}
 
 const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
 
@@ -84,16 +44,16 @@ const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
  * The important split is:
  * - React components are disposable view bindings
  * - AI SDK `Chat` instances are imperative runtimes owned here
- * - Zustand remains the durable source of truth for session metadata/messages
+ * - Relay is the durable source of truth for session identity and transcripts
  *
- * That lets requests continue while the visible surface moves between layouts,
- * while still allowing idle runtimes to be reclaimed and reconstructed from
- * store-backed state when revisited.
+ * A chat is created the first time a session's surface binds to it — seeded
+ * from the Relay-fetched transcript — and stays resident until the session is
+ * deleted, so requests continue while the visible surface moves between
+ * layouts and unsent local state (e.g. an unsent branch) is not lost when the
+ * user switches sessions.
  */
 export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
   const store = useAgentStore();
-  const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const sessionIds = useAgentContext((state) => state.sessions);
   const [runtime] = useState<AgentChatRuntime>(() => {
     const chatRegistry = new Map<
       string,
@@ -112,16 +72,16 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
         }
 
         // A model/transport swap replaces the runtime for this session. We do
-        // not keep multiple chat variants per session alive; instead we detach
-        // the old status subscription and let retention/pruning reclaim it.
+        // not keep multiple chat variants per session alive; the replacement
+        // inherits the previous instance's messages.
         if (existingEntry) {
           existingEntry.unsubscribe();
         }
 
-        const chat = createChat();
+        const chat = createChat(existingEntry?.chat.messages ?? null);
         // Mirror transient AI SDK status into the store so other surfaces
-        // (session list, FAB, retention policy) can react without holding a
-        // direct reference to the runtime instance.
+        // (session list, FAB) can react without holding a direct reference to
+        // the runtime instance.
         const unsubscribe = chat["~registerStatusCallback"](() => {
           store.getState().setSessionChatStatus(sessionId, chat.status);
         });
@@ -133,38 +93,17 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
         });
         return chat;
       },
-      pruneChats: ({ activeSessionId, liveSessionIds }) => {
-        const liveSessionIdSet = new Set(liveSessionIds);
-        for (const sessionId of chatRegistry.keys()) {
-          const entry = chatRegistry.get(sessionId);
-          if (
-            entry &&
-            shouldRetainChatRuntime({
-              sessionId,
-              activeSessionId,
-              liveSessionIds: liveSessionIdSet,
-              status: entry.chat.status,
-              hasPendingToolOutput:
-                getUnresolvedToolCalls(entry.chat.messages).length > 0,
-            })
-          ) {
-            continue;
-          }
-
-          // Once a chat no longer needs to remain runtime-resident, the store
-          // becomes the only durable source of truth until the chat is created
-          // again for a future surface/session visit.
-          entry?.unsubscribe();
-          chatRegistry.delete(sessionId);
-          store.getState().setSessionChatStatus(sessionId, "ready");
+      getChat: (sessionId) => chatRegistry.get(sessionId)?.chat ?? null,
+      evictChat: (sessionId) => {
+        const entry = chatRegistry.get(sessionId);
+        if (!entry) {
+          return;
         }
+        entry.unsubscribe();
+        chatRegistry.delete(sessionId);
       },
     };
   });
-
-  useEffect(() => {
-    runtime.pruneChats({ activeSessionId, liveSessionIds: sessionIds });
-  }, [activeSessionId, runtime, sessionIds]);
 
   return (
     <AgentChatRuntimeContext.Provider value={runtime}>

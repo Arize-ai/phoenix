@@ -1,9 +1,8 @@
-import { isTextUIPart, type ChatStatus } from "ai";
+import type { ChatStatus } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
   agentContextKey,
   type AgentContext,
@@ -28,7 +27,6 @@ import type {
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
-import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ModelConfig } from "./playground/types";
 
@@ -103,24 +101,6 @@ export type AgentPermissions = {
 };
 
 /**
- * Usage metrics like token usage.
- *
- * May be extended to costs, tool call count, etc
- */
-export type AgentSessionUsage = {
-  tokenCount: {
-    prompt: number;
-    completion: number;
-    total: number;
-    promptDetails?: {
-      cacheRead: number;
-      cacheWrite: number;
-    };
-  };
-  // this can be extended with cost in the future
-};
-
-/**
  * A message staged for a session whose chat view has not mounted yet, sent
  * automatically on mount. Carries the submit-time skill parse along with the
  * text so the request body matches what an interactive send would produce.
@@ -131,27 +111,15 @@ export type PendingAgentMessage = {
 };
 
 /**
- * An agent conversation session containing messages, context references,
- * and its own model configuration (initially cloned from the default).
+ * Sentinel session key for the not-yet-persisted "new chat" draft surface.
+ *
+ * Sessions are otherwise identified by their canonical Relay node ID. The
+ * draft has no server-side session until the user sends their first message,
+ * at which point the UI creates a session imperatively and re-keys the
+ * surface to the returned ID. Ephemeral per-session state (draft input,
+ * pending message) for the draft surface is keyed by this constant.
  */
-export type AgentSession = {
-  /** Stable client-side key used to identify the session in React. */
-  clientKey: string;
-  /** Canonical Relay node ID once the server has persisted the session. */
-  id: string | null;
-  /** Brief human-readable title for the conversation. */
-  title: string;
-  /** Messages in AI SDK UIMessage format. */
-  messages: AgentUIMessage[];
-  /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
-  context: string[];
-  /** Model configuration scoped to this session. */
-  modelConfig: ModelConfig;
-  /** Unix timestamp (ms) when the session was created. 0 for legacy sessions. */
-  createdAt: number;
-  /** Usage metrics returned as metadata from llm invocations */
-  usage?: AgentSessionUsage;
-};
+export const DRAFT_SESSION_ID = "pxi:draft-session";
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: "ANTHROPIC",
@@ -179,42 +147,6 @@ const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
 const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
   edits: "manual",
 };
-
-/** Prefix applied to a branched session's title to denote its origin. */
-const FORK_TITLE_PREFIX = "(branch) ";
-
-/** Max length for a derived (non-LLM) fork title before truncation. */
-const FORK_TITLE_MAX_LENGTH = 50;
-
-/**
- * Builds the title for a session branched from `source`. Reuses the source's
- * LLM-generated title when available, otherwise derives a short label from
- * its first user message, then prefixes it with `(branch)`. Seeding a non-empty
- * title here also prevents the async summarizer from overwriting it.
- */
-function buildForkTitle(source: AgentSession): string {
-  let base = source.title.trim();
-  if (!base) {
-    const firstUserMessage = source.messages.find(
-      (message) => message.role === "user"
-    );
-    const text = firstUserMessage?.parts
-      .filter(isTextUIPart)
-      .map((part) => part.text)
-      .join(" ")
-      .trim();
-    base = text
-      ? text.length > FORK_TITLE_MAX_LENGTH
-        ? `${text.slice(0, FORK_TITLE_MAX_LENGTH)}...`
-        : text
-      : "";
-  }
-  // Avoid stacking "(branch) (branch) ..." when branching from a branch.
-  if (base.startsWith(FORK_TITLE_PREFIX)) {
-    return base;
-  }
-  return base ? `${FORK_TITLE_PREFIX}${base}` : FORK_TITLE_PREFIX.trim();
-}
 
 export function getCurrentTraceConsentSettings(
   agentsConfig: AgentServerConfig
@@ -294,12 +226,12 @@ export interface AgentProps {
   fabMode: AgentFabMode;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /** Session client keys with an app-local runtime snapshot. */
-  sessions: string[];
-  /** Client key of the currently active session, or null if none. */
+  /**
+   * Relay node ID of the currently active session, {@link DRAFT_SESSION_ID}
+   * for the not-yet-persisted new-chat draft, or null when nothing has been
+   * selected yet (e.g. before the panel picks a session on first open).
+   */
   activeSessionId: string | null;
-  /** Lookup table of sessions by their client key. */
-  sessionMap: Record<string, AgentSession>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
@@ -322,27 +254,13 @@ export interface AgentState extends AgentProps {
   setPosition: (position: AgentPosition) => void;
   setFabMode: (mode: AgentFabMode) => void;
   setFabPlacement: (placement: AgentFabPlacement) => void;
-  createSession: () => string;
-  deleteSession: (sessionId: string) => void;
-  forkSession: (params: {
-    sourceSessionId: string;
-    messages: AgentUIMessage[];
-    restoredInput?: string | null;
-  }) => string | null;
   setActiveSession: (sessionId: string | null) => void;
-  updateSessionTitle: (sessionId: string, title: string) => void;
-  updateSessionModelConfig: (
-    sessionId: string,
-    patch: Partial<ModelConfig>
-  ) => void;
-  addSessionContext: (sessionId: string, context: string) => void;
-  removeSessionContext: (sessionId: string, context: string) => void;
-  setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
-  setSessionPersisted: (clientKey: string, id: string) => void;
   /**
-   * Adds a server-loaded transcript to the app-local runtime cache.
+   * Drops all ephemeral per-session state (chat status, draft input, pending
+   * message, elicitation, tool proposals) for a deleted or re-keyed session.
+   * Session identity and transcripts live in Relay, not here.
    */
-  cacheSession: (session: AgentSession) => void;
+  clearSessionEphemeralState: (sessionId: string) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
@@ -355,7 +273,6 @@ export interface AgentState extends AgentProps {
     >
   ) => void;
   acknowledgeConsent: () => void;
-  clearAllSessions: () => void;
   setCapability: (params: {
     key: AgentCapabilityKey;
     enabled: boolean;
@@ -401,15 +318,6 @@ export interface AgentState extends AgentProps {
     message: PendingAgentMessage | null
   ) => void;
   consumePendingMessage: (sessionId: string) => PendingAgentMessage | null;
-  setSessionUsage: (
-    sessionId: string,
-    newUsage: {
-      prompt: number;
-      completion: number;
-      total?: number;
-      promptDetails?: { cacheRead: number; cacheWrite: number };
-    }
-  ) => void;
 
   // -- Page and mounted contexts advertised with /chat (ephemeral) --
   //
@@ -561,7 +469,10 @@ function mergeAgentPersistedState(
     activeSessionId: _activeSessionId,
     sessionMap: _sessionMap,
     ...persisted
-  } = persistedState as Partial<AgentState>;
+  } = persistedState as Partial<AgentState> & {
+    sessions?: unknown;
+    sessionMap?: unknown;
+  };
   return {
     ...currentState,
     ...persisted,
@@ -648,9 +559,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     position: "pinned",
     fabMode: "pinned",
     fabPlacement: "bottom-end",
-    sessions: [],
     activeSessionId: null,
-    sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
@@ -686,71 +595,12 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     setFabPlacement: (fabPlacement) => {
       set({ fabPlacement }, false, { type: "setFabPlacement" });
     },
-    createSession: () => {
-      const sessionId = generateUUID();
-      set(
-        (state) => {
-          const session: AgentSession = {
-            clientKey: sessionId,
-            id: null,
-            title: "",
-            messages: [],
-            context: [],
-            modelConfig: { ...state.defaultModelConfig },
-            createdAt: Date.now(),
-          };
-          return {
-            sessions: [...state.sessions, sessionId],
-            sessionMap: { ...state.sessionMap, [sessionId]: session },
-            activeSessionId: sessionId,
-          };
-        },
-        false,
-        { type: "createSession" }
-      );
-      return sessionId;
+    setActiveSession: (sessionId) => {
+      set({ activeSessionId: sessionId }, false, { type: "setActiveSession" });
     },
-    forkSession: ({ sourceSessionId, messages, restoredInput }) => {
-      const sessionId = generateUUID();
-      let created = false;
+    clearSessionEphemeralState: (sessionId) => {
       set(
         (state) => {
-          const source = state.sessionMap[sourceSessionId];
-          if (!source) return state;
-          created = true;
-          const session: AgentSession = {
-            clientKey: sessionId,
-            id: null,
-            title: buildForkTitle(source),
-            messages,
-            // Carry over the source session's context and model so the fork
-            // continues the same conversation under the same configuration.
-            context: [...source.context],
-            modelConfig: { ...source.modelConfig },
-            createdAt: Date.now(),
-          };
-          const draftInputBySessionId = restoredInput
-            ? { ...state.draftInputBySessionId, [sessionId]: restoredInput }
-            : state.draftInputBySessionId;
-          return {
-            sessions: [...state.sessions, sessionId],
-            sessionMap: { ...state.sessionMap, [sessionId]: session },
-            activeSessionId: sessionId,
-            draftInputBySessionId,
-          };
-        },
-        false,
-        { type: "forkSession" }
-      );
-      return created ? sessionId : null;
-    },
-    deleteSession: (sessionId) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          const newSessionMap = { ...state.sessionMap };
-          delete newSessionMap[sessionId];
           const newPendingElicitationBySessionId = {
             ...state.pendingElicitationBySessionId,
           };
@@ -772,15 +622,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
               state.pendingPatchExperimentsByToolCallId,
               sessionId
             );
-          const newSessions = state.sessions.filter((id) => id !== sessionId);
-          const newActiveSessionId =
-            state.activeSessionId === sessionId
-              ? (newSessions[newSessions.length - 1] ?? null)
-              : state.activeSessionId;
           return {
-            sessions: newSessions,
-            sessionMap: newSessionMap,
-            activeSessionId: newActiveSessionId,
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
             isResponsePendingBySessionId: newIsResponsePendingBySessionId,
@@ -791,143 +633,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           };
         },
         false,
-        { type: "deleteSession" }
-      );
-    },
-    setActiveSession: (sessionId) => {
-      set({ activeSessionId: sessionId }, false, { type: "setActiveSession" });
-    },
-    updateSessionTitle: (sessionId, title) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: { ...session, title },
-            },
-          };
-        },
-        false,
-        { type: "updateSessionTitle" }
-      );
-    },
-    updateSessionModelConfig: (sessionId, patch) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: {
-                ...session,
-                modelConfig: { ...session.modelConfig, ...patch },
-              },
-            },
-          };
-        },
-        false,
-        { type: "updateSessionModelConfig" }
-      );
-    },
-    addSessionContext: (sessionId, context) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: {
-                ...session,
-                context: [...session.context, context],
-              },
-            },
-          };
-        },
-        false,
-        { type: "addSessionContext" }
-      );
-    },
-    removeSessionContext: (sessionId, context) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: {
-                ...session,
-                context: session.context.filter((item) => item !== context),
-              },
-            },
-          };
-        },
-        false,
-        { type: "removeSessionContext" }
-      );
-    },
-    setSessionMessages: (sessionId, messages) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: { ...session, messages },
-            },
-          };
-        },
-        false,
-        { type: "setSessionMessages" }
-      );
-    },
-    setSessionPersisted: (clientKey, id) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[clientKey];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [clientKey]: { ...session, id },
-            },
-          };
-        },
-        false,
-        { type: "setSessionPersisted" }
-      );
-    },
-    cacheSession: (session) => {
-      set(
-        (state) => {
-          const existing = state.sessionMap[session.clientKey];
-          return {
-            sessions: state.sessions.includes(session.clientKey)
-              ? state.sessions
-              : [...state.sessions, session.clientKey],
-            sessionMap: {
-              ...state.sessionMap,
-              [session.clientKey]: existing
-                ? {
-                    ...session,
-                    ...existing,
-                    title: existing.title || session.title,
-                    messages:
-                      existing.messages.length > 0
-                        ? existing.messages
-                        : session.messages,
-                  }
-                : session,
-            },
-          };
-        },
-        false,
-        { type: "cacheSession" }
+        { type: "clearSessionEphemeralState" }
       );
     },
     setDefaultModelConfig: (config) => {
@@ -974,23 +680,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "acknowledgeConsent" }
-      );
-    },
-    clearAllSessions: () => {
-      set(
-        {
-          sessions: [],
-          activeSessionId: null,
-          sessionMap: {},
-          pendingElicitationBySessionId: {},
-          chatStatusBySessionId: {},
-          isResponsePendingBySessionId: {},
-          draftInputBySessionId: {},
-          pendingMessageBySessionId: {},
-          pendingPatchExperimentsByToolCallId: {},
-        },
-        false,
-        { type: "clearAllSessions" }
       );
     },
     setCapability: ({ key, enabled }) => {
@@ -1090,9 +779,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     setSessionResponsePending: (sessionId, isPending) => {
       set(
         (state) => {
-          if (!(sessionId in state.sessionMap)) {
-            return state;
-          }
           const next = { ...state.isResponsePendingBySessionId };
           if (isPending) {
             next[sessionId] = true;
@@ -1103,44 +789,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setSessionResponsePending" }
-      );
-    },
-
-    setSessionUsage: (sessionId, newUsage) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          const usage: AgentSessionUsage = session.usage ?? {
-            tokenCount: {
-              total: 0,
-              completion: 0,
-              prompt: 0,
-            },
-          };
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: {
-                ...session,
-                usage: {
-                  ...usage,
-                  tokenCount: {
-                    prompt: newUsage.prompt,
-                    completion: newUsage.completion,
-                    total:
-                      newUsage.total ?? newUsage.prompt + newUsage.completion,
-                    ...(newUsage.promptDetails
-                      ? { promptDetails: newUsage.promptDetails }
-                      : {}),
-                  } satisfies AgentSessionUsage["tokenCount"],
-                },
-              },
-            },
-          };
-        },
-        false,
-        { type: "setSessionUsage" }
       );
     },
 

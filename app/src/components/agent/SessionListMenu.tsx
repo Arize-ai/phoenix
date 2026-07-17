@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
   Button,
   Flex,
@@ -19,7 +18,7 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
-import { getSessionDisplayName } from "./sessionTitleUtils";
+import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
 
 /**
  * Props for the session list menu.
@@ -40,10 +39,9 @@ export type SessionListMenuProps = {
 };
 
 export type AgentSessionListItem = {
-  clientKey: string;
-  id: string | null;
+  /** The session's Relay node ID, or the draft sentinel for a new chat. */
+  id: string;
   title: string;
-  messages: AgentUIMessage[];
   createdAt: number;
   isDeleteDisabled?: boolean;
 };
@@ -86,7 +84,7 @@ export function SessionListMenu({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        handleDeleteSession(focusedSessionRef.current.clientKey);
+        handleDeleteSession(focusedSessionRef.current.id);
       }
     },
     [handleDeleteSession]
@@ -122,7 +120,7 @@ export function SessionListMenu({
         >
           {sessions.map((session) => (
             <SessionMenuItem
-              key={session.clientKey}
+              key={session.id}
               session={session}
               focusedSessionRef={focusedSessionRef}
               onRequestDelete={handleDeleteSession}
@@ -149,14 +147,14 @@ function SessionMenuItem({
   focusedSessionRef: React.RefObject<AgentSessionListItem | null>;
   onRequestDelete: (sessionId: string) => void;
 }) {
-  const displayName = getSessionDisplayName(session);
+  const displayName = session.title || EMPTY_SESSION_DISPLAY_NAME;
   const dateLabel = formatRelativeShort(session.createdAt);
 
   const handleFocusChange = useCallback(
     (isFocused: boolean) => {
       if (isFocused) {
         focusedSessionRef.current = session;
-      } else if (focusedSessionRef.current?.clientKey === session.clientKey) {
+      } else if (focusedSessionRef.current?.id === session.id) {
         focusedSessionRef.current = null;
       }
     },
@@ -165,7 +163,7 @@ function SessionMenuItem({
 
   return (
     <MenuItem
-      id={session.clientKey}
+      id={session.id}
       textValue={`${displayName}\n${dateLabel}`}
       onFocusChange={handleFocusChange}
       aria-keyshortcuts="Delete"
@@ -177,7 +175,7 @@ function SessionMenuItem({
               size="S"
               aria-label={`Delete session: ${displayName}`}
               isDisabled={session.isDeleteDisabled}
-              onPress={() => onRequestDelete(session.clientKey)}
+              onPress={() => onRequestDelete(session.id)}
               leadingVisual={<Icon svg={<Icons.Trash />} />}
             />
             <Tooltip>

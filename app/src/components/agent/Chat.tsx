@@ -14,7 +14,6 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
-import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
 import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
@@ -22,14 +21,16 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import { hasAcknowledgedCurrentTraceConsent } from "@phoenix/store/agentStore";
+import {
+  DRAFT_SESSION_ID,
+  hasAcknowledgedCurrentTraceConsent,
+} from "@phoenix/store/agentStore";
 
 import { AgentChatInput } from "./AgentChatInput";
 import { AgentConsentGate } from "./AgentConsentGate";
@@ -62,7 +63,6 @@ import {
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
 import { isToolUIPart } from "./toolPartTypes";
-import { useAgentChat } from "./useAgentChat";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -281,63 +281,6 @@ function getMessageText(message: AgentUIMessage): string {
     .join("");
 }
 
-/** Connects the presentational chat view to the agent chat controller hook. */
-export function Chat({
-  sessionId,
-  chatApiUrl,
-  modelSelection,
-  modelMenuValue,
-  onModelChange,
-  emptyStateSubtext,
-  emptyStateQuickActions,
-}: {
-  sessionId: string | null;
-  chatApiUrl: string;
-  modelSelection: AgentModelSelection;
-  modelMenuValue: ModelMenuValue;
-  onModelChange: (model: ModelMenuValue) => void;
-  emptyStateSubtext?: ReactNode;
-  emptyStateQuickActions?: EmptyStateQuickAction[];
-}) {
-  const {
-    messages,
-    sendMessage,
-    stop,
-    status,
-    error,
-    pendingElicitation,
-    handleElicitationSubmit,
-    handleElicitationCancel,
-    retryMessage,
-    rewindToMessage,
-    forkFromMessage,
-  } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
-
-  return (
-    <ChatView
-      key={sessionId ?? "no-session"}
-      sessionId={sessionId}
-      messages={messages}
-      sendMessage={sendMessage}
-      stop={stop}
-      status={status}
-      error={error}
-      pendingElicitation={pendingElicitation}
-      handleElicitationSubmit={handleElicitationSubmit}
-      handleElicitationCancel={handleElicitationCancel}
-      retryMessage={retryMessage}
-      rewindToMessage={rewindToMessage}
-      forkFromMessage={forkFromMessage}
-      modelMenuValue={modelMenuValue}
-      onModelChange={onModelChange}
-      emptyStateSubtext={emptyStateSubtext}
-      emptyStateQuickActions={emptyStateQuickActions}
-    >
-      {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
-    </ChatView>
-  );
-}
-
 /**
  * Pure chat view used both by the legacy mounted panel and by the headless
  * controller path that keeps streaming alive while the panel is hidden.
@@ -382,7 +325,7 @@ export function ChatView({
    */
   rewindToMessage?: (messageId: string) => string | null;
   /** Branches a new session from a message; absent hides the branch control. */
-  forkFromMessage?: (messageId: string) => string | null;
+  forkFromMessage?: (messageId: string) => void;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -426,7 +369,7 @@ export function ChatView({
     (state) => state.permissions.edits
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
-  const createSession = useAgentContext((state) => state.createSession);
+  const setActiveSession = useAgentContext((state) => state.setActiveSession);
 
   const setSessionDraftInput = (input: string | null) => {
     if (!sessionId) {
@@ -732,7 +675,10 @@ export function ChatView({
                   runPromptCommands(
                     { commandNames, text, requestedSkills },
                     {
-                      createSession,
+                      startNewSession: () => {
+                        setActiveSession(DRAFT_SESSION_ID);
+                        return DRAFT_SESSION_ID;
+                      },
                       setPendingMessage: store.getState().setPendingMessage,
                     }
                   );

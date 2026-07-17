@@ -5888,53 +5888,6 @@ export interface components {
             enabled: boolean;
         };
         /**
-         * SessionCreatedChunk
-         * @description Transient canonical metadata for an owner-qualified persisted session.
-         *
-         *     Repeated acknowledgements let a retry reconcile clients that disconnected
-         *     before receiving the first stream's event.
-         */
-        SessionCreatedChunk: {
-            /**
-             * Type
-             * @default data-session-created
-             * @constant
-             */
-            type?: "data-session-created";
-            /**
-             * Id
-             * @default null
-             */
-            id?: string | null;
-            data: components["schemas"]["SessionCreatedData"];
-            /**
-             * Transient
-             * @default true
-             * @constant
-             */
-            transient?: true;
-        };
-        /**
-         * SessionCreatedData
-         * @description Canonical Relay metadata for a newly persisted assistant session.
-         */
-        SessionCreatedData: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /**
-             * Updatedat
-             * Format: date-time
-             */
-            updatedAt: string;
-        };
-        /**
          * SessionSummaryChunk
          * @description Transient ``data-session-summary`` stream chunk: the LLM-generated
          *     session title, emitted on any turn that starts with the session still

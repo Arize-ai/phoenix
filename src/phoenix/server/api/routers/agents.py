@@ -15,7 +15,6 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Literal, TypeVar
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_session, using_user
@@ -197,29 +196,6 @@ class _CamelBaseModel(BaseModel):
 
 # Transient session chunks live in this router rather than ``phoenix.db.types`` because they are
 # delivered to the client's ``onData`` callback but never persisted.
-@register_openapi_schema
-class SessionCreatedData(_CamelBaseModel):
-    """Canonical Relay metadata for a newly persisted assistant session."""
-
-    id: str
-    title: str
-    created_at: datetime
-    updated_at: datetime
-
-
-@register_openapi_schema
-class SessionCreatedChunk(DataChunk):
-    """Transient canonical metadata for an owner-qualified persisted session.
-
-    Repeated acknowledgements let a retry reconcile clients that disconnected
-    before receiving the first stream's event.
-    """
-
-    type: Literal["data-session-created"] = "data-session-created"
-    data: SessionCreatedData
-    transient: Literal[True] = True
-
-
 @register_openapi_schema
 class SessionSummaryChunk(DataChunk):
     """Transient ``data-session-summary`` stream chunk: the LLM-generated
@@ -1155,35 +1131,6 @@ async def _load_phoenix_user_email(
     )
 
 
-async def _create_agent_session(
-    session: AsyncSession,
-    *,
-    otel_session_id: str,
-    user_id: int | None,
-    messages: Sequence[PhoenixUIMessage],
-    project_name: str,
-) -> models.AgentSession:
-    """Create a session for a request with messages."""
-    assert messages
-    created_agent_session = models.AgentSession(
-        project_session_id=otel_session_id,
-        user_id=user_id,
-        title="",
-        project_name=project_name,
-    )
-    session.add(created_agent_session)
-    await session.flush()
-    session.add_all(
-        models.AgentSessionMessage(
-            agent_session_id=created_agent_session.id,
-            position=position,
-            message=message,
-        )
-        for position, message in enumerate(messages)
-    )
-    return created_agent_session
-
-
 async def _load_agent_session(
     session: AsyncSession,
     *,
@@ -1524,8 +1471,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             allow_local_traces=recording.allow_local_traces,
             allow_remote_export=recording.allow_remote_export,
         )
-        configured_project_name = get_env_phoenix_agents_assistant_project_name()
-
         resolved_contexts = resolve_contexts(body.contexts)
         if (browser_clock := _resolve_browser_clock(body.messages)) is not None:
             resolved_contexts.app = browser_clock
@@ -1539,25 +1484,20 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
         if graphql_mutations_enabled and is_viewer:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
+        if body.agent_session_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="agentSessionId is required; create the session first",
+            )
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
-        session_created_data: SessionCreatedData
         try:
             async with request.app.state.db() as session:
-                if body.agent_session_id is None:
-                    agent_session = await _create_agent_session(
-                        session,
-                        otel_session_id=str(uuid4()),
-                        user_id=request_user_id,
-                        messages=body.messages,
-                        project_name=configured_project_name,
-                    )
-                else:
-                    agent_session = await _load_agent_session(
-                        session,
-                        agent_session_id=body.agent_session_id,
-                        user_id=request_user_id,
-                    )
+                agent_session = await _load_agent_session(
+                    session,
+                    agent_session_id=body.agent_session_id,
+                    user_id=request_user_id,
+                )
                 project_name = agent_session.project_name
                 tracer = (
                     Tracer(
@@ -1599,12 +1539,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
                 otel_session_id = agent_session.project_session_id
-                session_created_data = SessionCreatedData(
-                    id=str(GlobalID("AgentSession", str(agent_session.id))),
-                    title=agent_session.title,
-                    created_at=agent_session.created_at,
-                    updated_at=agent_session.updated_at,
-                )
                 initial_bash_snapshot = await _load_bash_snapshot(
                     session,
                     agent_session_rowid=agent_session.id,
@@ -1760,7 +1694,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             except Exception:
                 logger.exception(
                     "Failed to summarize new agent session %r",
-                    session_created_data.id,
+                    str(GlobalID("AgentSession", str(agent_session_rowid))),
                 )
                 return None
             if summary is not None:
@@ -1821,7 +1755,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         # are emitted once, right after the stream's opening `start`
                         # message chunk and before the model's own output.
                         forced_skills_streamed = not forced_skills
-                        session_created_chunk_emitted = False
                         async with aclosing(raw_stream) as stream:
                             async for agent_message_chunk in stream:
                                 if isinstance(agent_message_chunk, ToolInputAvailableChunk):
@@ -1834,12 +1767,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         )
                                     )
                                 yield agent_message_chunk
-                                if not session_created_chunk_emitted and isinstance(
-                                    agent_message_chunk,
-                                    StartChunk,
-                                ):
-                                    yield SessionCreatedChunk(data=session_created_data)
-                                    session_created_chunk_emitted = True
                                 if not forced_skills_streamed and isinstance(
                                     agent_message_chunk,
                                     StartChunk,

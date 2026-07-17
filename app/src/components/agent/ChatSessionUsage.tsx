@@ -2,13 +2,30 @@ import {
   getAssistantMessageMetadata,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import type { AgentSessionUsage } from "@phoenix/store";
 
 import { ChatTokenUsage } from "./ChatTokenUsage";
 
-type ChatSessionUsage = {
-  sessionId: string;
+type ChatSessionUsageProps = {
+  /** The session's current transcript; usage is read from the latest assistant message. */
+  messages: AgentUIMessage[];
+};
+
+/**
+ * Usage metrics like token usage.
+ *
+ * May be extended to costs, tool call count, etc
+ */
+export type AgentSessionUsage = {
+  tokenCount: {
+    prompt: number;
+    completion: number;
+    total: number;
+    promptDetails?: {
+      cacheRead: number;
+      cacheWrite: number;
+    };
+  };
+  // this can be extended with cost in the future
 };
 
 function getLatestAssistantMessageUsage(
@@ -33,12 +50,8 @@ function getLatestAssistantMessageUsage(
   return null;
 }
 
-export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
-  const usage = useAgentContext((state) => {
-    const session = state.sessionMap[sessionId];
-    if (!session) return null;
-    return getLatestAssistantMessageUsage(session.messages) ?? session.usage;
-  });
+export const ChatSessionUsage = ({ messages }: ChatSessionUsageProps) => {
+  const usage = getLatestAssistantMessageUsage(messages);
   if (!usage) return null;
   return (
     <ChatTokenUsage

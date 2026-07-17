@@ -710,6 +710,16 @@ type CostBreakdown {
   cost: Float
 }
 
+input CreateAgentSessionInput {
+  """Optional initial title."""
+  title: String! = ""
+}
+
+type CreateAgentSessionMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
+}
+
 input CreateAnnotationConfigInput {
   annotationConfig: AnnotationConfigInput!
 }
@@ -2429,6 +2439,7 @@ input ModelsInput {
 }
 
 type Mutation {
+  createAgentSession(input: CreateAgentSessionInput!): CreateAgentSessionMutationPayload!
   deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
