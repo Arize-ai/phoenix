@@ -64,16 +64,21 @@ export function ExperimentsMetricsCharts() {
         zIndex={2}
       >
         <div css={chartsGridCSS}>
-          {charts.map(({ key, name, description, Component }) => (
-            <ChartPanel
-              key={key}
-              title={name}
-              subtitle={description}
-              fillHeight
-            >
-              <Component datasetId={datasetId} />
-            </ChartPanel>
-          ))}
+          {charts.map((chart) => {
+            const { key, name, description, Component } = chart;
+            return chart.isPanelComponent ? (
+              <Component key={key} datasetId={datasetId} />
+            ) : (
+              <ChartPanel
+                key={key}
+                title={name}
+                subtitle={description}
+                fillHeight
+              >
+                <Component datasetId={datasetId} />
+              </ChartPanel>
+            );
+          })}
         </div>
       </View>
     </ExperimentMetricsDataProvider>

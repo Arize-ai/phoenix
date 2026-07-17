@@ -1,11 +1,22 @@
 import type { ReactNode } from "react";
 
 import type { ChartTypeIconType } from "@phoenix/components/chart";
-import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
-import { PROJECT_METRIC_CHART_KEYS } from "@phoenix/pages/project/constants";
+import type {
+  BuiltInProjectMetricChartKey,
+  ProjectMetricChartKey,
+} from "@phoenix/pages/project/constants";
+import {
+  getProjectEvaluationMetricChartInfo,
+  PROJECT_METRIC_CHART_KEYS,
+} from "@phoenix/pages/project/constants";
 
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
+import {
+  SessionEvaluationMetricPanel,
+  SpanEvaluationMetricPanel,
+  TraceEvaluationMetricPanel,
+} from "./ProjectEvaluationMetricsGrids";
 import { SessionAnnotationScoreTimeSeries } from "./SessionAnnotationScoreTimeSeries";
 import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
 import { SpanCountTimeSeries } from "./SpanCountTimeSeries";
@@ -40,6 +51,8 @@ export type ProjectMetricChart = {
    * chart pickers so a chart can be recognized by its shape.
    */
   chartType: ChartTypeIconType;
+  /** The component supplies its own ChartPanel, including custom actions. */
+  isPanelComponent?: boolean;
   Component: (props: ProjectMetricViewProps) => ReactNode;
 };
 
@@ -49,7 +62,7 @@ export type ProjectMetricChart = {
  * charts above the spans table.
  */
 const CHART_DEFINITIONS: Record<
-  ProjectMetricChartKey,
+  BuiltInProjectMetricChartKey,
   Omit<ProjectMetricChart, "key">
 > = {
   traffic: {
@@ -159,11 +172,48 @@ const CHARTS_BY_KEY = Object.fromEntries(
     key,
     { key, ...CHART_DEFINITIONS[key] },
   ])
-) as Record<ProjectMetricChartKey, ProjectMetricChart>;
+) as Record<BuiltInProjectMetricChartKey, ProjectMetricChart>;
+
+// Cache generated descriptors so their Component closures stay stable and a
+// stream refresh does not remount a selected evaluation chart.
+const EVALUATION_CHARTS_BY_KEY = new Map<
+  ProjectMetricChartKey,
+  ProjectMetricChart
+>();
 
 export const getProjectMetricChart = (
   key: ProjectMetricChartKey
-): ProjectMetricChart => CHARTS_BY_KEY[key];
+): ProjectMetricChart => {
+  const evaluationInfo = getProjectEvaluationMetricChartInfo(key);
+  if (evaluationInfo == null) {
+    return CHARTS_BY_KEY[key as BuiltInProjectMetricChartKey];
+  }
+  const cachedChart = EVALUATION_CHARTS_BY_KEY.get(key);
+  if (cachedChart != null) {
+    return cachedChart;
+  }
+  const { view, evaluationName } = evaluationInfo;
+  const chart: ProjectMetricChart = {
+    key,
+    name: evaluationName,
+    description: "Evaluation results over time",
+    chartType: "line",
+    isPanelComponent: true,
+    Component: (props) => {
+      const panelProps = { ...props, evaluationName, fillHeight: true };
+      switch (view) {
+        case "spans":
+          return <SpanEvaluationMetricPanel {...panelProps} />;
+        case "traces":
+          return <TraceEvaluationMetricPanel {...panelProps} />;
+        case "sessions":
+          return <SessionEvaluationMetricPanel {...panelProps} />;
+      }
+    },
+  };
+  EVALUATION_CHARTS_BY_KEY.set(key, chart);
+  return chart;
+};
 
 export const getProjectMetricCharts = (
   keys: readonly ProjectMetricChartKey[]

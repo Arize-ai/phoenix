@@ -13,6 +13,7 @@ import invariant from "tiny-invariant";
 import { Loading } from "@phoenix/components";
 import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
 
+import type { useExperimentAnnotationMetricNamesQuery } from "./__generated__/useExperimentAnnotationMetricNamesQuery.graphql";
 import type { useExperimentAnnotationMetricsData_dataPoint$key } from "./__generated__/useExperimentAnnotationMetricsData_dataPoint.graphql";
 import type { useExperimentAnnotationMetricsDataQuery } from "./__generated__/useExperimentAnnotationMetricsDataQuery.graphql";
 import type { useExperimentMetricsData_experiment$key } from "./__generated__/useExperimentMetricsData_experiment.graphql";
@@ -96,6 +97,18 @@ export const experimentAnnotationMetricsQuery = graphql`
           recentExperiments {
             ...useExperimentAnnotationMetricsData_dataPoint
           }
+        }
+      }
+    }
+  }
+`;
+
+const experimentAnnotationMetricNamesQuery = graphql`
+  query useExperimentAnnotationMetricNamesQuery($id: ID!, $count: Int!) {
+    dataset: node(id: $id) {
+      ... on Dataset {
+        experimentAnnotationMetrics(first: $count) {
+          names
         }
       }
     }
@@ -314,4 +327,20 @@ export function useExperimentAnnotationMetricsData(datasetId: string): {
     .sort((left, right) => left.sequenceNumber - right.sequenceNumber);
 
   return { experiments, baselineExperiment };
+}
+
+export function useExperimentAnnotationMetricNames(
+  datasetId: string
+): ReadonlyArray<string> {
+  // The selector needs only this bounded name catalog; individual chart data
+  // remains lazy until an evaluation is actually selected.
+  const data = useLazyLoadQuery<useExperimentAnnotationMetricNamesQuery>(
+    experimentAnnotationMetricNamesQuery,
+    {
+      id: datasetId,
+      count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+    },
+    { fetchPolicy: "store-or-network" }
+  );
+  return data.dataset.experimentAnnotationMetrics?.names ?? [];
 }

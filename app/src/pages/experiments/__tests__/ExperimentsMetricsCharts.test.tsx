@@ -56,13 +56,19 @@ vi.mock("@phoenix/pages/dataset/metrics/chartCatalog", async () => {
 
   return {
     getExperimentMetricCharts: (keys: string[]) =>
-      keys.map((key) => ({
-        key,
-        name: key,
-        description: key,
-        Component:
-          key === "annotation_scores" ? AnnotationMetricChart : CoreMetricChart,
-      })),
+      keys.map((key) => {
+        const isEvaluationChart = key.startsWith("evaluation:");
+        return {
+          key,
+          name: key,
+          description: key,
+          isPanelComponent: isEvaluationChart,
+          Component:
+            key === "annotation_scores" || isEvaluationChart
+              ? AnnotationMetricChart
+              : CoreMetricChart,
+        };
+      }),
   };
 });
 
@@ -118,6 +124,27 @@ describe("ExperimentsMetricsCharts", () => {
       ])
     );
     expect(container.textContent).not.toContain("Something went wrong");
+  });
+
+  it("requests annotation aggregation for a selected evaluation chart", async () => {
+    datasetContextState.experimentsMetricChartKeys = ["evaluation:quality"];
+    const requestedOperations: string[] = [];
+    const environment = createPendingEnvironment(requestedOperations);
+
+    await act(async () => {
+      root.render(
+        <RelayEnvironmentProvider environment={environment}>
+          <ExperimentsMetricsCharts />
+        </RelayEnvironmentProvider>
+      );
+    });
+
+    expect(new Set(requestedOperations)).toEqual(
+      new Set([
+        "useExperimentMetricsDataQuery",
+        "useExperimentAnnotationMetricsDataQuery",
+      ])
+    );
   });
 });
 

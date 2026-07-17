@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -14,6 +15,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   getDefaultEvaluationMetricsView,
+  getEmptyEvaluationMetricsSeries,
   normalizeEvaluationMetrics,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -22,6 +24,9 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 
+import type { ProjectEvaluationMetricNamesSessionQuery } from "./__generated__/ProjectEvaluationMetricNamesSessionQuery.graphql";
+import type { ProjectEvaluationMetricNamesSpanQuery } from "./__generated__/ProjectEvaluationMetricNamesSpanQuery.graphql";
+import type { ProjectEvaluationMetricNamesTraceQuery } from "./__generated__/ProjectEvaluationMetricNamesTraceQuery.graphql";
 import type { ProjectEvaluationMetricsGridsSessionQuery } from "./__generated__/ProjectEvaluationMetricsGridsSessionQuery.graphql";
 import type { ProjectEvaluationMetricsGridsSpanQuery } from "./__generated__/ProjectEvaluationMetricsGridsSpanQuery.graphql";
 import type { ProjectEvaluationMetricsGridsTraceQuery } from "./__generated__/ProjectEvaluationMetricsGridsTraceQuery.graphql";
@@ -43,6 +48,20 @@ type AnnotationMetricsData = ReadonlyArray<{
   }>;
 }>;
 
+function getProjectEvaluationMetricsSeries(
+  data: AnnotationMetricsData
+): EvaluationMetricsSeries[] {
+  return normalizeEvaluationMetrics({
+    points: data.map((point) => ({
+      x: new Date(point.timestamp).getTime(),
+      summaries: point.annotationSummaries,
+    })),
+    // Retain empty bins so score lines break instead of connecting across
+    // periods in which the evaluation produced no result.
+    includeEmptyPoints: true,
+  });
+}
+
 const evaluationGridCSS = css`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -54,27 +73,17 @@ const evaluationGridCSS = css`
 `;
 
 function ProjectEvaluationMetricsGrid({
-  data,
+  evaluationSeries,
   timeRange,
   onTimeRangeSelected,
 }: {
-  data: AnnotationMetricsData;
+  evaluationSeries: EvaluationMetricsSeries[];
   timeRange: TimeRange;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
 }) {
   const scale = useTimeBinScale({ timeRange });
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const { fullTimeFormatter } = useTimeFormatters();
-  const evaluationSeries = normalizeEvaluationMetrics({
-    points: data.map((point) => ({
-      x: new Date(point.timestamp).getTime(),
-      summaries: point.annotationSummaries,
-    })),
-    // Retain empty bins so score lines break instead of connecting across
-    // periods in which the evaluation produced no result.
-    includeEmptyPoints: true,
-  });
-
   if (evaluationSeries.length === 0) {
     return null;
   }
@@ -95,18 +104,20 @@ function ProjectEvaluationMetricsGrid({
   );
 }
 
-function ProjectEvaluationMetricsPanel({
+export function ProjectEvaluationMetricsPanel({
   series,
   timeRange,
   timeTickFormatter,
   fullTimeFormatter,
   onTimeRangeSelected,
+  fillHeight = false,
 }: {
   series: EvaluationMetricsSeries;
   timeRange: TimeRange;
   timeTickFormatter: (date: Date) => string;
   fullTimeFormatter: (date: Date) => string;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
+  fillHeight?: boolean;
 }) {
   const [view, setView] = useState(() =>
     getDefaultEvaluationMetricsView(series)
@@ -128,6 +139,7 @@ function ProjectEvaluationMetricsPanel({
     <ChartPanel
       title={series.name}
       subtitle="Evaluation results over time"
+      fillHeight={fillHeight}
       headerActions={
         showViewToggle ? (
           <EvaluationMetricsViewToggle view={activeView} onChange={setView} />
@@ -171,8 +183,242 @@ function ProjectEvaluationMetricsPanel({
   );
 }
 
+function ProjectEvaluationMetricPanelBoundary({
+  evaluationName,
+  fillHeight,
+  children,
+}: {
+  evaluationName: string;
+  fillHeight: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <ChartPanel
+            title={evaluationName}
+            subtitle="Evaluation results over time"
+            fillHeight={fillHeight}
+          >
+            <Loading />
+          </ChartPanel>
+        }
+      >
+        {children}
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+function ProjectEvaluationMetricPanelContent({
+  evaluationSeries,
+  evaluationName,
+  fillHeight,
+  ...props
+}: ProjectMetricViewProps & {
+  evaluationSeries: EvaluationMetricsSeries[];
+  evaluationName: string;
+  fillHeight: boolean;
+}) {
+  const scale = useTimeBinScale({ timeRange: props.timeRange });
+  const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const { fullTimeFormatter } = useTimeFormatters();
+  const series =
+    evaluationSeries.find(({ name }) => name === evaluationName) ??
+    getEmptyEvaluationMetricsSeries(evaluationName);
+  return (
+    <ProjectEvaluationMetricsPanel
+      {...props}
+      series={series}
+      timeTickFormatter={timeTickFormatter}
+      fullTimeFormatter={fullTimeFormatter}
+      fillHeight={fillHeight}
+    />
+  );
+}
+
+type ProjectEvaluationMetricPanelProps = ProjectMetricViewProps & {
+  evaluationName: string;
+  fillHeight?: boolean;
+};
+
+export function SpanEvaluationMetricPanel({
+  fillHeight = false,
+  ...props
+}: ProjectEvaluationMetricPanelProps) {
+  return (
+    <ProjectEvaluationMetricPanelBoundary
+      evaluationName={props.evaluationName}
+      fillHeight={fillHeight}
+    >
+      <SpanEvaluationMetricPanelContent {...props} fillHeight={fillHeight} />
+    </ProjectEvaluationMetricPanelBoundary>
+  );
+}
+
+function SpanEvaluationMetricPanelContent({
+  fillHeight,
+  ...props
+}: ProjectEvaluationMetricPanelProps & { fillHeight: boolean }) {
+  const evaluationSeries = useSpanEvaluationMetricsSeries(props);
+  return (
+    <ProjectEvaluationMetricPanelContent
+      {...props}
+      evaluationSeries={evaluationSeries}
+      fillHeight={fillHeight}
+    />
+  );
+}
+
+export function TraceEvaluationMetricPanel({
+  fillHeight = false,
+  ...props
+}: ProjectEvaluationMetricPanelProps) {
+  return (
+    <ProjectEvaluationMetricPanelBoundary
+      evaluationName={props.evaluationName}
+      fillHeight={fillHeight}
+    >
+      <TraceEvaluationMetricPanelContent {...props} fillHeight={fillHeight} />
+    </ProjectEvaluationMetricPanelBoundary>
+  );
+}
+
+function TraceEvaluationMetricPanelContent({
+  fillHeight,
+  ...props
+}: ProjectEvaluationMetricPanelProps & { fillHeight: boolean }) {
+  const evaluationSeries = useTraceEvaluationMetricsSeries(props);
+  return (
+    <ProjectEvaluationMetricPanelContent
+      {...props}
+      evaluationSeries={evaluationSeries}
+      fillHeight={fillHeight}
+    />
+  );
+}
+
+export function SessionEvaluationMetricPanel({
+  fillHeight = false,
+  ...props
+}: ProjectEvaluationMetricPanelProps) {
+  return (
+    <ProjectEvaluationMetricPanelBoundary
+      evaluationName={props.evaluationName}
+      fillHeight={fillHeight}
+    >
+      <SessionEvaluationMetricPanelContent {...props} fillHeight={fillHeight} />
+    </ProjectEvaluationMetricPanelBoundary>
+  );
+}
+
+function SessionEvaluationMetricPanelContent({
+  fillHeight,
+  ...props
+}: ProjectEvaluationMetricPanelProps & { fillHeight: boolean }) {
+  const evaluationSeries = useSessionEvaluationMetricsSeries(props);
+  return (
+    <ProjectEvaluationMetricPanelContent
+      {...props}
+      evaluationSeries={evaluationSeries}
+      fillHeight={fillHeight}
+    />
+  );
+}
+
 // Keep each Relay query below its own Suspense boundary. Suspending from the
 // page can remount the metrics tree and repeatedly restart the query.
+export function useSpanEvaluationMetricNames(
+  props: ProjectMetricViewProps
+): ReadonlyArray<string> {
+  const scale = useTimeBinScale({ timeRange: props.timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  const data = useLazyLoadQuery<ProjectEvaluationMetricNamesSpanQuery>(
+    graphql`
+      query ProjectEvaluationMetricNamesSpanQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            spanAnnotationMetricsTimeSeries(
+              timeRange: $timeRange
+              timeBinConfig: $timeBinConfig
+            ) {
+              names
+            }
+          }
+        }
+      }
+    `,
+    getQueryVariables(props, scale, utcOffsetMinutes),
+    useMetricQueryFetchOptions()
+  );
+  return data.project.spanAnnotationMetricsTimeSeries?.names ?? [];
+}
+
+export function useTraceEvaluationMetricNames(
+  props: ProjectMetricViewProps
+): ReadonlyArray<string> {
+  const scale = useTimeBinScale({ timeRange: props.timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  const data = useLazyLoadQuery<ProjectEvaluationMetricNamesTraceQuery>(
+    graphql`
+      query ProjectEvaluationMetricNamesTraceQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            traceAnnotationMetricsTimeSeries(
+              timeRange: $timeRange
+              timeBinConfig: $timeBinConfig
+            ) {
+              names
+            }
+          }
+        }
+      }
+    `,
+    getQueryVariables(props, scale, utcOffsetMinutes),
+    useMetricQueryFetchOptions()
+  );
+  return data.project.traceAnnotationMetricsTimeSeries?.names ?? [];
+}
+
+export function useSessionEvaluationMetricNames(
+  props: ProjectMetricViewProps
+): ReadonlyArray<string> {
+  const scale = useTimeBinScale({ timeRange: props.timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  const data = useLazyLoadQuery<ProjectEvaluationMetricNamesSessionQuery>(
+    graphql`
+      query ProjectEvaluationMetricNamesSessionQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            sessionAnnotationMetricsTimeSeries(
+              timeRange: $timeRange
+              timeBinConfig: $timeBinConfig
+            ) {
+              names
+            }
+          }
+        }
+      }
+    `,
+    getQueryVariables(props, scale, utcOffsetMinutes),
+    useMetricQueryFetchOptions()
+  );
+  return data.project.sessionAnnotationMetricsTimeSeries?.names ?? [];
+}
+
 export function SpanEvaluationMetricsGrid(props: ProjectMetricViewProps) {
   return (
     <ErrorBoundary>
@@ -184,6 +430,16 @@ export function SpanEvaluationMetricsGrid(props: ProjectMetricViewProps) {
 }
 
 function SpanEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
+  const evaluationSeries = useSpanEvaluationMetricsSeries(props);
+  return (
+    <ProjectEvaluationMetricsGrid
+      {...props}
+      evaluationSeries={evaluationSeries}
+    />
+  );
+}
+
+export function useSpanEvaluationMetricsSeries(props: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricsGridsSpanQuery>(
@@ -218,11 +474,8 @@ function SpanEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
     getQueryVariables(props, scale, utcOffsetMinutes),
     useMetricQueryFetchOptions()
   );
-  return (
-    <ProjectEvaluationMetricsGrid
-      {...props}
-      data={data.project.spanAnnotationMetricsTimeSeries?.data ?? []}
-    />
+  return getProjectEvaluationMetricsSeries(
+    data.project.spanAnnotationMetricsTimeSeries?.data ?? []
   );
 }
 
@@ -237,6 +490,16 @@ export function TraceEvaluationMetricsGrid(props: ProjectMetricViewProps) {
 }
 
 function TraceEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
+  const evaluationSeries = useTraceEvaluationMetricsSeries(props);
+  return (
+    <ProjectEvaluationMetricsGrid
+      {...props}
+      evaluationSeries={evaluationSeries}
+    />
+  );
+}
+
+export function useTraceEvaluationMetricsSeries(props: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricsGridsTraceQuery>(
@@ -271,11 +534,8 @@ function TraceEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
     getQueryVariables(props, scale, utcOffsetMinutes),
     useMetricQueryFetchOptions()
   );
-  return (
-    <ProjectEvaluationMetricsGrid
-      {...props}
-      data={data.project.traceAnnotationMetricsTimeSeries?.data ?? []}
-    />
+  return getProjectEvaluationMetricsSeries(
+    data.project.traceAnnotationMetricsTimeSeries?.data ?? []
   );
 }
 
@@ -290,6 +550,18 @@ export function SessionEvaluationMetricsGrid(props: ProjectMetricViewProps) {
 }
 
 function SessionEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
+  const evaluationSeries = useSessionEvaluationMetricsSeries(props);
+  return (
+    <ProjectEvaluationMetricsGrid
+      {...props}
+      evaluationSeries={evaluationSeries}
+    />
+  );
+}
+
+export function useSessionEvaluationMetricsSeries(
+  props: ProjectMetricViewProps
+) {
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricsGridsSessionQuery>(
@@ -324,11 +596,8 @@ function SessionEvaluationMetricsGridContent(props: ProjectMetricViewProps) {
     getQueryVariables(props, scale, utcOffsetMinutes),
     useMetricQueryFetchOptions()
   );
-  return (
-    <ProjectEvaluationMetricsGrid
-      {...props}
-      data={data.project.sessionAnnotationMetricsTimeSeries?.data ?? []}
-    />
+  return getProjectEvaluationMetricsSeries(
+    data.project.sessionAnnotationMetricsTimeSeries?.data ?? []
   );
 }
 

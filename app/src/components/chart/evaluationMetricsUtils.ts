@@ -38,6 +38,18 @@ export type EvaluationMetricsSeries = {
   >;
 };
 
+export function getEmptyEvaluationMetricsSeries(
+  name: string
+): EvaluationMetricsSeries {
+  return {
+    name,
+    views: [],
+    labels: [],
+    dataByView: { labels: [], scores: [] },
+    referenceByView: {},
+  };
+}
+
 export function getDefaultEvaluationMetricsView(
   series: EvaluationMetricsSeries
 ): EvaluationMetricsView {

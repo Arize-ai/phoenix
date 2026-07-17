@@ -11,6 +11,7 @@ import {
   type EvaluationMetricsSeries,
   EvaluationMetricsViewToggle,
   getDefaultEvaluationMetricsView,
+  getEmptyEvaluationMetricsSeries,
   MAX_EVALUATION_LABEL_COUNT,
   normalizeEvaluationMetrics,
 } from "@phoenix/components/chart";
@@ -67,6 +68,23 @@ function ExperimentEvaluationMetricsPanels({
 }: {
   datasetId: string;
 }) {
+  const { evaluationSeries, baselineSequenceNumber } =
+    useExperimentEvaluationMetricsSeries(datasetId);
+
+  return (
+    <>
+      {evaluationSeries.map((series) => (
+        <ExperimentEvaluationMetricsPanel
+          key={series.name}
+          series={series}
+          baselineSequenceNumber={baselineSequenceNumber}
+        />
+      ))}
+    </>
+  );
+}
+
+export function useExperimentEvaluationMetricsSeries(datasetId: string) {
   const { experiments, baselineExperiment } =
     useExperimentAnnotationMetricsData(datasetId);
   const evaluationSeries = normalizeEvaluationMetrics({
@@ -80,25 +98,75 @@ function ExperimentEvaluationMetricsPanels({
     includeEmptyPoints: true,
   });
 
+  return {
+    evaluationSeries,
+    baselineSequenceNumber: baselineExperiment?.sequenceNumber,
+  };
+}
+
+export function ExperimentEvaluationMetricPanel({
+  datasetId,
+  evaluationName,
+  fillHeight = false,
+}: {
+  datasetId: string;
+  evaluationName: string;
+  fillHeight?: boolean;
+}) {
   return (
-    <>
-      {evaluationSeries.map((series) => (
-        <ExperimentEvaluationMetricsPanel
-          key={series.name}
-          series={series}
-          baselineSequenceNumber={baselineExperiment?.sequenceNumber}
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <ChartPanel
+            title={evaluationName}
+            subtitle="Evaluation results by experiment"
+            fillHeight={fillHeight}
+          >
+            <Loading />
+          </ChartPanel>
+        }
+      >
+        <ExperimentEvaluationMetricPanelContent
+          datasetId={datasetId}
+          evaluationName={evaluationName}
+          fillHeight={fillHeight}
         />
-      ))}
-    </>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
-function ExperimentEvaluationMetricsPanel({
+function ExperimentEvaluationMetricPanelContent({
+  datasetId,
+  evaluationName,
+  fillHeight,
+}: {
+  datasetId: string;
+  evaluationName: string;
+  fillHeight: boolean;
+}) {
+  const { evaluationSeries, baselineSequenceNumber } =
+    useExperimentEvaluationMetricsSeries(datasetId);
+  const series =
+    evaluationSeries.find(({ name }) => name === evaluationName) ??
+    getEmptyEvaluationMetricsSeries(evaluationName);
+  return (
+    <ExperimentEvaluationMetricsPanel
+      series={series}
+      baselineSequenceNumber={baselineSequenceNumber}
+      fillHeight={fillHeight}
+    />
+  );
+}
+
+export function ExperimentEvaluationMetricsPanel({
   series,
   baselineSequenceNumber,
+  fillHeight = false,
 }: {
   series: EvaluationMetricsSeries;
   baselineSequenceNumber?: number;
+  fillHeight?: boolean;
 }) {
   const [view, setView] = useState(() =>
     getDefaultEvaluationMetricsView(series)
@@ -122,6 +190,7 @@ function ExperimentEvaluationMetricsPanel({
     <ChartPanel
       title={series.name}
       subtitle="Evaluation results by experiment"
+      fillHeight={fillHeight}
       headerActions={
         showViewToggle ? (
           <EvaluationMetricsViewToggle view={activeView} onChange={setView} />

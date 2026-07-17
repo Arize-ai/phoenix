@@ -1,15 +1,20 @@
 import type { ReactNode } from "react";
 
 import type { ChartTypeIconType } from "@phoenix/components/chart";
-import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
+import type {
+  BuiltInExperimentMetricChartKey,
+  ExperimentMetricChartKey,
+} from "@phoenix/pages/dataset/constants";
 import {
   EXPERIMENT_METRIC_CHART_KEYS,
   EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+  getExperimentEvaluationName,
 } from "@phoenix/pages/dataset/constants";
 
 import { ExperimentAnnotationScoresChart } from "./ExperimentAnnotationScoresChart";
 import { ExperimentCostChart } from "./ExperimentCostChart";
 import { ExperimentErrorRateChart } from "./ExperimentErrorRateChart";
+import { ExperimentEvaluationMetricPanel } from "./ExperimentEvaluationMetricsGrid";
 import { ExperimentLatencyChart } from "./ExperimentLatencyChart";
 import { ExperimentTokensChart } from "./ExperimentTokensChart";
 import type { ExperimentMetricViewProps } from "./types";
@@ -28,6 +33,8 @@ export type ExperimentMetricChart = {
    * The chart's visual archetype, shown as a glyph in the chart selector
    */
   chartType: ChartTypeIconType;
+  /** The component supplies its own ChartPanel, including custom actions. */
+  isPanelComponent?: boolean;
   Component: (props: ExperimentMetricViewProps) => ReactNode;
 };
 
@@ -36,7 +43,7 @@ export type ExperimentMetricChart = {
  * chart plots the dataset's most recent experiments on the x axis.
  */
 const CHART_DEFINITIONS: Record<
-  ExperimentMetricChartKey,
+  BuiltInExperimentMetricChartKey,
   Omit<ExperimentMetricChart, "key">
 > = {
   annotation_scores: {
@@ -80,15 +87,47 @@ const CHARTS_BY_KEY = Object.fromEntries(
     key,
     { key, ...CHART_DEFINITIONS[key] },
   ])
-) as Record<ExperimentMetricChartKey, ExperimentMetricChart>;
+) as Record<BuiltInExperimentMetricChartKey, ExperimentMetricChart>;
+
+// Cache generated descriptors so their Component closures stay stable and a
+// table refresh does not remount a selected evaluation chart.
+const EVALUATION_CHARTS_BY_KEY = new Map<
+  ExperimentMetricChartKey,
+  ExperimentMetricChart
+>();
 
 export const getExperimentMetricChart = (
   key: ExperimentMetricChartKey
-): ExperimentMetricChart => CHARTS_BY_KEY[key];
+): ExperimentMetricChart => {
+  const evaluationName = getExperimentEvaluationName(key);
+  if (evaluationName == null) {
+    return CHARTS_BY_KEY[key as BuiltInExperimentMetricChartKey];
+  }
+  const cachedChart = EVALUATION_CHARTS_BY_KEY.get(key);
+  if (cachedChart != null) {
+    return cachedChart;
+  }
+  const chart: ExperimentMetricChart = {
+    key,
+    name: evaluationName,
+    description: "Evaluation results by experiment",
+    chartType: "line",
+    isPanelComponent: true,
+    Component: (props) => (
+      <ExperimentEvaluationMetricPanel
+        {...props}
+        evaluationName={evaluationName}
+        fillHeight
+      />
+    ),
+  };
+  EVALUATION_CHARTS_BY_KEY.set(key, chart);
+  return chart;
+};
 
 export const getExperimentMetricCharts = (
   keys: readonly ExperimentMetricChartKey[]
-): ExperimentMetricChart[] => keys.map((key) => CHARTS_BY_KEY[key]);
+): ExperimentMetricChart[] => keys.map(getExperimentMetricChart);
 
 /**
  * All the experiment metric charts, in chart selector display order.

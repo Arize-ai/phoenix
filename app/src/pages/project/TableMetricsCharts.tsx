@@ -81,20 +81,30 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
       <div css={chartsGridCSS}>
         {/* Re-fetch the charts on each stream refresh so they stay live */}
         <MetricFetchKeyProvider value={fetchKey}>
-          {charts.map(({ key, name, description, Component }) => (
-            <ChartPanel
-              key={key}
-              title={name}
-              subtitle={description}
-              fillHeight
-            >
+          {charts.map((chart) => {
+            const { key, name, description, Component } = chart;
+            return chart.isPanelComponent ? (
               <Component
+                key={key}
                 projectId={projectId}
                 timeRange={timeRange}
                 onTimeRangeSelected={setCustomTimeRange}
               />
-            </ChartPanel>
-          ))}
+            ) : (
+              <ChartPanel
+                key={key}
+                title={name}
+                subtitle={description}
+                fillHeight
+              >
+                <Component
+                  projectId={projectId}
+                  timeRange={timeRange}
+                  onTimeRangeSelected={setCustomTimeRange}
+                />
+              </ChartPanel>
+            );
+          })}
         </MetricFetchKeyProvider>
       </div>
     </View>
