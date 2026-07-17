@@ -41,18 +41,19 @@ import type { AnnotationConfigTableFragment$key } from "@phoenix/pages/settings/
 import { AnnotationConfigSelectionToolbar } from "@phoenix/pages/settings/AnnotationConfigSelectionToolbar";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
+type PersistedAnnotationConfig = AnnotationConfig & { id: string };
+
 const columns = [
-  createRowSelectionColumn<AnnotationConfig>({
-    showSelectAllHeader: false,
-    size: 24,
-    minSize: 24,
-    maxSize: 24,
+  createRowSelectionColumn<PersistedAnnotationConfig>({
+    size: 30,
+    minSize: 30,
+    maxSize: 30,
   }),
   {
     id: "name",
     header: "Name",
     accessorKey: "name",
-    cell: ({ row }: CellContext<AnnotationConfig, unknown>) => {
+    cell: ({ row }: CellContext<PersistedAnnotationConfig, unknown>) => {
       return (
         <AnnotationLabel
           key={row.original.id}
@@ -70,9 +71,10 @@ const columns = [
     header: "Description",
     accessorKey: "description",
     sortUndefined: "last",
-    accessorFn: (row: AnnotationConfig) => row.description ?? undefined,
+    accessorFn: (row: PersistedAnnotationConfig) =>
+      row.description ?? undefined,
     maxSize: 150,
-    cell: ({ row }: CellContext<AnnotationConfig, unknown>) => {
+    cell: ({ row }: CellContext<PersistedAnnotationConfig, unknown>) => {
       return (
         <Truncate maxWidth="100%">
           <Text>{row.original.description}</Text>
@@ -85,7 +87,7 @@ const columns = [
     header: "Type",
     accessorKey: "annotationType",
     minSize: 10,
-    cell: ({ row }: CellContext<AnnotationConfig, unknown>) => {
+    cell: ({ row }: CellContext<PersistedAnnotationConfig, unknown>) => {
       return (
         <Text>
           {row.original.annotationType.charAt(0).toUpperCase() +
@@ -98,7 +100,7 @@ const columns = [
     id: "values",
     header: "Values",
     enableSorting: false,
-    accessorFn: (row: AnnotationConfig) => {
+    accessorFn: (row: PersistedAnnotationConfig) => {
       switch (row.annotationType) {
         case "CATEGORICAL": {
           if (!row.values) {
@@ -144,12 +146,12 @@ const columns = [
           return "";
       }
     },
-    cell: ({ getValue }: CellContext<AnnotationConfig, unknown>) => {
+    cell: ({ getValue }: CellContext<PersistedAnnotationConfig, unknown>) => {
       const value = getValue() as React.ReactNode;
       return <Flex gap="size-100">{value}</Flex>;
     },
   },
-] satisfies ColumnDef<AnnotationConfig>[];
+] satisfies ColumnDef<PersistedAnnotationConfig>[];
 
 export const AnnotationConfigTable = ({
   annotationConfigs,
@@ -158,11 +160,11 @@ export const AnnotationConfigTable = ({
 }: {
   annotationConfigs: AnnotationConfigTableFragment$key;
   onDeleteAnnotationConfig: (
-    id: string,
+    ids: string[],
     {
       onCompleted,
       onError,
-    }?: { onCompleted?: () => void; onError?: () => void }
+    }?: { onCompleted?: () => void; onError?: (error: string) => void }
   ) => void;
   onEditAnnotationConfig: (
     annotationConfig: AnnotationConfig,
@@ -218,7 +220,7 @@ export const AnnotationConfigTable = ({
   const configs = useMemo(
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
-  ) as AnnotationConfig[]; // cast to AnnotationConfig[] because otherwise 'name' and 'annotationType' are optional
+  ) as PersistedAnnotationConfig[]; // fields are guaranteed by the concrete config fragments
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     data: configs,
@@ -227,7 +229,7 @@ export const AnnotationConfigTable = ({
     getSortedRowModel: getSortedRowModel(),
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-    enableMultiRowSelection: false,
+    getRowId: (row) => row.id,
     state: {
       rowSelection,
       columnPinning: CHECKBOX_COLUMN_PINNING,
@@ -309,14 +311,7 @@ export const AnnotationConfigTable = ({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  setRowSelection({
-                    [row.id]: !rowSelection?.[row.id],
-                  });
-                }}
-              >
+              <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
@@ -338,14 +333,14 @@ export const AnnotationConfigTable = ({
           </tbody>
         )}
       </table>
-      {selectedRows.length > 0 && (
+      {selectedRows.length > 0 ? (
         <AnnotationConfigSelectionToolbar
-          selectedConfig={selectedConfigs[0]}
+          selectedConfigs={selectedConfigs}
           onClearSelection={clearSelection}
           onEditAnnotationConfig={onEditAnnotationConfig}
           onDeleteAnnotationConfig={onDeleteAnnotationConfig}
         />
-      )}
+      ) : null}
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
 import {
-  Alert,
   ExternalLink,
   Icon,
   IconButton,
@@ -43,7 +42,7 @@ function isManagedDeployment(): boolean {
 const versionUpdateNoticeIn = keyframes`
   from {
     opacity: 0;
-    transform: translateY(var(--global-dimension-static-size-100)) scale(0.98);
+    transform: translateY(var(--global-dimension-size-100)) scale(0.98);
   }
   to {
     opacity: 1;
@@ -56,11 +55,11 @@ const versionUpdateNoticeCSS = css`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
   box-sizing: border-box;
   min-width: 0;
-  padding: var(--global-dimension-static-size-200);
-  margin-bottom: var(--global-dimension-static-size-100);
+  padding: var(--global-dimension-size-200);
+  margin-bottom: var(--global-dimension-size-100);
   background-color: var(--global-color-gray-200);
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
@@ -84,8 +83,8 @@ const versionUpdateNoticeCSS = css`
     flex: none;
     align-items: center;
     justify-content: center;
-    width: var(--global-dimension-static-size-400);
-    height: var(--global-dimension-static-size-400);
+    width: var(--global-dimension-size-400);
+    height: var(--global-dimension-size-400);
     font-size: var(--global-font-size-l);
     color: var(--global-color-gray-100);
     background: linear-gradient(
@@ -99,7 +98,7 @@ const versionUpdateNoticeCSS = css`
   .version-update-notice__content {
     display: flex;
     flex-direction: column;
-    gap: var(--global-dimension-static-size-25);
+    gap: var(--global-dimension-size-25);
     min-width: 0;
   }
 
@@ -114,8 +113,8 @@ const versionUpdateNoticeCSS = css`
 
   .version-update-notice__dismiss {
     position: absolute;
-    top: var(--global-dimension-static-size-100);
-    right: var(--global-dimension-static-size-100);
+    top: var(--global-dimension-size-100);
+    right: var(--global-dimension-size-100);
   }
 `;
 
@@ -253,16 +252,11 @@ export function PlatformVersionStatus() {
     return null;
   }
   return (
-    <Alert
-      variant="warning"
-      extra={
-        <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
-          View release notes
-        </ExternalLink>
-      }
-      data-testid="platform-version-status"
-    >
-      A newer version of Phoenix is available (v{latestVersion}).
-    </Alert>
+    <Text color="warning" size="XS" data-testid="platform-version-status">
+      A newer version of Phoenix is available (v{latestVersion}).{" "}
+      <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
+        View release notes
+      </ExternalLink>
+    </Text>
   );
 }

@@ -17,6 +17,7 @@ import {
   Text,
 } from "@phoenix/components";
 import type { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
+import type { settingsModelsLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsModelsLoaderQuery.graphql";
 import type { SettingsModelsLoaderType } from "@phoenix/pages/settings/settingsModelsLoader";
 import { settingsModelsLoaderGql } from "@phoenix/pages/settings/settingsModelsLoader";
 
@@ -36,10 +37,13 @@ export function SettingsModelsPage() {
   const [search, setSearch] = useState("");
   const loaderData = useLoaderData<SettingsModelsLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsModelsLoaderGql, loaderData);
+  const data = usePreloadedQuery<settingsModelsLoaderQuery>(
+    settingsModelsLoaderGql,
+    loaderData
+  );
 
   return (
-    <Flex direction="column" gap="size-200">
+    <Flex direction="column" gap="size-200" flex="1 1 auto" minHeight={0}>
       <Flex gap="size-200" alignItems="center" justifyContent="space-between">
         <DebouncedSearch
           aria-label="Search models"
@@ -76,6 +80,9 @@ export function SettingsModelsPage() {
       </Flex>
       <Card
         title="Models"
+        flex="1 1 auto"
+        minHeight={0}
+        scrollBody
         extra={
           <Flex direction="row" gap="size-200" alignItems="center">
             <Text color="text-500" size="S">

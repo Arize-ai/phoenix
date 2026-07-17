@@ -131,8 +131,13 @@ export const GlobalRetentionPolicyCard = () => {
     <Card title="Default Project Retention Policy">
       {error && <Alert variant="danger">{error}</Alert>}
       <View padding="size-200">
-        <Flex direction="row" gap="size-200" justifyContent="space-between">
-          <View paddingTop="size-100">
+        <Flex
+          direction="row"
+          gap="size-200"
+          justifyContent="space-between"
+          wrap
+        >
+          <View paddingTop="size-100" flex="1 1 300px">
             <Text>
               The default retention policy for all projects that do not have
               their own custom retention policy. Traces that are older than the
@@ -140,7 +145,7 @@ export const GlobalRetentionPolicyCard = () => {
               free up storage space.
             </Text>
           </View>
-          <View width="1000px">
+          <View flex="none">
             <Form onSubmit={handleSubmit(onSubmit)}>
               <Flex gap="size-100" direction="row" alignItems="center">
                 <Controller

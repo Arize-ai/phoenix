@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<91af28e3f5954572ff14be37b1f874cd>>
+ * @generated SignedSource<<e4f1566c982294a98d357f4ab71c208b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -46,7 +45,7 @@ v1 = {
   "storageKey": null
 },
 v2 = [
-  (v1/*: any*/)
+  (v1/*:: as any*/)
 ],
 v3 = {
   "alias": null,
@@ -55,7 +54,7 @@ v3 = {
   "kind": "LinkedField",
   "name": "viewer",
   "plural": false,
-  "selections": (v2/*: any*/),
+  "selections": (v2/*:: as any*/),
   "storageKey": null
 },
 v4 = [
@@ -74,24 +73,24 @@ v5 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "applySpanAnnotationsResolveByNodeIdQuery",
     "selections": [
-      (v3/*: any*/),
+      (v3/*:: as any*/),
       {
         "alias": "span",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
+          (v5/*:: as any*/),
           {
             "kind": "InlineFragment",
-            "selections": (v2/*: any*/),
+            "selections": (v2/*:: as any*/),
             "type": "Span",
             "abstractKey": null
           }
@@ -104,21 +103,21 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "applySpanAnnotationsResolveByNodeIdQuery",
     "selections": [
-      (v3/*: any*/),
+      (v3/*:: as any*/),
       {
         "alias": "span",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
-          (v1/*: any*/)
+          (v5/*:: as any*/),
+          (v1/*:: as any*/)
         ],
         "storageKey": null
       }

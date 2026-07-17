@@ -209,6 +209,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-response-handling",
                       "docs/phoenix/evaluation/pre-built-metrics/refusal",
+                      "docs/phoenix/evaluation/pre-built-metrics/user-friction",
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
                       "docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore",
@@ -984,6 +985,20 @@
                     ]
                   },
                   {
+                    "group": "Dataset Labels",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-dataset-labels",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/create-a-dataset-label",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/get-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/update-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/delete-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-the-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/replace-the-set-of-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/apply-a-label-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/remove-a-label-from-a-dataset"
+                    ]
+                  },
+                  {
                     "group": "Experiments",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",
@@ -1116,7 +1131,10 @@
               "docs/phoenix/self-hosting/deployment-options/kubernetes",
               "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
               "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
-              "docs/phoenix/self-hosting/deployment-options/railway"
+              "docs/phoenix/self-hosting/deployment-options/railway",
+              "docs/phoenix/self-hosting/deployment-options/render",
+              "docs/phoenix/self-hosting/deployment-options/google-cloud-run",
+              "docs/phoenix/self-hosting/deployment-options/azure"
             ]
           },
           {
@@ -1281,6 +1299,7 @@
               {
                 "group": "07.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
                   "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
                 ]
               },

@@ -8,7 +8,7 @@ export const checkboxCSS = css`
   --border-color-pressed: var(--global-checkbox-border-color-pressed);
   --border-color-hover: var(--global-checkbox-border-color-hover);
   --checkbox-focus-ring-color: var(--focus-ring-color);
-  --checkbox-size: var(--global-dimension-static-size-200);
+  --checkbox-size: var(--global-dimension-size-200);
 
   display: flex;
   /* This is needed so the HiddenInput is positioned correctly */

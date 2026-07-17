@@ -1,7 +1,10 @@
 import { css } from "@emotion/react";
 import { isTextUIPart } from "ai";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getAssistantMessageMetadata,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import {
   Message,
   MessageActions,
@@ -155,7 +158,7 @@ export function AssistantMessage({
               role="assistant"
               onRequest={onRewindRequest}
               showRewind={allowRewind}
-              traceId={message.metadata?.trace?.traceId}
+              traceId={getAssistantMessageMetadata(message)?.trace?.traceId}
             />
           ) : null}
         </AssistantMessageActions>

@@ -459,8 +459,7 @@ async def test_compare_experiments_validation_errors(
     assert response.errors[0].message == expected_error
 
 
-@pytest.mark.skip(reason="TODO: re-enable this test after we figure out the issue with sqlite")
-async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
+async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> None:
     query = """
       query {
         dbTableStats {
@@ -472,7 +471,15 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     response = await gql_client.execute(query=query)
     assert not response.errors
     assert (data := response.data) is not None
-    assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
+    stats = data["dbTableStats"]
+    assert all(s["numBytes"] >= 0 for s in stats)
+    if dialect == "sqlite":
+        # the sqlite resolver reports a single aggregate row for the whole file
+        assert [s["tableName"] for s in stats] == ["SQLite"]
+    else:
+        assert {s["tableName"] for s in stats} >= {
+            table.name for table in models.Base.metadata.tables.values()
+        }
 
 
 async def test_agents_config_returns_env_values(
@@ -481,6 +488,7 @@ async def test_agents_config_returns_env_values(
 ) -> None:
     monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "http://collector.example:4318")
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "custom_assistant")
+    monkeypatch.setenv("PHOENIX_AGENTS_FORCE_TRACING", "true")
     monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
     monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", "false")
     query = """
@@ -488,7 +496,10 @@ async def test_agents_config_returns_env_values(
         agentsConfig {
           collectorEndpoint
           assistantProjectName
+          forceTracing
           webAccessEnabled
+          allowLocalTraces
+          allowRemoteExport
         }
       }
     """
@@ -498,7 +509,10 @@ async def test_agents_config_returns_env_values(
     assert data["agentsConfig"] == {
         "collectorEndpoint": "http://collector.example:4318",
         "assistantProjectName": "custom_assistant",
+        "forceTracing": True,
         "webAccessEnabled": True,
+        "allowLocalTraces": True,
+        "allowRemoteExport": True,
     }
 
 
@@ -508,6 +522,7 @@ async def test_agents_config_defaults_when_env_unset(
 ) -> None:
     monkeypatch.delenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", raising=False)
     monkeypatch.delenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", raising=False)
+    monkeypatch.delenv("PHOENIX_AGENTS_FORCE_TRACING", raising=False)
     monkeypatch.delenv("PHOENIX_AGENTS_DISABLE_WEB_ACCESS", raising=False)
     monkeypatch.delenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", raising=False)
     query = """
@@ -515,6 +530,7 @@ async def test_agents_config_defaults_when_env_unset(
         agentsConfig {
           collectorEndpoint
           assistantProjectName
+          forceTracing
           webAccessEnabled
         }
       }
@@ -525,6 +541,7 @@ async def test_agents_config_defaults_when_env_unset(
     assert data["agentsConfig"] == {
         "collectorEndpoint": None,
         "assistantProjectName": "assistant_agent",
+        "forceTracing": False,
         "webAccessEnabled": True,
     }
 

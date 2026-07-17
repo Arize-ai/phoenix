@@ -45,8 +45,8 @@ export const ReadOnlyCategoricalConfig = ({
     <div
       css={css`
         border-radius: var(--global-rounding-medium);
-        padding: var(--global-dimension-static-size-200);
-        margin-top: var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-size-200);
+        margin-top: var(--global-dimension-size-50);
         border: 1px solid var(--global-border-color-default);
       `}
     >
@@ -101,7 +101,7 @@ const GridRow = ({ children }: PropsWithChildren) => {
         width: 100%;
         display: grid;
         grid-template-columns: 3fr 1fr;
-        gap: var(--global-dimension-static-size-100);
+        gap: var(--global-dimension-size-100);
         align-items: start;
       `}
     >

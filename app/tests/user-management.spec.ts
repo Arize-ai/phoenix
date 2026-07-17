@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
 import { expect, test } from "@playwright/test";
 test("can create a user", async ({ page }) => {
-  await page.goto("/settings/general");
-  await page.waitForURL("**/settings/general");
+  await page.goto("/settings/users");
+  await page.waitForURL("**/settings/users");
   await page.getByRole("button", { name: "Add User" }).click();
 
   const email = `member-${randomUUID()}@localhost.com`;
@@ -26,8 +26,8 @@ test("can create a user", async ({ page }) => {
 });
 
 test("can create a user with viewer role", async ({ page }) => {
-  await page.goto("/settings/general");
-  await page.waitForURL("**/settings/general");
+  await page.goto("/settings/users");
+  await page.waitForURL("**/settings/users");
   await page.getByRole("button", { name: "Add User" }).click();
 
   const email = `viewer-${randomUUID()}@localhost.com`;

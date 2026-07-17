@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6fc461302ecf5870606b8e9a30e3dd9c>>
+ * @generated SignedSource<<dacb231b49a9798afd78ca0f75179fa4>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -47,7 +46,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "StorageAlertQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -56,7 +55,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "StorageAlertQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "f9f3d6dcbdc1417ed8012eebb951f0e2",

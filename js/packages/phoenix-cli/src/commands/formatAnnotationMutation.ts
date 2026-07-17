@@ -1,4 +1,4 @@
-import type { AnnotationMutationResult } from "./annotationMutationUtils";
+import type { AnnotationMutationResult } from "./annotationMutations";
 
 export type OutputFormat = "pretty" | "json" | "raw";
 

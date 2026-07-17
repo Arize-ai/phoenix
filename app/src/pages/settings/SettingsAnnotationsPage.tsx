@@ -17,6 +17,7 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
+import type { settingsAnnotationsPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsAnnotationsPageLoaderQuery.graphql";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import type { SettingsAnnotationsPageLoaderType } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { settingsAnnotationsPageLoaderGql } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -28,7 +29,10 @@ import type { SettingsAnnotationsPageFragment$key } from "./__generated__/Settin
 export const SettingsAnnotationsPage = () => {
   const loaderData = useLoaderData<SettingsAnnotationsPageLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsAnnotationsPageLoaderGql, loaderData);
+  const data = usePreloadedQuery<settingsAnnotationsPageLoaderQuery>(
+    settingsAnnotationsPageLoaderGql,
+    loaderData
+  );
   return <SettingsAnnotations annotations={data} />;
 };
 
@@ -76,10 +80,12 @@ const SettingsAnnotations = ({
     }
   `);
 
-  const parseError = (callback?: (error: string) => void) => (error: Error) => {
-    const formattedError = getErrorMessagesFromRelayMutationError(error);
-    callback?.(formattedError?.[0] ?? "Failed to create annotation config");
-  };
+  const parseError =
+    (fallback: string, callback?: (error: string) => void) =>
+    (error: Error) => {
+      const formattedError = getErrorMessagesFromRelayMutationError(error);
+      callback?.(formattedError?.[0] ?? fallback);
+    };
 
   const handleAddAnnotationConfig = (
     _config: AnnotationConfig,
@@ -96,7 +102,7 @@ const SettingsAnnotations = ({
         onCompleted?.();
         refetch();
       },
-      onError: parseError(onError),
+      onError: parseError("Failed to create annotation config", onError),
     });
   };
 
@@ -134,24 +140,24 @@ const SettingsAnnotations = ({
         onCompleted?.();
         refetch();
       },
-      onError: parseError(onError),
+      onError: parseError("Failed to update annotation config", onError),
     });
   };
 
   const handleDeleteAnnotationConfig = (
-    id: string,
+    ids: string[],
     {
       onCompleted,
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
     deleteAnnotationConfigs({
-      variables: { input: { ids: [id] } },
+      variables: { input: { ids } },
       onCompleted: () => {
         onCompleted?.();
         refetch();
       },
-      onError: parseError(onError),
+      onError: parseError("Failed to delete annotation configs", onError),
     });
   };
 

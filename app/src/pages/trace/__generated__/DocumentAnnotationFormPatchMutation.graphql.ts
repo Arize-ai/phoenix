@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5f2d703cf995071ccbedbadfa72317d4>>
+ * @generated SignedSource<<ac18dd291d864bb84499fb87f6a10a4f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -160,14 +159,14 @@ v13 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DocumentAnnotationFormPatchMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DocumentAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "patchDocumentAnnotations",
@@ -183,7 +182,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -200,15 +199,15 @@ return {
                         "name": "documentEvaluations",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/),
-                          (v5/*: any*/),
-                          (v6/*: any*/),
-                          (v7/*: any*/),
-                          (v8/*: any*/),
-                          (v9/*: any*/),
-                          (v10/*: any*/),
-                          (v11/*: any*/),
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
+                          (v10/*:: as any*/),
+                          (v11/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -217,8 +216,8 @@ return {
                             "name": "user",
                             "plural": false,
                             "selections": [
-                              (v12/*: any*/),
-                              (v13/*: any*/)
+                              (v12/*:: as any*/),
+                              (v13/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -244,13 +243,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DocumentAnnotationFormPatchMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DocumentAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "patchDocumentAnnotations",
@@ -266,7 +265,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -290,15 +289,15 @@ return {
                         "name": "documentEvaluations",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/),
-                          (v5/*: any*/),
-                          (v6/*: any*/),
-                          (v7/*: any*/),
-                          (v8/*: any*/),
-                          (v9/*: any*/),
-                          (v10/*: any*/),
-                          (v11/*: any*/),
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
+                          (v10/*:: as any*/),
+                          (v11/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -307,9 +306,9 @@ return {
                             "name": "user",
                             "plural": false,
                             "selections": [
-                              (v12/*: any*/),
-                              (v13/*: any*/),
-                              (v3/*: any*/)
+                              (v12/*:: as any*/),
+                              (v13/*:: as any*/),
+                              (v3/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -320,7 +319,7 @@ return {
                     "type": "Span",
                     "abstractKey": null
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               }

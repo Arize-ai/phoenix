@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5e155e051951988e5a2266db3ab6f01a>>
+ * @generated SignedSource<<a27f38ae0a9cdb46877c288e63acf314>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -70,20 +69,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsAgentsWorkspaceCardSetTraceRecordingMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SettingsAgentsWorkspaceCardSetTraceRecordingMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "12d8e45409795fa51183e2733cb0cb94",

@@ -13,7 +13,6 @@ Design tokens are design decisions translated into CSS custom properties. They p
 | Type | Prefix/Pattern | Example | Purpose |
 |------|---------------|---------|---------|
 | Dimension (scale) | `--global-dimension-size-{n}` | `--global-dimension-size-200` → 16px | Responsive sizing on 8px grid |
-| Dimension (static) | `--global-dimension-static-size-{n}` | `--global-dimension-static-size-100` → 8px | Fixed pixel values |
 | Font size (scale) | `--global-dimension-font-size-{n}` | `--global-dimension-font-size-100` → 14px | Numeric scale font sizes |
 | Font size (named) | `--global-font-size-{t-shirt}` | `--global-font-size-s` → 14px | T-shirt sized fonts (xxs–xxl) |
 | Line height | `--global-line-height-{t-shirt}` | `--global-line-height-s` → 20px | T-shirt sized line heights |
@@ -58,7 +57,7 @@ Tokens that reference other tokens rather than hard-coded values. This is how Ph
 ```css
 --global-color-primary:         var(--global-color-gray-900);
 --global-border-color-default:  var(--global-color-gray-300);
---global-rounding-small:        var(--global-dimension-static-size-50);
+--global-rounding-small:        var(--global-dimension-size-50);
 --global-button-primary-bg:     var(--global-color-gray-900);
 ```
 

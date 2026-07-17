@@ -133,6 +133,51 @@ slash-command reference, model setup, and privacy controls.
 
 ---
 
+### `px setup`
+
+Wire your app up to Phoenix. Run it from the app root:
+
+```bash
+px setup                                          # interactive
+px setup --endpoint https://phoenix.example.com   # skip the endpoint prompt
+npx -y @arizeai/phoenix-cli setup                 # try without installing
+```
+
+Setup saves the connection to a gitignored `.env.phoenix`, then optionally
+hands a coding agent (Claude Code, Codex, Cursor, OpenCode) an instrumentation
+task and waits until a real trace appears. After that it can point `px` at the
+new project and install Phoenix skills so the agent can query what you captured.
+
+Along the way it offers to connect the Phoenix docs MCP server to the agent
+doing the hand-off — through the agent's own CLI where it has one (`claude mcp
+add`), else its per-project config file (`.cursor/mcp.json`, `opencode.json`).
+Taking the offer skips the `.px/docs` download entirely — the agent searches
+the docs on demand instead, which is faster to set up and cheaper in tokens.
+Any failure falls back to the download. Pass `--docs-mcp` to take the offer
+without being asked, `--no-docs-mcp` to never ask.
+
+For CI or agents, pass flags instead of answering prompts:
+
+```bash
+# Connection only — write .env.phoenix, no source changes
+px setup --no-input --endpoint http://localhost:6006 --project my-app
+
+# Instrument too — requires --agent when there's no TTY to choose one
+px setup --no-input --instrument --agent claude --yolo --language python --format raw
+
+# Same, but connect the docs MCP instead of downloading the docs
+px setup --no-input --instrument --agent claude --yolo --docs-mcp --format raw
+```
+
+Re-run pieces later with:
+
+```bash
+px setup instrument --agent codex   # instrument and verify again
+px setup skills                     # install coding-agent skills only
+```
+
+---
+
 ### `px self update`
 
 Check the npm registry for the latest CLI release and update the installed

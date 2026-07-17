@@ -15,6 +15,10 @@ import { z } from "zod";
 import { InvalidArgumentError } from "./exitCodes";
 
 export const ProfileEntrySchema = z.object({
+  // Deliberately looser than `validation/endpoint.ts`: one invalid field makes
+  // a non-strict load discard every profile in the file (see `loadSettings`),
+  // so an endpoint an older CLI was willing to write must not strand the
+  // profiles sitting next to it.
   endpoint: z
     .string()
     .url(

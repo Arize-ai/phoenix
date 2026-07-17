@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<98391e8d8f34c15bef7b5ef3e88cee6a>>
+ * @generated SignedSource<<57072fe9e315ead664ab2e94b2d2761b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -75,14 +74,14 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptLabelConfigButtonUnsetLabelsMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptLabelAssociationMutationPayload",
         "kind": "LinkedField",
         "name": "unsetPromptLabels",
@@ -98,7 +97,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -131,13 +130,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PromptLabelConfigButtonUnsetLabelsMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PromptLabelAssociationMutationPayload",
         "kind": "LinkedField",
         "name": "unsetPromptLabels",
@@ -153,7 +152,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -166,7 +165,7 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v3/*: any*/),
+                  (v3/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -178,7 +177,7 @@ return {
                         "name": "labels",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/)
+                          (v3/*:: as any*/)
                         ],
                         "storageKey": null
                       }

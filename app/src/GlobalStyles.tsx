@@ -94,65 +94,6 @@ const staticCSS = css`
 const dimensionsCSS = css`
   :root,
   .theme {
-    --global-dimension-static-size-0: 0px;
-    --global-dimension-static-size-10: 1px;
-    --global-dimension-static-size-25: 2px;
-    --global-dimension-static-size-50: 4px;
-    --global-dimension-static-size-40: 3px;
-    --global-dimension-static-size-65: 5px;
-    --global-dimension-static-size-100: 8px;
-    --global-dimension-static-size-115: 9px;
-    --global-dimension-static-size-125: 10px;
-    --global-dimension-static-size-130: 11px;
-    --global-dimension-static-size-150: 12px;
-    --global-dimension-static-size-160: 13px;
-    --global-dimension-static-size-175: 14px;
-    --global-dimension-static-size-200: 16px;
-    --global-dimension-static-size-225: 18px;
-    --global-dimension-static-size-250: 20px;
-    --global-dimension-static-size-300: 24px;
-    --global-dimension-static-size-400: 32px;
-    --global-dimension-static-size-450: 36px;
-    --global-dimension-static-size-500: 40px;
-    --global-dimension-static-size-550: 44px;
-    --global-dimension-static-size-600: 48px;
-    --global-dimension-static-size-700: 56px;
-    --global-dimension-static-size-800: 64px;
-    --global-dimension-static-size-900: 72px;
-    --global-dimension-static-size-1000: 80px;
-    --global-dimension-static-size-1200: 96px;
-    --global-dimension-static-size-1700: 136px;
-    --global-dimension-static-size-2400: 192px;
-    --global-dimension-static-size-2600: 208px;
-    --global-dimension-static-size-3400: 272px;
-    --global-dimension-static-size-3600: 288px;
-    --global-dimension-static-size-4600: 368px;
-    --global-dimension-static-size-5000: 400px;
-    --global-dimension-static-size-6000: 480px;
-    --global-dimension-static-font-size-50: 11px;
-    --global-dimension-static-font-size-75: 12px;
-    --global-dimension-static-font-size-100: 14px;
-    --global-dimension-static-font-size-150: 15px;
-    --global-dimension-static-font-size-200: 16px;
-    --global-dimension-static-font-size-300: 18px;
-    --global-dimension-static-font-size-400: 20px;
-    --global-dimension-static-font-size-500: 22px;
-    --global-dimension-static-font-size-600: 25px;
-    --global-dimension-static-font-size-700: 28px;
-    --global-dimension-static-font-size-800: 32px;
-    --global-dimension-static-font-size-900: 36px;
-    --global-dimension-static-font-size-1000: 40px;
-    --global-dimension-static-percent-50: 50%;
-    --global-dimension-static-percent-100: 100%;
-    --global-dimension-static-breakpoint-xsmall: 304px;
-    --global-dimension-static-breakpoint-small: 768px;
-    --global-dimension-static-breakpoint-medium: 1280px;
-    --global-dimension-static-breakpoint-large: 1768px;
-    --global-dimension-static-breakpoint-xlarge: 2160px;
-    --global-dimension-static-grid-columns: 12;
-    --global-dimension-static-grid-fluid-width: 100%;
-    --global-dimension-static-grid-fixed-max-width: 1280px;
-
     /* Font sizing */
     --global-dimension-font-size-25: 10px;
     --global-dimension-font-size-50: 11px;
@@ -940,7 +881,7 @@ const baseTokensCSS = (theme: Theme) => css`
       : "var(--global-color-blue-900)"};
     --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
-    --focus-ring-offset: var(--global-dimension-static-size-25);
+    --focus-ring-offset: var(--global-dimension-size-25);
 
     --text-color-placeholder: var(--global-color-gray-400);
 
@@ -1009,11 +950,9 @@ const menuCSS = (theme: Theme) => css`
     --global-menu-border-color: var(--global-border-color-default);
     --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
-    --global-menu-split-item-content-gap: var(
-      --global-dimension-static-size-300
-    );
-    --global-menu-item-gap: var(--global-dimension-static-size-50);
-    --global-menu-item-content-gap: var(--global-dimension-static-size-100);
+    --global-menu-split-item-content-gap: var(--global-dimension-size-300);
+    --global-menu-item-gap: var(--global-dimension-size-50);
+    --global-menu-item-content-gap: var(--global-dimension-size-100);
   }
 `;
 
@@ -1070,6 +1009,28 @@ const tooltipCSS = (theme: Theme) => css`
   }
 `;
 
+const dndCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    /* Drag-and-drop feedback (see components/dnd/styles.ts) */
+    /* Soft lift shadow for the copy that follows the pointer. Kept gentle
+       so the element settles quietly rather than snapping into place. */
+    --global-dnd-drag-shadow: ${theme === "light"
+      ? "0 4px 12px rgba(0, 0, 0, 0.12)"
+      : "0 4px 14px rgba(0, 0, 0, 0.45)"};
+    /* The resting slot the element will land in — a quiet neutral wash, no
+       hard border, so the drop target reads as an invitation, not an alert. */
+    --global-dnd-drop-target-background-color: ${theme === "light"
+      ? "rgba(0, 0, 0, 0.04)"
+      : "rgba(255, 255, 255, 0.06)"};
+    --global-dnd-handle-color: var(--global-text-color-500);
+    --global-dnd-handle-color-hover: var(--global-text-color-900);
+    --global-dnd-handle-background-color-hover: ${theme === "light"
+      ? "rgba(0, 0, 0, 0.05)"
+      : "rgba(255, 255, 255, 0.07)"};
+  }
+`;
+
 const cardCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1116,10 +1077,10 @@ const popoverCSS = (theme: Theme) => css`
 const roundingCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-rounding-xsmall: var(--global-dimension-static-size-25);
-    --global-rounding-small: var(--global-dimension-static-size-50);
-    --global-rounding-medium: var(--global-dimension-static-size-100);
-    --global-rounding-large: var(--global-dimension-static-size-200);
+    --global-rounding-xsmall: var(--global-dimension-size-25);
+    --global-rounding-small: var(--global-dimension-size-50);
+    --global-rounding-medium: var(--global-dimension-size-100);
+    --global-rounding-large: var(--global-dimension-size-200);
     /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
     --global-rounding-full: 9999px;
   }
@@ -1151,13 +1112,15 @@ const tableCSS = (theme: Theme) => css`
 
     --global-table-cell-padding-y: var(--global-dimension-size-100);
     --global-table-cell-padding-x: var(--global-dimension-size-200);
+    /* height of a table header row, including its bottom border. Panels that sit
+       beside a table (e.g. TitledPanel headers) use this so their headers line up
+       with the table's header row. */
+    --global-table-header-height: 37px;
     --global-table-pagination-padding: var(--global-dimension-size-100);
     --global-table-pagination-gap: var(--global-dimension-size-50);
 
-    --global-table-cell-controls-offset: var(
-      --global-dimension-static-size-100
-    );
-    --global-table-cell-controls-gap: var(--global-dimension-static-size-50);
+    --global-table-cell-controls-offset: var(--global-dimension-size-100);
+    --global-table-cell-controls-gap: var(--global-dimension-size-50);
   }
 `;
 
@@ -1224,19 +1187,19 @@ const markdownCSS = (theme: Theme) => css`
 const borderAndGridCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-border-size-thin: var(--global-dimension-static-size-10);
-    --global-border-size-thick: var(--global-dimension-static-size-25);
-    --global-grid-baseline: var(--global-dimension-static-size-100);
-    --global-grid-gutter-xsmall: var(--global-dimension-static-size-200);
-    --global-grid-gutter-small: var(--global-dimension-static-size-300);
-    --global-grid-gutter-medium: var(--global-dimension-static-size-400);
-    --global-grid-gutter-large: var(--global-dimension-static-size-500);
-    --global-grid-gutter-xlarge: var(--global-dimension-static-size-600);
-    --global-grid-margin-xsmall: var(--global-dimension-static-size-200);
-    --global-grid-margin-small: var(--global-dimension-static-size-300);
-    --global-grid-margin-medium: var(--global-dimension-static-size-400);
-    --global-grid-margin-large: var(--global-dimension-static-size-500);
-    --global-grid-margin-xlarge: var(--global-dimension-static-size-600);
+    --global-border-size-thin: var(--global-dimension-size-10);
+    --global-border-size-thick: var(--global-dimension-size-25);
+    --global-grid-baseline: var(--global-dimension-size-100);
+    --global-grid-gutter-xsmall: var(--global-dimension-size-200);
+    --global-grid-gutter-small: var(--global-dimension-size-300);
+    --global-grid-gutter-medium: var(--global-dimension-size-400);
+    --global-grid-gutter-large: var(--global-dimension-size-500);
+    --global-grid-gutter-xlarge: var(--global-dimension-size-600);
+    --global-grid-margin-xsmall: var(--global-dimension-size-200);
+    --global-grid-margin-small: var(--global-dimension-size-300);
+    --global-grid-margin-medium: var(--global-dimension-size-400);
+    --global-grid-margin-large: var(--global-dimension-size-500);
+    --global-grid-margin-xlarge: var(--global-dimension-size-600);
 
     --alias-single-line-height: var(--global-dimension-size-400);
     --alias-single-line-width: var(--global-dimension-size-2400);
@@ -1285,6 +1248,7 @@ export const derivedCSS = (theme: Theme) =>
     checkboxCSS(theme),
     disclosureCSS(theme),
     tooltipCSS(theme),
+    dndCSS(theme),
     cardCSS(theme),
     toolCallCSS(theme),
     popoverCSS(theme),
@@ -1408,7 +1372,7 @@ const appGlobalStylesCSS = css`
     --global-modal-width-L: 1000px;
     --global-modal-width-XL: 1200px;
     --global-modal-width-FULLSCREEN: calc(
-      100vw - var(--global-dimension-static-size-1700)
+      100vw - var(--global-dimension-size-1700)
     );
   }
 `;

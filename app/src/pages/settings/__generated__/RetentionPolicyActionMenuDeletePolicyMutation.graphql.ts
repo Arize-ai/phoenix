@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<97370abae2d7bf869ce7cf52931c8dad>>
+ * @generated SignedSource<<b72a368465a4157396dbacd4eec5eacb>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -98,8 +97,8 @@ v8 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -107,7 +106,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "deleteProjectTraceRetentionPolicy",
@@ -137,7 +136,7 @@ return {
             "name": "node",
             "plural": false,
             "selections": [
-              (v3/*: any*/)
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -151,15 +150,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "RetentionPolicyActionMenuDeletePolicyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "deleteProjectTraceRetentionPolicy",
@@ -175,7 +174,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "ProjectTraceRetentionPolicyConnection",
                 "kind": "LinkedField",
                 "name": "projectTraceRetentionPolicies",
@@ -197,8 +196,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v5/*: any*/),
+                          (v3/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -214,11 +213,11 @@ return {
                             "name": "rule",
                             "plural": false,
                             "selections": [
-                              (v6/*: any*/),
+                              (v6/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v7/*: any*/)
+                                  (v7/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxCount",
                                 "abstractKey": null
@@ -226,7 +225,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v8/*: any*/)
+                                  (v8/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDays",
                                 "abstractKey": null
@@ -234,8 +233,8 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v8/*: any*/),
-                                  (v7/*: any*/)
+                                  (v8/*:: as any*/),
+                                  (v7/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDaysOrCount",
                                 "abstractKey": null
@@ -267,8 +266,8 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v5/*: any*/),
-                                      (v3/*: any*/)
+                                      (v5/*:: as any*/),
+                                      (v3/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -278,7 +277,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v6/*: any*/)
+                          (v6/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -322,7 +321,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v4/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "RetentionPoliciesTable_projectTraceRetentionPolicies",
@@ -340,7 +339,7 @@ return {
             "name": "node",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,

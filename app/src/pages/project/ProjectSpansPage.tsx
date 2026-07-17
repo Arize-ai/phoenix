@@ -21,7 +21,10 @@ function SpansTabContent({
 }: {
   queryReference: PreloadedQuery<ProjectPageSpansQueryType>;
 }) {
-  const data = usePreloadedQuery(ProjectPageQueriesSpansQuery, queryReference);
+  const data = usePreloadedQuery<ProjectPageSpansQueryType>(
+    ProjectPageQueriesSpansQuery,
+    queryReference
+  );
 
   if (!data.project.hasTraces) {
     return (

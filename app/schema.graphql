@@ -111,6 +111,11 @@ type AgentsConfig {
   assistantProjectName: String!
 
   """
+  Whether PXI tracing and remote export are forced for all users by the PHOENIX_AGENTS_FORCE_TRACING environment variable.
+  """
+  forceTracing: Boolean!
+
+  """
   Whether PXI can expose native web search and web fetch capabilities. False when external resources are disabled or PHOENIX_AGENTS_DISABLE_WEB_ACCESS is true.
   """
   webAccessEnabled: Boolean!
@@ -944,6 +949,14 @@ type Dataset implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """The user that created the dataset."""
+  createdBy: User
+
+  """
+  The user that last updated the dataset, i.e. the author of its latest version.
+  """
+  updatedBy: User
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
 
@@ -2737,6 +2750,10 @@ type Project implements Node {
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int!, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+
+  """
+  Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap.
+  """
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
 
   """
@@ -2867,6 +2884,11 @@ type ProjectSession implements Node {
   numTracesWithError: Int!
   firstInput: SpanIOValue
   lastOutput: SpanIOValue
+
+  """
+  The first non-null "user.id" span attribute in the session, identifying the end user of the traced application.
+  """
+  userId: String
   tokenUsage: TokenUsage!
   traces(first: Int!, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float
@@ -2920,10 +2942,10 @@ type ProjectSessionAnnotation implements Node & Annotation {
   """The identifier of the annotation."""
   identifier: String!
 
-  """The date and time the annotation was created."""
+  """The date and time when the annotation was created."""
   createdAt: DateTime!
 
-  """The date and time the annotation was last updated."""
+  """The date and time when the annotation was last updated."""
   updatedAt: DateTime!
 
   """The user that produced the annotation."""
@@ -3039,6 +3061,16 @@ type Prompt implements Node {
   description: String
   metadata: JSON!
   createdAt: DateTime!
+
+  """
+  The user that created the prompt, i.e. the author of its first version.
+  """
+  createdBy: User
+
+  """
+  The user that last updated the prompt, i.e. the author of its latest version.
+  """
+  updatedBy: User
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
   versionCount: Int!
   versionTags: [PromptVersionTag!]!
@@ -3858,6 +3890,11 @@ type Span implements Node {
 
   """Metadata as a JSON string"""
   metadata: String
+
+  """
+  The "user.id" attribute of the span, identifying the end user of the traced application.
+  """
+  userId: String
   numDocuments: Int
 
   """
@@ -4318,6 +4355,11 @@ type Trace implements Node {
   projectSessionId: ID
   session: ProjectSession
   rootSpan: Span
+
+  """
+  The first non-null "user.id" span attribute in the trace, identifying the end user of the traced application.
+  """
+  userId: String
   numSpans: Int!
 
   """

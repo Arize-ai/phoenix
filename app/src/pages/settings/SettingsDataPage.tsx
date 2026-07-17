@@ -19,6 +19,7 @@ import {
 } from "@phoenix/components";
 import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
+import type { settingsDataPageLoaderQuery } from "./__generated__/settingsDataPageLoaderQuery.graphql";
 import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
 import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
 import type { SettingsDataLoaderType } from "./settingsDataPageLoader";
@@ -27,7 +28,10 @@ import { settingsDataPageLoaderGql } from "./settingsDataPageLoader";
 export function SettingsDataPage() {
   const loaderData = useLoaderData<SettingsDataLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsDataPageLoaderGql, loaderData);
+  const data = usePreloadedQuery<settingsDataPageLoaderQuery>(
+    settingsDataPageLoaderGql,
+    loaderData
+  );
   return (
     <Card
       title="Retention Policies"

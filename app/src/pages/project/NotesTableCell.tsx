@@ -22,7 +22,7 @@ const NOTE_TOOLTIP_VIEWPORT_GUTTER = "32px";
 const noteCountTriggerCSS = css`
   display: inline-flex;
   flex-direction: row;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   align-items: center;
   color: var(--global-text-color-900);
   transition: opacity 0.2s;
@@ -71,7 +71,7 @@ export const noteTooltipLoadingCSS = css`
   align-items: center;
   justify-content: center;
   width: 520px;
-  padding: var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-200);
 `;
 
 export type Note = {

@@ -4,7 +4,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -1936,3 +1936,81 @@ async def test_dataset_filter_and_sort(
     datasets = data["datasets"]
     dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
     assert dataset_names == expected_names
+
+
+@pytest.fixture
+async def dataset_created_and_updated_by_different_users(db: DbSessionFactory) -> dict[str, str]:
+    """
+    A dataset owned by one user whose latest version was authored by another, plus a dataset with
+    no owner and an unattributed version. Returns the expected creator and last editor usernames.
+    """
+    async with db() as session:
+        user_role_id = await session.scalar(
+            select(models.UserRole.id).where(models.UserRole.name == "MEMBER")
+        )
+        assert user_role_id is not None
+
+        def _user(username: str) -> models.User:
+            return models.User(
+                user_role_id=user_role_id,
+                username=username,
+                email=f"{token_hex(4)}@test.com",
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LOCAL",
+            )
+
+        owner, editor = _user("owner"), _user("editor")
+        session.add_all([owner, editor])
+        await session.flush()
+
+        collaborative = models.Dataset(name="collaborative-dataset", metadata_={})
+        collaborative.user_id = owner.id
+        unattributed = models.Dataset(name="unattributed-dataset", metadata_={})
+        session.add_all([collaborative, unattributed])
+        await session.flush()
+
+        # The latest version's author is the editor, not the dataset's owner.
+        for author_id in (owner.id, editor.id):
+            session.add(
+                models.DatasetVersion(dataset_id=collaborative.id, metadata_={}, user_id=author_id)
+            )
+            await session.flush()
+
+        session.add(models.DatasetVersion(dataset_id=unattributed.id, metadata_={}))
+        await session.commit()
+
+        return {"createdBy": "owner", "updatedBy": "editor"}
+
+
+async def test_dataset_created_by_is_its_owner_and_updated_by_is_its_latest_version_author(
+    gql_client: AsyncGraphQLClient,
+    dataset_created_and_updated_by_different_users: dict[str, str],
+) -> None:
+    query = """
+      query {
+        datasets {
+          edges {
+            node {
+              name
+              createdBy { username }
+              updatedBy { username }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data
+    nodes = {edge["node"]["name"]: edge["node"] for edge in response.data["datasets"]["edges"]}
+
+    expected = dataset_created_and_updated_by_different_users
+    collaborative = nodes["collaborative-dataset"]
+    assert collaborative["createdBy"]["username"] == expected["createdBy"]
+    assert collaborative["updatedBy"]["username"] == expected["updatedBy"]
+
+    unattributed = nodes["unattributed-dataset"]
+    assert unattributed["createdBy"] is None
+    assert unattributed["updatedBy"] is None

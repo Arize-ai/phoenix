@@ -101,6 +101,7 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
+USER_ID = SpanAttributes.USER_ID.split(".")
 
 
 class SubValues(Values, roles.CompoundElementRole):
@@ -740,7 +741,7 @@ class ProjectSession(HasId):
         nullable=False,
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
@@ -751,6 +752,11 @@ class ProjectSession(HasId):
             "ix_project_sessions_project_id_start_time",
             "project_id",
             text("start_time DESC"),
+        ),
+        Index(
+            "ix_project_sessions_project_id_end_time",
+            "project_id",
+            text("end_time DESC"),
         ),
     )
 
@@ -916,6 +922,15 @@ class Span(HasId):
     @classmethod
     def _output_mime_type_expression(cls) -> ColumnElement[Any]:
         return cls.attributes[OUTPUT_MIME_TYPE]
+
+    @hybrid_property
+    def user_id(self) -> Any:
+        return get_attribute_value(self.attributes, USER_ID)
+
+    @user_id.inplace.expression
+    @classmethod
+    def _user_id_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[USER_ID]
 
     @hybrid_property
     def metadata_(self) -> Any:
@@ -1164,7 +1179,9 @@ class SpanAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     span: Mapped["Span"] = relationship(back_populates="span_annotations")
     user: Mapped[Optional["User"]] = relationship("User")
@@ -1204,7 +1221,9 @@ class TraceAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1242,7 +1261,9 @@ class DocumentAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
 
@@ -1283,7 +1304,9 @@ class ProjectSessionAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1303,7 +1326,9 @@ class Dataset(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     user: Mapped[Optional["User"]] = relationship("User")
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="dataset"
@@ -1411,7 +1436,9 @@ class DatasetVersion(HasId):
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     user: Mapped[Optional["User"]] = relationship("User")
 
 
@@ -1419,14 +1446,13 @@ class DatasetExample(HasId):
     __tablename__ = "dataset_examples"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
-        index=True,
     )
     span_rowid: Mapped[Optional[int]] = mapped_column(
         ForeignKey("spans.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
-    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     __table_args__ = (
@@ -1551,7 +1577,9 @@ class Experiment(HasId):
         server_default=sa.false(),
     )
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -1902,8 +1930,11 @@ class ExperimentLog(HasId):
     """
 
     __tablename__ = "experiment_logs"
+    # Plain index (alongside the partial ERROR index below): serves the runner's
+    # bulk DELETE by experiment_id and the FK cascade when experiments are deleted.
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
+        index=True,
     )
     occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     category: Mapped[ExperimentLogCategory] = mapped_column(
@@ -1952,8 +1983,11 @@ class ExperimentTaskLog(ExperimentLog):
         server_default="TASK",
         nullable=False,
     )
+    # Indexed for the ON DELETE CASCADE from dataset_examples: without it, each
+    # deleted example triggers a full scan of this table.
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
     )
     repetition_number: Mapped[int] = mapped_column()
 
@@ -1979,11 +2013,16 @@ class ExperimentEvalLog(ExperimentLog):
         server_default="EVAL",
         nullable=False,
     )
+    # Both FKs indexed for their ON DELETE CASCADEs: experiment deletion cascades
+    # here once per experiment_run, and evaluator deletion once per dataset
+    # evaluator — unindexed, each cascade delete is a full scan of this table.
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+        index=True,
     )
     dataset_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_evaluators.id", ondelete="CASCADE"),
+        index=True,
     )
 
     __mapper_args__ = {
@@ -2340,7 +2379,6 @@ class TokenPrice(HasId):
     model_id: Mapped[int] = mapped_column(
         ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     token_type: Mapped[str]
     is_prompt: Mapped[bool]
@@ -2422,7 +2460,6 @@ class PromptPromptLabel(HasId):
     __tablename__ = "prompts_prompt_labels"
     prompt_label_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_labels.id", ondelete="CASCADE"),
-        index=True,
         nullable=False,
     )
     prompt_id: Mapped[int] = mapped_column(
@@ -2562,7 +2599,7 @@ class AnnotationConfig(HasId):
 class ProjectAnnotationConfig(HasId):
     __tablename__ = "project_annotation_configs"
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     annotation_config_id: Mapped[int] = mapped_column(
         ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
@@ -2971,7 +3008,6 @@ class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
-        index=True,
     )
     # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
     evaluator_id: Mapped[int] = mapped_column(

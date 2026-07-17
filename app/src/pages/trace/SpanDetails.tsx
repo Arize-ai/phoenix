@@ -61,6 +61,7 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
+import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -141,8 +142,6 @@ const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 400;
 const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
-const EDIT_ANNOTATION_HOTKEY = "e";
-
 export function SpanDetails({
   spanNodeId,
 }: {
@@ -431,7 +430,7 @@ const spanInfoWrapCSS = css`
   & > *:after {
     content: "";
     display: block;
-    height: var(--global-dimension-static-size-400);
+    height: var(--global-dimension-size-400);
   }
 `;
 
@@ -497,9 +496,7 @@ function SpanInfo({ span }: { span: Span }) {
 
   const statusDescription = useMemo(() => {
     return span.statusMessage ? (
-      <Alert variant="danger" title="Status Description">
-        {span.statusMessage}
-      </Alert>
+      <Alert variant="danger">{span.statusMessage}</Alert>
     ) : null;
   }, [span]);
 
@@ -978,8 +975,8 @@ function RetrieverSpanInfo(props: {
               css={css`
                 display: flex;
                 flex-direction: column;
-                gap: var(--global-dimension-static-size-200);
-                padding: var(--global-dimension-static-size-200);
+                gap: var(--global-dimension-size-200);
+                padding: var(--global-dimension-size-200);
               `}
             >
               {documents.map((document, idx) => {
@@ -1059,10 +1056,10 @@ function RerankerSpanInfo(props: {
         {
           <ul
             css={css`
-              padding: var(--global-dimension-static-size-200);
+              padding: var(--global-dimension-size-200);
               display: flex;
               flex-direction: column;
-              gap: var(--global-dimension-static-size-200);
+              gap: var(--global-dimension-size-200);
             `}
           >
             {input_documents.map((document, idx) => {
@@ -1088,10 +1085,10 @@ function RerankerSpanInfo(props: {
         {
           <ul
             css={css`
-              padding: var(--global-dimension-static-size-200);
+              padding: var(--global-dimension-size-200);
               display: flex;
               flex-direction: column;
-              gap: var(--global-dimension-static-size-200);
+              gap: var(--global-dimension-size-200);
             `}
           >
             {output_documents.map((document, idx) => {
@@ -1149,8 +1146,8 @@ function EmbeddingSpanInfo(props: {
               css={css`
                 display: flex;
                 flex-direction: column;
-                gap: var(--global-dimension-static-size-200);
-                padding: var(--global-dimension-static-size-200);
+                gap: var(--global-dimension-size-200);
+                padding: var(--global-dimension-size-200);
               `}
             >
               {embeddings.map((embedding, idx) => {
@@ -1432,7 +1429,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                           css={css`
                             text-wrap: wrap;
                             margin: 0;
-                            padding: var(--global-dimension-static-size-200);
+                            padding: var(--global-dimension-size-200);
                           `}
                         >
                           {toolCall?.function?.name as string}(
@@ -1456,7 +1453,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   <pre
                     css={css`
                       text-wrap: wrap;
-                      margin: var(--global-dimension-static-size-100) 0;
+                      margin: var(--global-dimension-size-100) 0;
                     `}
                   >
                     {
@@ -1520,8 +1517,8 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--global-dimension-static-size-100);
-        padding: var(--global-dimension-static-size-200);
+        gap: var(--global-dimension-size-100);
+        padding: var(--global-dimension-size-200);
       `}
     >
       {messages.map((message, idx) => {
@@ -1541,8 +1538,8 @@ function LLMToolSchemasList({ toolSchemas }: { toolSchemas: string[] }) {
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--global-dimension-static-size-100);
-        padding: var(--global-dimension-static-size-200);
+        gap: var(--global-dimension-size-100);
+        padding: var(--global-dimension-size-200);
       `}
     >
       {toolSchemas.map((toolSchema, idx) => {
@@ -1622,7 +1619,7 @@ function MessageContentsList({
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
-  padding: var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-200);
 `;
 /**
  * Displays multi-modal message content. Typically an image or text.

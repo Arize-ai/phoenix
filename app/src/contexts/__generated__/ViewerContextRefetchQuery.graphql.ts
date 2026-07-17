@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<7682165efeee36179feb871060b9b84f>>
+ * @generated SignedSource<<51edb61b5ba4ec2bd83babe5dc67a94d>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -64,7 +63,7 @@ return {
         "name": "viewer",
         "plural": false,
         "selections": [
-          (v0/*: any*/),
+          (v0/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -101,8 +100,8 @@ return {
             "name": "role",
             "plural": false,
             "selections": [
-              (v1/*: any*/),
-              (v0/*: any*/)
+              (v1/*:: as any*/),
+              (v0/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -121,8 +120,8 @@ return {
             "name": "apiKeys",
             "plural": true,
             "selections": [
-              (v0/*: any*/),
-              (v1/*: any*/),
+              (v0/*:: as any*/),
+              (v1/*:: as any*/),
               {
                 "alias": null,
                 "args": null,

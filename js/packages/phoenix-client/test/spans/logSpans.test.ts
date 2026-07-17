@@ -1,22 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { Span } from "../../src/spans/logSpans";
 import { logSpans, SpanCreationError } from "../../src/spans/logSpans";
+import type { Span } from "../../src/spans/logSpans";
+import { createTestClient } from "../testUtils";
 
-// Mock the fetch module with an inspectable mock
-const mockPost = vi.fn();
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    POST: mockPost,
-    use: () => {},
-  }),
-}));
+const http = createHttp();
 
 const testSpan: Span = {
   name: "test-span",
   context: {
-    trace_id: "trace-123",
-    span_id: "span-456",
+    trace_id: "0123456789abcdef0123456789abcdef",
+    span_id: "0123456789abcdef",
   },
   span_kind: "CHAIN",
   start_time: "2024-01-01T00:00:00Z",
@@ -24,49 +20,74 @@ const testSpan: Span = {
   status_code: "OK",
 };
 
-describe("logSpans", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+let server: Server;
 
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+
+describe("logSpans", () => {
   it("logs spans to a project by name", async () => {
-    mockPost.mockResolvedValue({
-      data: { total_received: 1, total_queued: 1 },
-      error: null,
-    });
+    let receivedProjectIdentifier: string | undefined;
+    let receivedRequestBody: { data: Span[] } | undefined;
+
+    server.use(
+      http.post(
+        "/v1/projects/{project_identifier}/spans",
+        async ({ params, request, response }) => {
+          receivedProjectIdentifier = params.project_identifier;
+          receivedRequestBody = await request.json();
+          return response(202).json({
+            total_received: receivedRequestBody.data.length,
+            total_queued: receivedRequestBody.data.length,
+          });
+        }
+      )
+    );
 
     const result = await logSpans({
+      client: createTestClient(),
       project: { projectName: "my-project" },
       spans: [testSpan],
     });
 
     expect(result).toEqual({ totalReceived: 1, totalQueued: 1 });
-    expect(mockPost).toHaveBeenCalledWith(
-      "/v1/projects/{project_identifier}/spans",
-      {
-        params: { path: { project_identifier: "my-project" } },
-        body: { data: [testSpan] },
-      }
-    );
+    expect(receivedProjectIdentifier).toBe("my-project");
+    expect(receivedRequestBody).toEqual({ data: [testSpan] });
   });
 
   it("resolves a project identifier passed via `project`", async () => {
-    mockPost.mockResolvedValue({
-      data: { total_received: 1, total_queued: 1 },
-      error: null,
-    });
+    let receivedProjectIdentifier: string | undefined;
+
+    server.use(
+      http.post(
+        "/v1/projects/{project_identifier}/spans",
+        ({ params, response }) => {
+          receivedProjectIdentifier = params.project_identifier;
+          return response(202).json({
+            total_received: 1,
+            total_queued: 1,
+          });
+        }
+      )
+    );
 
     await logSpans({
+      client: createTestClient(),
       project: { project: "some-id-or-name" },
       spans: [testSpan],
     });
 
-    expect(mockPost).toHaveBeenCalledWith(
-      "/v1/projects/{project_identifier}/spans",
-      expect.objectContaining({
-        params: { path: { project_identifier: "some-id-or-name" } },
-      })
-    );
+    expect(receivedProjectIdentifier).toBe("some-id-or-name");
   });
 
   it("throws a SpanCreationError with parsed details on a 400 response", async () => {
@@ -81,14 +102,24 @@ describe("logSpans", () => {
         { span_id: "bad-1", trace_id: "trace-2", error: "bad span_kind" },
       ],
     };
-    mockPost.mockResolvedValue({
-      data: null,
-      error: { detail: JSON.stringify(errorDetail) },
-    });
+    server.use(
+      http.post("/v1/projects/{project_identifier}/spans", ({ response }) =>
+        response.untyped(
+          new Response(
+            JSON.stringify({ detail: JSON.stringify(errorDetail) }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        )
+      )
+    );
 
     let thrown: unknown;
     try {
       await logSpans({
+        client: createTestClient(),
         project: { projectName: "my-project" },
         spans: [testSpan, testSpan],
       });
@@ -115,18 +146,19 @@ describe("logSpans", () => {
   it("throws a SpanCreationError parsed from a 422 validation error array", async () => {
     // Only the span at index 1 is flagged, but a FastAPI 422 rejects the
     // entire request body, so totalQueued must be 0 (all-or-nothing contract).
-    mockPost.mockResolvedValue({
-      data: null,
-      error: {
-        detail: [
-          {
-            loc: ["body", "data", 1],
-            msg: "field required",
-            type: "value_error.missing",
-          },
-        ],
-      },
-    });
+    server.use(
+      http.post("/v1/projects/{project_identifier}/spans", ({ response }) =>
+        response(422).json({
+          detail: [
+            {
+              loc: ["body", "data", 1],
+              msg: "field required",
+              type: "value_error.missing",
+            },
+          ],
+        })
+      )
+    );
 
     const spans: Span[] = [
       { ...testSpan, context: { trace_id: "trace-1", span_id: "span-1" } },
@@ -137,6 +169,7 @@ describe("logSpans", () => {
     let thrown: unknown;
     try {
       await logSpans({
+        client: createTestClient(),
         project: { projectName: "my-project" },
         spans,
       });
@@ -154,13 +187,23 @@ describe("logSpans", () => {
   });
 
   it("throws a generic error for unrecognized error shapes", async () => {
-    mockPost.mockResolvedValue({
-      data: null,
-      error: { status: 500, message: "Internal Server Error" },
-    });
+    server.use(
+      http.post("/v1/projects/{project_identifier}/spans", ({ response }) =>
+        response.untyped(
+          new Response(
+            JSON.stringify({ status: 500, message: "Internal Server Error" }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        )
+      )
+    );
 
     await expect(
       logSpans({
+        client: createTestClient(),
         project: { projectName: "my-project" },
         spans: [testSpan],
       })

@@ -7,10 +7,9 @@ import { Keyboard } from "./content/Keyboard";
 const keyboardTokenCSS = css`
   background-color: var(--global-color-primary-100);
   color: var(--global-color-primary-700);
-  padding: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100);
-  font-size: var(--global-dimension-static-font-size-50);
-  border-radius: var(--global-dimension-static-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+  font-size: var(--global-dimension-font-size-50);
+  border-radius: var(--global-dimension-size-100);
   border: 1px solid var(--global-color-primary-200);
   box-shadow: 0 2px 0 0 var(--global-color-primary-200);
   // Offset the shadow to make it look like it's on the key
@@ -24,8 +23,8 @@ const keyboardTokenCSS = css`
 const quietKeyboardTokenCSS = css`
   background-color: transparent;
   color: var(--ac-global-text-color-500);
-  padding: 0 var(--global-dimension-static-size-75);
-  font-size: var(--global-dimension-static-font-size-50);
+  padding: 0 var(--global-dimension-size-75);
+  font-size: var(--global-dimension-font-size-50);
   border-radius: var(--global-rounding-small);
   border: 1px solid var(--ac-global-border-color-default);
   text-transform: uppercase;

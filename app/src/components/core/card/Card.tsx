@@ -15,6 +15,8 @@ function Card({
   subTitle,
   children,
   collapsible = false,
+  interactiveTitle = false,
+  collapseButtonLabel,
   defaultOpen = true,
   scrollBody = false,
   extra,
@@ -29,6 +31,7 @@ function Card({
 
   const headerId = useId();
   const collapseButtonId = useId();
+  const titleId = useId();
   const bodyId = useId();
 
   const handleCollapseChange = useEffectEvent((collapsed: boolean) => {
@@ -40,7 +43,7 @@ function Card({
   }, [isCollapsed]);
 
   const headingContents = (
-    <div>
+    <div id={titleId}>
       <Heading level={3} weight="heavy" className="card__title">
         {title}
         {titleExtra}
@@ -51,6 +54,31 @@ function Card({
         </Heading>
       )}
     </div>
+  );
+
+  const collapseButton = (
+    <button
+      onClick={() => {
+        setIsCollapsed(!isCollapsed);
+      }}
+      className="card__collapsible-button button--reset"
+      id={collapseButtonId}
+      aria-controls={bodyId}
+      aria-expanded={!isCollapsed}
+      aria-label={interactiveTitle ? collapseButtonLabel : undefined}
+      // only borrow the title as the accessible name when the caller has not
+      // supplied one; a title holding its own control (a select) would otherwise
+      // lend the toggle that control's label
+      aria-labelledby={
+        interactiveTitle && collapseButtonLabel == null ? titleId : undefined
+      }
+    >
+      <DisclosureArrow
+        isExpanded={!isCollapsed}
+        className="card__collapse-toggle-icon"
+      />
+      {!interactiveTitle && headingContents}
+    </button>
   );
 
   return (
@@ -66,21 +94,14 @@ function Card({
     >
       <header id={headerId}>
         {collapsible ? (
-          <button
-            onClick={() => {
-              setIsCollapsed(!isCollapsed);
-            }}
-            className="card__collapsible-button button--reset"
-            id={collapseButtonId}
-            aria-controls={bodyId}
-            aria-expanded={!isCollapsed}
-          >
-            <DisclosureArrow
-              isExpanded={!isCollapsed}
-              className="card__collapse-toggle-icon"
-            />
-            {headingContents}
-          </button>
+          interactiveTitle ? (
+            <div className="card__collapsible-header">
+              {collapseButton}
+              {headingContents}
+            </div>
+          ) : (
+            collapseButton
+          )
         ) : (
           headingContents
         )}

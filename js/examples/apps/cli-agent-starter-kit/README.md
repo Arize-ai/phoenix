@@ -44,9 +44,7 @@ import { z } from "zod";
 
 export const myTool = tool({
   description: "What the tool does",
-  inputSchema: z.object({
-    /* params */
-  }),
+  inputSchema: z.object({/* params */}),
   execute: async (params) => {
     /* logic */
   },

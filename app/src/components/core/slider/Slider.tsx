@@ -19,10 +19,10 @@ import { NumberField } from "../field/NumberField";
 import type { StylableProps } from "../types";
 
 const sliderCSS = css`
-  --slider-thumb-size: var(--global-dimension-static-size-200);
+  --slider-thumb-size: var(--global-dimension-size-200);
   --slider-thumb-bg: white;
   --slider-thumb-border-color: var(--global-color-gray-400);
-  --slider-track-height: var(--global-dimension-static-size-50);
+  --slider-track-height: var(--global-dimension-size-50);
   --slider-track-bg: var(--global-color-gray-300);
   --slider-filled-color: var(--global-color-primary);
   --slider-ring-color: var(--global-color-primary-200);
