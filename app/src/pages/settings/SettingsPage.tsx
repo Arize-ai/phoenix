@@ -5,7 +5,11 @@ import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
-import { useViewerCanManageSandboxes } from "@phoenix/contexts";
+import {
+  useIsAdmin,
+  useViewerCanManageSandboxes,
+  useViewerCanManageSecrets,
+} from "@phoenix/contexts";
 import { useMediaQuery } from "@phoenix/hooks";
 
 /**
@@ -16,32 +20,42 @@ import { useMediaQuery } from "@phoenix/hooks";
 const VERTICAL_TABS_MEDIA_QUERY = "(min-width: 900px)";
 
 const settingsPageCSS = css`
-  overflow-y: auto;
+  overflow: hidden;
   height: 100%;
-`;
-
-const settingsPageInnerCSS = css`
-  padding: var(--global-dimension-size-100);
-  max-width: 1300px;
-  box-sizing: border-box;
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
 `;
 
 const settingsTabListCSS = css`
   &[data-orientation="vertical"] {
     flex: none;
-    width: var(--global-dimension-size-2000);
-    // Keep the rail in view while the settings content scrolls.
-    position: sticky;
-    top: 0;
-    align-self: flex-start;
+    width: var(--global-dimension-size-2400);
+    box-sizing: border-box;
+    // The rail scrolls on its own if the tab list ever outgrows the
+    // viewport; it never scrolls along with the content.
+    overflow-y: auto;
+    padding: var(--global-dimension-size-200) var(--global-dimension-size-100);
+  }
+  &[data-orientation="horizontal"] {
+    margin: 0 var(--global-dimension-size-200);
+  }
+`;
+
+// The panel is the scroll container and stretches to the viewport edge so
+// its scrollbar sits at the edge of the screen, not in the middle of the
+// page. Padding lives inside the scroll area, and the content is capped and
+// left-aligned against the rail.
+const settingsTabPanelCSS = css`
+  overflow-y: auto;
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-300)
+    var(--global-dimension-size-300);
+  & > * {
+    max-width: 1200px;
   }
 `;
 
 const TABS: { id: string; label: string }[] = [
   { id: "general", label: "General" },
+  { id: "users", label: "Users" },
+  { id: "api-keys", label: "API Keys" },
   { id: "providers", label: "AI Providers" },
   { id: "sandboxes", label: "Sandboxes" },
   { id: "models", label: "Models" },
@@ -63,21 +77,18 @@ export function SettingsPage() {
       navigate(`/settings/${tab}`, { replace: true });
     }
   };
-  const isAgentAssistantEnabled = !window.Config.agentAssistantDisabled;
-  const canManageSecrets = useViewerCanManageSandboxes();
+  const isAdmin = useIsAdmin();
+  const canManageSecrets = useViewerCanManageSecrets();
   const canManageSandboxes = useViewerCanManageSandboxes();
-  const tabs = TABS.filter((tab) => {
-    if (tab.id === "agents" && !isAgentAssistantEnabled) {
-      return false;
-    }
-    if (tab.id === "secrets" && !canManageSecrets) {
-      return false;
-    }
-    if (tab.id === "sandboxes" && !canManageSandboxes) {
-      return false;
-    }
-    return true;
-  });
+  // Tabs absent from this map are visible to everyone.
+  const tabVisibility: Record<string, boolean> = {
+    agents: !window.Config.agentAssistantDisabled,
+    users: isAdmin,
+    "api-keys": isAdmin,
+    secrets: canManageSecrets,
+    sandboxes: canManageSandboxes,
+  };
+  const tabs = TABS.filter((tab) => tabVisibility[tab.id] ?? true);
   if (!tab) {
     return <Navigate to="/settings/general" replace />;
   }
@@ -86,27 +97,24 @@ export function SettingsPage() {
   }
   return (
     <main css={settingsPageCSS}>
-      <div css={settingsPageInnerCSS}>
-        <Tabs
-          selectedKey={tab}
-          onSelectionChange={onChangeTab}
-          orientation={isLargeScreen ? "vertical" : "horizontal"}
-        >
-          {/* TODO: filter sandboxes tab for non-admins */}
-          <TabList items={tabs} css={settingsTabListCSS} aria-label="Settings">
-            {(item) => <Tab id={item.id}>{item.label}</Tab>}
-          </TabList>
-          <Collection items={tabs}>
-            {(item) => (
-              <TabPanel id={item.id} padded>
-                <Suspense fallback={<Loading />}>
-                  <Outlet />
-                </Suspense>
-              </TabPanel>
-            )}
-          </Collection>
-        </Tabs>
-      </div>
+      <Tabs
+        selectedKey={tab}
+        onSelectionChange={onChangeTab}
+        orientation={isLargeScreen ? "vertical" : "horizontal"}
+      >
+        <TabList items={tabs} css={settingsTabListCSS} aria-label="Settings">
+          {(item) => <Tab id={item.id}>{item.label}</Tab>}
+        </TabList>
+        <Collection items={tabs}>
+          {(item) => (
+            <TabPanel id={item.id} css={settingsTabPanelCSS}>
+              <Suspense fallback={<Loading />}>
+                <Outlet />
+              </Suspense>
+            </TabPanel>
+          )}
+        </Collection>
+      </Tabs>
     </main>
   );
 }
