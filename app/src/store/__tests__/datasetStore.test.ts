@@ -51,6 +51,16 @@ describe("datasetStore", () => {
       ]);
     });
 
+    it("hydrates a persisted per-evaluation chart selection", () => {
+      seedPersistedState({
+        experimentsMetricChartKeys: ["evaluation:quality"],
+      });
+      const store = createStore();
+      expect(store.getState().experimentsMetricChartKeys).toEqual([
+        "evaluation:quality",
+      ]);
+    });
+
     it("drops persisted keys that are no longer in the chart catalog", () => {
       seedPersistedState({
         experimentsMetricChartKeys: ["latency", "bogus_chart"],
