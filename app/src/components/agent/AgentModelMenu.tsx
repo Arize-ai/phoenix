@@ -27,7 +27,7 @@ import {
   useModelMenuData,
 } from "@phoenix/components/generative/useModelMenuData";
 import { usePreferencesContext } from "@phoenix/contexts";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useAnyAgentChatActive } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import {
@@ -129,11 +129,7 @@ export function AgentModelMenu({
 }: Omit<ModelMenuProps, "isDisabled"> & {
   limitToCuratedModels?: boolean;
 }) {
-  const isDisabled = useAgentContext((state) =>
-    Object.values(state.chatStatusBySessionId).some(
-      (status) => status === "submitted" || status === "streaming"
-    )
-  );
+  const isDisabled = useAnyAgentChatActive();
   const selectedProvider = value?.provider;
   const isValidSelectedProvider =
     selectedProvider && isModelProvider(selectedProvider);

@@ -38,13 +38,14 @@ ISSUE_DESCRIPTIONS: dict[IssueType, str] = {
 # Mutations and subscriptions that are allowed to skip IsNotViewer check
 # patch_viewer allows viewers to update their own profile
 # create_user_api_key and delete_user_api_key allow viewers to manage their own API keys
-# delete_agent_session allows viewers to delete their own assistant chat
-# sessions (ownership is enforced by the resolver's user_id filter)
+# create_agent_session and delete_agent_session allow viewers to manage their
+# own assistant chats (ownership is enforced by the stored user_id)
 SKIP_IS_NOT_VIEWER_CHECK = frozenset(
     {
         "patch_viewer",
         "create_user_api_key",
         "delete_user_api_key",
+        "create_agent_session",
         "delete_agent_session",
     }
 )

@@ -13,11 +13,13 @@ import type {
  * card (manual mode). Collapses the boilerplate every dataset-write tool repeats.
  */
 export async function stageDatasetWrite({
+  sessionId,
   pending: proposal,
   apply,
   addToolOutput,
   agentStore,
 }: {
+  sessionId: string | null;
   pending: {
     toolCallId: string;
     toolName: string;
@@ -28,7 +30,7 @@ export async function stageDatasetWrite({
   agentStore: AgentStore;
 }): Promise<void> {
   const pending = bindPendingDatasetWrite({
-    pending: proposal,
+    pending: { ...proposal, sessionId },
     apply,
     addToolOutput,
     setPendingDatasetWrite: agentStore.getState().setPendingDatasetWrite,

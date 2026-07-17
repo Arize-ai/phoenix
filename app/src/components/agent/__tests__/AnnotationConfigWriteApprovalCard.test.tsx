@@ -79,6 +79,8 @@ function createPending(
     accept: async () => undefined,
     reject: async () => undefined,
     ...overrides,
+    sessionId:
+      overrides.sessionId === undefined ? "session-1" : overrides.sessionId,
   };
 }
 

@@ -17,7 +17,13 @@ export const patchDatasetAgentTool = defineTool<PatchDatasetInput>({
   parseInput: parsePatchDatasetInput,
   invalidInputErrorText: `Invalid ${PATCH_DATASET_TOOL_NAME} input. Expected at least one of { name?: string, description?: string, metadata?: object }.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
       await addToolOutput({
@@ -30,6 +36,7 @@ export const patchDatasetAgentTool = defineTool<PatchDatasetInput>({
     }
     const datasetId = datasetContext.datasetNodeId;
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: PATCH_DATASET_TOOL_NAME,
@@ -47,7 +54,7 @@ export const deleteDatasetAgentTool = defineTool<DeleteDatasetInput>({
   parseInput: parseDeleteDatasetInput,
   invalidInputErrorText: `Invalid ${DELETE_DATASET_TOOL_NAME} input. Expected {}.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, addToolOutput, agentStore }) => {
+  execute: async ({ toolCall, sessionId, addToolOutput, agentStore }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
       await addToolOutput({
@@ -61,6 +68,7 @@ export const deleteDatasetAgentTool = defineTool<DeleteDatasetInput>({
     const datasetId = datasetContext.datasetNodeId;
     const datasetName = (await resolveDatasetName(datasetId)) ?? datasetId;
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: DELETE_DATASET_TOOL_NAME,

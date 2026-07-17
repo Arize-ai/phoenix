@@ -10,6 +10,7 @@ function setup(applyResult: DatasetWriteApplyResult) {
   const pending = bindPendingDatasetWrite({
     pending: {
       toolCallId: "call-1",
+      sessionId: "session-1",
       toolName: "add_dataset_examples",
       preview: { kind: "add", examples: [{ input: { q: "x" } }] },
     },

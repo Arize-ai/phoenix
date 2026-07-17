@@ -20,6 +20,7 @@ export type ApprovalApplyResult =
  */
 export type PendingApproval<TPreview> = {
   toolCallId: string;
+  sessionId: string | null;
   /** Server tool name, so output is attributed to the right tool. */
   toolName: string;
   preview: TPreview;
@@ -30,7 +31,7 @@ export type PendingApproval<TPreview> = {
 export type BindPendingApprovalOptions<TPreview> = {
   pending: Pick<
     PendingApproval<TPreview>,
-    "toolCallId" | "toolName" | "preview"
+    "toolCallId" | "sessionId" | "toolName" | "preview"
   >;
   /** Performs the actual write; called only on accept (or auto-accept). */
   apply: () => Promise<ApprovalApplyResult>;

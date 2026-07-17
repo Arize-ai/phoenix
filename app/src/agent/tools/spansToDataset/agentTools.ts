@@ -15,7 +15,13 @@ export const addSpansToDatasetAgentTool = defineTool<AddSpansToDatasetInput>({
   parseInput: parseAddSpansToDatasetInput,
   invalidInputErrorText: `Invalid ${ADD_SPANS_TO_DATASET_TOOL_NAME} input. Expected { datasetName: string, spanIds?: string[] }.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     // Spans are addressed by id: explicit ids if given, else the span in view.
     let spanIds = input.spanIds ?? [];
     if (spanIds.length === 0) {
@@ -33,6 +39,7 @@ export const addSpansToDatasetAgentTool = defineTool<AddSpansToDatasetInput>({
       spanIds = [spanNodeId];
     }
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: ADD_SPANS_TO_DATASET_TOOL_NAME,

@@ -29,7 +29,7 @@ const userMessage: AgentUIMessage = {
 };
 
 describe("buildAgentChatRequestBody", () => {
-  it("sends only the next message instead of the local transcript", () => {
+  it("uses the canonical Relay ID during cold-hydration sends", () => {
     const nextMessage: AgentUIMessage = {
       id: "user-2",
       role: "user",
@@ -37,7 +37,8 @@ describe("buildAgentChatRequestBody", () => {
     };
     const body = buildAgentChatRequestBody({
       body: undefined,
-      id: "session-1",
+      id: "transport-session-id",
+      agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
       messages: [userMessage, nextMessage],
       trigger: "submit-message",
       messageId: undefined,
@@ -59,6 +60,8 @@ describe("buildAgentChatRequestBody", () => {
     });
 
     expect(body).toMatchObject({
+      id: "transport-session-id",
+      agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
       message: nextMessage,
       parentMessageId: userMessage.id,
     });
@@ -149,6 +152,7 @@ describe("buildAgentChatRequestBody", () => {
         }),
       ],
     });
+    expect(body.agentSessionId).toBe("agent-session-1");
   });
 
   it("echoes the active turn trace context", () => {

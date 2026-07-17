@@ -4,6 +4,7 @@ import invariant from "tiny-invariant";
 
 import { AgentContextSync } from "@phoenix/agent/context/AgentContextSync";
 import { isFullStoryEnabled, setIdentity } from "@phoenix/analytics/fullstory";
+import { AgentSessionLifecycleProvider } from "@phoenix/components/agent/AgentSessionLifecycleProvider";
 import { AgentChatRuntimeProvider } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { ViewerProvider } from "@phoenix/contexts/ViewerContext";
@@ -43,9 +44,11 @@ export function AuthenticatedRoot() {
     <ViewerProvider query={data}>
       <AgentProvider agentsConfig={data.agentsConfig}>
         <AgentChatRuntimeProvider>
-          <AgentContextSync />
-          <AppAlerts />
-          <Outlet />
+          <AgentSessionLifecycleProvider>
+            <AgentContextSync />
+            <AppAlerts />
+            <Outlet />
+          </AgentSessionLifecycleProvider>
         </AgentChatRuntimeProvider>
       </AgentProvider>
     </ViewerProvider>

@@ -1,13 +1,21 @@
 import type { Chat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-type AgentChatRuntime = {
+export type AgentChatRuntime = {
+  /** Returns the live overlay for a session without creating one. */
+  getChat: (sessionId: string) => Chat<AgentUIMessage> | null;
   /**
    * Returns the runtime-owned AI SDK chat for a session/model pair, creating or
    * replacing it when necessary.
@@ -26,8 +34,24 @@ type AgentChatRuntime = {
     chatApiUrl: string;
     createChat: () => Chat<AgentUIMessage>;
   }) => Chat<AgentUIMessage>;
-  /** Returns whether a session already has a live browser transcript runtime. */
-  hasChat: (sessionId: string) => boolean;
+  /**
+   * Evicts a live overlay once Relay owns the canonical transcript. Returns
+   * false when unresolved client tool interaction still requires the runtime.
+   */
+  evictChat: ({
+    sessionId,
+    expectedChat,
+  }: {
+    sessionId: string;
+    expectedChat?: Chat<AgentUIMessage>;
+  }) => boolean;
+  getStatus: (sessionId: string) => ChatStatus;
+  hasUnresolvedToolCalls: (sessionId: string) => boolean;
+  getSyncError: (sessionId: string) => Error | null;
+  setSyncError: (sessionId: string, error: Error | null) => void;
+  hasActiveChat: () => boolean;
+  subscribe: (listener: () => void) => () => void;
+  getVersion: () => number;
   /**
    * Reconciles the runtime registry against current app state, reclaiming chats
    * that no longer need to remain imperative singletons.
@@ -41,40 +65,127 @@ type AgentChatRuntime = {
   }) => void;
 };
 
-/**
- * Retains chat runtimes only while they are still useful to the UI.
- *
- * Policy:
- * - deleted sessions are always evicted
- * - the active session is always retained, even when idle
- * - inactive sessions are retained while a response or tool continuation is active
- * - inactive idle sessions can be evicted and later rehydrated from Relay
- */
-export function shouldRetainChatRuntime({
-  sessionId,
-  activeSessionId,
-  liveSessionIds,
-  status,
-  hasPendingToolOutput = false,
-}: {
-  sessionId: string;
-  activeSessionId: string | null;
-  liveSessionIds: Set<string>;
-  status: ChatStatus;
-  hasPendingToolOutput?: boolean;
-}) {
-  if (sessionId === activeSessionId) {
-    return true;
-  }
-  if (!liveSessionIds.has(sessionId)) {
-    return false;
-  }
-  return (
-    status === "submitted" || status === "streaming" || hasPendingToolOutput
-  );
-}
-
 const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
+
+const EMPTY_AGENT_CHAT_RUNTIME: AgentChatRuntime = {
+  getChat: () => null,
+  getOrCreateChat: () => {
+    throw new Error("Missing AgentChatRuntimeContext.Provider in the tree");
+  },
+  evictChat: () => false,
+  getStatus: () => "ready",
+  hasUnresolvedToolCalls: () => false,
+  getSyncError: () => null,
+  setSyncError: () => undefined,
+  hasActiveChat: () => false,
+  subscribe: () => () => undefined,
+  getVersion: () => 0,
+  pruneChats: () => undefined,
+};
+
+export function createAgentChatRuntimeRegistry(): AgentChatRuntime {
+  const chatRegistry = new Map<
+    string,
+    {
+      chatApiUrl: string;
+      chat: Chat<AgentUIMessage>;
+      syncError: Error | null;
+      unsubscribe: () => void;
+    }
+  >();
+  const listeners = new Set<() => void>();
+  let version = 0;
+  const notifyListeners = () => {
+    version += 1;
+    listeners.forEach((listener) => listener());
+  };
+  const forceEvictChat = (sessionId: string) => {
+    const entry = chatRegistry.get(sessionId);
+    if (!entry) {
+      return false;
+    }
+    entry.unsubscribe();
+    chatRegistry.delete(sessionId);
+    notifyListeners();
+    return true;
+  };
+
+  return {
+    getChat: (sessionId) => chatRegistry.get(sessionId)?.chat ?? null,
+    getOrCreateChat: ({ sessionId, chatApiUrl, createChat }) => {
+      const existingEntry = chatRegistry.get(sessionId);
+      if (existingEntry && existingEntry.chatApiUrl === chatApiUrl) {
+        return existingEntry.chat;
+      }
+      if (existingEntry) {
+        existingEntry.unsubscribe();
+      }
+
+      const chat = createChat();
+      const unsubscribeStatus = chat["~registerStatusCallback"](() => {
+        notifyListeners();
+      });
+      const unsubscribeMessages = chat["~registerMessagesCallback"](() => {
+        notifyListeners();
+      });
+      chatRegistry.set(sessionId, {
+        chatApiUrl,
+        chat,
+        syncError: null,
+        unsubscribe: () => {
+          unsubscribeStatus();
+          unsubscribeMessages();
+        },
+      });
+      notifyListeners();
+      return chat;
+    },
+    evictChat: ({ sessionId, expectedChat }) => {
+      const entry = chatRegistry.get(sessionId);
+      if (
+        !entry ||
+        (expectedChat && entry.chat !== expectedChat) ||
+        isActiveChatStatus(entry.chat.status) ||
+        getUnresolvedToolCalls(entry.chat.messages).length > 0
+      ) {
+        return false;
+      }
+      return forceEvictChat(sessionId);
+    },
+    getStatus: (sessionId) =>
+      chatRegistry.get(sessionId)?.chat.status ?? "ready",
+    hasUnresolvedToolCalls: (sessionId) => {
+      const chat = chatRegistry.get(sessionId)?.chat;
+      return chat ? getUnresolvedToolCalls(chat.messages).length > 0 : false;
+    },
+    getSyncError: (sessionId) => chatRegistry.get(sessionId)?.syncError ?? null,
+    setSyncError: (sessionId, error) => {
+      const entry = chatRegistry.get(sessionId);
+      if (!entry || entry.syncError === error) {
+        return;
+      }
+      entry.syncError = error;
+      notifyListeners();
+    },
+    hasActiveChat: () =>
+      Array.from(chatRegistry.values()).some(({ chat }) =>
+        isActiveChatStatus(chat.status)
+      ),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    getVersion: () => version,
+    pruneChats: ({ liveSessionIds }) => {
+      const liveSessionIdSet = new Set(liveSessionIds);
+      for (const sessionId of chatRegistry.keys()) {
+        if (!liveSessionIdSet.has(sessionId)) {
+          forceEvictChat(sessionId);
+        }
+      }
+    },
+  };
+}
 
 /**
  * Hosts the long-lived AI SDK chat registry used by all agent chat surfaces.
@@ -82,84 +193,22 @@ const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
  * The important split is:
  * - React components are disposable view bindings
  * - AI SDK `Chat` instances are imperative runtimes owned here
- * - Relay hydrates committed transcripts and Zustand stores session metadata
+ * - Relay owns persisted sessions while Zustand stores ephemeral UI settings
  *
  * That lets requests continue while the visible surface moves between layouts,
  * while active work survives remounts and idle sessions rehydrate from Relay.
  */
 export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
-  const store = useAgentStore();
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const sessionIds = useAgentContext((state) => state.sessions);
-  const [runtime] = useState<AgentChatRuntime>(() => {
-    const chatRegistry = new Map<
-      string,
-      {
-        chatApiUrl: string;
-        chat: Chat<AgentUIMessage>;
-        unsubscribe: () => void;
-      }
-    >();
-
-    return {
-      getOrCreateChat: ({ sessionId, chatApiUrl, createChat }) => {
-        const existingEntry = chatRegistry.get(sessionId);
-        if (existingEntry && existingEntry.chatApiUrl === chatApiUrl) {
-          return existingEntry.chat;
-        }
-
-        // A model/transport swap replaces the runtime for this session. We do
-        // not keep multiple chat variants per session alive; instead we detach
-        // the old status subscription and let retention/pruning reclaim it.
-        if (existingEntry) {
-          existingEntry.unsubscribe();
-        }
-
-        const chat = createChat();
-        // Mirror transient AI SDK status into the store so other surfaces
-        // (session list, FAB, retention policy) can react without holding a
-        // direct reference to the runtime instance.
-        const unsubscribe = chat["~registerStatusCallback"](() => {
-          store.getState().setSessionChatStatus(sessionId, chat.status);
-        });
-        chatRegistry.set(sessionId, { chatApiUrl, chat, unsubscribe });
-        // Defer initial status sync to avoid updating state during render,
-        // which triggers React warnings and can break component lifecycles.
-        queueMicrotask(() => {
-          store.getState().setSessionChatStatus(sessionId, chat.status);
-        });
-        return chat;
-      },
-      hasChat: (sessionId) => chatRegistry.has(sessionId),
-      pruneChats: ({ activeSessionId, liveSessionIds }) => {
-        const liveSessionIdSet = new Set(liveSessionIds);
-        for (const sessionId of chatRegistry.keys()) {
-          const entry = chatRegistry.get(sessionId);
-          if (
-            entry &&
-            shouldRetainChatRuntime({
-              sessionId,
-              activeSessionId,
-              liveSessionIds: liveSessionIdSet,
-              status: entry.chat.status,
-              hasPendingToolOutput:
-                getUnresolvedToolCalls(entry.chat.messages).length > 0,
-            })
-          ) {
-            continue;
-          }
-
-          entry?.unsubscribe();
-          chatRegistry.delete(sessionId);
-          store.getState().setSessionChatStatus(sessionId, "ready");
-        }
-      },
-    };
-  });
+  const sessionStateById = useAgentContext((state) => state.sessionStateById);
+  const [runtime] = useState<AgentChatRuntime>(createAgentChatRuntimeRegistry);
 
   useEffect(() => {
-    runtime.pruneChats({ activeSessionId, liveSessionIds: sessionIds });
-  }, [activeSessionId, runtime, sessionIds]);
+    runtime.pruneChats({
+      activeSessionId,
+      liveSessionIds: Object.keys(sessionStateById),
+    });
+  }, [activeSessionId, runtime, sessionStateById]);
 
   return (
     <AgentChatRuntimeContext.Provider value={runtime}>
@@ -174,4 +223,38 @@ export function useAgentChatRuntime() {
     throw new Error("Missing AgentChatRuntimeContext.Provider in the tree");
   }
   return runtime;
+}
+
+export function useAgentChatRuntimeVersion(): AgentChatRuntime {
+  const runtime =
+    useContext(AgentChatRuntimeContext) ?? EMPTY_AGENT_CHAT_RUNTIME;
+  useSyncExternalStore(
+    runtime.subscribe,
+    runtime.getVersion,
+    runtime.getVersion
+  );
+  return runtime;
+}
+
+export function useAgentChatStatus(sessionId: string | null): ChatStatus {
+  const runtime = useAgentChatRuntimeVersion();
+  const operation = useAgentContext((state) =>
+    sessionId ? state.sessionOperationById[sessionId] : undefined
+  );
+  if (operation === "creating") {
+    return "submitted";
+  }
+  return sessionId ? runtime.getStatus(sessionId) : "ready";
+}
+
+export function useAnyAgentChatActive(): boolean {
+  const runtime = useAgentChatRuntimeVersion();
+  const hasSessionOperation = useAgentContext(
+    (state) => Object.keys(state.sessionOperationById).length > 0
+  );
+  return runtime.hasActiveChat() || hasSessionOperation;
+}
+
+function isActiveChatStatus(status: ChatStatus): boolean {
+  return status === "submitted" || status === "streaming";
 }

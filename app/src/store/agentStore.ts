@@ -1,4 +1,3 @@
-import type { ChatStatus } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -124,22 +123,16 @@ export type PendingAgentMessage = {
 /**
  * App-local metadata for an agent conversation session.
  */
-export type AgentSession = {
-  /** Stable client-side key used to identify the session in React. */
-  clientKey: string;
-  /** Canonical Relay node ID once the server has persisted the session. */
-  id: string | null;
-  /** Brief human-readable title for the conversation. */
-  title: string;
+export type AgentSessionState = {
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
   /** Model configuration scoped to this session. */
   modelConfig: ModelConfig;
-  /** Unix timestamp (ms) when the session was created. 0 for legacy sessions. */
-  createdAt: number;
   /** Usage metrics returned as metadata from llm invocations */
   usage?: AgentSessionUsage;
 };
+
+export type AgentSessionOperation = "creating" | "rewinding" | "forking";
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: "ANTHROPIC",
@@ -244,12 +237,12 @@ export interface AgentProps {
   position: AgentPosition;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /** Session client keys with an app-local runtime snapshot. */
-  sessions: string[];
-  /** Client key of the currently active session, or null if none. */
+  /** Canonical Relay ID of the active session, or a local draft ID. */
   activeSessionId: string | null;
-  /** Lookup table of sessions by their client key. */
-  sessionMap: Record<string, AgentSession>;
+  /** Browser-only ID for the single new-chat draft, if one exists. */
+  draftSessionId: string | null;
+  /** Ephemeral settings keyed by canonical Relay ID (or a local draft ID). */
+  sessionStateById: Record<string, AgentSessionState>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
@@ -272,18 +265,17 @@ export interface AgentState extends AgentProps {
   setPosition: (position: AgentPosition) => void;
   setFabPlacement: (placement: AgentFabPlacement) => void;
   createSession: () => string;
+  promoteSession: (draftSessionId: string, persistedSessionId: string) => void;
   deleteSession: (sessionId: string) => void;
   setActiveSession: (sessionId: string | null) => void;
-  updateSessionTitle: (sessionId: string, title: string) => void;
   updateSessionModelConfig: (
     sessionId: string,
     patch: Partial<ModelConfig>
   ) => void;
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
-  setSessionPersisted: (clientKey: string, id: string) => void;
-  /** Adds server-loaded session metadata to the app-local cache. */
-  cacheSession: (session: AgentSession) => void;
+  /** Adds default ephemeral state for a server-loaded session. */
+  cacheSession: (sessionId: string) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
@@ -314,9 +306,6 @@ export interface AgentState extends AgentProps {
     sessionId: string,
     elicitation: PendingElicitation | null
   ) => void;
-  chatStatusBySessionId: Record<string, ChatStatus>;
-  setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
-
   /**
    * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
    * out of local-storage persistence, but survives remounts while the app is
@@ -339,6 +328,17 @@ export interface AgentState extends AgentProps {
     message: PendingAgentMessage | null
   ) => void;
   consumePendingMessage: (sessionId: string) => PendingAgentMessage | null;
+  sessionOperationById: Partial<Record<string, AgentSessionOperation>>;
+  setSessionOperation: (
+    sessionId: string,
+    operation: AgentSessionOperation | null
+  ) => void;
+  sessionLifecycleErrorById: Partial<Record<string, Error>>;
+  setSessionLifecycleError: (sessionId: string, error: Error | null) => void;
+  clearPendingToolState: (params: {
+    sessionId?: string;
+    toolCallIds?: string[];
+  }) => void;
   setSessionUsage: (
     sessionId: string,
     newUsage: {
@@ -495,11 +495,14 @@ function mergeAgentPersistedState(
   const {
     // Blobs written before sessions moved to server-side persistence still
     // carry session state in localStorage; never rehydrate it.
-    sessions: _sessions,
     activeSessionId: _activeSessionId,
-    sessionMap: _sessionMap,
+    draftSessionId: _draftSessionId,
+    sessionMap: _legacySessionMap,
+    sessionStateById: _sessionStateById,
     ...persisted
-  } = persistedState as Partial<AgentState>;
+  } = persistedState as Partial<AgentState> & {
+    sessionMap?: unknown;
+  };
   return {
     ...currentState,
     ...persisted,
@@ -529,13 +532,40 @@ export type AgentClientAction = (
   context?: unknown
 ) => Promise<AgentClientActionResult>;
 
-function removeToolCallRecordForSession<T extends { sessionId: string }>(
-  record: Partial<Record<string, T>>,
-  sessionId: string
-): Partial<Record<string, T>> {
+function removePendingToolRecords<T extends { sessionId?: string | null }>({
+  record,
+  sessionId,
+  toolCallIds,
+}: {
+  record: Partial<Record<string, T>>;
+  sessionId?: string;
+  toolCallIds: Set<string>;
+}): Partial<Record<string, T>> {
   return Object.fromEntries(
-    Object.entries(record).filter(([, value]) => value?.sessionId !== sessionId)
+    Object.entries(record).filter(
+      ([toolCallId, value]) =>
+        !toolCallIds.has(toolCallId) &&
+        (sessionId === undefined || value?.sessionId !== sessionId)
+    )
   );
+}
+
+function moveRecordKey<T>({
+  record,
+  sourceKey,
+  destinationKey,
+}: {
+  record: Record<string, T>;
+  sourceKey: string;
+  destinationKey: string;
+}): Record<string, T> {
+  const value = record[sourceKey];
+  if (value === undefined) {
+    return record;
+  }
+  const next = { ...record, [destinationKey]: value };
+  delete next[sourceKey];
+  return next;
 }
 
 /**
@@ -585,9 +615,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     isOpen: false,
     position: "pinned",
     fabPlacement: "bottom-end",
-    sessions: [],
     activeSessionId: null,
-    sessionMap: {},
+    draftSessionId: null,
+    sessionStateById: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
@@ -606,6 +636,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingCodeEvaluatorEditsByToolCallId: {},
     pendingLlmEvaluatorEditsByToolCallId: {},
     pendingLoadDatasetsByToolCallId: {},
+    sessionOperationById: {},
+    sessionLifecycleErrorById: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -624,18 +656,38 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       const sessionId = generateUUID();
       set(
         (state) => {
-          const session: AgentSession = {
-            clientKey: sessionId,
-            id: null,
-            title: "",
+          const previousDraftId = state.draftSessionId;
+          const sessionStateById = { ...state.sessionStateById };
+          const draftInputBySessionId = { ...state.draftInputBySessionId };
+          const pendingMessageBySessionId = {
+            ...state.pendingMessageBySessionId,
+          };
+          const sessionOperationById = { ...state.sessionOperationById };
+          const sessionLifecycleErrorById = {
+            ...state.sessionLifecycleErrorById,
+          };
+          if (previousDraftId) {
+            delete sessionStateById[previousDraftId];
+            delete draftInputBySessionId[previousDraftId];
+            delete pendingMessageBySessionId[previousDraftId];
+            delete sessionOperationById[previousDraftId];
+            delete sessionLifecycleErrorById[previousDraftId];
+          }
+          const session: AgentSessionState = {
             context: [],
             modelConfig: { ...state.defaultModelConfig },
-            createdAt: Date.now(),
           };
           return {
-            sessions: [...state.sessions, sessionId],
-            sessionMap: { ...state.sessionMap, [sessionId]: session },
+            sessionStateById: {
+              ...sessionStateById,
+              [sessionId]: session,
+            },
+            draftInputBySessionId,
+            pendingMessageBySessionId,
+            sessionOperationById,
+            sessionLifecycleErrorById,
             activeSessionId: sessionId,
+            draftSessionId: sessionId,
           };
         },
         false,
@@ -643,45 +695,96 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
       return sessionId;
     },
-    deleteSession: (sessionId) => {
+    promoteSession: (draftSessionId, persistedSessionId) => {
       set(
         (state) => {
-          const session = state.sessionMap[sessionId];
+          const draftState = state.sessionStateById[draftSessionId];
+          if (!draftState || draftSessionId === persistedSessionId) {
+            return state;
+          }
+          const sessionStateById = { ...state.sessionStateById };
+          delete sessionStateById[draftSessionId];
+          sessionStateById[persistedSessionId] = draftState;
+          return {
+            sessionStateById,
+            activeSessionId:
+              state.activeSessionId === draftSessionId
+                ? persistedSessionId
+                : state.activeSessionId,
+            draftSessionId:
+              state.draftSessionId === draftSessionId
+                ? null
+                : state.draftSessionId,
+            pendingElicitationBySessionId: moveRecordKey({
+              record: state.pendingElicitationBySessionId,
+              sourceKey: draftSessionId,
+              destinationKey: persistedSessionId,
+            }),
+            draftInputBySessionId: moveRecordKey({
+              record: state.draftInputBySessionId,
+              sourceKey: draftSessionId,
+              destinationKey: persistedSessionId,
+            }),
+            pendingMessageBySessionId: moveRecordKey({
+              record: state.pendingMessageBySessionId,
+              sourceKey: draftSessionId,
+              destinationKey: persistedSessionId,
+            }),
+            sessionOperationById: moveRecordKey({
+              record: state.sessionOperationById,
+              sourceKey: draftSessionId,
+              destinationKey: persistedSessionId,
+            }),
+            sessionLifecycleErrorById: moveRecordKey({
+              record: state.sessionLifecycleErrorById,
+              sourceKey: draftSessionId,
+              destinationKey: persistedSessionId,
+            }),
+          };
+        },
+        false,
+        { type: "promoteSession" }
+      );
+    },
+    deleteSession: (sessionId) => {
+      get().clearPendingToolState({ sessionId });
+      set(
+        (state) => {
+          const session = state.sessionStateById[sessionId];
           if (!session) return state;
-          const newSessionMap = { ...state.sessionMap };
-          delete newSessionMap[sessionId];
+          const newSessionStateById = { ...state.sessionStateById };
+          delete newSessionStateById[sessionId];
+          const remainingSessionIds = Object.keys(newSessionStateById);
           const newPendingElicitationBySessionId = {
             ...state.pendingElicitationBySessionId,
           };
           delete newPendingElicitationBySessionId[sessionId];
-          const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
-          delete newChatStatusBySessionId[sessionId];
           const newDraftInputBySessionId = { ...state.draftInputBySessionId };
           delete newDraftInputBySessionId[sessionId];
           const newPendingMessageBySessionId = {
             ...state.pendingMessageBySessionId,
           };
           delete newPendingMessageBySessionId[sessionId];
-          const newPendingPatchExperimentsByToolCallId =
-            removeToolCallRecordForSession(
-              state.pendingPatchExperimentsByToolCallId,
-              sessionId
-            );
-          const newSessions = state.sessions.filter((id) => id !== sessionId);
+          const newSessionOperationById = { ...state.sessionOperationById };
+          delete newSessionOperationById[sessionId];
+          const newSessionLifecycleErrorById = {
+            ...state.sessionLifecycleErrorById,
+          };
+          delete newSessionLifecycleErrorById[sessionId];
           const newActiveSessionId =
             state.activeSessionId === sessionId
-              ? (newSessions[newSessions.length - 1] ?? null)
+              ? (remainingSessionIds.at(-1) ?? null)
               : state.activeSessionId;
           return {
-            sessions: newSessions,
-            sessionMap: newSessionMap,
+            sessionStateById: newSessionStateById,
             activeSessionId: newActiveSessionId,
+            draftSessionId:
+              state.draftSessionId === sessionId ? null : state.draftSessionId,
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
-            chatStatusBySessionId: newChatStatusBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
-            pendingPatchExperimentsByToolCallId:
-              newPendingPatchExperimentsByToolCallId,
+            sessionOperationById: newSessionOperationById,
+            sessionLifecycleErrorById: newSessionLifecycleErrorById,
           };
         },
         false,
@@ -691,30 +794,14 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     setActiveSession: (sessionId) => {
       set({ activeSessionId: sessionId }, false, { type: "setActiveSession" });
     },
-    updateSessionTitle: (sessionId, title) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          return {
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: { ...session, title },
-            },
-          };
-        },
-        false,
-        { type: "updateSessionTitle" }
-      );
-    },
     updateSessionModelConfig: (sessionId, patch) => {
       set(
         (state) => {
-          const session = state.sessionMap[sessionId];
+          const session = state.sessionStateById[sessionId];
           if (!session) return state;
           return {
-            sessionMap: {
-              ...state.sessionMap,
+            sessionStateById: {
+              ...state.sessionStateById,
               [sessionId]: {
                 ...session,
                 modelConfig: { ...session.modelConfig, ...patch },
@@ -729,11 +816,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     addSessionContext: (sessionId, context) => {
       set(
         (state) => {
-          const session = state.sessionMap[sessionId];
+          const session = state.sessionStateById[sessionId];
           if (!session) return state;
           return {
-            sessionMap: {
-              ...state.sessionMap,
+            sessionStateById: {
+              ...state.sessionStateById,
               [sessionId]: {
                 ...session,
                 context: [...session.context, context],
@@ -748,11 +835,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     removeSessionContext: (sessionId, context) => {
       set(
         (state) => {
-          const session = state.sessionMap[sessionId];
+          const session = state.sessionStateById[sessionId];
           if (!session) return state;
           return {
-            sessionMap: {
-              ...state.sessionMap,
+            sessionStateById: {
+              ...state.sessionStateById,
               [sessionId]: {
                 ...session,
                 context: session.context.filter((item) => item !== context),
@@ -764,39 +851,19 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "removeSessionContext" }
       );
     },
-    setSessionPersisted: (clientKey, id) => {
+    cacheSession: (sessionId) => {
       set(
         (state) => {
-          const session = state.sessionMap[clientKey];
-          if (!session) return state;
+          if (state.sessionStateById[sessionId]) {
+            return state;
+          }
           return {
-            sessionMap: {
-              ...state.sessionMap,
-              [clientKey]: { ...session, id },
-            },
-          };
-        },
-        false,
-        { type: "setSessionPersisted" }
-      );
-    },
-    cacheSession: (session) => {
-      set(
-        (state) => {
-          const existing = state.sessionMap[session.clientKey];
-          return {
-            sessions: state.sessions.includes(session.clientKey)
-              ? state.sessions
-              : [...state.sessions, session.clientKey],
-            sessionMap: {
-              ...state.sessionMap,
-              [session.clientKey]: existing
-                ? {
-                    ...session,
-                    ...existing,
-                    title: existing.title || session.title,
-                  }
-                : session,
+            sessionStateById: {
+              ...state.sessionStateById,
+              [sessionId]: {
+                context: [],
+                modelConfig: { ...state.defaultModelConfig },
+              },
             },
           };
         },
@@ -853,14 +920,25 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     clearAllSessions: () => {
       set(
         {
-          sessions: [],
           activeSessionId: null,
-          sessionMap: {},
+          draftSessionId: null,
+          sessionStateById: {},
           pendingElicitationBySessionId: {},
-          chatStatusBySessionId: {},
           draftInputBySessionId: {},
           pendingMessageBySessionId: {},
+          sessionOperationById: {},
+          sessionLifecycleErrorById: {},
           pendingPatchExperimentsByToolCallId: {},
+          pendingPromptEditsByToolCallId: {},
+          pendingPromptInstanceRemovalsByToolCallId: {},
+          pendingBatchSpanAnnotatesByToolCallId: {},
+          pendingDatasetWritesByToolCallId: {},
+          pendingAnnotationConfigWritesByToolCallId: {},
+          pendingPromptToolWritesByToolCallId: {},
+          pendingSavePromptsByToolCallId: {},
+          pendingCodeEvaluatorEditsByToolCallId: {},
+          pendingLlmEvaluatorEditsByToolCallId: {},
+          pendingLoadDatasetsByToolCallId: {},
         },
         false,
         { type: "clearAllSessions" }
@@ -945,25 +1023,108 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       }
       return message;
     },
-
-    chatStatusBySessionId: {},
-    setSessionChatStatus: (sessionId, status) => {
+    setSessionOperation: (sessionId, operation) => {
       set(
-        (state) => ({
-          chatStatusBySessionId: {
-            ...state.chatStatusBySessionId,
-            [sessionId]: status,
-          },
-        }),
+        (state) => {
+          const next = { ...state.sessionOperationById };
+          if (operation) {
+            next[sessionId] = operation;
+          } else {
+            delete next[sessionId];
+          }
+          return { sessionOperationById: next };
+        },
         false,
-        { type: "setSessionChatStatus" }
+        { type: "setSessionOperation" }
+      );
+    },
+    setSessionLifecycleError: (sessionId, error) => {
+      set(
+        (state) => {
+          const next = { ...state.sessionLifecycleErrorById };
+          if (error) {
+            next[sessionId] = error;
+          } else {
+            delete next[sessionId];
+          }
+          return { sessionLifecycleErrorById: next };
+        },
+        false,
+        { type: "setSessionLifecycleError" }
+      );
+    },
+    clearPendingToolState: ({ sessionId, toolCallIds = [] }) => {
+      set(
+        (state) => {
+          const droppedToolCallIds = new Set(toolCallIds);
+          const pendingElicitationBySessionId = {
+            ...state.pendingElicitationBySessionId,
+          };
+          if (sessionId) {
+            delete pendingElicitationBySessionId[sessionId];
+          } else {
+            for (const [pendingSessionId, elicitation] of Object.entries(
+              pendingElicitationBySessionId
+            )) {
+              if (droppedToolCallIds.has(elicitation.toolCallId)) {
+                delete pendingElicitationBySessionId[pendingSessionId];
+              }
+            }
+          }
+          const removeRecords = <T extends { sessionId?: string | null }>(
+            record: Partial<Record<string, T>>
+          ) =>
+            removePendingToolRecords({
+              record,
+              sessionId,
+              toolCallIds: droppedToolCallIds,
+            });
+          return {
+            pendingElicitationBySessionId,
+            pendingPromptEditsByToolCallId: removeRecords(
+              state.pendingPromptEditsByToolCallId
+            ),
+            pendingPromptInstanceRemovalsByToolCallId: removeRecords(
+              state.pendingPromptInstanceRemovalsByToolCallId
+            ),
+            pendingBatchSpanAnnotatesByToolCallId: removeRecords(
+              state.pendingBatchSpanAnnotatesByToolCallId
+            ),
+            pendingDatasetWritesByToolCallId: removeRecords(
+              state.pendingDatasetWritesByToolCallId
+            ),
+            pendingAnnotationConfigWritesByToolCallId: removeRecords(
+              state.pendingAnnotationConfigWritesByToolCallId
+            ),
+            pendingPatchExperimentsByToolCallId: removeRecords(
+              state.pendingPatchExperimentsByToolCallId
+            ),
+            pendingPromptToolWritesByToolCallId: removeRecords(
+              state.pendingPromptToolWritesByToolCallId
+            ),
+            pendingSavePromptsByToolCallId: removeRecords(
+              state.pendingSavePromptsByToolCallId
+            ),
+            pendingCodeEvaluatorEditsByToolCallId: removeRecords(
+              state.pendingCodeEvaluatorEditsByToolCallId
+            ),
+            pendingLlmEvaluatorEditsByToolCallId: removeRecords(
+              state.pendingLlmEvaluatorEditsByToolCallId
+            ),
+            pendingLoadDatasetsByToolCallId: removeRecords(
+              state.pendingLoadDatasetsByToolCallId
+            ),
+          };
+        },
+        false,
+        { type: "clearPendingToolState" }
       );
     },
 
     setSessionUsage: (sessionId, newUsage) => {
       set(
         (state) => {
-          const session = state.sessionMap[sessionId];
+          const session = state.sessionStateById[sessionId];
           if (!session) return state;
           const usage: AgentSessionUsage = session.usage ?? {
             tokenCount: {
@@ -973,8 +1134,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             },
           };
           return {
-            sessionMap: {
-              ...state.sessionMap,
+            sessionStateById: {
+              ...state.sessionStateById,
               [sessionId]: {
                 ...session,
                 usage: {

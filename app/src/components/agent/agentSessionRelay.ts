@@ -2,6 +2,8 @@ import { fetchQuery } from "react-relay";
 
 import type { AgentSessionsResourceQuery } from "./__generated__/AgentSessionsResourceQuery.graphql";
 import AgentSessionsResourceQueryNode from "./__generated__/AgentSessionsResourceQuery.graphql";
+import type { AgentSessionsResourceSessionQuery } from "./__generated__/AgentSessionsResourceSessionQuery.graphql";
+import AgentSessionsResourceSessionQueryNode from "./__generated__/AgentSessionsResourceSessionQuery.graphql";
 
 export const AGENT_SESSIONS_CONNECTION_KEY =
   "AgentSessionsResource_agentSessions";
@@ -29,5 +31,21 @@ export function refetchAgentSessions({
     environment,
     AgentSessionsResourceQueryNode,
     { first: SESSION_PAGE_SIZE }
+  ).toPromise();
+}
+
+/** Refreshes one retained session detail operation from the network. */
+export function refreshAgentSession({
+  environment,
+  sessionId,
+}: {
+  environment: RelayEnvironment;
+  sessionId: string;
+}) {
+  return fetchQuery<AgentSessionsResourceSessionQuery>(
+    environment,
+    AgentSessionsResourceSessionQueryNode,
+    { id: sessionId },
+    { fetchPolicy: "network-only" }
   ).toPromise();
 }

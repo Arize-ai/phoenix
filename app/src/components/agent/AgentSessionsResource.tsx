@@ -22,7 +22,7 @@ import { Button, Flex, Text } from "@phoenix/components";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useNotifyError } from "@phoenix/contexts";
-import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
+import { useAgentChatRuntimeVersion } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -33,13 +33,13 @@ import type { AgentSessionsResourceQuery } from "./__generated__/AgentSessionsRe
 import type { AgentSessionsResourceSessionQuery } from "./__generated__/AgentSessionsResourceSessionQuery.graphql";
 import { AgentChatHeader } from "./AgentChatPanelView";
 import {
+  isSessionDeleteDisabled,
+  useAgentSessionLifecycle,
+} from "./AgentSessionLifecycleProvider";
+import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SESSION_PAGE_SIZE,
 } from "./agentSessionRelay";
-import {
-  getPersistedAgentSessionId,
-  shouldHydrateAgentSession,
-} from "./agentSessionRuntime";
 import { ChatView } from "./Chat";
 import type { AgentSessionListItem } from "./SessionListMenu";
 import {
@@ -137,85 +137,59 @@ function AgentSessionsContent({
     query
   );
   const store = useAgentStore();
-  const runtime = useAgentChatRuntime();
+  const runtime = useAgentChatRuntimeVersion();
   const relayEnvironment = useRelayEnvironment();
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const sessionMap = useAgentContext((state) => state.sessionMap);
-  const chatStatusBySessionId = useAgentContext(
-    (state) => state.chatStatusBySessionId
+  const draftSessionId = useAgentContext((state) => state.draftSessionId);
+  const sessionOperationById = useAgentContext(
+    (state) => state.sessionOperationById
   );
   const setActiveSession = useAgentContext((state) => state.setActiveSession);
   const createLocalSession = useAgentContext((state) => state.createSession);
   const deleteLocalSession = useAgentContext((state) => state.deleteSession);
   const notifyError = useNotifyError();
+  const lifecycle = useAgentSessionLifecycle();
   const connectionId = ConnectionHandler.getConnectionID(
     "client:root",
     AGENT_SESSIONS_CONNECTION_KEY
   );
 
   const createSession = useCallback(() => {
-    const state = store.getState();
-    for (const sessionId of state.sessions) {
-      const session = store.getState().sessionMap[sessionId];
-      const status = store.getState().chatStatusBySessionId[sessionId];
-      if (
-        session?.id == null &&
-        status !== "submitted" &&
-        status !== "streaming"
-      ) {
-        store.getState().deleteSession(sessionId);
-      }
-    }
     return createLocalSession();
-  }, [createLocalSession, store]);
-
-  const runtimeSessionById = useMemo(
-    () =>
-      new Map(
-        Object.values(sessionMap).flatMap((session) =>
-          session.id ? ([[session.id, session]] as const) : []
-        )
-      ),
-    [sessionMap]
+  }, [createLocalSession]);
+  const serverSessions: AgentSessionListItem[] = data.agentSessions.edges.map(
+    ({ node }) => {
+      const status = runtime.getStatus(node.id);
+      return {
+        id: node.id,
+        title: node.title,
+        createdAt: Date.parse(node.createdAt as string),
+        isDeleteDisabled: isSessionDeleteDisabled({
+          status,
+          operation: sessionOperationById[node.id],
+          hasUnresolvedToolCalls: runtime.hasUnresolvedToolCalls(node.id),
+        }),
+      } satisfies AgentSessionListItem;
+    }
   );
-  const serverSessions = data.agentSessions.edges.map(({ node }) => {
-    const runtimeSession = runtimeSessionById.get(node.id);
-    const clientKey = runtimeSession?.clientKey ?? node.id;
-    return {
-      clientKey,
-      id: node.id,
-      title: runtimeSession?.title || node.title,
-      createdAt: Date.parse(node.createdAt as string),
-      isDeleteDisabled:
-        chatStatusBySessionId[clientKey] === "submitted" ||
-        chatStatusBySessionId[clientKey] === "streaming",
-    } satisfies AgentSessionListItem;
-  });
-  const activeSessionCache = activeSessionId
-    ? sessionMap[activeSessionId]
-    : undefined;
-  const activeLocalSession =
-    activeSessionCache &&
-    !serverSessions.some(
-      (session) => session.clientKey === activeSessionCache.clientKey
-    )
-      ? activeSessionCache
-      : undefined;
-  const localSessions: AgentSessionListItem[] = activeLocalSession
+  const localSessions: AgentSessionListItem[] = draftSessionId
     ? [
         {
-          clientKey: activeLocalSession.clientKey,
-          id: activeLocalSession.id,
-          title: activeLocalSession.title,
-          createdAt: activeLocalSession.createdAt,
-          isDeleteDisabled:
-            chatStatusBySessionId[activeLocalSession.clientKey] ===
-              "submitted" ||
-            chatStatusBySessionId[activeLocalSession.clientKey] === "streaming",
+          id: draftSessionId,
+          isDraft: true,
+          title: "",
+          createdAt: Date.now(),
+          isDeleteDisabled: isSessionDeleteDisabled({
+            status: "ready",
+            operation: sessionOperationById[draftSessionId],
+          }),
         },
       ]
     : [];
-  const orderedSessions = [...localSessions, ...serverSessions];
+  const orderedSessions: AgentSessionListItem[] = [
+    ...localSessions,
+    ...serverSessions,
+  ];
   const orderedSessionsRef = useRef(orderedSessions);
   orderedSessionsRef.current = orderedSessions;
 
@@ -225,7 +199,7 @@ function AgentSessionsContent({
     }
     const mostRecentSession = orderedSessionsRef.current[0];
     if (mostRecentSession) {
-      setActiveSession(mostRecentSession.clientKey);
+      setActiveSession(mostRecentSession.id);
     } else {
       createSession();
     }
@@ -246,21 +220,33 @@ function AgentSessionsContent({
   const deleteSession = useCallback(
     (sessionId: string) => {
       const session = orderedSessionsRef.current.find(
-        (candidate) => candidate.clientKey === sessionId
+        (candidate) => candidate.id === sessionId
       );
+      const liveStatus = runtime.getStatus(sessionId);
+      const liveOperation = store.getState().sessionOperationById[sessionId];
+      if (
+        isSessionDeleteDisabled({
+          status: liveStatus,
+          operation: liveOperation,
+          hasUnresolvedToolCalls: runtime.hasUnresolvedToolCalls(sessionId),
+        })
+      ) {
+        return;
+      }
       const nextSession = orderedSessionsRef.current.find(
-        (candidate) => candidate.clientKey !== sessionId
+        (candidate) => candidate.id !== sessionId
       );
       const isDeletingActiveSession = activeSessionId === sessionId;
       let replacementSessionId: string | null = null;
       if (isDeletingActiveSession) {
         if (nextSession) {
-          setActiveSession(nextSession.clientKey);
-        } else if (session?.id) {
+          setActiveSession(nextSession.id);
+        } else if (session && !session.isDraft) {
           replacementSessionId = createSession();
         }
       }
-      if (!session?.id) {
+      if (!session || session.isDraft) {
+        lifecycle.cancelDraftCreation(sessionId);
         deleteLocalSession(sessionId);
         if (isDeletingActiveSession && !nextSession) {
           createSession();
@@ -299,40 +285,27 @@ function AgentSessionsContent({
       createSession,
       deleteLocalSession,
       notifyError,
+      lifecycle,
+      runtime,
       setActiveSession,
+      store,
     ]
   );
 
   const activeSession = orderedSessions.find(
-    (session) => session.clientKey === activeSessionId
+    (session) => session.id === activeSessionId
   );
-  const activeRuntimeSession = activeSessionId
-    ? sessionMap[activeSessionId]
-    : undefined;
-  const activeSessionHasRuntime = activeSessionId
-    ? runtime.hasChat(activeSessionId)
-    : false;
-  const activePersistedSessionId = getPersistedAgentSessionId({
-    cachedSessionId: activeRuntimeSession?.id,
-    listedSessionId: activeSession?.id,
-  });
-  const shouldHydrateActiveSession = shouldHydrateAgentSession({
-    hasRuntime: activeSessionHasRuntime,
-    persistedSessionId: activePersistedSessionId,
-  });
   const sessionDisplayName = activeSession
     ? getSessionDisplayName(activeSession)
-    : activeRuntimeSession
-      ? getSessionDisplayName(activeRuntimeSession)
-      : EMPTY_SESSION_DISPLAY_NAME;
+    : EMPTY_SESSION_DISPLAY_NAME;
   const panelState = useAgentChatPanelState();
   const handleMissingSession = useCallback(
     (sessionId: string) => {
       const missingSession = orderedSessionsRef.current.find(
-        (session) => session.clientKey === sessionId
+        (session) => session.id === sessionId
       );
       const nextSession = orderedSessionsRef.current.find(
-        (session) => session.clientKey !== sessionId
+        (session) => session.id !== sessionId
       );
       const missingSessionId = missingSession?.id;
       if (missingSessionId) {
@@ -347,7 +320,7 @@ function AgentSessionsContent({
         });
       }
       if (nextSession) {
-        setActiveSession(nextSession.clientKey);
+        setActiveSession(nextSession.id);
       } else {
         createSession();
       }
@@ -373,20 +346,19 @@ function AgentSessionsContent({
         onClose={panelState.closePanel}
       />
       {activeSessionId ? (
-        shouldHydrateActiveSession && activePersistedSessionId ? (
+        activeSession?.isDraft ? (
+          <AgentDraftController
+            key={activeSessionId}
+            draftSessionId={activeSessionId}
+          />
+        ) : (
           <Suspense fallback={<Loading />}>
             <AgentSessionTranscript
               key={activeSessionId}
-              clientKey={activeSessionId}
-              persistedSessionId={activePersistedSessionId}
+              sessionId={activeSessionId}
               onMissing={handleMissingSession}
             />
           </Suspense>
-        ) : (
-          <AgentChatController
-            key={activeSessionId}
-            sessionId={activeSessionId}
-          />
         )
       ) : (
         <Loading />
@@ -395,13 +367,63 @@ function AgentSessionsContent({
   );
 }
 
+function AgentDraftController({ draftSessionId }: { draftSessionId: string }) {
+  const lifecycle = useAgentSessionLifecycle();
+  const operation = useAgentContext(
+    (state) => state.sessionOperationById[draftSessionId]
+  );
+  const error = useAgentContext(
+    (state) => state.sessionLifecycleErrorById[draftSessionId]
+  );
+  const { menuValue, handleModelChange } =
+    useAgentChatPanelState(draftSessionId);
+
+  const sendMessage = useCallback(
+    (
+      message: { text: string },
+      options?: { body?: Record<string, unknown> }
+    ) => {
+      if (operation) {
+        return;
+      }
+      const requestedSkills = options?.body?.requestedSkills;
+      lifecycle.stageMessage(draftSessionId, {
+        text: message.text,
+        requestedSkills: Array.isArray(requestedSkills)
+          ? requestedSkills.filter(
+              (skill): skill is string => typeof skill === "string"
+            )
+          : [],
+      });
+    },
+    [draftSessionId, lifecycle, operation]
+  );
+  const status =
+    operation === "creating" ? "submitted" : error ? "error" : "ready";
+
+  return (
+    <ChatView
+      sessionId={draftSessionId}
+      messages={[]}
+      sendMessage={sendMessage}
+      stop={async () => lifecycle.cancelDraftCreation(draftSessionId)}
+      status={status}
+      error={error}
+      pendingElicitation={null}
+      handleElicitationSubmit={() => undefined}
+      handleElicitationCancel={() => undefined}
+      modelMenuValue={menuValue}
+      onModelChange={handleModelChange}
+      autoFocusInput
+    />
+  );
+}
+
 function AgentSessionTranscript({
-  clientKey,
-  persistedSessionId,
+  sessionId,
   onMissing,
 }: {
-  clientKey: string;
-  persistedSessionId: string;
+  sessionId: string;
   onMissing: (sessionId: string) => void;
 }) {
   const data = useLazyLoadQuery<AgentSessionsResourceSessionQuery>(
@@ -413,18 +435,16 @@ function AgentSessionTranscript({
             id
             title
             createdAt
+            updatedAt
             messages
           }
         }
       }
     `,
-    { id: persistedSessionId },
+    { id: sessionId },
     { fetchPolicy: "store-or-network" }
   );
   const store = useAgentStore();
-  const defaultModelConfig = useAgentContext(
-    (state) => state.defaultModelConfig
-  );
   const agentSession =
     data.agentSession.__typename === "AgentSession" ? data.agentSession : null;
   const messages = useMemo(
@@ -437,24 +457,17 @@ function AgentSessionTranscript({
 
   useEffect(() => {
     if (!agentSession) {
-      onMissing(clientKey);
+      onMissing(sessionId);
       return;
     }
-    store.getState().cacheSession({
-      clientKey,
-      id: agentSession.id,
-      title: agentSession.title,
-      context: [],
-      modelConfig: { ...defaultModelConfig },
-      createdAt: Date.parse(agentSession.createdAt as string),
-    });
-  }, [agentSession, clientKey, defaultModelConfig, messages, onMissing, store]);
+    store.getState().cacheSession(agentSession.id);
+  }, [agentSession, onMissing, sessionId, store]);
 
   if (!agentSession) {
     return <Loading />;
   }
   return (
-    <AgentChatController sessionId={clientKey} initialMessages={messages} />
+    <AgentChatController sessionId={sessionId} initialMessages={messages} />
   );
 }
 
@@ -466,19 +479,21 @@ function AgentChatController({
   initialMessages?: AgentUIMessage[];
 }) {
   const { chatApiUrl, modelSelection, menuValue, handleModelChange } =
-    useAgentChatPanelState();
+    useAgentChatPanelState(sessionId);
   const {
     messages,
     sendMessage,
     stop,
     status,
     error,
+    syncError,
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
     retryMessage,
     rewindToMessage,
     forkFromMessage,
+    isSessionOperationPending,
   } = useAgentChat({
     sessionId,
     chatApiUrl,
@@ -495,12 +510,14 @@ function AgentChatController({
       stop={stop}
       status={status}
       error={error}
+      syncError={syncError}
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
       retryMessage={retryMessage}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
+      isSessionOperationPending={isSessionOperationPending}
       modelMenuValue={menuValue}
       onModelChange={handleModelChange}
       autoFocusInput

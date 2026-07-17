@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<728db6ef72bb26890222cce4a0affd32>>
+ * @generated SignedSource<<428fbb2a6fd7782616bac87fc5497bc0>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,7 @@ export type AgentSessionsResourceSessionQuery$data = {
     readonly id: string;
     readonly messages: any;
     readonly title: string;
+    readonly updatedAt: string;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -76,6 +77,13 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "messages",
   "storageKey": null
 };
@@ -101,7 +109,8 @@ return {
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v6/*:: as any*/)
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -134,7 +143,8 @@ return {
             "selections": [
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v6/*:: as any*/)
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -145,16 +155,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5d6f3956a3509d65796db179899d5887",
+    "cacheID": "329efd1a4f896580a29db9a1fa39144b",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceSessionQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      createdAt\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query AgentSessionsResourceSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      createdAt\n      updatedAt\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "83571c638255dfc75976738a033a0320";
+(node as any).hash = "bcb9380edeaa7d4b395afca80d2545e3";
 
 export default node;

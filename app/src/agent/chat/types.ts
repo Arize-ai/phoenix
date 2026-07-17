@@ -18,12 +18,17 @@ type SessionSummaryChunk = components["schemas"]["SessionSummaryChunk"];
 type SessionCreatedChunk = components["schemas"]["SessionCreatedChunk"];
 export type AgentSessionCreatedData = SessionCreatedChunk["data"];
 
+/** Canonical persistence acknowledgement for the completed transcript. */
+type SessionCommittedChunk = components["schemas"]["SessionCommittedChunk"];
+export type AgentSessionCommittedData = SessionCommittedChunk["data"];
+
 /**
  * Payloads of the custom `data-*` chunks the backend chat route streams
  * alongside the message. Keys are the chunk type without the `data-` prefix.
  */
 type AgentUIDataTypes = {
   "session-created": AgentSessionCreatedData;
+  "session-committed": AgentSessionCommittedData;
   "session-summary": SessionSummaryChunk["data"];
 };
 

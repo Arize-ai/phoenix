@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 
+import { buildAgentModelSelectionFromConfig } from "@phoenix/agent/chat/agentModelSelection";
 import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import type { paths } from "@phoenix/api/__generated__/v1";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -16,22 +17,12 @@ export function buildAgentModelSelection({
 }: {
   model: ModelMenuValue;
 }): AgentModelSelection {
-  if (model.customProvider) {
-    return {
-      providerType: "custom",
-      providerId: model.customProvider.id,
-      modelName: model.modelName,
-    };
-  }
-
-  const isOpenAIProvider =
-    model.provider === "OPENAI" || model.provider === "AZURE_OPENAI";
-  return {
-    providerType: "builtin",
+  return buildAgentModelSelectionFromConfig({
     provider: model.provider,
     modelName: model.modelName,
-    ...(isOpenAIProvider && { openaiApiType: "responses" }),
-  };
+    invocationParameters: {},
+    customProvider: model.customProvider ?? null,
+  });
 }
 
 /**
@@ -41,7 +32,7 @@ export function buildAgentModelSelection({
  * Responsibilities:
  * - Derives the chat API URL and model menu value from the store
  */
-export function useAgentChatPanelState() {
+export function useAgentChatPanelState(sessionId?: string | null) {
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const position = useAgentContext((state) => state.position);
@@ -53,28 +44,51 @@ export function useAgentChatPanelState() {
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
   );
+  const targetSessionId = sessionId === undefined ? activeSessionId : sessionId;
+  const sessionModelConfig = useAgentContext((state) =>
+    targetSessionId
+      ? state.sessionStateById[targetSessionId]?.modelConfig
+      : undefined
+  );
+  const updateSessionModelConfig = useAgentContext(
+    (state) => state.updateSessionModelConfig
+  );
+  const modelConfig = sessionModelConfig ?? defaultModelConfig;
 
   const menuValue: ModelMenuValue = useMemo(
     () => ({
-      provider: defaultModelConfig.provider,
-      modelName: defaultModelConfig.modelName ?? "",
-      ...(defaultModelConfig.customProvider && {
-        customProvider: defaultModelConfig.customProvider,
+      provider: modelConfig.provider,
+      modelName: modelConfig.modelName ?? "",
+      ...(modelConfig.customProvider && {
+        customProvider: modelConfig.customProvider,
       }),
     }),
-    [defaultModelConfig]
+    [modelConfig]
   );
 
   const handleModelChange = useCallback(
     (model: ModelMenuValue) => {
+      if (!targetSessionId || !sessionModelConfig) {
+        return;
+      }
+      updateSessionModelConfig(targetSessionId, {
+        provider: model.provider,
+        modelName: model.modelName,
+        customProvider: model.customProvider ?? null,
+      });
       setDefaultModelConfig({
-        ...defaultModelConfig,
+        ...sessionModelConfig,
         provider: model.provider,
         modelName: model.modelName,
         customProvider: model.customProvider ?? null,
       });
     },
-    [defaultModelConfig, setDefaultModelConfig]
+    [
+      sessionModelConfig,
+      setDefaultModelConfig,
+      targetSessionId,
+      updateSessionModelConfig,
+    ]
   );
 
   const modelSelection = useMemo<AgentModelSelection>(

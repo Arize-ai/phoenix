@@ -17,11 +17,13 @@ import type {
  * `stageDatasetWrite` for the annotation-config domain.
  */
 export async function stageAnnotationConfigWrite({
+  sessionId,
   pending: proposal,
   apply,
   addToolOutput,
   agentStore,
 }: {
+  sessionId: string | null;
   pending: {
     toolCallId: string;
     toolName: string;
@@ -32,7 +34,7 @@ export async function stageAnnotationConfigWrite({
   agentStore: AgentStore;
 }): Promise<void> {
   const pending = bindPendingApproval({
-    pending: proposal,
+    pending: { ...proposal, sessionId },
     apply,
     addToolOutput,
     setPending: agentStore.getState().setPendingAnnotationConfigWrite,

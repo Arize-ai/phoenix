@@ -8,10 +8,11 @@ from sqlalchemy import Select, delete, select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
+from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
-from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -86,6 +87,28 @@ def _fork_title(title: str) -> str:
 
 @strawberry.type
 class AgentSessionMutationMixin:
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    async def create_agent_session(
+        self,
+        info: Info[Context, None],
+    ) -> AgentSessionMutationPayload:
+        """Create an empty persisted session for a browser chat lifecycle."""
+        if not info.context.settings.agent_assistant_enabled.enabled:
+            raise Unauthorized("Agents are disabled")
+        async with info.context.db() as session:
+            agent_session = models.AgentSession(
+                project_session_id=str(uuid4()),
+                project_name=get_env_phoenix_agents_assistant_project_name(),
+                user_id=info.context.user_id,
+                title="",
+            )
+            session.add(agent_session)
+            await session.flush()
+        return AgentSessionMutationPayload(
+            agent_session=to_gql_agent_session(agent_session),
+            query=Query(),
+        )
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_agent_session(
         self,

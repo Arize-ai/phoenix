@@ -99,7 +99,13 @@ export const createDatasetLabelAgentTool = defineTool<CreateDatasetLabelInput>({
   parseInput: parseCreateDatasetLabelInput,
   invalidInputErrorText: `Invalid ${CREATE_DATASET_LABEL_TOOL_NAME} input. Expected { name: string, description?: string, color?: string, attachToDataset?: boolean }.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
       await addToolOutput({
@@ -112,6 +118,7 @@ export const createDatasetLabelAgentTool = defineTool<CreateDatasetLabelInput>({
     }
     const datasetId = datasetContext.datasetNodeId;
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: CREATE_DATASET_LABEL_TOOL_NAME,
@@ -135,7 +142,13 @@ export const setDatasetLabelsAgentTool = defineTool<SetDatasetLabelsInput>({
   parseInput: parseSetDatasetLabelsInput,
   invalidInputErrorText: `Invalid ${SET_DATASET_LABELS_TOOL_NAME} input. Expected { labelNames: string[] }.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
       await addToolOutput({
@@ -148,6 +161,7 @@ export const setDatasetLabelsAgentTool = defineTool<SetDatasetLabelsInput>({
     }
     const datasetId = datasetContext.datasetNodeId;
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: SET_DATASET_LABELS_TOOL_NAME,
@@ -167,7 +181,13 @@ export const deleteDatasetLabelsAgentTool =
     parseInput: parseDeleteDatasetLabelsInput,
     invalidInputErrorText: `Invalid ${DELETE_DATASET_LABELS_TOOL_NAME} input. Expected { labelNames: string[] }.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {
         await addToolOutput({
@@ -179,6 +199,7 @@ export const deleteDatasetLabelsAgentTool =
         return;
       }
       await stageDatasetWrite({
+        sessionId,
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: DELETE_DATASET_LABELS_TOOL_NAME,

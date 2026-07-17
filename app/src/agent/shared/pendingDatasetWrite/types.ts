@@ -85,7 +85,10 @@ export type DatasetWriteApplyResult = ApprovalApplyResult;
 export type PendingDatasetWrite = PendingApproval<DatasetWritePreview>;
 
 export type BindPendingDatasetWriteOptions = {
-  pending: Pick<PendingDatasetWrite, "toolCallId" | "toolName" | "preview">;
+  pending: Pick<
+    PendingDatasetWrite,
+    "toolCallId" | "sessionId" | "toolName" | "preview"
+  >;
   /** Performs the actual write; called only on accept (or auto-accept). */
   apply: () => Promise<DatasetWriteApplyResult>;
   addToolOutput: DatasetWriteToolOutputSender;

@@ -2439,6 +2439,7 @@ input ModelsInput {
 }
 
 type Mutation {
+  createAgentSession: AgentSessionMutationPayload!
   deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   truncateAgentSession(input: TruncateAgentSessionInput!): AgentSessionMutationPayload!
   forkAgentSession(input: ForkAgentSessionInput!): AgentSessionMutationPayload!

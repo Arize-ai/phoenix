@@ -75,7 +75,13 @@ export const addDatasetExamplesAgentTool = defineTool<AddDatasetExamplesInput>({
   parseInput: parseAddDatasetExamplesInput,
   invalidInputErrorText: `Invalid ${ADD_DATASET_EXAMPLES_TOOL_NAME} input. Expected { examples: [{ input: object, output?: object, metadata?: object }] }.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
       await addToolOutput({
@@ -88,6 +94,7 @@ export const addDatasetExamplesAgentTool = defineTool<AddDatasetExamplesInput>({
     }
     const datasetId = datasetContext.datasetNodeId;
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: ADD_DATASET_EXAMPLES_TOOL_NAME,
@@ -107,7 +114,13 @@ export const patchDatasetExamplesAgentTool =
     parseInput: parsePatchDatasetExamplesInput,
     invalidInputErrorText: `Invalid ${PATCH_DATASET_EXAMPLES_TOOL_NAME} input. Expected { patches: [{ exampleId, input?, output?, metadata? }], versionDescription? }, with each exampleId appearing at most once.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {
         await addToolOutput({
@@ -135,6 +148,7 @@ export const patchDatasetExamplesAgentTool =
         return;
       }
       await stageDatasetWrite({
+        sessionId,
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: PATCH_DATASET_EXAMPLES_TOOL_NAME,
@@ -161,7 +175,13 @@ export const deleteDatasetExamplesAgentTool =
     parseInput: parseDeleteDatasetExamplesInput,
     invalidInputErrorText: `Invalid ${DELETE_DATASET_EXAMPLES_TOOL_NAME} input. Expected { exampleIds: string[], versionDescription? }.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {
         await addToolOutput({
@@ -188,6 +208,7 @@ export const deleteDatasetExamplesAgentTool =
         return;
       }
       await stageDatasetWrite({
+        sessionId,
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: DELETE_DATASET_EXAMPLES_TOOL_NAME,

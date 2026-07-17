@@ -10,6 +10,7 @@ function setup(applyResult: ApprovalApplyResult) {
   const pending = bindPendingApproval<{ kind: string }>({
     pending: {
       toolCallId: "call-1",
+      sessionId: "session-1",
       toolName: "some_write_tool",
       preview: { kind: "demo" },
     },

@@ -11,8 +11,92 @@ import {
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
 } from "../agentStore";
+import type { AgentState } from "../agentStore";
 
 installTestStorage();
+
+type PendingToolStateCase = {
+  name: string;
+  set: (state: AgentState, toolCallId: string, sessionId: string) => void;
+  get: (state: AgentState, toolCallId: string, sessionId: string) => unknown;
+};
+
+const pendingToolStateCases: PendingToolStateCase[] = [
+  {
+    name: "elicitation",
+    set: (state, toolCallId, sessionId) =>
+      state.setPendingElicitation(sessionId, {
+        toolCallId,
+        sessionId,
+      } as never),
+    get: (state, _toolCallId, sessionId) =>
+      state.pendingElicitationBySessionId[sessionId],
+  },
+  ...[
+    ["prompt edit", "setPendingPromptEdit", "pendingPromptEditsByToolCallId"],
+    [
+      "prompt removal",
+      "setPendingPromptInstanceRemoval",
+      "pendingPromptInstanceRemovalsByToolCallId",
+    ],
+    [
+      "batch span annotation",
+      "setPendingBatchSpanAnnotate",
+      "pendingBatchSpanAnnotatesByToolCallId",
+    ],
+    [
+      "dataset write",
+      "setPendingDatasetWrite",
+      "pendingDatasetWritesByToolCallId",
+    ],
+    [
+      "annotation config write",
+      "setPendingAnnotationConfigWrite",
+      "pendingAnnotationConfigWritesByToolCallId",
+    ],
+    [
+      "experiment patch",
+      "setPendingPatchExperiment",
+      "pendingPatchExperimentsByToolCallId",
+    ],
+    [
+      "prompt tool write",
+      "setPendingPromptToolWrite",
+      "pendingPromptToolWritesByToolCallId",
+    ],
+    ["save prompt", "setPendingSavePrompt", "pendingSavePromptsByToolCallId"],
+    [
+      "code evaluator edit",
+      "setPendingCodeEvaluatorEdit",
+      "pendingCodeEvaluatorEditsByToolCallId",
+    ],
+    [
+      "LLM evaluator edit",
+      "setPendingLlmEvaluatorEdit",
+      "pendingLlmEvaluatorEditsByToolCallId",
+    ],
+    [
+      "load dataset",
+      "setPendingLoadDataset",
+      "pendingLoadDatasetsByToolCallId",
+    ],
+  ].map(([name, setterName, recordName]) => ({
+    name,
+    set: (state: AgentState, toolCallId: string, sessionId: string) => {
+      const setter = state[setterName as keyof AgentState] as (
+        toolCallId: string,
+        value: never
+      ) => void;
+      setter(toolCallId, { toolCallId, sessionId } as never);
+    },
+    get: (state: AgentState, toolCallId: string) => {
+      const record = state[recordName as keyof AgentState] as Partial<
+        Record<string, unknown>
+      >;
+      return record[toolCallId];
+    },
+  })),
+];
 
 describe("agentStore", () => {
   beforeEach(() => {
@@ -46,29 +130,36 @@ describe("agentStore", () => {
   });
 
   describe("createSession", () => {
-    it("creates a session, adds it to sessions list, and sets it as active", () => {
+    it("creates a local draft and sets it as active", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
       const state = store.getState();
-      expect(state.sessions).toEqual([sessionId]);
       expect(state.activeSessionId).toBe(sessionId);
-      expect(state.sessionMap[sessionId]).toMatchObject({
-        clientKey: sessionId,
-        id: null,
-      });
+      expect(state.draftSessionId).toBe(sessionId);
+      expect(state.sessionStateById[sessionId]).toBeDefined();
     });
 
-    it("marks a local draft persisted without replacing its runtime state", () => {
+    it("promotes a draft to the canonical Relay ID and rekeys UI state", () => {
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
+      const draftSessionId = store.getState().createSession();
+      store.getState().setDraftInput(draftSessionId, "hello");
+      store.getState().setPendingMessage(draftSessionId, {
+        text: "continue",
+        requestedSkills: ["debug"],
+      });
 
-      store.getState().setSessionPersisted(sessionId, "session-node-id");
+      store.getState().promoteSession(draftSessionId, "QWdlbnRTZXNzaW9uOjE=");
 
-      expect(store.getState().sessionMap[sessionId]?.id).toBe(
-        "session-node-id"
-      );
-      expect(store.getState().sessionMap[sessionId]?.clientKey).toBe(sessionId);
-      expect(store.getState().activeSessionId).toBe(sessionId);
+      const state = store.getState();
+      expect(state.activeSessionId).toBe("QWdlbnRTZXNzaW9uOjE=");
+      expect(state.draftSessionId).toBeNull();
+      expect(state.sessionStateById[draftSessionId]).toBeUndefined();
+      expect(state.sessionStateById["QWdlbnRTZXNzaW9uOjE="]).toBeDefined();
+      expect(state.draftInputBySessionId["QWdlbnRTZXNzaW9uOjE="]).toBe("hello");
+      expect(state.pendingMessageBySessionId["QWdlbnRTZXNzaW9uOjE="]).toEqual({
+        text: "continue",
+        requestedSkills: ["debug"],
+      });
     });
   });
 
@@ -78,18 +169,16 @@ describe("agentStore", () => {
       const sessionId = store.getState().createSession();
       store.getState().deleteSession(sessionId);
       const state = store.getState();
-      expect(state.sessions).toEqual([]);
-      expect(state.sessionMap[sessionId]).toBeUndefined();
+      expect(state.sessionStateById[sessionId]).toBeUndefined();
       expect(state.activeSessionId).toBeNull();
     });
 
     it("falls back activeSessionId to last remaining session when active is deleted", () => {
       const store = createAgentStore();
-      const sessionId1 = store.getState().createSession();
-      const sessionId2 = store.getState().createSession();
-      // active is sessionId2
-      store.getState().deleteSession(sessionId2);
-      expect(store.getState().activeSessionId).toBe(sessionId1);
+      store.getState().cacheSession("QWdlbnRTZXNzaW9uOjE=");
+      const draftSessionId = store.getState().createSession();
+      store.getState().deleteSession(draftSessionId);
+      expect(store.getState().activeSessionId).toBe("QWdlbnRTZXNzaW9uOjE=");
     });
   });
 
@@ -134,7 +223,9 @@ describe("agentStore", () => {
 
     it("keeps pending patches for retained sessions when a new session is created", () => {
       const store = createAgentStore();
-      const firstSessionId = store.getState().createSession();
+      const draftSessionId = store.getState().createSession();
+      const firstSessionId = "QWdlbnRTZXNzaW9uOjE=";
+      store.getState().promoteSession(draftSessionId, firstSessionId);
       setPendingPatch(store, "tool-call-1", firstSessionId);
 
       // Sessions persist server-side; creating a new one no longer drops the
@@ -147,75 +238,94 @@ describe("agentStore", () => {
     });
   });
 
+  describe("pending tool-state cleanup", () => {
+    it.each(pendingToolStateCases)(
+      "clears $name by owning session and by dropped tool call",
+      ({ set, get }) => {
+        const sessionStore = createAgentStore();
+        set(sessionStore.getState(), "session-tool", "session-1");
+        sessionStore
+          .getState()
+          .clearPendingToolState({ sessionId: "session-1" });
+        expect(
+          get(sessionStore.getState(), "session-tool", "session-1")
+        ).toBeUndefined();
+
+        const rewindStore = createAgentStore();
+        set(rewindStore.getState(), "rewound-tool", "session-2");
+        rewindStore
+          .getState()
+          .clearPendingToolState({ toolCallIds: ["rewound-tool"] });
+        expect(
+          get(rewindStore.getState(), "rewound-tool", "session-2")
+        ).toBeUndefined();
+      }
+    );
+  });
+
   describe("updateSessionModelConfig", () => {
     it("partial-merges model config without clobbering other fields", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
       const originalProvider =
-        store.getState().sessionMap[sessionId].modelConfig.provider;
+        store.getState().sessionStateById[sessionId].modelConfig.provider;
       store
         .getState()
         .updateSessionModelConfig(sessionId, { modelName: "gpt-4o" });
-      const config = store.getState().sessionMap[sessionId].modelConfig;
+      const config = store.getState().sessionStateById[sessionId].modelConfig;
       expect(config.modelName).toBe("gpt-4o");
       expect(config.provider).toBe(originalProvider);
     });
   });
 
   describe("session retention", () => {
-    it("retains prior sessions when creating a new session", () => {
+    it("replaces a previous unpersisted draft when creating a new session", () => {
       const store = createAgentStore();
       const firstSessionId = store.getState().createSession();
       const secondSessionId = store.getState().createSession();
 
-      expect(store.getState().sessions).toEqual([
-        firstSessionId,
-        secondSessionId,
-      ]);
       expect(store.getState().activeSessionId).toBe(secondSessionId);
-      expect(store.getState().sessionMap[firstSessionId]).toBeDefined();
+      expect(store.getState().draftSessionId).toBe(secondSessionId);
+      expect(store.getState().sessionStateById[firstSessionId]).toBeUndefined();
+    });
+
+    it("switches canonical sessions without moving their ephemeral state", () => {
+      const store = createAgentStore();
+      store.getState().cacheSession("QWdlbnRTZXNzaW9uOjE=");
+      store.getState().cacheSession("QWdlbnRTZXNzaW9uOjI=");
+      store.getState().setDraftInput("QWdlbnRTZXNzaW9uOjE=", "first draft");
+
+      store.getState().setActiveSession("QWdlbnRTZXNzaW9uOjE=");
+      store.getState().setActiveSession("QWdlbnRTZXNzaW9uOjI=");
+
+      expect(store.getState().activeSessionId).toBe("QWdlbnRTZXNzaW9uOjI=");
+      expect(
+        store.getState().draftInputBySessionId["QWdlbnRTZXNzaW9uOjE="]
+      ).toBe("first draft");
     });
   });
 
   describe("cacheSession", () => {
     it("adds server-loaded metadata to the runtime cache", () => {
       const store = createAgentStore();
-      store.getState().cacheSession({
-        clientKey: "remote",
-        id: "remote-node-id",
-        title: "remote session",
-        context: [],
-        modelConfig: store.getState().defaultModelConfig,
-        createdAt: 1,
-      });
+      store.getState().cacheSession("remote-node-id");
 
       const state = store.getState();
-      expect(state.sessions).toEqual(["remote"]);
-      expect(state.sessionMap["remote"]).toMatchObject({
-        title: "remote session",
-        createdAt: 1,
+      expect(state.sessionStateById["remote-node-id"]).toMatchObject({
+        context: [],
       });
       expect(state.activeSessionId).toBeNull();
     });
 
-    it("preserves local metadata while backfilling a server title", () => {
+    it("does not replace existing ephemeral state during transcript handoff", () => {
       const store = createAgentStore();
       const localSessionId = store.getState().createSession();
       store.getState().addSessionContext(localSessionId, "span:123");
 
-      store.getState().cacheSession({
-        clientKey: localSessionId,
-        id: "local-node-id",
-        title: "server title",
-        context: [],
-        modelConfig: store.getState().defaultModelConfig,
-        createdAt: 1,
-      });
+      store.getState().cacheSession(localSessionId);
 
       const state = store.getState();
-      expect(state.sessions).toEqual([localSessionId]);
-      const localSession = state.sessionMap[localSessionId];
-      expect(localSession?.title).toBe("server title");
+      const localSession = state.sessionStateById[localSessionId];
       expect(localSession?.context).toEqual(["span:123"]);
     });
   });
@@ -263,7 +373,9 @@ describe("agentStore", () => {
 
     it("keeps drafts for retained sessions when a new session is created", () => {
       const store = createAgentStore();
-      const firstSessionId = store.getState().createSession();
+      const draftSessionId = store.getState().createSession();
+      const firstSessionId = "QWdlbnRTZXNzaW9uOjE=";
+      store.getState().promoteSession(draftSessionId, firstSessionId);
       store.getState().setDraftInput(firstSessionId, "old draft");
 
       const secondSessionId = store.getState().createSession();

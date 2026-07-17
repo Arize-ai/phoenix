@@ -81,24 +81,28 @@ function renderChatView(
     chatKey,
     chatMessages = [],
     error,
+    syncError,
     status = "ready",
     initialDraftInputBySessionId,
     sendMessage = vi.fn<ChatViewSendMessage>(),
     retryMessage,
     rewindToMessage,
     forkFromMessage,
+    isSessionOperationPending = false,
   }: {
     sessionId?: string;
     autoFocusInput?: boolean;
     chatKey?: string;
     chatMessages?: AgentUIMessage[];
     error?: Error;
+    syncError?: Error;
     status?: "submitted" | "streaming" | "ready" | "error";
     initialDraftInputBySessionId?: Record<string, string>;
     sendMessage?: ChatViewSendMessage;
     retryMessage?: (messageId?: string) => void;
-    rewindToMessage?: (messageId: string) => string | null;
-    forkFromMessage?: (messageId: string) => string | null;
+    rewindToMessage?: (messageId: string) => Promise<string | null>;
+    forkFromMessage?: (messageId: string) => Promise<string | null>;
+    isSessionOperationPending?: boolean;
   } = {}
 ) {
   act(() => {
@@ -140,12 +144,14 @@ function renderChatView(
             stop={async () => undefined}
             status={status}
             error={error}
+            syncError={syncError}
             pendingElicitation={null}
             handleElicitationSubmit={vi.fn()}
             handleElicitationCancel={vi.fn()}
             retryMessage={retryMessage}
             rewindToMessage={rewindToMessage}
             forkFromMessage={forkFromMessage}
+            isSessionOperationPending={isSessionOperationPending}
             modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
             onModelChange={vi.fn()}
             autoFocusInput={autoFocusInput}
@@ -184,6 +190,18 @@ function pressEnter(textarea: HTMLTextAreaElement): void {
 }
 
 describe("ChatView", () => {
+  it("surfaces transcript sync errors without replacing live messages", () => {
+    renderChatView(root, {
+      chatMessages: messages,
+      syncError: new Error("Relay network failed"),
+    });
+
+    expect(container.textContent).toContain("Relay network failed");
+    expect(container.textContent).toContain(
+      "live transcript has been retained"
+    );
+  });
+
   let container: HTMLDivElement;
   let root: Root;
 
@@ -315,6 +333,21 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("provider unavailable");
   });
 
+  it("hides retry while a session operation is pending", () => {
+    renderChatView(root, {
+      chatMessages: messages,
+      error: new Error("provider unavailable"),
+      status: "error",
+      retryMessage: vi.fn(),
+      isSessionOperationPending: true,
+    });
+
+    const retryButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Retry"
+    );
+    expect(retryButton).toBeUndefined();
+  });
+
   it.each([
     {
       name: "while submitted",
@@ -393,15 +426,15 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Branch before message");
   });
 
-  it("retries an interrupted user message without duplicating it", () => {
+  it("retries an interrupted user message without duplicating it", async () => {
     const sendMessage = vi.fn();
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
       sendMessage,
       rewindToMessage,
-      forkFromMessage: vi.fn(),
+      forkFromMessage: vi.fn(async () => null),
     });
 
     const retryButton = Array.from(container.querySelectorAll("button")).find(
@@ -409,7 +442,7 @@ describe("ChatView", () => {
     );
     expect(retryButton).not.toBeUndefined();
 
-    act(() => {
+    await act(async () => {
       retryButton?.click();
     });
 
@@ -418,12 +451,12 @@ describe("ChatView", () => {
   });
 
   it("confirms editing an interrupted user message", () => {
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
       rewindToMessage,
-      forkFromMessage: vi.fn(),
+      forkFromMessage: vi.fn(async () => null),
     });
 
     const editButton = Array.from(container.querySelectorAll("button")).find(
@@ -446,11 +479,11 @@ describe("ChatView", () => {
   });
 
   it("confirms branching before an interrupted user message", () => {
-    const forkFromMessage = vi.fn(() => "branch-session");
+    const forkFromMessage = vi.fn(async () => "branch-session");
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
-      rewindToMessage: vi.fn(),
+      rewindToMessage: vi.fn(async () => null),
       forkFromMessage,
     });
 
@@ -474,14 +507,14 @@ describe("ChatView", () => {
   });
 
   it("confirms undoing a failed turn from the latest user message", () => {
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: messages,
       error: new Error("provider unavailable"),
       status: "error",
       retryMessage: vi.fn(),
       rewindToMessage,
-      forkFromMessage: vi.fn(),
+      forkFromMessage: vi.fn(async () => null),
     });
 
     const undoButton = Array.from(container.querySelectorAll("button")).find(
@@ -506,13 +539,13 @@ describe("ChatView", () => {
   });
 
   it("confirms branching before a failed turn from the latest user message", () => {
-    const forkFromMessage = vi.fn(() => "forked-session");
+    const forkFromMessage = vi.fn(async () => "forked-session");
     renderChatView(root, {
       chatMessages: messages,
       error: new Error("provider unavailable"),
       status: "error",
       retryMessage: vi.fn(),
-      rewindToMessage: vi.fn(),
+      rewindToMessage: vi.fn(async () => null),
       forkFromMessage,
     });
 

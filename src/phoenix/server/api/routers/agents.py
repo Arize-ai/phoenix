@@ -51,6 +51,7 @@ from pydantic_ai.ui.vercel_ai.request_types import RequestData as PydanticAIRequ
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
+    ErrorChunk,
     FinishChunk,
     MessageMetadataChunk,
     StartChunk,
@@ -138,6 +139,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatus,
     get_sandbox_backend_info,
 )
+from phoenix.server.authorization import is_not_locked, prevent_access_in_read_only_mode
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
@@ -217,6 +219,24 @@ class SessionCreatedChunk(DataChunk):
 
     type: Literal["data-session-created"] = "data-session-created"
     data: SessionCreatedData
+    transient: Literal[True] = True
+
+
+@register_openapi_schema
+class SessionCommittedData(_CamelBaseModel):
+    """Canonical metadata for a successfully persisted session transcript."""
+
+    id: str
+    updated_at: datetime
+    message_id: str
+
+
+@register_openapi_schema
+class SessionCommittedChunk(DataChunk):
+    """Terminal acknowledgement emitted only after transcript persistence commits."""
+
+    type: Literal["data-session-committed"] = "data-session-committed"
+    data: SessionCommittedData
     transient: Literal[True] = True
 
 
@@ -1420,9 +1440,10 @@ async def _persist_agent_session_turn(
     messages: list[PhoenixUIMessage],
     bashkit_snapshot: bytes | None,
     title: str | None = None,
-) -> None:
+) -> SessionCommittedData | None:
     if not messages:
-        return
+        return None
+    committed_data: SessionCommittedData | None = None
     async with db() as session:
         updated_agent_session_rowid = await _update_agent_session(
             session,
@@ -1431,7 +1452,7 @@ async def _persist_agent_session_turn(
             title=title or "",
         )
         if updated_agent_session_rowid is None:
-            return
+            return None
         await session.execute(
             delete(models.AgentSessionMessage).where(
                 models.AgentSessionMessage.agent_session_id == agent_session_rowid
@@ -1451,6 +1472,18 @@ async def _persist_agent_session_turn(
                 agent_session_rowid=agent_session_rowid,
                 bashkit_snapshot=bashkit_snapshot,
             )
+        updated_at = await session.scalar(
+            select(models.AgentSession.updated_at).where(
+                models.AgentSession.id == agent_session_rowid
+            )
+        )
+        assert updated_at is not None
+        committed_data = SessionCommittedData(
+            id=str(GlobalID("AgentSession", str(agent_session_rowid))),
+            updated_at=updated_at,
+            message_id=messages[-1].id,
+        )
+    return committed_data
 
 
 async def _load_bash_snapshot(
@@ -1478,21 +1511,13 @@ async def _build_session_transcript(
         for chunk in message_chunks:
             yield chunk
 
-    try:
-        async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_message_chunks()):
-            latest_assistant_message = message
-        if latest_assistant_message is None:
-            return list(request_messages)
-        persisted_assistant_message = PhoenixUIMessage.model_validate(
-            latest_assistant_message.model_dump(mode="json", by_alias=True, exclude_none=True)
-        )
-    except Exception:
-        logger.exception(
-            "Failed to accumulate the turn's streamed messages for session %r; "
-            "persisting the incoming history only",
-            session_id,
-        )
-        return list(request_messages)
+    async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_message_chunks()):
+        latest_assistant_message = message
+    if latest_assistant_message is None:
+        raise ValueError(f"Failed to reconstruct streamed assistant message for {session_id!r}")
+    persisted_assistant_message = PhoenixUIMessage.model_validate(
+        latest_assistant_message.model_dump(mode="json", by_alias=True, exclude_none=True)
+    )
     if (
         request_messages
         and request_messages[-1].role == "assistant"
@@ -1658,7 +1683,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         return adapter.streaming_response(_stream_with_session())
 
-    @router.post("/agents/{agent_id}/chat")
+    @router.post(
+        "/agents/{agent_id}/chat",
+        dependencies=[Depends(prevent_access_in_read_only_mode), Depends(is_not_locked)],
+    )
     async def chat(
         agent_id: str,
         request: Request,
@@ -1707,6 +1735,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         raise HTTPException(
                             status_code=400,
                             detail="Regeneration requires a persisted session",
+                        )
+                    assert isinstance(body, AgentChatSubmitMessage)
+                    if incoming_message.role != "user" or body.parent_message_id is not None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="A continuation requires a persisted session",
                         )
                     agent_session = await _create_agent_session(
                         session,
@@ -1976,6 +2010,38 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             stream_error: BaseException | None = None
             summary_task: asyncio.Task[str | None] | None = None
             emitted_message_chunks: list[BaseChunk] = []
+            persistence_attempted = False
+            finish_chunk: FinishChunk | None = None
+
+            async def _persist_turn() -> SessionCommittedData | None:
+                nonlocal persistence_attempted
+                persistence_attempted = True
+                session_title: str | None = None
+                if summary_task is not None:
+                    if summary_task.done() and not summary_task.cancelled():
+                        session_title = summary_task.result()
+                    else:
+                        summary_task.cancel()
+                try:
+                    return await _persist_agent_session_turn(
+                        request.app.state.db,
+                        agent_session_rowid=agent_session_rowid,
+                        user_id=request_user_id,
+                        messages=await _build_session_transcript(
+                            request_messages=messages,
+                            message_chunks=emitted_message_chunks,
+                            session_id=otel_session_id,
+                        ),
+                        bashkit_snapshot=captured_bash_snapshot,
+                        title=session_title,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to persist agent session %r",
+                        str(GlobalID("AgentSession", str(agent_session_rowid))),
+                    )
+                    return None
+
             try:
                 if tracer is not None and body.turn_trace_context is not None:
                     _synthesize_client_tool_spans(
@@ -2060,35 +2126,23 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         )
                     async for message_chunk in message_chunk_stream:
                         emitted_message_chunks.append(message_chunk)
-                        yield message_chunk
+                        if isinstance(message_chunk, FinishChunk):
+                            finish_chunk = message_chunk
+                        else:
+                            yield message_chunk
+                committed_data = await _persist_turn()
+                if committed_data is None:
+                    yield ErrorChunk(error_text="Failed to persist agent session")
+                    return
+                yield SessionCommittedChunk(data=committed_data)
+                if finish_chunk is not None:
+                    yield finish_chunk
             except BaseException as exc:
                 stream_error = exc
                 raise
             finally:
-                session_title: str | None = None
-                if summary_task is not None:
-                    if summary_task.done() and not summary_task.cancelled():
-                        session_title = summary_task.result()
-                    else:
-                        summary_task.cancel()
-                try:
-                    await _persist_agent_session_turn(
-                        request.app.state.db,
-                        agent_session_rowid=agent_session_rowid,
-                        user_id=request_user_id,
-                        messages=await _build_session_transcript(
-                            request_messages=messages,
-                            message_chunks=emitted_message_chunks,
-                            session_id=otel_session_id,
-                        ),
-                        bashkit_snapshot=captured_bash_snapshot,
-                        title=session_title,
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist agent session %r",
-                        str(GlobalID("AgentSession", str(agent_session_rowid))),
-                    )
+                if not persistence_attempted:
+                    await _persist_turn()
                 if tracer is not None:
                     if turn_is_terminal or stream_error is not None:
                         _emit_turn_root_span(

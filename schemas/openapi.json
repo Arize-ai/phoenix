@@ -18006,6 +18006,69 @@
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
       },
+      "SessionCommittedChunk": {
+        "additionalProperties": false,
+        "description": "Terminal acknowledgement emitted only after transcript persistence commits.",
+        "properties": {
+          "type": {
+            "const": "data-session-committed",
+            "default": "data-session-committed",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SessionCommittedData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionCommittedChunk",
+        "type": "object"
+      },
+      "SessionCommittedData": {
+        "description": "Canonical metadata for a successfully persisted session transcript.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          },
+          "messageId": {
+            "title": "Messageid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "updatedAt",
+          "messageId"
+        ],
+        "title": "SessionCommittedData",
+        "type": "object"
+      },
       "SessionCreatedChunk": {
         "additionalProperties": false,
         "description": "Transient canonical metadata for an owner-qualified persisted session.\n\nRepeated acknowledgements let a retry reconcile clients that disconnected\nbefore receiving the first stream's event.",

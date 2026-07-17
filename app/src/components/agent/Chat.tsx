@@ -4,7 +4,6 @@ import {
   useCallback,
   type CSSProperties,
   type ReactNode,
-  useEffect,
   useMemo,
   useRef,
   useLayoutEffect,
@@ -22,6 +21,7 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
+import { Alert } from "@phoenix/components";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import { PromptInput } from "@phoenix/components/ai/prompt-input";
@@ -41,6 +41,7 @@ import {
   AgentModelCredentialForm,
   useAgentModelCredentialStatus,
 } from "./AgentModelCredentialForm";
+import { useOptionalAgentSessionLifecycle } from "./AgentSessionLifecycleProvider";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatErrorMessage } from "./ChatErrorMessage";
 import { ChatLantern } from "./ChatLantern";
@@ -306,12 +307,14 @@ export function Chat({
     stop,
     status,
     error,
+    syncError,
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
     retryMessage,
     rewindToMessage,
     forkFromMessage,
+    isSessionOperationPending,
   } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
 
   return (
@@ -323,12 +326,14 @@ export function Chat({
       stop={stop}
       status={status}
       error={error}
+      syncError={syncError}
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
       retryMessage={retryMessage}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
+      isSessionOperationPending={isSessionOperationPending}
       modelMenuValue={modelMenuValue}
       onModelChange={onModelChange}
       emptyStateSubtext={emptyStateSubtext}
@@ -352,12 +357,14 @@ export function ChatView({
   stop,
   status,
   error,
+  syncError,
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
   retryMessage,
   rewindToMessage,
   forkFromMessage,
+  isSessionOperationPending = false,
   modelMenuValue,
   onModelChange,
   children,
@@ -374,6 +381,7 @@ export function ChatView({
   stop: () => Promise<void>;
   status: ChatStatus;
   error: Error | undefined;
+  syncError?: Error | null;
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
@@ -383,9 +391,10 @@ export function ChatView({
    * Truncates the active session at a message; returns user text to restore.
    * Absent on read-only surfaces, which hides the rewind/branch controls.
    */
-  rewindToMessage?: (messageId: string) => string | null;
+  rewindToMessage?: (messageId: string) => Promise<string | null>;
   /** Branches a new session from a message; absent hides the branch control. */
-  forkFromMessage?: (messageId: string) => string | null;
+  forkFromMessage?: (messageId: string) => Promise<string | null>;
+  isSessionOperationPending?: boolean;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -412,6 +421,7 @@ export function ChatView({
     [scrollRef]
   );
   const store = useAgentStore();
+  const sessionLifecycle = useOptionalAgentSessionLifecycle();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftInput = useAgentContext((state) =>
     sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
@@ -438,25 +448,6 @@ export function ChatView({
     setDraftInput(sessionId, input);
   };
 
-  // Send any message staged for this session (e.g. carried past `/clear` from
-  // the previous session) as soon as the view mounts. Consuming is atomic, so
-  // re-runs and concurrent views are no-ops after the first send.
-  useEffect(() => {
-    if (!sessionId) {
-      return;
-    }
-    const pending = store.getState().consumePendingMessage(sessionId);
-    if (!pending) {
-      return;
-    }
-    sendMessage(
-      { text: pending.text },
-      pending.requestedSkills.length > 0
-        ? { body: { requestedSkills: pending.requestedSkills } }
-        : undefined
-    );
-  }, [sessionId, sendMessage, store]);
-
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
@@ -471,7 +462,10 @@ export function ChatView({
   });
   const latestMessage = messages.at(-1);
   const shouldShowInterruptedMessage =
-    status === "ready" && !error && latestMessage?.role === "user";
+    status === "ready" &&
+    !error &&
+    !isSessionOperationPending &&
+    latestMessage?.role === "user";
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -523,7 +517,8 @@ export function ChatView({
 
   // Rewind/branch changes finalized history, so these actions are only offered
   // once the chat has settled — never mid-request.
-  const hasChatSettled = status === "ready" || status === "error";
+  const hasChatSettled =
+    !isSessionOperationPending && (status === "ready" || status === "error");
 
   const onRewindRequest = useMemo<MessageRewindRequest | undefined>(() => {
     if (!hasChatSettled || !rewindToMessage) {
@@ -532,7 +527,7 @@ export function ChatView({
     return (request) => setRewindRequest(request);
   }, [hasChatSettled, rewindToMessage]);
 
-  const handleConfirmRewind = () => {
+  const handleConfirmRewind = async () => {
     if (!rewindRequest) {
       return;
     }
@@ -541,9 +536,9 @@ export function ChatView({
     if (mode === "fork") {
       // Forking switches the active session, which remounts this view; the
       // forked session receives restored text through draftInputBySessionId.
-      forkFromMessage?.(messageId);
+      await forkFromMessage?.(messageId);
     } else {
-      const restoredInput = rewindToMessage?.(messageId);
+      const restoredInput = await rewindToMessage?.(messageId);
       if (restoredInput != null) {
         setSessionDraftInput(restoredInput);
         textareaRef.current?.focus();
@@ -551,7 +546,7 @@ export function ChatView({
     }
   };
 
-  const handleRetryInterruptedMessage = () => {
+  const handleRetryInterruptedMessage = async () => {
     if (latestMessage?.role !== "user") {
       return;
     }
@@ -559,7 +554,10 @@ export function ChatView({
     if (!messageText) {
       return;
     }
-    rewindToMessage?.(latestMessage.id);
+    const restoredInput = await rewindToMessage?.(latestMessage.id);
+    if (restoredInput == null) {
+      return;
+    }
     void scrollToBottom();
     sendMessage({ text: messageText });
   };
@@ -604,6 +602,13 @@ export function ChatView({
           <div className="chat__scroll-frame">
             <div className="chat__scroll" ref={handleScrollRef}>
               <div className="chat__messages" ref={contentRef}>
+                {syncError ? (
+                  <Alert variant="danger">
+                    The session was saved, but its latest transcript could not
+                    be synced. The live transcript has been retained.{" "}
+                    {syncError.message}
+                  </Alert>
+                ) : null}
                 {showsEmptyState && (
                   <ChatEmptyState
                     key={theme}
@@ -657,7 +662,7 @@ export function ChatView({
                   <InterruptedChatMessage
                     latestUserMessageId={latestMessage.id}
                     canFork
-                    onRetry={handleRetryInterruptedMessage}
+                    onRetry={() => void handleRetryInterruptedMessage()}
                     onRewind={onRewindRequest}
                   />
                 ) : null}
@@ -673,7 +678,9 @@ export function ChatView({
                       role: "user",
                     })}
                     canFork
-                    onRetry={retryMessage}
+                    onRetry={
+                      isSessionOperationPending ? undefined : retryMessage
+                    }
                     onRewind={onRewindRequest}
                   />
                 )}
@@ -736,7 +743,9 @@ export function ChatView({
                     { commandNames, text, requestedSkills },
                     {
                       createSession,
-                      setPendingMessage: store.getState().setPendingMessage,
+                      setPendingMessage:
+                        sessionLifecycle?.stageMessage ??
+                        store.getState().setPendingMessage,
                     }
                   );
                   return;
@@ -757,7 +766,9 @@ export function ChatView({
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}
-              isSubmitDisabled={isSendDisabledForMissingCredentials}
+              isSubmitDisabled={
+                isSendDisabledForMissingCredentials || isSessionOperationPending
+              }
               onStop={() => {
                 void stop();
               }}

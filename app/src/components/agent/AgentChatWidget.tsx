@@ -15,6 +15,7 @@ import {
   VisuallyHidden,
 } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
+import { useAgentChatStatus } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
@@ -481,11 +482,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const hasOpenModal = activeModalPortalContainer !== null;
-  const isStreaming = useAgentContext((state) =>
-    activeSessionId
-      ? state.chatStatusBySessionId[activeSessionId] === "streaming"
-      : false
-  );
+  const isStreaming = useAgentChatStatus(activeSessionId) === "streaming";
 
   useHotkeys(
     OPEN_AGENT_HOTKEY,

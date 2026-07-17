@@ -104,8 +104,15 @@ export const createDatasetSplitAgentTool = defineTool<CreateDatasetSplitInput>({
   parseInput: parseCreateDatasetSplitInput,
   invalidInputErrorText: `Invalid ${CREATE_DATASET_SPLIT_TOOL_NAME} input. Expected { name: string, description?: string, color?: string, exampleIds?: string[] }.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: CREATE_DATASET_SPLIT_TOOL_NAME,
@@ -130,7 +137,13 @@ export const setDatasetExampleSplitsAgentTool =
     parseInput: parseSetDatasetExampleSplitsInput,
     invalidInputErrorText: `Invalid ${SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME} input. Expected { exampleIds: string[], splitNames: string[] }.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {
         await addToolOutput({
@@ -159,6 +172,7 @@ export const setDatasetExampleSplitsAgentTool =
         return;
       }
       await stageDatasetWrite({
+        sessionId,
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
@@ -186,7 +200,13 @@ export const patchDatasetSplitAgentTool = defineTool<PatchDatasetSplitInput>({
   parseInput: parsePatchDatasetSplitInput,
   invalidInputErrorText: `Invalid ${PATCH_DATASET_SPLIT_TOOL_NAME} input. Expected { splitName: string } plus at least one of { name?, description?, color? }.`,
   uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
       await addToolOutput({
@@ -199,6 +219,7 @@ export const patchDatasetSplitAgentTool = defineTool<PatchDatasetSplitInput>({
     }
     const { splitName, ...changes } = input;
     await stageDatasetWrite({
+      sessionId,
       pending: {
         toolCallId: toolCall.toolCallId,
         toolName: PATCH_DATASET_SPLIT_TOOL_NAME,
@@ -217,7 +238,13 @@ export const deleteDatasetSplitsAgentTool =
     parseInput: parseDeleteDatasetSplitsInput,
     invalidInputErrorText: `Invalid ${DELETE_DATASET_SPLITS_TOOL_NAME} input. Expected { splitNames: string[] }.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {
         await addToolOutput({
@@ -229,6 +256,7 @@ export const deleteDatasetSplitsAgentTool =
         return;
       }
       await stageDatasetWrite({
+        sessionId,
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: DELETE_DATASET_SPLITS_TOOL_NAME,

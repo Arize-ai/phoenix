@@ -59,6 +59,7 @@ from phoenix.server.api.routers.agents import (
 from phoenix.server.settings.registry import AgentTraceRecordingSetting
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, extract_otel_context
+from tests.unit.graphql import AsyncGraphQLClient
 
 _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
 
@@ -237,9 +238,17 @@ async def test_chat_turn_persists_session_transcript(
     chunk_types = [chunk.get("type") for chunk in chunks]
     assert chunk_types.index("start") < chunk_types.index("data-session-created")
     assert chunk_types.index("data-session-created") < chunk_types.index("finish")
+    committed_chunks = [chunk for chunk in chunks if chunk.get("type") == "data-session-committed"]
+    assert len(committed_chunks) == 1
+    assert committed_chunks[0]["transient"] is True
+    assert committed_chunks[0]["data"]["id"] == agent_session_id
+    assert committed_chunks[0]["data"]["messageId"]
+    assert committed_chunks[0]["data"]["updatedAt"]
+    assert chunk_types.index("data-session-committed") < chunk_types.index("finish")
+    assert chunk_types[-1] == "finish"
     # A new session's first turn streams the LLM session title as a transient
     # data chunk (TestModel fills the summary tool with generated args: "a").
-    assert "data-session-summary" in response.text
+    assert chunk_types.index("data-session-summary") < chunk_types.index("data-session-committed")
 
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
@@ -255,6 +264,11 @@ async def test_chat_turn_persists_session_transcript(
         assert agent_session.title == "a"
         messages = await _load_session_messages(session, agent_session.id)
         persisted_session_id = agent_session.project_session_id
+        assert committed_chunks[0]["data"]["messageId"] == messages[-1]["id"]
+        committed_at = datetime.fromisoformat(
+            committed_chunks[0]["data"]["updatedAt"].replace("Z", "+00:00")
+        )
+        assert committed_at == agent_session.updated_at
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
@@ -300,7 +314,204 @@ async def test_chat_turn_persists_session_transcript(
         assert agent_session.title == "a"
         resumed_messages = await _load_session_messages(session, agent_session.id)
         assert resumed_messages[: len(messages)] == messages
-        assert resumed_messages[len(messages)]["id"] == "msg-user-2"
+    assert resumed_messages[len(messages)]["id"] == "msg-user-2"
+
+
+async def test_chat_turn_commits_graphql_precreated_session(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    create_response = await gql_client.execute(
+        query="""
+        mutation {
+          createAgentSession {
+            agentSession { id messages }
+          }
+        }
+        """
+    )
+    assert create_response.data and not create_response.errors
+    created_session = create_response.data["createAgentSession"]["agentSession"]
+    assert created_session["messages"] == []
+    agent_session_id = created_session["id"]
+
+    response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            "88888888-8888-4888-8888-888888888888",
+            [_user_message("What datasets exist?")],
+            agent_session_id=agent_session_id,
+        ),
+    )
+
+    assert response.status_code == 200
+    chunks = _stream_chunks(response.text)
+    created_chunks = [chunk for chunk in chunks if chunk.get("type") == "data-session-created"]
+    committed_chunks = [chunk for chunk in chunks if chunk.get("type") == "data-session-committed"]
+    assert len(created_chunks) == 1
+    assert created_chunks[0]["data"]["id"] == agent_session_id
+    assert len(committed_chunks) == 1
+    assert committed_chunks[0]["data"]["id"] == agent_session_id
+    agent_session_rowid = int(GlobalID.from_id(agent_session_id).node_id)
+    async with db() as session:
+        messages = await _load_session_messages(session, agent_session_rowid)
+    assert messages[0]["id"] == "msg-user-1"
+    assert messages[0]["role"] == "user"
+    assert messages[-1]["role"] == "assistant"
+    assert committed_chunks[0]["data"]["messageId"] == messages[-1]["id"]
+
+
+async def test_chat_stream_errors_before_finish_when_persistence_fails(
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    async def _fail_persistence(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    monkeypatch.setattr(
+        "phoenix.server.api.routers.agents._persist_agent_session_turn",
+        _fail_persistence,
+    )
+
+    response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            "77777777-7777-4777-8777-777777777777",
+            [_user_message("What datasets exist?")],
+        ),
+    )
+
+    assert response.status_code == 200
+    chunks = _stream_chunks(response.text)
+    chunk_types = [chunk.get("type") for chunk in chunks]
+    assert "data-session-committed" not in chunk_types
+    assert "finish" not in chunk_types
+    assert chunk_types[-1] == "error"
+    assert chunks[-1]["errorText"] == "Failed to persist agent session"
+
+
+async def test_chat_stream_errors_when_assistant_conversion_fails(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    async def _invalid_reconstruction(
+        *args: object, **kwargs: object
+    ) -> AsyncIterator[UIMessage]:
+        message = MagicMock(spec=UIMessage)
+        message.model_dump.return_value = {
+            "id": "assistant-1",
+            "role": "invalid",
+            "parts": [],
+        }
+        yield message
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    monkeypatch.setattr(
+        "phoenix.server.api.routers.agents.accumulate_ui_message_chunks_to_ui_messages",
+        _invalid_reconstruction,
+    )
+
+    response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            "66666666-6666-4666-8666-666666666666",
+            [_user_message("What datasets exist?")],
+        ),
+    )
+
+    assert response.status_code == 200
+    chunks = _stream_chunks(response.text)
+    chunk_types = [chunk.get("type") for chunk in chunks]
+    assert "data-session-committed" not in chunk_types
+    assert "finish" not in chunk_types
+    assert chunk_types[-1] == "error"
+    assert chunks[-1]["errorText"] == "Failed to persist agent session"
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert await _load_session_messages(session, agent_session.id) == [
+            _user_message("What datasets exist?")
+        ]
+
+
+@pytest.mark.parametrize(
+    ("lock_mode", "expected_status", "expected_detail"),
+    [
+        ("read_only", 403, "disabled in read-only mode"),
+        ("insufficient_storage", 507, "disabled due to insufficient storage"),
+    ],
+)
+@pytest.mark.parametrize("continue_existing_session", [False, True])
+async def test_chat_is_blocked_when_application_writes_are_locked(
+    lock_mode: str,
+    expected_status: int,
+    expected_detail: str,
+    continue_existing_session: bool,
+    app: FastAPI,
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id: str | None = None
+    if continue_existing_session:
+        async with db() as session:
+            agent_session = models.AgentSession(
+                project_session_id="55555555-5555-4555-8555-555555555555",
+                project_name=get_env_phoenix_agents_assistant_project_name(),
+                title="Existing session",
+            )
+            session.add(agent_session)
+            await session.flush()
+            session.add(
+                models.AgentSessionMessage(
+                    agent_session_id=agent_session.id,
+                    position=0,
+                    message=PhoenixUIMessage.model_validate(_user_message("Existing message")),
+                )
+            )
+            agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    if lock_mode == "read_only":
+        app.state.read_only = True
+    else:
+        db.should_not_insert_or_update = True
+    try:
+        response = await httpx_client.post(
+            _chat_url(),
+            json=_chat_body(
+                "44444444-5555-4555-8555-555555555555",
+                [_user_message("Continue", message_id="msg-user-2")],
+                agent_session_id=agent_session_id,
+            ),
+        )
+    finally:
+        app.state.read_only = False
+        db.should_not_insert_or_update = False
+
+    assert response.status_code == expected_status
+    assert expected_detail in response.text
+    async with db() as session:
+        agent_sessions = (await session.scalars(select(models.AgentSession))).all()
+        if continue_existing_session:
+            assert len(agent_sessions) == 1
+            assert await _load_session_messages(session, agent_sessions[0].id) == [
+                _user_message("Existing message")
+            ]
+        else:
+            assert agent_sessions == []
 
 
 async def test_build_session_transcript_continues_existing_assistant_message() -> None:
@@ -866,6 +1077,51 @@ async def test_chat_turn_without_message_fails_validation(
     response = await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
     assert response.status_code == 422
 
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSession))).all() == []
+
+
+@pytest.mark.parametrize(
+    "body_override",
+    [
+        {"message": {"id": "assistant-1", "role": "assistant", "parts": []}},
+        {"parentMessageId": "assistant-1"},
+    ],
+)
+async def test_chat_continuation_without_agent_session_is_rejected(
+    body_override: dict[str, Any],
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    body = _chat_body(
+        "22222222-2222-4222-8222-222222222222",
+        [_user_message("continue")],
+    )
+    body.update(body_override)
+
+    response = await httpx_client.post(_chat_url(), json=body)
+
+    assert response.status_code == 400
+    assert response.text == "A continuation requires a persisted session"
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSession))).all() == []
+
+
+async def test_chat_regeneration_without_agent_session_is_rejected(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    body = _chat_body(
+        "99999999-9999-4999-8999-999999999999",
+        [_user_message("regenerate")],
+    )
+    body["trigger"] = "regenerate-message"
+    body.pop("message")
+
+    response = await httpx_client.post(_chat_url(), json=body)
+
+    assert response.status_code == 400
+    assert response.text == "Regeneration requires a persisted session"
     async with db() as session:
         assert (await session.scalars(select(models.AgentSession))).all() == []
 

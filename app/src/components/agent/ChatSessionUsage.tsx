@@ -99,7 +99,7 @@ export function getCacheUsageDisplay({
 
 export const ChatSessionUsage = ({ sessionId, messages }: ChatSessionUsage) => {
   const storedUsage = useAgentContext(
-    (state) => state.sessionMap[sessionId]?.usage ?? null
+    (state) => state.sessionStateById[sessionId]?.usage ?? null
   );
   const usage = getLatestAssistantMessageUsage(messages) ?? storedUsage;
   if (!usage) return null;
