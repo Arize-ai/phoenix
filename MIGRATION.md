@@ -56,7 +56,7 @@ model-written Python in a `pydantic-monty` sandbox where `call_tool(name, params
 sandbox defaults (30s wall clock, 100 MB memory, at most 50 `call_tool` invocations). To restore the previous
 group-gated progressive-disclosure tool list instead, set:
 
-- `PHOENIX_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
+- `PHOENIX_ENABLE_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
   effect unless `PHOENIX_ENABLE_MCP_SERVER` is also set.
 
 ### Deployments behind a reverse proxy

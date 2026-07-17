@@ -106,7 +106,7 @@ Whether to mount the in-process MCP server (generated from the /v1 REST API) at
 /mcp. Defaults to True. When enabled, the MCP server reuses Phoenix's existing
 bearer-token authentication.
 """
-ENV_PHOENIX_MCP_CODE_MODE = "PHOENIX_MCP_CODE_MODE"
+ENV_PHOENIX_ENABLE_MCP_CODE_MODE = "PHOENIX_ENABLE_MCP_CODE_MODE"
 """
 Whether the mounted MCP server presents its tools through FastMCP's code-mode
 surface. Defaults to True. Under code mode, clients see discovery meta-tools
@@ -3554,7 +3554,7 @@ def get_env_enable_mcp_server() -> bool:
 
 
 def get_env_mcp_code_mode() -> bool:
-    return _bool_val(ENV_PHOENIX_MCP_CODE_MODE, True)
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:

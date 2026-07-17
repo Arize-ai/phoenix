@@ -449,7 +449,7 @@ def _app_mcp_code_mode(
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
-    """A server with auth, the /mcp mount, and PHOENIX_MCP_CODE_MODE all enabled.
+    """A server with auth, the /mcp mount, and PHOENIX_ENABLE_MCP_CODE_MODE all enabled.
 
     Code mode replaces the tool surface, so it cannot share the package app.
     SQLite only: the code-mode surface is request plumbing over the same /v1
@@ -461,7 +461,7 @@ def _app_mcp_code_mode(
         database=str(tmp_path_factory.mktemp("oauth2_mcp_code_mode") / "phoenix.db"),
         extra={
             "PHOENIX_ENABLE_MCP_SERVER": "true",
-            "PHOENIX_MCP_CODE_MODE": "true",
+            "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
             "PHOENIX_DISABLE_RATE_LIMIT": "true",
         },
     )

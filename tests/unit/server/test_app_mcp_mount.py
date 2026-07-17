@@ -59,7 +59,7 @@ async def test_mcp_code_mode_replaces_tool_surface(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With PHOENIX_MCP_CODE_MODE on, clients see only the discovery meta-tools and
+    """With PHOENIX_ENABLE_MCP_CODE_MODE on, clients see only the discovery meta-tools and
     ``execute``; the generated /v1 tools are reachable through the sandbox's
     ``call_tool`` rather than tools/list, and group gating is not installed."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)

@@ -478,7 +478,7 @@ def _env(
         # package app. Code mode is the global default, but it replaces the tool
         # surface wholesale, so the package app keeps the group-gated list;
         # _app_mcp_code_mode is the dedicated fixture that opts into code mode.
-        "PHOENIX_MCP_CODE_MODE": "false",
+        "PHOENIX_ENABLE_MCP_CODE_MODE": "false",
     }
 
 
