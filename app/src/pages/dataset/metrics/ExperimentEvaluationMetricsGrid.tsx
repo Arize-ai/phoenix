@@ -118,9 +118,6 @@ function ExperimentEvaluationMetricsPanel({
   const showLabelCountSelect =
     activeView === "labels" && series.labels.length > 5;
   const showViewToggle = series.views.length > 1;
-  // Score baselines serve two purposes: the bar aligns categories across
-  // panels, while the horizontal line supports value comparison.
-
   return (
     <ChartPanel
       title={series.name}
@@ -164,7 +161,9 @@ function ExperimentEvaluationMetricsPanel({
         )}
         renderReference={({ isMeanScoreHidden }) => (
           <>
-            <ExperimentBaselineDistributionSeparator value={reference?.x} />
+            <ExperimentBaselineDistributionSeparator
+              value={activeView === "labels" ? reference?.x : null}
+            />
             {activeView === "scores" && (
               <ExperimentBaselineValueLine
                 value={isMeanScoreHidden ? null : reference?.meanScore}

@@ -8,8 +8,9 @@ import type {
 } from "recharts";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -52,6 +53,9 @@ const LABEL_DATA_KEY_PREFIX = "fractions.";
 const LABEL_LEGEND_ITEM_PREFIX = "label:";
 const OTHER_DATA_KEY = "otherFraction";
 const OTHER_COLOR = "var(--global-color-gray-500)";
+// Recharts' slower line default makes mixed-view toggles feel sluggish next
+// to the bar animation, so keep both chart modes on the same duration.
+const SCORE_LINE_ANIMATION_DURATION_MS = 400;
 const OTHER_LEGEND_ITEM: LegendPayload = {
   value: "other",
   type: "rect",
@@ -127,7 +131,7 @@ function EvaluationMetricsTooltip({
           <ChartTooltipItem
             key={String(entry.dataKey)}
             color={entry.color}
-            shape="square"
+            shape={isMeanScore ? "line" : "square"}
             name={String(entry.name)}
             value={
               isMeanScore
@@ -148,7 +152,7 @@ export function EvaluationMetricsChart({
   yAxisProps,
   syncId,
   renderTooltipHeader,
-  barChartProps,
+  chartProps,
   additionalLegendItems,
   renderReference,
   labelCount = series.labels.length,
@@ -160,7 +164,7 @@ export function EvaluationMetricsChart({
   yAxisProps: YAxisProps;
   syncId: string;
   renderTooltipHeader: (point: EvaluationMetricsChartPoint) => ReactNode;
-  barChartProps?: ComponentProps<typeof BarChart>;
+  chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
   renderReference?: (state: { isMeanScoreHidden: boolean }) => ReactNode;
   labelCount?: number;
@@ -187,7 +191,11 @@ export function EvaluationMetricsChart({
       ? ([0, 1] as [number, number])
       : undefined;
   const visibleLabels = series.labels.slice(0, labelCount);
-  const baseChartData = getEvaluationMetricsChartData({ data, reference });
+  // A score baseline is a non-chronological comparison value, so show it as
+  // a horizontal reference without inserting it into the connected line.
+  const baseChartData = isScoreView
+    ? data
+    : getEvaluationMetricsChartData({ data, reference });
   // Selector-excluded labels roll into `other`; labels hidden interactively
   // stay classified so toggling a series does not change the other values.
   const chartData = isScoreView
@@ -230,17 +238,17 @@ export function EvaluationMetricsChart({
     <ChartEmptyStateOverlay
       isEmpty={data.length === 0}
       message="No evaluation data"
-      chartType="bar"
+      chartType={isScoreView ? "line" : "bar"}
     >
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
+        <ComposedChart
           data={chartData}
           margin={compactChartMargin}
           barSize={10}
           syncId={syncId}
-          // A prepended baseline changes array indexes; synchronize by x-value.
+          // A prepended label baseline changes indexes; synchronize by x-value.
           syncMethod="value"
-          {...barChartProps}
+          {...chartProps}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis {...xAxisProps} />
@@ -268,12 +276,16 @@ export function EvaluationMetricsChart({
             isMeanScoreHidden: isDataKeyHidden(MEAN_SCORE_DATA_KEY),
           })}
           {isScoreView && (
-            <Bar
+            <Line
+              type="monotone"
               dataKey={MEAN_SCORE_DATA_KEY}
               name="mean score"
-              fill={getWordColor({ word: series.name, theme })}
+              stroke={getWordColor({ word: series.name, theme })}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              animationDuration={SCORE_LINE_ANIMATION_DURATION_MS}
               hide={isDataKeyHidden(MEAN_SCORE_DATA_KEY)}
-              radius={[2, 2, 0, 0]}
             />
           )}
           {!isScoreView &&
@@ -311,6 +323,7 @@ export function EvaluationMetricsChart({
           <InteractiveLegend
             {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
+            iconType={isScoreView ? "line" : undefined}
             iconSize={8}
             // The server caps labels using full-window frequency. Preserve the
             // response-derived order so label colors remain stable by index.
@@ -324,7 +337,7 @@ export function EvaluationMetricsChart({
             ]}
             trailingContent={legendTrailingContent}
           />
-        </BarChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </ChartEmptyStateOverlay>
   );
