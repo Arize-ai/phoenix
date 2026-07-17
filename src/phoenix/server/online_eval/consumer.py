@@ -120,9 +120,9 @@ class OnlineEvalConsumer(DaemonTask):
     ) -> None:
         super().__init__()
         self._db = db
-        self._grain: models.EvalWorkGrain = "SPAN"
+        self._evaluation_target: models.EvaluationTarget = "SPAN"
         self._coordinator: EvalWorkCoordinator = coordinator or DbEvalWorkCoordinator(
-            db, grain=self._grain
+            db, evaluation_target=self._evaluation_target
         )
         self._executor = OnlineEvalExecutor(
             db,
@@ -166,7 +166,7 @@ class OnlineEvalConsumer(DaemonTask):
                         models.EvalWorkCursor.observed_high_water_id,
                         models.EvalWorkCursor.observed_at,
                     ).where(
-                        models.EvalWorkCursor.grain == self._grain,
+                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
                         models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
                     )
                 )
