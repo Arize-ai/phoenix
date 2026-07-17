@@ -51,11 +51,11 @@ if TYPE_CHECKING:
     from .User import User
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "Evaluation grain. SPAN evaluators run on matching spans. Unfiltered SESSION evaluators "
-    "with full sampling are evaluated once: work is scheduled after the session first stays "
-    "quiet for the evaluation delay, and execution begins when a consumer claims it. Later "
-    "activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and "
-    "TRACE evaluators are stored but not yet scheduled."
+    "SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling "
+    "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
+    "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
+    "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
+    "evaluators are stored but not scheduled."
 )
 
 
@@ -1149,7 +1149,7 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Seconds a SESSION must stay quiet before work is scheduled. Values must be at "
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
             f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Null uses the default of "
             f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
             "once, and later activity does not schedule another evaluation."

@@ -69,11 +69,11 @@ from phoenix.server.online_eval.session_policy import (
 from phoenix.trace.dsl.filter import validate_span_filter_condition
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching spans. Unfiltered SESSION evaluators with full sampling "
-    "are evaluated once: work is scheduled after the session first stays quiet for the "
-    "evaluation delay, and execution begins when a consumer claims it. Later activity does not "
-    "schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators "
-    "are stored but not yet scheduled."
+    "SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling "
+    "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
+    "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
+    "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
+    "evaluators are stored but not scheduled."
 )
 
 
@@ -444,7 +444,7 @@ class CreateProjectLLMEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before work is scheduled. The minimum is "
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; null uses the default of "
             f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
             "once, and later activity does not schedule another evaluation."
@@ -468,7 +468,7 @@ class UpdateProjectLLMEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=UNSET,
         description=(
-            "Seconds a SESSION must stay quiet before work is scheduled. The minimum is "
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
             f"or use null to restore the default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
             "seconds. A session is evaluated only once, and later activity does not schedule "
@@ -496,7 +496,7 @@ class AddProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before work is scheduled. The minimum is "
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; null uses the default of "
             f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
             "once, and later activity does not schedule another evaluation."
@@ -528,7 +528,7 @@ class CreateProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before work is scheduled. The minimum is "
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; null uses the default of "
             f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
             "once, and later activity does not schedule another evaluation."
@@ -559,7 +559,7 @@ class UpdateProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=UNSET,
         description=(
-            "Seconds a SESSION must stay quiet before work is scheduled. The minimum is "
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
             f"or use null to restore the default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
             "seconds. A session is evaluated only once, and later activity does not schedule "
