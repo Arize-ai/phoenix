@@ -387,7 +387,6 @@ function AgentChatController({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
-    retryMessage,
     rewindToMessage,
     forkFromMessage,
   } = useAgentChat({
@@ -409,7 +408,6 @@ function AgentChatController({
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
-      retryMessage={retryMessage}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
       modelMenuValue={menuValue}

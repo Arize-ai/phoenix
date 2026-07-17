@@ -279,12 +279,29 @@ class AgentSessionMutationMixin:
             rewound_messages = _rewind_messages(messages, input.message_id)
             if rewound_messages is None:
                 raise NotFound(f"No message found for ID '{input.message_id}'")
+            target_position = next(
+                position
+                for position, message in enumerate(messages)
+                if message.id == input.message_id
+            )
+            target_message = messages[target_position]
+            delete_from_position = target_position
+            if target_message.role == "assistant":
+                await session.execute(
+                    update(models.AgentSessionMessage)
+                    .where(
+                        models.AgentSessionMessage.agent_session_id == agent_session.id,
+                        models.AgentSessionMessage.position == target_position,
+                    )
+                    .values(message=rewound_messages[-1])
+                )
+                delete_from_position += 1
             await session.execute(
                 delete(models.AgentSessionMessage).where(
-                    models.AgentSessionMessage.agent_session_id == agent_session.id
+                    models.AgentSessionMessage.agent_session_id == agent_session.id,
+                    models.AgentSessionMessage.position >= delete_from_position,
                 )
             )
-            session.add_all(_message_rows(agent_session.id, rewound_messages))
             await session.execute(
                 update(models.AgentSession)
                 .where(models.AgentSession.id == agent_session.id)

@@ -1924,77 +1924,10 @@ export interface components {
          */
         ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
-         * ChatRegenerateMessage
-         * @description Regenerate message extended with Phoenix-specific fields.
-         */
-        ChatRegenerateMessage: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            trigger: "regenerate-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
-            /** Messageid */
-            messageId?: string | null;
-            /**
-             * Ingesttraces
-             * @default false
-             */
-            ingestTraces?: boolean;
-            /**
-             * Exportremotetraces
-             * @default false
-             */
-            exportRemoteTraces?: boolean;
-            /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
-             */
-            attachUserId?: boolean;
-            /** Contexts */
-            contexts?: components["schemas"]["ChatContext"][];
-            /** Agentsessionid */
-            agentSessionId?: string | null;
-            /**
-             * Editpermission
-             * @default manual
-             * @enum {string}
-             */
-            editPermission?: "manual" | "bypass";
-            /**
-             * Requestedskills
-             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
-             */
-            requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * ChatRequest
-         * @description Discriminated union of chat request payloads.
+         * @description Assistant chat submit request payload.
          */
-        ChatRequest: components["schemas"]["ChatSubmitMessage"] | components["schemas"]["ChatRegenerateMessage"];
-        /**
-         * ChatSubmitMessage
-         * @description Submit message extended with Phoenix-specific fields.
-         */
-        ChatSubmitMessage: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            trigger: "submit-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
+        ChatRequest: {
             /**
              * Ingesttraces
              * @default false
@@ -2029,8 +1962,16 @@ export interface components {
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-        } & {
-            [key: string]: unknown;
+            /**
+             * Trigger
+             * @default submit-message
+             * @constant
+             */
+            trigger?: "submit-message";
+            /** Id */
+            id: string;
+            /** @description The turn's new message: a user message to append, or the transcript's trailing assistant message updated with client-executed tool results. */
+            message: components["schemas"]["PhoenixUIMessage"];
         };
         /**
          * CodeEvaluatorContext
@@ -4580,6 +4521,115 @@ export interface components {
              * @description Provide a string to create or update the secret, or explicit null to delete it. This field is required; omitting it returns 422.
              */
             value: string | null;
+        };
+        /**
+         * ServerChatRegenerateMessage
+         * @description Stateless server-agent regenerate request carrying the full history.
+         */
+        ServerChatRegenerateMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["PhoenixUIMessage"][];
+            /** Messageid */
+            messageId?: string | null;
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
+             */
+            requestedSkills?: string[];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ServerChatRequest
+         * @description Discriminated union of server-agent chat request payloads.
+         */
+        ServerChatRequest: components["schemas"]["ServerChatSubmitMessage"] | components["schemas"]["ServerChatRegenerateMessage"];
+        /**
+         * ServerChatSubmitMessage
+         * @description Stateless server-agent submit request carrying the full history.
+         */
+        ServerChatSubmitMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["PhoenixUIMessage"][];
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
+             */
+            requestedSkills?: string[];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+        } & {
+            [key: string]: unknown;
         };
         /** SessionAnnotation */
         SessionAnnotation: {
@@ -10874,7 +10924,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChatRequest"];
+                "application/json": components["schemas"]["ServerChatRequest"];
             };
         };
         responses: {

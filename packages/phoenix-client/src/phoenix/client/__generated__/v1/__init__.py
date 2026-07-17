@@ -1708,7 +1708,7 @@ class PromptMessage(TypedDict):
     ]
 
 
-class ChatRegenerateMessage(TypedDict):
+class ServerChatRegenerateMessage(TypedDict):
     id: str
     messages: Sequence[PhoenixUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
@@ -1743,7 +1743,7 @@ class ChatRegenerateMessage(TypedDict):
     turnTraceContext: NotRequired[TurnTraceContext]
 
 
-class ChatSubmitMessage(TypedDict):
+class ServerChatSubmitMessage(TypedDict):
     id: str
     messages: Sequence[PhoenixUIMessage]
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
@@ -1775,6 +1775,40 @@ class ChatSubmitMessage(TypedDict):
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
+
+
+class ChatRequest(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    id: str
+    message: PhoenixUIMessage
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    agentSessionId: NotRequired[str]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
+    trigger: NotRequired[str]
 
 
 class PromptChatTemplate(TypedDict):

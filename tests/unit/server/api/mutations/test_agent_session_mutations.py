@@ -127,6 +127,14 @@ async def test_truncate_agent_session_at_a_user_message_removes_it_and_later_tur
     gql_client: AsyncGraphQLClient,
 ) -> None:
     agent_session_id = await _seed_session_with_transcript(db)
+    async with db() as session:
+        retained_message_rowids = list(
+            await session.scalars(
+                select(models.AgentSessionMessage.id)
+                .where(models.AgentSessionMessage.position < 2)
+                .order_by(models.AgentSessionMessage.position)
+            )
+        )
 
     response = await gql_client.execute(
         query=_TRUNCATE_MUTATION,
@@ -141,14 +149,13 @@ async def test_truncate_agent_session_at_a_user_message_removes_it_and_later_tur
         "assistant-1",
     ]
     async with db() as session:
-        stored_messages = (
+        stored_message_rows = (
             await session.scalars(
-                select(models.AgentSessionMessage.message).order_by(
-                    models.AgentSessionMessage.position
-                )
+                select(models.AgentSessionMessage).order_by(models.AgentSessionMessage.position)
             )
         ).all()
-    assert [message.id for message in stored_messages] == ["user-1", "assistant-1"]
+    assert [row.message.id for row in stored_message_rows] == ["user-1", "assistant-1"]
+    assert [row.id for row in stored_message_rows] == retained_message_rowids
 
 
 async def test_truncate_agent_session_at_an_assistant_message_strips_pending_tool_calls(

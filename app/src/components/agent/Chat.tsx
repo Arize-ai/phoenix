@@ -295,7 +295,6 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
-  retryMessage,
   rewindToMessage,
   forkFromMessage,
   modelMenuValue,
@@ -317,8 +316,6 @@ export function ChatView({
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
-  /** Retries an assistant response; absent on read-only surfaces. */
-  retryMessage?: (messageId?: string) => void;
   /**
    * Truncates the active session at a message; resolves to user text to
    * restore. Absent on read-only surfaces, which hides the rewind/branch
@@ -492,20 +489,28 @@ export function ChatView({
     }
   };
 
-  const handleRetryInterruptedMessage = async () => {
-    if (latestMessage?.role !== "user") {
+  const retryUserMessage = async (message: AgentUIMessage | undefined) => {
+    if (message?.role !== "user") {
       return;
     }
-    const messageText = getMessageText(latestMessage).trim();
+    const messageText = getMessageText(message).trim();
     if (!messageText) {
       return;
     }
     // The server-side truncation must land before re-sending, or the resent
     // request would still carry the interrupted user turn.
-    await rewindToMessage?.(latestMessage.id);
+    const restoredInput = await rewindToMessage?.(message.id);
+    if (restoredInput == null) {
+      return;
+    }
     void scrollToBottom();
     sendMessage({ text: messageText });
   };
+
+  const handleRetryInterruptedMessage = () => retryUserMessage(latestMessage);
+
+  const handleRetryFailedMessage = () =>
+    retryUserMessage(messages.findLast((message) => message.role === "user"));
 
   useLayoutEffect(() => {
     if (
@@ -607,16 +612,14 @@ export function ChatView({
                 {error && (
                   <ChatErrorMessage
                     error={error}
-                    latestAssistantMessageId={getLatestMessageId({
-                      messages,
-                      role: "assistant",
-                    })}
                     latestUserMessageId={getLatestMessageId({
                       messages,
                       role: "user",
                     })}
                     canFork
-                    onRetry={retryMessage}
+                    onRetry={
+                      rewindToMessage ? handleRetryFailedMessage : undefined
+                    }
                     onRewind={onRewindRequest}
                   />
                 )}
