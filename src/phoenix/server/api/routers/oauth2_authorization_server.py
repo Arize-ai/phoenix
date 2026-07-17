@@ -21,10 +21,7 @@ from phoenix.config import (
     get_env_disable_rate_limit,
     get_env_oauth2_allowed_redirect_hosts,
     get_env_oauth2_consent_origin_check,
-    get_env_oauth2_dcr_dead_grant_ttl,
-    get_env_oauth2_dcr_max_unconsumed_per_ip_per_day,
     get_env_oauth2_dcr_rate_limit_per_hour,
-    get_env_oauth2_dcr_zero_grant_ttl,
     get_env_oauth2_dynamic_client_registration,
     get_env_oauth2_grant_expiry,
 )
@@ -74,6 +71,9 @@ _DCR_CLIENT_NAME_MAX_LENGTH = 200
 _DCR_LOGO_URI_MAX_LENGTH = 2048
 _DCR_SUPPORTED_GRANT_TYPES = frozenset({"authorization_code", "refresh_token"})
 _DCR_SUPPORTED_RESPONSE_TYPES = frozenset({"code"})
+_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY = 50
+_DCR_ZERO_GRANT_TTL = timedelta(days=7)
+_DCR_DEAD_GRANT_TTL = timedelta(days=30)
 _BASE62_ALPHABET = string.ascii_letters + string.digits
 _OAUTH_NO_STORE_HEADERS = {
     "Cache-Control": "no-store",
@@ -649,7 +649,7 @@ async def _has_too_many_unconsumed_dcr_clients(
             ~has_grant,
         )
     )
-    return (count or 0) >= get_env_oauth2_dcr_max_unconsumed_per_ip_per_day()
+    return (count or 0) >= _DCR_MAX_UNCONSUMED_PER_IP_PER_DAY
 
 
 async def _cleanup_abandoned_dcr_clients(session: AsyncSession, *, now: datetime) -> None:
@@ -657,8 +657,8 @@ async def _cleanup_abandoned_dcr_clients(session: AsyncSession, *, now: datetime
     if _last_dcr_cleanup_at is not None and now - _last_dcr_cleanup_at < timedelta(days=1):
         return
     _last_dcr_cleanup_at = now
-    zero_grant_cutoff = now - get_env_oauth2_dcr_zero_grant_ttl()
-    dead_grant_cutoff = now - get_env_oauth2_dcr_dead_grant_ttl()
+    zero_grant_cutoff = now - _DCR_ZERO_GRANT_TTL
+    dead_grant_cutoff = now - _DCR_DEAD_GRANT_TTL
     # Narrow to deletion candidates in SQL instead of walking every client ever registered.
     # Neither rule can delete a client that still has a usable grant, and neither can delete
     # one younger than the later of the two cutoffs, since a client is always older than the

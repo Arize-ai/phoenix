@@ -238,9 +238,6 @@ Registration alone grants no authority: an authorization code is delivered only 
 | **PHOENIX\_OAUTH2\_ALLOWED\_REDIRECT\_HOSTS** | A comma-separated list of hosts allowed as HTTPS redirect targets for dynamic client registration, e.g. `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS=cursor.com,example.com`. When unset, all HTTPS redirect hosts are accepted while dynamic client registration is `enabled`. Use this to keep browser-based clients working while pinning exactly which services may receive authorization codes. |
 | **PHOENIX\_OAUTH2\_CONSENT\_ORIGIN\_CHECK** | Origin-header enforcement on consent-page decisions, a defense against cross-site consent forgery. One of `strict`, `off`. Defaults to `strict`. Only relax this if a reverse proxy strips the `Origin` header and consent approvals fail. |
 | **PHOENIX\_OAUTH2\_DCR\_RATE\_LIMIT\_PER\_HOUR** | Maximum dynamic client registrations accepted per IP address each hour. Defaults to `10`. |
-| **PHOENIX\_OAUTH2\_DCR\_MAX\_UNCONSUMED\_PER\_IP\_PER\_DAY** | Maximum registered-but-never-used (no grant created) dynamic clients retained per IP address each day. Defaults to `50`. |
-| **PHOENIX\_OAUTH2\_DCR\_ZERO\_GRANT\_TTL\_DAYS** | Days before abandoned dynamic clients that never created a grant are cleaned up. Defaults to `7`. |
-| **PHOENIX\_OAUTH2\_DCR\_DEAD\_GRANT\_TTL\_DAYS** | Days before dynamic clients whose grants are all inactive are cleaned up. Defaults to `30`. |
 
 ## Password Recovery
 

@@ -1110,10 +1110,7 @@ def _app_dcr_rate_limited(
         port=port,
         grpc_port=next(_ports),
         database=str(tmp_path_factory.mktemp("oauth2_dcr_rate_limited") / "phoenix.db"),
-        extra={
-            "PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR": "1",
-            "PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY": "10",
-        },
+        extra={"PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR": "1"},
     )
     with _server(_AppInfo(env)) as app:
         yield app

@@ -472,23 +472,6 @@ ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR = "PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_
 """
 Maximum dynamic OAuth2 client registrations accepted per IP address each hour. Defaults to 10.
 """
-ENV_PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY = (
-    "PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY"
-)
-"""
-Maximum unconsumed dynamic OAuth2 client registrations retained per IP address each day.
-Defaults to 50.
-"""
-ENV_PHOENIX_OAUTH2_DCR_ZERO_GRANT_TTL_DAYS = "PHOENIX_OAUTH2_DCR_ZERO_GRANT_TTL_DAYS"
-"""
-Number of days before abandoned dynamic OAuth2 clients with no grants are removed.
-Defaults to 7.
-"""
-ENV_PHOENIX_OAUTH2_DCR_DEAD_GRANT_TTL_DAYS = "PHOENIX_OAUTH2_DCR_DEAD_GRANT_TTL_DAYS"
-"""
-Number of days before dynamic OAuth2 clients whose grants are all inactive are removed.
-Defaults to 30.
-"""
 ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before password reset tokens expire.
@@ -1612,33 +1595,6 @@ def get_env_oauth2_dcr_rate_limit_per_hour() -> int:
     limit = _int_val(ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR, 10)
     assert limit > 0
     return limit
-
-
-def get_env_oauth2_dcr_max_unconsumed_per_ip_per_day() -> int:
-    """
-    Gets the per-IP daily cap for dynamic OAuth2 clients that have not created grants.
-    """
-    limit = _int_val(ENV_PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY, 50)
-    assert limit > 0
-    return limit
-
-
-def get_env_oauth2_dcr_zero_grant_ttl() -> timedelta:
-    """
-    Gets the retention period for abandoned dynamic OAuth2 clients with no grants.
-    """
-    days = _float_val(ENV_PHOENIX_OAUTH2_DCR_ZERO_GRANT_TTL_DAYS, 7)
-    assert days > 0
-    return timedelta(days=days)
-
-
-def get_env_oauth2_dcr_dead_grant_ttl() -> timedelta:
-    """
-    Gets the retention period for dynamic OAuth2 clients whose grants are all inactive.
-    """
-    days = _float_val(ENV_PHOENIX_OAUTH2_DCR_DEAD_GRANT_TTL_DAYS, 30)
-    assert days > 0
-    return timedelta(days=days)
 
 
 def get_env_csrf_trusted_origins() -> list[str]:

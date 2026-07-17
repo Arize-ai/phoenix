@@ -722,9 +722,6 @@ on `validate_redirect_uri`.
 | `PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS` | 90 | Grant ceiling; refresh lifetimes are clamped to it |
 | `PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK` | `strict` | Origin-header enforcement on the consent decision endpoint |
 | `PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR` | 10 | Per-IP registration rate |
-| `PHOENIX_OAUTH2_DCR_MAX_UNCONSUMED_PER_IP_PER_DAY` | 50 | Per-IP cap on never-used DCR clients |
-| `PHOENIX_OAUTH2_DCR_ZERO_GRANT_TTL_DAYS` | 7 | Delete DCR clients that never completed a grant |
-| `PHOENIX_OAUTH2_DCR_DEAD_GRANT_TTL_DAYS` | 30 | Delete DCR clients whose grants are all inactive |
 | `PHOENIX_ROOT_URL` | unset | Canonical public URL: issuer, PRM resource, resource-indicator matching |
 
 Access- and refresh-token lifetimes reuse the existing
