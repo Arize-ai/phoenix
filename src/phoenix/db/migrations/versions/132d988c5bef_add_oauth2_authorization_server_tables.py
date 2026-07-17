@@ -202,8 +202,22 @@ def upgrade() -> None:
         batch_op.alter_column("user_id", existing_type=_Integer, nullable=False)
         batch_op.alter_column("refresh_token_id", existing_type=_Integer, nullable=False)
 
+    with op.batch_alter_table(
+        "api_keys",
+        table_kwargs={"sqlite_autoincrement": True},
+    ) as batch_op:
+        batch_op.add_column(sa.Column("scopes", JSON_, nullable=True))
+        batch_op.add_column(sa.Column("audience", JSON_, nullable=True))
+
 
 def downgrade() -> None:
+    with op.batch_alter_table(
+        "api_keys",
+        table_kwargs={"sqlite_autoincrement": True},
+    ) as batch_op:
+        batch_op.drop_column("audience")
+        batch_op.drop_column("scopes")
+
     with op.batch_alter_table(
         "access_tokens",
         table_kwargs={"sqlite_autoincrement": True},
