@@ -379,9 +379,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                   key={row.id}
                   css={userTableRowCSS}
                   data-selected={isSelected}
-                  onClick={() =>
-                    navigate(`/settings/users/${row.original.id}`)
-                  }
+                  onClick={() => navigate(`/settings/users/${row.original.id}`)}
                 >
                   {row.getVisibleCells().map((cell) => {
                     return (
