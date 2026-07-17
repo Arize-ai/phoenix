@@ -12,7 +12,7 @@ export const markdownCSS = css`
   & > div {
     display: flex;
     flex-direction: column;
-    gap: var(--global-dimension-static-size-200);
+    gap: var(--global-dimension-size-200);
   }
 
   /* -------------------------------------------------------------------

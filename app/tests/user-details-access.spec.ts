@@ -20,11 +20,11 @@ async function getMemberDetailsPath(browser: Browser) {
   const page = await context.newPage();
 
   try {
-    await page.goto("/settings/general");
+    await page.goto("/settings/users");
     const href = await page
       .getByRole("link", { name: "member", exact: true })
       .getAttribute("href");
-    expect(href).toMatch(/^\/settings\/general\/users\//);
+    expect(href).toMatch(/^\/settings\/users\//);
     return href as string;
   } finally {
     await context.close();
@@ -32,7 +32,7 @@ async function getMemberDetailsPath(browser: Browser) {
 }
 
 test("admin can view user details from settings", async ({ page }) => {
-  await page.goto("/settings/general");
+  await page.goto("/settings/users");
   await page.getByRole("link", { name: "member", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "User details for member" });
@@ -41,7 +41,7 @@ test("admin can view user details from settings", async ({ page }) => {
     dialog.getByRole("heading", { name: "User details" })
   ).toBeVisible();
   await expect(dialog.getByText("member@localhost.com")).toBeVisible();
-  await expect(page).toHaveURL(/\/settings\/general\/users\//);
+  await expect(page).toHaveURL(/\/settings\/users\//);
 });
 
 for (const { role, storageState } of NON_ADMIN_STORAGE_STATES) {
@@ -51,7 +51,7 @@ for (const { role, storageState } of NON_ADMIN_STORAGE_STATES) {
     const page = await context.newPage();
 
     try {
-      await page.goto("/settings/general");
+      await page.goto("/settings/users");
       await expect(
         page.getByRole("heading", { name: "Users" })
       ).not.toBeVisible();

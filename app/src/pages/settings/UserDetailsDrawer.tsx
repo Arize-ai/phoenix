@@ -152,7 +152,7 @@ export function UserDetailsDrawer() {
   return (
     <Drawer
       isOpen
-      onClose={() => navigate("/settings/general")}
+      onClose={() => navigate("/settings/users")}
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}

@@ -9,17 +9,20 @@ async function clickSortableHeaderAndExpect(
   await expect(header).toHaveAttribute("aria-sort", direction);
 }
 
-test.describe("Settings General Tables", () => {
-  test("users and api key tables support core interactions", async ({
-    page,
-  }) => {
-    await page.goto("/settings/general");
-    await page.waitForURL("**/settings/general");
+test.describe("Settings Tables", () => {
+  test("users table supports core interactions", async ({ page }) => {
+    await page.goto("/settings/users");
+    await page.waitForURL("**/settings/users");
 
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
 
     const userHeader = page.getByRole("columnheader", { name: "user" }).first();
     await clickSortableHeaderAndExpect(userHeader, "ascending");
+  });
+
+  test("api key tables support core interactions", async ({ page }) => {
+    await page.goto("/settings/api-keys");
+    await page.waitForURL("**/settings/api-keys");
 
     // System API keys render directly on the page. Create a key so the table
     // is populated regardless of which other tests have run.

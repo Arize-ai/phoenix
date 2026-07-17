@@ -14,7 +14,7 @@ const sortableColumnHeaderCSS = css`
   /* Reserve the trailing edge for the drag handle so it never overlaps the
      header's own content, which is what a right-aligned label would collide
      with. Header labels stay leading-aligned; cells keep their own alignment. */
-  padding-right: var(--global-dimension-static-size-300);
+  padding-right: var(--global-dimension-size-300);
   text-align: left;
   ${dndDragFeedbackCSS}
   /* Keep the lifted copy opaque over the table */
@@ -36,13 +36,13 @@ const sortableColumnHeaderCSS = css`
     ${dndHandleAppearanceCSS}
     position: absolute;
     top: 50%;
-    right: var(--global-dimension-static-size-50);
+    right: var(--global-dimension-size-50);
     transform: translateY(-50%);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--global-dimension-static-size-225);
-    height: var(--global-dimension-static-size-225);
+    width: var(--global-dimension-size-225);
+    height: var(--global-dimension-size-225);
     font-size: var(--global-font-size-s);
     z-index: 1;
   }

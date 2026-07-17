@@ -293,6 +293,10 @@
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/user-friction</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match</loc>
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
@@ -1797,6 +1801,18 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/deployment-options/render</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/deployment-options/google-cloud-run</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/deployment-options/azure</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/self-hosting/features/provisioning</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2023,6 +2039,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api</loc>

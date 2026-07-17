@@ -164,7 +164,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 profilePictureUrl={row.original.profilePictureUrl}
                 size={20}
               />
-              <Link to={`/settings/general/users/${row.original.id}`}>
+              <Link to={`/settings/users/${row.original.id}`}>
                 {row.original.username}
               </Link>
               {row.original.email && (
@@ -380,7 +380,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                   css={userTableRowCSS}
                   data-selected={isSelected}
                   onClick={() =>
-                    navigate(`/settings/general/users/${row.original.id}`)
+                    navigate(`/settings/users/${row.original.id}`)
                   }
                 >
                   {row.getVisibleCells().map((cell) => {

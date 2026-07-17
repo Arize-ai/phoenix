@@ -39,10 +39,10 @@ const slideInFromTop = keyframes`
  */
 export const toastRegionCSS = css`
   position: fixed;
-  top: var(--global-dimension-static-size-200);
+  top: var(--global-dimension-size-200);
   left: 50%;
   width: 400px;
-  max-width: calc(100vw - var(--global-dimension-static-size-400));
+  max-width: calc(100vw - var(--global-dimension-size-400));
   transform: translateX(-50%);
   outline: none;
   z-index: ${PORTALED_OVERLAY_Z_INDEX};
@@ -106,9 +106,8 @@ export const toastPositionerCSS = css`
 export const toastCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-static-size-100);
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-100);
   border-radius: 8px;
   outline: none;
   width: 100%;
@@ -183,7 +182,7 @@ export const toastCSS = css`
       font-weight: bold;
       display: flex;
       flex-direction: row;
-      gap: var(--global-dimension-static-size-50);
+      gap: var(--global-dimension-size-50);
     }
 
     [slot="description"] {

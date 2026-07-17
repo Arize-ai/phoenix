@@ -4,6 +4,8 @@ test("admin can create system api key", async ({ page }) => {
   const testKeyName = `System-${randomUUID()}`;
   await page.getByRole("link", { name: "Settings" }).click();
   await page.waitForURL("**/settings/general");
+  await page.getByRole("tab", { name: "API Keys" }).click();
+  await page.waitForURL("**/settings/api-keys");
   await page.getByRole("button", { name: "System Key", exact: true }).click();
   await page.getByTestId("modal").getByLabel("Name").fill(testKeyName);
   await page.getByRole("button", { name: "Create Key" }).click();

@@ -254,6 +254,9 @@ projects = client.projects.list()
 for project in projects:
     print(f"Project: {project['name']} (ID: {project['id']})")
 
+# Filter server-side by a case-insensitive substring of the project name
+support_projects = client.projects.list(name_contains="support")
+
 # Create a new project
 new_project = client.projects.create(
     name="Customer Support Bot",
