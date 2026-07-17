@@ -47,11 +47,10 @@ from phoenix.server.agents.data_stream_protocol import (
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.routers.agents import (
-    _INTERRUPTED_TOOL_CALL_ERROR,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
-    _merge_message_into_transcript,
+    _merge_messages,
     _persist_db_traces,
     _resolve_turn_trace_ids,
     _synthesize_client_tool_spans,
@@ -910,33 +909,20 @@ def _assistant_message_with_tool_states() -> dict[str, Any]:
     }
 
 
-def test_merge_appends_user_message_and_resolves_interrupted_tool_calls() -> None:
+def test_merge_appends_user_message_without_modifying_persisted_messages() -> None:
     persisted = _validated_messages(
         [_user_message("run a command"), _assistant_message_with_tool_states()]
     )
 
-    merged = _merge_message_into_transcript(
-        persisted_messages=persisted,
-        message=PhoenixUIMessage.model_validate(
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=PhoenixUIMessage.model_validate(
             _user_message("never mind", message_id="msg-user-2")
         ),
     )
 
     assert [message.id for message in merged] == ["msg-user-1", "assistant-1", "msg-user-2"]
-    tool_states_by_call_id = {
-        part.tool_call_id: part
-        for part in merged[1].parts
-        if getattr(part, "tool_call_id", None) is not None
-    }
-    # A streaming tool call is dropped (its input may be partial); a pending
-    # one is resolved as an interrupted error; a completed one is untouched.
-    assert "tool-call-streaming" not in tool_states_by_call_id
-    interrupted = tool_states_by_call_id["tool-call-unresolved"]
-    assert interrupted.state == "output-error"
-    assert interrupted.error_text == _INTERRUPTED_TOOL_CALL_ERROR
-    assert tool_states_by_call_id["tool-call-done"].state == "output-available"
-    # Merging never mutates the persisted transcript in place.
-    assert persisted[1].parts[1].state == "input-available"
+    assert merged[1] is persisted[1]
 
 
 def test_merge_replaces_the_trailing_assistant_message() -> None:
@@ -959,9 +945,9 @@ def test_merge_replaces_the_trailing_assistant_message() -> None:
         }
     )
 
-    merged = _merge_message_into_transcript(
-        persisted_messages=persisted,
-        message=resolved_assistant,
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=resolved_assistant,
     )
 
     assert [message.id for message in merged] == ["msg-user-1", "assistant-1"]
@@ -975,9 +961,9 @@ def test_merge_rejects_an_assistant_message_that_is_not_the_trailing_one() -> No
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        _merge_message_into_transcript(
-            persisted_messages=persisted,
-            message=stale_assistant,
+        _merge_messages(
+            old_messages=persisted,
+            new_message=stale_assistant,
         )
     assert exc_info.value.status_code == 409
 
@@ -1364,9 +1350,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
     session_request_id = "88888888-8888-4888-8888-888888888888"
 
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", original_project_name)
-    agent_session_id = await _create_agent_session_row(
-        db, project_session_id=session_request_id
-    )
+    agent_session_id = await _create_agent_session_row(db, project_session_id=session_request_id)
     first_response = await httpx_client.post(
         _chat_url(),
         json=_chat_body(

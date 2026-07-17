@@ -14,7 +14,7 @@ from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any, Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_session, using_user
@@ -40,7 +40,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    RootModel,
     TypeAdapter,
 )
 from pydantic.alias_generators import to_camel
@@ -67,7 +66,6 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
-    get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
@@ -81,24 +79,14 @@ from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageTokenDetails,
     AssistantMessageMetadataUsageTokens,
-    DynamicToolApprovalRequestedPart,
-    DynamicToolApprovalRespondedPart,
-    DynamicToolInputAvailablePart,
-    DynamicToolInputStreamingPart,
     DynamicToolOutputAvailablePart,
     DynamicToolOutputErrorPart,
     PhoenixUIMessage,
     ProviderMetadata,
-    RegenerateMessage,
-    SubmitMessage,
     TextUIPart,
-    ToolApprovalRequestedPart,
-    ToolApprovalRespondedPart,
     ToolCallCallbackProviderMetadata,
     ToolCallProviderMetadata,
     ToolExecutionEnvironment,
-    ToolInputAvailablePart,
-    ToolInputStreamingPart,
     ToolOutputAvailablePart,
     ToolOutputErrorPart,
     TurnTraceContext,
@@ -120,7 +108,7 @@ from phoenix.server.agents.data_stream_protocol import (
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
+from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
@@ -297,38 +285,13 @@ class ChatRequest(ChatSubmitMessage):
     """Assistant chat submit request payload."""
 
 
-class _ServerChatHistoryMixin(_CamelBaseModel):
-    """Narrows the vendored ``messages`` field to Phoenix wire messages."""
-
-    messages: list[PhoenixUIMessage]
-
-
-class ServerChatSubmitMessage(_ServerChatHistoryMixin, _ChatRequestMixin, SubmitMessage):
-    """Stateless server-agent submit request carrying the full history."""
-
-
-class ServerChatRegenerateMessage(_ServerChatHistoryMixin, _ChatRequestMixin, RegenerateMessage):
-    """Stateless server-agent regenerate request carrying the full history."""
-
-
-class ServerChatRequest(
-    RootModel[
-        Annotated[
-            ServerChatSubmitMessage | ServerChatRegenerateMessage,
-            Field(discriminator="trigger"),
-        ]
-    ]
-):
-    """Discriminated union of server-agent chat request payloads."""
-
-
 _PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
     PydanticAIRequestData
 )
 
 
 def _to_pydantic_ai_request_data(
-    request_data: ChatSubmitMessage | ServerChatSubmitMessage | ServerChatRegenerateMessage,
+    request_data: ChatSubmitMessage,
     *,
     messages: Sequence[PhoenixUIMessage] | None = None,
 ) -> PydanticAIRequestData:
@@ -1180,91 +1143,21 @@ async def _load_phoenix_user_email(
     )
 
 
-# Mirrors the client-side interrupt marker (``SYSTEM_INTERRUPT_ERROR``) that the
-# UI writes onto its own copy of an interrupted tool call, so client and server
-# transcripts converge on the same terminal state.
-_INTERRUPTED_TOOL_CALL_ERROR = (
-    "This tool call has been interrupted by unexpected system conditions."
-)
-
-
-def _resolve_interrupted_tool_calls(message: PhoenixUIMessage) -> PhoenixUIMessage:
-    """Bring a trailing assistant message's unresolved tool calls to a terminal
-    state before a new user message extends the transcript.
-
-    Model providers reject histories with dangling tool calls. Parts still
-    streaming their input are dropped (the input may be incomplete); parts
-    awaiting execution or approval are resolved as interrupted errors.
-    """
-    changed = False
-    parts: list[Any] = []
-    for part in message.parts:
-        if isinstance(part, (ToolInputStreamingPart, DynamicToolInputStreamingPart)) and not (
-            part.provider_executed
-        ):
-            changed = True
-            continue
-        if isinstance(
-            part,
-            (ToolInputAvailablePart, ToolApprovalRequestedPart, ToolApprovalRespondedPart),
-        ) and not (part.provider_executed):
-            changed = True
-            parts.append(
-                ToolOutputErrorPart(
-                    type=part.type,
-                    tool_call_id=part.tool_call_id,
-                    title=part.title,
-                    input=part.input,
-                    error_text=_INTERRUPTED_TOOL_CALL_ERROR,
-                    call_provider_metadata=part.call_provider_metadata,
-                )
-            )
-            continue
-        if isinstance(
-            part,
-            (
-                DynamicToolInputAvailablePart,
-                DynamicToolApprovalRequestedPart,
-                DynamicToolApprovalRespondedPart,
-            ),
-        ) and not (part.provider_executed):
-            changed = True
-            parts.append(
-                DynamicToolOutputErrorPart(
-                    tool_name=part.tool_name,
-                    tool_call_id=part.tool_call_id,
-                    title=part.title,
-                    input=part.input,
-                    error_text=_INTERRUPTED_TOOL_CALL_ERROR,
-                    call_provider_metadata=part.call_provider_metadata,
-                )
-            )
-            continue
-        parts.append(part)
-    return message.model_copy(update={"parts": parts}) if changed else message
-
-
-def _merge_message_into_transcript(
+def _merge_messages(
     *,
-    persisted_messages: Sequence[PhoenixUIMessage],
-    message: PhoenixUIMessage,
+    old_messages: Sequence[PhoenixUIMessage],
+    new_message: PhoenixUIMessage,
 ) -> list[PhoenixUIMessage]:
     """Merge a submit request's single message into the persisted transcript.
 
-    - A **user** message is appended; any tool calls left unresolved on the
-      transcript's trailing assistant turn are first brought to a terminal
-      interrupted state.
+    - A **user** message is appended.
     - An **assistant** message replaces the transcript's trailing message with
       the same id — the continuation path for client-executed tool results.
     """
-    if message.role == "user":
-        merged = list(persisted_messages)
-        if merged and merged[-1].role == "assistant":
-            merged[-1] = _resolve_interrupted_tool_calls(merged[-1])
-        merged.append(message)
-        return merged
-    if message.role == "assistant":
-        if not persisted_messages or persisted_messages[-1].id != message.id:
+    if new_message.role == "user":
+        return [*old_messages, new_message]
+    if new_message.role == "assistant":
+        if not old_messages or old_messages[-1].id != new_message.id:
             raise HTTPException(
                 status_code=409,
                 detail=(
@@ -1272,11 +1165,11 @@ def _merge_message_into_transcript(
                     "latest transcript message; reload the conversation"
                 ),
             )
-        return [*persisted_messages[:-1], message]
+        return [*old_messages[:-1], new_message]
     raise HTTPException(status_code=400, detail="Only user or assistant messages can be submitted")
 
 
-async def _load_persisted_transcript(
+async def _load_persisted_messages(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
@@ -1384,11 +1277,11 @@ async def _persist_agent_session_turn(
     *,
     agent_session_rowid: int,
     user_id: int | None,
-    messages: list[PhoenixUIMessage],
+    new_messages: list[PhoenixUIMessage],
     bashkit_snapshot: bytes | None,
     title: str | None = None,
 ) -> None:
-    if not messages:
+    if not new_messages:
         return
     async with db() as session:
         updated_agent_session_rowid = await _update_agent_session(
@@ -1405,23 +1298,23 @@ async def _persist_agent_session_turn(
             )
         )
         assert next_position is not None
-        if messages[0].role == "assistant":
+        if new_messages[0].role == "assistant":
             await session.execute(
                 update(models.AgentSessionMessage)
                 .where(
                     models.AgentSessionMessage.agent_session_id == agent_session_rowid,
                     models.AgentSessionMessage.position == next_position - 1,
                 )
-                .values(message=messages[0])
+                .values(message=new_messages[0])
             )
-            messages = messages[1:]
+            new_messages = new_messages[1:]
         session.add_all(
             models.AgentSessionMessage(
                 agent_session_id=agent_session_rowid,
                 position=position,
                 message=message,
             )
-            for position, message in enumerate(messages, start=next_position)
+            for position, message in enumerate(new_messages, start=next_position)
         )
         if bashkit_snapshot is not None:
             await _upsert_agent_session_snapshot(
@@ -1476,147 +1369,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
-    @router.post("/agents/server/sessions/{session_id}/chat")
-    async def run_server_agent(
-        session_id: str,
-        request: Request,
-        request_body: ServerChatRequest,
-    ) -> Response:
-        """Stream a chat turn from the GraphQL server agent.
-
-        This is the endpoint the PXI CLI talks to directly (no pre-configured
-        agent record): it builds a fresh server agent per request from the
-        caller-supplied model and contexts, then streams the reply back as
-        Vercel-AI chunks.
-
-        The request contexts gate capabilities — GraphQL mutations, web access,
-        and subagents — and mutations are refused for viewer users. When trace
-        recording is enabled (and permitted by system settings), the run is
-        traced; locally ingested traces are persisted to the agent's project
-        once the stream completes.
-
-        Returns ``403`` if agents or the server agent are disabled, or if a
-        viewer requests mutations.
-        """
-        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
-            raise HTTPException(status_code=403, detail="Agents are disabled")
-        if get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
-
-        body = request_body.root
-        resolved_contexts = resolve_contexts(body.contexts)
-        user = request.user if "user" in request.scope else None
-        phoenix_user = user if isinstance(user, PhoenixUser) else None
-        user_id = int(phoenix_user.identity) if phoenix_user is not None else None
-        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
-        graphql_mutations_enabled = (
-            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
-        )
-        if graphql_mutations_enabled and is_viewer:
-            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
-
-        recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces, export_remote_traces = _resolve_trace_recording(
-            ingest_traces=body.ingest_traces,
-            export_remote_traces=body.export_remote_traces,
-            allow_local_traces=recording.allow_local_traces,
-            allow_remote_export=recording.allow_remote_export,
-        )
-        project_name = get_env_phoenix_agents_assistant_project_name()
-        tracer = (
-            Tracer(
-                span_cost_calculator=request.app.state.span_cost_calculator,
-                enable_remote_export=export_remote_traces,
-                project_name=project_name,
-            )
-            if (ingest_traces or export_remote_traces)
-            else None
-        )
-        tracer_provider = tracer.tracer_provider if tracer is not None else None
-        agent_span_recorder: _AgentSpanContextRecorder | None = None
-        if tracer is not None:
-            agent_span_recorder = _AgentSpanContextRecorder()
-            tracer.tracer_provider.add_span_processor(agent_span_recorder)
-
-        try:
-            async with request.app.state.db() as session:
-                model = await build_model(
-                    body.model,
-                    session=session,
-                    decrypt=request.app.state.decrypt,
-                    tracer_provider=tracer_provider,
-                )
-        except AgentError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
-
-        web_access_enabled = (
-            resolved_contexts.web_access is not None
-            and resolved_contexts.web_access.enabled
-            and get_env_phoenix_agents_web_access_enabled()
-        )
-        subagents_enabled = _subagents_enabled(resolved_contexts)
-        server_agent = build_server_agent(
-            model=model,
-            schema=request.app.state.graphql_schema,
-            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
-            db=request.app.state.db,
-            event_queue=request.state.event_queue,
-            prompts=ServerAgentPrompts(base=AgentPrompts().base),
-            docs_mcp_server=request.app.state.docs_mcp_server,
-            enable_web_access=web_access_enabled,
-            allow_mutations=graphql_mutations_enabled,
-            read_only=request.app.state.read_only,
-            auth_enabled=request.app.state.authentication_enabled,
-            user_id=user_id,
-            is_viewer=is_viewer,
-            tracer_provider=tracer_provider,
-            enable_subagents=subagents_enabled,
-        )
-        adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
-            agent=server_agent,
-            run_input=_to_pydantic_ai_request_data(body),
-            accept=request.headers.get("accept"),
-        )
-
-        async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
-            yield _build_message_metadata_chunk(
-                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
-                turn_trace_context=None,
-                session_id=session_id,
-                usage=result.usage,
-            )
-
-        async def _stream_with_session() -> AsyncIterator[BaseChunk]:
-            try:
-                with detached_otel_context(), using_session(session_id=session_id):
-                    raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
-                    assert _is_async_generator(raw_stream)
-                    async with aclosing(raw_stream) as stream:
-                        async for chunk in stream:
-                            if isinstance(chunk, ToolInputAvailableChunk):
-                                chunk.provider_metadata = _get_updated_provider_metadata(
-                                    provider_metadata=chunk.provider_metadata or {},
-                                    tool_name=chunk.tool_name,
-                                    emitted_at=datetime.now(timezone.utc),
-                                )
-                            yield chunk
-            finally:
-                if tracer is not None:
-                    tracer.tracer_provider.force_flush()
-                    if ingest_traces:
-                        project_id = await _ensure_project_exists(
-                            request.app.state.db, project_name
-                        )
-                        db_traces = tracer.get_db_traces(project_id=project_id)
-                        await _persist_db_traces_and_emit_event(
-                            db=request.app.state.db,
-                            event_queue=request.state.event_queue,
-                            db_traces=db_traces,
-                        )
-                    tracer.tracer_provider.shutdown()
-
-        return adapter.streaming_response(_stream_with_session())
-
     @router.post("/agents/{agent_id}/chat")
     async def chat(
         agent_id: str,
@@ -1662,23 +1414,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     agent_session_id=body.agent_session_id,
                     user_id=request_user_id,
                 )
-                # The server owns the transcript: requests carry only the
-                # turn's new message, which is merged into persisted history.
-                persisted_messages = await _load_persisted_transcript(
+                persisted_messages = await _load_persisted_messages(
                     session,
                     agent_session_rowid=agent_session.id,
                 )
-                transcript_messages = _merge_message_into_transcript(
-                    persisted_messages=persisted_messages,
-                    message=body.message,
+                transcript_messages = _merge_messages(
+                    old_messages=persisted_messages,
+                    new_message=body.message,
                 )
-                incoming_turn_messages = [body.message]
-                if (
-                    body.message.role == "user"
-                    and persisted_messages
-                    and transcript_messages[-2] != persisted_messages[-1]
-                ):
-                    incoming_turn_messages.insert(0, transcript_messages[-2])
                 project_name = agent_session.project_name
                 tracer = (
                     Tracer(
@@ -2003,7 +1746,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else:
                         summary_task.cancel()
                 try:
-                    turn_messages = [*incoming_turn_messages]
+                    turn_messages = [body.message]
                     if generated_assistant_message := await _build_generated_assistant_message(
                         message_chunks=emitted_message_chunks,
                         session_id=otel_session_id,
@@ -2013,7 +1756,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         request.app.state.db,
                         agent_session_rowid=agent_session_rowid,
                         user_id=request_user_id,
-                        messages=turn_messages,
+                        new_messages=turn_messages,
                         bashkit_snapshot=captured_bash_snapshot,
                         title=session_title,
                     )

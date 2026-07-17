@@ -1545,40 +1545,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/server/sessions/{session_id}/chat": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Run Server Agent
-         * @description Stream a chat turn from the GraphQL server agent.
-         *
-         *     This is the endpoint the PXI CLI talks to directly (no pre-configured
-         *     agent record): it builds a fresh server agent per request from the
-         *     caller-supplied model and contexts, then streams the reply back as
-         *     Vercel-AI chunks.
-         *
-         *     The request contexts gate capabilities — GraphQL mutations, web access,
-         *     and subagents — and mutations are refused for viewer users. When trace
-         *     recording is enabled (and permitted by system settings), the run is
-         *     traced; locally ingested traces are persisted to the agent's project
-         *     once the stream completes.
-         *
-         *     Returns ``403`` if agents or the server agent are disabled, or if a
-         *     viewer requests mutations.
-         */
-        post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/agents/{agent_id}/chat": {
         parameters: {
             query?: never;
@@ -4521,115 +4487,6 @@ export interface components {
              * @description Provide a string to create or update the secret, or explicit null to delete it. This field is required; omitting it returns 422.
              */
             value: string | null;
-        };
-        /**
-         * ServerChatRegenerateMessage
-         * @description Stateless server-agent regenerate request carrying the full history.
-         */
-        ServerChatRegenerateMessage: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            trigger: "regenerate-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
-            /** Messageid */
-            messageId?: string | null;
-            /**
-             * Ingesttraces
-             * @default false
-             */
-            ingestTraces?: boolean;
-            /**
-             * Exportremotetraces
-             * @default false
-             */
-            exportRemoteTraces?: boolean;
-            /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
-             */
-            attachUserId?: boolean;
-            /** Contexts */
-            contexts?: components["schemas"]["ChatContext"][];
-            /** Agentsessionid */
-            agentSessionId?: string | null;
-            /**
-             * Editpermission
-             * @default manual
-             * @enum {string}
-             */
-            editPermission?: "manual" | "bypass";
-            /**
-             * Requestedskills
-             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
-             */
-            requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * ServerChatRequest
-         * @description Discriminated union of server-agent chat request payloads.
-         */
-        ServerChatRequest: components["schemas"]["ServerChatSubmitMessage"] | components["schemas"]["ServerChatRegenerateMessage"];
-        /**
-         * ServerChatSubmitMessage
-         * @description Stateless server-agent submit request carrying the full history.
-         */
-        ServerChatSubmitMessage: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            trigger: "submit-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
-            /**
-             * Ingesttraces
-             * @default false
-             */
-            ingestTraces?: boolean;
-            /**
-             * Exportremotetraces
-             * @default false
-             */
-            exportRemoteTraces?: boolean;
-            /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
-             */
-            attachUserId?: boolean;
-            /** Contexts */
-            contexts?: components["schemas"]["ChatContext"][];
-            /** Agentsessionid */
-            agentSessionId?: string | null;
-            /**
-             * Editpermission
-             * @default manual
-             * @enum {string}
-             */
-            editPermission?: "manual" | "bypass";
-            /**
-             * Requestedskills
-             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
-             */
-            requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-        } & {
-            [key: string]: unknown;
         };
         /** SessionAnnotation */
         SessionAnnotation: {
@@ -10892,41 +10749,6 @@ export interface operations {
             };
         };
         requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    run_server_agent_agents_server_sessions__session_id__chat_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ServerChatRequest"];
-            };
-        };
         responses: {
             /** @description Successful Response */
             200: {
