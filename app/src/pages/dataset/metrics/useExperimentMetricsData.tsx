@@ -4,6 +4,7 @@ import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
   readInlineData,
+  useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
@@ -183,13 +184,12 @@ function readExperimentAnnotationMetricsDatum({
 type ExperimentMetricsQueryContextValue = {
   datasetId: string;
   metricsQueryReference: PreloadedQuery<useExperimentMetricsDataQuery>;
-  annotationMetricsQueryReference: PreloadedQuery<useExperimentAnnotationMetricsDataQuery>;
 };
 
 const ExperimentMetricsQueryContext =
   createContext<ExperimentMetricsQueryContextValue | null>(null);
 
-/** Starts core and annotation requests together while retaining each Relay query. */
+/** Loads and retains the core experiment metrics shared by the chart catalog. */
 export function ExperimentMetricsDataProvider({
   datasetId,
   children,
@@ -199,30 +199,18 @@ export function ExperimentMetricsDataProvider({
 }) {
   const [metricsQueryReference, loadMetricsQuery] =
     useQueryLoader<useExperimentMetricsDataQuery>(experimentMetricsQuery);
-  const [annotationMetricsQueryReference, loadAnnotationMetricsQuery] =
-    useQueryLoader<useExperimentAnnotationMetricsDataQuery>(
-      experimentAnnotationMetricsQuery
-    );
 
   useEffect(() => {
-    const variables = {
-      id: datasetId,
-      count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
-    };
-    // Both requests depend only on the dataset, so start them together rather
-    // than waiting for the core experiment window before loading annotations.
-    loadMetricsQuery(variables, { fetchPolicy: "store-or-network" });
-    loadAnnotationMetricsQuery(variables, {
-      // Aggregates are not normalized Relay records and can change after an
-      // evaluation or baseline mutation, so refresh them whenever this page loads.
-      fetchPolicy: "store-and-network",
-    });
-  }, [datasetId, loadAnnotationMetricsQuery, loadMetricsQuery]);
+    loadMetricsQuery(
+      {
+        id: datasetId,
+        count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+      },
+      { fetchPolicy: "store-or-network" }
+    );
+  }, [datasetId, loadMetricsQuery]);
 
-  if (
-    metricsQueryReference == null ||
-    annotationMetricsQueryReference == null
-  ) {
+  if (metricsQueryReference == null) {
     return <Loading />;
   }
 
@@ -231,7 +219,6 @@ export function ExperimentMetricsDataProvider({
       value={{
         datasetId,
         metricsQueryReference,
-        annotationMetricsQueryReference,
       }}
     >
       {children}
@@ -296,11 +283,15 @@ export function useExperimentAnnotationMetricsData(datasetId: string): {
   experiments: ExperimentAnnotationMetricsDatum[];
   baselineExperiment: ExperimentAnnotationMetricsDatum | null;
 } {
-  const { annotationMetricsQueryReference } =
-    useExperimentMetricsQueryContext(datasetId);
-  const data = usePreloadedQuery<useExperimentAnnotationMetricsDataQuery>(
+  // Both annotation chart surfaces use this identical operation and variable
+  // set so Relay can reuse its in-flight request or cached store result.
+  const data = useLazyLoadQuery<useExperimentAnnotationMetricsDataQuery>(
     experimentAnnotationMetricsQuery,
-    annotationMetricsQueryReference
+    {
+      id: datasetId,
+      count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+    },
+    { fetchPolicy: "store-or-network" }
   );
   const metrics = data.dataset.experimentAnnotationMetrics;
   invariant(metrics, "Dataset annotation metrics are required");

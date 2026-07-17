@@ -76,25 +76,32 @@ export function normalizeEvaluationMetrics({
   /** Retain input categories that have no value for a supported view. */
   includeEmptyPoints?: boolean;
 }): EvaluationMetricsSeries[] {
+  const pointsWithSummariesByName = points.map((point) => ({
+    point,
+    summariesByName: new Map(
+      point.summaries.map((summary) => [summary.name, summary])
+    ),
+  }));
+  const referenceSummariesByName = new Map(
+    referencePoint?.summaries.map((summary) => [summary.name, summary]) ?? []
+  );
   const evaluationNames = new Set<string>();
-  for (const point of points) {
-    for (const summary of point.summaries) {
-      evaluationNames.add(summary.name);
-    }
+  for (const { summariesByName } of pointsWithSummariesByName) {
+    summariesByName.forEach((_, name) => evaluationNames.add(name));
   }
 
   return Array.from(evaluationNames)
     .sort((left, right) => left.localeCompare(right))
     .map((name): EvaluationMetricsSeries => {
-      const summaryByPoint = points.map((point) => ({
-        point,
-        summary: point.summaries.find((summary) => summary.name === name),
-      }));
+      const summaryByPoint = pointsWithSummariesByName.map(
+        ({ point, summariesByName }) => ({
+          point,
+          summary: summariesByName.get(name),
+        })
+      );
       // The reference is a comparison point, not part of the visible window
       // used to decide whether an evaluation offers label and/or score views.
-      const referenceSummary = referencePoint?.summaries.find(
-        (summary) => summary.name === name
-      );
+      const referenceSummary = referenceSummariesByName.get(name);
       const latestSummary = summaryByPoint
         .slice()
         .reverse()
