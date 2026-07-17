@@ -141,8 +141,8 @@ function ProjectChartSelectorMenuContent({
       getProjectEvaluationMetricChartKey({ view, evaluationName })
     )
   );
-  // Preserve absent persisted evaluations as options so an empty chart can
-  // always be removed after the time range changes.
+  // Preserve a persisted evaluation if its annotation was deleted so the
+  // user can still deselect the empty chart.
   const unavailableSelectedEvaluations = selectedChartKeys.flatMap((key) => {
     const evaluationInfo = getProjectEvaluationMetricChartInfo(key);
     return evaluationInfo == null || availableEvaluationKeys.has(key)

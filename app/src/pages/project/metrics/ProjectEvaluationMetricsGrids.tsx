@@ -329,94 +329,67 @@ function SessionEvaluationMetricPanelContent({
 
 // Keep each Relay query below its own Suspense boundary. Suspending from the
 // page can remount the metrics tree and repeatedly restart the query.
+function getSortedEvaluationNames(
+  names: ReadonlyArray<string>
+): ReadonlyArray<string> {
+  return [...names].sort((left, right) => left.localeCompare(right));
+}
+
 export function useSpanEvaluationMetricNames(
   props: ProjectMetricViewProps
 ): ReadonlyArray<string> {
-  const scale = useTimeBinScale({ timeRange: props.timeRange });
-  const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricNamesSpanQuery>(
     graphql`
-      query ProjectEvaluationMetricNamesSpanQuery(
-        $projectId: ID!
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
+      query ProjectEvaluationMetricNamesSpanQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
-            spanAnnotationMetricsTimeSeries(
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              names
-            }
+            spanAnnotationNames
           }
         }
       }
     `,
-    getQueryVariables(props, scale, utcOffsetMinutes),
+    { projectId: props.projectId },
     useMetricQueryFetchOptions()
   );
-  return data.project.spanAnnotationMetricsTimeSeries?.names ?? [];
+  return getSortedEvaluationNames(data.project.spanAnnotationNames ?? []);
 }
 
 export function useTraceEvaluationMetricNames(
   props: ProjectMetricViewProps
 ): ReadonlyArray<string> {
-  const scale = useTimeBinScale({ timeRange: props.timeRange });
-  const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricNamesTraceQuery>(
     graphql`
-      query ProjectEvaluationMetricNamesTraceQuery(
-        $projectId: ID!
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
+      query ProjectEvaluationMetricNamesTraceQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
-            traceAnnotationMetricsTimeSeries(
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              names
-            }
+            traceAnnotationsNames
           }
         }
       }
     `,
-    getQueryVariables(props, scale, utcOffsetMinutes),
+    { projectId: props.projectId },
     useMetricQueryFetchOptions()
   );
-  return data.project.traceAnnotationMetricsTimeSeries?.names ?? [];
+  return getSortedEvaluationNames(data.project.traceAnnotationsNames ?? []);
 }
 
 export function useSessionEvaluationMetricNames(
   props: ProjectMetricViewProps
 ): ReadonlyArray<string> {
-  const scale = useTimeBinScale({ timeRange: props.timeRange });
-  const utcOffsetMinutes = useUTCOffsetMinutes();
   const data = useLazyLoadQuery<ProjectEvaluationMetricNamesSessionQuery>(
     graphql`
-      query ProjectEvaluationMetricNamesSessionQuery(
-        $projectId: ID!
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
+      query ProjectEvaluationMetricNamesSessionQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
-            sessionAnnotationMetricsTimeSeries(
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              names
-            }
+            sessionAnnotationNames
           }
         }
       }
     `,
-    getQueryVariables(props, scale, utcOffsetMinutes),
+    { projectId: props.projectId },
     useMetricQueryFetchOptions()
   );
-  return data.project.sessionAnnotationMetricsTimeSeries?.names ?? [];
+  return getSortedEvaluationNames(data.project.sessionAnnotationNames ?? []);
 }
 
 export function SpanEvaluationMetricsGrid(props: ProjectMetricViewProps) {

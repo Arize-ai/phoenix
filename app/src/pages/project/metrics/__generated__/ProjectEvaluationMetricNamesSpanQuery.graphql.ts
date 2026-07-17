@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<de17379cce3366e315f450253a84cede>>
+ * @generated SignedSource<<70279240d520524f4499ffcc285ff954>>
  * @lightSyntaxTransform
  */
 
@@ -8,25 +8,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type TimeBinScale = "DAY" | "HOUR" | "MINUTE" | "MONTH" | "WEEK" | "YEAR";
-export type TimeRange = {
-  end?: string | null;
-  start?: string | null;
-};
-export type TimeBinConfig = {
-  scale?: TimeBinScale;
-  utcOffsetMinutes?: number;
-};
 export type ProjectEvaluationMetricNamesSpanQuery$variables = {
   projectId: string;
-  timeBinConfig: TimeBinConfig;
-  timeRange: TimeRange;
 };
 export type ProjectEvaluationMetricNamesSpanQuery$data = {
   readonly project: {
-    readonly spanAnnotationMetricsTimeSeries?: {
-      readonly names: ReadonlyArray<string>;
-    };
+    readonly spanAnnotationNames?: ReadonlyArray<string>;
   };
 };
 export type ProjectEvaluationMetricNamesSpanQuery = {
@@ -35,58 +22,28 @@ export type ProjectEvaluationMetricNamesSpanQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "projectId"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "timeBinConfig"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "timeRange"
-},
-v3 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "projectId"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v4 = {
+v2 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "timeBinConfig",
-          "variableName": "timeBinConfig"
-        },
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
-        }
-      ],
-      "concreteType": "AnnotationMetricsTimeSeries",
-      "kind": "LinkedField",
-      "name": "spanAnnotationMetricsTimeSeries",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "names",
-          "storageKey": null
-        }
-      ],
+      "args": null,
+      "kind": "ScalarField",
+      "name": "spanAnnotationNames",
       "storageKey": null
     }
   ],
@@ -95,24 +52,20 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/),
-      (v2/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectEvaluationMetricNamesSpanQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*:: as any*/)
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -122,17 +75,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v2/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectEvaluationMetricNamesSpanQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -145,7 +94,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -159,16 +108,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "259fdab816ccb30dd773d0ef2f7f9919",
+    "cacheID": "d1f91a2d42aa82bcfffaa9ac1cb01202",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluationMetricNamesSpanQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluationMetricNamesSpanQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        names\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluationMetricNamesSpanQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanAnnotationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "03bc61160091851b57114f0afc63d063";
+(node as any).hash = "94e9fc46371b1860ef8895d48290b054";
 
 export default node;

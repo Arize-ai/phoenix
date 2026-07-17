@@ -74,8 +74,8 @@ function ExperimentChartSelectorMenu({
   const availableEvaluationKeys = new Set<ExperimentMetricChartKey>(
     evaluationNames.map(getExperimentEvaluationMetricChartKey)
   );
-  // Keep a persisted evaluation visible when the current seven-experiment
-  // window has no results for it, so users can still deselect the empty chart.
+  // Keep a persisted evaluation visible if its annotation was deleted so the
+  // user can still deselect the empty chart.
   const unavailableSelectedEvaluations = selectedChartKeys.flatMap((key) => {
     const evaluationName = getExperimentEvaluationName(key);
     return evaluationName == null || availableEvaluationKeys.has(key)

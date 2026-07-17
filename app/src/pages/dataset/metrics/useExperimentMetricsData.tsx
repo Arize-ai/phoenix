@@ -104,12 +104,10 @@ export const experimentAnnotationMetricsQuery = graphql`
 `;
 
 const experimentAnnotationMetricNamesQuery = graphql`
-  query useExperimentAnnotationMetricNamesQuery($id: ID!, $count: Int!) {
+  query useExperimentAnnotationMetricNamesQuery($id: ID!) {
     dataset: node(id: $id) {
       ... on Dataset {
-        experimentAnnotationMetrics(first: $count) {
-          names
-        }
+        experimentAnnotationNames
       }
     }
   }
@@ -332,15 +330,13 @@ export function useExperimentAnnotationMetricsData(datasetId: string): {
 export function useExperimentAnnotationMetricNames(
   datasetId: string
 ): ReadonlyArray<string> {
-  // The selector needs only this bounded name catalog; individual chart data
-  // remains lazy until an evaluation is actually selected.
+  // Annotation discovery is intentionally independent of metrics aggregation;
+  // an annotation without chartable values can still be selected and render
+  // the chart's empty state.
   const data = useLazyLoadQuery<useExperimentAnnotationMetricNamesQuery>(
     experimentAnnotationMetricNamesQuery,
-    {
-      id: datasetId,
-      count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
-    },
+    { id: datasetId },
     { fetchPolicy: "store-or-network" }
   );
-  return data.dataset.experimentAnnotationMetrics?.names ?? [];
+  return data.dataset.experimentAnnotationNames ?? [];
 }

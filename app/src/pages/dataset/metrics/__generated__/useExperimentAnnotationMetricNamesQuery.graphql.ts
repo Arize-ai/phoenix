@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df5bfc67024d9de6dd20e15aa6f72d12>>
+ * @generated SignedSource<<d57c544dd88e81cbbdd380ad3c927cd2>>
  * @lightSyntaxTransform
  */
 
@@ -9,14 +9,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type useExperimentAnnotationMetricNamesQuery$variables = {
-  count: number;
   id: string;
 };
 export type useExperimentAnnotationMetricNamesQuery$data = {
   readonly dataset: {
-    readonly experimentAnnotationMetrics?: {
-      readonly names: ReadonlyArray<string>;
-    };
+    readonly experimentAnnotationNames?: ReadonlyArray<string>;
   };
 };
 export type useExperimentAnnotationMetricNamesQuery = {
@@ -25,48 +22,28 @@ export type useExperimentAnnotationMetricNamesQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "count"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "id"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "id"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v3 = {
+v2 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "first",
-          "variableName": "count"
-        }
-      ],
-      "concreteType": "ExperimentAnnotationMetrics",
-      "kind": "LinkedField",
-      "name": "experimentAnnotationMetrics",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "names",
-          "storageKey": null
-        }
-      ],
+      "args": null,
+      "kind": "ScalarField",
+      "name": "experimentAnnotationNames",
       "storageKey": null
     }
   ],
@@ -75,23 +52,20 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "useExperimentAnnotationMetricNamesQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*:: as any*/)
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -101,16 +75,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "useExperimentAnnotationMetricNamesQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -123,7 +94,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v3/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -137,16 +108,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7f6cf36aebb68cfbcc916bf04a71d54a",
+    "cacheID": "a065f45cf5c1011575224df029a61b1a",
     "id": null,
     "metadata": {},
     "name": "useExperimentAnnotationMetricNamesQuery",
     "operationKind": "query",
-    "text": "query useExperimentAnnotationMetricNamesQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      experimentAnnotationMetrics(first: $count) {\n        names\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query useExperimentAnnotationMetricNamesQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      experimentAnnotationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4fc202e80f8e7f13435dbca51d03e542";
+(node as any).hash = "34e654a7fbdde06771cccd062a1f1332";
 
 export default node;

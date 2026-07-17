@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ddba5cc9c82bd105dbd958fba1260f2>>
+ * @generated SignedSource<<6ce1197a5e37841d5f1ad2d661f3967a>>
  * @lightSyntaxTransform
  */
 
@@ -8,25 +8,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type TimeBinScale = "DAY" | "HOUR" | "MINUTE" | "MONTH" | "WEEK" | "YEAR";
-export type TimeRange = {
-  end?: string | null;
-  start?: string | null;
-};
-export type TimeBinConfig = {
-  scale?: TimeBinScale;
-  utcOffsetMinutes?: number;
-};
 export type ProjectEvaluationMetricNamesSessionQuery$variables = {
   projectId: string;
-  timeBinConfig: TimeBinConfig;
-  timeRange: TimeRange;
 };
 export type ProjectEvaluationMetricNamesSessionQuery$data = {
   readonly project: {
-    readonly sessionAnnotationMetricsTimeSeries?: {
-      readonly names: ReadonlyArray<string>;
-    };
+    readonly sessionAnnotationNames?: ReadonlyArray<string>;
   };
 };
 export type ProjectEvaluationMetricNamesSessionQuery = {
@@ -35,58 +22,28 @@ export type ProjectEvaluationMetricNamesSessionQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "projectId"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "timeBinConfig"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "timeRange"
-},
-v3 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "projectId"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v4 = {
+v2 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "timeBinConfig",
-          "variableName": "timeBinConfig"
-        },
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
-        }
-      ],
-      "concreteType": "AnnotationMetricsTimeSeries",
-      "kind": "LinkedField",
-      "name": "sessionAnnotationMetricsTimeSeries",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "names",
-          "storageKey": null
-        }
-      ],
+      "args": null,
+      "kind": "ScalarField",
+      "name": "sessionAnnotationNames",
       "storageKey": null
     }
   ],
@@ -95,24 +52,20 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/),
-      (v2/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectEvaluationMetricNamesSessionQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*:: as any*/)
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -122,17 +75,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v2/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectEvaluationMetricNamesSessionQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -145,7 +94,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -159,16 +108,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4d3534eb6cf1280847abac7c9f81d4a4",
+    "cacheID": "318c84612ce5a43371f9e89e057a8536",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluationMetricNamesSessionQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluationMetricNamesSessionQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessionAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        names\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluationMetricNamesSessionQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessionAnnotationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bd85bcd4f48abe1c3d68c05cd04e1793";
+(node as any).hash = "7f2333bd8fc4c2d4418b0c639f06aef3";
 
 export default node;
