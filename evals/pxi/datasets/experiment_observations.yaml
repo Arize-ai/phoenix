@@ -185,7 +185,12 @@ examples:
       tools:
         forbidden: [patch_experiment, set_playground_experiment_recording]
       budgets:
-        max_tool_calls: 3
+        # Surveying quality, latency, and cost legitimately takes up to four
+        # reads (experiment, runs, and per-dimension metrics). At 3 the agent
+        # breached intermittently with a read-only call, never a forbidden
+        # one — the intent (read, don't mutate) is carried by the forbidden
+        # list.
+        max_tool_calls: 4
     metadata:
       category: negative_read_only
       difficulty: moderate
@@ -209,7 +214,12 @@ examples:
       tools:
         forbidden: [patch_experiment]
       budgets:
-        max_tool_calls: 3
+        # Comparing two experiments legitimately takes up to four reads (the
+        # experiment, its baseline, and each side's failure cases). At 3 the
+        # agent breached ~1 in 3 runs with a read-only call, never
+        # patch_experiment — the intent (compare, don't mutate) is carried by
+        # the forbidden list.
+        max_tool_calls: 4
     metadata:
       category: negative_compare_only
       difficulty: moderate
