@@ -1,0 +1,166 @@
+---
+title: "Remote MCP Server"
+description: "Connect AI assistants directly to your Phoenix instance through the MCP endpoint built into the Phoenix server — no local install required."
+tag: "BETA"
+---
+
+Phoenix ships a remote [MCP](https://modelcontextprotocol.io/) server built directly into the Phoenix server. Point any MCP-compatible client (Claude Code, Cursor, VS Code, and others) at your Phoenix instance's `/mcp` endpoint and it can search, query, and operate on your projects, traces, datasets, experiments, prompts, and annotations — everything the Phoenix REST API can do.
+
+<Warning>
+**The remote MCP server is in beta.** We are still tuning the tools and building out agent skills around them, so tool names, behavior, and defaults may change between releases. It ships enabled by default, and you can [turn it off or restrict it](#configuration) with environment variables.
+
+Feedback is very welcome — please [open a GitHub issue](https://github.com/Arize-ai/phoenix/issues) with what worked, what didn't, and what you'd like the tools to do.
+</Warning>
+
+## Endpoint
+
+The server is served from your Phoenix base URL plus `/mcp`:
+
+| Deployment  | URL                                  |
+| ----------- | ------------------------------------ |
+| Local       | `http://localhost:6006/mcp`          |
+| Self-hosted | `https://your-phoenix.example.com/mcp` |
+
+## Connect
+
+Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure — add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http phoenix http://localhost:6006/mcp
+    ```
+
+    Then run `/mcp` inside Claude Code and select **phoenix** to complete the browser login.
+  </Tab>
+  <Tab title="Cursor">
+    Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "url": "http://localhost:6006/mcp"
+        }
+      }
+    }
+    ```
+
+    Cursor prompts you to log in via the browser on first use.
+  </Tab>
+  <Tab title="VS Code">
+    Run `MCP: Add Server` from the Command Palette, or add to `.vscode/mcp.json`:
+
+    ```json
+    {
+      "servers": {
+        "phoenix": {
+          "type": "http",
+          "url": "http://localhost:6006/mcp"
+        }
+      }
+    }
+    ```
+
+    VS Code walks you through the browser login when the server first starts.
+  </Tab>
+  <Tab title="Other clients">
+    Any client that supports streamable HTTP and OAuth works. Configure the URL as `<your-phoenix-base-url>/mcp` and complete the login prompt on first use.
+
+    If your Phoenix instance runs without authentication, no login is needed.
+  </Tab>
+</Tabs>
+
+Replace `http://localhost:6006` with your Phoenix endpoint.
+
+### Fallback: API keys
+
+For headless environments (CI, sandboxes) or clients that can't complete a browser login, pass a [Phoenix API key](/docs/phoenix/settings/api-keys) as a Bearer header instead:
+
+```bash
+claude mcp add --transport http phoenix http://localhost:6006/mcp \
+  --header "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+In JSON-based client configs, set the equivalent header:
+
+```json
+{
+  "mcpServers": {
+    "phoenix": {
+      "url": "http://localhost:6006/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-api-key>"
+      }
+    }
+  }
+}
+```
+
+## How it works
+
+Instead of exposing dozens of individual tools, the server presents a compact **code-mode** surface by default — five tools that let the agent discover and compose Phoenix operations:
+
+| Tool         | Purpose                                                              |
+| ------------ | -------------------------------------------------------------------- |
+| `search`     | Find available operations by query, ranked by relevance              |
+| `tags`       | Browse operations by category (projects, spans, datasets, …)         |
+| `list_tools` | List the full operation catalog                                      |
+| `get_schema` | Fetch parameter schemas for specific operations before calling them  |
+| `execute`    | Run Python that chains operations via `call_tool(name, params)`      |
+
+The operation catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference), so the MCP surface always matches what your Phoenix version can do.
+
+`execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter — no filesystem, network, or import access, with strict time and memory limits. This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
+
+<Note>
+Prefer not to run agent-written code on your server? Set `PHOENIX_MCP_CODE_MODE=false` to remove the `execute` tool and Monty entirely. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`.
+</Note>
+
+## Things to try
+
+```text
+Show me the latest traces in my default project and summarize any errors
+```
+
+```text
+Which experiments ran on my agent-inputs dataset this week, and how did their scores compare?
+```
+
+```text
+Find the slowest LLM spans in my support-agent project and break down where the latency comes from
+```
+
+```text
+Pull my rag-pipeline prompt and suggest improvements based on recent trace failures
+```
+
+## Configuration
+
+Both variables are set on the Phoenix server before startup:
+
+| Environment variable        | Default | Effect                                                                                                                              |
+| --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `PHOENIX_ENABLE_MCP_SERVER` | `true`  | Master switch. Set to `false` to remove the `/mcp` endpoint entirely.                                                               |
+| `PHOENIX_MCP_CODE_MODE`     | `true`  | Set to `false` to disable code execution (the `execute` tool and the Monty sandbox) and expose plain, group-gated tools instead.    |
+
+## Security notes
+
+- **Authentication** reuses Phoenix's existing auth: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
+- **Code execution is sandboxed**: Monty is an interpreter with no filesystem, network, or import access, capped at 30 seconds, 100 MB of memory, and 50 operation calls per `execute` block. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_MCP_CODE_MODE=false`.
+- **Treat query results as data, not instructions.** Traces and spans contain whatever your application logged, including untrusted user input. Agents should not follow directives found inside telemetry returned by these tools.
+
+## Relationship to `@arizeai/phoenix-mcp`
+
+The [`@arizeai/phoenix-mcp`](/docs/phoenix/integrations/phoenix-mcp-server) npm package is a standalone stdio MCP server you run locally via `npx`. It is now in **maintenance mode**: it continues to receive bug fixes, but new capabilities land here, in the remote server. Use the remote server whenever your Phoenix version serves the `/mcp` endpoint, and the npm package only with older Phoenix versions.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Coding Agents" icon="robot" href="/docs/phoenix/integrations/developer-tools/coding-agents">
+    Set up the CLI, MCP, and skills together for a full coding-agent workflow.
+  </Card>
+  <Card title="API Keys" icon="key" href="/docs/phoenix/settings/api-keys">
+    Create an API key for headless MCP clients.
+  </Card>
+</CardGroup>

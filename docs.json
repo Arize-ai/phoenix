@@ -76,6 +76,7 @@
                 "group": "Coding Agents",
                 "pages": [
                   "docs/phoenix/integrations/developer-tools/coding-agents",
+                  "docs/phoenix/integrations/remote-mcp",
                   "docs/phoenix/integrations/phoenix-mcp-server",
                   "docs/phoenix/agent-assisted-setup"
                 ]
@@ -490,6 +491,7 @@
             "icon": "code",
             "pages": [
               "docs/phoenix/integrations/developer-tools/coding-agents",
+              "docs/phoenix/integrations/remote-mcp",
               "docs/phoenix/integrations/phoenix-mcp-server"
             ]
           },
