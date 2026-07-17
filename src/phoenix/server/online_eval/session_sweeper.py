@@ -262,7 +262,6 @@ class SessionEvalSweeper(DaemonTask):
                     criteria.fingerprint,
                     _GENERATION,
                 )
-                # Reopened sessions are not re-evaluated; the original annotation stands.
                 if key in existing_work_keys:
                     continue
                 if activity.observed_at > database_now - timedelta(seconds=criteria.delay_seconds):
