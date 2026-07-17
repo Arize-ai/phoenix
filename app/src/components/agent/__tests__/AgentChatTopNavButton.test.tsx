@@ -99,7 +99,10 @@ describe("AgentChatTopNavButton", () => {
     expect(initialButton?.hasAttribute("data-pxi-should-flash")).toBe(false);
 
     act(() => agentStore?.getState().setIsOpen(true));
-    expect(container.querySelector("button.pxi-button")).toBeNull();
+    const openButton =
+      container.querySelector<HTMLButtonElement>("button.pxi-button");
+    expect(openButton).not.toBeNull();
+    expect(openButton?.getAttribute("aria-expanded")).toBe("true");
 
     act(() => agentStore?.getState().setIsOpen(false));
     const returnedButton =

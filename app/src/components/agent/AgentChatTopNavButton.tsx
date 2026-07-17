@@ -127,6 +127,7 @@ export function AgentChatTopNavButton() {
   const isAssistantAgentEnabled = useAssistantAgentEnabled();
   const agentStore = useAgentStore();
   const isOpen = useAgentContext((state) => state.isOpen);
+  const position = useAgentContext((state) => state.position);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const [shouldFlashOnReturnHome, setShouldFlashOnReturnHome] = useState(false);
@@ -168,7 +169,8 @@ export function AgentChatTopNavButton() {
     [isAssistantAgentEnabled, toggleOpen]
   );
 
-  if (!isAssistantAgentEnabled || isOpen) {
+  const shouldHideForOpenPinnedPanel = isOpen && position === "pinned";
+  if (!isAssistantAgentEnabled || shouldHideForOpenPinnedPanel) {
     return null;
   }
 
