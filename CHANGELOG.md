@@ -1,5 +1,24 @@
 # Changelog
 
+## [19.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v18.1.0...arize-phoenix-v19.0.0) (2026-07-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** GraphQL createUserApiKey and createSystemApiKey no longer accept API-key-authenticated callers. Workflows that used an existing API key for unattended key creation must issue keys from a session-authenticated context or, for system keys, PHOENIX_ADMIN_SECRET.
+
+### Features
+
+* **auth:** add OAuth2 authorization server and CLI login ([#14175](https://github.com/Arize-ai/phoenix/issues/14175)) ([d6b1cbb](https://github.com/Arize-ai/phoenix/commit/d6b1cbb591fdc3de32511383c7c2c4c74400abc3))
+* improved pxi token display ([#14421](https://github.com/Arize-ai/phoenix/issues/14421)) ([98ea567](https://github.com/Arize-ai/phoenix/commit/98ea567a2f74324540fdc7984af53f0da536b619))
+* PXI button relocation ([#14384](https://github.com/Arize-ai/phoenix/issues/14384)) ([ee1b677](https://github.com/Arize-ai/phoenix/commit/ee1b6770b8b1af9620d58a0037a540428cf75bdd))
+
+
+### Bug Fixes
+
+* **evals:** trustworthy PXI regression gate — task-error exclusion, confirm-on-retry, reporting ([#14214](https://github.com/Arize-ai/phoenix/issues/14214)) ([2a7a879](https://github.com/Arize-ai/phoenix/commit/2a7a87946a88652dfc705c7286faa722818fc166))
+* tab padding broken ([#14478](https://github.com/Arize-ai/phoenix/issues/14478)) ([8ecea00](https://github.com/Arize-ai/phoenix/commit/8ecea00b2f752146dd156d7e3d5155b6ad3df086))
+
 ## [18.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v18.0.0...arize-phoenix-v18.1.0) (2026-07-17)
 
 
