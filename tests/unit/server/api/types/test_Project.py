@@ -5496,7 +5496,7 @@ class TestAnnotationMetricsTimeSeries:
         assert response.data is not None
         for level in ("span", "trace", "session"):
             metrics = response.data["node"][level]
-            assert metrics["names"] == ["empty", "label-only", "mixed", "score-only"]
+            assert metrics["names"] == ["label-only", "mixed", "score-only"]
             assert [point["timestamp"] for point in metrics["data"]] == [
                 "2024-01-01T01:00:00+00:00",
                 "2024-01-01T02:00:00+00:00",
@@ -5504,14 +5504,6 @@ class TestAnnotationMetricsTimeSeries:
             ]
             hour_one_summaries = {
                 summary["name"]: summary for summary in metrics["data"][0]["annotationSummaries"]
-            }
-            assert hour_one_summaries["empty"] == {
-                "name": "empty",
-                "count": 0,
-                "scoreCount": 0,
-                "labelCount": 0,
-                "meanScore": None,
-                "labelFractions": [],
             }
             assert hour_one_summaries["label-only"] == {
                 "name": "label-only",
@@ -5535,12 +5527,143 @@ class TestAnnotationMetricsTimeSeries:
             assert mixed_summary["labelCount"] == 2
             assert mixed_summary["meanScore"] == pytest.approx(0.4)
             assert mixed_summary["labelFractions"] == [
-                {"label": "fail", "fraction": pytest.approx(1 / 2)},
                 {"label": "pass", "fraction": pytest.approx(1 / 2)},
+                {"label": "fail", "fraction": pytest.approx(1 / 2)},
             ]
             assert metrics["data"][2]["annotationSummaries"] == []
 
-    async def test_label_fractions_are_bounded_by_latest_bucket_frequency(
+    async def test_label_fractions_weight_entities_instead_of_annotation_rows(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        timestamp = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_sessions = [
+                await _add_project_session(session, project, start_time=timestamp) for _ in range(3)
+            ]
+            traces = [
+                await _add_trace(
+                    session,
+                    project,
+                    project_session,
+                    start_time=timestamp,
+                )
+                for project_session in project_sessions
+            ]
+            spans = [await _add_span(session, trace, start_time=timestamp) for trace in traces]
+
+            for model, parent_id_field, parent_ids in (
+                (models.SpanAnnotation, "span_rowid", [span.id for span in spans]),
+                (models.TraceAnnotation, "trace_rowid", [trace.id for trace in traces]),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    [project_session.id for project_session in project_sessions],
+                ),
+            ):
+                for index, (parent_id, label, score) in enumerate(
+                    zip(
+                        parent_ids,
+                        ("pass", "fail", None),
+                        (0.2, 0.4, 0.6),
+                    )
+                ):
+                    session.add(
+                        model(
+                            **{parent_id_field: parent_id},
+                            name="coverage",
+                            label=label,
+                            score=score,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=f"entity-{index}",
+                            source="APP",
+                            user_id=None,
+                        )
+                    )
+                session.add_all(
+                    [
+                        model(
+                            **{parent_id_field: parent_ids[0]},
+                            name="coverage",
+                            label="pass",
+                            score=None,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=f"repeat-{index}",
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index in range(9)
+                    ]
+                )
+
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                data {
+                    annotationSummaries {
+                        name
+                        count
+                        scoreCount
+                        labelCount
+                        meanScore
+                        labelFractions { label fraction }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T02:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            summary = response.data["node"][level]["data"][0]["annotationSummaries"][0]
+            assert summary == {
+                "name": "coverage",
+                "count": 12,
+                "scoreCount": 3,
+                "labelCount": 11,
+                "meanScore": pytest.approx(0.4),
+                "labelFractions": [
+                    {"label": "pass", "fraction": pytest.approx(1 / 3)},
+                    {"label": "fail", "fraction": pytest.approx(1 / 3)},
+                ],
+            }
+
+    async def test_label_fractions_are_bounded_by_window_frequency(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -5561,7 +5684,10 @@ class TestAnnotationMetricsTimeSeries:
                 session, project, project_session_three, start_time=hour_three
             )
             labels_by_trace = (
-                (trace_one, [f"label-{index:02d}" for index in range(15)]),
+                (
+                    trace_one,
+                    ["label-14"] * 20 + [f"label-{index:02d}" for index in range(15)],
+                ),
                 (
                     trace_two,
                     ["label-00"] * 10 + [f"label-{index:02d}" for index in range(1, 15)],
@@ -5637,16 +5763,23 @@ class TestAnnotationMetricsTimeSeries:
         assert not response.errors
         assert response.data is not None
         data = response.data["node"]["traceAnnotationMetricsTimeSeries"]["data"]
-        expected_labels = [f"label-{index:02d}" for index in range(12)]
+        expected_labels = [
+            "label-14",
+            "label-00",
+            *[f"label-{index:02d}" for index in range(1, 11)],
+        ]
         first_summary = data[0]["annotationSummaries"][0]
         second_summary = data[1]["annotationSummaries"][0]
         third_summary = data[2]["annotationSummaries"][0]
-        assert first_summary["count"] == first_summary["labelCount"] == 15
+        assert first_summary["count"] == first_summary["labelCount"] == 35
         assert second_summary["count"] == second_summary["labelCount"] == 24
         assert [item["label"] for item in first_summary["labelFractions"]] == expected_labels
         assert [item["label"] for item in second_summary["labelFractions"]] == expected_labels
         assert sum(item["fraction"] for item in first_summary["labelFractions"]) == pytest.approx(
-            12 / 15
+            32 / 35
+        )
+        assert sum(item["fraction"] for item in second_summary["labelFractions"]) == pytest.approx(
+            21 / 24
         )
         assert third_summary["scoreCount"] == 1
         assert third_summary["labelFractions"] == []

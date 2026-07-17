@@ -939,7 +939,7 @@ class TestDatasetBaselineExperimentResolver:
 
 
 class TestDatasetExperimentAnnotationMetricsResolver:
-    async def test_returns_bounded_metrics_for_baseline_and_recent_experiments(
+    async def test_returns_metrics_with_labels_ranked_across_the_experiment_window(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -966,9 +966,9 @@ class TestDatasetExperimentAnnotationMetricsResolver:
                 )
             )
 
-            baseline_labels = ["label-00"] * 10 + [f"label-{index:02d}" for index in range(1, 15)]
-            candidate_labels = [f"label-{index:02d}" for index in range(15)]
-            latest_only_labels = ["latest-label-14"] * 2 + [
+            baseline_labels = ["label-14"] * 10 + [f"label-{index:02d}" for index in range(15)]
+            candidate_labels = ["label-00"] * 20 + [f"label-{index:02d}" for index in range(15)]
+            latest_only_labels = ["latest-label-14"] * 22 + [
                 f"latest-label-{index:02d}" for index in range(13)
             ]
             experiments: list[models.Experiment] = []
@@ -1054,6 +1054,49 @@ class TestDatasetExperimentAnnotationMetricsResolver:
                             end_time=now,
                         )
                     )
+                    session.add_all(
+                        [
+                            models.ExperimentRunAnnotation(
+                                experiment_run_id=score_only_run.id,
+                                name="both",
+                                annotator_kind="CODE",
+                                label="pass",
+                                score=0.9,
+                                explanation="A result containing both supported values.",
+                                trace_id=None,
+                                error=None,
+                                metadata_={},
+                                start_time=now,
+                                end_time=now,
+                            ),
+                            models.ExperimentRunAnnotation(
+                                experiment_run_id=score_only_run.id,
+                                name="explanation-only",
+                                annotator_kind="CODE",
+                                label=None,
+                                score=None,
+                                explanation="No chartable result.",
+                                trace_id=None,
+                                error=None,
+                                metadata_={},
+                                start_time=now,
+                                end_time=now,
+                            ),
+                            models.ExperimentRunAnnotation(
+                                experiment_run_id=score_only_run.id,
+                                name="errored",
+                                annotator_kind="CODE",
+                                label="should-not-appear",
+                                score=0.1,
+                                explanation=None,
+                                trace_id=None,
+                                error="Seeded evaluator failure",
+                                metadata_={},
+                                start_time=now,
+                                end_time=now,
+                            ),
+                        ]
+                    )
             session.add(
                 models.ExperimentTag(
                     experiment_id=experiments[0].id,
@@ -1096,7 +1139,7 @@ class TestDatasetExperimentAnnotationMetricsResolver:
         assert not response.errors
         assert response.data is not None
         metrics = response.data["dataset"]["experimentAnnotationMetrics"]
-        assert metrics["names"] == ["latest-only", "quality"]
+        assert metrics["names"] == ["both", "latest-only", "quality"]
         assert metrics["baselineExperiment"]["experiment"] == {
             "id": str(GlobalID("Experiment", str(experiments[0].id))),
             "name": "baseline",
@@ -1110,18 +1153,118 @@ class TestDatasetExperimentAnnotationMetricsResolver:
             summary["name"]: summary
             for summary in metrics["recentExperiments"][0]["annotationSummaries"]
         }
+        assert candidate_summaries["both"] == {
+            "name": "both",
+            "count": 1,
+            "scoreCount": 1,
+            "labelCount": 1,
+            "meanScore": pytest.approx(0.9),
+            "labelFractions": [{"label": "pass", "fraction": pytest.approx(1.0)}],
+        }
         quality = candidate_summaries["quality"]
-        expected_quality_labels = [f"label-{index:02d}" for index in range(12)]
-        assert quality["count"] == 16
+        expected_quality_labels = [
+            "label-00",
+            "label-14",
+            *[f"label-{index:02d}" for index in range(1, 11)],
+        ]
+        assert quality["count"] == 36
         assert quality["scoreCount"] == 1
-        assert quality["labelCount"] == 15
+        assert quality["labelCount"] == 35
         assert quality["meanScore"] == pytest.approx(0.8)
         assert [item["label"] for item in quality["labelFractions"]] == (expected_quality_labels)
-        assert sum(item["fraction"] for item in quality["labelFractions"]) == pytest.approx(12 / 16)
+        assert sum(item["fraction"] for item in quality["labelFractions"]) == pytest.approx(32 / 36)
         latest_only = candidate_summaries["latest-only"]
         assert [item["label"] for item in latest_only["labelFractions"]] == [
             "latest-label-14",
             *[f"latest-label-{index:02d}" for index in range(11)],
+        ]
+
+    async def test_mean_score_weights_dataset_examples_equally(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        async with db() as session:
+            dataset = models.Dataset(name="weighted-metrics-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            session.add(version)
+            await session.flush()
+            examples = [models.DatasetExample(dataset_id=dataset.id) for _ in range(2)]
+            session.add_all(examples)
+            await session.flush()
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name="weighted",
+                repetitions=3,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+            for example, scores in zip(examples, ((0.0, 0.0, 0.0), (1.0,))):
+                for repetition_number, score in enumerate(scores, start=1):
+                    run = models.ExperimentRun(
+                        experiment_id=experiment.id,
+                        dataset_example_id=example.id,
+                        output={"answer": "example"},
+                        repetition_number=repetition_number,
+                        start_time=now,
+                        end_time=now,
+                    )
+                    session.add(run)
+                    await session.flush()
+                    session.add(
+                        models.ExperimentRunAnnotation(
+                            experiment_run_id=run.id,
+                            name="weighted-score",
+                            annotator_kind="CODE",
+                            label=None,
+                            score=score,
+                            explanation=None,
+                            trace_id=None,
+                            error=None,
+                            metadata_={},
+                            start_time=now,
+                            end_time=now,
+                        )
+                    )
+
+        response = await gql_client.execute(
+            query="""
+                query ($datasetId: ID!) {
+                    dataset: node(id: $datasetId) {
+                        ... on Dataset {
+                            experimentAnnotationMetrics(first: 1) {
+                                recentExperiments {
+                                    annotationSummaries {
+                                        name
+                                        count
+                                        scoreCount
+                                        meanScore
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            """,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset.id)))},
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["dataset"]["experimentAnnotationMetrics"]["recentExperiments"][0][
+            "annotationSummaries"
+        ] == [
+            {
+                "name": "weighted-score",
+                "count": 4,
+                "scoreCount": 4,
+                "meanScore": pytest.approx(0.5),
+            }
         ]
 
     @pytest.mark.parametrize("first", [0, 51])

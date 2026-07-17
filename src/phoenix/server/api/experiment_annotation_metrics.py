@@ -4,13 +4,10 @@ from collections import defaultdict
 from typing import Any, cast
 
 from pandas import DataFrame
-from sqlalchemy import and_, func, select, tuple_
+from sqlalchemy import and_, func, or_, select, tuple_
 
 from phoenix.db import models
-from phoenix.server.api.annotation_metrics import (
-    MAX_ANNOTATION_LABEL_COUNT,
-    get_bounded_annotation_labels,
-)
+from phoenix.server.api.annotation_metrics import build_top_annotation_labels_stmt
 from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.Experiment import to_gql_experiment
@@ -48,12 +45,9 @@ async def get_experiment_annotation_metrics(
         )
 
     baseline_experiment_id = baseline_experiment[0].id if baseline_experiment else None
-    recent_experiment_ids = [experiment.id for experiment, _ in recent_experiments]
     selected_labels_by_name = await _get_selected_labels_by_name(
         db=db,
         experiment_ids=experiment_ids,
-        recent_experiment_ids=recent_experiment_ids,
-        baseline_experiment_id=baseline_experiment_id,
     )
     summaries_by_experiment_id, names = await _get_annotation_summaries(
         db=db,
@@ -149,14 +143,12 @@ async def _get_selected_labels_by_name(
     *,
     db: DbSessionFactory,
     experiment_ids: list[int],
-    recent_experiment_ids: list[int],
-    baseline_experiment_id: int | None,
 ) -> dict[str, list[str]]:
     annotation = models.ExperimentRunAnnotation
     run = models.ExperimentRun
-    distinct_labels = (
+    annotation_rows = (
         select(
-            annotation.name.label("annotation_name"),
+            annotation.name.label("name"),
             annotation.label.label("label"),
         )
         .select_from(annotation)
@@ -164,116 +156,14 @@ async def _get_selected_labels_by_name(
         .where(run.experiment_id.in_(experiment_ids))
         .where(annotation.error.is_(None))
         .where(annotation.label.is_not(None))
-        .group_by(annotation.name, annotation.label)
-        .subquery()
     )
-    ranked_distinct_labels = select(
-        distinct_labels.c.annotation_name,
-        distinct_labels.c.label,
-        func.row_number()
-        .over(
-            partition_by=distinct_labels.c.annotation_name,
-            order_by=distinct_labels.c.label,
-        )
-        .label("label_rank"),
-    ).subquery()
-    # The extra row distinguishes a complete small label set from one that must
-    # be ranked, without transferring every distinct label to Python.
-    bounded_distinct_labels_query = (
-        select(
-            ranked_distinct_labels.c.annotation_name,
-            ranked_distinct_labels.c.label,
-        )
-        .where(ranked_distinct_labels.c.label_rank <= MAX_ANNOTATION_LABEL_COUNT + 1)
-        .order_by(
-            ranked_distinct_labels.c.annotation_name,
-            ranked_distinct_labels.c.label,
-        )
-    )
-
-    label_counts = (
-        select(
-            run.experiment_id.label("experiment_id"),
-            annotation.name.label("annotation_name"),
-            annotation.label.label("label"),
-            func.count().label("label_count"),
-        )
-        .select_from(annotation)
-        .join(run, annotation.experiment_run_id == run.id)
-        .where(run.experiment_id.in_(experiment_ids))
-        .where(annotation.error.is_(None))
-        .where(annotation.label.is_not(None))
-        .group_by(run.experiment_id, annotation.name, annotation.label)
-        .subquery()
-    )
-    ranked_label_counts = select(
-        label_counts.c.experiment_id,
-        label_counts.c.annotation_name,
-        label_counts.c.label,
-        label_counts.c.label_count,
-        func.row_number()
-        .over(
-            partition_by=(
-                label_counts.c.experiment_id,
-                label_counts.c.annotation_name,
-            ),
-            order_by=(label_counts.c.label_count.desc(), label_counts.c.label),
-        )
-        .label("label_rank"),
-    ).subquery()
-    # Only a baseline or recent experiment can become the ranking reference, so
-    # retain at most the candidates that any reference could contribute.
-    bounded_label_counts_query = (
-        select(
-            ranked_label_counts.c.experiment_id,
-            ranked_label_counts.c.annotation_name,
-            ranked_label_counts.c.label,
-            ranked_label_counts.c.label_count,
-        )
-        .where(ranked_label_counts.c.label_rank <= MAX_ANNOTATION_LABEL_COUNT)
-        .order_by(
-            ranked_label_counts.c.experiment_id,
-            ranked_label_counts.c.annotation_name,
-            ranked_label_counts.c.label_rank,
-        )
-    )
-
-    distinct_labels_by_name: defaultdict[str, list[str]] = defaultdict(list)
-    label_counts_by_experiment_id_and_name: defaultdict[tuple[int, str], list[tuple[str, int]]] = (
-        defaultdict(list)
-    )
+    selected_labels_by_name: defaultdict[str, list[str]] = defaultdict(list)
     async with db.read() as session:
-        async for annotation_name, label in await session.stream(bounded_distinct_labels_query):
-            distinct_labels_by_name[annotation_name].append(label)
-        async for experiment_id, annotation_name, label, label_count in await session.stream(
-            bounded_label_counts_query
+        async for annotation_name, label in await session.stream(
+            build_top_annotation_labels_stmt(annotation_rows)
         ):
-            label_counts_by_experiment_id_and_name[(experiment_id, annotation_name)].append(
-                (label, int(label_count))
-            )
-
-    selected_labels_by_name: dict[str, list[str]] = {}
-    for annotation_name, labels in distinct_labels_by_name.items():
-        baseline_label_counts = (
-            label_counts_by_experiment_id_and_name[(baseline_experiment_id, annotation_name)]
-            if baseline_experiment_id is not None
-            else []
-        )
-        latest_label_counts = next(
-            (
-                label_counts_by_experiment_id_and_name[(experiment_id, annotation_name)]
-                for experiment_id in recent_experiment_ids
-                if label_counts_by_experiment_id_and_name[(experiment_id, annotation_name)]
-            ),
-            [],
-        )
-        # Prefer the baseline distribution when it contains this evaluation;
-        # otherwise anchor colors and ordering to the latest populated result.
-        selected_labels_by_name[annotation_name] = get_bounded_annotation_labels(
-            labels,
-            baseline_label_counts or latest_label_counts,
-        )
-    return selected_labels_by_name
+            selected_labels_by_name[annotation_name].append(label)
+    return dict(selected_labels_by_name)
 
 
 async def _get_annotation_summaries(
@@ -295,6 +185,8 @@ async def _get_annotation_summaries(
         .select_from(annotation)
         .join(run, annotation.experiment_run_id == run.id)
         .where(run.experiment_id.in_(experiment_ids))
+        .where(annotation.error.is_(None))
+        .where(or_(annotation.score.is_not(None), annotation.label.is_not(None)))
         .group_by(run.experiment_id, run.dataset_example_id, annotation.name)
         .subquery()
     )
@@ -321,6 +213,8 @@ async def _get_annotation_summaries(
         .select_from(annotation)
         .join(run, annotation.experiment_run_id == run.id)
         .where(run.experiment_id.in_(experiment_ids))
+        .where(annotation.error.is_(None))
+        .where(or_(annotation.score.is_not(None), annotation.label.is_not(None)))
         .group_by(run.experiment_id, annotation.name)
         .subquery()
     )
