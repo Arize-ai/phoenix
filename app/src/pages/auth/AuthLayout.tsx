@@ -46,8 +46,8 @@ export function AuthLayout({ children }: PropsWithChildren) {
             var(--global-border-color-default) var(--global-border-size-thin),
             transparent var(--global-border-size-thin)
           );
-          background-size: var(--global-dimension-static-size-300)
-            var(--global-dimension-static-size-300);
+          background-size: var(--global-dimension-size-300)
+            var(--global-dimension-size-300);
           mask-image: radial-gradient(
             90% 70% at 50% 35%,
             black 0%,

@@ -68,20 +68,20 @@ const handoffDashKeyframes = keyframes`
     background-position-x: 0;
   }
   to {
-    background-position-x: var(--global-dimension-static-size-100);
+    background-position-x: var(--global-dimension-size-100);
   }
 `;
 
 const handoffWireCSS = css`
   position: relative;
-  width: var(--global-dimension-static-size-900);
+  width: var(--global-dimension-size-900);
   height: var(--global-border-size-thin);
   background-image: repeating-linear-gradient(
     to right,
     var(--global-border-color-default) 0,
-    var(--global-border-color-default) var(--global-dimension-static-size-50),
-    transparent var(--global-dimension-static-size-50),
-    transparent var(--global-dimension-static-size-100)
+    var(--global-border-color-default) var(--global-dimension-size-50),
+    transparent var(--global-dimension-size-50),
+    transparent var(--global-dimension-size-100)
   );
   animation: ${handoffDashKeyframes} 1.5s linear infinite;
 
