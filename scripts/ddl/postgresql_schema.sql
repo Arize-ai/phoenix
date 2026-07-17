@@ -312,6 +312,8 @@ CREATE INDEX ix_spans_start_time ON public.spans
     USING btree (start_time);
 CREATE INDEX ix_spans_trace_rowid ON public.spans
     USING btree (trace_rowid);
+CREATE INDEX ix_spans_user_id ON public.spans
+    USING btree ((((attributes #>> '{user,id}'::text[]))::character varying)) WHERE (((attributes #>> '{user,id}'::text[]))::character varying IS NOT NULL);
 
 
 -- Table: span_costs
