@@ -1,7 +1,7 @@
 import type { LegendPayload, XAxisTickContentProps } from "recharts";
 import { ReferenceLine } from "recharts";
 
-export const BASELINE_COLOR = "var(--global-color-indigo-500)";
+export const BASELINE_COLOR = "var(--global-color-purple-500)";
 
 export const BASELINE_STROKE_DASHARRAY = "4 4";
 
@@ -58,8 +58,7 @@ export function ExperimentBaselineDistributionSeparator({
     <ReferenceLine
       x={value}
       position="end"
-      stroke={BASELINE_COLOR}
-      strokeDasharray={BASELINE_STROKE_DASHARRAY}
+      stroke="var(--chart-axis-stroke-color)"
       strokeWidth={1}
     />
   );
@@ -82,7 +81,7 @@ export function makeExperimentAxisTick(baselineSequenceNumber?: number) {
           fontWeight={isBaseline ? 600 : undefined}
           fill={isBaseline ? BASELINE_COLOR : "var(--chart-axis-text-color)"}
         >
-          {`#${payload.value}`}
+          {isBaseline ? "baseline" : `#${payload.value}`}
         </text>
       </g>
     );

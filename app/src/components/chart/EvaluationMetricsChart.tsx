@@ -16,6 +16,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { useTheme } from "@phoenix/contexts";
+import { getWordColor } from "@phoenix/utils/colorUtils";
 import {
   floatFormatter,
   percentFormatter,
@@ -35,7 +37,10 @@ import type {
   EvaluationMetricsSeries,
   EvaluationMetricsView,
 } from "./evaluationMetricsUtils";
-import { getEvaluationMetricsChartData } from "./evaluationMetricsUtils";
+import {
+  getEvaluationMetricsChartData,
+  getEvaluationOtherFraction,
+} from "./evaluationMetricsUtils";
 import {
   InteractiveLegend,
   type InteractiveLegendDataKey,
@@ -45,6 +50,13 @@ const MEAN_SCORE_DATA_KEY = "meanScore";
 const MEAN_SCORE_LEGEND_ITEM_ID = "score:mean";
 const LABEL_DATA_KEY_PREFIX = "fractions.";
 const LABEL_LEGEND_ITEM_PREFIX = "label:";
+const OTHER_DATA_KEY = "otherFraction";
+const OTHER_COLOR = "var(--global-color-gray-500)";
+const OTHER_LEGEND_ITEM: LegendPayload = {
+  value: "other",
+  type: "rect",
+  color: OTHER_COLOR,
+};
 export const formatEvaluationFraction = (fraction: number) =>
   percentFormatter(fraction * 100);
 
@@ -154,6 +166,7 @@ export function EvaluationMetricsChart({
   labelCount?: number;
   legendTrailingContent?: ReactNode;
 }) {
+  const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
   // Recharts keys are positional (`fractions.0`, etc.), so retain semantic
   // label identities to avoid hiding a different label after labels reorder.
@@ -173,8 +186,22 @@ export function EvaluationMetricsChart({
     !isScoreView || scoreValuesFitUnitDomain
       ? ([0, 1] as [number, number])
       : undefined;
-  const chartData = getEvaluationMetricsChartData({ data, reference });
   const visibleLabels = series.labels.slice(0, labelCount);
+  const baseChartData = getEvaluationMetricsChartData({ data, reference });
+  // Selector-excluded labels roll into `other`; labels hidden interactively
+  // stay classified so toggling a series does not change the other values.
+  const chartData = isScoreView
+    ? baseChartData
+    : baseChartData.map((point) => ({
+        ...point,
+        otherFraction: getEvaluationOtherFraction({
+          point,
+          visibleLabelCount: visibleLabels.length,
+        }),
+      }));
+  const hasOtherValues = chartData.some(
+    (point) => "otherFraction" in point && point.otherFraction != null
+  );
   const isDataKeyHidden = (dataKey: InteractiveLegendDataKey) => {
     const legendItemId = getEvaluationLegendItemId({ dataKey, visibleLabels });
     return legendItemId != null && hiddenLegendItemIds.has(legendItemId);
@@ -243,8 +270,8 @@ export function EvaluationMetricsChart({
           {isScoreView && (
             <Bar
               dataKey={MEAN_SCORE_DATA_KEY}
-              name="Mean score"
-              fill={getCategoryChartColor({ index: 0, colors: categoryColors })}
+              name="mean score"
+              fill={getWordColor({ word: series.name, theme })}
               hide={isDataKeyHidden(MEAN_SCORE_DATA_KEY)}
               radius={[2, 2, 0, 0]}
             />
@@ -263,23 +290,38 @@ export function EvaluationMetricsChart({
                     colors: categoryColors,
                   })}
                   hide={isDataKeyHidden(dataKey)}
-                  radius={index === visibleLabels.length - 1 ? [2, 2, 0, 0] : 0}
+                  radius={
+                    index === visibleLabels.length - 1 && !hasOtherValues
+                      ? [2, 2, 0, 0]
+                      : 0
+                  }
                 />
               );
             })}
+          {!isScoreView && hasOtherValues && (
+            <Bar
+              dataKey={OTHER_DATA_KEY}
+              name="other"
+              stackId="distribution"
+              fill={OTHER_COLOR}
+              legendType="none"
+              radius={[2, 2, 0, 0]}
+            />
+          )}
           <InteractiveLegend
             {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
-            // The server orders labels by baseline/latest frequency; preserve
-            // that ranking instead of Recharts' default alphabetical sort.
+            // The server caps labels using full-window frequency. Preserve the
+            // response-derived order so label colors remain stable by index.
             itemSorter={null}
             onToggleDataKey={toggleDataKey}
-            additionalLegendItems={
-              isScoreView && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
+            additionalLegendItems={[
+              ...(hasOtherValues ? [OTHER_LEGEND_ITEM] : []),
+              ...(isScoreView && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
                 ? []
-                : additionalLegendItems
-            }
+                : (additionalLegendItems ?? [])),
+            ]}
             trailingContent={legendTrailingContent}
           />
         </BarChart>

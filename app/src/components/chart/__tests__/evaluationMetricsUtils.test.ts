@@ -2,6 +2,7 @@ import { formatEvaluationFraction } from "../EvaluationMetricsChart";
 import {
   getDefaultEvaluationMetricsView,
   getEvaluationMetricsChartData,
+  getEvaluationOtherFraction,
   normalizeEvaluationMetrics,
 } from "../evaluationMetricsUtils";
 
@@ -102,16 +103,29 @@ describe("normalizeEvaluationMetrics", () => {
       labels: ["fail", "pass"],
     });
     expect(series.dataByView.scores.map(({ x }) => x)).toEqual([1, 3]);
-    expect(series.dataByView.labels.map(({ x }) => x)).toEqual([2, 3]);
-    expect(series.dataByView.labels[0]?.fractions).toEqual([undefined, 1]);
-    expect(series.dataByView.labels[1]).toEqual({
+    expect(series.dataByView.labels.map(({ x }) => x)).toEqual([1, 2, 3]);
+    expect(series.dataByView.labels[0]?.fractions).toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(series.dataByView.labels[0]?.hasAnnotationSummary).toBe(true);
+    expect(
+      getEvaluationOtherFraction({
+        point: series.dataByView.labels[0]!,
+        visibleLabelCount: series.labels.length,
+      })
+    ).toBe(1);
+    expect(series.dataByView.labels[1]?.fractions).toEqual([undefined, 1]);
+    expect(series.dataByView.labels[2]).toEqual({
       x: 3,
       metadata: { experimentName: "third" },
+      hasAnnotationSummary: true,
       fractions: [0.25, 0.75],
     });
     expect(series.dataByView.scores[1]).toEqual({
       x: 3,
       metadata: { experimentName: "third" },
+      hasAnnotationSummary: true,
       meanScore: 0.8,
       fractions: [],
     });
@@ -165,7 +179,9 @@ describe("normalizeEvaluationMetrics", () => {
       4, 5, 6, 7, 8, 9, 10,
     ]);
     expect(labelSeries.dataByView.labels[3]?.fractions).toEqual([undefined]);
+    expect(labelSeries.dataByView.labels[3]?.hasAnnotationSummary).toBe(false);
     expect(labelSeries.dataByView.labels[4]?.fractions).toEqual([1]);
+    expect(labelSeries.dataByView.labels[4]?.hasAnnotationSummary).toBe(true);
   });
 
   it("keeps an empty baseline reference outside the visible window", () => {
@@ -187,6 +203,7 @@ describe("normalizeEvaluationMetrics", () => {
     expect(series.referenceByView.scores).toEqual({
       x: 1,
       metadata: { isBaseline: true },
+      hasAnnotationSummary: false,
       meanScore: undefined,
       fractions: [],
     });
@@ -196,12 +213,14 @@ describe("normalizeEvaluationMetrics", () => {
     const data = [4, 5, 6, 7, 8, 9, 10].map((x) => ({
       x,
       metadata: {},
+      hasAnnotationSummary: true,
       meanScore: x / 10,
       fractions: [],
     }));
     const baselineOutsideWindow = {
       x: 1,
       metadata: { isBaseline: true },
+      hasAnnotationSummary: true,
       meanScore: 0.25,
       fractions: [],
     };
@@ -220,6 +239,7 @@ describe("normalizeEvaluationMetrics", () => {
         reference: {
           x: 6,
           metadata: { isBaseline: true },
+          hasAnnotationSummary: true,
           meanScore: 0.6,
           fractions: [],
         },
@@ -261,6 +281,7 @@ describe("normalizeEvaluationMetrics", () => {
       labels: {
         x: 1,
         metadata: { isBaseline: true },
+        hasAnnotationSummary: true,
         fractions: [1, undefined],
       },
       scores: undefined,
@@ -344,5 +365,73 @@ describe("normalizeEvaluationMetrics", () => {
     expect(
       normalizeEvaluationMetrics({ points: [{ x: 1, summaries: [] }] })
     ).toEqual([]);
+  });
+});
+
+describe("getEvaluationOtherFraction", () => {
+  const makePoint = ({
+    fractions,
+    hasAnnotationSummary = true,
+  }: {
+    fractions: ReadonlyArray<number | undefined>;
+    hasAnnotationSummary?: boolean;
+  }) => ({
+    x: 1,
+    metadata: {},
+    hasAnnotationSummary,
+    fractions,
+  });
+
+  it("combines omitted labels and annotations without labels", () => {
+    const point = makePoint({ fractions: [0.5, 0.25, 0.1] });
+
+    expect(
+      getEvaluationOtherFraction({ point, visibleLabelCount: 3 })
+    ).toBeCloseTo(0.15);
+    expect(
+      getEvaluationOtherFraction({ point, visibleLabelCount: 2 })
+    ).toBeCloseTo(0.25);
+  });
+
+  it("treats a result-bearing summary without labels as entirely other", () => {
+    expect(
+      getEvaluationOtherFraction({
+        point: makePoint({ fractions: [] }),
+        visibleLabelCount: 0,
+      })
+    ).toBe(1);
+  });
+
+  it("does not invent an other bar for an empty chart category", () => {
+    expect(
+      getEvaluationOtherFraction({
+        point: makePoint({
+          fractions: [],
+          hasAnnotationSummary: false,
+        }),
+        visibleLabelCount: 0,
+      })
+    ).toBeUndefined();
+  });
+
+  it("suppresses zero and floating-point residuals", () => {
+    expect(
+      getEvaluationOtherFraction({
+        point: makePoint({ fractions: [0.6, 0.4] }),
+        visibleLabelCount: 2,
+      })
+    ).toBeUndefined();
+    expect(
+      getEvaluationOtherFraction({
+        point: makePoint({ fractions: [0.6, 0.3999999995] }),
+        visibleLabelCount: 2,
+      })
+    ).toBeUndefined();
+    expect(
+      getEvaluationOtherFraction({
+        point: makePoint({ fractions: [0.7, 0.5] }),
+        visibleLabelCount: 2,
+      })
+    ).toBeUndefined();
   });
 });

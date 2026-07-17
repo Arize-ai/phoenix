@@ -20,6 +20,8 @@ export type EvaluationMetricsInputPoint = {
 export type EvaluationMetricsChartPoint = {
   readonly x: number;
   readonly metadata: Readonly<Record<string, string | number | boolean | null>>;
+  /** Distinguishes an empty axis category from a summary with no labels. */
+  readonly hasAnnotationSummary: boolean;
   readonly meanScore?: number;
   readonly fractions: ReadonlyArray<number | undefined>;
 };
@@ -59,6 +61,31 @@ export function getEvaluationMetricsChartData({
   return reference == null
     ? data
     : [reference, ...data.filter(({ x }) => x !== reference.x)];
+}
+
+const OTHER_FRACTION_EPSILON = 1e-9;
+
+/**
+ * Returns the share not represented by the labels currently drawn. This
+ * combines annotations without labels and labels omitted by either the server
+ * cap or the user's visible-label limit without renormalizing the selected
+ * labels.
+ */
+export function getEvaluationOtherFraction({
+  point,
+  visibleLabelCount,
+}: {
+  point: EvaluationMetricsChartPoint;
+  visibleLabelCount: number;
+}): number | undefined {
+  if (!point.hasAnnotationSummary) {
+    return undefined;
+  }
+  const includedFraction = point.fractions
+    .slice(0, visibleLabelCount)
+    .reduce<number>((total, fraction) => total + (fraction ?? 0), 0);
+  const residual = Math.min(Math.max(1 - includedFraction, 0), 1);
+  return residual < OTHER_FRACTION_EPSILON ? undefined : residual;
 }
 
 /**
@@ -108,9 +135,9 @@ export function normalizeEvaluationMetrics({
         .find(
           ({ summary }) => (summary?.labelFractions.length ?? 0) > 0
         )?.summary;
-      // The server ranks large label sets from the baseline, or from the
-      // latest populated point when there is no baseline. Preserve that order
-      // so colors remain anchored to the same reference across every bar.
+      // The server caps the shared label set by frequency across the requested
+      // window. Individual summaries omit zero-frequency labels, so rebuild a
+      // stable union starting with the baseline/latest comparison points.
       const labels = Array.from(
         new Set(
           [
@@ -134,6 +161,7 @@ export function normalizeEvaluationMetrics({
       }): EvaluationMetricsChartPoint => ({
         x: point.x,
         metadata: point.metadata ?? {},
+        hasAnnotationSummary: summary != null,
         meanScore: summary?.meanScore ?? undefined,
         fractions: [],
       });
@@ -153,6 +181,7 @@ export function normalizeEvaluationMetrics({
         return {
           x: point.x,
           metadata: point.metadata ?? {},
+          hasAnnotationSummary: summary != null,
           fractions: labels.map((label) => fractionsByLabel.get(label)),
         };
       };
@@ -175,9 +204,7 @@ export function normalizeEvaluationMetrics({
       const labelData = includeEmptyPoints
         ? summaryByPoint.map(makeLabelPoint)
         : summaryByPoint.flatMap(({ point, summary }) =>
-            summary == null || summary.labelFractions.length === 0
-              ? []
-              : [makeLabelPoint({ point, summary })]
+            summary == null ? [] : [makeLabelPoint({ point, summary })]
           );
       const views: EvaluationMetricsView[] = [];
       if (hasLabelValues) {
@@ -199,8 +226,7 @@ export function normalizeEvaluationMetrics({
           labels:
             hasLabelValues &&
             referencePoint != null &&
-            (includeEmptyPoints ||
-              (referenceSummary?.labelFractions.length ?? 0) > 0)
+            (includeEmptyPoints || referenceSummary != null)
               ? makeLabelPoint({
                   point: referencePoint,
                   summary: referenceSummary,
