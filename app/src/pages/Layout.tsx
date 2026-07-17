@@ -6,6 +6,7 @@ import { Outlet, useLoaderData } from "react-router";
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   AgentChatPanel,
+  AgentChatTopNavButton,
   AgentChatWidget,
   FloatingAgentChatPanel,
   useAssistantAgentEnabled,
@@ -91,6 +92,9 @@ export function Layout() {
   const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
   const agentPosition = useAgentContext((state) => state.position);
+  const isAgentFabFloating = useAgentContext(
+    (state) => state.fabMode === "floating"
+  );
   const hasOpenModal = useHasOpenModal();
   const hasOpenDrawer = useHasOpenDrawer();
   const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
@@ -129,9 +133,12 @@ export function Layout() {
                 <SideNavToggleButton />
                 <NavBreadcrumb />
                 <TopNavActionsSlot />
+                {isAgentFabFloating ? null : <AgentChatTopNavButton />}
               </TopNavbar>
               <div data-testid="content" css={contentCSS} ref={contentRef}>
-                <AgentChatWidget boundaryRef={contentRef} />
+                {isAgentFabFloating ? (
+                  <AgentChatWidget boundaryRef={contentRef} />
+                ) : null}
                 {shouldShowFloatingAgentPanel ? (
                   <FloatingAgentChatPanel
                     boundaryRef={contentRef}

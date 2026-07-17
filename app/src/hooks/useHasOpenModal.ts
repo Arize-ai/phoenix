@@ -151,6 +151,18 @@ export function useHasOpenDrawer() {
 }
 
 /**
+ * Returns the topmost open Phoenix drawer element, or `null` when none is
+ * mounted.
+ *
+ * Useful for UI that needs to reposition itself relative to a drawer's edge
+ * (drawers are fixed to the right viewport edge and cover content beneath
+ * them).
+ */
+export function useActiveDrawerElement() {
+  return useSyncExternalStore(subscribe, getActiveDrawerElement, () => null);
+}
+
+/**
  * Returns the portal container for the topmost open modal.
  *
  * Consumers that need to remain interactive while a modal is open should portal
