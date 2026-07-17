@@ -1,5 +1,16 @@
 import type * as PhoenixOtel from "@arizeai/phoenix-otel";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
   ...(await importOriginal<typeof PhoenixOtel>()),
@@ -47,13 +58,30 @@ vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
 
 import * as phoenixOtel from "@arizeai/phoenix-otel";
 
-import type { PhoenixClient } from "../../src/client";
 import * as getDatasetModule from "../../src/datasets/getDataset";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
 import {
   asEvaluator,
   runExperiment,
 } from "../../src/experiments/runExperiment";
+import { createTestClient } from "../testUtils";
+
+const http = createHttp();
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 const mockDataset = {
   id: "dataset-1",
@@ -73,8 +101,6 @@ const mockDataset = {
 };
 
 describe("runExperiment tracing", () => {
-  let client: PhoenixClient;
-
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -95,54 +121,32 @@ describe("runExperiment tracing", () => {
       missingRunCount: 0,
     });
 
-    client = {
-      GET: vi.fn(),
-      POST: vi.fn((url: string) => {
-        if (url === "/v1/datasets/{dataset_id}/experiments") {
-          return Promise.resolve({
-            data: {
-              data: {
-                id: "exp-1",
-                dataset_id: mockDataset.id,
-                dataset_version_id: mockDataset.versionId,
-                project_name: "experiment-project",
-                repetitions: 1,
-                metadata: {},
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                example_count: 1,
-                successful_run_count: 0,
-                failed_run_count: 0,
-                missing_run_count: 1,
-              },
-            },
-          });
-        }
-        if (url === "/v1/experiments/{experiment_id}/runs") {
-          return Promise.resolve({
-            data: {
-              data: {
-                id: "run-1",
-              },
-            },
-          });
-        }
-        if (url === "/v1/experiment_evaluations") {
-          return Promise.resolve({
-            data: {
-              data: {
-                id: "eval-1",
-              },
-            },
-          });
-        }
-
-        return Promise.resolve({ data: {} });
-      }),
-      config: {
-        baseUrl: "http://localhost:6006",
-      },
-    };
+    server.use(
+      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
+        response(200).json({
+          data: {
+            id: "exp-1",
+            dataset_id: mockDataset.id,
+            dataset_version_id: mockDataset.versionId,
+            project_name: "experiment-project",
+            repetitions: 1,
+            metadata: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            example_count: 1,
+            successful_run_count: 0,
+            failed_run_count: 0,
+            missing_run_count: 1,
+          },
+        })
+      ),
+      http.post("/v1/experiments/{experiment_id}/runs", ({ response }) =>
+        response(200).json({ data: { id: "run-1" } })
+      ),
+      http.post("/v1/experiment_evaluations", ({ response }) =>
+        response(200).json({ data: { id: "eval-1" } })
+      )
+    );
   });
 
   it("uses separate tracer providers for task and evaluation tracing", async () => {
@@ -156,7 +160,7 @@ describe("runExperiment tracing", () => {
     });
 
     await runExperiment({
-      client,
+      client: createTestClient(),
       dataset: { datasetId: mockDataset.id },
       task: async ({ input }) => input,
       evaluators: [evaluator],
