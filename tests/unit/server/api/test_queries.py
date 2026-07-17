@@ -2816,7 +2816,7 @@ async def test_available_agent_skills_base_catalog(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # No context mounted: only the always-on skills, in catalog order, no gated ones.
-    assert names == ["debug-trace", "annotate-spans", "span-coding", "phoenix-graphql", "tracing"]
+    assert names == ["debug-trace", "annotate-spans", "span-coding", "phoenix-graphql"]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
     assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
@@ -2838,7 +2838,6 @@ async def test_available_agent_skills_playground_context(
         "annotate-spans",
         "span-coding",
         "phoenix-graphql",
-        "tracing",
         "playground",
     ]
 
@@ -2859,7 +2858,6 @@ async def test_available_agent_skills_dataset_context(
         "annotate-spans",
         "span-coding",
         "phoenix-graphql",
-        "tracing",
         "datasets",
         "experiments",
         "evaluators",
@@ -2882,7 +2880,6 @@ async def test_available_agent_skills_llm_evaluator_context(
         "annotate-spans",
         "span-coding",
         "phoenix-graphql",
-        "tracing",
         "evaluators",
     ]
 
@@ -2903,7 +2900,6 @@ async def test_available_agent_skills_code_evaluator_context(
         "annotate-spans",
         "span-coding",
         "phoenix-graphql",
-        "tracing",
         "evaluators",
     ]
 
