@@ -48,6 +48,7 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
+from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
 

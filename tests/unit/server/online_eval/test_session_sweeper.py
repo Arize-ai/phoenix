@@ -1,10 +1,14 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.server.online_eval import session_sweeper
+from phoenix.server.online_eval.derivation import ResolvedCriteria
+from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -23,16 +27,22 @@ async def _add_session_activity(
     db: DbSessionFactory,
     *,
     age_seconds: float,
+    project_id: int | None = None,
 ) -> tuple[int, int, int]:
     async with db() as session:
-        project = await _add_project(session)
+        if project_id is None:
+            project = await _add_project(session)
+        else:
+            existing_project = await session.get(models.Project, project_id)
+            assert existing_project is not None
+            project = existing_project
         project_session = await _add_project_session(session, project)
         trace = await _add_trace(session, project, project_session)
         span = await _add_span(session, trace)
         session.add(
             models.EvalSessionActivity(
                 project_session_rowid=project_session.id,
-                last_seen_span_id=span.id,
+                last_seen_span_rowid=span.id,
                 observed_at=_now() - timedelta(seconds=age_seconds),
             )
         )
@@ -93,19 +103,29 @@ async def test_materializes_generation_zero_and_prunes_resolved_activity(
     assert cursor.claimed_by == sweeper._sweeper_id
 
 
-async def test_materializes_oldest_activity_beyond_id_order_limit(
+async def test_not_yet_due_activity_does_not_consume_scan_limit(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(session_sweeper, "_MAX_ACTIVITY_ROWS_PER_TICK", 2)
-    for _ in range(3):
-        project_id, _, _ = await _add_session_activity(db, age_seconds=0)
-        await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    project_id, oldest_project_session_id, _ = await _add_session_activity(
+    long_delay_project_id, _, _ = await _add_session_activity(db, age_seconds=0)
+    _, long_delay_criteria_id = await _seed_criteria(
+        db,
+        long_delay_project_id,
+        evaluation_target="SESSION",
+    )
+    await _set_delay(db, long_delay_criteria_id, 600)
+    for _ in range(2):
+        await _add_session_activity(
+            db,
+            age_seconds=0,
+            project_id=long_delay_project_id,
+        )
+    due_project_id, due_project_session_id, _ = await _add_session_activity(
         db,
         age_seconds=600,
     )
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _seed_criteria(db, due_project_id, evaluation_target="SESSION")
 
     await SessionEvalSweeper(db)._tick()
 
@@ -113,7 +133,112 @@ async def test_materializes_oldest_activity_beyond_id_order_limit(
         project_session_ids = list(
             await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
         )
-    assert project_session_ids == [oldest_project_session_id]
+    assert project_session_ids == [due_project_session_id]
+
+
+async def test_lost_lease_rolls_back_sweep(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_activity(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    acquire_cursor = sweeper._acquire_cursor
+
+    async def acquire_then_lose_lease() -> int | None:
+        cursor_id = await acquire_cursor()
+        assert cursor_id is not None
+        async with db() as session:
+            await session.execute(
+                update(models.EvalWorkCursor)
+                .where(models.EvalWorkCursor.id == cursor_id)
+                .values(claimed_by="replacement-sweeper")
+            )
+        return cursor_id
+
+    monkeypatch.setattr(sweeper, "_acquire_cursor", acquire_then_lose_lease)
+    async with db() as session:
+        activity_before = (
+            await session.execute(
+                select(
+                    models.EvalSessionActivity.id,
+                    models.EvalSessionActivity.last_seen_span_rowid,
+                    models.EvalSessionActivity.observed_at,
+                ).where(models.EvalSessionActivity.project_session_rowid == project_session_id)
+            )
+        ).one()
+
+    with caplog.at_level(logging.WARNING, logger=session_sweeper.__name__):
+        await sweeper._tick()
+
+    async with db() as session:
+        work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+        activity_after = (
+            await session.execute(
+                select(
+                    models.EvalSessionActivity.id,
+                    models.EvalSessionActivity.last_seen_span_rowid,
+                    models.EvalSessionActivity.observed_at,
+                ).where(models.EvalSessionActivity.project_session_rowid == project_session_id)
+            )
+        ).one()
+    assert work_count == 0
+    assert activity_after == activity_before
+    assert "Session evaluation sweeper lost its lease" in caplog.text
+
+
+async def test_unresolvable_criteria_does_not_stall_project_sweep(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_activity(db, age_seconds=600)
+    _, resolvable_criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+    _, unresolvable_criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+
+    async def resolve_with_one_unresolvable(
+        session: AsyncSession,
+        criteria: models.ProjectEvaluatorCriteria,
+        evaluator: models.Evaluator,
+    ) -> ResolvedCriteria | None:
+        if criteria.id == unresolvable_criteria_id:
+            return None
+        return await resolve_criteria(session, criteria, evaluator)
+
+    monkeypatch.setattr(session_sweeper, "resolve_criteria", resolve_with_one_unresolvable)
+    with caplog.at_level(logging.WARNING, logger=session_sweeper.__name__):
+        await SessionEvalSweeper(db)._tick()
+
+    async with db() as session:
+        criteria_ids = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit.criteria_id).where(
+                    models.EvalSessionWorkUnit.project_session_rowid == project_session_id
+                )
+            )
+        )
+        activity_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionActivity)
+        )
+    assert criteria_ids == [resolvable_criteria_id]
+    assert activity_count == 0
+    messages = [
+        record.message
+        for record in caplog.records
+        if f"Skipping criteria {unresolvable_criteria_id}:" in record.message
+    ]
+    assert len(messages) == 1
 
 
 async def test_retains_activity_until_each_criteria_delay_elapses(
@@ -187,8 +312,8 @@ async def test_reopened_session_is_pruned_without_another_work_unit(
         session.add(
             models.EvalSessionActivity(
                 project_session_rowid=project_session_id,
-                last_seen_span_id=span_id,
-                observed_at=_now(),
+                last_seen_span_rowid=span_id,
+                observed_at=_now() - timedelta(seconds=600),
             )
         )
     await sweeper._tick()
