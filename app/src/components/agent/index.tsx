@@ -9,6 +9,7 @@ export { SystemSettingsWarning } from "./SystemSettingsWarning";
 export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
 export { AgentChatTopNavButton } from "./AgentChatTopNavButton";
 export { AgentChatWidget } from "./AgentChatWidget";
+export { PxiGlyph } from "./PxiGlyph";
 export { PxiOutline } from "./PxiOutline";
 export type {
   PxiOutlineGlowMode,

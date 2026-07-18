@@ -1,10 +1,20 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { Suspense } from "react";
 import type { Key } from "react-aria-components";
 import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useMatch, useNavigate } from "react-router";
 
-import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  Loading,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+} from "@phoenix/components";
+import { PxiGlyph } from "@phoenix/components/agent";
 import {
   useIsAdmin,
   useViewerCanManageSandboxes,
@@ -22,6 +32,12 @@ const VERTICAL_TABS_MEDIA_QUERY = "(min-width: 900px)";
 const settingsPageCSS = css`
   overflow: hidden;
   height: 100%;
+`;
+
+const tabLabelCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
 `;
 
 const settingsTabListCSS = css`
@@ -52,20 +68,23 @@ const settingsTabPanelCSS = css`
   }
 `;
 
+// Icons follow the associations established elsewhere in the app (side nav,
+// session tabs): Database for datasets, MessageSquare for prompts, Edit2 for
+// annotations, and the PXI glyph for the assistant.
 const TABS = [
-  { id: "general", label: "General" },
-  { id: "users", label: "Users" },
-  { id: "api-keys", label: "API Keys" },
-  { id: "providers", label: "AI Providers" },
-  { id: "sandboxes", label: "Sandboxes" },
-  { id: "models", label: "Models" },
-  { id: "secrets", label: "Secrets" },
-  { id: "datasets", label: "Datasets" },
-  { id: "annotations", label: "Annotations" },
-  { id: "prompts", label: "Prompts" },
-  { id: "data", label: "Data Retention" },
-  { id: "agents", label: "Assistant" },
-] as const satisfies readonly { id: string; label: string }[];
+  { id: "general", label: "General", icon: <Icons.Settings /> },
+  { id: "users", label: "Users", icon: <Icons.Person /> },
+  { id: "api-keys", label: "API Keys", icon: <Icons.Key /> },
+  { id: "providers", label: "AI Providers", icon: <Icons.Globe /> },
+  { id: "sandboxes", label: "Sandboxes", icon: <Icons.Console /> },
+  { id: "models", label: "Models", icon: <Icons.LLMOutput /> },
+  { id: "secrets", label: "Secrets", icon: <Icons.Lock /> },
+  { id: "datasets", label: "Datasets", icon: <Icons.Database /> },
+  { id: "annotations", label: "Annotations", icon: <Icons.Edit2 /> },
+  { id: "prompts", label: "Prompts", icon: <Icons.MessageSquare /> },
+  { id: "data", label: "Data Retention", icon: <Icons.HardDrive /> },
+  { id: "agents", label: "Assistant", icon: <PxiGlyph /> },
+] as const satisfies readonly { id: string; label: string; icon: ReactNode }[];
 
 type SettingsTabId = (typeof TABS)[number]["id"];
 
@@ -107,7 +126,14 @@ export function SettingsPage() {
         orientation={isLargeScreen ? "vertical" : "horizontal"}
       >
         <TabList items={tabs} css={settingsTabListCSS} aria-label="Settings">
-          {(item) => <Tab id={item.id}>{item.label}</Tab>}
+          {(item) => (
+            <Tab id={item.id}>
+              <span css={tabLabelCSS}>
+                <Icon svg={item.icon} />
+                {item.label}
+              </span>
+            </Tab>
+          )}
         </TabList>
         <Collection items={tabs}>
           {(item) => (
