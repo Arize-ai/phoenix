@@ -75,6 +75,7 @@ const TABS = [
   { id: "general", label: "General", icon: <Icons.Settings /> },
   { id: "users", label: "Users", icon: <Icons.Person /> },
   { id: "api-keys", label: "API Keys", icon: <Icons.Key /> },
+  { id: "mcp", label: "MCP", icon: <Icons.Mcp /> },
   { id: "providers", label: "AI Providers", icon: <Icons.Sparkle /> },
   { id: "sandboxes", label: "Sandboxes", icon: <Icons.Console /> },
   { id: "models", label: "Models", icon: <Icons.LLMOutput /> },

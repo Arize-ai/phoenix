@@ -26,6 +26,8 @@ export const baseWindowConfig = {
   platformVersion: "1.0.0",
   agentAssistantDisabled: false,
   agentBashDisabled: false,
+  mcpServerEnabled: true,
+  mcpCodeModeEnabled: true,
   authErrorMessages: {},
 };
 Object.defineProperty(window, "Config", {

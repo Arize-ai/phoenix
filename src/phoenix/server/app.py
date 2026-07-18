@@ -77,6 +77,7 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_max_spans_queue_size,
+    get_env_mcp_code_mode,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -252,6 +253,10 @@ class AppConfig(NamedTuple):
     """ Whether the agent assistant feature is disabled at the deployment level"""
     agent_bash_disabled: bool = False
     """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
+    mcp_server_enabled: bool = False
+    """ Whether the in-process MCP server is mounted at /mcp """
+    mcp_code_mode_enabled: bool = False
+    """ Whether the MCP server presents the code-mode tool surface """
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
 
@@ -324,6 +329,8 @@ class Static(StaticFiles):
                     "allow_external_resources": self._app_config.allow_external_resources,
                     "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
                     "agent_bash_disabled": self._app_config.agent_bash_disabled,
+                    "mcp_server_enabled": self._app_config.mcp_server_enabled,
+                    "mcp_code_mode_enabled": self._app_config.mcp_code_mode_enabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -1226,6 +1233,10 @@ def create_app(
                     allow_external_resources=get_env_allow_external_resources(),
                     agent_assistant_disabled=get_env_disable_agent_assistant(),
                     agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
+                    # The mount decision above is the source of truth for whether
+                    # /mcp exists; code mode only matters when the mount is live.
+                    mcp_server_enabled=mcp_mount_path is not None,
+                    mcp_code_mode_enabled=mcp_mount_path is not None and get_env_mcp_code_mode(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
                 ),
