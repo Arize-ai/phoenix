@@ -1,119 +1,80 @@
 ---
-title: "Agent-Assisted Tracing"
+title: "Agent-Assisted Setup"
 description: >-
-  Use a coding agent to automatically add Phoenix tracing to your application.
+  Connect your app to Phoenix and get traces flowing with a single command —
+  `px setup` hands the instrumentation to your coding agent and waits until a
+  real trace arrives.
 ---
 
-# Agent-Assisted Tracing
+# Agent-Assisted Setup
 
-The fastest way to add Phoenix tracing to your application. Paste a single URL into your coding agent and it handles everything — dependency installation, instrumentation, and configuration.
+The fastest way to add Phoenix tracing to your application. Run one command from your app's root and Phoenix walks you through connecting, hands the instrumentation to your coding agent, and confirms a real trace arrived.
 
 <Tip>
-**Get started — paste this into your coding agent:**
+**Get started — run this from your app's root directory:**
+```bash
+npx -y @arizeai/phoenix-cli setup
 ```
-Follow the instructions from https://raw.githubusercontent.com/Arize-ai/phoenix/main/docs/PROMPT.md and ask me questions as needed.
-```
+Already have the CLI installed (`npm install -g @arizeai/phoenix-cli`)? Just run `px setup`.
 </Tip>
 
-### How it works
+## What `px setup` does
 
-1. **Paste the URL** into any coding agent (Claude Code, Cursor, Windsurf, Copilot, etc.)
-2. **The agent analyzes** your codebase — detects language, LLM providers, and frameworks
-3. **The agent proposes** an instrumentation plan based on your stack
-4. **You approve**, and the agent implements tracing with the right integrations
+`px setup` runs an interactive flow:
+
+1. **Checks git safety** — warns on a dirty tree so agent edits stay separate from your own work.
+2. **Establishes the connection** — asks where your Phoenix instance is running, handles auth, and writes a gitignored `.env.phoenix` file.
+3. **Hands off instrumentation** — passes an instrumentation task to a coding agent (Claude Code, Codex, Cursor, or OpenCode), which detects your language, LLM providers, and frameworks, then adds tracing.
+4. **Verifies traces** — waits until the Phoenix API confirms a real trace arrived, so "done" means traces are actually flowing.
+5. **Sets up tooling** — optionally points `px` at the new project and installs Phoenix [skills](/docs/phoenix/integrations/developer-tools/coding-agents#skills) so your agent can query what you captured.
 
 <Info>
 **Supported stacks:** Python, TypeScript/JavaScript, and Java — covering 30+ LLM providers, frameworks, and platforms. See the [full integration list](/docs/phoenix/integrations).
 </Info>
 
-### What the agent does
+## Re-run individual steps
 
-- **Phase 1 (Analysis):** Scans imports and dependency files to detect your LLM provider and framework, then proposes an instrumentation plan. No code changes.
-- **Phase 2 (Implementation):** Installs dependencies, creates a centralized instrumentation module, and configures OpenTelemetry to send traces to Phoenix.
+The connection questions only need answering once. Re-run a single slice on a repo that's already registered:
 
----
+```bash
+px setup instrument   # Instrument and verify traces again (any supported agent)
+px setup skills        # Install the coding-agent skills alone
+```
 
-## Alternative: MCP and Skills
+## Non-interactive use (CI or agents)
 
-For persistent documentation access, direct Phoenix instance operations, and reusable agent skills beyond the initial tracing setup, see the [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) guide.
+Pass flags instead of answering prompts:
 
-<CardGroup cols={3}>
-  <Card title="CLI" icon="terminal" href="/docs/phoenix/integrations/developer-tools/coding-agents#cli">
-    Terminal access to traces, experiments, datasets, and prompts.
+```bash
+# Connection only — write .env.phoenix, no source changes
+px setup --no-input --endpoint http://localhost:6006 --project my-app
+
+# Instrument too — requires --agent when there's no TTY to choose one
+px setup --no-input --instrument --agent claude --yolo --format raw
+```
+
+See the [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#px-setup) for the full list of flags.
+
+## Validate your setup
+
+`px setup` verifies traces automatically. To confirm manually:
+
+1. Run your application and trigger at least one LLM call.
+2. Open the Phoenix UI (local: http://localhost:6006, or your Phoenix Cloud URL).
+3. Open the **Traces** view and verify traces appear under your project.
+
+If no traces appear, check the [Troubleshooting FAQ](/docs/phoenix/tracing/concepts-tracing/faqs-tracing).
+
+## Alternatives
+
+<CardGroup cols={2}>
+  <Card title="Paste a prompt instead" icon="clipboard">
+    No CLI? Paste this into any coding agent:
+    ```text
+    Follow the instructions from https://raw.githubusercontent.com/Arize-ai/phoenix/main/docs/PROMPT.md and ask me questions as needed.
+    ```
   </Card>
-  <Card title="MCP" icon="plug" href="/docs/phoenix/integrations/developer-tools/coding-agents#mcp">
-    In-editor Phoenix documentation lookup and direct Phoenix instance operations.
-  </Card>
-  <Card title="Skills" icon="wand-magic-sparkles" href="/docs/phoenix/integrations/developer-tools/coding-agents#skills">
-    Reusable instructions so agents apply Phoenix best practices consistently.
+  <Card title="Coding Agents guide" icon="robot" href="/docs/phoenix/integrations/developer-tools/coding-agents">
+    CLI, MCP, and skills for ongoing agent workflows beyond initial setup.
   </Card>
 </CardGroup>
-
----
-
-## IDE-Specific Instructions
-
-<Tabs>
-  <Tab title="Claude Code">
-    In your Claude Code session, paste the PROMPT.md URL and ask the agent to follow the instructions.
-
-    For richer ongoing integration, add the Phoenix MCP server:
-    ```bash
-    claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
-    ```
-  </Tab>
-  <Tab title="Cursor">
-    Open Cursor's AI chat panel. Paste the PROMPT.md URL and instruct the agent to add Phoenix tracing.
-
-    For richer ongoing integration, add to `.cursor/mcp.json`:
-    ```json
-    {
-      "mcpServers": {
-        "phoenix-docs": {
-          "url": "https://arizeai-433a7140.mintlify.app/mcp"
-        }
-      }
-    }
-    ```
-  </Tab>
-  <Tab title="VS Code (Copilot)">
-    Open the Copilot chat panel. Paste the PROMPT.md URL and ask it to follow the instructions.
-
-    For richer ongoing integration, add to `.vscode/mcp.json`:
-    ```json
-    {
-      "servers": {
-        "phoenix-docs": {
-          "url": "https://arizeai-433a7140.mintlify.app/mcp"
-        }
-      }
-    }
-    ```
-  </Tab>
-  <Tab title="Windsurf">
-    Open the Cascade panel. Paste the PROMPT.md URL and ask the agent to add Phoenix tracing.
-
-    For richer ongoing integration, add to `~/.codeium/windsurf/mcp_config.json`:
-    ```json
-    {
-      "mcpServers": {
-        "phoenix-docs": {
-          "serverUrl": "https://arizeai-433a7140.mintlify.app/mcp"
-        }
-      }
-    }
-    ```
-  </Tab>
-</Tabs>
-
----
-
-## Validate Your Setup
-
-After the agent finishes:
-
-1. Run your application and trigger at least one LLM call
-2. Open Phoenix UI (local: http://localhost:6006, or your Phoenix Cloud URL)
-3. Navigate to the **Traces** view and verify traces appear under your project
-
-If no traces appear, check the [Troubleshooting FAQ](/docs/phoenix/resources/frequently-asked-questions).
