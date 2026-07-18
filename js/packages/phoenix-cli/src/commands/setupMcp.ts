@@ -15,7 +15,7 @@
 
 import { Command } from "commander";
 
-import { resolveConfig } from "../config";
+import { DEFAULT_PHOENIX_ENDPOINT, resolveConfig } from "../config";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeOutput } from "../io";
 import { collectString } from "../optionParsers";
@@ -120,6 +120,7 @@ function toMcpInputs(options: SetupMcpCommandOptions): {
   headers: McpHeader[];
   endpointExplicit: boolean;
   headless: boolean;
+  format: OutputFormat;
 } {
   const format = options.format ?? "pretty";
   if (!OUTPUT_FORMATS.includes(format)) {
@@ -167,6 +168,7 @@ function toMcpInputs(options: SetupMcpCommandOptions): {
     headers,
     endpointExplicit: options.endpoint !== undefined,
     headless: options.input === false,
+    format,
   };
 }
 
@@ -218,8 +220,8 @@ function exitWithError(error: unknown, format: OutputFormat): never {
 }
 
 async function setupMcpHandler(options: SetupMcpCommandOptions): Promise<void> {
-  const format = options.format ?? "pretty";
   const parsed = toMcpInputs(options);
+  const format = parsed.format;
   const deps = buildDefaultDeps();
 
   // The endpoint is resolved the same way every command resolves it: flags
@@ -233,7 +235,9 @@ async function setupMcpHandler(options: SetupMcpCommandOptions): Promise<void> {
 
   try {
     const report = await runSetupMcp(deps, {
-      endpoint: config.endpoint ?? "http://localhost:6006",
+      // `resolveConfig` always fills `endpoint`; the fallback only satisfies
+      // the optional type, and uses the shared default so it can't drift.
+      endpoint: config.endpoint ?? DEFAULT_PHOENIX_ENDPOINT,
       endpointExplicit: parsed.endpointExplicit,
       agent: parsed.agent,
       scope: parsed.scope,

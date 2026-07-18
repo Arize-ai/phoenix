@@ -22,6 +22,8 @@
  * agent config unless `--docs-mcp` asked for it.
  */
 
+import * as path from "node:path";
+
 import { DOCS_MCP_SERVER_URL, type CodingAgent } from "../agents/registry";
 import * as COPY from "../copy";
 import type { SetupDeps } from "../deps";
@@ -178,8 +180,8 @@ async function runOffer(
   // A write that throws (unparseable existing file, permissions) is handled
   // by the catch-all in offerDocsMcp.
   writeMcpConfig({
-    directory: deps.context.cwd,
-    relativePath: install.relativePath,
+    filePath: path.join(deps.context.cwd, install.relativePath),
+    displayPath: install.relativePath,
     patch: install.patch(DOCS_MCP_SERVER_URL),
     ...(install.createDefaults
       ? { createDefaults: install.createDefaults }

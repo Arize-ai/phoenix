@@ -119,7 +119,8 @@ function runFileInstall(
   }: Pick<RunMcpInstallArgs, "url" | "headers" | "installContext">
 ): McpInstallResult {
   writeMcpConfig({
-    absolutePath: action.path(installContext),
+    filePath: action.path(installContext),
+    displayPath: action.displayPath(installContext),
     patch: action.patch(url, headers),
     ...(action.createDefaults ? { createDefaults: action.createDefaults } : {}),
   });

@@ -130,6 +130,18 @@ function headersObject(
 }
 
 /**
+ * A spreadable `{ headers }` fragment — present only when there are headers, so
+ * a URL-only (OAuth) config carries no empty `headers` key. Spread it into a
+ * server entry: `{ url, ...headersField(headers) }`.
+ */
+function headersField(headers: McpHeader[]): {
+  headers?: Record<string, string>;
+} {
+  const obj = headersObject(headers);
+  return obj ? { headers: obj } : {};
+}
+
+/**
  * The env-var name behind an `Authorization: Bearer ${VAR}` header, if the
  * value is exactly that shape. Codex's `mcp add` cannot store an arbitrary
  * header — only `--bearer-token-env-var` — so a bearer header aimed at Codex is
@@ -197,7 +209,7 @@ function cursorPatch(
     mcpServers: {
       [PHOENIX_MCP_SERVER_NAME]: {
         url,
-        ...(headersObject(headers) ? { headers: headersObject(headers) } : {}),
+        ...headersField(headers),
       },
     },
   };
@@ -213,7 +225,7 @@ function opencodePatch(
         type: "remote",
         url,
         enabled: true,
-        ...(headersObject(headers) ? { headers: headersObject(headers) } : {}),
+        ...headersField(headers),
       },
     },
   };
@@ -341,9 +353,7 @@ export const MCP_AGENTS: readonly McpAgent[] = [
             name: PHOENIX_MCP_SERVER_NAME,
             type: "http",
             url,
-            ...(headersObject(headers)
-              ? { headers: headersObject(headers) }
-              : {}),
+            ...headersField(headers),
           }),
         ],
       },
@@ -357,9 +367,7 @@ export const MCP_AGENTS: readonly McpAgent[] = [
             [PHOENIX_MCP_SERVER_NAME]: {
               type: "http",
               url,
-              ...(headersObject(headers)
-                ? { headers: headersObject(headers) }
-                : {}),
+              ...headersField(headers),
             },
           },
         }),

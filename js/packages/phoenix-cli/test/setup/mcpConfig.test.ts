@@ -26,7 +26,7 @@ describe("writeMcpConfig", () => {
   it("writes to an absolute path outside any repo (global scope)", () => {
     const target = path.join(dir, "home", ".cursor", "mcp.json");
     writeMcpConfig({
-      absolutePath: target,
+      filePath: target,
       patch: { mcpServers: { phoenix: { url: "http://x/mcp" } } },
     });
     expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({
@@ -41,7 +41,7 @@ describe("writeMcpConfig", () => {
       JSON.stringify({ mcpServers: { keep: { url: "y" } } })
     );
     writeMcpConfig({
-      absolutePath: target,
+      filePath: target,
       patch: { mcpServers: { phoenix: { url: "http://x/mcp" } } },
     });
     expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({
@@ -52,7 +52,7 @@ describe("writeMcpConfig", () => {
   it("refuses a relative target rather than writing to the wrong place", () => {
     expect(() =>
       writeMcpConfig({
-        relativePath: "mcp.json",
+        filePath: "mcp.json",
         patch: {},
       })
     ).toThrow(/absolute path/);
@@ -61,7 +61,7 @@ describe("writeMcpConfig", () => {
   it("refuses an unparseable existing file instead of clobbering it", () => {
     const target = path.join(dir, "mcp.json");
     fs.writeFileSync(target, "{ not json");
-    expect(() => writeMcpConfig({ absolutePath: target, patch: {} })).toThrow(
+    expect(() => writeMcpConfig({ filePath: target, patch: {} })).toThrow(
       McpConfigUnreadableError
     );
     expect(fs.readFileSync(target, "utf-8")).toBe("{ not json");

@@ -12,19 +12,16 @@ import * as path from "node:path";
 
 export interface WriteMcpConfigArgs {
   /**
-   * Repo root the relative config path resolves against. Ignored when
-   * `absolutePath` is given (a global-scope install targets a file outside the
-   * repo, e.g. `~/.cursor/mcp.json`).
+   * Absolute path to the config file to merge into. Callers compose it from a
+   * repo root or the user's home directory before calling — this function does
+   * not join paths.
    */
-  directory?: string;
-  /** Config file path, relative to `directory`. Ignored when `absolutePath` is given. */
-  relativePath?: string;
+  filePath: string;
   /**
-   * Absolute path to the config file. When set it is used verbatim and
-   * `directory`/`relativePath` are ignored — the global-scope escape hatch for
-   * configs that live in the user's home directory rather than the repo.
+   * How the path reads in the "could not be parsed" error: the repo-relative
+   * path where the caller has one, else the absolute `filePath` (the default).
    */
-  absolutePath?: string;
+  displayPath?: string;
   /**
    * JSON fragment to merge in: container and server-name keys merge, a
    * server entry itself is replaced wholesale.
@@ -75,22 +72,14 @@ export class McpConfigUnreadableError extends Error {
 }
 
 export function writeMcpConfig({
-  directory,
-  relativePath,
-  absolutePath,
+  filePath,
+  displayPath = filePath,
   patch,
   createDefaults,
 }: WriteMcpConfigArgs): void {
-  const filePath =
-    absolutePath ?? path.join(directory ?? "", relativePath ?? "");
   if (!path.isAbsolute(filePath)) {
-    throw new Error(
-      "writeMcpConfig requires an absolute path (pass `absolutePath`, or a `directory` that is absolute)"
-    );
+    throw new Error("writeMcpConfig requires an absolute path");
   }
-  // What the "could not be parsed" error names: the repo-relative path when we
-  // have one, else the absolute path a global install targets.
-  const displayPath = relativePath ?? filePath;
 
   let existing: Record<string, unknown> = createDefaults ?? {};
   if (fs.existsSync(filePath)) {
