@@ -14,16 +14,11 @@
 import { Command } from "commander";
 
 import { DEFAULT_PHOENIX_ENDPOINT, resolveConfig } from "../config";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import { ExitCode } from "../exitCodes";
 import { writeOutput } from "../io";
 import { collectString } from "../optionParsers";
-import * as COPY from "../setup/copy";
 import { buildDefaultDeps } from "../setup/deps/buildDefaultDeps";
-import {
-  HeadlessInputError,
-  SetupCancelledError,
-  SetupFatalError,
-} from "../setup/errors";
+import { HeadlessInputError } from "../setup/errors";
 import {
   MCP_AGENT_IDS,
   type McpAgentId,
@@ -34,6 +29,7 @@ import { runSetupMcp } from "../setup/mcp/runSetupMcp";
 import { writeStructuredError } from "../structuredError";
 import { ENDPOINT_REQUIREMENT, isEndpointUrl } from "../validation/endpoint";
 import { formatMcpSetupOutput, type OutputFormat } from "./formatSetup";
+import { exitWithError } from "./setupErrors";
 
 /** The typed mirror of the flags `px setup mcp` registers. */
 interface SetupMcpCommandOptions {
@@ -156,7 +152,7 @@ function toMcpInputs(options: SetupMcpCommandOptions): {
     fail(
       format,
       error instanceof Error ? error.message : String(error),
-      `px setup mcp --header "Authorization: Bearer \${PHOENIX_API_KEY}"`
+      `px setup mcp --header 'Authorization: Bearer \${PHOENIX_API_KEY}'`
     );
   }
 
@@ -179,42 +175,6 @@ function fail(format: OutputFormat, message: string, hint?: string): never {
     ...(hint ? { hint } : {}),
   });
   process.exit(ExitCode.INVALID_ARGUMENT);
-}
-
-/**
- * The command's single failure funnel, so a cancelled prompt, a bad headless
- * invocation, and a fatal install each keep their distinct exit code and give
- * `--format json|raw` callers the same `{error, code, hint}` envelope as the
- * rest of `px`.
- */
-function exitWithError(error: unknown, format: OutputFormat): never {
-  if (error instanceof SetupCancelledError) {
-    writeStructuredError({
-      format,
-      message: COPY.CANCEL_OUTRO,
-      code: "CANCELLED",
-    });
-    process.exit(ExitCode.CANCELLED);
-  }
-  if (error instanceof HeadlessInputError) {
-    writeStructuredError({
-      format,
-      message: error.message,
-      code: "INVALID_ARGUMENT",
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-  if (error instanceof SetupFatalError) {
-    writeStructuredError({ format, message: error.message, code: "FAILURE" });
-    process.exit(ExitCode.FAILURE);
-  }
-  const exitCode = getExitCodeForError(error);
-  writeStructuredError({
-    format,
-    message: String(error),
-    code: exitCode === ExitCode.NETWORK_ERROR ? "NETWORK_ERROR" : "FAILURE",
-  });
-  process.exit(exitCode);
 }
 
 async function setupMcpHandler(options: SetupMcpCommandOptions): Promise<void> {
@@ -293,7 +253,7 @@ Examples:
   px setup mcp --agent claude --local
   px setup mcp --agent cursor --global --endpoint https://phoenix.example.com
   px setup mcp --agent codex --no-input --format raw
-  px setup mcp --agent claude --header "Authorization: Bearer \${PHOENIX_API_KEY}"
+  px setup mcp --agent claude --header 'Authorization: Bearer \${PHOENIX_API_KEY}'
 `
     );
   return command;

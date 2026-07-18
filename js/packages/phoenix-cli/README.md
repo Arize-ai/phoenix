@@ -201,7 +201,7 @@ with `--header` (repeatable):
 
 ```bash
 px setup mcp --agent codex --no-input --format raw
-px setup mcp --agent claude --header "Authorization: Bearer \${PHOENIX_API_KEY}"
+px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 ```
 
 ---

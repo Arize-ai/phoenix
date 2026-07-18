@@ -113,18 +113,6 @@ function headerFlags(headers: McpHeader[]): string[] {
   ]);
 }
 
-/** A `headers` object for file configs, or undefined when there are none. */
-function headersObject(
-  headers: McpHeader[]
-): Record<string, string> | undefined {
-  if (headers.length === 0) {
-    return undefined;
-  }
-  return Object.fromEntries(
-    headers.map((header) => [header.name, header.value])
-  );
-}
-
 /**
  * A spreadable `{ headers }` fragment — present only when there are headers, so
  * a URL-only (OAuth) config carries no empty `headers` key. Spread it into a
@@ -133,25 +121,40 @@ function headersObject(
 function headersField(headers: McpHeader[]): {
   headers?: Record<string, string>;
 } {
-  const obj = headersObject(headers);
-  return obj ? { headers: obj } : {};
+  if (headers.length === 0) {
+    return {};
+  }
+  return {
+    headers: Object.fromEntries(
+      headers.map((header) => [header.name, header.value])
+    ),
+  };
 }
 
+/** An `Authorization` value that is exactly `Bearer $VAR` or `Bearer ${VAR}`. */
+const BEARER_ENV_VAR_PATTERN =
+  /^Bearer\s+(?:\$([A-Za-z_][A-Za-z0-9_]*)|\$\{([A-Za-z_][A-Za-z0-9_]*)\})$/;
+
 /**
- * The env-var name behind an `Authorization: Bearer ${VAR}` header, if the
- * value is exactly that shape. Codex's `mcp add` stores only
- * `--bearer-token-env-var`, so a bearer header is translated to the env var it
- * references; a literal token yields no bearer flag.
+ * The one header Codex's `mcp add` can persist — the first `Authorization`
+ * header whose value is env-var-shaped — and the env-var name it references.
+ * Codex stores only `--bearer-token-env-var`; a literal token has no
+ * translation, so it is never honored.
  */
-function bearerTokenEnvVar(headers: McpHeader[]): string | undefined {
-  const auth = headers.find(
-    (header) => header.name.toLowerCase() === "authorization"
-  );
-  if (!auth) {
-    return undefined;
+function honoredBearerHeader(
+  headers: McpHeader[]
+): { header: McpHeader; envVar: string } | undefined {
+  for (const header of headers) {
+    if (header.name.toLowerCase() !== "authorization") {
+      continue;
+    }
+    const match = header.value.match(BEARER_ENV_VAR_PATTERN);
+    const envVar = match?.[1] ?? match?.[2];
+    if (envVar) {
+      return { header, envVar };
+    }
   }
-  const match = auth.value.match(/^Bearer\s+\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$/);
-  return match?.[1];
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,7 +259,7 @@ export const MCP_AGENTS: readonly McpAgent[] = [
         kind: "cli",
         binary: "codex",
         addArgs: (url, headers) => {
-          const envVar = bearerTokenEnvVar(headers);
+          const envVar = honoredBearerHeader(headers)?.envVar;
           return [
             "mcp",
             "add",
@@ -269,15 +272,12 @@ export const MCP_AGENTS: readonly McpAgent[] = [
         removeArgs: ["mcp", "remove", PHOENIX_MCP_SERVER_NAME],
         verifyArgs: ["mcp", "get", PHOENIX_MCP_SERVER_NAME],
         droppedHeaders: (headers) => {
-          // Codex persists only the bearer env var derived from a matching
-          // Authorization header; every other header — and an Authorization
-          // header whose value isn't `Bearer ${VAR}` — is discarded by
-          // `codex mcp add`, so report those as un-storable.
-          const honorsAuth = bearerTokenEnvVar(headers) !== undefined;
-          return headers.filter(
-            (header) =>
-              !(honorsAuth && header.name.toLowerCase() === "authorization")
-          );
+          // Codex persists only the bearer env var derived from the honored
+          // Authorization header; every other header — including a second
+          // Authorization header, or one whose value isn't `Bearer ${VAR}` —
+          // is discarded by `codex mcp add`, so report those as un-storable.
+          const honored = honoredBearerHeader(headers)?.header;
+          return headers.filter((header) => header !== honored);
         },
       },
     },

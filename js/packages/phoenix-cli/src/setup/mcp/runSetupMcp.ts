@@ -11,8 +11,12 @@
  * the endpoint. A headless run requires `--agent` and defaults to global scope.
  */
 
-import { isEndpointUrl, normalizeEndpoint } from "../../validation/endpoint";
-import { probeBinary } from "../agents/registry";
+import {
+  ENDPOINT_REQUIREMENT,
+  isEndpointUrl,
+  normalizeEndpoint,
+} from "../../validation/endpoint";
+import { detectAgents } from "../agents/registry";
 import type { SetupDeps } from "../deps";
 import { HeadlessInputError, SetupFatalError } from "../errors";
 import {
@@ -60,6 +64,9 @@ export const COPY = {
   endpointPrompt: "Phoenix endpoint",
   endpointInvalid:
     "Enter a full http:// or https:// URL (e.g. http://localhost:6006).",
+  endpointUnusable: (value: string) =>
+    `The resolved endpoint "${value}" ${ENDPOINT_REQUIREMENT}. ` +
+    "Fix PHOENIX_HOST or the active profile, or pass --endpoint <url>.",
   usingEndpoint: (url: string) =>
     `Registering the Phoenix MCP server at ${url}`,
   scopePrompt: "Where should the MCP server be configured?",
@@ -72,10 +79,13 @@ export const COPY = {
   headlessNeedsAgent: `--agent is required with --no-input. Pass one of: ${MCP_AGENT_IDS.join(", ")}.`,
   localNeedsRepo:
     "--local must run inside a git repository. Re-run from your project, or use --global.",
-  codexGlobalOnly:
-    "Codex reads only a global config, so it is always configured globally.",
-  codexGlobalOnlyHeadless:
-    "Codex has no repo-scoped config. Drop --local (Codex is always global).",
+  globalOnly: (agentLabel: string) =>
+    `${agentLabel} reads only a global config, so it is always configured globally.`,
+  globalOnlyHeadless: (agentLabel: string) =>
+    `${agentLabel} has no repo-scoped config. Drop --local (${agentLabel} is always global).`,
+  homeUnknown: (agentLabel: string) =>
+    `Could not find your home directory (HOME/USERPROFILE is unset), ` +
+    `where the global ${agentLabel} config lives. Set HOME, or use --local.`,
   scopeUnsupported: (agentLabel: string, scope: McpScope) =>
     `${agentLabel} does not support ${scope} MCP configuration.`,
   headersUnsupported: (agentLabel: string, dropped: McpHeader[]) =>
@@ -110,9 +120,10 @@ export async function runSetupMcp(
   const agent = await resolveAgent(deps, inputs);
   const effectiveScope = await reconcileScope(deps, agent, scope, inputs);
 
-  if (effectiveScope === "local") {
-    await assertGitRepo(deps);
-  }
+  // A local install must land at the repo root — `px` may be running in a
+  // subdirectory, where a repo-scoped config would never be picked up.
+  const installCwd =
+    effectiveScope === "local" ? await resolveRepoRoot(deps) : deps.context.cwd;
 
   const action = agent.install[effectiveScope];
   if (!action) {
@@ -135,8 +146,17 @@ export async function runSetupMcp(
 
   const installContext = {
     home: resolveHome(deps),
-    cwd: deps.context.cwd,
+    cwd: installCwd,
   };
+  // A global file install writes under the home directory; without one the
+  // path would be relative and the failure message an internal invariant.
+  if (
+    action.kind === "file" &&
+    effectiveScope === "global" &&
+    !installContext.home
+  ) {
+    throw new SetupFatalError(COPY.homeUnknown(agent.label));
+  }
   const result = await runMcpInstall(deps, {
     action,
     url,
@@ -182,6 +202,12 @@ async function resolveEndpoint(
 ): Promise<string> {
   // Headless, or endpoint pinned by flag: take the resolved value as-is.
   if (inputs.headless || inputs.endpointExplicit) {
+    // The value may come from PHOENIX_HOST or a profile, which nothing has
+    // validated yet — refuse it as bad input rather than let
+    // `normalizeEndpoint`'s TypeError get misreported as a network error.
+    if (!isEndpointUrl(inputs.endpoint)) {
+      throw new HeadlessInputError(COPY.endpointUnusable(inputs.endpoint));
+    }
     return normalizeEndpoint(inputs.endpoint);
   }
   // Interactive: show the inferred endpoint as the default and let the user
@@ -246,27 +272,29 @@ async function reconcileScope(
   }
   if (scope === "local" && agent.install.global) {
     if (inputs.headless) {
-      throw new HeadlessInputError(COPY.codexGlobalOnlyHeadless);
+      throw new HeadlessInputError(COPY.globalOnlyHeadless(agent.label));
     }
-    deps.prompter.line(COPY.codexGlobalOnly);
+    deps.prompter.line(COPY.globalOnly(agent.label));
     return "global";
   }
   throw new SetupFatalError(COPY.scopeUnsupported(agent.label, scope));
 }
 
-async function assertGitRepo(
+/** The repo root a local install writes into; errors outside a git repo. */
+async function resolveRepoRoot(
   deps: Pick<SetupDeps, "context" | "processes">
-): Promise<void> {
+): Promise<string> {
   const check = await deps.processes.exec({
     command: "git",
-    args: ["rev-parse", "--is-inside-work-tree"],
+    args: ["rev-parse", "--show-toplevel"],
     cwd: deps.context.cwd,
   });
-  const isRepo = check.exitCode === 0 && check.stdout.trim() === "true";
-  if (!isRepo) {
+  const root = check.stdout.trim();
+  if (check.exitCode !== 0 || !root) {
     // Same class either mode: it's a bad invocation, not a runtime failure.
     throw new HeadlessInputError(COPY.localNeedsRepo);
   }
+  return root;
 }
 
 // ---------------------------------------------------------------------------
@@ -289,7 +317,7 @@ async function resolveAgent(
     throw new HeadlessInputError(COPY.headlessNeedsAgent);
   }
 
-  const detected = await detectMcpAgents(deps);
+  const detected = await detectAgents(deps, MCP_AGENTS);
   const detectedIds = new Set(detected.map((agent) => agent.id));
   // Detected agents first (with a hint), then the rest — so a user can still
   // configure an agent whose binary isn't on PATH (e.g. the VS Code app without
@@ -308,16 +336,6 @@ async function resolveAgent(
   });
   // `chosen` is one of MCP_AGENTS' ids by construction.
   return getMcpAgent(chosen)!;
-}
-
-/** Agents whose binary answers `--version`, in registry order. */
-async function detectMcpAgents(
-  deps: Pick<SetupDeps, "processes">
-): Promise<McpAgent[]> {
-  const probes = await Promise.all(
-    MCP_AGENTS.map((agent) => probeBinary(deps, agent.binary))
-  );
-  return MCP_AGENTS.filter((_, index) => probes[index]);
 }
 
 /** The user's home directory, read only through the run context's env copy. */

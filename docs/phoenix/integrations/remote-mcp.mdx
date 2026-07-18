@@ -137,8 +137,11 @@ For headless environments (CI, sandboxes) or clients that can't complete a brows
 
 ```bash
 claude mcp add --transport http phoenix http://localhost:6006/mcp \
-  --header "Authorization: Bearer $PHOENIX_API_KEY"
+  --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 ```
+
+The single quotes matter: the client expands `${PHOENIX_API_KEY}` from its
+environment at runtime, so the key itself is never written into the config.
 
 In JSON-based client configs, set the equivalent header:
 

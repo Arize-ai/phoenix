@@ -24,14 +24,23 @@ function readJson(filePath: string): Record<string, unknown> {
   return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
 
-/** exec fake: git rev-parse says "in a repo"; every agent CLI call exits 0. */
+/**
+ * exec fake: `git rev-parse --show-toplevel` answers with the repo root
+ * (`gitTopLevel`, defaulting to the exec's own cwd); every agent CLI call
+ * exits 0.
+ */
 function agentExecFake(
-  calls: CommandSpec[]
+  calls: CommandSpec[],
+  gitTopLevel?: string
 ): (spec: CommandSpec) => Promise<ExecResult> {
   return async (spec) => {
     calls.push(spec);
     if (spec.command === "git") {
-      return { exitCode: 0, stdout: "true\n", stderr: "" };
+      return {
+        exitCode: 0,
+        stdout: `${gitTopLevel ?? spec.cwd ?? ""}\n`,
+        stderr: "",
+      };
     }
     return { exitCode: 0, stdout: "", stderr: "" };
   };
@@ -235,6 +244,35 @@ describe("runSetupMcp", () => {
       });
     });
 
+    it("writes a local config at the repo root when run from a subdirectory", async () => {
+      const subdirectory = path.join(repo, "packages", "app");
+      fs.mkdirSync(subdirectory, { recursive: true });
+      const deps = buildFakeDeps({
+        context: { cwd: subdirectory, env: { HOME: home } },
+        processes: { exec: agentExecFake([], repo) },
+      });
+
+      const report = await runSetupMcp(
+        deps,
+        inputs({ agent: "cursor", scope: "local" })
+      );
+
+      expect(report.file).toBe(".cursor/mcp.json");
+      expect(fs.existsSync(path.join(repo, ".cursor", "mcp.json"))).toBe(true);
+      expect(
+        fs.existsSync(path.join(subdirectory, ".cursor", "mcp.json"))
+      ).toBe(false);
+    });
+
+    it("errors clearly when no home directory is known for a global file install", async () => {
+      const deps = buildFakeDeps({
+        context: { cwd: repo, env: {} },
+      });
+      await expect(
+        runSetupMcp(deps, inputs({ agent: "cursor", scope: "global" }))
+      ).rejects.toThrow(/home directory/);
+    });
+
     it("re-running a file install is idempotent", async () => {
       const run = () =>
         runSetupMcp(
@@ -266,6 +304,24 @@ describe("runSetupMcp", () => {
         })
       );
       expect(report.url).toBe("https://phoenix.example.com/mcp");
+    });
+
+    it("refuses a headless endpoint that is not an http(s) URL as bad input", async () => {
+      const deps = buildFakeDeps({
+        context: { cwd: repo, env: { HOME: home } },
+      });
+      // e.g. a scheme-less PHOENIX_HOST, which nothing upstream validates.
+      await expect(
+        runSetupMcp(
+          deps,
+          inputs({
+            agent: "cursor",
+            scope: "global",
+            endpoint: "localhost:6006",
+            endpointExplicit: false,
+          })
+        )
+      ).rejects.toBeInstanceOf(HeadlessInputError);
     });
   });
 

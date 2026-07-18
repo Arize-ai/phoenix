@@ -256,14 +256,22 @@ export function probeGlobalBinary(
   );
 }
 
+/** The agents whose binary probe succeeds, in the given order. */
+export async function detectAgents<TAgent extends { binary: string }>(
+  deps: Pick<SetupDeps, "processes">,
+  agents: readonly TAgent[]
+): Promise<TAgent[]> {
+  const probes = await Promise.all(
+    agents.map((agent) => probeBinary(deps, agent.binary))
+  );
+  return agents.filter((_, index) => probes[index]);
+}
+
 /** Agents whose binary probe succeeds, in registry order. */
-export async function detectCodingAgents(
+export function detectCodingAgents(
   deps: Pick<SetupDeps, "processes">
 ): Promise<CodingAgent[]> {
-  const probes = await Promise.all(
-    CODING_AGENTS.map((agent) => probeBinary(deps, agent.binary))
-  );
-  return CODING_AGENTS.filter((_, index) => probes[index]);
+  return detectAgents(deps, CODING_AGENTS);
 }
 
 /**
