@@ -1,5 +1,19 @@
 # Changelog
 
+## [19.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.0.0...arize-phoenix-v19.1.0) (2026-07-18)
+
+
+### Features
+
+* **cli:** px setup mcp — register the Phoenix remote MCP server with a coding agent ([#14507](https://github.com/Arize-ai/phoenix/issues/14507)) ([f9cd97a](https://github.com/Arize-ai/phoenix/commit/f9cd97ae360f760045a5563e5fc37fa57c68d19d))
+* **ui:** add icon prefixes to settings tabs ([#14512](https://github.com/Arize-ai/phoenix/issues/14512)) ([7868a58](https://github.com/Arize-ai/phoenix/commit/7868a584b784c634e7ebdf5bfa45e2bca480663e))
+* **ui:** add MCP settings tab with setup guide ([#14515](https://github.com/Arize-ai/phoenix/issues/14515)) ([0587fca](https://github.com/Arize-ai/phoenix/commit/0587fca06ddd0ecacd2861b7a6c9b52cbda52d16))
+
+
+### Documentation
+
+* rewrite agent-assisted setup around px setup; MCP docs updates ([#14505](https://github.com/Arize-ai/phoenix/issues/14505)) ([f3d7af3](https://github.com/Arize-ai/phoenix/commit/f3d7af30c303bf828c67ae0a9fbc4c26e4b3ebec))
+
 ## [19.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v18.1.0...arize-phoenix-v19.0.0) (2026-07-17)
 
 
