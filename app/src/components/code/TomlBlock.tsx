@@ -13,34 +13,39 @@ import { pierreDark, pierreLight } from "./pierreCodeMirrorTheme";
 
 type TomlBlockProps = Omit<
   ReactCodeMirrorProps,
-  "theme" | "extensions" | "editable"
+  "theme" | "extensions" | "editable" | "basicSetup"
 > & {
-  basicSetup?: BasicSetupOptions;
+  basicSetup?: Partial<BasicSetupOptions>;
 };
 
+const tomlExtensions = [StreamLanguage.define(toml)];
+
 export function TomlBlock(props: TomlBlockProps) {
+  const { basicSetup: propsBasicSetup, ...rest } = props;
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
-  const { basicSetup: propsBasicSetup = {} } = props;
   const basicSetup = useMemo(() => {
-    return {
+    const baseSetup = {
       lineNumbers: false,
       foldGutter: true,
       bracketMatching: true,
       syntaxHighlighting: true,
       highlightActiveLine: false,
       highlightActiveLineGutter: false,
-      ...(propsBasicSetup as object),
     };
+    if (propsBasicSetup) {
+      return { ...baseSetup, ...propsBasicSetup };
+    }
+    return baseSetup;
   }, [propsBasicSetup]);
 
   return (
     <CodeMirror
       value={props.value}
-      extensions={[StreamLanguage.define(toml)]}
+      extensions={tomlExtensions}
       editable={false}
       theme={codeMirrorTheme}
-      {...props}
+      {...rest}
       basicSetup={basicSetup}
     />
   );

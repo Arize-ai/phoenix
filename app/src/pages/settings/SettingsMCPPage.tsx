@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import {
   Alert,
+  Badge,
   Card,
   CopyField,
   CopyInput,
@@ -23,18 +24,19 @@ import {
   JSONBlockWithCopy,
   TomlBlockWithCopy,
 } from "@phoenix/components/code";
+import {
+  ClaudeSVG,
+  CursorSVG,
+  McpSVG,
+  OpenAISVG,
+  VSCodeSVG,
+} from "@phoenix/components/project/IntegrationIcons";
 import { BASE_URL } from "@phoenix/config";
 
 const MCP_DOCS_URL = "https://arize.com/docs/phoenix/integrations/remote-mcp";
 
 const statusItemCSS = css`
   white-space: nowrap;
-  .mcp-status__icon--enabled {
-    color: var(--global-color-success);
-  }
-  .mcp-status__icon--disabled {
-    color: var(--global-text-color-500);
-  }
 `;
 
 /**
@@ -54,9 +56,7 @@ function StatusItem({
         svg={
           isEnabled ? <Icons.CheckmarkCircleFilled /> : <Icons.MinusCircle />
         }
-        className={
-          isEnabled ? "mcp-status__icon--enabled" : "mcp-status__icon--disabled"
-        }
+        color={isEnabled ? "success" : "gray-500"}
         aria-hidden
       />
       <Text size="S" color="text-700">
@@ -72,51 +72,146 @@ const sectionCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
-export function SettingsMCPPage() {
-  const { mcpServerEnabled, mcpCodeModeEnabled } = window.Config;
-  const mcpUrl = `${BASE_URL}/mcp`;
+// The disclosure panel renders flush by default; indent its content to align
+// with the trigger label and give it breathing room.
+const panelContentCSS = css`
+  padding: var(--global-dimension-size-200);
+`;
 
-  const cursorConfig = JSON.stringify(
-    { mcpServers: { phoenix: { url: mcpUrl } } },
-    null,
-    2
-  );
-  const vsCodeConfig = JSON.stringify(
-    { servers: { phoenix: { type: "http", url: mcpUrl } } },
-    null,
-    2
-  );
-  const codexConfig = [
-    "[mcp_servers.phoenix]",
-    `url = "${mcpUrl}"`,
-    'bearer_token_env_var = "PHOENIX_API_KEY"',
-  ].join("\n");
-  const apiKeyConfig = JSON.stringify(
-    {
-      mcpServers: {
-        phoenix: {
-          url: mcpUrl,
-          headers: { Authorization: "Bearer <your-api-key>" },
-        },
+const mcpUrl = `${BASE_URL}/mcp`;
+
+const cursorConfig = JSON.stringify(
+  { mcpServers: { phoenix: { url: mcpUrl } } },
+  null,
+  2
+);
+const vsCodeConfig = JSON.stringify(
+  { servers: { phoenix: { type: "http", url: mcpUrl } } },
+  null,
+  2
+);
+const codexConfig = [
+  "[mcp_servers.phoenix]",
+  `url = "${mcpUrl}"`,
+  'bearer_token_env_var = "PHOENIX_API_KEY"',
+].join("\n");
+const apiKeyConfig = JSON.stringify(
+  {
+    mcpServers: {
+      phoenix: {
+        url: mcpUrl,
+        headers: { Authorization: "Bearer <your-api-key>" },
       },
     },
-    null,
-    2
-  );
+  },
+  null,
+  2
+);
+
+// One entry per MCP client rendered in the "Connect a client" disclosure
+// group. Everything here is static, so the list lives at module scope.
+const CLIENTS = [
+  {
+    id: "claude-code",
+    label: "Claude Code",
+    icon: <ClaudeSVG />,
+    content: (
+      <>
+        <BashBlockWithCopy
+          value={`claude mcp add --transport http phoenix ${mcpUrl}`}
+        />
+        <Text size="S" color="text-700">
+          Then run /mcp inside Claude Code, select phoenix, and complete the
+          browser login.
+        </Text>
+      </>
+    ),
+  },
+  {
+    id: "claude-desktop",
+    label: "Claude Desktop",
+    icon: <ClaudeSVG />,
+    content: (
+      <>
+        <Text size="S" color="text-700">
+          Go to Settings → Connectors → Add custom connector and enter the name
+          Phoenix with the URL below. Claude Desktop opens the browser login the
+          first time you use the connector.
+        </Text>
+        <CopyField value={mcpUrl} aria-label="Phoenix MCP URL">
+          <CopyInput />
+        </CopyField>
+      </>
+    ),
+  },
+  {
+    id: "codex",
+    label: "Codex",
+    icon: <OpenAISVG />,
+    content: (
+      <>
+        <Text size="S" color="text-700">
+          Codex authenticates with an API key. Create a Phoenix API key, export
+          it as PHOENIX_API_KEY, and add to ~/.codex/config.toml:
+        </Text>
+        <TomlBlockWithCopy value={codexConfig} />
+      </>
+    ),
+  },
+  {
+    id: "cursor",
+    label: "Cursor",
+    icon: <CursorSVG />,
+    content: (
+      <>
+        <Text size="S" color="text-700">
+          Add to ~/.cursor/mcp.json (or the project&apos;s .cursor/mcp.json).
+          Cursor prompts you to log in via the browser on first use.
+        </Text>
+        <JSONBlockWithCopy value={cursorConfig} />
+      </>
+    ),
+  },
+  {
+    id: "vscode",
+    label: "VS Code",
+    icon: <VSCodeSVG />,
+    content: (
+      <>
+        <Text size="S" color="text-700">
+          Run MCP: Add Server from the Command Palette, or add to
+          .vscode/mcp.json. VS Code walks you through the browser login when the
+          server first starts.
+        </Text>
+        <JSONBlockWithCopy value={vsCodeConfig} />
+      </>
+    ),
+  },
+  {
+    id: "other",
+    label: "Other clients",
+    icon: <McpSVG />,
+    content: (
+      <>
+        <Text size="S" color="text-700">
+          Any client that supports streamable HTTP and OAuth works — configure
+          the URL above and complete the login prompt on first use. For headless
+          environments or clients that can&apos;t complete a browser login, pass
+          a Phoenix API key as a Bearer header instead:
+        </Text>
+        <JSONBlockWithCopy value={apiKeyConfig} />
+      </>
+    ),
+  },
+];
+
+export function SettingsMCPPage() {
+  const { mcpServerEnabled, mcpCodeModeEnabled } = window.Config;
 
   return (
     <Card
       title="Model Context Protocol"
-      // The settings tab panel is a flex column; without this the card
-      // flex-shrinks to the panel height and clips its own header once the
-      // setup content is taller than the viewport.
-      flex="none"
-      extra={
-        <Flex direction="row" alignItems="center" gap="size-200">
-          <StatusItem isEnabled={mcpServerEnabled} label="MCP server" />
-          <StatusItem isEnabled={mcpCodeModeEnabled} label="Code mode" />
-        </Flex>
-      }
+      extra={<Badge variant="info">Beta</Badge>}
     >
       {!mcpServerEnabled && (
         <Alert variant="warning" banner>
@@ -127,18 +222,18 @@ export function SettingsMCPPage() {
       )}
       <View padding="size-200">
         <Flex direction="column" gap="size-300">
+          <Flex direction="row" alignItems="center" gap="size-200">
+            <StatusItem isEnabled={mcpServerEnabled} label="MCP server" />
+            <StatusItem isEnabled={mcpCodeModeEnabled} label="Code mode" />
+          </Flex>
           <section css={sectionCSS}>
             <CopyField value={mcpUrl}>
               <Label>MCP Server URL</Label>
               <CopyInput />
-              <Text slot="description">
-                Point any MCP-compatible client (Claude Code, Cursor, VS Code,
-                and others) at this URL. Clients authenticate with OAuth — a
-                browser login with your Phoenix account — or with a Phoenix API
-                key.
-              </Text>
             </CopyField>
             <Text size="S" color="text-700">
+              Point any MCP-compatible client at this URL. Clients authenticate
+              with OAuth or a Phoenix API key.{" "}
               {mcpServerEnabled
                 ? mcpCodeModeEnabled
                   ? "Code mode is enabled: clients see a compact set of discovery tools plus a sandboxed execute tool that composes Phoenix operations in one step. "
@@ -171,104 +266,31 @@ export function SettingsMCPPage() {
               Prefer to configure by hand? Follow the steps for your client
               below.
             </Text>
-            <DisclosureGroup defaultExpandedKeys={["claude-code"]}>
-              <Disclosure id="claude-code">
-                <DisclosureTrigger arrowPosition="start">
-                  Claude Code
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <Flex direction="column" gap="size-100">
-                    <BashBlockWithCopy
-                      value={`claude mcp add --transport http phoenix ${mcpUrl}`}
-                    />
-                    <Text size="S" color="text-700">
-                      Then run /mcp inside Claude Code, select phoenix, and
-                      complete the browser login.
-                    </Text>
-                  </Flex>
-                </DisclosurePanel>
-              </Disclosure>
-              <Disclosure id="claude-desktop">
-                <DisclosureTrigger arrowPosition="start">
-                  Claude Desktop
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <Flex direction="column" gap="size-100">
-                    <Text size="S" color="text-700">
-                      Go to Settings → Connectors → Add custom connector and
-                      enter the name Phoenix with the URL below. Claude Desktop
-                      opens the browser login the first time you use the
-                      connector.
-                    </Text>
-                    <CopyField value={mcpUrl} aria-label="Phoenix MCP URL">
-                      <CopyInput />
-                    </CopyField>
-                  </Flex>
-                </DisclosurePanel>
-              </Disclosure>
-              <Disclosure id="cursor">
-                <DisclosureTrigger arrowPosition="start">
-                  Cursor
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <Flex direction="column" gap="size-100">
-                    <Text size="S" color="text-700">
-                      Add to ~/.cursor/mcp.json (or the project&apos;s
-                      .cursor/mcp.json). Cursor prompts you to log in via the
-                      browser on first use.
-                    </Text>
-                    <JSONBlockWithCopy value={cursorConfig} />
-                  </Flex>
-                </DisclosurePanel>
-              </Disclosure>
-              <Disclosure id="vscode">
-                <DisclosureTrigger arrowPosition="start">
-                  VS Code
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <Flex direction="column" gap="size-100">
-                    <Text size="S" color="text-700">
-                      Run MCP: Add Server from the Command Palette, or add to
-                      .vscode/mcp.json. VS Code walks you through the browser
-                      login when the server first starts.
-                    </Text>
-                    <JSONBlockWithCopy value={vsCodeConfig} />
-                  </Flex>
-                </DisclosurePanel>
-              </Disclosure>
-              <Disclosure id="codex">
-                <DisclosureTrigger arrowPosition="start">
-                  Codex (OpenAI)
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <Flex direction="column" gap="size-100">
-                    <Text size="S" color="text-700">
-                      Codex authenticates with an API key. Create a Phoenix API
-                      key, export it as PHOENIX_API_KEY, and add to
-                      ~/.codex/config.toml:
-                    </Text>
-                    <TomlBlockWithCopy value={codexConfig} />
-                  </Flex>
-                </DisclosurePanel>
-              </Disclosure>
-              <Disclosure id="other">
-                <DisclosureTrigger arrowPosition="start">
-                  Other clients
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <Flex direction="column" gap="size-100">
-                    <Text size="S" color="text-700">
-                      Any client that supports streamable HTTP and OAuth works —
-                      configure the URL above and complete the login prompt on
-                      first use. For headless environments or clients that
-                      can&apos;t complete a browser login, pass a Phoenix API
-                      key as a Bearer header instead:
-                    </Text>
-                    <JSONBlockWithCopy value={apiKeyConfig} />
-                  </Flex>
-                </DisclosurePanel>
-              </Disclosure>
-            </DisclosureGroup>
+            <View
+              borderWidth="thin"
+              borderColor="default"
+              borderRadius="medium"
+            >
+              <DisclosureGroup defaultExpandedKeys={["claude-code"]}>
+                {CLIENTS.map((client) => (
+                  <Disclosure id={client.id} key={client.id}>
+                    <DisclosureTrigger arrowPosition="start">
+                      <Icon svg={client.icon} aria-hidden />
+                      {client.label}
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <Flex
+                        direction="column"
+                        gap="size-100"
+                        css={panelContentCSS}
+                      >
+                        {client.content}
+                      </Flex>
+                    </DisclosurePanel>
+                  </Disclosure>
+                ))}
+              </DisclosureGroup>
+            </View>
           </section>
         </Flex>
       </View>

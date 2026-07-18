@@ -1,6 +1,7 @@
 export * from "./pierreCodeMirrorTheme";
 export * from "./PreBlock";
 export * from "./JSONEditor";
+export * from "./CodeBlockWithCopy";
 export * from "./JSONBlock";
 export * from "./JSONBlockWithCopy";
 export * from "./AttributesJSONBlock";
@@ -12,6 +13,7 @@ export * from "./CodeWrap";
 export * from "./TomlBlock";
 export * from "./TomlBlockWithCopy";
 export * from "./TypeScriptBlock";
+export * from "./TypeScriptBlockWithCopy";
 export * from "./CodeEditorFieldWrapper";
 export * from "./CodeLanguageRadioGroup";
 export * from "./PackageManagerCommandBlock";

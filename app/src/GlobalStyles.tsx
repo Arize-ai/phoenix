@@ -931,6 +931,11 @@ const inputFieldCSS = (theme: Theme) => css`
     --field-readonly-text-color: var(--global-text-color-700);
     --field-readonly-border-color-focus: var(--global-color-gray-400);
 
+    /* Embedded copy button (CopyInput and the copyable code blocks) */
+    --field-copy-button-background-color: var(--global-color-gray-200);
+    --field-copy-button-background-color-hover: var(--global-color-gray-300);
+    --field-copy-button-text-color: var(--global-text-color-700);
+
     /* Popover overlay (combobox / select) */
     --field-popover-background-color: var(--global-menu-background-color);
     --field-popover-border-color: var(--global-menu-border-color);
@@ -1051,12 +1056,12 @@ const pxiCSS = (theme: Theme) => css`
         0 0 13px 4px rgba(205, 154, 238, 0.31),
         0 0 17px 6px rgba(119, 214, 255, 0.22)
       `};
-    --pxi-glow-box-shadow-contained-rest:
-      inset 0 0 2px rgba(154, 102, 255, 0.36),
+    --pxi-glow-box-shadow-contained-rest: inset 0 0 2px
+        rgba(154, 102, 255, 0.36),
       inset 0 0 5px rgba(52, 128, 255, 0.28),
       inset 0 0 9px rgba(44, 216, 255, 0.16);
-    --pxi-glow-box-shadow-contained-strong:
-      inset 0 0 3px rgba(154, 102, 255, 0.62),
+    --pxi-glow-box-shadow-contained-strong: inset 0 0 3px
+        rgba(154, 102, 255, 0.62),
       inset 0 0 8px rgba(52, 128, 255, 0.48),
       inset 0 0 14px rgba(44, 216, 255, 0.28);
   }

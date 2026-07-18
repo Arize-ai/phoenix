@@ -15,6 +15,7 @@ import {
   Tabs,
 } from "@phoenix/components";
 import { PxiGlyphOutline } from "@phoenix/components/agent";
+import { McpSVG } from "@phoenix/components/project/IntegrationIcons";
 import {
   useIsAdmin,
   useViewerCanManageSandboxes,
@@ -65,6 +66,9 @@ const settingsTabPanelCSS = css`
     var(--global-dimension-size-300);
   & > * {
     max-width: 1200px;
+    // The panel is a flex column; without this, content taller than the
+    // viewport flex-shrinks to the panel height and clips itself.
+    flex: none;
   }
 `;
 
@@ -75,16 +79,16 @@ const TABS = [
   { id: "general", label: "General", icon: <Icons.Settings /> },
   { id: "users", label: "Users", icon: <Icons.Person /> },
   { id: "api-keys", label: "API Keys", icon: <Icons.Key /> },
-  { id: "mcp", label: "MCP", icon: <Icons.Mcp /> },
   { id: "providers", label: "AI Providers", icon: <Icons.Sparkle /> },
   { id: "sandboxes", label: "Sandboxes", icon: <Icons.Console /> },
-  { id: "models", label: "Models", icon: <Icons.LLMOutput /> },
+  { id: "models", label: "Models", icon: <Icons.Cube /> },
   { id: "secrets", label: "Secrets", icon: <Icons.Lock /> },
   { id: "datasets", label: "Datasets", icon: <Icons.Database /> },
   { id: "annotations", label: "Annotations", icon: <Icons.Edit2 /> },
   { id: "prompts", label: "Prompts", icon: <Icons.MessageSquare /> },
   { id: "data", label: "Data Retention", icon: <Icons.HardDrive /> },
   { id: "agents", label: "Assistant", icon: <PxiGlyphOutline /> },
+  { id: "mcp", label: "MCP", icon: <McpSVG /> },
 ] as const satisfies readonly { id: string; label: string; icon: ReactNode }[];
 
 type SettingsTabId = (typeof TABS)[number]["id"];
