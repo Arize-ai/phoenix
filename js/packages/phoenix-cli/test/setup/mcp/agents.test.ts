@@ -152,6 +152,17 @@ describe("MCP agent registry", () => {
         { name: "X-Api-Key", value: "abc123" },
       ]);
     });
+
+    it("drops a second Authorization header even when one is honored", () => {
+      const dropped = cli(agent("codex").install.global).droppedHeaders;
+      const literal: McpHeader = {
+        name: "Authorization",
+        value: "Bearer sk-abc123",
+      };
+      // Only the env-var-shaped header is honored, whichever order they come in.
+      expect(dropped!([...BEARER, literal])).toEqual([literal]);
+      expect(dropped!([literal, ...BEARER])).toEqual([literal]);
+    });
   });
 
   describe("gemini", () => {

@@ -64,8 +64,9 @@ async function runCliInstall(
     installContext,
   }: Pick<RunMcpInstallArgs, "url" | "headers" | "installContext">
 ): Promise<McpInstallResult> {
-  // Every exec runs in the repo root: a `--scope project` add must land the
-  // config in this repo, not wherever px happened to be launched from.
+  // Every exec runs in the install context's cwd — the repo root for a local
+  // install, so a `--scope project` add lands the config in this repo, not
+  // wherever px happened to be launched from.
   const exec = (args: string[]) =>
     deps.processes.exec({
       command: action.binary,
@@ -80,22 +81,19 @@ async function runCliInstall(
   });
 
   let added = await exec(action.addArgs(url, headers));
+  // Retry through remove only when we can both confirm an entry exists and
+  // remove it — otherwise a refused add is just reported.
+  if (
+    added.exitCode !== 0 &&
+    action.removeArgs &&
+    action.verifyArgs &&
+    (await exec(action.verifyArgs)).exitCode === 0
+  ) {
+    await exec(action.removeArgs);
+    added = await exec(action.addArgs(url, headers));
+  }
   if (added.exitCode !== 0) {
-    // Retry through remove only when we can both confirm an entry exists and
-    // remove it — otherwise a refused add is just reported.
-    if (action.removeArgs && action.verifyArgs) {
-      const existing = await exec(action.verifyArgs);
-      if (existing.exitCode !== 0) {
-        return fail(added.stderr.trim() || `exit code ${added.exitCode}`);
-      }
-      await exec(action.removeArgs);
-      added = await exec(action.addArgs(url, headers));
-      if (added.exitCode !== 0) {
-        return fail(added.stderr.trim() || `exit code ${added.exitCode}`);
-      }
-    } else {
-      return fail(added.stderr.trim() || `exit code ${added.exitCode}`);
-    }
+    return fail(added.stderr.trim() || `exit code ${added.exitCode}`);
   }
 
   // Trust the add's exit code only when the agent has no listing to read back

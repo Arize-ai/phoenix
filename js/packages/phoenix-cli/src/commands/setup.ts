@@ -17,18 +17,12 @@
 
 import { Command } from "commander";
 
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import { ExitCode } from "../exitCodes";
 import { writeOutput } from "../io";
 import { collectString, parsePositiveIntOption } from "../optionParsers";
 import { CODING_AGENT_IDS, type CodingAgentId } from "../setup/agents/registry";
-import * as COPY from "../setup/copy";
 import type { SetupDeps } from "../setup/deps";
 import { buildDefaultDeps } from "../setup/deps/buildDefaultDeps";
-import {
-  HeadlessInputError,
-  SetupCancelledError,
-  SetupFatalError,
-} from "../setup/errors";
 import {
   resolveSetupInputs,
   type SetupInputs,
@@ -43,6 +37,7 @@ import {
   formatToolingOutput,
   type OutputFormat,
 } from "./formatSetup";
+import { exitWithError } from "./setupErrors";
 import { createSetupMcpCommand } from "./setupMcp";
 
 /**
@@ -230,42 +225,6 @@ function toSetupOptions(options: SetupCommandOptions): SetupOptions {
     },
     docsMcp: options.docsMcp,
   };
-}
-
-/**
- * Every lane funnels its failures through here, so a cancelled prompt, a bad
- * headless invocation, and a fatal step keep their distinct exit codes — and so
- * a `--format json|raw` caller gets the same `{error, code, hint}` envelope
- * every other px command gives it, instead of a bare line on stderr.
- */
-function exitWithError(error: unknown, format: OutputFormat): never {
-  if (error instanceof SetupCancelledError) {
-    writeStructuredError({
-      format,
-      message: COPY.CANCEL_OUTRO,
-      code: "CANCELLED",
-    });
-    process.exit(ExitCode.CANCELLED);
-  }
-  if (error instanceof HeadlessInputError) {
-    writeStructuredError({
-      format,
-      message: error.message,
-      code: "INVALID_ARGUMENT",
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-  if (error instanceof SetupFatalError) {
-    writeStructuredError({ format, message: error.message, code: "FAILURE" });
-    process.exit(ExitCode.FAILURE);
-  }
-  const exitCode = getExitCodeForError(error);
-  writeStructuredError({
-    format,
-    message: String(error),
-    code: exitCode === ExitCode.NETWORK_ERROR ? "NETWORK_ERROR" : "FAILURE",
-  });
-  process.exit(exitCode);
 }
 
 /**
