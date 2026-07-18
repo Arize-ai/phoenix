@@ -43,6 +43,7 @@ import {
   formatToolingOutput,
   type OutputFormat,
 } from "./formatSetup";
+import { createSetupMcpCommand } from "./setupMcp";
 
 /**
  * Options for `px setup` and its subcommands. Every choice setup would prompt
@@ -443,6 +444,11 @@ Examples:
 
 export function createSetupCommand(): Command {
   const command = new Command("setup");
+  // The program enables positional options; `setup` must too, or it greedily
+  // consumes a subcommand's flags that share a name with its own (`--agent`,
+  // `--format`, `--no-input`), leaving `px setup mcp --agent codex` and
+  // `px setup instrument --agent claude` unable to see their agent.
+  command.enablePositionalOptions();
   command.description(
     "Interactive setup: connect this app to Phoenix and get traces flowing.\n" +
       "(A top-level command, unlike the CLI's usual noun-verb layout — onboarding is a flow, not a resource.)"
@@ -472,10 +478,12 @@ Examples:
 Subcommands:
   px setup instrument   Instrument and verify, without redoing the questions
   px setup skills       Install the coding-agent skills alone
+  px setup mcp          Register the Phoenix MCP server with a coding agent
 `
     );
 
   command.addCommand(createSetupInstrumentCommand());
   command.addCommand(createSetupSkillsCommand());
+  command.addCommand(createSetupMcpCommand());
   return command;
 }

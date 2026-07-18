@@ -7,6 +7,7 @@
  */
 
 import * as COPY from "../setup/copy";
+import type { McpSetupReport } from "../setup/mcp/runSetupMcp";
 import type { SetupReport } from "../setup/runSetup";
 import type { ToolingResult } from "../setup/steps/installTooling";
 
@@ -115,6 +116,64 @@ export function formatSetupOutput({
   format = "pretty",
 }: FormatSetupOutputOptions): string {
   return renderJson(toSetupOutput(report), format) ?? headlessSummary(report);
+}
+
+// ---------------------------------------------------------------------------
+// `px setup mcp`
+// ---------------------------------------------------------------------------
+
+/** The flat JSON envelope for a `px setup mcp` run. */
+export interface McpSetupOutput {
+  /** Phoenix base URL (no trailing `/mcp`). */
+  endpoint: string;
+  /** Full MCP URL written into the agent config. */
+  url: string;
+  serverName: string;
+  agent: string;
+  scope: string;
+  /** `oauth` when URL-only, `header` when a bearer/custom header was written. */
+  auth: "oauth" | "header";
+  /** Config file written, for file-based agents. */
+  file?: string;
+}
+
+export function toMcpSetupOutput(report: McpSetupReport): McpSetupOutput {
+  return {
+    endpoint: report.endpoint,
+    url: report.url,
+    serverName: report.serverName,
+    agent: report.agent,
+    scope: report.scope,
+    auth: report.auth,
+    ...(report.file ? { file: report.file } : {}),
+  };
+}
+
+/** The pretty rendering — what a headless `px setup mcp` prints on stdout. */
+function mcpHeadlessSummary(report: McpSetupReport): string {
+  const lines = [
+    `Configured the "${report.serverName}" MCP server with ${report.agent} (${report.scope}).`,
+    `url: ${report.url}`,
+    `auth: ${report.auth}`,
+  ];
+  if (report.file) {
+    lines.push(`config: ${report.file}`);
+  }
+  return lines.join("\n");
+}
+
+export interface FormatMcpSetupOutputOptions {
+  report: McpSetupReport;
+  format?: OutputFormat;
+}
+
+export function formatMcpSetupOutput({
+  report,
+  format = "pretty",
+}: FormatMcpSetupOutputOptions): string {
+  return (
+    renderJson(toMcpSetupOutput(report), format) ?? mcpHeadlessSummary(report)
+  );
 }
 
 export interface FormatToolingOutputOptions {

@@ -11,10 +11,20 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 export interface WriteMcpConfigArgs {
-  /** Repo root the relative config path resolves against. */
-  directory: string;
-  /** Config file path, relative to `directory`. */
-  relativePath: string;
+  /**
+   * Repo root the relative config path resolves against. Ignored when
+   * `absolutePath` is given (a global-scope install targets a file outside the
+   * repo, e.g. `~/.cursor/mcp.json`).
+   */
+  directory?: string;
+  /** Config file path, relative to `directory`. Ignored when `absolutePath` is given. */
+  relativePath?: string;
+  /**
+   * Absolute path to the config file. When set it is used verbatim and
+   * `directory`/`relativePath` are ignored — the global-scope escape hatch for
+   * configs that live in the user's home directory rather than the repo.
+   */
+  absolutePath?: string;
   /**
    * JSON fragment to merge in: container and server-name keys merge, a
    * server entry itself is replaced wholesale.
@@ -67,10 +77,20 @@ export class McpConfigUnreadableError extends Error {
 export function writeMcpConfig({
   directory,
   relativePath,
+  absolutePath,
   patch,
   createDefaults,
 }: WriteMcpConfigArgs): void {
-  const filePath = path.join(directory, relativePath);
+  const filePath =
+    absolutePath ?? path.join(directory ?? "", relativePath ?? "");
+  if (!path.isAbsolute(filePath)) {
+    throw new Error(
+      "writeMcpConfig requires an absolute path (pass `absolutePath`, or a `directory` that is absolute)"
+    );
+  }
+  // What the "could not be parsed" error names: the repo-relative path when we
+  // have one, else the absolute path a global install targets.
+  const displayPath = relativePath ?? filePath;
 
   let existing: Record<string, unknown> = createDefaults ?? {};
   if (fs.existsSync(filePath)) {
@@ -79,12 +99,12 @@ export function writeMcpConfig({
       parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
     } catch (error) {
       throw new McpConfigUnreadableError(
-        relativePath,
+        displayPath,
         error instanceof Error ? error.message : String(error)
       );
     }
     if (!isPlainObject(parsed)) {
-      throw new McpConfigUnreadableError(relativePath, "not a JSON object");
+      throw new McpConfigUnreadableError(displayPath, "not a JSON object");
     }
     existing = parsed;
   }

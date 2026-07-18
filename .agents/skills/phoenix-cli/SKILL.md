@@ -111,6 +111,25 @@ px setup instrument --agent claude   # instrument + verify only
 px setup skills                      # install the Phoenix coding-agent skills
 ```
 
+### `px setup mcp` — register the remote MCP server
+
+Wire the Phoenix remote MCP server (`<endpoint>/mcp`) into a coding agent so it
+can query Phoenix data. The endpoint is inferred from `--endpoint`, the active
+profile, or `PHOENIX_HOST`. Bare command prompts for scope (global default) then
+agent; `--agent` skips both prompts.
+
+```bash
+px setup mcp --agent codex --no-input --format raw
+px setup mcp --agent claude --local            # write this repo's .mcp.json
+```
+
+Agents: `claude`, `codex`, `gemini`, `cursor`, `opencode`, `vscode`. Scope is
+`--global` (default) or `--local` (repo; Codex is global-only). Auth is OAuth by
+default (URL-only config, browser login on first use); pass `--header "Name:
+value"` (repeatable) for an API-key bearer fallback — for Codex a
+`Authorization: Bearer ${VAR}` header becomes `bearer_token_env_var`. `--format
+raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
+
 ## Quick Reference
 
 | Task | Files |
