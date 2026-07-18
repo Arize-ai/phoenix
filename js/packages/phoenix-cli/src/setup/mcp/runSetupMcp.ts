@@ -1,20 +1,14 @@
 /**
- * `px setup mcp` — register the Phoenix remote MCP server with a coding agent.
+ * `px setup mcp` — register the Phoenix remote MCP server (`<base-url>/mcp`)
+ * with a coding agent's config. This module receives the already-resolved
+ * endpoint from the command layer.
  *
- * Phoenix serves an MCP endpoint at `<base-url>/mcp`; this lane wires that URL
- * into a coding agent's config so the agent can search, query, and operate on
- * Phoenix data. The base URL is inferred by the command layer from the same
- * sources every `px` command uses (flag → env → active profile → default), so
- * the user never re-types it — this module receives the resolved endpoint.
+ * Auth defaults to OAuth (URL-only config; the agent handles browser login on
+ * first use). `--header` adds an API-key bearer fallback for headless clients,
+ * applied per agent (see {@link ./agents}).
  *
- * Auth is OAuth by default: the config is URL-only and the agent opens Phoenix's
- * built-in browser login on first use. `--header` supplies the API-key bearer
- * fallback for headless clients, and each agent applies it in its own way
- * (see {@link ./agents}).
- *
- * The bare command (no `--agent`) walks two prompts — scope, then agent — with
- * the endpoint shown (and, unless pinned by `--endpoint`, confirmable) first. A
- * headless run must name its agent and takes global scope by default.
+ * Without `--agent` the command prompts for scope then agent, after confirming
+ * the endpoint. A headless run requires `--agent` and defaults to global scope.
  */
 
 import { isEndpointUrl, normalizeEndpoint } from "../../validation/endpoint";
@@ -122,8 +116,7 @@ export async function runSetupMcp(
 
   const action = agent.install[effectiveScope];
   if (!action) {
-    // Guarded by reconcileScope for the codex case; this is the belt-and-braces
-    // guard for any future agent/scope gap.
+    // reconcileScope already handles codex; this covers any future scope gap.
     throw new SetupFatalError(
       COPY.scopeUnsupported(agent.label, effectiveScope)
     );
@@ -238,9 +231,9 @@ async function resolveScope(
 }
 
 /**
- * Codex has no repo-scoped config. When `local` names it, a headless run errors
- * (they pinned a scope the agent can't honor), while an interactive run says so
- * and falls back to global rather than dead-ending.
+ * Codex has no repo-scoped config. When `--local` names it, a headless run
+ * errors on the unsupported scope; an interactive run warns and falls back to
+ * global.
  */
 async function reconcileScope(
   deps: Pick<SetupDeps, "prompter">,

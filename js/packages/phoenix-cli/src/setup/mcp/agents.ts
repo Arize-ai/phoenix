@@ -2,19 +2,15 @@
  * The coding agents `px setup mcp` can register the Phoenix remote MCP server
  * with, and how each one is configured per scope.
  *
- * This is a separate registry from the instrumentation one in
- * `../agents/registry.ts`. That registry is launch-focused — it knows how to
- * *run* an agent to instrument a repo, and only covers the four agents that can
- * take that hand-off. MCP configuration is a different concern (no launch, two
- * scopes, six agents including VS Code and Gemini), so it gets its own registry
- * rather than bloating the instrument one with fields it can't use.
+ * Separate from the launch-focused instrumentation registry in
+ * `../agents/registry.ts`: MCP configuration has no launch, two scopes, and six
+ * agents (including VS Code and Gemini), so it gets its own registry rather than
+ * adding unused fields to that one.
  *
- * Each agent declares a per-scope {@link McpInstallAction}: `cli` where the
- * agent ships an `mcp add` subcommand (the installed binary writes the format
- * that same binary reads — it can never drift from the agent's own schema), and
- * `file` where the only documented mechanism is a config file we merge into.
- * The file shapes mirror `docs/phoenix/integrations/remote-mcp.mdx`, which is
- * the contract to keep them true to.
+ * Each agent declares a per-scope {@link McpInstallAction}: `cli` runs the
+ * agent's own `mcp add` (so the format can't drift from the agent's schema);
+ * `file` merges into a config file. The file shapes mirror
+ * `docs/phoenix/integrations/remote-mcp.mdx`.
  */
 
 import * as path from "node:path";
@@ -70,12 +66,12 @@ export type McpInstallAction =
       /** Read-back that confirms the entry actually landed. */
       verifyArgs?: string[];
       /**
-       * The subset of `headers` this agent's `mcp add` cannot persist. Codex
-       * stores only a bearer token via `--bearer-token-env-var`, so any other
-       * header — or a bearer value that isn't `${VAR}`-shaped — would be
-       * silently dropped, leaving a config that looks authenticated but isn't.
-       * A non-empty result stops the run. Absent means every header is honored
-       * (the raw `--header` agents).
+       * The subset of `headers` this agent's `mcp add` cannot persist; a
+       * non-empty result stops the run rather than write a config that looks
+       * authenticated but isn't. Codex, for example, stores only a bearer token
+       * via `--bearer-token-env-var`, so it drops any other header (and any
+       * bearer value that isn't `${VAR}`-shaped). Absent means every header is
+       * honored (the raw `--header` agents).
        */
       droppedHeaders?: (headers: McpHeader[]) => McpHeader[];
     }
@@ -143,10 +139,9 @@ function headersField(headers: McpHeader[]): {
 
 /**
  * The env-var name behind an `Authorization: Bearer ${VAR}` header, if the
- * value is exactly that shape. Codex's `mcp add` cannot store an arbitrary
- * header — only `--bearer-token-env-var` — so a bearer header aimed at Codex is
- * translated to the env var it references, and a literal token (no env
- * indirection) simply yields no bearer flag.
+ * value is exactly that shape. Codex's `mcp add` stores only
+ * `--bearer-token-env-var`, so a bearer header is translated to the env var it
+ * references; a literal token yields no bearer flag.
  */
 function bearerTokenEnvVar(headers: McpHeader[]): string | undefined {
   const auth = headers.find(
@@ -163,8 +158,10 @@ function bearerTokenEnvVar(headers: McpHeader[]): string | undefined {
 // Per-agent install builders
 // ---------------------------------------------------------------------------
 
-/** Claude Code and Gemini share the same `mcp add` shape, only the scope
- *  flag differs. Both take `--scope user|project` and raw `--header`s. */
+/**
+ * Claude Code and Gemini share one `mcp add` shape — both take
+ * `--scope user|project` and raw `--header`s; only the scope flag differs.
+ */
 function httpCliAdd(
   binary: string,
   scopeFlag: "user" | "project",

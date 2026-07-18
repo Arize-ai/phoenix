@@ -1,16 +1,14 @@
 /**
  * `px setup mcp` — register the Phoenix remote MCP server (`<endpoint>/mcp`)
- * with a coding agent.
+ * with a coding agent. A subcommand of the `px setup` flow, like
+ * `px setup instrument`.
  *
- * A slice of the `px setup` flow (a deliberate non-noun-verb special, like
- * `px setup instrument`). The endpoint is inferred through `resolveConfig` —
- * the same flag → env → profile → default merge every `px` command uses — so
- * the user never re-types their Phoenix URL. Auth is OAuth by default (URL-only
- * config; the agent opens Phoenix's browser login on first use); `--header`
- * wires the API-key bearer fallback for headless clients.
+ * The endpoint is inferred through `resolveConfig` (the flag → env → profile →
+ * default merge every `px` command uses). Auth defaults to OAuth; `--header`
+ * adds the API-key bearer fallback for headless clients.
  *
- * All behavior lives behind `runSetupMcp` in `../setup/mcp/runSetupMcp.ts`;
- * this layer only parses flags, resolves the endpoint, and renders the report.
+ * This layer only parses flags, resolves the endpoint, and renders the report;
+ * the behavior lives in `runSetupMcp` (`../setup/mcp/runSetupMcp.ts`).
  */
 
 import { Command } from "commander";

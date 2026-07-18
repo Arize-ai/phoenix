@@ -2,15 +2,14 @@
  * Execute one MCP install action — run the agent's `mcp add`, or merge the
  * server entry into its config file.
  *
- * The CLI path mirrors the docs-MCP install in `../steps/offerDocsMcp.ts`: add
- * first, and only when the add is refused *and* the agent's own listing shows
- * an entry under our name do we remove-then-retry — removing before knowing the
- * add works would destroy a working registration a failed retry can't put back.
- * The read-back (`verifyArgs`) is the drift guard: an add whose flags changed
- * meaning while still exiting 0 is caught by the entry not showing up.
+ * The CLI path adds first, and only remove-then-retries when the add is refused
+ * *and* the agent's own listing already shows an entry under our name — removing
+ * before the add is known to work could destroy a registration a failed retry
+ * can't restore. The `verifyArgs` read-back guards against drift: an add whose
+ * flags changed meaning while still exiting 0 shows up as a missing entry.
  *
- * This never throws for an install that simply didn't take: it returns a
- * `failed` result with a reason, and the caller decides how loud to be.
+ * Never throws when an install simply didn't take — returns a `failed` result
+ * with a reason for the caller to handle.
  */
 
 import type { SetupDeps } from "../deps";
