@@ -35,6 +35,10 @@ export {
   getOpenRouterCodeTypescript,
 } from "./openRouter";
 export {
+  getRequestyCodePython,
+  getRequestyCodeTypescript,
+} from "./requesty";
+export {
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
 } from "./phoenixOtel";
