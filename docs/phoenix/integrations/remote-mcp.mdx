@@ -29,6 +29,16 @@ The MCP server is available at your Phoenix base URL plus `/mcp`:
 
 Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure — add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
 
+<Tip>
+  The [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) automates the steps below for Claude Code, Codex, Gemini, Cursor, OpenCode, and VS Code — it infers your endpoint and writes each agent's config for you:
+
+  ```bash
+  px setup mcp --agent claude   # or codex, gemini, cursor, opencode, vscode
+  ```
+
+  Configure it by hand with the per-client steps below.
+</Tip>
+
 <AccordionGroup>
   <Accordion title="Claude Code">
     <Steps>
