@@ -10,13 +10,10 @@
  */
 
 import {
-  OAuthAuthorizationServerMetadataSchema,
-  normalizeEndpoint,
+  discoverOAuthAuthorizationServer,
   revokeOAuthToken,
   runBrowserLoginFlow,
 } from "../../oauth";
-
-const SUPPORT_PROBE_TIMEOUT_MS = 5_000;
 
 export interface OAuthLoginArgs {
   /** Normalized origin, no trailing slash. */
@@ -79,23 +76,11 @@ export function createSystemOAuthLogin({
   const apiOrigin = (endpoint: string) => apiUrl ?? endpoint;
   return {
     async isSupported(endpoint) {
-      try {
-        const response = await fetchImpl(
-          new URL(
-            ".well-known/oauth-authorization-server",
-            normalizeEndpoint(apiOrigin(endpoint))
-          ),
-          { signal: AbortSignal.timeout(SUPPORT_PROBE_TIMEOUT_MS) }
-        );
-        if (!response.ok) {
-          return false;
-        }
-        const document: unknown = await response.json();
-        return OAuthAuthorizationServerMetadataSchema.safeParse(document)
-          .success;
-      } catch {
-        return false;
-      }
+      const discovery = await discoverOAuthAuthorizationServer({
+        endpoint: apiOrigin(endpoint),
+        fetchImpl,
+      });
+      return discovery.status === "supported";
     },
 
     async login({ endpoint, onAuthorizationUrl, onBrowserOpenFailed, signal }) {

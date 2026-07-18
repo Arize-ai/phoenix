@@ -31,6 +31,11 @@ const OAUTH_LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
 export const OAUTH_TOKEN_REQUEST_TIMEOUT_MS = 30 * 1000;
 /** Best-effort and blocking a wizard, so it gives up sooner than a token call. */
 export const OAUTH_REVOKE_TIMEOUT_MS = 10 * 1000;
+/**
+ * A quick pre-flight, not a token exchange: nothing has been consented to yet,
+ * so giving up fast costs the user only a retry, not a browser round trip.
+ */
+export const OAUTH_DISCOVERY_TIMEOUT_MS = 5 * 1000;
 export const OAUTH_REFRESH_BUFFER_MS = 60 * 1000;
 const SETTINGS_LOCK_TIMEOUT_MS = 10 * 1000;
 const SETTINGS_LOCK_RETRY_MS = 50;
@@ -57,6 +62,71 @@ export const OAuthAuthorizationServerMetadataSchema = z.object({
   authorization_endpoint: z.string().min(1),
   token_endpoint: z.string().min(1),
 });
+
+export type OAuthAuthorizationServerMetadata = z.infer<
+  typeof OAuthAuthorizationServerMetadataSchema
+>;
+
+export type OAuthDiscoveryResult =
+  /** The server is up and advertises a working authorization server. */
+  | { status: "supported"; metadata: OAuthAuthorizationServerMetadata }
+  /** The server answered, but not with RFC 8414 metadata — no OAuth here. */
+  | { status: "unsupported" }
+  /** The server never answered: down, unresolvable, or timed out. */
+  | { status: "unreachable"; detail: string };
+
+/**
+ * Probe the RFC 8414 discovery document. One request settles both pre-flight
+ * questions a login needs answered: is the server even up (a dead host fails
+ * the fetch), and does it run the OAuth authorization server (a Phoenix
+ * without one answers unknown paths with the SPA's index.html and a 200,
+ * which is why only a parsing document counts as support).
+ */
+export async function discoverOAuthAuthorizationServer({
+  endpoint,
+  fetchImpl = fetch,
+}: {
+  endpoint: string;
+  fetchImpl?: typeof fetch;
+}): Promise<OAuthDiscoveryResult> {
+  let response: Response;
+  try {
+    response = await fetchImpl(
+      new URL(
+        ".well-known/oauth-authorization-server",
+        normalizeEndpoint(endpoint)
+      ),
+      { signal: AbortSignal.timeout(OAUTH_DISCOVERY_TIMEOUT_MS) }
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      return {
+        status: "unreachable",
+        detail: `the server did not respond within ${
+          OAUTH_DISCOVERY_TIMEOUT_MS / 1000
+        }s`,
+      };
+    }
+    return {
+      status: "unreachable",
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  if (!response.ok) {
+    return { status: "unsupported" };
+  }
+  let document: unknown;
+  try {
+    document = await response.json();
+  } catch {
+    return { status: "unsupported" };
+  }
+  const parsed = OAuthAuthorizationServerMetadataSchema.safeParse(document);
+  return parsed.success
+    ? { status: "supported", metadata: parsed.data }
+    : { status: "unsupported" };
+}
 
 export interface PkcePair {
   verifier: string;

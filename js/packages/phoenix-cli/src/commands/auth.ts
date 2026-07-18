@@ -11,6 +11,7 @@ import {
 } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 import {
+  discoverOAuthAuthorizationServer,
   resolveTargetProfileName,
   revokeOAuthToken,
   runBrowserLoginFlow,
@@ -391,6 +392,23 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
         message: "Configuration Error:\n  - Phoenix endpoint not configured",
       });
       process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    // Pre-flight before binding a callback port or opening a browser: bail
+    // cleanly when the server is down or does not run the OAuth authorization
+    // server, instead of sending the user through a consent flow that can
+    // only fail at the token exchange.
+    const discovery = await discoverOAuthAuthorizationServer({ endpoint });
+    if (discovery.status === "unreachable") {
+      throw new NetworkError(
+        `Could not reach the Phoenix server at ${endpoint}: ${discovery.detail}. ` +
+          "Check that the server is running and the endpoint is correct."
+      );
+    }
+    if (discovery.status === "unsupported") {
+      throw new AuthRequiredError(
+        "This Phoenix server does not support OAuth login; use an API key."
+      );
     }
 
     const settingsAtLogin = loadSettings({ strict: true });
