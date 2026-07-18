@@ -33,22 +33,20 @@ message expresses friction (correction, retry, frustration, or challenge) with
 the assistant's preceding behavior. Its score is `1.0` for `friction` and `0.0`
 for `no_friction`, so lower aggregate values are better. The
 conversation history is reconstructed from the turn's own last LLM span — the
-history the agent itself saw — and rendered with the canonical two-tier
-rendering from the user-friction validation work (compact prior turns,
-detailed reacted-to turn), so the production judge sees exactly what the
-validation labels were built on. Turns whose user message is not
+history the agent itself saw — and rendered with the same two-tier rendering
+(compact prior turns, detailed reacted-to turn) the user-friction gold labels
+were built on, so the production judge sees exactly the input format its
+validation numbers were measured on. Turns whose user message is not
 human-authored, and first messages with no preceding assistant behavior to
-react to, are skipped as not-applicable rather than spending a judge call. The
-judge defaults to OpenAI `gpt-5.5` (validated against the 91-example dev split
-of the `user-friction-alignment-v0.5` gold set) and is configurable via
-`PXI_USER_FRICTION_PROVIDER` / `PXI_USER_FRICTION_MODEL`; the matching provider
-API key (e.g. `OPENAI_API_KEY`) must be set or the runner fails fast before
-discovering any turns.
+react to, are skipped as not-applicable rather than spending a judge call.
 
-Supported provider overrides are `openai` (`OPENAI_API_KEY`), `anthropic`
-(`ANTHROPIC_API_KEY`), and `google` (`GOOGLE_GENERATIVE_AI_API_KEY`). Unknown
-provider names and missing credentials fail once at startup before trace
-discovery.
+All LLM evaluators share one judge configuration:
+`PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`, defaulting to
+OpenAI `gpt-5.5` (validated against the 91-example dev split of the
+`user-friction-alignment-v0.5` gold set). Supported providers are `openai`
+(`OPENAI_API_KEY`), `anthropic` (`ANTHROPIC_API_KEY`), and `google`
+(`GOOGLE_GENERATIVE_AI_API_KEY`). Unknown provider names and a missing
+matching API key fail once at startup, before trace discovery.
 
 Both evaluators consume a trace-shaped input and attach their result as a span
 annotation on the trace's root `pxi.turn` span. The runner does not create or
@@ -58,9 +56,16 @@ in Phoenix separately when needed.
 Annotation identifiers are evaluator-specific versioned checkpoints. Increment
 an evaluator's `vN` identifier whenever its scoring semantics or rubric
 changes; the next overlapping run then backfills recent roots under the new
-identity without overwriting the previous series. The `user_friction`
-identifier also includes provider and model, so model overrides create a
-distinct result series automatically.
+identity without overwriting the previous series. The runner appends
+`provider:model` to every LLM evaluator's identifier, so a judge change
+creates a distinct result series automatically. Only the runner's own
+evaluator annotation names are consulted for checkpointing — human feedback
+and other annotations never suppress a run.
+
+Sampling is deterministic and keyed on the trace alone: evaluators with equal
+sample rates select exactly the same traces, and a lower-rate evaluator's
+selection is a strict subset of a higher-rate one's, so sampled traces are
+never partially annotated.
 
 Run them locally against the standard Phoenix client environment variables:
 
@@ -70,22 +75,27 @@ uv run python -m evals.pxi.offline_evals.run --dry-run
 ```
 
 The runner waits five minutes before considering a turn settled and evaluates
-all applicable turns by default. Evaluator declarations carry an independent
-applicability predicate and deterministic `sample_rate`, so filtered, sampled
-LLM evaluators share trace loading with all-traffic code evaluators without
-changing scheduler logic. An evaluator exception is contained to that turn:
-it is logged, counted in the summary's `errors`, and the run continues (the
-process exits non-zero so scheduled runs surface the failure).
+all applicable turns by default, running evaluations concurrently (bounded at
+8 in flight) so LLM judge calls are not serialized. An evaluator exception is
+contained to that turn: it is logged, counted in the summary's `errors`, and
+the run continues (the process exits non-zero so scheduled runs surface the
+failure). Structural trace anomalies (a tool span that does not descend from
+the turn root, missing ancestors, cycles) are deliberately loud: post-settle
+traces are expected to be complete, so an anomaly signals dropped spans or a
+tracing regression rather than a skippable turn. Revisit and downgrade to
+skip-with-warning if these prove noisy in practice.
 
 The scheduled workflow runs twice daily at 00:17 and 12:17 UTC and can also be
 started manually. The CLI entrypoint above supports local runs at any time.
 Workflow logs contain aggregate counts, not trace inputs or outputs.
 
 Scheduled judge configuration comes from the
-`PXI_USER_FRICTION_PROVIDER` and `PXI_USER_FRICTION_MODEL` GitHub repository
-variables, defaulting to `openai` and `gpt-5.5`. Store the matching provider
-credential in the correspondingly named Actions secret. Phoenix and provider
-credentials are exposed only to the final evaluation step.
+`PHOENIX_AGENTS_EVALS_PROVIDER` and `PHOENIX_AGENTS_EVALS_MODEL` GitHub
+repository variables, defaulting to `openai` and `gpt-5.5`. Store the matching
+provider credential in the correspondingly named Actions secret (the workflow
+currently maps `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`; add the mapping when
+onboarding another provider). Phoenix and provider credentials are exposed
+only to the final evaluation step.
 
 The initial scheduled project is `pxi_dev`. The Phoenix Cloud production PXI
 traces are in `pxi_phoenix_cloud`; add that project only after validating the
@@ -93,36 +103,34 @@ runner on new-format development traces.
 
 ### Adding an offline evaluator
 
-An evaluator receives the root span and every hydrated span in its trace. It
-returns an `EvaluationResult` or `None` when the artifact is not applicable:
+An evaluator is an async function that receives the root span and every
+hydrated span in its trace. It returns a `phoenix.evals` `Score`, or `None`
+when the turn is not applicable:
 
 ```python
 from collections.abc import Sequence
 
 from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
 
-from evals.pxi.offline_evals.models import EvaluationResult
 
-
-def evaluate(root: v1.Span, spans: Sequence[v1.Span]) -> EvaluationResult | None:
+async def evaluate(root: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
     if not spans:
         return None
-    return EvaluationResult(score=1.0, label="example", explanation="why")
+    return Score(score=1.0, label="example", explanation="why")
 ```
 
-Declare an `EvaluatorSpec` with `input_scope="trace"`,
-`annotation_target="span"`, the expected root span name, annotator kind,
-sampling rate, and a versioned identifier. Use `applies_to` only for a cheap
-precheck; returning `None` is preferable when applicability requires the same
-work as evaluation. If credentials or other environment variables are
-required, expose them through `required_env_fn` so the runner validates them
-before discovery. Use `identifier_fn` when configuration such as provider or
-model must participate in checkpoint identity.
+Declare an `EvaluatorSpec` with a name, the expected root span name, the
+evaluate function, annotator kind, sampling rate, and a versioned identifier.
+LLM evaluators (`annotator_kind="LLM"`) automatically share the judge
+configuration from `evals/pxi/offline_evals/judge.py`: the runner validates
+the judge credentials at startup and appends `provider:model` to their
+checkpoint identifier.
 
 Register the spec in `evals/pxi/offline_evals/evaluators/__init__.py` and add
 focused coverage under `tests/unit/pxi/evals/offline_evals/`. Runner-level tests
 should assert the exact persisted annotation shape as well as failure,
-applicability, sampling, and checkpoint behavior relevant to the evaluator.
+not-applicable, sampling, and checkpoint behavior relevant to the evaluator.
 
 ## Run Locally
 
