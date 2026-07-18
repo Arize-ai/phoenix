@@ -84,6 +84,11 @@ export const COPY = {
     "Codex has no repo-scoped config. Drop --local (Codex is always global).",
   scopeUnsupported: (agentLabel: string, scope: McpScope) =>
     `${agentLabel} does not support ${scope} MCP configuration.`,
+  headersUnsupported: (agentLabel: string, dropped: McpHeader[]) =>
+    `${agentLabel} can't store this header (${dropped
+      .map((header) => header.name)
+      .join(", ")}) — it only accepts a bearer token via env var. Pass ` +
+    `--header "Authorization: Bearer \${VAR}", or omit --header to use OAuth.`,
   configuredCli: (agentLabel: string) =>
     `Registered the Phoenix MCP server with ${agentLabel}.`,
   configuredFile: (agentLabel: string, file: string) =>
@@ -122,6 +127,17 @@ export async function runSetupMcp(
     throw new SetupFatalError(
       COPY.scopeUnsupported(agent.label, effectiveScope)
     );
+  }
+
+  // Refuse headers the agent can't actually persist rather than writing a
+  // config that reports `auth: "header"` but carries no credential.
+  if (action.kind === "cli" && action.droppedHeaders) {
+    const dropped = action.droppedHeaders(inputs.headers);
+    if (dropped.length > 0) {
+      throw new HeadlessInputError(
+        COPY.headersUnsupported(agent.label, dropped)
+      );
+    }
   }
 
   const installContext = {

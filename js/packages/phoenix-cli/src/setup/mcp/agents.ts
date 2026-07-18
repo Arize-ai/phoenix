@@ -69,6 +69,15 @@ export type McpInstallAction =
       removeArgs?: string[];
       /** Read-back that confirms the entry actually landed. */
       verifyArgs?: string[];
+      /**
+       * The subset of `headers` this agent's `mcp add` cannot persist. Codex
+       * stores only a bearer token via `--bearer-token-env-var`, so any other
+       * header — or a bearer value that isn't `${VAR}`-shaped — would be
+       * silently dropped, leaving a config that looks authenticated but isn't.
+       * A non-empty result stops the run. Absent means every header is honored
+       * (the raw `--header` agents).
+       */
+      droppedHeaders?: (headers: McpHeader[]) => McpHeader[];
     }
   | {
       kind: "file";
@@ -250,6 +259,17 @@ export const MCP_AGENTS: readonly McpAgent[] = [
         },
         removeArgs: ["mcp", "remove", PHOENIX_MCP_SERVER_NAME],
         verifyArgs: ["mcp", "get", PHOENIX_MCP_SERVER_NAME],
+        droppedHeaders: (headers) => {
+          // Codex persists only the bearer env var derived from a matching
+          // Authorization header; every other header — and an Authorization
+          // header whose value isn't `Bearer ${VAR}` — is discarded by
+          // `codex mcp add`, so report those as un-storable.
+          const honorsAuth = bearerTokenEnvVar(headers) !== undefined;
+          return headers.filter(
+            (header) =>
+              !(honorsAuth && header.name.toLowerCase() === "authorization")
+          );
+        },
       },
     },
   },

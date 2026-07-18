@@ -138,6 +138,30 @@ describe("runSetupMcp", () => {
       expect(add?.args).toContain("PHOENIX_API_KEY");
     });
 
+    it("refuses a header codex can't store instead of silently dropping it", async () => {
+      const calls: CommandSpec[] = [];
+      const deps = buildFakeDeps({
+        context: { cwd: repo, env: { HOME: home } },
+        processes: { exec: agentExecFake(calls) },
+      });
+
+      // A non-Authorization header (and a literal bearer token) can't survive
+      // `codex mcp add`, so the run must error rather than write a config that
+      // claims header auth but carries no credential.
+      await expect(
+        runSetupMcp(
+          deps,
+          inputs({
+            agent: "codex",
+            scope: "global",
+            headers: [{ name: "X-Api-Key", value: "abc123" }],
+          })
+        )
+      ).rejects.toBeInstanceOf(HeadlessInputError);
+      // Nothing was added — we stopped before the install ran.
+      expect(calls.some((c) => c.args[1] === "add")).toBe(false);
+    });
+
     it("fails when the read-back never shows the entry", async () => {
       const deps = buildFakeDeps({
         context: { cwd: repo, env: { HOME: home } },

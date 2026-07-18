@@ -138,6 +138,20 @@ describe("MCP agent registry", () => {
         URL,
       ]);
     });
+
+    it("reports which headers it can't store, so the run can refuse them", () => {
+      const dropped = cli(agent("codex").install.global).droppedHeaders;
+      expect(dropped).toBeDefined();
+      // A translatable bearer header is honored — nothing dropped.
+      expect(dropped!(BEARER)).toEqual([]);
+      // A literal bearer token and any non-Authorization header can't be stored.
+      expect(
+        dropped!([{ name: "Authorization", value: "Bearer sk-abc123" }])
+      ).toEqual([{ name: "Authorization", value: "Bearer sk-abc123" }]);
+      expect(dropped!([{ name: "X-Api-Key", value: "abc123" }])).toEqual([
+        { name: "X-Api-Key", value: "abc123" },
+      ]);
+    });
   });
 
   describe("gemini", () => {
