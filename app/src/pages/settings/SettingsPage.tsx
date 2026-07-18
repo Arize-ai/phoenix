@@ -14,7 +14,7 @@ import {
   TabPanel,
   Tabs,
 } from "@phoenix/components";
-import { PxiGlyph } from "@phoenix/components/agent";
+import { PxiGlyphOutline } from "@phoenix/components/agent";
 import {
   useIsAdmin,
   useViewerCanManageSandboxes,
@@ -75,7 +75,7 @@ const TABS = [
   { id: "general", label: "General", icon: <Icons.Settings /> },
   { id: "users", label: "Users", icon: <Icons.Person /> },
   { id: "api-keys", label: "API Keys", icon: <Icons.Key /> },
-  { id: "providers", label: "AI Providers", icon: <Icons.Globe /> },
+  { id: "providers", label: "AI Providers", icon: <Icons.Sparkle /> },
   { id: "sandboxes", label: "Sandboxes", icon: <Icons.Console /> },
   { id: "models", label: "Models", icon: <Icons.LLMOutput /> },
   { id: "secrets", label: "Secrets", icon: <Icons.Lock /> },
@@ -83,7 +83,7 @@ const TABS = [
   { id: "annotations", label: "Annotations", icon: <Icons.Edit2 /> },
   { id: "prompts", label: "Prompts", icon: <Icons.MessageSquare /> },
   { id: "data", label: "Data Retention", icon: <Icons.HardDrive /> },
-  { id: "agents", label: "Assistant", icon: <PxiGlyph /> },
+  { id: "agents", label: "Assistant", icon: <PxiGlyphOutline /> },
 ] as const satisfies readonly { id: string; label: string; icon: ReactNode }[];
 
 type SettingsTabId = (typeof TABS)[number]["id"];
