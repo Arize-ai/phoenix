@@ -1,0 +1,27 @@
+include MANIFEST.in
+include README.md
+include LICENSE
+include setup.py
+include src/*.h
+include src/*.c
+
+include sqlite/*.h
+include sqlite/*.c
+include sqlite/crypto/*.h
+include sqlite/define/*.h
+include sqlite/fileio/*.h
+include sqlite/fuzzy/*.h
+include sqlite/init.h/*.h
+include sqlite/ipaddr/*.h
+include sqlite/math/*.h
+include sqlite/regexp/*.h
+include sqlite/regexp/pcre2/*.h
+include sqlite/stats/*.h
+include sqlite/text/*.h
+include sqlite/text/utf8/*.h
+include sqlite/time/*.h
+include sqlite/unicode/*.h
+include sqlite/uuid/*.h
+include sqlite/vsv/*.h
+
+global-exclude *~ *.pyc
