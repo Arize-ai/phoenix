@@ -22,33 +22,17 @@ evaluator, it skips turn roots that already carry the evaluator's annotation
 name and identifier. The default 48-hour overlap therefore recovers from
 missed scheduled runs without evaluating the same turn twice.
 
-`tool_count_per_turn` is the first offline evaluator. It records the number of
-top-level PXI tool invocations, including errored tools, browser tools, server
-tools, and `call_subagent`. Tools invoked inside a subagent are excluded. The
-score is descriptive; it has no quality threshold or label.
-
-`user_friction` is the first offline LLM evaluator. It wraps the built-in
-`UserFrictionEvaluator` from phoenix-evals and labels whether a turn's user
-message expresses friction (correction, retry, frustration, or challenge) with
-the assistant's preceding behavior. Its score is `1.0` for `friction` and `0.0`
-for `no_friction`, so lower aggregate values are better. The
-conversation history is reconstructed from the turn's own last LLM span — the
-history the agent itself saw — and rendered with the same two-tier rendering
-(compact prior turns, detailed reacted-to turn) the user-friction gold labels
-were built on, so the production judge sees exactly the input format its
-validation numbers were measured on. Turns whose user message is not
-human-authored, and first messages with no preceding assistant behavior to
-react to, are skipped as not-applicable rather than spending a judge call.
+Evaluators live in `evals/pxi/offline_evals/evaluators/`; run the CLI with
+`--help` to list what is currently registered.
 
 All LLM evaluators share one judge configuration:
 `PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`, defaulting to
-OpenAI `gpt-5.5` (validated against the 91-example dev split of the
-`user-friction-alignment-v0.5` gold set). Supported providers are `openai`
-(`OPENAI_API_KEY`), `anthropic` (`ANTHROPIC_API_KEY`), and `google`
+OpenAI `gpt-5.5`. Supported providers are `openai` (`OPENAI_API_KEY`),
+`anthropic` (`ANTHROPIC_API_KEY`), and `google`
 (`GOOGLE_GENERATIVE_AI_API_KEY`). Unknown provider names and a missing
 matching API key fail once at startup, before trace discovery.
 
-Both evaluators consume a trace-shaped input and attach their result as a span
+Evaluators consume a trace-shaped input and attach their result as a span
 annotation on the trace's root `pxi.turn` span. The runner does not create or
 update project annotation configs; configure display or optimization metadata
 in Phoenix separately when needed.
