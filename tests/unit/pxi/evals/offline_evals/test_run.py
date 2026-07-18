@@ -180,7 +180,7 @@ def test_filters_existing_annotations_before_hydrating_traces() -> None:
     )
 
     summary = _run(
-        _FakeClient(spans),  # type: ignore[arg-type]
+        _FakeClient(spans),
         project="pxi_dev",
         specs=[TOOL_COUNT_PER_TURN],
         now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -211,7 +211,7 @@ def test_different_identifier_does_not_suppress_evaluator() -> None:
     spans = _FakeSpans([root], {"trace": [root]}, [_existing("root", identifier="other")])
 
     summary = _run(
-        _FakeClient(spans),  # type: ignore[arg-type]
+        _FakeClient(spans),
         project="pxi_dev",
         specs=[TOOL_COUNT_PER_TURN],
         now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -241,7 +241,7 @@ def test_settle_delay_uses_root_completion_time() -> None:
     current = datetime(2026, 7, 9, 2, tzinfo=timezone.utc)
 
     summary = _run(
-        _FakeClient(spans),  # type: ignore[arg-type]
+        _FakeClient(spans),
         project="pxi_dev",
         specs=[TOOL_COUNT_PER_TURN],
         now=current,
@@ -263,7 +263,7 @@ def test_serializes_categorical_label_as_annotation_result() -> None:
     spec = replace(TOOL_COUNT_PER_TURN, name="categorical", evaluate=categorical)
 
     _run(
-        _FakeClient(spans),  # type: ignore[arg-type]
+        _FakeClient(spans),
         project="pxi_dev",
         specs=[spec],
         now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -296,7 +296,7 @@ def test_flushes_annotations_in_bounded_batches() -> None:
 
     with mock.patch.object(run_module, "ANNOTATION_WRITE_BATCH_SIZE", 2):
         summary = _run(
-            _FakeClient(spans),  # type: ignore[arg-type]
+            _FakeClient(spans),
             project="pxi_dev",
             specs=[TOOL_COUNT_PER_TURN],
             now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -320,7 +320,7 @@ def test_llm_identifier_embeds_the_shared_judge_provider_and_model() -> None:
         },
     ):
         _run(
-            _FakeClient(spans),  # type: ignore[arg-type]
+            _FakeClient(spans),
             project="pxi_dev",
             specs=[spec],
             now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -350,7 +350,7 @@ def test_evaluations_run_concurrently() -> None:
 
     spec = replace(TOOL_COUNT_PER_TURN, evaluate=rendezvous)
     summary = _run(
-        _FakeClient(spans),  # type: ignore[arg-type]
+        _FakeClient(spans),
         project="pxi_dev",
         specs=[spec],
         now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -409,7 +409,7 @@ def test_none_result_counts_as_not_applicable() -> None:
 
     spec = replace(TOOL_COUNT_PER_TURN, evaluate=not_applicable)
     summary = _run(
-        _FakeClient(spans),  # type: ignore[arg-type]
+        _FakeClient(spans),
         project="pxi_dev",
         specs=[spec],
         now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -454,7 +454,7 @@ def test_evaluator_failure_is_isolated_to_one_turn() -> None:
 
     spec = replace(TOOL_COUNT_PER_TURN, evaluate=evaluate)
     summary = _run(
-        _FakeClient(spans),  # type: ignore[arg-type]
+        _FakeClient(spans),
         project="pxi_dev",
         specs=[spec],
         now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
@@ -475,7 +475,7 @@ def test_missing_judge_credentials_fail_before_discovery() -> None:
         pytest.raises(RuntimeError, match="OPENAI_API_KEY"),
     ):
         _run(
-            _FakeClient(spans),  # type: ignore[arg-type]
+            _FakeClient(spans),
             project="pxi_dev",
             specs=[spec],
         )
@@ -498,7 +498,7 @@ def test_unknown_judge_provider_fails_before_discovery() -> None:
         ),
     ):
         _run(
-            _FakeClient(spans),  # type: ignore[arg-type]
+            _FakeClient(spans),
             project="pxi_dev",
             specs=[spec],
         )
@@ -512,7 +512,7 @@ def test_code_evaluators_require_no_judge_credentials() -> None:
 
     with mock.patch.dict("os.environ", {}, clear=True):
         summary = _run(
-            _FakeClient(spans),  # type: ignore[arg-type]
+            _FakeClient(spans),
             project="pxi_dev",
             specs=[TOOL_COUNT_PER_TURN],
             now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),

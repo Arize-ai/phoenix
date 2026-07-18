@@ -65,7 +65,7 @@ def _flat_messages(prefix: str, messages: list[dict[str, Any]]) -> dict[str, Any
 
 def _two_turn_trace(latest_user_message: str) -> tuple[v1.Span, list[v1.Span]]:
     """A trace whose last LLM span carries a prior turn plus the target message."""
-    input_messages = [
+    input_messages: list[dict[str, Any]] = [
         {"role": "user", "content": "show me traces from today"},
         {
             "role": "assistant",
@@ -334,10 +334,12 @@ def test_classifies_every_user_message_origin(message: str, is_human: bool) -> N
 @pytest.mark.parametrize("root_input", [None, "a different user message"])
 def test_root_input_must_match_transcript_target(root_input: str | None) -> None:
     root, spans = _two_turn_trace("no, I asked for this week")
+    attributes = dict(root["attributes"])
     if root_input is None:
-        root["attributes"].pop("input.value")
+        attributes.pop("input.value")
     else:
-        root["attributes"]["input.value"] = root_input
+        attributes["input.value"] = root_input
+    root["attributes"] = attributes
 
     assert user_friction._judge_inputs(root, spans) is None
     assert _evaluate(root, spans) is None
