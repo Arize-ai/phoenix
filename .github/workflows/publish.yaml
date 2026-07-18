@@ -274,6 +274,116 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         if: steps.check.outputs.needed == 'true'
 
+  # arize-phoenix-sqlean is a vendored C extension (fork of nalgeon/sqlean.py),
+  # so it cannot go through the pure-Python `uv build` matrix above: wheels are
+  # compiled per platform and interpreter with cibuildwheel. Source preparation
+  # (downloading the SQLite amalgamation and sqlean extension sources that the
+  # sdist bundles) runs once on Ubuntu and is handed to the build legs as an
+  # artifact, because the Makefile needs make/curl/unzip, which the Windows
+  # runner does not provide.
+  sqlean-sources:
+    name: Prepare arize-phoenix-sqlean sources
+    runs-on: ubuntu-latest
+    needs: list-python-packages
+    if: contains(fromJSON(needs.list-python-packages.outputs.package_paths), 'packages/phoenix-sqlean')
+    permissions:
+      contents: read
+    outputs:
+      needed: ${{ steps.ref.outputs.needed }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Resolve ref from manifest
+        id: ref
+        run: |
+          VERSION=$(jq -r '.["packages/phoenix-sqlean"] // empty' .release-please-manifest.json)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Missing version for packages/phoenix-sqlean in manifest"
+            exit 1
+          fi
+          TAG="arize-phoenix-sqlean-v${VERSION}"
+          # Until release-please creates the first release of this package, the
+          # manifest version has no tag — skip instead of failing the run.
+          if git ls-remote --exit-code origin "refs/tags/${TAG}" > /dev/null 2>&1; then
+            echo "needed=true" >> $GITHUB_OUTPUT
+            echo "ref=refs/tags/${TAG}" >> $GITHUB_OUTPUT
+          else
+            echo "Tag ${TAG} does not exist yet; skipping arize-phoenix-sqlean"
+            echo "needed=false" >> $GITHUB_OUTPUT
+          fi
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.ref.outputs.needed == 'true'
+        with:
+          persist-credentials: false
+          ref: ${{ steps.ref.outputs.ref }}
+      - name: Download SQLite and sqlean extension sources
+        if: steps.ref.outputs.needed == 'true'
+        working-directory: packages/phoenix-sqlean
+        run: make prepare-src download-sqlite download-sqlean
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.ref.outputs.needed == 'true'
+        with:
+          name: arize-phoenix-sqlean-sources
+          path: packages/phoenix-sqlean
+
+  build-sqlean:
+    name: Build arize-phoenix-sqlean (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: sqlean-sources
+    if: needs.sqlean-sources.result == 'success' && needs.sqlean-sources.outputs.needed == 'true'
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: arize-phoenix-sqlean-sources
+          path: pkg
+      - name: Set up QEMU for aarch64 wheels
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        with:
+          platforms: arm64
+      - name: Build wheels
+        uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2.1
+        with:
+          package-dir: pkg
+        env:
+          CIBW_ARCHS_LINUX: x86_64 aarch64
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_ARCHS_WINDOWS: AMD64
+          CIBW_BUILD: "cp310-macosx* cp311-macosx* cp312-macosx* cp313-macosx* cp314-macosx* cp310-manylinux* cp311-manylinux* cp312-manylinux* cp313-manylinux* cp314-manylinux* cp310-win* cp311-win* cp312-win* cp313-win* cp314-win*"
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
+      - name: Build sdist
+        if: runner.os == 'Linux'
+        run: pipx run build --sdist --outdir wheelhouse pkg
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: arize-phoenix-sqlean-dist-${{ matrix.os }}
+          path: wheelhouse/
+
+  publish-sqlean:
+    name: Publish arize-phoenix-sqlean
+    runs-on: ubuntu-latest
+    needs: build-sqlean
+    if: needs.build-sqlean.result == 'success'
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: arize-phoenix-sqlean-dist-*
+          path: dist/
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+
   trigger-version-updates:
     name: Trigger dependency updates
     runs-on: ubuntu-latest
@@ -324,8 +434,8 @@ jobs:
 
   slack:
     name: Slack notification
-    needs: [list-python-packages, publish-phoenix, publish-packages, trigger-version-updates]
-    if: always() && inputs.feature_branch == '' && (needs.publish-phoenix.result != 'skipped' || needs.publish-packages.result != 'skipped')
+    needs: [list-python-packages, publish-phoenix, publish-packages, publish-sqlean, trigger-version-updates]
+    if: always() && inputs.feature_branch == '' && (needs.publish-phoenix.result != 'skipped' || needs.publish-packages.result != 'skipped' || needs.publish-sqlean.result != 'skipped')
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -334,16 +444,17 @@ jobs:
         env:
           PHOENIX_RESULT: ${{ needs.publish-phoenix.result }}
           PACKAGES_RESULT: ${{ needs.publish-packages.result }}
+          SQLEAN_RESULT: ${{ needs.publish-sqlean.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$PHOENIX_RESULT" = "failure" ] || [ "$PACKAGES_RESULT" = "failure" ]; then
+          if [ "$PHOENIX_RESULT" = "failure" ] || [ "$PACKAGES_RESULT" = "failure" ] || [ "$SQLEAN_RESULT" = "failure" ]; then
             {
               echo "text<<EOF"
               echo "🚨🚨🚨 PYPI Publication Failed 🚨🚨🚨"
               echo "$RUN_URL"
               echo "EOF"
             } >> $GITHUB_OUTPUT
-          elif [ "$PHOENIX_RESULT" = "success" ] || [ "$PACKAGES_RESULT" = "success" ]; then
+          elif [ "$PHOENIX_RESULT" = "success" ] || [ "$PACKAGES_RESULT" = "success" ] || [ "$SQLEAN_RESULT" = "success" ]; then
             {
               echo "text<<EOF"
               echo "PYPI Publication Succeeded"
