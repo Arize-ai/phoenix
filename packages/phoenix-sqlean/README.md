@@ -13,7 +13,7 @@ This package provides an SQLite Python wrapper bundled with [sqlean](https://git
 > [sqlean](https://github.com/nalgeon/sqlean) extension sources (MIT License).
 
 ```
-pip install sqlean.py
+pip install arize-phoenix-sqlean
 ```
 
 ```python
@@ -53,10 +53,10 @@ conn.close()
 ## Installation
 
 ```
-pip install sqlean.py
+pip install arize-phoenix-sqlean
 ```
 
-Note that the package name is `sqlean.py`, while the code imports are just `sqlean`. The `sqlean` package name was taken by some zomby project and the author seemed to be unavailable, so I had to add the `.py` suffix.
+Note that the package name is `arize-phoenix-sqlean`, while the code imports are just `sqlean` — the same import name as the upstream `sqlean.py` package, so this fork is a drop-in replacement (only one of the two can be installed in an environment).
 
 A binary package (wheel) is available for the following operating systems:
 
