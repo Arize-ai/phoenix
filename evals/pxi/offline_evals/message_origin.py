@@ -4,9 +4,7 @@ PXI sessions can carry non-human user-role messages: legacy frontend UI
 context blocks (``<phoenix_ui_context>``, from the pre-July-2026 trace
 format — current traces deliver UI context via agent instructions, never as
 a user message), agent-loop continuations (JSON with ``parts``), tool-error
-payloads, and agent message payloads. This classification is the same one
-used when building the user-friction gold labels, so production skips
-exactly what labeling skipped.
+payloads, and agent message payloads.
 """
 
 from __future__ import annotations

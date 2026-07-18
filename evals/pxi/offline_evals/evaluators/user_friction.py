@@ -3,14 +3,11 @@
 Judges whether the turn's (human) user message expresses friction with the
 assistant's preceding behavior. The conversation history is reconstructed
 from the turn's own last LLM span (the history the agent itself saw),
-rendered with the same two-tier rendering the user-friction gold labels were
-built on, and passed to the built-in :class:`UserFrictionEvaluator` from
-phoenix-evals.
+rendered in two tiers (compact prior turns, detailed reacted-to turn), and
+passed to the built-in :class:`UserFrictionEvaluator` from phoenix-evals.
 
 The judge provider/model is the shared PXI offline judge configuration (see
-:mod:`evals.pxi.offline_evals.judge`). The default, OpenAI ``gpt-5.5``, was
-validated against the 91-example dev split of the
-``user-friction-alignment-v0.5`` gold set.
+:mod:`evals.pxi.offline_evals.judge`).
 """
 
 from __future__ import annotations

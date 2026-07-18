@@ -14,9 +14,6 @@ index-numbered keys, e.g.::
 
 We unflatten them with the same :func:`phoenix.trace.attributes.unflatten`
 helper the ingestion path uses, then normalize into :class:`Message` objects.
-The reconstruction matches the one used to build the user-friction gold
-labels, so the production judge sees the same transcripts the labels were
-made from.
 """
 
 from __future__ import annotations
@@ -134,8 +131,7 @@ def _last_llm_span(spans: Sequence[v1.Span]) -> v1.Span | None:
     picking it would reconstruct the subagent's internal conversation instead
     of the user-facing transcript. Prefer LLM spans that are direct children
     of the trace root; fall back to all LLM spans only when none are.
-    Ties on ``start_time`` keep the later span, matching the validation
-    pipeline's stable sort.
+    Ties on ``start_time`` keep the later span (stable sort).
     """
     llm_spans = [span for span in spans if span.get("span_kind") == "LLM"]
     if not llm_spans:
