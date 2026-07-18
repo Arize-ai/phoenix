@@ -129,7 +129,12 @@ class Builder(build_ext):
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-define.c"))
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-fileio.c"))
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-fuzzy.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-ipaddr.c"))
+        if sys.platform != "win32":
+            # ipaddr uses POSIX networking headers (arpa/inet.h) that MSVC
+            # cannot compile, so it is excluded from Windows builds — same as
+            # sqlean's own Windows distribution. sqlean.c already guards the
+            # corresponding init calls with !defined(_WIN32).
+            ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-ipaddr.c"))
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-regexp.c"))
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-stats.c"))
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-text.c"))
