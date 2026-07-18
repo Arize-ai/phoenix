@@ -1,0 +1,28 @@
+---
+title: "MCP Servers"
+sidebarTitle: "MCP Overview"
+description: Connect AI assistants to Phoenix — your data and your docs — over the Model Context Protocol (MCP).
+---
+
+Phoenix speaks [MCP](https://modelcontextprotocol.io/), so you can wire assistants like Claude Code, Cursor, and VS Code into Phoenix. There are two things you might want your assistant to do — pick the server that matches, or run both.
+
+<CardGroup cols={2}>
+  <Card title="Work with your Phoenix data" icon="database" href="/docs/phoenix/integrations/remote-mcp">
+    **Remote MCP Server** — query and operate on your projects, traces, sessions, datasets, experiments, prompts, and annotations. Built into the Phoenix server at `/mcp`; nothing to install.
+
+    **Recommended** · beta
+  </Card>
+  <Card title="Search the Phoenix docs" icon="book" href="/docs/phoenix/integrations/docs-mcp">
+    **Phoenix Docs MCP** — let your assistant answer questions from the Phoenix documentation in real time. A hosted URL you point your client at.
+  </Card>
+</CardGroup>
+
+The two are complementary. Run the **Docs MCP** alongside the **Remote MCP Server** to give your assistant both your live Phoenix data and the documentation.
+
+<Note>
+For most coding-agent workflows, the [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) is the recommended interface — fetching traces, debugging failures, inspecting experiments, and managing datasets and prompts. Use the MCP servers for ad-hoc data access from your IDE. See [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) for setting them up together.
+</Note>
+
+## Older Phoenix versions
+
+If your Phoenix version doesn't yet serve the built-in `/mcp` endpoint, use the [`@arizeai/phoenix-mcp` npm package](/docs/phoenix/integrations/phoenix-mcp-server) — a local stdio server that connects to the same Phoenix data. It's in **maintenance mode**: it still receives bug fixes, but new capabilities land in the Remote MCP Server. Prefer the Remote MCP Server whenever your Phoenix version serves `/mcp`.
