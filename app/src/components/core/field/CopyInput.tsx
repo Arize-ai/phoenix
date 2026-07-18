@@ -66,15 +66,15 @@ function CopyInput({
           padding: 0;
           width: var(--copy-button-size);
           height: var(--copy-button-size);
-          color: var(--global-text-color-700);
+          color: var(--field-copy-button-text-color);
           display: flex;
           align-items: center;
           justify-content: center;
           border-radius: var(--global-rounding-small);
           transition: background-color 0.2s;
-          background-color: var(--global-color-gray-200);
+          background-color: var(--field-copy-button-background-color);
           &:hover {
-            background-color: var(--global-color-gray-300);
+            background-color: var(--field-copy-button-background-color-hover);
           }
 
           &:focus-visible {

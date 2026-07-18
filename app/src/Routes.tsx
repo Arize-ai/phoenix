@@ -31,6 +31,7 @@ import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsA
 import { SettingsAPIKeysPage } from "@phoenix/pages/settings/SettingsAPIKeysPage";
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
+import { SettingsMCPPage } from "@phoenix/pages/settings/SettingsMCPPage";
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
@@ -779,6 +780,18 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "API Keys",
                 description:
                   "Manage API keys: create system API keys and view or revoke system and user API keys for programmatic access.",
+              },
+            }}
+          />
+          <Route
+            path="mcp"
+            element={<SettingsMCPPage />}
+            handle={{
+              crumb: () => "MCP",
+              agentRoute: {
+                label: "MCP",
+                description:
+                  "Set up the Model Context Protocol (MCP) server: copy the MCP endpoint URL and follow setup instructions to connect coding agents and MCP clients like Claude Code, Claude Desktop, Cursor, VS Code, and Codex.",
               },
             }}
           />

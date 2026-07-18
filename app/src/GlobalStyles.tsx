@@ -931,6 +931,11 @@ const inputFieldCSS = (theme: Theme) => css`
     --field-readonly-text-color: var(--global-text-color-700);
     --field-readonly-border-color-focus: var(--global-color-gray-400);
 
+    /* Embedded copy button (CopyInput and the copyable code blocks) */
+    --field-copy-button-background-color: var(--global-color-gray-200);
+    --field-copy-button-background-color-hover: var(--global-color-gray-300);
+    --field-copy-button-text-color: var(--global-text-color-700);
+
     /* Popover overlay (combobox / select) */
     --field-popover-background-color: var(--global-menu-background-color);
     --field-popover-border-color: var(--global-menu-border-color);

@@ -26,6 +26,8 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Chart type: vertical bars | `Icons.ChartNoAxesColumn` | Lucide-style glyph (three ascending columns, no axis). Preview for a vertical bar / column chart in the metric chart picker. Distinct from `BarChart` (eva glyph used as the generic "charts" action icon). |
 | Chart type: horizontal / ranked bars | `Icons.ChartBarDecreasing` | Lucide-style chart glyph with axis and descending horizontal bars. Preview for a ranked "top N" horizontal bar chart. |
 | Chart type: line | `Icons.ChartLine` | Lucide-style chart glyph with axis. Preview for a line / time-series chart. |
+| MCP (Model Context Protocol) | `McpSVG` (from `@phoenix/components/project/IntegrationIcons`) | The official MCP mark (filled, evenodd). Used for the MCP settings tab and anything referencing the built-in `/mcp` endpoint. |
+| Model | `Icons.Cube` | Lucide box glyph (cube). Used for the Models settings tab and anything representing a model as an entity. Prefer this over `LLMOutput` for the model noun. |
 
 ## When you need an icon
 
