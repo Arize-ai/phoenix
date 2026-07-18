@@ -79,17 +79,18 @@
                   "docs/phoenix/agent-assisted-setup"
                 ]
               },
+              {
+                "group": "MCP",
+                "pages": [
+                  "docs/phoenix/integrations/mcp",
+                  "docs/phoenix/integrations/remote-mcp",
+                  "docs/phoenix/integrations/docs-mcp",
+                  "docs/phoenix/integrations/phoenix-mcp-server"
+                ]
+              },
               "docs/phoenix/end-to-end-features-notebook",
               "docs/phoenix/phoenix-demo",
               "docs/phoenix/pxi"
-            ]
-          },
-          {
-            "group": "MCP",
-            "icon": "plug",
-            "pages": [
-              "docs/phoenix/integrations/phoenix-mcp-server",
-              "docs/phoenix/integrations/remote-mcp"
             ]
           },
           {
@@ -503,8 +504,10 @@
             "group": "MCP",
             "icon": "plug",
             "pages": [
-              "docs/phoenix/integrations/phoenix-mcp-server",
-              "docs/phoenix/integrations/remote-mcp"
+              "docs/phoenix/integrations/mcp",
+              "docs/phoenix/integrations/remote-mcp",
+              "docs/phoenix/integrations/docs-mcp",
+              "docs/phoenix/integrations/phoenix-mcp-server"
             ]
           },
           {
