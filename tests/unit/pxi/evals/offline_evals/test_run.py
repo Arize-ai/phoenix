@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
@@ -7,11 +8,16 @@ from unittest import mock
 
 import pytest
 from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
 
 from evals.pxi.offline_evals import run as run_module
 from evals.pxi.offline_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
-from evals.pxi.offline_evals.models import EvaluationResult, RunSummary
+from evals.pxi.offline_evals.models import RunSummary
 from evals.pxi.offline_evals.run import _fetch_batch_spans, _sampled, run_evaluators
+
+
+def _run(*args: Any, **kwargs: Any) -> dict[str, RunSummary]:
+    return asyncio.run(run_evaluators(*args, **kwargs))
 
 
 def _span(
@@ -173,7 +179,7 @@ def test_filters_existing_annotations_before_hydrating_traces() -> None:
         [_existing("old-root")],
     )
 
-    summary = run_evaluators(
+    summary = _run(
         _FakeClient(spans),  # type: ignore[arg-type]
         project="pxi_dev",
         specs=[TOOL_COUNT_PER_TURN],
@@ -204,7 +210,7 @@ def test_different_identifier_does_not_suppress_evaluator() -> None:
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     spans = _FakeSpans([root], {"trace": [root]}, [_existing("root", identifier="other")])
 
-    summary = run_evaluators(
+    summary = _run(
         _FakeClient(spans),  # type: ignore[arg-type]
         project="pxi_dev",
         specs=[TOOL_COUNT_PER_TURN],
@@ -234,7 +240,7 @@ def test_settle_delay_uses_root_completion_time() -> None:
     )
     current = datetime(2026, 7, 9, 2, tzinfo=timezone.utc)
 
-    summary = run_evaluators(
+    summary = _run(
         _FakeClient(spans),  # type: ignore[arg-type]
         project="pxi_dev",
         specs=[TOOL_COUNT_PER_TURN],
@@ -250,17 +256,13 @@ def test_settle_delay_uses_root_completion_time() -> None:
 def test_serializes_categorical_label_as_annotation_result() -> None:
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     spans = _FakeSpans([root], {"trace": [root]}, [])
-    spec = replace(
-        TOOL_COUNT_PER_TURN,
-        name="categorical",
-        evaluate=lambda _root, _spans: EvaluationResult(
-            score=1.0,
-            label="friction",
-            metadata={"provider": "openai"},
-        ),
-    )
 
-    run_evaluators(
+    async def categorical(_root: v1.Span, _spans: Any) -> Score:
+        return Score(score=1.0, label="friction", metadata={"provider": "openai"})
+
+    spec = replace(TOOL_COUNT_PER_TURN, name="categorical", evaluate=categorical)
+
+    _run(
         _FakeClient(spans),  # type: ignore[arg-type]
         project="pxi_dev",
         specs=[spec],
@@ -293,7 +295,7 @@ def test_flushes_annotations_in_bounded_batches() -> None:
     spans = _FakeSpans(roots, {f"trace-{index}": [root] for index, root in enumerate(roots)}, [])
 
     with mock.patch.object(run_module, "ANNOTATION_WRITE_BATCH_SIZE", 2):
-        summary = run_evaluators(
+        summary = _run(
             _FakeClient(spans),  # type: ignore[arg-type]
             project="pxi_dev",
             specs=[TOOL_COUNT_PER_TURN],
@@ -304,23 +306,57 @@ def test_flushes_annotations_in_bounded_batches() -> None:
     assert summary.annotations == 3
 
 
-def test_flushes_before_starting_the_next_evaluator() -> None:
+def test_llm_identifier_embeds_the_shared_judge_provider_and_model() -> None:
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     spans = _FakeSpans([root], {"trace": [root]}, [])
-    first = replace(TOOL_COUNT_PER_TURN, name="first")
-    second = replace(TOOL_COUNT_PER_TURN, name="second", annotator_kind="LLM")
+    spec = replace(TOOL_COUNT_PER_TURN, name="llm_eval", annotator_kind="LLM")
 
-    run_evaluators(
+    with mock.patch.dict(
+        "os.environ",
+        {
+            "PHOENIX_AGENTS_EVALS_PROVIDER": "anthropic",
+            "PHOENIX_AGENTS_EVALS_MODEL": "claude-test",
+            "ANTHROPIC_API_KEY": "test-key",
+        },
+    ):
+        _run(
+            _FakeClient(spans),  # type: ignore[arg-type]
+            project="pxi_dev",
+            specs=[spec],
+            now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        )
+
+    assert [annotation["identifier"] for annotation in spans.writes] == [
+        "pxi-offline-evals:tool-count-per-turn:v1:anthropic:claude-test"
+    ]
+
+
+def test_evaluations_run_concurrently() -> None:
+    """Two pending evaluations must overlap: the first blocks until the second
+    starts, which deadlocks if the runner awaits evaluations sequentially."""
+    roots = [
+        _span(f"root-{i}", trace_id=f"trace-{i}", name="pxi.turn", kind="AGENT", parent_id=None)
+        for i in range(2)
+    ]
+    spans = _FakeSpans(roots, {f"trace-{i}": [root] for i, root in enumerate(roots)}, [])
+    started = asyncio.Event()
+
+    async def rendezvous(root: v1.Span, _spans: Any) -> Score:
+        if root["context"]["span_id"] == "root-0":
+            await asyncio.wait_for(started.wait(), timeout=5)
+        else:
+            started.set()
+        return Score(score=1.0)
+
+    spec = replace(TOOL_COUNT_PER_TURN, evaluate=rendezvous)
+    summary = _run(
         _FakeClient(spans),  # type: ignore[arg-type]
         project="pxi_dev",
-        specs=[first, second],
+        specs=[spec],
         now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
-    )
+    )["tool_count_per_turn"]
 
-    assert [[annotation["name"] for annotation in batch] for batch in spans.write_batches] == [
-        ["first"],
-        ["second"],
-    ]
+    assert summary.evaluated == 2
 
 
 @pytest.mark.parametrize(
@@ -364,12 +400,15 @@ def test_sampling_is_consistent_across_evaluators() -> None:
     assert 0 < len(selected_narrow) < len(selected_first) < len(trace_ids)
 
 
-def test_applicability_filter_skips_evaluation() -> None:
+def test_none_result_counts_as_not_applicable() -> None:
     root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
     spans = _FakeSpans([root], {"trace": [root]}, [])
-    spec = replace(TOOL_COUNT_PER_TURN, applies_to=lambda _root, _spans: False)
 
-    summary = run_evaluators(
+    async def not_applicable(_root: v1.Span, _spans: Any) -> None:
+        return None
+
+    spec = replace(TOOL_COUNT_PER_TURN, evaluate=not_applicable)
+    summary = _run(
         _FakeClient(spans),  # type: ignore[arg-type]
         project="pxi_dev",
         specs=[spec],
@@ -381,7 +420,7 @@ def test_applicability_filter_skips_evaluation() -> None:
     assert spans.writes == []
 
 
-def test_applicability_failure_is_isolated_to_one_turn() -> None:
+def test_evaluator_failure_is_isolated_to_one_turn() -> None:
     failing_root = _span(
         "failing-root", trace_id="failing-trace", name="pxi.turn", kind="AGENT", parent_id=None
     )
@@ -408,13 +447,13 @@ def test_applicability_failure_is_isolated_to_one_turn() -> None:
         [],
     )
 
-    def applies_to(root: v1.Span, _spans: list[v1.Span]) -> bool:
+    async def evaluate(root: v1.Span, trace_spans: Any) -> Any:
         if root["context"]["span_id"] == "failing-root":
             raise ValueError("malformed trace")
-        return True
+        return await TOOL_COUNT_PER_TURN.evaluate(root, trace_spans)
 
-    spec = replace(TOOL_COUNT_PER_TURN, applies_to=applies_to)
-    summary = run_evaluators(
+    spec = replace(TOOL_COUNT_PER_TURN, evaluate=evaluate)
+    summary = _run(
         _FakeClient(spans),  # type: ignore[arg-type]
         project="pxi_dev",
         specs=[spec],
@@ -427,18 +466,15 @@ def test_applicability_failure_is_isolated_to_one_turn() -> None:
     assert [annotation["span_id"] for annotation in spans.writes] == ["successful-root"]
 
 
-def test_missing_environment_fails_before_discovery() -> None:
+def test_missing_judge_credentials_fail_before_discovery() -> None:
     spans = _FakeSpans([], {}, [])
-    spec = replace(
-        TOOL_COUNT_PER_TURN,
-        required_env_fn=lambda: ("MISSING_TEST_API_KEY",),
-    )
+    spec = replace(TOOL_COUNT_PER_TURN, annotator_kind="LLM")
 
     with (
         mock.patch.dict("os.environ", {}, clear=True),
-        pytest.raises(RuntimeError, match="MISSING_TEST_API_KEY"),
+        pytest.raises(RuntimeError, match="OPENAI_API_KEY"),
     ):
-        run_evaluators(
+        _run(
             _FakeClient(spans),  # type: ignore[arg-type]
             project="pxi_dev",
             specs=[spec],
@@ -447,13 +483,51 @@ def test_missing_environment_fails_before_discovery() -> None:
     assert spans.get_spans_calls == 0
 
 
+def test_unknown_judge_provider_fails_before_discovery() -> None:
+    spans = _FakeSpans([], {}, [])
+    spec = replace(TOOL_COUNT_PER_TURN, annotator_kind="LLM")
+
+    with (
+        mock.patch.dict("os.environ", {"PHOENIX_AGENTS_EVALS_PROVIDER": "opneai"}, clear=True),
+        pytest.raises(
+            ValueError,
+            match=(
+                "unsupported PHOENIX_AGENTS_EVALS_PROVIDER 'opneai'; expected one of: "
+                "anthropic, google, openai"
+            ),
+        ),
+    ):
+        _run(
+            _FakeClient(spans),  # type: ignore[arg-type]
+            project="pxi_dev",
+            specs=[spec],
+        )
+
+    assert spans.get_spans_calls == 0
+
+
+def test_code_evaluators_require_no_judge_credentials() -> None:
+    root = _span("root", trace_id="trace", name="pxi.turn", kind="AGENT", parent_id=None)
+    spans = _FakeSpans([root], {"trace": [root]}, [])
+
+    with mock.patch.dict("os.environ", {}, clear=True):
+        summary = _run(
+            _FakeClient(spans),  # type: ignore[arg-type]
+            project="pxi_dev",
+            specs=[TOOL_COUNT_PER_TURN],
+            now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        )["tool_count_per_turn"]
+
+    assert summary.evaluated == 1
+
+
 def test_main_returns_nonzero_when_an_evaluator_errors() -> None:
     with (
         mock.patch.object(run_module, "Client"),
         mock.patch.object(
             run_module,
             "run_evaluators",
-            return_value={"tool_count_per_turn": RunSummary(errors=1)},
+            new=mock.AsyncMock(return_value={"tool_count_per_turn": RunSummary(errors=1)}),
         ),
     ):
         assert run_module.main(["--eval", "tool_count_per_turn"]) == 1

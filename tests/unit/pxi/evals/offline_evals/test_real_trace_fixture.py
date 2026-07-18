@@ -10,6 +10,7 @@ last LLM span, and a failed-then-retried tool call.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from unittest import mock
@@ -39,7 +40,7 @@ def test_fixture_topology() -> None:
 
 def test_tool_count_per_turn_on_real_trace() -> None:
     root, spans = _load_trace()
-    result = evaluate_tool_count_per_turn(root, spans)
+    result = asyncio.run(evaluate_tool_count_per_turn(root, spans))
     assert result.score == 8.0
     assert result.metadata["tool_names"] == [
         "list_datasets",
@@ -78,19 +79,16 @@ def test_transcript_reconstruction_on_real_trace() -> None:
 
 def test_user_friction_on_real_trace() -> None:
     root, spans = _load_trace()
-    assert user_friction.applies_to_user_friction(root, spans)
+    assert user_friction._judge_inputs(root, spans) is not None
 
     score = mock.Mock(score=0.0, label="no_friction", explanation="ok")
     judge = mock.Mock()
-    judge.evaluate.return_value = [score]
+    judge.async_evaluate = mock.AsyncMock(return_value=[score])
     with mock.patch.object(user_friction, "_judge", return_value=judge):
-        result = user_friction.evaluate_user_friction(root, spans)
-    assert result is not None
-    assert result.score == 0.0
-    assert result.label == "no_friction"
-    assert result.metadata == {"model": "gpt-5.5", "provider": "openai"}
-    judge.evaluate.assert_called_once()
-    eval_input = judge.evaluate.call_args.args[0]
+        result = asyncio.run(user_friction.evaluate_user_friction(root, spans))
+    assert result is score
+    judge.async_evaluate.assert_awaited_once()
+    eval_input = judge.async_evaluate.call_args.args[0]
     assert eval_input["user_message"] == "can you save this trace to a dataset?"
     conversation = eval_input["conversation"]
     assert "### User" in conversation

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -10,6 +11,10 @@ from evals.pxi.offline_evals.evaluators.tool_count_per_turn import (
     evaluate_tool_count_per_turn,
 )
 from evals.pxi.offline_evals.topology import InvalidTurnTrace
+
+
+def _evaluate(root: v1.Span, spans: list[v1.Span]) -> Any:
+    return asyncio.run(evaluate_tool_count_per_turn(root, spans))
 
 
 def _span(
@@ -67,7 +72,7 @@ def test_counts_browser_and_server_tools_but_not_subagent_tools() -> None:
         "nested-tool", name="query_phoenix", kind="TOOL", parent_id="subagent", start=7
     )
 
-    result = evaluate_tool_count_per_turn(
+    result = _evaluate(
         root,
         [
             root,
@@ -85,8 +90,7 @@ def test_counts_browser_and_server_tools_but_not_subagent_tools() -> None:
     assert result.metadata == {
         "tool_names": ["set_spans_filter", "bash", "read_skill_resource", "call_subagent"]
     }
-    assert TOOL_COUNT_PER_TURN.input_scope == "trace"
-    assert TOOL_COUNT_PER_TURN.annotation_target == "span"
+    assert TOOL_COUNT_PER_TURN.annotator_kind == "CODE"
     assert TOOL_COUNT_PER_TURN.sample_rate == 1.0
 
 
@@ -95,13 +99,13 @@ def test_rejects_incomplete_parent_chain() -> None:
     tool = _span("tool", name="bash", kind="TOOL", parent_id="missing", start=1)
 
     with pytest.raises(InvalidTurnTrace, match="missing ancestor"):
-        evaluate_tool_count_per_turn(root, [root, tool])
+        _evaluate(root, [root, tool])
 
 
 def test_zero_tool_trace_has_zero_score() -> None:
     root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
 
-    result = evaluate_tool_count_per_turn(root, [root])
+    result = _evaluate(root, [root])
 
     assert result.score == 0.0
     assert result.metadata == {"tool_names": []}
@@ -112,14 +116,14 @@ def test_rejects_a_non_root_turn_span() -> None:
     root = _span("root", name="pxi.turn", kind="AGENT", parent_id="parent", start=0)
 
     with pytest.raises(InvalidTurnTrace, match="span root is not a 'pxi.turn' root"):
-        evaluate_tool_count_per_turn(root, [root])
+        _evaluate(root, [root])
 
 
 def test_rejects_a_trace_that_omits_the_turn_root() -> None:
     root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
 
     with pytest.raises(InvalidTurnTrace, match="trace does not contain turn root root"):
-        evaluate_tool_count_per_turn(root, [])
+        _evaluate(root, [])
 
 
 def test_rejects_a_detached_tool() -> None:
@@ -130,7 +134,7 @@ def test_rejects_a_detached_tool() -> None:
         InvalidTurnTrace,
         match="tool span tool does not descend from turn root root",
     ):
-        evaluate_tool_count_per_turn(root, [root, tool])
+        _evaluate(root, [root, tool])
 
 
 def test_rejects_an_ancestor_cycle() -> None:
@@ -140,4 +144,4 @@ def test_rejects_an_ancestor_cycle() -> None:
     tool = _span("tool", name="bash", kind="TOOL", parent_id="first", start=3)
 
     with pytest.raises(InvalidTurnTrace, match="cycle found above tool span tool"):
-        evaluate_tool_count_per_turn(root, [root, first, second, tool])
+        _evaluate(root, [root, first, second, tool])

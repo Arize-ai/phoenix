@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import Any
 
 from evals.pxi.offline_evals.conversation import Message, Turn
-from evals.pxi.offline_evals.message_origin import classify_user_message
+from evals.pxi.offline_evals.message_origin import is_human_message
 
 _ERROR_MARKERS = ("error", "exception", "traceback", "failed")
 
@@ -120,7 +120,7 @@ def render_conversation(turns: list[Turn], target_index: int) -> str:
     """
     parts: list[str] = []
     for i in range(target_index):
-        if not classify_user_message(turns[i].user_message).is_human:
+        if not is_human_message(turns[i].user_message):
             continue
         if i == target_index - 1:
             parts.append(render_turn_detailed(turns[i]))

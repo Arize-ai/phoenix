@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import logging
 import math
@@ -11,7 +12,9 @@ from datetime import datetime, timedelta, timezone
 
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
 
+from evals.pxi.offline_evals import judge
 from evals.pxi.offline_evals.evaluators import EVALUATORS
 from evals.pxi.offline_evals.models import EvaluatorSpec, RunSummary
 from evals.pxi.offline_evals.topology import span_id, trace_id
@@ -26,6 +29,7 @@ MAX_CANDIDATE_ROOTS = 5_000
 MAX_SPANS_PER_BATCH = 10_000
 TRACE_ID_BATCH_SIZE = 100
 ANNOTATION_WRITE_BATCH_SIZE = 100
+MAX_CONCURRENT_EVALUATIONS = 8
 
 
 def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
@@ -44,6 +48,14 @@ def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
     digest = hashlib.sha256(artifact_id.encode()).digest()
     rho = int.from_bytes(digest[:8], "big") / 2**64
     return rho < spec.sample_rate
+
+
+def _resolve_identifier(spec: EvaluatorSpec) -> str:
+    """LLM evaluators embed the shared judge provider/model in their checkpoint
+    identity, so a judge change starts a new result series automatically."""
+    if spec.annotator_kind == "LLM":
+        return f"{spec.identifier}:{judge.provider()}:{judge.model()}"
+    return spec.identifier
 
 
 def _ended_before(root: v1.Span, cutoff: datetime) -> bool:
@@ -136,7 +148,7 @@ def _flush_annotations(
     annotations.clear()
 
 
-def run_evaluators(
+async def run_evaluators(
     client: Client,
     *,
     project: str,
@@ -148,23 +160,9 @@ def run_evaluators(
 ) -> dict[str, RunSummary]:
     if not specs:
         return {}
-    unsupported = [
-        spec.name
-        for spec in specs
-        if spec.input_scope != "trace" or spec.annotation_target != "span"
-    ]
-    if unsupported:
-        raise NotImplementedError(
-            f"offline runner supports trace input with root-span annotations only: {unsupported}"
-        )
-    missing_env = {
-        spec.name: missing
-        for spec in specs
-        if (missing := [key for key in spec.required_env_fn() if not os.getenv(key)])
-    }
-    if missing_env:
-        raise RuntimeError(f"missing required environment variables: {missing_env}")
-    identifiers = {spec.name: spec.resolve_identifier() for spec in specs}
+    if any(spec.annotator_kind == "LLM" for spec in specs):
+        judge.validate_required_env()
+    identifiers = {spec.name: _resolve_identifier(spec) for spec in specs}
 
     current = now or datetime.now(timezone.utc)
     roots = client.spans.get_spans(
@@ -202,18 +200,18 @@ def run_evaluators(
     traces = _load_trace_spans(
         client, project=project, trace_ids=(trace_id(root) for _, root in pending)
     )
+
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_EVALUATIONS)
+
+    async def _evaluate(spec: EvaluatorSpec, root: v1.Span) -> Score | None:
+        async with semaphore:
+            return await spec.evaluate(root, traces.get(trace_id(root), []))
+
+    tasks = [(spec, root, asyncio.create_task(_evaluate(spec, root))) for spec, root in pending]
     annotations: list[v1.SpanAnnotationData] = []
-    previous_spec_name: str | None = None
-    for spec, root in pending:
-        if previous_spec_name is not None and spec.name != previous_spec_name:
-            _flush_annotations(client, annotations, dry_run=dry_run)
-        previous_spec_name = spec.name
-        artifact_spans = traces.get(trace_id(root), [])
+    for spec, root, task in tasks:
         try:
-            if not spec.applies_to(root, artifact_spans):
-                summaries[spec.name].not_applicable += 1
-                continue
-            result = spec.evaluate(root, artifact_spans)
+            result = await task
         except Exception:
             logger.exception("%s failed on trace %s; continuing", spec.name, trace_id(root))
             summaries[spec.name].errors += 1
@@ -227,8 +225,10 @@ def run_evaluators(
             "annotator_kind": spec.annotator_kind,
             "span_id": span_id(root),
             "identifier": identifiers[spec.name],
-            "result": {"score": result.score},
+            "result": {},
         }
+        if result.score is not None:
+            annotation["result"]["score"] = float(result.score)
         if result.explanation is not None:
             annotation["result"]["explanation"] = result.explanation
         if result.label is not None:
@@ -293,13 +293,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--lookback-hours must cover more time than --settle-minutes")
     selected = args.eval or list(EVALUATORS)
     specs = [EVALUATORS[name] for name in selected]
-    summaries = run_evaluators(
-        Client(),
-        project=args.project,
-        specs=specs,
-        lookback=timedelta(hours=args.lookback_hours),
-        settle_delay=timedelta(minutes=args.settle_minutes),
-        dry_run=args.dry_run,
+    summaries = asyncio.run(
+        run_evaluators(
+            Client(),
+            project=args.project,
+            specs=specs,
+            lookback=timedelta(hours=args.lookback_hours),
+            settle_delay=timedelta(minutes=args.settle_minutes),
+            dry_run=args.dry_run,
+        )
     )
     print(f"PXI offline evals: project={args.project} dry_run={args.dry_run}")
     for name, summary in summaries.items():

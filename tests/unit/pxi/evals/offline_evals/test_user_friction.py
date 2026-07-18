@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest import mock
 
@@ -14,8 +15,12 @@ from evals.pxi.offline_evals.conversation import (
     transcript,
 )
 from evals.pxi.offline_evals.evaluators import user_friction
-from evals.pxi.offline_evals.message_origin import MessageOrigin, classify_user_message
+from evals.pxi.offline_evals.message_origin import is_human_message
 from evals.pxi.offline_evals.rendering import render_conversation, render_turn_detailed
+
+
+def _evaluate(root: v1.Span, spans: list[v1.Span]) -> Any:
+    return asyncio.run(user_friction.evaluate_user_friction(root, spans))
 
 
 def _span(
@@ -260,12 +265,12 @@ def test_oversized_judge_input_is_not_applicable() -> None:
     root, spans = _two_turn_trace("no, I asked for this week")
 
     with mock.patch.object(user_friction, "MAX_JUDGE_INPUT_CHARS", 10):
-        assert user_friction.evaluate_user_friction(root, spans) is None
+        assert _evaluate(root, spans) is None
 
 
-def test_applies_to_requires_prior_human_turn() -> None:
+def test_judgeable_turn_requires_prior_human_turn() -> None:
     root, spans = _two_turn_trace("no, I asked for this week")
-    assert user_friction.applies_to_user_friction(root, spans)
+    assert user_friction._judge_inputs(root, spans) is not None
 
     # First message of a session: only one human turn, nothing to react to.
     first_root = _span(
@@ -284,52 +289,46 @@ def test_applies_to_requires_prior_human_turn() -> None:
         start=1,
         attributes=_flat_messages("llm.input_messages", [{"role": "user", "content": "hello"}]),
     )
-    assert not user_friction.applies_to_user_friction(first_root, [first_root, first_llm])
+    assert user_friction._judge_inputs(first_root, [first_root, first_llm]) is None
 
     # No LLM span at all.
-    assert not user_friction.applies_to_user_friction(first_root, [first_root])
+    assert user_friction._judge_inputs(first_root, [first_root]) is None
 
 
 def test_non_human_latest_message_is_not_applicable() -> None:
     """Injected/non-human final user messages skip — no fallback to earlier turns."""
     non_human_messages = [
-        "<phoenix_ui_context>{'page': 'traces'}</phoenix_ui_context>",  # frontend UI context
+        "<phoenix_ui_context>{'page': 'traces'}</phoenix_ui_context>",  # legacy UI context
         '{"parts": [{"tool_return": "ok"}]}',  # agent-loop continuation
         '{"data": null, "errors": [{"message": "boom"}]}',  # tool error payload
     ]
     for message in non_human_messages:
         root, spans = _two_turn_trace(message)
-        assert not user_friction.applies_to_user_friction(root, spans), message
-        assert user_friction.evaluate_user_friction(root, spans) is None, message
+        assert user_friction._judge_inputs(root, spans) is None, message
+        assert _evaluate(root, spans) is None, message
 
 
 @pytest.mark.parametrize(
-    ("message", "is_human", "kind"),
+    ("message", "is_human"),
     [
-        ("   ", False, "empty"),
+        ("   ", False),  # empty
         (
             "<phoenix_ui_context>{'page': 'traces'}</phoenix_ui_context>",
-            False,
-            "frontend_ui_context",
+            False,  # legacy frontend UI context block
         ),
-        ('{"parts": [{"tool_return": "ok"}]}', False, "agent_continuation"),
-        ('{"data": null, "errors": [{"message": "boom"}]}', False, "tool_error_payload"),
+        ('{"parts": [{"tool_return": "ok"}]}', False),  # agent-loop continuation
+        ('{"data": null, "errors": [{"message": "boom"}]}', False),  # tool error payload
         (
             '{"message": {"role": "assistant", "content": "continuing"}}',
-            False,
-            "agent_message_payload",
+            False,  # agent message payload
         ),
-        ('{"query": "show error traces"}', True, "human"),
-        ('{"message": {"role": "user", "content": "hello"}}', True, "human"),
-        ("plain user text", True, "human"),
+        ('{"query": "show error traces"}', True),
+        ('{"message": {"role": "user", "content": "hello"}}', True),
+        ("plain user text", True),
     ],
 )
-def test_classifies_every_user_message_origin(
-    message: str,
-    is_human: bool,
-    kind: str,
-) -> None:
-    assert classify_user_message(message) == MessageOrigin(is_human, kind)
+def test_classifies_every_user_message_origin(message: str, is_human: bool) -> None:
+    assert is_human_message(message) is is_human
 
 
 @pytest.mark.parametrize("root_input", [None, "a different user message"])
@@ -340,55 +339,39 @@ def test_root_input_must_match_transcript_target(root_input: str | None) -> None
     else:
         root["attributes"]["input.value"] = root_input
 
-    assert not user_friction.applies_to_user_friction(root, spans)
-    assert user_friction.evaluate_user_friction(root, spans) is None
+    assert user_friction._judge_inputs(root, spans) is None
+    assert _evaluate(root, spans) is None
 
 
-def test_evaluate_maps_judge_score_to_annotation() -> None:
+def test_evaluate_returns_the_judge_score() -> None:
     root, spans = _two_turn_trace("no, I asked for this week")
     score = mock.Mock(score=1.0, label="friction", explanation="user corrects the assistant")
     judge = mock.Mock()
-    judge.evaluate.return_value = [score]
+    judge.async_evaluate = mock.AsyncMock(return_value=[score])
     with mock.patch.object(user_friction, "_judge", return_value=judge):
-        result = user_friction.evaluate_user_friction(root, spans)
-    assert result is not None
-    assert result.score == 1.0
-    assert result.label == "friction"
-    assert result.explanation == "user corrects the assistant"
-    assert result.metadata == {"model": "gpt-5.5", "provider": "openai"}
-    judge.evaluate.assert_called_once()
-    eval_input = judge.evaluate.call_args.args[0]
+        result = _evaluate(root, spans)
+    assert result is score
+    judge.async_evaluate.assert_awaited_once()
+    eval_input = judge.async_evaluate.call_args.args[0]
     assert eval_input["user_message"] == "no, I asked for this week"
     assert "set_time_range" in eval_input["conversation"]
+
+
+def test_scoreless_judge_response_is_an_error() -> None:
+    root, spans = _two_turn_trace("no, I asked for this week")
+    judge = mock.Mock()
+    judge.async_evaluate = mock.AsyncMock(return_value=[])
+    with (
+        mock.patch.object(user_friction, "_judge", return_value=judge),
+        pytest.raises(RuntimeError, match="user_friction judge returned no score"),
+    ):
+        _evaluate(root, spans)
 
 
 def test_spec_configuration() -> None:
     spec = user_friction.USER_FRICTION
     assert spec.name == "user_friction"
     assert spec.annotator_kind == "LLM"
-    assert spec.input_scope == "trace"
-    assert spec.annotation_target == "span"
     assert spec.root_span_name == "pxi.turn"
-    with mock.patch.dict(
-        "os.environ",
-        {
-            "PXI_USER_FRICTION_PROVIDER": "openai",
-            "PXI_USER_FRICTION_MODEL": "gpt-test",
-        },
-    ):
-        assert spec.required_env_fn() == ("OPENAI_API_KEY",)
-        assert spec.resolve_identifier() == "pxi-offline-evals:user-friction:v1:openai:gpt-test"
-
-
-def test_unknown_provider_fails_during_environment_validation() -> None:
-    with (
-        mock.patch.dict("os.environ", {"PXI_USER_FRICTION_PROVIDER": "opneai"}),
-        pytest.raises(
-            ValueError,
-            match=(
-                "unsupported PXI_USER_FRICTION_PROVIDER 'opneai'; expected one of: "
-                "anthropic, google, openai"
-            ),
-        ),
-    ):
-        user_friction.USER_FRICTION.required_env_fn()
+    assert spec.sample_rate == 1.0
+    assert spec.identifier == "pxi-offline-evals:user-friction:v1"

@@ -1,58 +1,43 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
-from typing import Any, Literal
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
+from typing import Literal, Optional
 
 from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
 
-InputScope = Literal["trace"]
-AnnotationTarget = Literal["span"]
+EvaluateArtifact = Callable[[v1.Span, Sequence[v1.Span]], Awaitable[Optional[Score]]]
+"""Evaluate one turn given its root span and every hydrated span in its trace.
 
-
-@dataclass(frozen=True)
-class EvaluationResult:
-    score: float
-    label: str | None = None
-    explanation: str | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-EvaluateArtifact = Callable[[v1.Span, Sequence[v1.Span]], EvaluationResult | None]
-AppliesToArtifact = Callable[[v1.Span, Sequence[v1.Span]], bool]
-
-
-def always_applies(_: v1.Span, __: Sequence[v1.Span]) -> bool:
-    return True
-
-
-def no_required_env() -> tuple[str, ...]:
-    return ()
+Returns a :class:`phoenix.evals.evaluators.Score`, or ``None`` when the turn
+is not applicable to this evaluator.
+"""
 
 
 @dataclass(frozen=True)
 class EvaluatorSpec:
-    """The small amount of scheduling policy that varies by evaluator."""
+    """The scheduling policy that varies by evaluator.
+
+    Everything else — applicability, judge configuration, input extraction —
+    lives inside the ``evaluate`` function itself. LLM evaluators
+    (``annotator_kind="LLM"``) share one judge provider/model (see
+    :mod:`evals.pxi.offline_evals.judge`); the runner validates the judge
+    credentials for them and appends ``provider:model`` to their checkpoint
+    identifier so a model change starts a new result series.
+    """
 
     name: str
-    input_scope: InputScope
     root_span_name: str
     evaluate: EvaluateArtifact
-    annotation_target: AnnotationTarget = "span"
-    applies_to: AppliesToArtifact = always_applies
     annotator_kind: Literal["CODE", "LLM"] = "CODE"
     sample_rate: float = 1.0
     identifier: str = "pxi-offline-evals"
-    identifier_fn: Callable[[], str] | None = None
-    required_env_fn: Callable[[], tuple[str, ...]] = no_required_env
-    """Env vars that must be set for this evaluator to run (e.g. LLM API keys)."""
+    """Versioned checkpoint identity; bump ``vN`` when scoring semantics change."""
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.sample_rate <= 1.0:
             raise ValueError("sample_rate must be between 0 and 1")
-
-    def resolve_identifier(self) -> str:
-        return self.identifier_fn() if self.identifier_fn is not None else self.identifier
 
 
 @dataclass
