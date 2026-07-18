@@ -2,7 +2,15 @@
 
 This package provides an SQLite Python wrapper bundled with [sqlean](https://github.com/nalgeon/sqlean) extensions. It's a drop-in replacement for the standard library's [sqlite3](https://docs.python.org/3/library/sqlite3.html) module.
 
-The project is no longer maintained.
+> [!NOTE]
+> This is a modified fork of [nalgeon/sqlean.py](https://github.com/nalgeon/sqlean.py),
+> which was archived upstream in February 2026. It was imported at upstream commit
+> [`bdd7097`](https://github.com/nalgeon/sqlean.py/commit/bdd7097f8d5777bc9e3ac3235d9be66b9db34519)
+> and is maintained by [Arize AI](https://arize.com) as part of the Phoenix monorepo.
+> Original work by Anton Zhiyanov and contributors, [zlib License](LICENSE). The `src/`
+> directory contains code derived from CPython's `sqlite3` module (PSF License 2.0).
+> Builds download the SQLite amalgamation (public domain) and
+> [sqlean](https://github.com/nalgeon/sqlean) extension sources (MIT License).
 
 ```
 pip install sqlean.py
