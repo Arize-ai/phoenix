@@ -20,47 +20,6 @@ from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_ses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
-async def _load_owned_agent_session(
-    session: AsyncSession,
-    *,
-    info: Info[Context, None],
-    agent_session_rowid: int,
-) -> models.AgentSession:
-    """Load a session the viewer owns, or raise a not-found error."""
-    agent_session = await session.get(models.AgentSession, agent_session_rowid)
-    viewer_id = info.context.user_id
-    if agent_session is None or (viewer_id is not None and agent_session.user_id != viewer_id):
-        raise NotFound(f"No agent session found for row ID '{agent_session_rowid}'")
-    return agent_session
-
-
-async def _load_session_message_prefix(
-    session: AsyncSession,
-    *,
-    agent_session_rowid: int,
-    message_id: str,
-) -> list[PhoenixUIMessage]:
-    target_message = aliased(models.AgentSessionMessage)
-    target_position = (
-        select(target_message.position)
-        .where(
-            target_message.agent_session_id == agent_session_rowid,
-            target_message.message_id == message_id,
-        )
-        .scalar_subquery()
-    )
-    return list(
-        await session.scalars(
-            select(models.AgentSessionMessage.message)
-            .where(
-                models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-                models.AgentSessionMessage.position <= target_position,
-            )
-            .order_by(models.AgentSessionMessage.position)
-        )
-    )
-
-
 @strawberry.input
 class CreateAgentSessionInput:
     title: str = strawberry.field(
@@ -278,3 +237,44 @@ class AgentSessionMutationMixin:
             deleted_agent_session_id=GlobalID(AgentSession.__name__, str(agent_session_id)),
             query=Query(),
         )
+
+
+async def _load_owned_agent_session(
+    session: AsyncSession,
+    *,
+    info: Info[Context, None],
+    agent_session_rowid: int,
+) -> models.AgentSession:
+    """Load a session the viewer owns, or raise a not-found error."""
+    agent_session = await session.get(models.AgentSession, agent_session_rowid)
+    viewer_id = info.context.user_id
+    if agent_session is None or (viewer_id is not None and agent_session.user_id != viewer_id):
+        raise NotFound(f"No agent session found for row ID '{agent_session_rowid}'")
+    return agent_session
+
+
+async def _load_session_message_prefix(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+    message_id: str,
+) -> list[PhoenixUIMessage]:
+    target_message = aliased(models.AgentSessionMessage)
+    target_position = (
+        select(target_message.position)
+        .where(
+            target_message.agent_session_id == agent_session_rowid,
+            target_message.message_id == message_id,
+        )
+        .scalar_subquery()
+    )
+    return list(
+        await session.scalars(
+            select(models.AgentSessionMessage.message)
+            .where(
+                models.AgentSessionMessage.agent_session_id == agent_session_rowid,
+                models.AgentSessionMessage.position <= target_position,
+            )
+            .order_by(models.AgentSessionMessage.position)
+        )
+    )
