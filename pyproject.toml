@@ -110,7 +110,7 @@ dev = [
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
   "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
-  "mypy==2.2.0",
+  "mypy==2.3.0",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
