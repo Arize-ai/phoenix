@@ -2,7 +2,6 @@ import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import type { ReactNode } from "react";
 
 import { CopyToClipboardButton } from "../core/copy";
-
 import { codeBlockWithCopyCSS } from "./styles";
 
 /**
