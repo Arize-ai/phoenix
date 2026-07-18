@@ -41,12 +41,24 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/agent-assisted-setup</loc>
     <lastmod>2026-02-21T00:34:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/mcp</loc>
+    <lastmod>2026-07-18T18:27:27+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/remote-mcp</loc>
+    <lastmod>2026-07-18T18:27:27+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/docs-mcp</loc>
+    <lastmod>2026-07-18T18:27:27+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/end-to-end-features-notebook</loc>
@@ -309,10 +321,6 @@
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination</loc>
-    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data</loc>
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
@@ -489,8 +497,8 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest</loc>
-    <lastmod>2026-06-26T03:13:19+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/experiments-in-cicd</loc>
+    <lastmod>2026-07-18T18:27:27+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/prompt-engineering/tutorial</loc>
@@ -2039,6 +2047,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server</loc>
+    <lastmod>2026-07-18T18:27:27+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables</loc>

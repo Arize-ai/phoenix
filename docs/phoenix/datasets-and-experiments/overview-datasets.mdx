@@ -63,6 +63,11 @@ Specifically, good evals help you:
 
 * Avoid guesswork
 
+Once an experiment captures the behavior you need to preserve, run it in your
+delivery pipeline. Phoenix integrates with pytest, Vitest, and Jest so the test
+runner can block a change while Phoenix records the cases, scores, and traces as
+an experiment for later comparison. See [Experiments in CI/CD](/docs/phoenix/datasets-and-experiments/how-to-experiments/experiments-in-cicd).
+
 ## Dataset Evaluators
 
 When working with a dataset, you often want to curate a set of evaluators that validate task outputs against that dataset's examples. Dataset Evaluators serve as **test cases** that automatically score outputs when running experiments—forming an evaluation harness similar to a unit test suite.
@@ -75,4 +80,3 @@ For example, if your dataset contains examples for a Q&A task, you might attach 
 - Does the output follow the expected format?
 
 When you run an experiment against a dataset, its associated evaluators run automatically, providing consistent and repeatable quality assessments. This allows you to iterate on prompts, models, or application logic with confidence—knowing that the same evaluation criteria are applied each time.
-

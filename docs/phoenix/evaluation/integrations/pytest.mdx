@@ -7,6 +7,11 @@ The Phoenix pytest plugin bridges the gap between your test suite and your evalu
 
 When a test passes, Phoenix records `pass=True`. When it fails, `pass=False`. Because the plugin hooks into pytest's own exit code, your existing CI gate works without any extra configuration.
 
+<Note>
+For the end-to-end workflow from eval suite to pull-request gate, see
+[Experiments in CI/CD](/docs/phoenix/datasets-and-experiments/how-to-experiments/experiments-in-cicd).
+</Note>
+
 ## When to use the pytest plugin
 
 Phoenix also offers [`run_experiment`](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) for evaluating a whole dataset with a single task and a shared set of evaluators. Reach for the pytest plugin instead when:

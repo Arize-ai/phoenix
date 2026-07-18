@@ -7,6 +7,11 @@ description: "Write LLM evaluations as Vitest or Jest tests that record results 
 
 Each `describe()` block becomes a **Phoenix dataset** and a new **experiment**. Each `test()` becomes a **dataset example** plus a recorded **experiment run**. The assertion outcome is captured as a `pass` boolean annotation. Anything you log via `logOutput()`, `logAnnotation()`, `evaluate()`, or `traceEvaluator()` lands on the run and shows up in the Phoenix UI.
 
+<Note>
+For the end-to-end workflow from eval suite to pull-request gate, see
+[Experiments in CI/CD](/docs/phoenix/datasets-and-experiments/how-to-experiments/experiments-in-cicd).
+</Note>
+
 ## When to use Vitest / Jest
 
 Phoenix also offers [`runExperiment`](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments) for evaluating a whole dataset with one task and a shared set of evaluators. Reach for the test-runner integration instead when:

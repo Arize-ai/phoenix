@@ -141,6 +141,7 @@
 - [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate whether AI agents correctly process tool results, including error handling, data extraction, and
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks
 - [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Legacy evaluator — detect toxic, harmful, or offensive content in LLM responses
+- [User Friction](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/user-friction): Detect corrections, retries, frustration, and challenges in multi-turn assistant conversations
 
 - [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check whether a text contains one or more specified words
 - [Correctness](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness): Evaluate whether LLM responses are generally correct and complete using a Phoenix-managed judge model
@@ -185,7 +186,7 @@
 - [Dataset Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators): Attach evaluators to datasets for automatic scoring
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
 - [Splits](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits): Organize datasets into train/test/validation splits
-- [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run LLM evals as pytest tests, record them as Phoenix experiments, and gate CI on the pytest exit code with arize-phoenix-client[pytest]
+- [Experiments in CI/CD](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/experiments-in-cicd): Gate changes with pytest, Vitest, or Jest while recording experiment results and traces
 
 
 - [How to: Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets): Datasets are critical assets for building robust prompts, evals, fine-tuning,
@@ -795,6 +796,8 @@
 - [06.26.2026 Evals as Tests — pytest and Vitest/Jest](https://arize.com/docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest): Write LLM evaluations as pytest, Vitest, or Jest tests that record every run to Phoenix and gate CI
 - [06.30.2026 PXI Terminal Client and Annotation Summary](https://arize.com/docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary): Run PXI as an interactive terminal chat from the CLI; review and bulk-delete annotations from project settings
 - [07.07.2026: Metric Charts, Trace Search, and REST API Expansion](https://arize.com/docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api): Pin metric charts above data tables, search the trace tree, manage labels and annotation configs over REST, and use Claude Sonnet 5 in the Playground
+- [07.14.2026: Command Palette, Session Tools, and Table Customization](https://arize.com/docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables): Search Phoenix resources, customize tables, inspect session metrics, and discover SDK credentials
+- [07.17.2026: OAuth2 Authorization Server & Remote MCP](https://arize.com/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server): Authenticate CLI and MCP clients through Phoenix OAuth2 and manage grants and API keys
 
 ### 2025
 

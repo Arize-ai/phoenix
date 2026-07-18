@@ -1,0 +1,324 @@
+---
+title: "Experiments in CI/CD"
+sidebarTitle: "Experiments in CI/CD"
+description: "Run Phoenix evals in pytest, Vitest, or Jest and block regressions before deployment."
+---
+
+Run evaluations in your existing test runner to catch regressions before they
+reach production. Phoenix records the same run as a dataset-backed experiment,
+so a failed CI job has the inputs, outputs, scores, and traces needed to debug
+it.
+
+The workflow is:
+
+1. Define representative cases in a Phoenix test suite.
+2. Run your application for every case and record its output.
+3. Assert hard invariants and log quality scores.
+4. Gate the job on the test runner's exit code.
+5. Compare the recorded experiment with earlier runs in Phoenix.
+
+No Phoenix-specific GitHub Action is required. The pytest, Vitest, and Jest
+integrations use the test runner's normal pass/fail behavior, so they work in
+GitHub Actions and other CI systems that run shell commands.
+
+## Choose a workflow
+
+| Workflow | Use it when | CI gate |
+|---|---|---|
+| [pytest](/docs/phoenix/evaluation/integrations/pytest) | Your Python cases need fixtures, parametrization, async tests, or case-specific logic | A failed `assert` returns a non-zero pytest exit code |
+| [Vitest or Jest](/docs/phoenix/evaluation/integrations/vitest-jest) | Your TypeScript cases need `test.each`, mocks, or case-specific logic | A failed `expect()` or suite-level `acceptanceCriteria` returns a non-zero exit code |
+| [`run_experiment` / `runExperiment`](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) | A stored dataset uses one task and the same evaluators for every example | Add an assertion around the returned experiment data in your own test or script |
+
+The test-runner integrations create and update the Phoenix dataset from the
+declared test cases. Each run creates a new experiment:
+
+| Test concept | Phoenix record |
+|---|---|
+| Test suite | Dataset and experiment |
+| Test case | Dataset example and experiment run |
+| Application result | Experiment run output |
+| Assertion result | `pass` annotation |
+| Evaluator result | Named annotation with an optional evaluator trace |
+
+For a large, homogeneous dataset, use `run_experiment` or `runExperiment`
+instead. For heterogeneous cases that need different setup or grading logic,
+use the test-runner integrations.
+
+## Design the gate
+
+Separate checks into two groups before writing the suite:
+
+- **Hard invariants** have one acceptable outcome that code can verify, such
+  as valid JSON, a required refusal, or a tool that must be called. Gate these
+  per case with `assert` or `expect()`.
+- **Quality signals** measure behavior on a spectrum, such as helpfulness,
+  groundedness, latency, or cost. Record these as named evaluations. In
+  TypeScript, gate the aggregate with `acceptanceCriteria` so every case runs
+  before the suite decides whether the quality bar passed.
+
+<Tip>
+Use repetitions when the application or evaluator is non-deterministic. Both
+test integrations support `PHOENIX_TEST_REPETITIONS`; pytest also accepts
+`repetitions=` on the marker, and Vitest/Jest accept it in suite or test config.
+</Tip>
+
+## Create the eval suite
+
+<Tabs>
+<Tab title="pytest" icon="python">
+
+Install the pytest plugin. Add the `evals` extra when the suite uses evaluators
+from `arize-phoenix-evals`.
+
+```bash
+pip install "arize-phoenix-client[pytest,evals]>=2.10.0" pytest
+```
+
+Create a parametrized suite. Stable `ids` keep each case associated with the
+same Phoenix dataset example across runs. `support_agent` and
+`score_helpfulness` below represent your application and evaluator code.
+
+```python title="tests/evals/test_support_agent.py"
+import time
+
+import pytest
+from phoenix.client.pytest import log_evaluation, log_output
+
+
+CASES = [
+    ("How do I reset my password?", False),
+    ("Where can I see my refund status?", False),
+    ("How do I update my email address?", False),
+    ("What is the capital of France?", True),
+]
+
+
+@pytest.mark.phoenix(dataset="support-agent-regression")
+@pytest.mark.parametrize(
+    "question,expect_refusal",
+    CASES,
+    ids=["password-reset", "refund-status", "update-email", "off-topic"],
+)
+def test_support_agent(question, expect_refusal):
+    start = time.perf_counter()
+    response = support_agent(question)
+
+    log_output({"response": response})
+    log_evaluation(
+        name="latency_ms",
+        score=(time.perf_counter() - start) * 1000,
+    )
+
+    if expect_refusal:
+        # Hard invariant: this failure blocks the CI job.
+        assert "I can only help with account support" in response
+    else:
+        # Quality signal: record an LLM-judge score without failing this case.
+        log_evaluation(
+            name="helpfulness",
+            score=score_helpfulness(question, response),
+            annotator_kind="LLM",
+        )
+```
+
+`log_evaluation()` records a signal but does not fail the test by itself. To
+gate an evaluator result for a case, call `evaluate()` and assert on its
+returned score. See the [pytest integration guide](/docs/phoenix/evaluation/integrations/pytest#logging-outputs-and-evaluations).
+
+</Tab>
+<Tab title="Vitest / Jest" icon="js">
+
+Install the Phoenix client and your test runner. The testing API requires
+`@arizeai/phoenix-client>=6.11.1` and is currently beta.
+
+```bash
+npm install -D @arizeai/phoenix-client@^6.11.1 vitest dotenv
+```
+
+Create a suite that asserts the hard refusal rule per case and gates aggregate
+helpfulness and latency after every case has run. `supportAgent` and
+`scoreHelpfulness` below represent your application and evaluator code.
+
+```ts title="tests/evals/support-agent.eval.ts"
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+const cases = [
+  { input: { question: "How do I reset my password?", expectRefusal: false } },
+  { input: { question: "Where can I see my refund status?", expectRefusal: false } },
+  { input: { question: "How do I update my email address?", expectRefusal: false } },
+  { input: { question: "What is the capital of France?", expectRefusal: true } },
+];
+
+px.describe(
+  "support-agent-regression",
+  () => {
+    px.test.each(cases)("support case %i", async ({ input }) => {
+      const start = performance.now();
+      const response = await supportAgent(input.question);
+
+      px.logOutput({ response });
+      px.logAnnotation({
+        name: "latency_ms",
+        score: performance.now() - start,
+        annotatorKind: "CODE",
+      });
+
+      if (input.expectRefusal) {
+        // Hard invariant: this failure blocks the CI job.
+        expect(response).toContain("I can only help with account support");
+      } else {
+        // Quality signal: aggregate this LLM-judge score below.
+        px.logAnnotation({
+          name: "helpfulness",
+          score: await scoreHelpfulness(input.question, response),
+          annotatorKind: "LLM",
+        });
+      }
+    });
+  },
+  {
+    acceptanceCriteria: [
+      {
+        annotationName: "helpfulness",
+        metric: "average",
+        threshold: 0.8,
+      },
+      {
+        annotationName: "latency_ms",
+        metric: "average",
+        threshold: 5000,
+        direction: "minimize",
+      },
+    ],
+  },
+);
+```
+
+Add the Phoenix reporter to a dedicated Vitest config so the suite prints a
+scorecard in CI:
+
+```ts title="phoenix.vitest.config.ts"
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    include: ["**/*.eval.?(c|m)[jt]s"],
+    reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
+    setupFiles: ["dotenv/config"],
+    testTimeout: 30_000,
+  },
+});
+```
+
+Add a script for local and CI runs:
+
+```json title="package.json"
+{
+  "scripts": {
+    "eval": "vitest run --config phoenix.vitest.config.ts"
+  }
+}
+```
+
+Jest uses the same testing API from `@arizeai/phoenix-client/jest` and the
+reporter at `@arizeai/phoenix-client/jest/reporter`. See the
+[Vitest/Jest integration guide](/docs/phoenix/evaluation/integrations/vitest-jest#jest-setup).
+
+</Tab>
+</Tabs>
+
+## Add the CI workflow
+
+Store the Phoenix endpoint and API key as repository secrets. Put provider
+keys or other application secrets on the test step; the test process reads
+them like any other environment variable.
+
+<CodeGroup>
+```yaml pytest
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install "arize-phoenix-client[pytest,evals]>=2.10.0" pytest
+      - name: Run eval suite
+        env:
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          # Include provider keys only when the task or evaluator needs them.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: pytest tests/evals/
+```
+
+```yaml Vitest / Jest
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - name: Run eval suite
+        env:
+          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          # Include provider keys only when the task or evaluator needs them.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npm run eval
+```
+</CodeGroup>
+
+The command's exit code is the gate. A failed assertion fails either workflow;
+a failed TypeScript acceptance criterion also makes `npm run eval` exit
+non-zero after the reporter prints the full scorecard.
+
+<Note>
+The integrations use different endpoint variables: pytest reads
+`PHOENIX_COLLECTOR_ENDPOINT`, while the TypeScript client reads
+`PHOENIX_HOST`. Both use `PHOENIX_API_KEY` for authentication.
+</Note>
+
+## Iterate locally and inspect results
+
+Run the same suite locally without recording a dataset or experiment:
+
+<CodeGroup>
+```bash pytest
+PHOENIX_TEST_TRACKING=0 pytest tests/evals/
+```
+
+```bash Vitest / Jest
+PHOENIX_TEST_TRACKING=false npm run eval
+```
+</CodeGroup>
+
+With tracking enabled, open the experiment link printed by the runner. Phoenix
+stores the output, assertion-derived `pass` annotation, named evaluations, and
+any linked task or evaluator traces. Compare the experiment with previous runs
+to separate the changed cases from the aggregate trend.
+
+<CardGroup cols={2}>
+  <Card title="pytest reference" icon="python" href="/docs/phoenix/evaluation/integrations/pytest">
+    Configure markers, evaluators, repetitions, xdist, and dataset sync.
+  </Card>
+  <Card title="Vitest / Jest reference" icon="js" href="/docs/phoenix/evaluation/integrations/vitest-jest">
+    Configure reporters, existing datasets, annotations, and acceptance criteria.
+  </Card>
+</CardGroup>
