@@ -149,6 +149,8 @@ _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
+_TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS = 24
+
 register_openapi_schema(ToolCallProviderMetadata)
 register_openapi_schema(ToolCallCallbackProviderMetadata)
 
@@ -1206,7 +1208,7 @@ async def _refresh_and_load_agent_session(
     except ValueError:
         raise HTTPException(status_code=404, detail="Session not found") from None
     now = datetime.now(timezone.utc)
-    refreshed_expiry = now + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
+    refreshed_expiry = now + timedelta(hours=_TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
     session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None
