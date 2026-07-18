@@ -68,6 +68,23 @@ function captured(spy: ReturnType<typeof vi.spyOn>): string {
   return spy.mock.calls.map((call) => String(call[0])).join("\n");
 }
 
+function spyOnExit() {
+  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+    throw new Error(`process.exit:${code}`);
+  }) as never);
+}
+
+function respondWithOAuthDiscovery(response: http.ServerResponse): void {
+  response.writeHead(200, { "Content-Type": "application/json" });
+  response.end(
+    JSON.stringify({
+      issuer: "http://phoenix.example",
+      authorization_endpoint: "http://phoenix.example/oauth2/authorize",
+      token_endpoint: "http://phoenix.example/oauth2/token",
+    })
+  );
+}
+
 async function runAuthCommand(args: string[]): Promise<void> {
   const command = createAuthCommand();
   command.exitOverride();
@@ -465,14 +482,7 @@ describe("px auth login/logout", () => {
       });
       server = await withServer(async (request, response) => {
         if (request.url === "/.well-known/oauth-authorization-server") {
-          response.writeHead(200, { "Content-Type": "application/json" });
-          response.end(
-            JSON.stringify({
-              issuer: "http://phoenix.example",
-              authorization_endpoint: "http://phoenix.example/oauth2/authorize",
-              token_endpoint: "http://phoenix.example/oauth2/token",
-            })
-          );
+          respondWithOAuthDiscovery(response);
           return;
         }
         if (request.url === "/oauth2/token" && request.method === "POST") {
@@ -568,14 +578,7 @@ describe("px auth login/logout", () => {
     try {
       server = await withServer((request, response) => {
         if (request.url === "/.well-known/oauth-authorization-server") {
-          response.writeHead(200, { "Content-Type": "application/json" });
-          response.end(
-            JSON.stringify({
-              issuer: "http://phoenix.example",
-              authorization_endpoint: "http://phoenix.example/oauth2/authorize",
-              token_endpoint: "http://phoenix.example/oauth2/token",
-            })
-          );
+          respondWithOAuthDiscovery(response);
           return;
         }
         response.writeHead(404);
@@ -599,11 +602,7 @@ describe("px auth login/logout", () => {
           );
         }
       });
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-        code?: number
-      ) => {
-        throw new Error(`process.exit:${code}`);
-      }) as never);
+      const exitSpy = spyOnExit();
 
       await expect(
         createAuthCommand().parseAsync(
@@ -629,11 +628,7 @@ describe("px auth login/logout", () => {
       });
       vi.spyOn(console, "log").mockImplementation(() => {});
       const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-        code?: number
-      ) => {
-        throw new Error(`process.exit:${code}`);
-      }) as never);
+      const exitSpy = spyOnExit();
 
       await expect(
         createAuthCommand().parseAsync(
@@ -651,6 +646,30 @@ describe("px auth login/logout", () => {
     }
   });
 
+  it("treats a 5xx discovery response as unreachable, not as missing OAuth support", async () => {
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    try {
+      server = await withServer((_request, response) => {
+        response.writeHead(503);
+        response.end();
+      });
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const exitSpy = spyOnExit();
+
+      await expect(
+        createAuthCommand().parseAsync(
+          ["login", "--endpoint", server.url, "--no-browser"],
+          { from: "user" }
+        )
+      ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
+      expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+      expect(captured(stderrSpy)).toContain("HTTP 503");
+    } finally {
+      await server?.close();
+    }
+  });
+
   it("bails with NETWORK_ERROR before the flow when the server is unreachable", async () => {
     // Bind and immediately close a server so the port is known-dead.
     const server = await withServer((_request, response) => {
@@ -660,11 +679,7 @@ describe("px auth login/logout", () => {
 
     vi.spyOn(console, "log").mockImplementation(() => {});
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = spyOnExit();
 
     await expect(
       createAuthCommand().parseAsync(

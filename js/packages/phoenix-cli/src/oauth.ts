@@ -63,17 +63,16 @@ export const OAuthAuthorizationServerMetadataSchema = z.object({
   token_endpoint: z.string().min(1),
 });
 
-export type OAuthAuthorizationServerMetadata = z.infer<
-  typeof OAuthAuthorizationServerMetadataSchema
->;
-
 export type OAuthDiscoveryResult =
   /** The server is up and advertises a working authorization server. */
-  | { status: "supported"; metadata: OAuthAuthorizationServerMetadata }
+  | { status: "supported" }
   /** The server answered, but not with RFC 8414 metadata — no OAuth here. */
   | { status: "unsupported" }
-  /** The server never answered: down, unresolvable, or timed out. */
+  /** The server never answered or is unhealthy: down, timed out, or 5xx. */
   | { status: "unreachable"; detail: string };
+
+export const OAUTH_UNSUPPORTED_MESSAGE =
+  "This Phoenix server does not support OAuth login; use an API key.";
 
 /**
  * Probe the RFC 8414 discovery document. One request settles both pre-flight
@@ -113,6 +112,14 @@ export async function discoverOAuthAuthorizationServer({
     };
   }
 
+  // A 5xx is a health verdict, not a capability verdict: a server mid-restart
+  // must not be reported as permanently lacking OAuth support.
+  if (response.status >= 500) {
+    return {
+      status: "unreachable",
+      detail: `the server responded with HTTP ${response.status}`,
+    };
+  }
   if (!response.ok) {
     return { status: "unsupported" };
   }
@@ -122,9 +129,8 @@ export async function discoverOAuthAuthorizationServer({
   } catch {
     return { status: "unsupported" };
   }
-  const parsed = OAuthAuthorizationServerMetadataSchema.safeParse(document);
-  return parsed.success
-    ? { status: "supported", metadata: parsed.data }
+  return OAuthAuthorizationServerMetadataSchema.safeParse(document).success
+    ? { status: "supported" }
     : { status: "unsupported" };
 }
 
@@ -614,9 +620,7 @@ async function postTokenRequest({
   }
 
   if (response.status === 404) {
-    throw new AuthRequiredError(
-      "This Phoenix server does not support OAuth login; use an API key."
-    );
+    throw new AuthRequiredError(OAUTH_UNSUPPORTED_MESSAGE);
   }
   if (!response.ok) {
     const text = await response.text();

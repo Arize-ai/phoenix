@@ -11,6 +11,7 @@ import {
 } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 import {
+  OAUTH_UNSUPPORTED_MESSAGE,
   discoverOAuthAuthorizationServer,
   resolveTargetProfileName,
   revokeOAuthToken,
@@ -406,9 +407,7 @@ async function authLoginHandler(options: AuthLoginOptions): Promise<void> {
       );
     }
     if (discovery.status === "unsupported") {
-      throw new AuthRequiredError(
-        "This Phoenix server does not support OAuth login; use an API key."
-      );
+      throw new AuthRequiredError(OAUTH_UNSUPPORTED_MESSAGE);
     }
 
     const settingsAtLogin = loadSettings({ strict: true });
