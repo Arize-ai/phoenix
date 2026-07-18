@@ -31,6 +31,11 @@ const OAUTH_LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
 export const OAUTH_TOKEN_REQUEST_TIMEOUT_MS = 30 * 1000;
 /** Best-effort and blocking a wizard, so it gives up sooner than a token call. */
 export const OAUTH_REVOKE_TIMEOUT_MS = 10 * 1000;
+/**
+ * A quick pre-flight, not a token exchange: nothing has been consented to yet,
+ * so giving up fast costs the user only a retry, not a browser round trip.
+ */
+export const OAUTH_DISCOVERY_TIMEOUT_MS = 5 * 1000;
 export const OAUTH_REFRESH_BUFFER_MS = 60 * 1000;
 const SETTINGS_LOCK_TIMEOUT_MS = 10 * 1000;
 const SETTINGS_LOCK_RETRY_MS = 50;
@@ -57,6 +62,77 @@ export const OAuthAuthorizationServerMetadataSchema = z.object({
   authorization_endpoint: z.string().min(1),
   token_endpoint: z.string().min(1),
 });
+
+export type OAuthDiscoveryResult =
+  /** The server is up and advertises a working authorization server. */
+  | { status: "supported" }
+  /** The server answered, but not with RFC 8414 metadata — no OAuth here. */
+  | { status: "unsupported" }
+  /** The server never answered or is unhealthy: down, timed out, or 5xx. */
+  | { status: "unreachable"; detail: string };
+
+export const OAUTH_UNSUPPORTED_MESSAGE =
+  "This Phoenix server does not support OAuth login; use an API key.";
+
+/**
+ * Probe the RFC 8414 discovery document. One request settles both pre-flight
+ * questions a login needs answered: is the server even up (a dead host fails
+ * the fetch), and does it run the OAuth authorization server (a Phoenix
+ * without one answers unknown paths with the SPA's index.html and a 200,
+ * which is why only a parsing document counts as support).
+ */
+export async function discoverOAuthAuthorizationServer({
+  endpoint,
+  fetchImpl = fetch,
+}: {
+  endpoint: string;
+  fetchImpl?: typeof fetch;
+}): Promise<OAuthDiscoveryResult> {
+  let response: Response;
+  try {
+    response = await fetchImpl(
+      new URL(
+        ".well-known/oauth-authorization-server",
+        normalizeEndpoint(endpoint)
+      ),
+      { signal: AbortSignal.timeout(OAUTH_DISCOVERY_TIMEOUT_MS) }
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      return {
+        status: "unreachable",
+        detail: `the server did not respond within ${
+          OAUTH_DISCOVERY_TIMEOUT_MS / 1000
+        }s`,
+      };
+    }
+    return {
+      status: "unreachable",
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  // A 5xx is a health verdict, not a capability verdict: a server mid-restart
+  // must not be reported as permanently lacking OAuth support.
+  if (response.status >= 500) {
+    return {
+      status: "unreachable",
+      detail: `the server responded with HTTP ${response.status}`,
+    };
+  }
+  if (!response.ok) {
+    return { status: "unsupported" };
+  }
+  let document: unknown;
+  try {
+    document = await response.json();
+  } catch {
+    return { status: "unsupported" };
+  }
+  return OAuthAuthorizationServerMetadataSchema.safeParse(document).success
+    ? { status: "supported" }
+    : { status: "unsupported" };
+}
 
 export interface PkcePair {
   verifier: string;
@@ -544,9 +620,7 @@ async function postTokenRequest({
   }
 
   if (response.status === 404) {
-    throw new AuthRequiredError(
-      "This Phoenix server does not support OAuth login; use an API key."
-    );
+    throw new AuthRequiredError(OAUTH_UNSUPPORTED_MESSAGE);
   }
   if (!response.ok) {
     const text = await response.text();

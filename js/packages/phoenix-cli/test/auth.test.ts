@@ -68,6 +68,23 @@ function captured(spy: ReturnType<typeof vi.spyOn>): string {
   return spy.mock.calls.map((call) => String(call[0])).join("\n");
 }
 
+function spyOnExit() {
+  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+    throw new Error(`process.exit:${code}`);
+  }) as never);
+}
+
+function respondWithOAuthDiscovery(response: http.ServerResponse): void {
+  response.writeHead(200, { "Content-Type": "application/json" });
+  response.end(
+    JSON.stringify({
+      issuer: "http://phoenix.example",
+      authorization_endpoint: "http://phoenix.example/oauth2/authorize",
+      token_endpoint: "http://phoenix.example/oauth2/token",
+    })
+  );
+}
+
 async function runAuthCommand(args: string[]): Promise<void> {
   const command = createAuthCommand();
   command.exitOverride();
@@ -464,6 +481,10 @@ describe("px auth login/logout", () => {
         },
       });
       server = await withServer(async (request, response) => {
+        if (request.url === "/.well-known/oauth-authorization-server") {
+          respondWithOAuthDiscovery(response);
+          return;
+        }
         if (request.url === "/oauth2/token" && request.method === "POST") {
           const body = new URLSearchParams(await readRequestBody(request));
           expect(body.get("grant_type")).toBe("authorization_code");
@@ -555,7 +576,11 @@ describe("px auth login/logout", () => {
   it("maps token endpoint 404 to AUTH_REQUIRED with API key hint", async () => {
     let server: Awaited<ReturnType<typeof withServer>> | undefined;
     try {
-      server = await withServer((_request, response) => {
+      server = await withServer((request, response) => {
+        if (request.url === "/.well-known/oauth-authorization-server") {
+          respondWithOAuthDiscovery(response);
+          return;
+        }
         response.writeHead(404);
         response.end();
       });
@@ -577,11 +602,7 @@ describe("px auth login/logout", () => {
           );
         }
       });
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-        code?: number
-      ) => {
-        throw new Error(`process.exit:${code}`);
-      }) as never);
+      const exitSpy = spyOnExit();
 
       await expect(
         createAuthCommand().parseAsync(
@@ -593,6 +614,83 @@ describe("px auth login/logout", () => {
     } finally {
       await server?.close();
     }
+  });
+
+  it("bails with AUTH_REQUIRED before the flow when the server lacks OAuth discovery", async () => {
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    try {
+      // A Phoenix without an authorization server answers unknown paths with
+      // the SPA's index.html and a 200 — the trap the discovery gate exists
+      // to catch.
+      server = await withServer((_request, response) => {
+        response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        response.end("<!doctype html><html><body>Phoenix</body></html>");
+      });
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const exitSpy = spyOnExit();
+
+      await expect(
+        createAuthCommand().parseAsync(
+          ["login", "--endpoint", server.url, "--no-browser"],
+          { from: "user" }
+        )
+      ).rejects.toThrow(`process.exit:${ExitCode.AUTH_REQUIRED}`);
+      expect(exitSpy).toHaveBeenCalledWith(ExitCode.AUTH_REQUIRED);
+      const stderr = captured(stderrSpy);
+      expect(stderr).toContain("does not support OAuth login");
+      // The gate must fire before the flow starts — no authorization URL.
+      expect(stderr).not.toContain("/oauth2/authorize");
+    } finally {
+      await server?.close();
+    }
+  });
+
+  it("treats a 5xx discovery response as unreachable, not as missing OAuth support", async () => {
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    try {
+      server = await withServer((_request, response) => {
+        response.writeHead(503);
+        response.end();
+      });
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const exitSpy = spyOnExit();
+
+      await expect(
+        createAuthCommand().parseAsync(
+          ["login", "--endpoint", server.url, "--no-browser"],
+          { from: "user" }
+        )
+      ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
+      expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+      expect(captured(stderrSpy)).toContain("HTTP 503");
+    } finally {
+      await server?.close();
+    }
+  });
+
+  it("bails with NETWORK_ERROR before the flow when the server is unreachable", async () => {
+    // Bind and immediately close a server so the port is known-dead.
+    const server = await withServer((_request, response) => {
+      response.end();
+    });
+    await server.close();
+
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = spyOnExit();
+
+    await expect(
+      createAuthCommand().parseAsync(
+        ["login", "--endpoint", server.url, "--no-browser"],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+    const stderr = captured(stderrSpy);
+    expect(stderr).toContain("Could not reach the Phoenix server");
+    expect(stderr).not.toContain("/oauth2/authorize");
   });
 
   it("logout revokes the refresh token and leaves the API key", async () => {
