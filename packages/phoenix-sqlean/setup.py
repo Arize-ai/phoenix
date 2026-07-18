@@ -11,18 +11,18 @@
 
 import logging
 import os
-from pathlib import Path
-import setuptools
 import sys
+from pathlib import Path
 
-from setuptools.command.build_ext import build_ext
+import setuptools
 from setuptools import Extension
+from setuptools.command.build_ext import build_ext
 
 log = logging.getLogger(__name__)
 
 PACKAGE_NAME = "sqlean"
 SQLEAN_VERSION = "0.27.4"
-VERSION = "3.50.4.5"
+VERSION = "0.1.0"  # x-release-please-version
 
 SHORT_DESCRIPTION = "sqlite3 with extensions"
 LONG_DESCRIPTION = Path("README.md").read_text()
@@ -149,16 +149,18 @@ class Builder(build_ext):
 
 def get_setup_args():
     return dict(
-        name=f"{PACKAGE_NAME}.py",
+        name="arize-phoenix-sqlean",
         version=VERSION,
         description=SHORT_DESCRIPTION,
         long_description=LONG_DESCRIPTION,
         long_description_content_type="text/markdown",
         author="Anton Zhiyanov",
         author_email="m@antonz.org",
+        maintainer="Arize AI",
+        maintainer_email="phoenix-devs@arize.com",
         license="zlib/libpng",
         platforms="ALL",
-        url="https://github.com/nalgeon/sqlean.py",
+        url="https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-sqlean",
         package_dir={PACKAGE_NAME: PACKAGE_NAME},
         packages=packages,
         python_requires=">=3.9",
