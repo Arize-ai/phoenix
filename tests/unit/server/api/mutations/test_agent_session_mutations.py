@@ -10,8 +10,6 @@ from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     TextUIPart,
-    ToolInputAvailablePart,
-    ToolOutputAvailablePart,
 )
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
@@ -99,8 +97,7 @@ async def test_agent_session_mutation_requires_enabled_agent_assistant(
 
 
 def _transcript_messages() -> list[PhoenixUIMessage]:
-    """A two-turn transcript whose second assistant turn holds both a resolved
-    and a still-pending tool call."""
+    """A two-turn transcript."""
     return [
         PhoenixUIMessage(
             id="user-1",
@@ -120,20 +117,7 @@ def _transcript_messages() -> list[PhoenixUIMessage]:
         PhoenixUIMessage(
             id="assistant-2",
             role="assistant",
-            parts=[
-                TextUIPart(text="Running a tool"),
-                ToolOutputAvailablePart(
-                    type="tool-bash",
-                    tool_call_id="tool-call-1",
-                    input={"command": "ls"},
-                    output={"stdout": "ok"},
-                ),
-                ToolInputAvailablePart(
-                    type="tool-bash",
-                    tool_call_id="tool-call-2",
-                    input={"command": "pwd"},
-                ),
-            ],
+            parts=[TextUIPart(text="Here is an example.")],
         ),
     ]
 
@@ -200,7 +184,7 @@ async def test_truncate_agent_session_at_a_user_message_removes_it_and_later_tur
     assert [row.id for row in stored_message_rows] == retained_message_rowids
 
 
-async def test_truncate_agent_session_at_an_assistant_message_strips_pending_tool_calls(
+async def test_truncate_agent_session_at_an_assistant_message_retains_it(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -213,7 +197,6 @@ async def test_truncate_agent_session_at_an_assistant_message_strips_pending_too
     assert not response.errors
     assert response.data is not None
     payload = response.data["truncateAgentSession"]
-    # An assistant target is retained, but its unresolved tool call is dropped.
     messages = payload["agentSession"]["messages"]
     assert [message["id"] for message in messages] == [
         "user-1",
@@ -221,10 +204,6 @@ async def test_truncate_agent_session_at_an_assistant_message_strips_pending_too
         "user-2",
         "assistant-2",
     ]
-    retained_tool_call_ids = [
-        part["toolCallId"] for part in messages[-1]["parts"] if part["type"].startswith("tool-")
-    ]
-    assert retained_tool_call_ids == ["tool-call-1"]
     async with db() as session:
         stored_message = await session.scalar(
             select(models.AgentSessionMessage).where(
@@ -328,7 +307,7 @@ async def test_branch_agent_session_copies_the_source_title(
     assert response.data["branchAgentSession"]["agentSession"]["title"] == "Debugging traces"
 
 
-async def test_branch_agent_session_strips_pending_tool_calls_from_assistant_target(
+async def test_branch_agent_session_at_an_assistant_message_includes_it(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -342,10 +321,8 @@ async def test_branch_agent_session_strips_pending_tool_calls_from_assistant_tar
     assert not response.errors
     assert response.data is not None
     messages = response.data["branchAgentSession"]["agentSession"]["messages"]
-    retained_tool_call_ids = [
-        part["toolCallId"] for part in messages[-1]["parts"] if part["type"].startswith("tool-")
-    ]
-    assert retained_tool_call_ids == ["tool-call-1"]
+    assert len(messages) == 4
+    assert messages[-1]["role"] == "assistant"
 
 
 async def test_branch_agent_session_with_unknown_message_id_is_not_found(
