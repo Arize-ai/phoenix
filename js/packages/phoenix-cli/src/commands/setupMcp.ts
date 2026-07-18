@@ -224,16 +224,19 @@ async function setupMcpHandler(options: SetupMcpCommandOptions): Promise<void> {
   const format = parsed.format;
   const deps = buildDefaultDeps();
 
-  // The endpoint is resolved the same way every command resolves it: flags
-  // over the active profile, then env vars, then the built-in default.
-  const config = resolveConfig({
-    cliOptions: { endpoint: options.endpoint },
-    profileName: options.profile,
-  });
-  // `--no-input` OR a non-TTY stdin opts into headless, matching px convention.
-  const headless = parsed.headless || !deps.context.stdinIsTTY;
-
   try {
+    // The endpoint is resolved the same way every command resolves it: flags
+    // over the active profile, then env vars, then the built-in default. A bad
+    // --profile (or an unreadable stored config) throws here, so it must run
+    // inside the funnel — otherwise --format json|raw would get a bare stderr
+    // line and the wrong exit code instead of the {error,code,hint} envelope.
+    const config = resolveConfig({
+      cliOptions: { endpoint: options.endpoint },
+      profileName: options.profile,
+    });
+    // `--no-input` OR a non-TTY stdin opts into headless, matching px convention.
+    const headless = parsed.headless || !deps.context.stdinIsTTY;
+
     const report = await runSetupMcp(deps, {
       // `resolveConfig` always fills `endpoint`; the fallback only satisfies
       // the optional type, and uses the shared default so it can't drift.
