@@ -1,10 +1,9 @@
 import { graphql, useFragment } from "react-relay";
 
-import { Card } from "@phoenix/components";
+import { Card, DocumentationHelp } from "@phoenix/components";
 import { NewPromptLabelButton } from "@phoenix/components/prompt/NewPromptLabelButton";
 import { PromptLabelsTable } from "@phoenix/pages/settings/prompts/PromptLabelsTable";
 
-import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
 import type { PromptLabelsSettingsCardFragment$key } from "./__generated__/PromptLabelsSettingsCardFragment.graphql";
 
 export function PromptLabelsSettingsCard({
@@ -25,9 +24,9 @@ export function PromptLabelsSettingsCard({
     <Card
       title="Prompt Labels"
       titleExtra={
-        <SettingsDocumentationHelp topic="promptLabels">
+        <DocumentationHelp topic="promptLabels">
           Create reusable labels for organizing and filtering prompts.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
       extra={<NewPromptLabelButton />}
     >

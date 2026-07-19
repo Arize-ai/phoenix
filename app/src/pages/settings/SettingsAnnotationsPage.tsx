@@ -11,6 +11,7 @@ import {
   Button,
   Card,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
   Modal,
@@ -25,7 +26,6 @@ import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SettingsAnnotationsPageFragment$key } from "./__generated__/SettingsAnnotationsPageFragment.graphql";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 export const SettingsAnnotationsPage = () => {
   const loaderData = useLoaderData<SettingsAnnotationsPageLoaderType>();
@@ -166,10 +166,10 @@ const SettingsAnnotations = ({
     <Card
       title="Annotation Configs"
       titleExtra={
-        <SettingsDocumentationHelp topic="annotationConfigs">
+        <DocumentationHelp topic="annotationConfigs">
           Define the labels, scores, and freeform fields people use to annotate
           traces and spans.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
       extra={
         <DialogTrigger>

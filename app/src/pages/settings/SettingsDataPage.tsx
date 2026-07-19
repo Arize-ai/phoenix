@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
   Modal,
@@ -24,7 +25,6 @@ import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
 import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
 import type { SettingsDataLoaderType } from "./settingsDataPageLoader";
 import { settingsDataPageLoaderGql } from "./settingsDataPageLoader";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 export function SettingsDataPage() {
   const loaderData = useLoaderData<SettingsDataLoaderType>();
@@ -37,10 +37,10 @@ export function SettingsDataPage() {
     <Card
       title="Retention Policies"
       titleExtra={
-        <SettingsDocumentationHelp topic="dataRetention">
+        <DocumentationHelp topic="dataRetention">
           Automatically purge project traces by age or trace count on a
           configurable schedule.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
       extra={
         <CanManageRetentionPolicy>

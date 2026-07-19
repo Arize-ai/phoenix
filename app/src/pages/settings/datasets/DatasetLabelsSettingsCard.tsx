@@ -1,9 +1,8 @@
 import { ConnectionHandler, graphql, useFragment } from "react-relay";
 
-import { Card } from "@phoenix/components";
+import { Card, DocumentationHelp } from "@phoenix/components";
 import { NewDatasetLabelButton } from "@phoenix/components/dataset/NewDatasetLabelButton";
 
-import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
 import type { DatasetLabelsSettingsCardFragment$key } from "./__generated__/DatasetLabelsSettingsCardFragment.graphql";
 import { DatasetLabelsTable } from "./DatasetLabelsTable";
 
@@ -24,9 +23,9 @@ export function DatasetLabelsSettingsCard({
     <Card
       title="Dataset Labels"
       titleExtra={
-        <SettingsDocumentationHelp topic="datasetLabels">
+        <DocumentationHelp topic="datasetLabels">
           Create reusable labels for organizing and filtering datasets.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
       extra={
         <NewDatasetLabelButton

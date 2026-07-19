@@ -22,18 +22,18 @@ export const PHOENIX_DOCUMENTATION_LINKS = {
   secrets: `${PHOENIX_DOCS_ROOT}/settings/secrets`,
 } as const;
 
-type SettingsDocumentationTopicDefinition = {
+type DocumentationTopicDefinition = {
   href: string;
   label: string;
 };
 
 /**
- * Documentation topics exposed by settings contextual help.
+ * Documentation topics exposed by the shared documentation help component.
  *
  * Each topic owns its accessible label and URL so call sites cannot pair a
  * valid topic with the wrong documentation page.
  */
-export const SETTINGS_DOCUMENTATION_TOPICS = {
+export const DOCUMENTATION_TOPICS = {
   aiProviderSettings: {
     href: PHOENIX_DOCUMENTATION_LINKS.providers,
     label: "AI provider settings",
@@ -94,7 +94,6 @@ export const SETTINGS_DOCUMENTATION_TOPICS = {
     href: PHOENIX_DOCUMENTATION_LINKS.accessControl,
     label: "user access",
   },
-} as const satisfies Record<string, SettingsDocumentationTopicDefinition>;
+} as const satisfies Record<string, DocumentationTopicDefinition>;
 
-export type SettingsDocumentationTopic =
-  keyof typeof SETTINGS_DOCUMENTATION_TOPICS;
+export type DocumentationTopic = keyof typeof DOCUMENTATION_TOPICS;

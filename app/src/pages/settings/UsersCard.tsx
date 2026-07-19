@@ -6,6 +6,7 @@ import {
   Alert,
   Button,
   Card,
+  DocumentationHelp,
   Icon,
   Icons,
   Loading,
@@ -16,7 +17,6 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
 import { NewUserDialog } from "./NewUserDialog";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 import { UsersTable } from "./UsersTable";
 
 export function UsersCard() {
@@ -55,9 +55,9 @@ export function UsersCard() {
     <Card
       title="Users"
       titleExtra={
-        <SettingsDocumentationHelp topic="userAccess">
+        <DocumentationHelp topic="userAccess">
           Add users and manage access to this Phoenix instance.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
       extra={
         <Button

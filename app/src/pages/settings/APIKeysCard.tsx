@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
   Loading,
@@ -22,7 +23,6 @@ import {
 
 import type { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
 import type { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
 
 function APIKeysCardContent({ fetchKey }: { fetchKey: number }) {
@@ -98,10 +98,10 @@ export function APIKeysCard() {
       <Card
         title="System API Keys"
         titleExtra={
-          <SettingsDocumentationHelp topic="apiKeys">
+          <DocumentationHelp topic="apiKeys">
             Create system-wide credentials for automated and programmatic access
             to Phoenix.
-          </SettingsDocumentationHelp>
+          </DocumentationHelp>
         }
         extra={
           <DialogTrigger

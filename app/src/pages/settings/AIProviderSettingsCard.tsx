@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import {
   Button,
   Card,
+  DocumentationHelp,
   Flex,
   Label,
   Loading,
@@ -13,8 +14,6 @@ import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 /**
  * Settings card that lets the user choose the default provider + model used
@@ -27,10 +26,10 @@ export function AIProviderSettingsCard() {
     <Card
       title="AI Provider Settings"
       titleExtra={
-        <SettingsDocumentationHelp topic="aiProviderSettings">
+        <DocumentationHelp topic="aiProviderSettings">
           Choose the provider and model selected when you first open the
           Playground.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
     >
       <View padding="size-200">

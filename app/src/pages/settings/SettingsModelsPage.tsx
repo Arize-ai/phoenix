@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   DebouncedSearch,
+  DocumentationHelp,
   Flex,
   ListBox,
   Popover,
@@ -23,7 +24,6 @@ import { settingsModelsLoaderGql } from "@phoenix/pages/settings/settingsModelsL
 
 import { ModelsTable } from "./ModelsTable";
 import { NewModelButton } from "./NewModelButton";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 const ModelKindFilterOptions = [
   { label: "All", id: "ALL" },
@@ -82,10 +82,10 @@ export function SettingsModelsPage() {
       <Card
         title="Models"
         titleExtra={
-          <SettingsDocumentationHelp topic="modelPricing">
+          <DocumentationHelp topic="modelPricing">
             Manage the model matching rules and token prices Phoenix uses to
             calculate costs.
-          </SettingsDocumentationHelp>
+          </DocumentationHelp>
         }
         flex="1 1 auto"
         minHeight={0}

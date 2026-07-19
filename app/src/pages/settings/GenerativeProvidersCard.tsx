@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  DocumentationHelp,
   Flex,
   Icon,
   Icons,
@@ -46,7 +47,6 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 export function GenerativeProvidersCard({
   query,
@@ -159,10 +159,10 @@ export function GenerativeProvidersCard({
     <Card
       title="AI Providers"
       titleExtra={
-        <SettingsDocumentationHelp topic="aiProviders">
+        <DocumentationHelp topic="aiProviders">
           Configure credentials for built-in AI providers used by the Playground
           and evaluations.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
     >
       <table css={tableCSS}>

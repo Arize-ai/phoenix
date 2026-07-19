@@ -7,6 +7,7 @@ import {
   Alert,
   Button,
   Card,
+  DocumentationHelp,
   FieldError,
   Flex,
   Form,
@@ -20,8 +21,6 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts";
 import type { GlobalRetentionPolicyCardMutation } from "@phoenix/pages/settings/__generated__/GlobalRetentionPolicyCardMutation.graphql";
 import type { GlobalRetentionPolicyCardQuery } from "@phoenix/pages/settings/__generated__/GlobalRetentionPolicyCardQuery.graphql";
-
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 export const GlobalRetentionPolicyCard = () => {
   const notifySuccess = useNotifySuccess();
@@ -133,10 +132,10 @@ export const GlobalRetentionPolicyCard = () => {
     <Card
       title="Default Project Retention Policy"
       titleExtra={
-        <SettingsDocumentationHelp topic="defaultRetentionPolicy">
+        <DocumentationHelp topic="defaultRetentionPolicy">
           Set how long traces are kept for projects without a custom retention
           policy.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
     >
       {error && <Alert variant="danger">{error}</Alert>}

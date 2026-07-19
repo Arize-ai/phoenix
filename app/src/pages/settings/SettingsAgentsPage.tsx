@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import {
   Card,
+  DocumentationHelp,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -24,7 +25,6 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 /**
  * Whether the subagents (server-side bash tool) setting should be offered in the
@@ -199,9 +199,9 @@ export function SettingsAgentsPage() {
       <Card
         title="Assistant settings - PXI"
         titleExtra={
-          <SettingsDocumentationHelp topic="pxi">
+          <DocumentationHelp topic="pxi">
             Configure Phoenix Intelligence and personal assistant preferences.
-          </SettingsDocumentationHelp>
+          </DocumentationHelp>
         }
       >
         <DisclosureGroup defaultExpandedKeys={[PERSONAL_SECTION_ID]}>

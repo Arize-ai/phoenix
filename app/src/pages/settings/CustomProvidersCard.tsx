@@ -11,6 +11,7 @@ import invariant from "tiny-invariant";
 
 import {
   Card,
+  DocumentationHelp,
   Flex,
   Icon,
   Icons,
@@ -42,7 +43,6 @@ import type {
 import { DeleteCustomProviderButton } from "./DeleteCustomProviderButton";
 import { EditCustomProviderButton } from "./EditCustomProviderButton";
 import { NewCustomProviderButton } from "./NewCustomProviderButton";
-import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 // Compile-time check that GenerativeModelSDK in generativeConstants.ts matches the GraphQL schema.
 // This will cause a TypeScript error if the types diverge.
@@ -324,10 +324,10 @@ export function CustomProvidersCard({
       <Card
         title="Custom AI Providers"
         titleExtra={
-          <SettingsDocumentationHelp topic="customAiProviders">
+          <DocumentationHelp topic="customAiProviders">
             Create shared provider credentials and routing configurations for
             the Playground and saved prompts.
-          </SettingsDocumentationHelp>
+          </DocumentationHelp>
         }
         extra={<NewCustomProviderButton />}
       >

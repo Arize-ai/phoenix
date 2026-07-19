@@ -9,7 +9,14 @@ import {
 import { useMemo, useState } from "react";
 import { Focusable } from "react-aria";
 
-import { Card, Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Card,
+  DocumentationHelp,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import {
   Tooltip,
@@ -21,7 +28,6 @@ import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 
-import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
 import type { SettingsSecretsPageFragment$data } from "./__generated__/SettingsSecretsPageFragment.graphql";
 import { DeleteSecretButton } from "./DeleteSecretButton";
 import { NewSecretButton } from "./NewSecretButton";
@@ -167,10 +173,10 @@ export function SecretsTable({
     <Card
       title="Secrets"
       titleExtra={
-        <SettingsDocumentationHelp topic="secrets">
+        <DocumentationHelp topic="secrets">
           Store write-only credentials for providers, sandboxes, and other
           Phoenix integrations.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
       extra={<NewSecretButton connectionId={connectionId} />}
     >

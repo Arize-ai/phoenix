@@ -6,6 +6,7 @@ import {
   Card,
   ContextualHelp,
   DialogTrigger,
+  DocumentationHelp,
   Flex,
   Icon,
   Icons,
@@ -18,7 +19,6 @@ import {
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
 import type { SandboxProvidersCardProviderEnabledSwitchMutation } from "./__generated__/SandboxProvidersCardProviderEnabledSwitchMutation.graphql";
 import { SandboxProviderCredentialsDialog } from "./SandboxProviderCredentialsDialog";
 import { sandboxesTableCSS } from "./styles";
@@ -41,10 +41,10 @@ export function SandboxProvidersCard({
     <Card
       title="Sandbox Providers"
       titleExtra={
-        <SettingsDocumentationHelp topic="sandboxProviders">
+        <DocumentationHelp topic="sandboxProviders">
           Shared provider settings and whether each sandbox runtime can be
           enabled.
-        </SettingsDocumentationHelp>
+        </DocumentationHelp>
       }
     >
       <table css={sandboxesTableCSS}>
