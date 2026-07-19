@@ -1,3 +1,6 @@
+import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
+
 import type {
   GenerativeModelSDK,
   GenerativeProviderKey,
@@ -18,6 +21,102 @@ export function getProviderKeyForGenerativeModelSDK(
   sdk: GenerativeModelSDK
 ): GenerativeProviderKey {
   return GENERATIVE_MODEL_SDK_TO_PROVIDER_KEY[sdk];
+}
+
+/**
+ * Browser-local credential values keyed by provider, then by env var name.
+ * Mirrors the shape of the credentials store state.
+ */
+export type LocalProviderCredentials = Partial<
+  Record<ModelProvider, Record<string, string | null | undefined>>
+>;
+
+/**
+ * Minimal provider info needed to determine readiness.
+ */
+export type ProviderCredentialStatus = {
+  key: string;
+  dependenciesInstalled: boolean;
+  credentialsSet: boolean;
+};
+
+/**
+ * Whether a provider requires any credentials at all.
+ * Unknown providers are assumed to require credentials.
+ */
+export function providerRequiresCredentials({
+  providerKey,
+}: {
+  providerKey: string;
+}): boolean {
+  if (!isModelProvider(providerKey)) {
+    return true;
+  }
+  return ProviderToCredentialsConfigMap[providerKey].length > 0;
+}
+
+/**
+ * Whether the browser-local credential store satisfies every required
+ * credential for the provider.
+ */
+export function hasRequiredLocalCredentials({
+  providerKey,
+  localCredentials,
+}: {
+  providerKey: string;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  if (!isModelProvider(providerKey)) {
+    return false;
+  }
+  const requirements = ProviderToCredentialsConfigMap[providerKey];
+  if (!requirements.length) {
+    return false;
+  }
+  const stored = localCredentials[providerKey];
+  return requirements
+    .filter((requirement) => requirement.isRequired)
+    .every((requirement) => Boolean(stored?.[requirement.envVarName]?.trim()));
+}
+
+/**
+ * Whether a provider is ready to use: its server dependencies are installed
+ * and its credentials are satisfied on the server or in the browser.
+ * Providers with no credential requirements (e.g. Ollama) are always ready.
+ */
+export function isProviderReady({
+  provider,
+  localCredentials,
+}: {
+  provider: ProviderCredentialStatus;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  return (
+    provider.dependenciesInstalled &&
+    (provider.credentialsSet ||
+      hasRequiredLocalCredentials({
+        providerKey: provider.key,
+        localCredentials,
+      }))
+  );
+}
+
+/**
+ * Whether the user has explicitly provisioned credentials for the provider.
+ * Providers that require no credentials are always ready but never count as
+ * provisioned — otherwise they would mask the "no credentials yet" state.
+ */
+export function isProviderProvisioned({
+  provider,
+  localCredentials,
+}: {
+  provider: ProviderCredentialStatus;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  return (
+    providerRequiresCredentials({ providerKey: provider.key }) &&
+    isProviderReady({ provider, localCredentials })
+  );
 }
 
 export function applyBedrockModelPrefix({

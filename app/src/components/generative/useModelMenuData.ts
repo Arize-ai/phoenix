@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+
 import type {
   GenerativeModelSDK,
   GenerativeProviderKey,
@@ -8,7 +10,12 @@ import type {
 } from "./__generated__/useModelMenuDataQuery.graphql";
 
 export type { GenerativeModelSDK, GenerativeProviderKey };
-import { getProviderKeyForGenerativeModelSDK } from "./modelProviderUtils";
+import {
+  getProviderKeyForGenerativeModelSDK,
+  isProviderProvisioned,
+  isProviderReady,
+  type LocalProviderCredentials,
+} from "./modelProviderUtils";
 
 export type CustomProviderInfo = {
   id: string;
@@ -38,6 +45,7 @@ export type ModelProviderInfo = {
   readonly key: GenerativeProviderKey;
   readonly name: string;
   readonly dependenciesInstalled: boolean;
+  readonly credentialsSet: boolean;
 };
 
 export function getModelsByProvider(
@@ -73,6 +81,7 @@ export function useModelMenuData() {
           key
           name
           dependenciesInstalled
+          credentialsSet
         }
         playgroundModels {
           name
@@ -157,13 +166,34 @@ export function useModelMenuData() {
     [customProviders, installedBuiltInProviders]
   );
 
+  const localCredentials: LocalProviderCredentials = useCredentialsContext(
+    (state) => state
+  );
+
+  // Providers that are usable right now: dependencies installed and
+  // credentials satisfied on the server or in the browser.
+  const readyProviders: ModelProviderInfo[] = data.modelProviders.filter(
+    (provider) => isProviderReady({ provider, localCredentials })
+  );
+
+  // Whether the user has explicitly set up any provider — credentials for a
+  // built-in provider or a custom provider. Zero-credential providers (e.g.
+  // Ollama) are always ready but do not count as provisioned.
+  const hasProvisionedProvider =
+    customProviders.length > 0 ||
+    data.modelProviders.some((provider) =>
+      isProviderProvisioned({ provider, localCredentials })
+    );
+
   return {
     availableBuiltinModels,
     availableCustomModels,
     customProviders,
     data,
+    hasProvisionedProvider,
     modelCatalog,
     modelsByProvider,
     providerInfoMap,
+    readyProviders,
   };
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c0c968f08715f109281fc81419ee23ef>>
+ * @generated SignedSource<<4cce8447c6b0336de75e01f1617983b7>>
  * @lightSyntaxTransform
  */
 
@@ -23,6 +23,7 @@ export type useModelMenuDataQuery$data = {
     }>;
   };
   readonly modelProviders: ReadonlyArray<{
+    readonly credentialsSet: boolean;
     readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
     readonly name: string;
@@ -123,6 +124,13 @@ v1 = [
         "kind": "ScalarField",
         "name": "dependenciesInstalled",
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "credentialsSet",
+        "storageKey": null
       }
     ],
     "storageKey": null
@@ -165,16 +173,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "f9d27416a4c2066b612954c379d0c239",
+    "cacheID": "700a417c415e5bc889e79dce3bf18e53",
     "id": null,
     "metadata": {},
     "name": "useModelMenuDataQuery",
     "operationKind": "query",
-    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1ec4959065e34cebe6ce1b7fd75fe810";
+(node as any).hash = "f60d71682e63a12728470a15b4d7daf4";
 
 export default node;
