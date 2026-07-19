@@ -14,7 +14,7 @@ export const PHOENIX_DOCUMENTATION_LINKS = {
   dataRetention: `${PHOENIX_DOCS_ROOT}/settings/data-retention`,
   datasetLabels: `${PHOENIX_DOCS_ROOT}/release-notes/10-2025/10-08-2025-dataset-labels`,
   modelCostTracking: `${PHOENIX_DOCS_ROOT}/tracing/how-to-tracing/cost-tracking`,
-  phoenixMcpServer: `${PHOENIX_DOCS_ROOT}/integrations/phoenix-mcp-server`,
+  remoteMcpServer: `${PHOENIX_DOCS_ROOT}/integrations/remote-mcp`,
   promptLabels: `${PHOENIX_DOCS_ROOT}/release-notes/09-2025/09-15-2025-prompt-labels`,
   providers: `${PHOENIX_DOCS_ROOT}/prompt-engineering/how-to-prompts/configure-ai-providers`,
   pxi: `${PHOENIX_DOCS_ROOT}/pxi`,

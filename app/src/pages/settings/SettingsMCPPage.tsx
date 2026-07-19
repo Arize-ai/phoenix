@@ -316,7 +316,7 @@ export function SettingsMCPPage() {
                   ? "Code mode is enabled: clients see a compact set of discovery tools plus a sandboxed execute tool that composes Phoenix operations in one step. "
                   : "Code mode is disabled: Phoenix operations are exposed as plain MCP tools, grouped by category and revealed on demand. "
                 : null}
-              <ExternalLink href={PHOENIX_DOCUMENTATION_LINKS.phoenixMcpServer}>
+              <ExternalLink href={PHOENIX_DOCUMENTATION_LINKS.remoteMcpServer}>
                 Learn more in the docs
               </ExternalLink>
             </Text>
