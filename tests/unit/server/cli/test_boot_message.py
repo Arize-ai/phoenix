@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from phoenix.server.cli.boot_message import BootMessage
@@ -51,6 +53,40 @@ def test_render_uses_uniform_dividers_and_places_tracing_section_last() -> None:
     assert len({len(header) for header in headers}) == 1
     assert "Server" in headers[-2]
     assert "Tracing" in headers[-1]
+
+
+def test_render_omits_development_section_by_default() -> None:
+    rendered = _boot_message().render(unicode_ok=True)
+
+    assert "Development" not in rendered
+
+
+def test_render_shows_development_section_when_dev_tooling_configured() -> None:
+    message = replace(
+        _boot_message(),
+        dev_mode=True,
+        debug_logging=True,
+        dev_vite_url="http://localhost:5173",
+        debugpy_url="localhost:5678",
+    )
+
+    rendered = message.render(unicode_ok=True)
+
+    assert "Development" in rendered
+    assert "Dev mode" in rendered
+    assert "Debug logging" in rendered
+    assert "http://localhost:5173" in rendered
+    assert "localhost:5678" in rendered
+
+
+def test_render_keeps_uniform_dividers_with_development_section() -> None:
+    message = replace(_boot_message(), dev_vite_url="http://localhost:5173")
+
+    rendered = message.render(unicode_ok=True)
+
+    headers = [line for line in rendered.splitlines() if line.startswith(("──", "━━"))]
+    assert any("Development" in header for header in headers)
+    assert len({len(header) for header in headers}) == 1
 
 
 def test_render_without_unicode_omits_logo_and_is_ascii() -> None:

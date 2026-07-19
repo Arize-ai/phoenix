@@ -251,6 +251,9 @@ def run(args: Namespace) -> None:
     oauth2_client_configs = get_env_oauth2_settings()
     smtp_hostname = get_env_smtp_hostname()
     agent_assistant_enabled = not get_env_disable_agent_assistant()
+    # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
+    vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
+    debugpy_port = os.getenv("DEBUGPY_PORT")
     msg = BootMessage(
         version=phoenix_version,
         ui_url=display_root_path,
@@ -291,6 +294,10 @@ def run(args: Namespace) -> None:
         prometheus_enabled=bool(enable_prometheus),
         smtp_hostname=smtp_hostname,
         telemetry_enabled=get_env_telemetry_enabled(),
+        dev_mode=args.dev,
+        debug_logging=args.debug,
+        dev_vite_url=f"http://localhost:{vite_port}" if vite_port else None,
+        debugpy_url=f"localhost:{debugpy_port}" if debugpy_port else None,
     ).render()
 
     scaffolder_config = ScaffolderConfig(

@@ -83,6 +83,22 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   Email (SMTP)        {{ smtp_hostname or not_configured }}
   Telemetry           {{ enabled if telemetry_enabled else disabled }}
 
+{% if dev_mode or debug_logging or dev_vite_url or debugpy_url %}
+{{ header("🐛", "Development") }}
+{% if dev_mode %}
+  Dev mode            {{ enabled }}
+{% endif %}
+{% if debug_logging %}
+  Debug logging       {{ enabled }}
+{% endif %}
+{% if dev_vite_url %}
+  Vite dev server     {{ dev_vite_url }}
+{% endif %}
+{% if debugpy_url %}
+  debugpy             {{ debugpy_url }}
+{% endif %}
+
+{% endif %}
 {{ header("🌎", "Community") }}
   Star on GitHub      {{ github_url }}
   Community Slack     {{ slack_url }}
@@ -138,6 +154,10 @@ class BootMessage:
     prometheus_enabled: bool
     smtp_hostname: str
     telemetry_enabled: bool
+    dev_mode: bool = False
+    debug_logging: bool = False
+    dev_vite_url: Optional[str] = None
+    debugpy_url: Optional[str] = None
 
     def render(self, unicode_ok: Optional[bool] = None) -> str:
         """Render the startup banner for the active console."""
