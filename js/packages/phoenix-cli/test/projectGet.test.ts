@@ -3,10 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProjectCommand } from "../src/commands/project";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 function usePinnedProjectPage() {
   mock.server.use(
@@ -29,15 +28,14 @@ afterEach(() => {
 describe("project get", () => {
   it("returns the matching project as a bare object in raw mode", async () => {
     usePinnedProjectPage();
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
       ["get", "alpha", "--format", "raw", ...BASE_ARGS],
       { from: "user" }
     );
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(output));
     expect(parsed).toEqual({
       id: "proj-aaa",
@@ -48,15 +46,14 @@ describe("project get", () => {
 
   it("returns the matching project as a bare object in json mode", async () => {
     usePinnedProjectPage();
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
       ["get", "beta", "--format", "json", ...BASE_ARGS],
       { from: "user" }
     );
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(output));
     expect(parsed).toEqual({
       id: "proj-bbb",
@@ -67,13 +64,8 @@ describe("project get", () => {
 
   it("emits a StructuredError on miss and exits FAILURE", async () => {
     usePinnedProjectPage();
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
 
     await expect(
       createProjectCommand().parseAsync(
@@ -83,7 +75,7 @@ describe("project get", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-    const stderrCall = stderrSpy.mock.calls[0]?.[0];
+    const stderrCall = io.stderr.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(stderrCall));
     expect(parsed.error).toContain("not found");
     expect(parsed.code).toBe("FAILURE");
@@ -92,13 +84,8 @@ describe("project get", () => {
 
   it("emits a human-readable error on miss in pretty mode", async () => {
     usePinnedProjectPage();
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
 
     await expect(
       createProjectCommand().parseAsync(["get", "nonexistent", ...BASE_ARGS], {
@@ -107,21 +94,20 @@ describe("project get", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-    const stderrCall = stderrSpy.mock.calls[0]?.[0];
+    const stderrCall = io.stderr.mock.calls[0]?.[0];
     expect(String(stderrCall)).toContain("Project 'nonexistent' not found");
   });
 
   it("does NOT envelope the response in json mode (single-record convention)", async () => {
     usePinnedProjectPage();
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
       ["get", "alpha", "--format", "json", ...BASE_ARGS],
       { from: "user" }
     );
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(output));
     expect(Array.isArray(parsed)).toBe(false);
     expect(parsed.id).toBe("proj-aaa");

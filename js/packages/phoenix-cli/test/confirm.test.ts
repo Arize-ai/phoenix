@@ -20,6 +20,7 @@ import {
   parseBooleanEnvironmentVariable,
 } from "../src/confirm";
 import { ExitCode, InvalidArgumentError } from "../src/exitCodes";
+import { mockProcessExit } from "./testUtils";
 
 describe("confirmAction", () => {
   afterEach(() => {
@@ -71,9 +72,7 @@ describe("confirmOrExit", () => {
 
   beforeEach(() => {
     originalIsTTY = process.stdin.isTTY;
-    exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    exitSpy = mockProcessExit();
     stderrWriteSpy = vi
       .spyOn(process.stderr, "write")
       .mockImplementation((() => true) as never);

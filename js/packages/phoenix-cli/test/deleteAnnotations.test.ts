@@ -6,16 +6,11 @@ import { createTraceAnnotationsCommand } from "../src/commands/traceAnnotations"
 import { ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
 
-const BASE_ARGS = [
-  "--endpoint",
-  "http://localhost:6006",
-  "--project",
-  "default",
-  "--no-progress",
-];
+const PROJECT_ARGS = [...BASE_ARGS, "--project", "default"];
 
 /** Pin project-name resolution to a stable project ID. */
 function useProjectResolution() {
@@ -71,8 +66,7 @@ describe("trace-annotations delete", () => {
     const captured = captureAnnotationDelete(
       "/v1/projects/{project_identifier}/trace_annotations"
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceAnnotationsCommand().parseAsync(
       [
@@ -83,7 +77,7 @@ describe("trace-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
@@ -93,7 +87,7 @@ describe("trace-annotations delete", () => {
     expect(captured.query?.get("identifier")).toBe("coding-session:demo");
     expect(captured.query?.get("delete_all")).toBe("true");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "trace",
@@ -106,8 +100,7 @@ describe("trace-annotations delete", () => {
     const captured = captureAnnotationDelete(
       "/v1/projects/{project_identifier}/trace_annotations"
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceAnnotationsCommand().parseAsync(
       [
@@ -119,7 +112,7 @@ describe("trace-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
@@ -128,7 +121,7 @@ describe("trace-annotations delete", () => {
     expect(captured.query?.get("end_time")).toBe("2026-01-02T00:00:00Z");
     expect(captured.query?.get("delete_all")).toBeNull();
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "trace",
@@ -144,11 +137,7 @@ describe("trace-annotations delete", () => {
       "/v1/projects/{project_identifier}/trace_annotations"
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceAnnotationsCommand().parseAsync(
@@ -159,7 +148,7 @@ describe("trace-annotations delete", () => {
           "-y",
           "--format",
           "raw",
-          ...BASE_ARGS,
+          ...PROJECT_ARGS,
         ],
         { from: "user" }
       )
@@ -178,8 +167,7 @@ describe("trace-annotations delete", () => {
     const captured = captureAnnotationDelete(
       "/v1/projects/{project_identifier}/trace_annotations"
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureCliOutput();
 
     await createTraceAnnotationsCommand().parseAsync(
       [
@@ -192,7 +180,7 @@ describe("trace-annotations delete", () => {
         "human",
         "--all",
         "-y",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
@@ -209,8 +197,7 @@ describe("span-annotations delete", () => {
     const captured = captureAnnotationDelete(
       "/v1/projects/{project_identifier}/span_annotations"
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanAnnotationsCommand().parseAsync(
       [
@@ -221,7 +208,7 @@ describe("span-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
@@ -230,7 +217,7 @@ describe("span-annotations delete", () => {
     expect(captured.projectIdentifier).toBe("project-default");
     expect(captured.query?.get("delete_all")).toBe("true");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "span",
@@ -243,15 +230,17 @@ describe("span-annotations delete", () => {
       "/v1/projects/{project_identifier}/span_annotations"
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanAnnotationsCommand().parseAsync(
-        ["delete", "--identifier", "coding-session:demo", "-y", ...BASE_ARGS],
+        [
+          "delete",
+          "--identifier",
+          "coding-session:demo",
+          "-y",
+          ...PROJECT_ARGS,
+        ],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -267,8 +256,7 @@ describe("session-annotations delete", () => {
     const captured = captureAnnotationDelete(
       "/v1/projects/{project_identifier}/session_annotations"
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionAnnotationsCommand().parseAsync(
       [
@@ -279,7 +267,7 @@ describe("session-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
@@ -288,7 +276,7 @@ describe("session-annotations delete", () => {
     expect(captured.projectIdentifier).toBe("project-default");
     expect(captured.query?.get("delete_all")).toBe("true");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "session",
@@ -301,15 +289,17 @@ describe("session-annotations delete", () => {
       "/v1/projects/{project_identifier}/session_annotations"
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionAnnotationsCommand().parseAsync(
-        ["delete", "--identifier", "coding-session:demo", "-y", ...BASE_ARGS],
+        [
+          "delete",
+          "--identifier",
+          "coding-session:demo",
+          "-y",
+          ...PROJECT_ARGS,
+        ],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -324,11 +314,7 @@ describe("session-annotations delete", () => {
       "/v1/projects/{project_identifier}/session_annotations"
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionAnnotationsCommand().parseAsync(
@@ -338,7 +324,7 @@ describe("session-annotations delete", () => {
           "coding-session:demo",
           "--all",
           "-y",
-          ...BASE_ARGS,
+          ...PROJECT_ARGS,
         ],
         { from: "user" }
       )

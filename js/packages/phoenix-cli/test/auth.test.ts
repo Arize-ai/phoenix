@@ -14,6 +14,7 @@ import {
 } from "../src/commands/auth";
 import { ExitCode } from "../src/exitCodes";
 import type { SettingsFile } from "../src/settings";
+import { mockProcessExit } from "./testUtils";
 
 function readRequestBody(request: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -66,12 +67,6 @@ function readTempSettings(tmpDir: string): SettingsFile {
 
 function captured(spy: ReturnType<typeof vi.spyOn>): string {
   return spy.mock.calls.map((call) => String(call[0])).join("\n");
-}
-
-function spyOnExit() {
-  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
-    throw new Error(`process.exit:${code}`);
-  }) as never);
 }
 
 function respondWithOAuthDiscovery(response: http.ServerResponse): void {
@@ -602,7 +597,7 @@ describe("px auth login/logout", () => {
           );
         }
       });
-      const exitSpy = spyOnExit();
+      const exitSpy = mockProcessExit();
 
       await expect(
         createAuthCommand().parseAsync(
@@ -628,7 +623,7 @@ describe("px auth login/logout", () => {
       });
       vi.spyOn(console, "log").mockImplementation(() => {});
       const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const exitSpy = spyOnExit();
+      const exitSpy = mockProcessExit();
 
       await expect(
         createAuthCommand().parseAsync(
@@ -655,7 +650,7 @@ describe("px auth login/logout", () => {
       });
       vi.spyOn(console, "log").mockImplementation(() => {});
       const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      const exitSpy = spyOnExit();
+      const exitSpy = mockProcessExit();
 
       await expect(
         createAuthCommand().parseAsync(
@@ -679,7 +674,7 @@ describe("px auth login/logout", () => {
 
     vi.spyOn(console, "log").mockImplementation(() => {});
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = spyOnExit();
+    const exitSpy = mockProcessExit();
 
     await expect(
       createAuthCommand().parseAsync(

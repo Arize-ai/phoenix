@@ -41,9 +41,12 @@ import {
 } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
 
+// Deliberately NOT composed from the shared BASE_ARGS: these tests assert on
+// the "Deleted ..." progress messages, which --no-progress would suppress.
 const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--yes"];
 
 const datasetFixture: componentsV1["schemas"]["Dataset"] = {
@@ -178,11 +181,7 @@ describe("dataset delete", () => {
       )
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createDatasetCommand().parseAsync(
@@ -219,11 +218,7 @@ describe("dataset delete", () => {
     vi.mocked(confirmOrExit).mockClear();
     const listCounter = countDatasetListCalls();
     const deleted = captureDatasetDelete();
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createDatasetCommand().parseAsync(
@@ -243,11 +238,7 @@ describe("dataset delete", () => {
     vi.mocked(confirmOrExit).mockClear();
     const listCounter = countDatasetListCalls();
     const deleted = captureDatasetDelete();
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createDatasetCommand().parseAsync(
@@ -436,11 +427,7 @@ describe("experiment delete", () => {
       new Error("Experiment not found: exp-999")
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createExperimentCommand().parseAsync(

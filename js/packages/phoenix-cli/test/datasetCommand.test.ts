@@ -5,13 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDatasetCommand } from "../src/commands/dataset";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 type Dataset = componentsV1["schemas"]["Dataset"];
 type DatasetExample = componentsV1["schemas"]["DatasetExample"];
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 // A hex identifier is treated as a dataset ID directly, skipping the
 // `/v1/datasets?name=...` name-resolution round-trip.
@@ -55,12 +54,6 @@ const EXAMPLE_TWO: DatasetExample = {
   updated_at: "2026-06-15T00:00:00.000Z",
 };
 
-function mockProcessExit() {
-  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
-    throw new Error(`process.exit:${code}`);
-  }) as never);
-}
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -77,8 +70,7 @@ describe("dataset list", () => {
         });
       })
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createDatasetCommand().parseAsync(
       ["list", "--format", "raw", "--limit", "50", ...BASE_ARGS],
@@ -88,7 +80,7 @@ describe("dataset list", () => {
     expect(capturedQuery?.get("limit")).toBe("50");
     expect(capturedQuery?.get("cursor")).toBeNull();
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const datasets = JSON.parse(String(output));
     expect(datasets).toEqual([DATASET_GOLDEN, DATASET_SCRATCH]);
   });
@@ -112,8 +104,7 @@ describe("dataset list", () => {
         });
       })
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createDatasetCommand().parseAsync(
       ["list", "--format", "raw", ...BASE_ARGS],
@@ -121,7 +112,7 @@ describe("dataset list", () => {
     );
 
     expect(capturedCursors).toEqual([null, "cursor-page-2"]);
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const datasets = JSON.parse(String(output));
     expect(datasets.map((d: Dataset) => d.name)).toEqual([
       "golden-set",
@@ -131,8 +122,7 @@ describe("dataset list", () => {
 
   it("exits NETWORK_ERROR when the request fails at the network level", async () => {
     mock.server.use(http.get("/v1/datasets", () => HttpResponse.error()));
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -143,15 +133,14 @@ describe("dataset list", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching datasets"
     );
   });
 
   it("completes end-to-end against the generated OpenAPI handlers", async () => {
     // No pinned handlers: every response comes from the schema-generated mocks.
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await createDatasetCommand().parseAsync(
@@ -160,7 +149,7 @@ describe("dataset list", () => {
     );
 
     expect(exitSpy).not.toHaveBeenCalled();
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const datasets = JSON.parse(String(output));
     expect(Array.isArray(datasets)).toBe(true);
     expect(datasets.length).toBeGreaterThan(0);
@@ -202,8 +191,7 @@ describe("dataset get", () => {
         }
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createDatasetCommand().parseAsync(
       [
@@ -226,7 +214,7 @@ describe("dataset get", () => {
     expect(capturedExamplesQuery?.get("version_id")).toBe("version-007");
     expect(capturedExamplesQuery?.getAll("split")).toEqual(["train"]);
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(output));
     expect(parsed).toEqual({
       dataset_id: DATASET_ID,
@@ -256,8 +244,7 @@ describe("dataset get", () => {
         })
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createDatasetCommand().parseAsync(
       ["get", DATASET_ID, "--format", "raw", ...BASE_ARGS],
@@ -265,7 +252,7 @@ describe("dataset get", () => {
     );
 
     expect(resolutionCalls).toBe(0);
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(output));
     expect(parsed.dataset_id).toBe(DATASET_ID);
     expect(parsed.examples).toEqual([EXAMPLE_ONE]);
@@ -277,8 +264,7 @@ describe("dataset get", () => {
         response(200).json({ data: [], next_cursor: null })
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -289,7 +275,7 @@ describe("dataset get", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-    const stderrCall = String(stderrSpy.mock.calls[0]?.[0]);
+    const stderrCall = String(io.stderr.mock.calls[0]?.[0]);
     expect(stderrCall).toContain("Error fetching dataset");
     expect(stderrCall).toContain('Dataset not found: "no-such-dataset"');
   });
@@ -300,8 +286,7 @@ describe("dataset get", () => {
       // request needs to fail to exercise the network error path.
       http.get("/v1/datasets/{id}/examples", () => HttpResponse.error())
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -312,7 +297,7 @@ describe("dataset get", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching dataset"
     );
   });
