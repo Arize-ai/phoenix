@@ -19,6 +19,7 @@ import type {
   RecentlyViewedResourceType,
 } from "@phoenix/store/recentlyViewedStore";
 import { useRecentlyViewedStore } from "@phoenix/store/recentlyViewedStore";
+import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
 
 import type { GlobalSearchPaletteQuery } from "./__generated__/GlobalSearchPaletteQuery.graphql";
 import { getMatchingSearchDestinationSections } from "./searchDestinations";
@@ -131,15 +132,20 @@ export function GlobalSearchPalette({
                 <CommandPaletteItem
                   key={`page:${destination.path}`}
                   id={`page:${destination.path}`}
-                  textValue={destination.label}
-                  icon={destination.icon}
-                  description={destination.description}
+                  textValue={destination.metadata.label}
+                  icon={
+                    <RouteNavigationIcon icon={destination.metadata.icon} />
+                  }
+                  description={destination.metadata.description}
                   onAction={() => {
                     onOpenChange(false);
                     navigate(destination.path);
                   }}
                 >
-                  <MatchText text={destination.label} match={inputValue} />
+                  <MatchText
+                    text={destination.metadata.label}
+                    match={inputValue}
+                  />
                 </CommandPaletteItem>
               ))}
             </CommandPaletteSection>

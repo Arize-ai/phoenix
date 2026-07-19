@@ -1,10 +1,15 @@
 import {
   getMatchingSearchDestinationSections,
-  PROFILE_DESTINATIONS,
+  getSearchDestinationSections,
 } from "../searchDestinations";
+import { appRouteObjects } from "@phoenix/Routes";
+import { buildRouteNavigationCatalog } from "@phoenix/routing/routeNavigation";
 
 const contains = (value: string, substring: string) =>
   value.toLocaleLowerCase().includes(substring.toLocaleLowerCase());
+const routeSections = getSearchDestinationSections(
+  buildRouteNavigationCatalog(appRouteObjects)
+);
 
 describe("search destinations", () => {
   it("shows profile routes together when searching for profile", () => {
@@ -12,12 +17,13 @@ describe("search destinations", () => {
       inputValue: "profile",
       contains,
       hasViewer: true,
+      sections: routeSections,
     });
 
     expect(sections).toHaveLength(1);
     expect(sections[0]?.title).toBe("Profile");
     expect(
-      sections[0]?.destinations.map((destination) => destination.label)
+      sections[0]?.destinations.map((destination) => destination.metadata.label)
     ).toEqual(["Account", "API Keys", "Apps", "Preferences"]);
   });
 
@@ -26,6 +32,7 @@ describe("search destinations", () => {
       inputValue: "OAuth",
       contains,
       hasViewer: true,
+      sections: routeSections,
     });
 
     expect(sections).toHaveLength(1);
@@ -39,54 +46,75 @@ describe("search destinations", () => {
       inputValue: "profile",
       contains,
       hasViewer: false,
+      sections: routeSections,
     });
 
     expect(sections).toHaveLength(1);
     expect(
-      sections[0]?.destinations.map((destination) => destination.label)
+      sections[0]?.destinations.map((destination) => destination.metadata.label)
     ).toEqual(["Preferences"]);
   });
 
   it("provides a direct destination and icon for every profile section", () => {
+    const profileDestinations = routeSections.find(
+      (section) => section.title === "Profile"
+    )?.destinations;
+
     expect(
-      PROFILE_DESTINATIONS.map(
-        ({ path, label, description, icon, requiresViewer }) => ({
-          path,
-          label,
-          description,
-          hasIcon: icon != null,
-          requiresViewer: requiresViewer ?? false,
-        })
-      )
+      profileDestinations?.map(({ path, metadata }) => ({
+        path,
+        label: metadata.label,
+        description: metadata.description,
+        icon: metadata.icon,
+        requiresViewer: metadata.requiresViewer ?? false,
+      }))
     ).toEqual([
       {
         path: "/profile/account",
         label: "Account",
         description: "Username, email, role, and password",
-        hasIcon: true,
+        icon: "Person",
         requiresViewer: true,
       },
       {
         path: "/profile/api-keys",
         label: "API Keys",
         description: "Personal keys for programmatic access",
-        hasIcon: true,
+        icon: "Key",
         requiresViewer: true,
       },
       {
         path: "/profile/apps",
         label: "Apps",
         description: "OAuth apps connected to your account",
-        hasIcon: true,
+        icon: "Link2",
         requiresViewer: true,
       },
       {
         path: "/profile/preferences",
         label: "Preferences",
         description: "Theme, timezone, and code defaults",
-        hasIcon: true,
+        icon: "Options",
         requiresViewer: false,
       },
+    ]);
+  });
+
+  it("derives page destinations from React Router handles", () => {
+    expect(
+      routeSections
+        .find((section) => section.title === "Pages")
+        ?.destinations.map(({ path, metadata }) => [path, metadata.label])
+    ).toEqual([
+      ["/projects", "Tracing"],
+      ["/dashboards", "Dashboards"],
+      ["/datasets", "Datasets & Experiments"],
+      ["/playground", "Playground"],
+      ["/evaluators", "Evaluators"],
+      ["/prompts", "Prompts"],
+      ["/apis/rest", "REST API"],
+      ["/apis/graphql", "GraphQL"],
+      ["/settings/general", "Settings"],
     ]);
   });
 });

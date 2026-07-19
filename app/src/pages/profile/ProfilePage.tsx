@@ -1,23 +1,17 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import { Suspense, useEffect } from "react";
 import type { Key } from "react-aria-components";
 import { Collection } from "react-aria-components";
-import { Navigate, Outlet, useMatch, useNavigate } from "react-router";
+import { Navigate, Outlet, useMatches, useNavigate } from "react-router";
 
-import {
-  Icon,
-  Icons,
-  Loading,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "@phoenix/components";
+import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useMediaQuery } from "@phoenix/hooks";
-
-import { PROFILE_ROUTES, type ProfileRouteId } from "./profileRoutes";
+import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
+import {
+  getRegisteredRouteNavigationCatalog,
+  getRouteNavigationMetadata,
+} from "@phoenix/routing/routeNavigation";
 
 const VERTICAL_TABS_MEDIA_QUERY = "(min-width: 900px)";
 
@@ -57,75 +51,65 @@ const profileTabPanelCSS = css`
   }
 `;
 
-const TABS = [
-  {
-    id: PROFILE_ROUTES.account.segment,
-    label: PROFILE_ROUTES.account.tabLabel,
-    icon: <Icons.Person />,
-  },
-  {
-    id: PROFILE_ROUTES["api-keys"].segment,
-    label: PROFILE_ROUTES["api-keys"].tabLabel,
-    icon: <Icons.Key />,
-  },
-  {
-    id: PROFILE_ROUTES.apps.segment,
-    label: PROFILE_ROUTES.apps.tabLabel,
-    icon: <Icons.Link2 />,
-  },
-  {
-    id: PROFILE_ROUTES.preferences.segment,
-    label: PROFILE_ROUTES.preferences.tabLabel,
-    icon: <Icons.Options />,
-  },
-] as const satisfies readonly { id: string; label: string; icon: ReactNode }[];
-
-function isProfileTabId(value: string | undefined): value is ProfileRouteId {
-  return TABS.some((tab) => tab.id === value);
-}
-
 export function ProfilePage() {
   const navigate = useNavigate();
+  const matches = useMatches();
   const isLargeScreen = useMediaQuery(VERTICAL_TABS_MEDIA_QUERY);
-  const tab = useMatch("/profile/:tab/*")?.params.tab;
   const { viewer, refetchViewer } = useViewer();
-  const tabs = viewer ? TABS : TABS.filter((tab) => tab.id === "preferences");
-  const defaultTab: ProfileRouteId = viewer ? "account" : "preferences";
+  const profileRoutes = getRegisteredRouteNavigationCatalog().filter(
+    (route) => route.metadata.section === "Profile"
+  );
+  const tabs = viewer
+    ? profileRoutes
+    : profileRoutes.filter((route) => !route.metadata.requiresViewer);
+  const activeProfileMatch = matches.findLast(
+    (match) => getRouteNavigationMetadata(match.handle)?.section === "Profile"
+  );
+  const selectedTab = tabs.find(
+    (route) => route.path === activeProfileMatch?.pathname
+  );
+  const defaultTab = tabs[0];
 
   useEffect(() => {
     refetchViewer();
   }, [refetchViewer]);
 
-  if (!isProfileTabId(tab) || !tabs.some((item) => item.id === tab)) {
-    return <Navigate to={PROFILE_ROUTES[defaultTab].path} replace />;
+  if (!defaultTab) {
+    throw new Error(
+      "Profile routes must define React Router handle.navigation metadata"
+    );
+  }
+
+  if (!selectedTab) {
+    return <Navigate to={defaultTab.path} replace />;
   }
 
   const onChangeTab = (key: Key) => {
-    if (typeof key === "string" && isProfileTabId(key)) {
-      navigate(PROFILE_ROUTES[key].path, { replace: true });
+    if (typeof key === "string" && tabs.some((tab) => tab.path === key)) {
+      navigate(key, { replace: true });
     }
   };
 
   return (
     <main css={profilePageCSS}>
       <Tabs
-        selectedKey={tab}
+        selectedKey={selectedTab.path}
         onSelectionChange={onChangeTab}
         orientation={isLargeScreen ? "vertical" : "horizontal"}
       >
         <TabList items={tabs} css={profileTabListCSS} aria-label="Profile">
           {(item) => (
-            <Tab id={item.id}>
+            <Tab id={item.path}>
               <span css={tabLabelCSS}>
-                <Icon svg={item.icon} />
-                {item.label}
+                <RouteNavigationIcon icon={item.metadata.icon} />
+                {item.metadata.label}
               </span>
             </Tab>
           )}
         </TabList>
         <Collection items={tabs}>
           {(item) => (
-            <TabPanel id={item.id} css={profileTabPanelCSS}>
+            <TabPanel id={item.path} css={profileTabPanelCSS}>
               <Suspense fallback={<Loading />}>
                 <Outlet />
               </Suspense>

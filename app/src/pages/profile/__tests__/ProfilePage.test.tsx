@@ -1,9 +1,14 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import { createMemoryRouter, useLocation } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import {
+  buildRouteNavigationCatalog,
+  registerRouteNavigationCatalog,
+} from "@phoenix/routing/routeNavigation";
 
 import { ProfilePage } from "../ProfilePage";
 
@@ -44,20 +49,44 @@ function CurrentProfileRoute() {
 }
 
 async function renderProfilePage(initialEntry: string) {
+  const route = (
+    path: string,
+    label: string,
+    icon: "Person" | "Key" | "Link2" | "Options",
+    requiresViewer = true
+  ) => ({
+    path,
+    element: <CurrentProfileRoute />,
+    handle: {
+      navigation: {
+        section: "Profile" as const,
+        label,
+        description: `${label} profile settings`,
+        icon,
+        requiresViewer,
+      },
+    },
+  });
+  const routes = [
+    {
+      path: "/profile",
+      element: <ProfilePage />,
+      children: [
+        route("account", "Account", "Person"),
+        route("api-keys", "API Keys", "Key"),
+        route("apps", "Apps", "Link2"),
+        route("preferences", "Preferences", "Options", false),
+        { path: "*", element: <CurrentProfileRoute /> },
+      ],
+    },
+  ];
+  registerRouteNavigationCatalog({
+    catalog: buildRouteNavigationCatalog(routes),
+  });
+  const router = createMemoryRouter(routes, { initialEntries: [initialEntry] });
+
   await act(async () => {
-    root.render(
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <Routes>
-          <Route path="/profile" element={<ProfilePage />}>
-            <Route path="account" element={<CurrentProfileRoute />} />
-            <Route path="api-keys" element={<CurrentProfileRoute />} />
-            <Route path="apps" element={<CurrentProfileRoute />} />
-            <Route path="preferences" element={<CurrentProfileRoute />} />
-            <Route path="*" element={<CurrentProfileRoute />} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    );
+    root.render(<RouterProvider router={router} />);
   });
 }
 
