@@ -1,4 +1,4 @@
-import { HttpResponse, http as mswHttp } from "@arizeai/phoenix-testing/msw";
+import { HttpResponse, http as mswHttp } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {

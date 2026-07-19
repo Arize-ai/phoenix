@@ -1,5 +1,5 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
-import { HttpResponse } from "@arizeai/phoenix-testing/msw";
+import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createTraceCommand } from "../src/commands/trace";

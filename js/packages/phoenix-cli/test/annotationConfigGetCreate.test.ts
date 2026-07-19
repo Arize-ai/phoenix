@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import type { componentsV1 } from "@arizeai/phoenix-testing";
-import { HttpResponse } from "@arizeai/phoenix-testing/msw";
+import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAnnotationConfigCommand } from "../src/commands/annotationConfig";
