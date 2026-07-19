@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72c163cb12e769d1a8f73181126dc38d>>
+ * @generated SignedSource<<0ac5e6c7ec9d7419ffd91aec8a889cfa>>
  * @lightSyntaxTransform
  */
 
@@ -28,17 +28,17 @@ export type DatasetExamplePatch = {
   metadata?: any | null;
   output?: any | null;
 };
-export type EditExampleDialogMutation$variables = {
+export type EditExampleFormMutation$variables = {
   input: PatchDatasetExamplesInput;
 };
-export type EditExampleDialogMutation$data = {
+export type EditExampleFormMutation$data = {
   readonly patchDatasetExamples: {
     readonly __typename: "DatasetMutationPayload";
   };
 };
-export type EditExampleDialogMutation = {
-  response: EditExampleDialogMutation$data;
-  variables: EditExampleDialogMutation$variables;
+export type EditExampleFormMutation = {
+  response: EditExampleFormMutation$data;
+  variables: EditExampleFormMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -80,7 +80,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditExampleDialogMutation",
+    "name": "EditExampleFormMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -89,20 +89,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "EditExampleDialogMutation",
+    "name": "EditExampleFormMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "7217082d3d3796ecb60481d17133c351",
+    "cacheID": "67a51ec2a18a504d8433ae4c746b9363",
     "id": null,
     "metadata": {},
-    "name": "EditExampleDialogMutation",
+    "name": "EditExampleFormMutation",
     "operationKind": "mutation",
-    "text": "mutation EditExampleDialogMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation EditExampleFormMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a5e0e601ed24ffaa37a99ba358f960d3";
+(node as any).hash = "340ed3ebc2fe9f01b5b017e7db14d9b6";
 
 export default node;
