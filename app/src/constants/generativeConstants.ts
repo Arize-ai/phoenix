@@ -35,12 +35,6 @@ export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 export const DEFAULT_OPENAI_API_TYPE: OpenAIApiType = "RESPONSES";
 
 /**
- * The fallback for spans and prompts saved before the OpenAI API type was
- * recorded explicitly. Those payloads historically used Chat Completions.
- */
-export const LEGACY_OPENAI_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
-
-/**
  * Map of {@link ChatMessageRole} to potential role values.
  * Used to map roles to a canonical role.
  */
