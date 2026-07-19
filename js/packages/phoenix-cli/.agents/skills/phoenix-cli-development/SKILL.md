@@ -275,12 +275,20 @@ pnpm test          # run all tests
 pnpm test:watch    # watch mode
 ```
 
+HTTP is mocked with `@arizeai/phoenix-testing` (MSW handlers generated from the OpenAPI definition) — tests MUST NOT stub the global `fetch`. Use the shared harness:
+
+- `test/mockServer.ts` — call `const mock = setupMockPhoenixServer()` at module top level; every documented Phoenix endpoint answers with schema-generated data, and unhandled requests fail the test. Pin exact responses per-test with the typed `http` namespace: `mock.server.use(http.get("/v1/projects", ({ response }) => response(200).json({...})))`. Assert on the request (params, query, body) by capturing values inside the handler.
+- `test/testUtils.ts` — `BASE_ARGS` (endpoint + `--no-progress` args), `mockProcessExit()` (throws `process.exit:<code>` for exit-code assertions), and `captureCliOutput()` (silenced stdout/stderr spies).
+- Raw non-OpenAPI handlers (GraphQL, third-party hosts) use msw re-exported from `@arizeai/phoenix-testing` (`HttpResponse`, `http`); `HttpResponse.error()` simulates network failure.
+- Injected-fetch dependency injection (e.g. `fetchImpl` params in OAuth helpers) is fine as-is and does not need MSW.
+
 When adding a command, tests MUST cover:
 
-- The handler logic (mocking the Phoenix client)
+- The handler logic over HTTP (typed MSW handlers, not client mocks)
 - Formatter output for each format mode
 - Edge cases: missing config, network errors, empty results
 - Exit code correctness for error paths
+- One run against the generated handlers alone (no pinned responses) to prove the command works end-to-end against spec-conformant data
 
 ## Build and Run
 

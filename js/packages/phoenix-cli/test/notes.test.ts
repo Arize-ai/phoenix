@@ -5,10 +5,9 @@ import { createSpanCommand } from "../src/commands/span";
 import { createTraceCommand } from "../src/commands/trace";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 /**
  * Handler that reports the given Phoenix server version. The capability
@@ -220,8 +219,7 @@ afterEach(() => {
 describe("span add-note", () => {
   it("posts a span note and returns raw output", async () => {
     const captured = captureSpanNotePost({ id: "span-note-1" });
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -242,7 +240,7 @@ describe("span add-note", () => {
         note: "needs review",
       },
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "span-note-1",
         targetType: "span",
@@ -256,11 +254,7 @@ describe("span add-note", () => {
     // No handlers registered: any network call would fail via
     // onUnhandledRequest: "error".
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(["add-note", "span-123", ...BASE_ARGS], {
@@ -275,11 +269,7 @@ describe("span add-note", () => {
     // No handlers registered: any network call would fail via
     // onUnhandledRequest: "error".
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -301,8 +291,7 @@ describe("trace add-note", () => {
   it("posts a trace note and returns json output", async () => {
     mock.server.use(serverVersionHandler("14.13.0"));
     const captured = captureTraceNotePost({ id: "trace-note-1" });
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -323,7 +312,7 @@ describe("trace add-note", () => {
         note: "needs review",
       },
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify(
         {
           id: "trace-note-1",
@@ -341,11 +330,7 @@ describe("trace add-note", () => {
     // No handlers registered: any network call would fail via
     // onUnhandledRequest: "error".
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceCommand().parseAsync(["add-note", "trace-123", ...BASE_ARGS], {
@@ -360,11 +345,7 @@ describe("trace add-note", () => {
     // No handlers registered: any network call would fail via
     // onUnhandledRequest: "error".
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceCommand().parseAsync(
@@ -387,8 +368,7 @@ describe("add-note --identifier round-trip", () => {
     // identifier-body capability check (>= 15.5.0)
     mock.server.use(serverVersionHandler("15.5.0"));
     const captured = captureSpanNotePost({ id: "span-note-id" });
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -418,8 +398,7 @@ describe("add-note --identifier round-trip", () => {
     // capability check (route + identifier-body both gated on this version)
     mock.server.use(serverVersionHandler("15.5.0"));
     const captured = captureTraceNotePost({ id: "trace-note-id" });
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -451,8 +430,7 @@ describe("span note readback", () => {
     useProjectHandler();
     useSpanPageHandler();
     const captured = captureSpanAnnotationsRequests(() => [SPAN_NOTE_FIXTURE]);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -472,7 +450,7 @@ describe("span note readback", () => {
       "note"
     );
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput[0].notes).toEqual([
       expect.objectContaining({ id: "span-note-1", name: "note" }),
@@ -487,8 +465,7 @@ describe("span note readback", () => {
         ? [SPAN_NOTE_FIXTURE]
         : [SPAN_ANNOTATION_FIXTURE]
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -513,7 +490,7 @@ describe("span note readback", () => {
     expect(annotationsQuery).toBeDefined();
     expect(notesQuery).toBeDefined();
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput[0].annotations).toEqual([
       expect.objectContaining({ id: "annotation-1", name: "correctness" }),
@@ -537,8 +514,7 @@ describe("trace note readback", () => {
     const capturedSpan = captureSpanAnnotationsRequests(() => [
       SPAN_NOTE_FIXTURE,
     ]);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -563,7 +539,7 @@ describe("trace note readback", () => {
       capturedSpan.queries[0]?.getAll("include_annotation_names")
     ).toContain("note");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput.notes).toEqual([
       expect.objectContaining({ id: "trace-note-1", name: "note" }),
@@ -578,8 +554,7 @@ describe("trace note readback", () => {
     useSpanPageHandler();
     const capturedTrace = captureTraceAnnotationsRequests(() => []);
     const capturedSpan = captureSpanAnnotationsRequests(() => []);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -602,7 +577,7 @@ describe("trace note readback", () => {
       capturedSpan.queries[0]?.getAll("exclude_annotation_names")
     ).toContain("note");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput.notes).toBeUndefined();
     expect(parsedOutput.spans[0].notes).toBeUndefined();
@@ -617,8 +592,7 @@ describe("trace note readback", () => {
     const capturedSpan = captureSpanAnnotationsRequests(() => [
       SPAN_NOTE_FIXTURE,
     ]);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -642,7 +616,7 @@ describe("trace note readback", () => {
       capturedSpan.queries[0]?.getAll("include_annotation_names")
     ).toContain("note");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput[0].notes).toEqual([
       expect.objectContaining({ id: "trace-note-1", name: "note" }),

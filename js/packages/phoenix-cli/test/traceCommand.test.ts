@@ -1,16 +1,15 @@
-import type { componentsV1 } from "@arizeai/phoenix-client";
+import type { componentsV1 } from "@arizeai/phoenix-testing";
 import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createTraceCommand } from "../src/commands/trace";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 type Span = componentsV1["schemas"]["Span"];
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 // A hex identifier is treated as a project ID directly, skipping the
 // `/v1/projects/{project_identifier}` name-resolution round-trip.
@@ -47,12 +46,6 @@ const CHILD_SPAN: Span = {
   events: [],
 };
 
-function mockProcessExit() {
-  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
-    throw new Error(`process.exit:${code}`);
-  }) as never);
-}
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -74,8 +67,7 @@ describe("trace list", () => {
         }
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -99,7 +91,7 @@ describe("trace list", () => {
     expect(capturedQuery?.get("start_time")).toBe("2026-07-01T00:00:00Z");
     expect(capturedQuery?.get("cursor")).toBeNull();
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const traces = JSON.parse(String(output));
     expect(traces).toHaveLength(1);
     expect(traces[0].traceId).toBe(TRACE_ID);
@@ -116,8 +108,7 @@ describe("trace list", () => {
         response(404).text("Project not found")
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -128,7 +119,7 @@ describe("trace list", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-    const stderrCall = stderrSpy.mock.calls[0]?.[0];
+    const stderrCall = io.stderr.mock.calls[0]?.[0];
     expect(String(stderrCall)).toContain("Error fetching traces");
   });
 
@@ -138,8 +129,7 @@ describe("trace list", () => {
         HttpResponse.error()
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -150,7 +140,7 @@ describe("trace list", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching traces"
     );
   });
@@ -158,8 +148,7 @@ describe("trace list", () => {
   it("completes end-to-end against the generated OpenAPI handlers", async () => {
     // No pinned handlers: every response comes from the schema-generated
     // mocks, proving the OpenAPI-derived data satisfies trace assembly.
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await createTraceCommand().parseAsync(
@@ -176,7 +165,7 @@ describe("trace list", () => {
     );
 
     expect(exitSpy).not.toHaveBeenCalled();
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(output));
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed.length).toBeLessThanOrEqual(1);
@@ -196,15 +185,14 @@ describe("trace get", () => {
         })
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       ["get", TRACE_ID, "--format", "raw", ...PROJECT_ARGS, ...BASE_ARGS],
       { from: "user" }
     );
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const trace = JSON.parse(String(output));
     expect(Array.isArray(trace)).toBe(false);
     expect(trace.traceId).toBe(TRACE_ID);
@@ -224,8 +212,7 @@ describe("trace get", () => {
         })
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -239,7 +226,7 @@ describe("trace get", () => {
       { from: "user" }
     );
 
-    const trace = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const trace = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(trace.traceId).toBe(TRACE_ID);
   });
 
@@ -249,8 +236,7 @@ describe("trace get", () => {
         response(200).json({ data: [], next_cursor: null })
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -268,7 +254,7 @@ describe("trace get", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Trace not found: ffffffffffffffff"
     );
   });

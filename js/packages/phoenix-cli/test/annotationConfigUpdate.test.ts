@@ -8,10 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAnnotationConfigCommand } from "../src/commands/annotationConfig";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006"];
 
 type AnnotationConfig =
   componentsV1["schemas"]["GetAnnotationConfigResponseBody"]["data"];
@@ -115,11 +114,10 @@ describe("annotation-config update", () => {
       ...CATEGORICAL,
       name: "renamed",
     });
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    captureCliOutput();
 
     await createAnnotationConfigCommand().parseAsync(
-      ["update", "quality", "--name", "renamed", ...BASE_ARGS, "--no-progress"],
+      ["update", "quality", "--name", "renamed", ...BASE_ARGS],
       { from: "user" }
     );
 
@@ -144,8 +142,7 @@ describe("annotation-config update", () => {
 
   it("updates categorical values from --values JSON", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    captureCliOutput();
 
     await createAnnotationConfigCommand().parseAsync(
       [
@@ -154,7 +151,6 @@ describe("annotation-config update", () => {
         "--values",
         '[{"label":"excellent","score":2},{"label":"poor"}]',
         ...BASE_ARGS,
-        "--no-progress",
       ],
       { from: "user" }
     );
@@ -168,8 +164,7 @@ describe("annotation-config update", () => {
 
   it("updates categorical values from repeatable --value flags", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    captureCliOutput();
 
     await createAnnotationConfigCommand().parseAsync(
       [
@@ -180,7 +175,6 @@ describe("annotation-config update", () => {
         "--value",
         "poor",
         ...BASE_ARGS,
-        "--no-progress",
       ],
       { from: "user" }
     );
@@ -195,11 +189,7 @@ describe("annotation-config update", () => {
   it("exits INVALID_ARGUMENT when both --value and --values are supplied", async () => {
     captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createAnnotationConfigCommand().parseAsync(
@@ -211,7 +201,6 @@ describe("annotation-config update", () => {
           "--values",
           '[{"label":"bad"}]',
           ...BASE_ARGS,
-          "--no-progress",
         ],
         { from: "user" }
       )
@@ -223,22 +212,11 @@ describe("annotation-config update", () => {
   it("exits INVALID_ARGUMENT before any network call when a numeric flag is not a number", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CONTINUOUS);
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createAnnotationConfigCommand().parseAsync(
-        [
-          "update",
-          "score",
-          "--lower-bound",
-          "abc",
-          ...BASE_ARGS,
-          "--no-progress",
-        ],
+        ["update", "score", "--lower-bound", "abc", ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -252,8 +230,7 @@ describe("annotation-config update", () => {
 
   it("accepts a lowercase --optimization-direction and sends it uppercased", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    captureCliOutput();
 
     await createAnnotationConfigCommand().parseAsync(
       [
@@ -262,7 +239,6 @@ describe("annotation-config update", () => {
         "--optimization-direction",
         "minimize",
         ...BASE_ARGS,
-        "--no-progress",
       ],
       { from: "user" }
     );
@@ -273,8 +249,7 @@ describe("annotation-config update", () => {
 
   it("updates continuous bounds", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CONTINUOUS);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    captureCliOutput();
 
     await createAnnotationConfigCommand().parseAsync(
       [
@@ -285,7 +260,6 @@ describe("annotation-config update", () => {
         "--upper-bound",
         "10",
         ...BASE_ARGS,
-        "--no-progress",
       ],
       { from: "user" }
     );
@@ -299,8 +273,7 @@ describe("annotation-config update", () => {
   it("outputs the updated config as a single object with --format raw", async () => {
     const updated = { ...CATEGORICAL, name: "renamed" };
     captureAnnotationConfigUpdateFlow(CATEGORICAL, updated);
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createAnnotationConfigCommand().parseAsync(
       [
@@ -311,26 +284,21 @@ describe("annotation-config update", () => {
         "--format",
         "raw",
         ...BASE_ARGS,
-        "--no-progress",
       ],
       { from: "user" }
     );
 
-    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify(updated));
+    expect(io.stdout).toHaveBeenCalledWith(JSON.stringify(updated));
   });
 
   it("exits INVALID_ARGUMENT when no fields are provided", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createAnnotationConfigCommand().parseAsync(
-        ["update", "quality", ...BASE_ARGS, "--no-progress"],
+        ["update", "quality", ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -344,11 +312,7 @@ describe("annotation-config update", () => {
   it("exits INVALID_ARGUMENT for an invalid --optimization-direction", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createAnnotationConfigCommand().parseAsync(
@@ -358,7 +322,6 @@ describe("annotation-config update", () => {
           "--optimization-direction",
           "SIDEWAYS",
           ...BASE_ARGS,
-          "--no-progress",
         ],
         { from: "user" }
       )
@@ -372,22 +335,11 @@ describe("annotation-config update", () => {
   it("exits INVALID_ARGUMENT when --values is used on a non-categorical config", async () => {
     const captured = captureAnnotationConfigUpdateFlow(CONTINUOUS);
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createAnnotationConfigCommand().parseAsync(
-        [
-          "update",
-          "score",
-          "--values",
-          '[{"label":"good"}]',
-          ...BASE_ARGS,
-          "--no-progress",
-        ],
+        ["update", "score", "--values", '[{"label":"good"}]', ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -407,15 +359,11 @@ describe("annotation-config update", () => {
       )
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createAnnotationConfigCommand().parseAsync(
-        ["update", "missing", "--name", "x", ...BASE_ARGS, "--no-progress"],
+        ["update", "missing", "--name", "x", ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);

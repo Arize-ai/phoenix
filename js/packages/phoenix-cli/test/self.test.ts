@@ -24,6 +24,7 @@ import {
 } from "../src/commands/self";
 import { CLI_VERSION } from "../src/version";
 import { setupMockPhoenixServer } from "./mockServer";
+import { captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
 
@@ -332,13 +333,8 @@ describe("self update command", () => {
 
   it("fails with guidance for unsupported install contexts", async () => {
     useNpmLatestVersion({ version: "99.0.0" });
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
 
     execFileSyncMock.mockImplementation(() => "/tmp/unsupported-root");
 
@@ -347,7 +343,7 @@ describe("self update command", () => {
     ).rejects.toThrow("process.exit:1");
 
     expect(spawnSyncMock).not.toHaveBeenCalled();
-    expect(stderrSpy).toHaveBeenCalledWith(
+    expect(io.stderr).toHaveBeenCalledWith(
       "Error: Automatic updates are only supported for global npm, pnpm, bun, or Deno installs of @arizeai/phoenix-cli."
     );
     expect(exitSpy).toHaveBeenCalledWith(1);
@@ -355,11 +351,7 @@ describe("self update command", () => {
 
   it("maps fetch failures to the network exit code", async () => {
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     mock.server.use(
       mswHttp.get("https://registry.npmjs.org/*", () => HttpResponse.error())
@@ -377,11 +369,7 @@ describe("self update command", () => {
 
   it("fails when the published version is not valid semver", async () => {
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     useNpmLatestVersion({ version: "not-a-version" });
 

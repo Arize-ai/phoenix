@@ -8,6 +8,7 @@ import {
 } from "../src/commands/api";
 import { renderCurlCommand } from "../src/curl";
 import { setupMockPhoenixServer } from "./mockServer";
+import { captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
 
@@ -233,8 +234,7 @@ describe("api graphql command", () => {
         },
       },
     });
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createApiCommand().parseAsync(
       [
@@ -250,7 +250,7 @@ describe("api graphql command", () => {
     expect(graphqlCapture.bodies[0]).toEqual({
       query: "{ projects { edges { node { name } } } }",
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify(
         {
           data: {
@@ -263,13 +263,12 @@ describe("api graphql command", () => {
         2
       )
     );
-    expect(stderrSpy).not.toHaveBeenCalled();
+    expect(io.stderr).not.toHaveBeenCalled();
   });
 
   it("prints curl and does not execute fetch when --curl is set", async () => {
     const graphqlCapture = useGraphqlEndpoint({ data: {} });
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createApiCommand().parseAsync(
       [
@@ -285,28 +284,28 @@ describe("api graphql command", () => {
     );
 
     expect(graphqlCapture.count).toBe(0);
-    expect(stderrSpy).not.toHaveBeenCalled();
-    expect(stdoutSpy).toHaveBeenCalledTimes(1);
-    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("curl \\"));
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stderr).not.toHaveBeenCalled();
+    expect(io.stdout).toHaveBeenCalledTimes(1);
+    expect(io.stdout).toHaveBeenCalledWith(expect.stringContaining("curl \\"));
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining("  -X POST \\")
     );
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining("  -H 'Content-Type: application/json' \\\n")
     );
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining(
         "  -H 'Authorization: Bearer ************************************' \\\n"
       )
     );
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining(
         `  --data-raw '${JSON.stringify({
           query: "{ projects { edges { node { name } } } }",
         })}' \\`
       )
     );
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining("  'http://localhost:6006/graphql'")
     );
   });
@@ -314,11 +313,7 @@ describe("api graphql command", () => {
   it("rejects --show-token when --curl is not set", async () => {
     const graphqlCapture = useGraphqlEndpoint({ data: {} });
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createApiCommand().parseAsync(
@@ -343,11 +338,7 @@ describe("api graphql command", () => {
   it("still rejects mutations in curl mode", async () => {
     const graphqlCapture = useGraphqlEndpoint({ data: {} });
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createApiCommand().parseAsync(

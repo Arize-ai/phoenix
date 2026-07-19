@@ -5,10 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSessionCommand } from "../src/commands/session";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 const SESSION_FIXTURE: componentsV1["schemas"]["SessionData"] = {
   id: "U2Vzc2lvbjox",
@@ -150,8 +149,7 @@ describe("session annotate", () => {
         });
       })
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -182,7 +180,7 @@ describe("session annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "session-annotation-1",
         targetType: "session",
@@ -200,11 +198,7 @@ describe("session annotate", () => {
   it("validates missing annotation names before network calls", async () => {
     const sessionLookup = useSessionLookup();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionCommand().parseAsync(
@@ -223,11 +217,7 @@ describe("session annotate", () => {
   it("validates invalid scores before network calls", async () => {
     const sessionLookup = useSessionLookup();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionCommand().parseAsync(
@@ -256,11 +246,7 @@ describe("session annotate", () => {
   it("validates empty annotation results before network calls", async () => {
     const sessionLookup = useSessionLookup();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionCommand().parseAsync(
@@ -281,11 +267,7 @@ describe("session annotate", () => {
   it("validates invalid annotator kinds before network calls", async () => {
     const sessionLookup = useSessionLookup();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionCommand().parseAsync(
@@ -326,11 +308,7 @@ describe("session annotate", () => {
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionCommand().parseAsync(
@@ -365,8 +343,7 @@ describe("session add-note", () => {
         return response(200).json({ data: { id: "session-note-1" } });
       })
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -389,7 +366,7 @@ describe("session add-note", () => {
         note: "needs review",
       },
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "session-note-1",
         targetType: "session",
@@ -402,11 +379,7 @@ describe("session add-note", () => {
   it("validates blank note text before network calls", async () => {
     const sessionLookup = useSessionLookup();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionCommand().parseAsync(
@@ -435,11 +408,7 @@ describe("session add-note", () => {
       })
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionCommand().parseAsync(
@@ -470,8 +439,7 @@ describe("session annotation and note readback", () => {
     const annotationReads = useSessionAnnotationReads({
       notes: [SESSION_NOTE_FIXTURE],
     });
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -490,7 +458,7 @@ describe("session annotation and note readback", () => {
       annotationReads.queries[0]?.getAll("include_annotation_names")
     ).toEqual(["note"]);
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput.session.notes).toEqual([
       expect.objectContaining({ id: "session-note-1", name: "note" }),
@@ -503,8 +471,7 @@ describe("session annotation and note readback", () => {
     const annotationReads = useSessionAnnotationReads({
       annotations: [SESSION_ANNOTATION_FIXTURE],
     });
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -522,7 +489,7 @@ describe("session annotation and note readback", () => {
       annotationReads.queries[0]?.getAll("exclude_annotation_names")
     ).toEqual(["note"]);
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput.session.annotations).toEqual([
       expect.objectContaining({ id: "session-annotation-1", name: "reviewer" }),
@@ -541,8 +508,7 @@ describe("session annotation and note readback", () => {
       )
     );
     useSessionAnnotationReads();
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -556,7 +522,7 @@ describe("session annotation and note readback", () => {
       { from: "user" }
     );
 
-    const output = String(stdoutSpy.mock.calls[0]?.[0]);
+    const output = String(io.stdout.mock.calls[0]?.[0]);
     expect(output).toContain("annotations");
     expect(output).toContain("notes");
   });
@@ -572,8 +538,7 @@ describe("session annotation and note readback", () => {
       annotations: [SESSION_ANNOTATION_FIXTURE],
       notes: [SESSION_NOTE_FIXTURE],
     });
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -598,7 +563,7 @@ describe("session annotation and note readback", () => {
     expect(notesQuery?.getAll("session_ids")).toEqual(["session-123"]);
     expect(notesQuery?.getAll("include_annotation_names")).toEqual(["note"]);
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
     expect(parsedOutput[0].annotations).toEqual([
       expect.objectContaining({ id: "session-annotation-1", name: "reviewer" }),
@@ -630,8 +595,7 @@ describe("session annotation and note readback", () => {
       )
     );
     const annotationReads = useSessionAnnotationReads();
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [

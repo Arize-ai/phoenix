@@ -5,10 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createExperimentCommand } from "../src/commands/experiment";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 // Hex string, so the CLI treats it as a dataset ID and skips name resolution.
 const DATASET_ID = "abc123";
@@ -75,8 +74,7 @@ afterEach(() => {
 describe("experiment list", () => {
   it("scopes the request to the dataset and prints experiments as raw JSON", async () => {
     const captured = captureListExperimentsRequest();
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createExperimentCommand().parseAsync(
       [
@@ -97,7 +95,7 @@ describe("experiment list", () => {
     expect(captured.datasetId).toBe(DATASET_ID);
     expect(captured.limit).toBe("50");
 
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual([EXPERIMENT]);
   });
 
@@ -110,8 +108,7 @@ describe("experiment list", () => {
       })
     );
     const captured = captureListExperimentsRequest();
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createExperimentCommand().parseAsync(
       ["list", "--dataset", "my-dataset", "--format", "raw", ...BASE_ARGS],
@@ -120,7 +117,7 @@ describe("experiment list", () => {
 
     expect(capturedName.name).toBe("my-dataset");
     expect(captured.datasetId).toBe(DATASET_ID);
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual([EXPERIMENT]);
   });
 
@@ -131,11 +128,7 @@ describe("experiment list", () => {
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createExperimentCommand().parseAsync(
@@ -157,11 +150,7 @@ describe("experiment list", () => {
       )
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createExperimentCommand().parseAsync(
@@ -177,8 +166,7 @@ describe("experiment list", () => {
     // No pinned handler: the schema-generated mock answers everything. The
     // generated pages always carry a non-null next_cursor, so --limit 1 is
     // required to stop the CLI's pagination loop.
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createExperimentCommand().parseAsync(
       [
@@ -194,7 +182,7 @@ describe("experiment list", () => {
       { from: "user" }
     );
 
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed.length).toBeGreaterThan(0);
     expect(typeof parsed[0].id).toBe("string");
@@ -225,8 +213,7 @@ describe("experiment get", () => {
         }
       )
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createExperimentCommand().parseAsync(
       ["get", "exp-001", "--format", "raw", ...BASE_ARGS],
@@ -236,7 +223,7 @@ describe("experiment get", () => {
     expect(captured.count).toBe(1);
     expect(captured.experimentId).toBe("exp-001");
     // Raw mode re-serializes the payload as compact JSON.
-    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify(runs));
+    expect(io.stdout).toHaveBeenCalledWith(JSON.stringify(runs));
   });
 
   it("exits FAILURE when the experiment does not exist", async () => {
@@ -246,11 +233,7 @@ describe("experiment get", () => {
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createExperimentCommand().parseAsync(

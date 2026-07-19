@@ -1,16 +1,15 @@
-import type { componentsV1 } from "@arizeai/phoenix-client";
+import type { componentsV1 } from "@arizeai/phoenix-testing";
 import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSpanCommand } from "../src/commands/span";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 type Span = componentsV1["schemas"]["Span"];
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 // A hex identifier is treated as a project ID directly, skipping the
 // `/v1/projects/{project_identifier}` name-resolution round-trip.
@@ -47,12 +46,6 @@ const TOOL_SPAN: Span = {
   events: [],
 };
 
-function mockProcessExit() {
-  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
-    throw new Error(`process.exit:${code}`);
-  }) as never);
-}
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -74,8 +67,7 @@ describe("span list", () => {
         }
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -103,7 +95,7 @@ describe("span list", () => {
     expect(capturedQuery?.getAll("trace_id")).toEqual([TRACE_ID]);
     expect(capturedQuery?.get("parent_id")).toBe("null");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const spans = JSON.parse(String(output));
     expect(spans).toHaveLength(2);
     expect(spans[0].name).toBe("chat_completion");
@@ -134,8 +126,7 @@ describe("span list", () => {
         }
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -151,7 +142,7 @@ describe("span list", () => {
     );
 
     expect(capturedCursors).toEqual([null, "cursor-page-2"]);
-    const spans = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const spans = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     // 3 spans came back across pages; --limit 2 truncates client-side
     expect(spans).toHaveLength(2);
     expect(spans.map((span: Span) => span.name)).toEqual([
@@ -166,8 +157,7 @@ describe("span list", () => {
         response(404).text("Project not found")
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -178,7 +168,7 @@ describe("span list", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching spans"
     );
   });
@@ -189,8 +179,7 @@ describe("span list", () => {
         HttpResponse.error()
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -201,15 +190,14 @@ describe("span list", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching spans"
     );
   });
 
   it("completes end-to-end against the generated OpenAPI handlers", async () => {
     // No pinned handlers: every response comes from the schema-generated mocks.
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await createSpanCommand().parseAsync(
@@ -226,7 +214,7 @@ describe("span list", () => {
     );
 
     expect(exitSpy).not.toHaveBeenCalled();
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const spans = JSON.parse(String(output));
     expect(Array.isArray(spans)).toBe(true);
     expect(spans.length).toBeGreaterThan(0);

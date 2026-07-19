@@ -5,12 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSessionCommand } from "../src/commands/session";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 type SessionData = componentsV1["schemas"]["SessionData"];
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 // A hex identifier is treated as a project ID directly, skipping the
 // `/v1/projects/{project_identifier}` name-resolution round-trip.
@@ -42,12 +41,6 @@ const SESSION_B: SessionData = {
   traces: [],
 };
 
-function mockProcessExit() {
-  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
-    throw new Error(`process.exit:${code}`);
-  }) as never);
-}
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -76,8 +69,7 @@ describe("session list", () => {
         }
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -103,7 +95,7 @@ describe("session list", () => {
     expect(capturedQuery?.get("order")).toBe("asc");
     expect(capturedQuery?.get("cursor")).toBeNull();
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const sessions = JSON.parse(String(output));
     expect(sessions).toEqual([SESSION_A, SESSION_B]);
   });
@@ -130,8 +122,7 @@ describe("session list", () => {
         }
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       [
@@ -150,7 +141,7 @@ describe("session list", () => {
     // The per-page limit shrinks to the number of sessions still needed.
     expect(capturedLimits).toEqual(["2", "1"]);
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const sessions = JSON.parse(String(output));
     expect(sessions.map((s: SessionData) => s.session_id)).toEqual([
       "chat-session-001",
@@ -160,8 +151,7 @@ describe("session list", () => {
 
   it("completes end-to-end against the generated OpenAPI handlers", async () => {
     // No pinned handlers: every response comes from the schema-generated mocks.
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await createSessionCommand().parseAsync(
@@ -178,7 +168,7 @@ describe("session list", () => {
     );
 
     expect(exitSpy).not.toHaveBeenCalled();
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const sessions = JSON.parse(String(output));
     expect(Array.isArray(sessions)).toBe(true);
     expect(sessions.length).toBeGreaterThan(0);
@@ -195,8 +185,7 @@ describe("session get", () => {
         return response(200).json({ data: SESSION_A });
       })
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSessionCommand().parseAsync(
       ["get", "chat-session-001", "--format", "raw", ...BASE_ARGS],
@@ -204,7 +193,7 @@ describe("session get", () => {
     );
 
     expect(capturedIdentifier).toBe("chat-session-001");
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(output));
     expect(parsed).toEqual({ session: SESSION_A });
   });
@@ -215,8 +204,7 @@ describe("session get", () => {
         response(404).text("Session not found")
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -227,7 +215,7 @@ describe("session get", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching session"
     );
   });
@@ -236,8 +224,7 @@ describe("session get", () => {
     mock.server.use(
       http.get("/v1/sessions/{session_identifier}", () => HttpResponse.error())
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
@@ -248,7 +235,7 @@ describe("session get", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
-    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
       "Error fetching session"
     );
   });

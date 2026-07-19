@@ -4,10 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProjectCommand } from "../src/commands/project";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 const PROJECTS = [
   { id: "proj-aaa", name: "alpha", description: "first project" },
@@ -36,8 +35,7 @@ describe("project list", () => {
         return response(200).json({ data: PROJECTS, next_cursor: null });
       })
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
       ["list", "--limit", "50", "--format", "raw", ...BASE_ARGS],
@@ -47,7 +45,7 @@ describe("project list", () => {
     expect(captured.count).toBe(1);
     expect(captured.limit).toBe("50");
     expect(captured.includeExperimentProjects).toBe("false");
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(PROJECTS);
   });
 
@@ -66,8 +64,7 @@ describe("project list", () => {
         return response(200).json({ data: [PROJECTS[1]], next_cursor: null });
       })
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
       ["list", "--format", "raw", ...BASE_ARGS],
@@ -75,7 +72,7 @@ describe("project list", () => {
     );
 
     expect(cursors).toEqual([null, "cursor-2"]);
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(PROJECTS);
   });
 
@@ -86,11 +83,7 @@ describe("project list", () => {
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createProjectCommand().parseAsync(
@@ -108,11 +101,7 @@ describe("project list", () => {
   it("exits NETWORK_ERROR when the connection fails", async () => {
     mock.server.use(http.get("/v1/projects", () => HttpResponse.error()));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createProjectCommand().parseAsync(
@@ -147,15 +136,14 @@ describe("project list", () => {
         )
       )
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
       ["list", "--format", "raw", ...BASE_ARGS],
       { from: "user" }
     );
 
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(generatedPage.data);
   });
 });

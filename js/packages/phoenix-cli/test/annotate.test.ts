@@ -7,10 +7,9 @@ import { createSpanCommand } from "../src/commands/span";
 import { createTraceCommand } from "../src/commands/trace";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 interface CapturedAnnotationRequest {
   query?: URLSearchParams;
@@ -97,8 +96,7 @@ describe("span annotate", () => {
 
   it("posts a sync span annotation and returns raw structured output", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-1");
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -128,7 +126,7 @@ describe("span annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "span-annotation-1",
         targetType: "span",
@@ -141,13 +139,12 @@ describe("span annotate", () => {
         identifier: "",
       })
     );
-    expect(stderrSpy).not.toHaveBeenCalled();
+    expect(io.stderr).not.toHaveBeenCalled();
   });
 
   it("passes through a custom annotator kind for span annotation", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-3");
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -177,7 +174,7 @@ describe("span annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "span-annotation-3",
         targetType: "span",
@@ -194,8 +191,7 @@ describe("span annotate", () => {
 
   it("returns pretty output for a scored span annotation", async () => {
     captureSpanAnnotationsRequest("span-annotation-2");
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -212,10 +208,10 @@ describe("span annotate", () => {
       { from: "user" }
     );
 
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining("Target: span span-456")
     );
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining("Explanation: looks good")
     );
   });
@@ -223,11 +219,7 @@ describe("span annotate", () => {
   it("fails with INVALID_ARGUMENT when --name is missing", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -243,11 +235,7 @@ describe("span annotate", () => {
   it("fails with INVALID_ARGUMENT when all result fields are blank", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -273,11 +261,7 @@ describe("span annotate", () => {
   it("fails with INVALID_ARGUMENT when --score is invalid", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -306,11 +290,7 @@ describe("span annotate", () => {
   it("fails with INVALID_ARGUMENT when --score contains trailing non-numeric characters", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -339,11 +319,7 @@ describe("span annotate", () => {
   it("fails with INVALID_ARGUMENT when --annotator-kind is invalid", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -373,11 +349,7 @@ describe("span annotate", () => {
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -406,11 +378,7 @@ describe("span annotate", () => {
       http.post("/v1/span_annotations", () => HttpResponse.error())
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -438,8 +406,7 @@ describe("trace annotate", () => {
 
   it("posts a sync trace annotation and returns json output", async () => {
     const captured = captureTraceAnnotationsRequest("trace-annotation-1");
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -469,7 +436,7 @@ describe("trace annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify(
         {
           id: "trace-annotation-1",
@@ -490,8 +457,7 @@ describe("trace annotate", () => {
 
   it("passes through a custom annotator kind for trace annotation", async () => {
     const captured = captureTraceAnnotationsRequest("trace-annotation-2");
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -521,7 +487,7 @@ describe("trace annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "trace-annotation-2",
         targetType: "trace",
@@ -550,11 +516,7 @@ describe("trace annotate", () => {
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceCommand().parseAsync(
@@ -581,11 +543,7 @@ describe("trace annotate", () => {
   it("fails with INVALID_ARGUMENT when trace --score is invalid", async () => {
     const captured = captureTraceAnnotationsRequest("trace-annotation-unused");
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceCommand().parseAsync(
@@ -665,8 +623,7 @@ describe("trace get", () => {
         ({ response }) => response(200).json({ data: [], next_cursor: null })
       )
     );
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -777,8 +734,7 @@ describe("trace get", () => {
         }
       )
     );
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -797,7 +753,7 @@ describe("trace get", () => {
     expect(captured.traceAnnotationsProject).toBe("project-default");
     expect(captured.spanAnnotationsProject).toBe("project-default");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(output).toBeTruthy();
 
     const parsedOutput = JSON.parse(String(output));
@@ -825,8 +781,7 @@ describe("annotate --identifier round-trip", () => {
 
   it("threads --identifier into the span_annotations request body", async () => {
     const captured = captureSpanAnnotationsRequest("span-annotation-id");
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -860,8 +815,7 @@ describe("annotate --identifier round-trip", () => {
 
   it("threads --identifier into the trace_annotations request body", async () => {
     const captured = captureTraceAnnotationsRequest("trace-annotation-id");
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -895,8 +849,7 @@ describe("annotate --identifier round-trip", () => {
 
   it("echoes the supplied --identifier in the raw mutation result", async () => {
     captureTraceAnnotationsRequest("trace-annotation-id");
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -915,7 +868,7 @@ describe("annotate --identifier round-trip", () => {
       { from: "user" }
     );
 
-    const echoed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const echoed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(echoed.identifier).toBe("px-coding-session:abc12345");
   });
 });

@@ -5,10 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPromptCommand } from "../src/commands/prompt";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
 const mock = setupMockPhoenixServer();
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 const PROMPT: componentsV1["schemas"]["Prompt"] = {
   id: "prompt-001",
@@ -41,8 +40,7 @@ describe("prompt list", () => {
         return response(200).json({ data: [PROMPT], next_cursor: null });
       })
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createPromptCommand().parseAsync(
       ["list", "--limit", "25", "--format", "raw", ...BASE_ARGS],
@@ -51,18 +49,14 @@ describe("prompt list", () => {
 
     expect(captured.count).toBe(1);
     expect(captured.limit).toBe("25");
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual([PROMPT]);
   });
 
   it("exits NETWORK_ERROR when the connection fails", async () => {
     mock.server.use(http.get("/v1/prompts", () => HttpResponse.error()));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createPromptCommand().parseAsync(
@@ -78,15 +72,14 @@ describe("prompt list", () => {
     // No pinned handler: the schema-generated mock answers everything. The
     // generated pages always carry a non-null next_cursor, so --limit 1 is
     // required to stop the CLI's pagination loop.
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createPromptCommand().parseAsync(
       ["list", "--limit", "1", "--format", "raw", ...BASE_ARGS],
       { from: "user" }
     );
 
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed.length).toBeGreaterThan(0);
     expect(typeof parsed[0].id).toBe("string");
@@ -107,8 +100,7 @@ describe("prompt get", () => {
         }
       )
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createPromptCommand().parseAsync(
       ["get", "greeting", "--format", "raw", ...BASE_ARGS],
@@ -117,7 +109,7 @@ describe("prompt get", () => {
 
     expect(captured.count).toBe(1);
     expect(captured.identifier).toBe("greeting");
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(PROMPT_VERSION);
   });
 
@@ -136,8 +128,7 @@ describe("prompt get", () => {
         }
       )
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const io = captureCliOutput();
 
     await createPromptCommand().parseAsync(
       [
@@ -155,7 +146,7 @@ describe("prompt get", () => {
     expect(captured.count).toBe(1);
     expect(captured.identifier).toBe("greeting");
     expect(captured.tag).toBe("production");
-    const parsed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(PROMPT_VERSION);
   });
 
@@ -166,11 +157,7 @@ describe("prompt get", () => {
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createPromptCommand().parseAsync(
