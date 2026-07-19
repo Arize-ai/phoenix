@@ -2,58 +2,33 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createProjectCommand } from "../src/commands/project";
 import { ExitCode } from "../src/exitCodes";
+import { http, setupMockPhoenixServer } from "./mockServer";
 
-function makeFetchMock(
-  responses: Array<
-    | { ok: boolean; status?: number; body?: unknown; text?: string }
-    | { error: Error }
-  >
-) {
-  let callIndex = 0;
-  return vi.fn().mockImplementation((requestOrUrl: Request | string) => {
-    const response = responses[callIndex++] ?? responses[responses.length - 1];
-    if ("error" in response) {
-      return Promise.reject(response.error);
-    }
-    const status = response.status ?? (response.ok ? 200 : 500);
-    const url =
-      requestOrUrl instanceof Request ? requestOrUrl.url : requestOrUrl;
-    const body = response.body ?? {};
-    const text = response.text ?? JSON.stringify(body);
-    return Promise.resolve({
-      ok: response.ok,
-      status,
-      statusText: response.ok ? "OK" : "Error",
-      url,
-      headers: new Headers(),
-      json: () => Promise.resolve(body),
-      text: () => Promise.resolve(text),
-    });
-  });
-}
+const mock = setupMockPhoenixServer();
 
 const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
-const PROJECT_PAGE = {
-  ok: true as const,
-  body: {
-    data: [
-      { id: "proj-aaa", name: "alpha", description: "first project" },
-      { id: "proj-bbb", name: "beta", description: null },
-    ],
-    next_cursor: null,
-  },
-};
+function usePinnedProjectPage() {
+  mock.server.use(
+    http.get("/v1/projects", ({ response }) =>
+      response(200).json({
+        data: [
+          { id: "proj-aaa", name: "alpha", description: "first project" },
+          { id: "proj-bbb", name: "beta", description: null },
+        ],
+        next_cursor: null,
+      })
+    )
+  );
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 
 describe("project get", () => {
   it("returns the matching project as a bare object in raw mode", async () => {
-    const fetchMock = makeFetchMock([PROJECT_PAGE]);
-    vi.stubGlobal("fetch", fetchMock);
+    usePinnedProjectPage();
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -72,8 +47,7 @@ describe("project get", () => {
   });
 
   it("returns the matching project as a bare object in json mode", async () => {
-    const fetchMock = makeFetchMock([PROJECT_PAGE]);
-    vi.stubGlobal("fetch", fetchMock);
+    usePinnedProjectPage();
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -92,8 +66,7 @@ describe("project get", () => {
   });
 
   it("emits a StructuredError on miss and exits FAILURE", async () => {
-    const fetchMock = makeFetchMock([PROJECT_PAGE]);
-    vi.stubGlobal("fetch", fetchMock);
+    usePinnedProjectPage();
     vi.spyOn(console, "log").mockImplementation(() => {});
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
@@ -118,8 +91,7 @@ describe("project get", () => {
   });
 
   it("emits a human-readable error on miss in pretty mode", async () => {
-    const fetchMock = makeFetchMock([PROJECT_PAGE]);
-    vi.stubGlobal("fetch", fetchMock);
+    usePinnedProjectPage();
     vi.spyOn(console, "log").mockImplementation(() => {});
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
@@ -140,8 +112,7 @@ describe("project get", () => {
   });
 
   it("does NOT envelope the response in json mode (single-record convention)", async () => {
-    const fetchMock = makeFetchMock([PROJECT_PAGE]);
-    vi.stubGlobal("fetch", fetchMock);
+    usePinnedProjectPage();
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 

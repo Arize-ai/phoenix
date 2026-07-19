@@ -25,6 +25,11 @@
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js",
       "default": "./dist/node.js"
+    },
+    "./msw": {
+      "types": "./dist/msw.d.ts",
+      "import": "./dist/msw.js",
+      "default": "./dist/msw.js"
     }
   },
   "scripts": {

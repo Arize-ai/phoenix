@@ -1,3 +1,4 @@
+import { HttpResponse, http as mswHttp } from "@arizeai/phoenix-testing/msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -6,6 +7,31 @@ import {
   isNonQuery,
 } from "../src/commands/api";
 import { renderCurlCommand } from "../src/curl";
+import { setupMockPhoenixServer } from "./mockServer";
+
+const mock = setupMockPhoenixServer();
+
+const GRAPHQL_URL = "http://localhost:6006/graphql";
+
+/**
+ * Register a handler for the Phoenix GraphQL endpoint (not part of the
+ * OpenAPI spec, so it needs a raw msw handler) and return a capture object
+ * recording every request that reaches it.
+ */
+function useGraphqlEndpoint(responseBody: Record<string, unknown>) {
+  const captured: { count: number; bodies: unknown[] } = {
+    count: 0,
+    bodies: [],
+  };
+  mock.server.use(
+    mswHttp.post(GRAPHQL_URL, async ({ request }) => {
+      captured.count += 1;
+      captured.bodies.push(await request.clone().json());
+      return HttpResponse.json(responseBody);
+    })
+  );
+  return captured;
+}
 
 describe("isNonQuery", () => {
   it("returns false for an anonymous shorthand query", () => {
@@ -197,24 +223,18 @@ describe("renderCurlCommand", () => {
 describe("api graphql command", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("executes fetch in normal mode", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({
-        data: {
-          projects: {
-            edges: [],
-          },
+    const graphqlCapture = useGraphqlEndpoint({
+      data: {
+        projects: {
+          edges: [],
         },
-      }),
+      },
     });
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    vi.stubGlobal("fetch", fetchMock);
 
     await createApiCommand().parseAsync(
       [
@@ -226,7 +246,10 @@ describe("api graphql command", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(graphqlCapture.count).toBe(1);
+    expect(graphqlCapture.bodies[0]).toEqual({
+      query: "{ projects { edges { node { name } } } }",
+    });
     expect(stdoutSpy).toHaveBeenCalledWith(
       JSON.stringify(
         {
@@ -244,11 +267,9 @@ describe("api graphql command", () => {
   });
 
   it("prints curl and does not execute fetch when --curl is set", async () => {
-    const fetchMock = vi.fn();
+    const graphqlCapture = useGraphqlEndpoint({ data: {} });
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    vi.stubGlobal("fetch", fetchMock);
 
     await createApiCommand().parseAsync(
       [
@@ -263,7 +284,7 @@ describe("api graphql command", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(graphqlCapture.count).toBe(0);
     expect(stderrSpy).not.toHaveBeenCalled();
     expect(stdoutSpy).toHaveBeenCalledTimes(1);
     expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining("curl \\"));
@@ -291,15 +312,13 @@ describe("api graphql command", () => {
   });
 
   it("rejects --show-token when --curl is not set", async () => {
-    const fetchMock = vi.fn();
+    const graphqlCapture = useGraphqlEndpoint({ data: {} });
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
     ) => {
       throw new Error(`process.exit:${code}`);
     }) as never);
-
-    vi.stubGlobal("fetch", fetchMock);
 
     await expect(
       createApiCommand().parseAsync(
@@ -314,7 +333,7 @@ describe("api graphql command", () => {
       )
     ).rejects.toThrow("process.exit:1");
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(graphqlCapture.count).toBe(0);
     expect(stderrSpy).toHaveBeenCalledWith(
       "Error: --show-token can only be used with --curl."
     );
@@ -322,15 +341,13 @@ describe("api graphql command", () => {
   });
 
   it("still rejects mutations in curl mode", async () => {
-    const fetchMock = vi.fn();
+    const graphqlCapture = useGraphqlEndpoint({ data: {} });
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
     ) => {
       throw new Error(`process.exit:${code}`);
     }) as never);
-
-    vi.stubGlobal("fetch", fetchMock);
 
     await expect(
       createApiCommand().parseAsync(
@@ -345,7 +362,7 @@ describe("api graphql command", () => {
       )
     ).rejects.toThrow("process.exit:1");
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(graphqlCapture.count).toBe(0);
     expect(stderrSpy).toHaveBeenCalledWith(
       "Error: Only queries are permitted. Mutations and subscriptions are not allowed."
     );

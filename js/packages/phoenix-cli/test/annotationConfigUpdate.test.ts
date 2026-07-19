@@ -1,63 +1,22 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import type { componentsV1 } from "@arizeai/phoenix-testing";
+import { HttpResponse } from "@arizeai/phoenix-testing/msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAnnotationConfigCommand } from "../src/commands/annotationConfig";
 import { ExitCode } from "../src/exitCodes";
+import { http, setupMockPhoenixServer } from "./mockServer";
 
-/**
- * Build a fetch mock that returns each queued response in order, falling back
- * to the last response once exhausted.
- */
-function makeFetchMock(
-  responses: Array<{ ok: boolean; status?: number; body?: unknown }>
-) {
-  let callIndex = 0;
-  return vi.fn().mockImplementation((requestOrUrl: Request | string) => {
-    const resp = responses[callIndex++] ?? responses[responses.length - 1];
-    const status = resp.status ?? (resp.ok ? 200 : 500);
-    const url =
-      requestOrUrl instanceof Request ? requestOrUrl.url : requestOrUrl;
-    const body = resp.body ?? {};
-    const text = JSON.stringify(body);
-    return Promise.resolve({
-      ok: resp.ok,
-      status,
-      statusText: resp.ok ? "OK" : "Error",
-      url,
-      headers: new Headers(),
-      json: () => Promise.resolve(body),
-      text: () => Promise.resolve(text),
-    });
-  });
-}
-
-function getFetchUrl(arg: unknown): string {
-  if (arg instanceof Request) return arg.url;
-  return String(arg);
-}
-
-function getFetchMethod(arg: unknown, init?: RequestInit): string {
-  if (arg instanceof Request) return arg.method;
-  return init?.method ?? "GET";
-}
-
-async function getFetchBody(
-  arg: unknown,
-  init?: RequestInit
-): Promise<unknown> {
-  if (arg instanceof Request) {
-    const text = await arg.clone().text();
-    return text ? JSON.parse(text) : undefined;
-  }
-  const body = init?.body;
-  return typeof body === "string" ? JSON.parse(body) : body;
-}
+const mock = setupMockPhoenixServer();
 
 const BASE_ARGS = ["--endpoint", "http://localhost:6006"];
 
-const CATEGORICAL = {
+type AnnotationConfig =
+  componentsV1["schemas"]["GetAnnotationConfigResponseBody"]["data"];
+
+const CATEGORICAL: componentsV1["schemas"]["CategoricalAnnotationConfig"] = {
   id: "cat-id-001",
   name: "quality",
   type: "CATEGORICAL",
@@ -69,7 +28,7 @@ const CATEGORICAL = {
   ],
 };
 
-const CONTINUOUS = {
+const CONTINUOUS: componentsV1["schemas"]["ContinuousAnnotationConfig"] = {
   id: "cont-id-002",
   name: "score",
   type: "CONTINUOUS",
@@ -78,6 +37,50 @@ const CONTINUOUS = {
   lower_bound: 0,
   upper_bound: 1,
 };
+
+/**
+ * Register handlers for the update flow: GET by identifier answers with
+ * `existing`, PUT answers with `updated` (defaults to `existing`). Records
+ * the GET identifier, the PUT config id and body, and per-handler call
+ * counts so tests can assert which calls happened.
+ */
+function captureAnnotationConfigUpdateFlow(
+  existing: AnnotationConfig,
+  updated: AnnotationConfig = existing
+) {
+  const captured: {
+    getIdentifier?: string;
+    getCount: number;
+    putConfigId?: string;
+    putBody?: Record<string, unknown>;
+    putCount: number;
+  } = { getCount: 0, putCount: 0 };
+
+  mock.server.use(
+    http.get(
+      "/v1/annotation_configs/{config_identifier}",
+      ({ params, response }) => {
+        captured.getCount += 1;
+        captured.getIdentifier = params.config_identifier;
+        return response(200).json({ data: existing });
+      }
+    ),
+    http.put(
+      "/v1/annotation_configs/{config_id}",
+      async ({ params, request, response }) => {
+        captured.putCount += 1;
+        captured.putConfigId = params.config_id;
+        captured.putBody = (await request.clone().json()) as Record<
+          string,
+          unknown
+        >;
+        return response(200).json({ data: updated });
+      }
+    )
+  );
+
+  return captured;
+}
 
 /**
  * Point XDG_CONFIG_HOME at a clean temp dir so the CLI's settings resolution
@@ -105,18 +108,13 @@ describe("annotation-config update", () => {
   useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("fetches the config then PUTs a merged body changing only --name", async () => {
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: CATEGORICAL } },
-      {
-        ok: true,
-        body: { data: { ...CATEGORICAL, name: "renamed" } },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL, {
+      ...CATEGORICAL,
+      name: "renamed",
+    });
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -125,23 +123,14 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
     // First call: GET by identifier
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toContain(
-      "/v1/annotation_configs/quality"
-    );
+    expect(captured.getCount).toBe(1);
+    expect(captured.getIdentifier).toBe("quality");
     // Second call: PUT using the resolved ID
-    expect(getFetchUrl(fetchMock.mock.calls[1][0])).toContain(
-      "/v1/annotation_configs/cat-id-001"
-    );
-    expect(
-      getFetchMethod(fetchMock.mock.calls[1][0], fetchMock.mock.calls[1][1])
-    ).toBe("PUT");
+    expect(captured.putCount).toBe(1);
+    expect(captured.putConfigId).toBe("cat-id-001");
 
-    const body = (await getFetchBody(
-      fetchMock.mock.calls[1][0],
-      fetchMock.mock.calls[1][1]
-    )) as Record<string, unknown>;
+    const body = captured.putBody as Record<string, unknown>;
     // Changed field
     expect(body.name).toBe("renamed");
     // Preserved fields
@@ -154,11 +143,7 @@ describe("annotation-config update", () => {
   });
 
   it("updates categorical values from --values JSON", async () => {
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: CATEGORICAL } },
-      { ok: true, body: { data: CATEGORICAL } },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -174,10 +159,7 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = (await getFetchBody(
-      fetchMock.mock.calls[1][0],
-      fetchMock.mock.calls[1][1]
-    )) as Record<string, unknown>;
+    const body = captured.putBody as Record<string, unknown>;
     expect(body.values).toEqual([
       { label: "excellent", score: 2 },
       { label: "poor" },
@@ -185,11 +167,7 @@ describe("annotation-config update", () => {
   });
 
   it("updates categorical values from repeatable --value flags", async () => {
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: CATEGORICAL } },
-      { ok: true, body: { data: CATEGORICAL } },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -207,10 +185,7 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = (await getFetchBody(
-      fetchMock.mock.calls[1][0],
-      fetchMock.mock.calls[1][1]
-    )) as Record<string, unknown>;
+    const body = captured.putBody as Record<string, unknown>;
     expect(body.values).toEqual([
       { label: "excellent", score: 2 },
       { label: "poor" },
@@ -218,10 +193,7 @@ describe("annotation-config update", () => {
   });
 
   it("exits INVALID_ARGUMENT when both --value and --values are supplied", async () => {
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: CATEGORICAL } },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
@@ -249,8 +221,7 @@ describe("annotation-config update", () => {
   });
 
   it("exits INVALID_ARGUMENT before any network call when a numeric flag is not a number", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: { data: CONTINUOUS } }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CONTINUOUS);
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
@@ -275,15 +246,12 @@ describe("annotation-config update", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     // A typo'd bound must never reach the API (it would silently clear the
     // existing bound to null).
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.getCount).toBe(0);
+    expect(captured.putCount).toBe(0);
   });
 
   it("accepts a lowercase --optimization-direction and sends it uppercased", async () => {
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: CATEGORICAL } },
-      { ok: true, body: { data: CATEGORICAL } },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -299,19 +267,12 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = (await getFetchBody(
-      fetchMock.mock.calls[1][0],
-      fetchMock.mock.calls[1][1]
-    )) as Record<string, unknown>;
+    const body = captured.putBody as Record<string, unknown>;
     expect(body.optimization_direction).toBe("MINIMIZE");
   });
 
   it("updates continuous bounds", async () => {
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: CONTINUOUS } },
-      { ok: true, body: { data: CONTINUOUS } },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CONTINUOUS);
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -329,10 +290,7 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = (await getFetchBody(
-      fetchMock.mock.calls[1][0],
-      fetchMock.mock.calls[1][1]
-    )) as Record<string, unknown>;
+    const body = captured.putBody as Record<string, unknown>;
     expect(body.type).toBe("CONTINUOUS");
     expect(body.lower_bound).toBe(-1);
     expect(body.upper_bound).toBe(10);
@@ -340,11 +298,7 @@ describe("annotation-config update", () => {
 
   it("outputs the updated config as a single object with --format raw", async () => {
     const updated = { ...CATEGORICAL, name: "renamed" };
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: CATEGORICAL } },
-      { ok: true, body: { data: updated } },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    captureAnnotationConfigUpdateFlow(CATEGORICAL, updated);
     vi.spyOn(console, "error").mockImplementation(() => {});
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -366,8 +320,7 @@ describe("annotation-config update", () => {
   });
 
   it("exits INVALID_ARGUMENT when no fields are provided", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
@@ -384,12 +337,12 @@ describe("annotation-config update", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     // No network call should happen — validation fails first.
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.getCount).toBe(0);
+    expect(captured.putCount).toBe(0);
   });
 
   it("exits INVALID_ARGUMENT for an invalid --optimization-direction", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CATEGORICAL);
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
@@ -412,12 +365,12 @@ describe("annotation-config update", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.getCount).toBe(0);
+    expect(captured.putCount).toBe(0);
   });
 
   it("exits INVALID_ARGUMENT when --values is used on a non-categorical config", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: { data: CONTINUOUS } }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationConfigUpdateFlow(CONTINUOUS);
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
@@ -441,12 +394,18 @@ describe("annotation-config update", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     // The GET happened, but the PUT never fired because the merge threw.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(captured.getCount).toBe(1);
+    expect(captured.putCount).toBe(0);
   });
 
   it("exits FAILURE when the config is not found", async () => {
-    const fetchMock = makeFetchMock([{ ok: false, status: 404, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    // 404 is not a documented status for this operation, so pin an untyped
+    // response.
+    mock.server.use(
+      http.get("/v1/annotation_configs/{config_identifier}", ({ response }) =>
+        response.untyped(HttpResponse.json({}, { status: 404 }))
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
