@@ -16,7 +16,6 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import type { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
 import type { settingsModelsLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsModelsLoaderQuery.graphql";
 import type { SettingsModelsLoaderType } from "@phoenix/pages/settings/settingsModelsLoader";
@@ -83,10 +82,7 @@ export function SettingsModelsPage() {
       <Card
         title="Models"
         titleExtra={
-          <SettingsDocumentationHelp
-            href={PHOENIX_DOCUMENTATION_LINKS.modelCostTracking}
-            topic="model pricing"
-          >
+          <SettingsDocumentationHelp topic="modelPricing">
             Manage the model matching rules and token prices Phoenix uses to
             calculate costs.
           </SettingsDocumentationHelp>

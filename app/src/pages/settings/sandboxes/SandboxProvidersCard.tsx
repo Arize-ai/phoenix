@@ -16,7 +16,6 @@ import {
   Text,
 } from "@phoenix/components";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
@@ -42,10 +41,7 @@ export function SandboxProvidersCard({
     <Card
       title="Sandbox Providers"
       titleExtra={
-        <SettingsDocumentationHelp
-          href={PHOENIX_DOCUMENTATION_LINKS.sandboxes}
-          topic="sandbox providers"
-        >
+        <SettingsDocumentationHelp topic="sandboxProviders">
           Shared provider settings and whether each sandbox runtime can be
           enabled.
         </SettingsDocumentationHelp>

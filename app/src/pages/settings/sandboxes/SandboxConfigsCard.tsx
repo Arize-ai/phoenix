@@ -4,7 +4,6 @@ import { graphql, useMutation } from "react-relay";
 import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { TableEmpty } from "@phoenix/components/table";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
@@ -49,10 +48,7 @@ export function SandboxConfigsCard({
     <Card
       title="Sandbox Configurations"
       titleExtra={
-        <SettingsDocumentationHelp
-          href={PHOENIX_DOCUMENTATION_LINKS.sandboxes}
-          topic="sandbox configurations"
-        >
+        <SettingsDocumentationHelp topic="sandboxConfigurations">
           Reusable sandbox configurations for code evaluators.
         </SettingsDocumentationHelp>
       }

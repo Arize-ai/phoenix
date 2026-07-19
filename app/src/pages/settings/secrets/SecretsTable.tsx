@@ -20,7 +20,6 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 
 import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
 import type { SettingsSecretsPageFragment$data } from "./__generated__/SettingsSecretsPageFragment.graphql";
@@ -168,10 +167,7 @@ export function SecretsTable({
     <Card
       title="Secrets"
       titleExtra={
-        <SettingsDocumentationHelp
-          href={PHOENIX_DOCUMENTATION_LINKS.secrets}
-          topic="secrets"
-        >
+        <SettingsDocumentationHelp topic="secrets">
           Store write-only credentials for providers, sandboxes, and other
           Phoenix integrations.
         </SettingsDocumentationHelp>

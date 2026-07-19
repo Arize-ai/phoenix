@@ -18,7 +18,6 @@ import {
   AgentWebAccessSettings,
   SystemSettingsWarning,
 } from "@phoenix/components/agent";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -200,10 +199,7 @@ export function SettingsAgentsPage() {
       <Card
         title="Assistant settings - PXI"
         titleExtra={
-          <SettingsDocumentationHelp
-            href={PHOENIX_DOCUMENTATION_LINKS.pxi}
-            topic="PXI"
-          >
+          <SettingsDocumentationHelp topic="pxi">
             Configure Phoenix Intelligence and personal assistant preferences.
           </SettingsDocumentationHelp>
         }

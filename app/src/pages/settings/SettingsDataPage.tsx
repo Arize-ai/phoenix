@@ -18,7 +18,6 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { CanManageRetentionPolicy } from "@phoenix/components/auth";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 
 import type { settingsDataPageLoaderQuery } from "./__generated__/settingsDataPageLoaderQuery.graphql";
 import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
@@ -38,10 +37,7 @@ export function SettingsDataPage() {
     <Card
       title="Retention Policies"
       titleExtra={
-        <SettingsDocumentationHelp
-          href={PHOENIX_DOCUMENTATION_LINKS.dataRetention}
-          topic="data retention"
-        >
+        <SettingsDocumentationHelp topic="dataRetention">
           Automatically purge project traces by age or trace count on a
           configurable schedule.
         </SettingsDocumentationHelp>

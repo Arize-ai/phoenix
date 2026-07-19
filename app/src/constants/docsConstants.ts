@@ -21,3 +21,80 @@ export const PHOENIX_DOCUMENTATION_LINKS = {
   sandboxes: `${PHOENIX_DOCS_ROOT}/settings/sandboxes`,
   secrets: `${PHOENIX_DOCS_ROOT}/settings/secrets`,
 } as const;
+
+type SettingsDocumentationTopicDefinition = {
+  href: string;
+  label: string;
+};
+
+/**
+ * Documentation topics exposed by settings contextual help.
+ *
+ * Each topic owns its accessible label and URL so call sites cannot pair a
+ * valid topic with the wrong documentation page.
+ */
+export const SETTINGS_DOCUMENTATION_TOPICS = {
+  aiProviderSettings: {
+    href: PHOENIX_DOCUMENTATION_LINKS.providers,
+    label: "AI provider settings",
+  },
+  aiProviders: {
+    href: PHOENIX_DOCUMENTATION_LINKS.providers,
+    label: "AI providers",
+  },
+  annotationConfigs: {
+    href: PHOENIX_DOCUMENTATION_LINKS.annotationConfigs,
+    label: "annotation configs",
+  },
+  apiKeys: {
+    href: PHOENIX_DOCUMENTATION_LINKS.apiKeys,
+    label: "API keys",
+  },
+  customAiProviders: {
+    href: PHOENIX_DOCUMENTATION_LINKS.customAiProviders,
+    label: "custom AI providers",
+  },
+  dataRetention: {
+    href: PHOENIX_DOCUMENTATION_LINKS.dataRetention,
+    label: "data retention",
+  },
+  datasetLabels: {
+    href: PHOENIX_DOCUMENTATION_LINKS.datasetLabels,
+    label: "dataset labels",
+  },
+  defaultRetentionPolicy: {
+    href: PHOENIX_DOCUMENTATION_LINKS.dataRetention,
+    label: "the default retention policy",
+  },
+  modelPricing: {
+    href: PHOENIX_DOCUMENTATION_LINKS.modelCostTracking,
+    label: "model pricing",
+  },
+  promptLabels: {
+    href: PHOENIX_DOCUMENTATION_LINKS.promptLabels,
+    label: "prompt labels",
+  },
+  pxi: {
+    href: PHOENIX_DOCUMENTATION_LINKS.pxi,
+    label: "PXI",
+  },
+  sandboxConfigurations: {
+    href: PHOENIX_DOCUMENTATION_LINKS.sandboxes,
+    label: "sandbox configurations",
+  },
+  sandboxProviders: {
+    href: PHOENIX_DOCUMENTATION_LINKS.sandboxes,
+    label: "sandbox providers",
+  },
+  secrets: {
+    href: PHOENIX_DOCUMENTATION_LINKS.secrets,
+    label: "secrets",
+  },
+  userAccess: {
+    href: PHOENIX_DOCUMENTATION_LINKS.accessControl,
+    label: "user access",
+  },
+} as const satisfies Record<string, SettingsDocumentationTopicDefinition>;
+
+export type SettingsDocumentationTopic =
+  keyof typeof SETTINGS_DOCUMENTATION_TOPICS;

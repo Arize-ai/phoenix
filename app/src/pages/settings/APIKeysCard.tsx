@@ -19,7 +19,6 @@ import {
   CreateAPIKeyDialog,
   OneTimeAPIKeyDialog,
 } from "@phoenix/components/auth";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 
 import type { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
 import type { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
@@ -99,10 +98,7 @@ export function APIKeysCard() {
       <Card
         title="System API Keys"
         titleExtra={
-          <SettingsDocumentationHelp
-            href={PHOENIX_DOCUMENTATION_LINKS.apiKeys}
-            topic="API keys"
-          >
+          <SettingsDocumentationHelp topic="apiKeys">
             Create system-wide credentials for automated and programmatic access
             to Phoenix.
           </SettingsDocumentationHelp>

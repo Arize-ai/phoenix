@@ -11,7 +11,6 @@ import {
   Loading,
   View,
 } from "@phoenix/components";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -56,10 +55,7 @@ export function UsersCard() {
     <Card
       title="Users"
       titleExtra={
-        <SettingsDocumentationHelp
-          href={PHOENIX_DOCUMENTATION_LINKS.accessControl}
-          topic="user access"
-        >
+        <SettingsDocumentationHelp topic="userAccess">
           Add users and manage access to this Phoenix instance.
         </SettingsDocumentationHelp>
       }

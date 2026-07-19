@@ -26,7 +26,6 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import {
   type GenerativeModelSDK,
   SDK_TO_PROVIDER_MAP,
@@ -325,10 +324,7 @@ export function CustomProvidersCard({
       <Card
         title="Custom AI Providers"
         titleExtra={
-          <SettingsDocumentationHelp
-            href={PHOENIX_DOCUMENTATION_LINKS.customAiProviders}
-            topic="custom AI providers"
-          >
+          <SettingsDocumentationHelp topic="customAiProviders">
             Create shared provider credentials and routing configurations for
             the Playground and saved prompts.
           </SettingsDocumentationHelp>

@@ -2,6 +2,10 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import { ContextualHelp, ExternalLink, Text } from "@phoenix/components";
+import {
+  SETTINGS_DOCUMENTATION_TOPICS,
+  type SettingsDocumentationTopic,
+} from "@phoenix/constants";
 
 const documentationFooterCSS = css`
   margin-top: var(--global-dimension-size-100);
@@ -9,18 +13,18 @@ const documentationFooterCSS = css`
 
 export function SettingsDocumentationHelp({
   children,
-  href,
   topic,
 }: {
   children: ReactNode;
-  href: string;
-  topic: string;
+  topic: SettingsDocumentationTopic;
 }) {
+  const { href, label } = SETTINGS_DOCUMENTATION_TOPICS[topic];
+
   return (
     <ContextualHelp
       href={href}
       variant="info"
-      triggerAriaLabel={`Learn more about ${topic}`}
+      triggerAriaLabel={`Learn more about ${label}`}
     >
       <Text size="S">{children}</Text>
       <footer css={documentationFooterCSS}>

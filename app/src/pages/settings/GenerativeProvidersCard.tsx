@@ -38,7 +38,6 @@ import {
   ProviderServerCredentialsPanel,
 } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -160,10 +159,7 @@ export function GenerativeProvidersCard({
     <Card
       title="AI Providers"
       titleExtra={
-        <SettingsDocumentationHelp
-          href={PHOENIX_DOCUMENTATION_LINKS.providers}
-          topic="AI providers"
-        >
+        <SettingsDocumentationHelp topic="aiProviders">
           Configure credentials for built-in AI providers used by the Playground
           and evaluations.
         </SettingsDocumentationHelp>

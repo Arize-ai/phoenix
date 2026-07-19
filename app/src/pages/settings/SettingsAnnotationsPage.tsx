@@ -17,7 +17,6 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
-import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import type { settingsAnnotationsPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsAnnotationsPageLoaderQuery.graphql";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import type { SettingsAnnotationsPageLoaderType } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -167,10 +166,7 @@ const SettingsAnnotations = ({
     <Card
       title="Annotation Configs"
       titleExtra={
-        <SettingsDocumentationHelp
-          href={PHOENIX_DOCUMENTATION_LINKS.annotationConfigs}
-          topic="annotation configs"
-        >
+        <SettingsDocumentationHelp topic="annotationConfigs">
           Define the labels, scores, and freeform fields people use to annotate
           traces and spans.
         </SettingsDocumentationHelp>
