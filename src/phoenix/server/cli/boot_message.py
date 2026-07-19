@@ -30,15 +30,6 @@ _UNICODE_LOGO = "\n".join(
     )
 )
 
-# Pure-ASCII fallback for consoles that cannot render block characters
-# (e.g. legacy Windows code pages).
-_ASCII_LOGO = """\
- ____  _   _  ___  _____ _   _ ___ __  __
-|  _ \\| | | |/ _ \\| ____| \\ | |_ _|\\ \\/ /
-| |_) | |_| | | | |  _| |  \\| || |  \\  /
-|  __/|  _  | |_| | |___| |\\  || |  /  \\
-|_|   |_| |_|\\___/|_____|_| \\_|___|/_/\\_\\"""
-
 _GITHUB_URL = "https://github.com/Arize-ai/phoenix"
 _SLACK_URL = "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g"
 _DOCS_URL = "https://arize.com/docs/phoenix"
@@ -182,8 +173,8 @@ class BootMessage:
         ]
 
         lines: list[str] = [""]
-        lines.append(_UNICODE_LOGO if unicode_ok else _ASCII_LOGO)
-        lines.append("")
+        if unicode_ok:
+            lines.extend((_UNICODE_LOGO, ""))
         separator = "·" if unicode_ok else "-"
         lines.append(f"Arize Phoenix v{self.version} {separator} AI Observability & Evaluation")
         lines.append("")
