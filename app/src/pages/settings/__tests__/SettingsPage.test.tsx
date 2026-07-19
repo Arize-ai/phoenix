@@ -3,7 +3,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+
 import { SettingsPage } from "../SettingsPage";
+
+installTestMatchMedia();
 
 let container: HTMLDivElement;
 let root: Root;
@@ -12,14 +16,6 @@ let originalAuthenticationEnabled: boolean;
 beforeEach(() => {
   originalAuthenticationEnabled = window.Config.authenticationEnabled;
   window.Config.authenticationEnabled = false;
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn().mockReturnValue({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })
-  );
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -32,7 +28,6 @@ afterEach(() => {
   container.remove();
   window.Config.authenticationEnabled = originalAuthenticationEnabled;
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 
 function CurrentSettingsRoute() {
