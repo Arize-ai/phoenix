@@ -8,6 +8,7 @@ import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
   DEFAULT_OPENAI_API_TYPE,
+  LEGACY_OPENAI_API_TYPE,
   ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
@@ -1058,7 +1059,7 @@ export function transformSpanAttributesToPlaygroundInstance(
     spanProvider === "OPENAI" || spanProvider === "AZURE_OPENAI"
       ? (modelConfig?.openaiApiType ??
         inferOpenAIApiTypeFromSpan(parsedAttributes) ??
-        DEFAULT_OPENAI_API_TYPE)
+        LEGACY_OPENAI_API_TYPE)
       : DEFAULT_OPENAI_API_TYPE;
 
   if (
@@ -1973,7 +1974,7 @@ export function deriveToolsAndOpenAIApiType(
     .filter((tool): tool is Tool => tool != null);
   const isOpenAIProvider = provider === "OPENAI" || provider === "AZURE_OPENAI";
   const openaiApiType = isOpenAIProvider
-    ? inferOpenAIApiTypeFromTools(tools, DEFAULT_OPENAI_API_TYPE)
+    ? inferOpenAIApiTypeFromTools(tools, LEGACY_OPENAI_API_TYPE)
     : null;
   return { tools, openaiApiType };
 }
