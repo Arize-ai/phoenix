@@ -40,8 +40,8 @@ export function useViewerCanModify() {
  * This matches the server-side IsAdminIfAuthEnabled permission.
  */
 export function useIsAdminOrAuthDisabled() {
-  const { viewer } = useViewer();
-  return !window.Config.authenticationEnabled || viewer?.role?.name === "ADMIN";
+  const isAuthenticatedAdmin = useIsAuthenticatedAdmin();
+  return !window.Config.authenticationEnabled || isAuthenticatedAdmin;
 }
 
 /**

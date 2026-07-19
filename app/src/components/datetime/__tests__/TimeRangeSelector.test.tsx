@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -10,9 +11,10 @@ import type { OpenTimeRangeWithKey } from "../types";
 import { getTimeRangeFromLastNTimeRangeKey } from "../utils";
 
 describe("TimeRangeSelector", () => {
+  installTestMatchMedia();
+
   let container: HTMLDivElement;
   let root: Root;
-  const originalMatchMedia = window.matchMedia;
   const originalOffsetWidth = Object.getOwnPropertyDescriptor(
     HTMLElement.prototype,
     "offsetWidth"
@@ -21,15 +23,6 @@ describe("TimeRangeSelector", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-09T10:00:30.000Z"));
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      writable: true,
-      value: vi.fn().mockReturnValue({
-        matches: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }),
-    });
     // The presets popover only mounts once the trigger has a measurable width
     Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
       configurable: true,
@@ -45,11 +38,6 @@ describe("TimeRangeSelector", () => {
       root.unmount();
     });
     container.remove();
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      writable: true,
-      value: originalMatchMedia,
-    });
     if (originalOffsetWidth) {
       Object.defineProperty(
         HTMLElement.prototype,
