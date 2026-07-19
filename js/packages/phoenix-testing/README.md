@@ -52,16 +52,16 @@ Handlers passed to `createMockServer({ handlers })` or registered with `server.u
 
 ## API
 
-| Export                                              | Description                                                                             |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `createMockServer({ baseUrl, handlers })` (`/node`) | MSW server for Node.js with generated handlers for every Phoenix endpoint.              |
-| `Server` (`/node`)                                  | The mock server type returned by `createMockServer`.                                    |
-| `createOpenApiHandlers({ baseUrl })`                | The generated MSW request handlers, for composing into your own setup.                  |
-| `createHttp({ baseUrl })`                           | Type-safe `http` namespace for writing custom Phoenix handler overrides.                |
-| `getOpenApiDocument({ baseUrl })`                   | A copy of the workspace's Phoenix OpenAPI document with `servers` pointed at `baseUrl`. |
-| `DEFAULT_MOCK_BASE_URL`                             | `"http://localhost:6006"` — the default base URL handlers are bound to.                 |
-| `pathsV1`, `componentsV1`, `operationsV1`           | OpenAPI types generated from the Phoenix API definition (via `openapi-typescript`).     |
-| `*` (`/msw`)                                        | Re-export of `msw` for raw (non-OpenAPI) handlers, e.g. GraphQL or third-party hosts.   |
+| Export                                              | Description                                                                               |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `createMockServer({ baseUrl, handlers })` (`/node`) | MSW server for Node.js with generated handlers for every Phoenix endpoint.                |
+| `Server` (`/node`)                                  | The mock server type returned by `createMockServer`.                                      |
+| `createOpenApiHandlers({ baseUrl })`                | The generated MSW request handlers, for composing into your own setup.                    |
+| `createHttp({ baseUrl })`                           | Type-safe `http` namespace for writing custom Phoenix handler overrides.                  |
+| `getOpenApiDocument({ baseUrl })`                   | A copy of the workspace's Phoenix OpenAPI document with `servers` pointed at `baseUrl`.   |
+| `DEFAULT_MOCK_BASE_URL`                             | `"http://localhost:6006"` — the default base URL handlers are bound to.                   |
+| `pathsV1`, `componentsV1`, `operationsV1`           | OpenAPI types generated from the Phoenix API definition (via `openapi-typescript`).       |
+| `*` (re-exported `msw`)                             | Everything from `msw`, for raw (non-OpenAPI) handlers, e.g. GraphQL or third-party hosts. |
 
 ## Regenerating the mocks
 

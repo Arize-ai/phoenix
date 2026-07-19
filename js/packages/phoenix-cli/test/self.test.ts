@@ -13,7 +13,7 @@ vi.mock("node:child_process", () => ({
   spawnSync: spawnSyncMock,
 }));
 
-import { HttpResponse, http as mswHttp } from "@arizeai/phoenix-testing/msw";
+import { HttpResponse, http as mswHttp } from "@arizeai/phoenix-testing";
 
 import {
   buildDenoUpdateCommand,

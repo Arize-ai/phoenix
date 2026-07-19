@@ -1,4 +1,4 @@
-import { HttpResponse } from "@arizeai/phoenix-testing/msw";
+import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createProjectCommand } from "../src/commands/project";

@@ -1,5 +1,5 @@
 import type { componentsV1 } from "@arizeai/phoenix-testing";
-import { HttpResponse } from "@arizeai/phoenix-testing/msw";
+import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createDatasetCommand } from "../src/commands/dataset";
