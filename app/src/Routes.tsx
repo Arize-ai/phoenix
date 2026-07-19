@@ -20,6 +20,10 @@ import {
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import {
+  PROFILE_ROOT_ROUTE,
+  PROFILE_ROUTES,
+} from "@phoenix/pages/profile/profileRoutes";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -71,7 +75,11 @@ import {
   OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
+  ProfileAccountPage,
+  ProfileAPIKeysPage,
+  ProfileAuthorizedApplicationsPage,
   ProfilePage,
+  ProfilePreferencesPage,
   ProjectIndexPage,
   projectLoader,
   ProjectMetricsPage,
@@ -177,17 +185,65 @@ export const appRouteObjects = createRoutesFromElements(
         shouldRevalidate={revalidateOnPathChange}
       >
         <Route
-          path="/profile"
+          path={PROFILE_ROOT_ROUTE.path}
           handle={{
-            crumb: () => "profile",
+            crumb: () => "Profile",
             agentRoute: {
-              label: "Profile",
-              description:
-                "Manage the current user's profile, API keys, password, and display preferences including timezone and code snippet defaults.",
+              label: PROFILE_ROOT_ROUTE.label,
+              description: PROFILE_ROOT_ROUTE.description,
             },
           }}
           element={<ProfilePage />}
-        />
+        >
+          <Route
+            path={PROFILE_ROUTES.account.segment}
+            element={<ProfileAccountPage />}
+            handle={{
+              crumb: () => "Account",
+              agentRoute: {
+                label: PROFILE_ROUTES.account.label,
+                description: PROFILE_ROUTES.account.description,
+              },
+            }}
+          />
+          <Route
+            path={PROFILE_ROUTES["api-keys"].segment}
+            element={<ProfileAPIKeysPage />}
+            handle={{
+              crumb: () => "API Keys",
+              agentRoute: {
+                label: PROFILE_ROUTES["api-keys"].label,
+                description: PROFILE_ROUTES["api-keys"].description,
+              },
+            }}
+          />
+          <Route
+            path={PROFILE_ROUTES.apps.segment}
+            element={<ProfileAuthorizedApplicationsPage />}
+            handle={{
+              crumb: () => "Apps",
+              agentRoute: {
+                label: PROFILE_ROUTES.apps.label,
+                description: PROFILE_ROUTES.apps.description,
+              },
+            }}
+          />
+          <Route
+            path={PROFILE_ROUTES.preferences.segment}
+            element={<ProfilePreferencesPage />}
+            handle={{
+              crumb: () => "Preferences",
+              agentRoute: {
+                label: PROFILE_ROUTES.preferences.label,
+                description: PROFILE_ROUTES.preferences.description,
+              },
+            }}
+          />
+          <Route
+            path="*"
+            element={<Navigate to={PROFILE_ROUTES.account.path} replace />}
+          />
+        </Route>
         <Route index loader={homeLoader} />
         <Route
           path="/projects"
