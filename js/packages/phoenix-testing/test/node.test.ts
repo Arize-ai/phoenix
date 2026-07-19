@@ -49,6 +49,24 @@ describe("createMockServer", () => {
     expect(typeof body.data.example_count).toBe("number");
   });
 
+  it("generates single objects for schemas that declare array-form `examples`", async () => {
+    // The `Span` schema carries a JSON Schema `examples: [<span>]` array; the
+    // generator must emit one span per item, not the whole array per item.
+    const response = await fetch(`${BASE_URL}/v1/projects/test-project/spans`);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      data: Array<{ context: { trace_id: string; span_id: string } }>;
+    };
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    for (const span of body.data) {
+      expect(Array.isArray(span)).toBe(false);
+      expect(typeof span.context.trace_id).toBe("string");
+      expect(typeof span.context.span_id).toBe("string");
+    }
+  });
+
   it("lets type-safe custom handlers take precedence over generated ones", async () => {
     server.use(
       http.get("/v1/datasets/{id}", ({ params, response }) =>

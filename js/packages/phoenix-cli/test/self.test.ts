@@ -13,6 +13,8 @@ vi.mock("node:child_process", () => ({
   spawnSync: spawnSyncMock,
 }));
 
+import { HttpResponse, http as mswHttp } from "@arizeai/phoenix-testing/msw";
+
 import {
   buildDenoUpdateCommand,
   buildUpdateCommand,
@@ -21,6 +23,34 @@ import {
   parseDenoInstallScript,
 } from "../src/commands/self";
 import { CLI_VERSION } from "../src/version";
+import { setupMockPhoenixServer } from "./mockServer";
+
+const mock = setupMockPhoenixServer();
+
+const NPM_LATEST_VERSION_URL =
+  "https://registry.npmjs.org/%40arizeai%2Fphoenix-cli/latest";
+
+/**
+ * Register a handler for the npm registry "latest" endpoint (external to the
+ * Phoenix OpenAPI spec, so it needs a raw msw handler) and return a capture
+ * object recording every request that reaches it.
+ */
+function useNpmLatestVersion(responseBody: Record<string, unknown>) {
+  const captured: {
+    count: number;
+    urls: string[];
+    acceptHeaders: (string | null)[];
+  } = { count: 0, urls: [], acceptHeaders: [] };
+  mock.server.use(
+    mswHttp.get("https://registry.npmjs.org/*", ({ request }) => {
+      captured.count += 1;
+      captured.urls.push(request.url);
+      captured.acceptHeaders.push(request.headers.get("accept"));
+      return HttpResponse.json(responseBody);
+    })
+  );
+  return captured;
+}
 
 describe("detectInstallPackageManager", () => {
   it("detects bun installs from the bun global root", () => {
@@ -170,32 +200,20 @@ describe("self update command", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
     process.env.PATH = originalPath;
   });
 
   it("checks for updates without invoking the installer", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({ version: "99.0.0" }),
-    });
+    const registryCapture = useNpmLatestVersion({ version: "99.0.0" });
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-    vi.stubGlobal("fetch", fetchMock);
 
     await createSelfCommand().parseAsync(["update", "--check"], {
       from: "user",
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://registry.npmjs.org/%40arizeai%2Fphoenix-cli/latest",
-      expect.objectContaining({
-        headers: {
-          Accept: "application/json",
-        },
-        signal: expect.any(AbortSignal),
-      })
-    );
+    expect(registryCapture.count).toBe(1);
+    expect(registryCapture.urls[0]).toBe(NPM_LATEST_VERSION_URL);
+    expect(registryCapture.acceptHeaders[0]).toBe("application/json");
     expect(spawnSyncMock).not.toHaveBeenCalled();
     expect(stdoutSpy).toHaveBeenNthCalledWith(
       1,
@@ -208,13 +226,9 @@ describe("self update command", () => {
   });
 
   it("updates via npm when the install is owned by npm", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({ version: "99.0.0" }),
-    });
+    useNpmLatestVersion({ version: "99.0.0" });
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    vi.stubGlobal("fetch", fetchMock);
     execFileSyncMock.mockImplementation((command: string) => {
       if (command.startsWith("pnpm")) {
         return "/tmp/pnpm-root/node_modules";
@@ -238,13 +252,9 @@ describe("self update command", () => {
   });
 
   it("updates via pnpm when the install is owned by pnpm", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({ version: "99.0.0" }),
-    });
+    useNpmLatestVersion({ version: "99.0.0" });
     vi.spyOn(console, "log").mockImplementation(() => {});
 
-    vi.stubGlobal("fetch", fetchMock);
     execFileSyncMock.mockImplementation((command: string) => {
       if (command.startsWith("pnpm")) {
         return packageParentDirectory;
@@ -263,10 +273,7 @@ describe("self update command", () => {
   });
 
   it("updates via a Deno install wrapper when no node package manager owns the install", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({ version: "99.0.0" }),
-    });
+    useNpmLatestVersion({ version: "99.0.0" });
     vi.spyOn(console, "log").mockImplementation(() => {});
 
     const denoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "px-deno-"));
@@ -284,7 +291,6 @@ describe("self update command", () => {
     );
     fs.chmodSync(denoExecutable, 0o755);
 
-    vi.stubGlobal("fetch", fetchMock);
     process.env.PATH = `${denoBinDirectory}${path.delimiter}${originalPath ?? ""}`;
     execFileSyncMock.mockImplementation(() => "/tmp/unsupported-root");
     spawnSyncMock.mockReturnValue({ status: 0 } as never);
@@ -315,13 +321,8 @@ describe("self update command", () => {
   });
 
   it("reports when the installed version is already current", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({ version: CLI_VERSION }),
-    });
+    useNpmLatestVersion({ version: CLI_VERSION });
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-    vi.stubGlobal("fetch", fetchMock);
 
     await createSelfCommand().parseAsync(["update"], { from: "user" });
 
@@ -330,10 +331,7 @@ describe("self update command", () => {
   });
 
   it("fails with guidance for unsupported install contexts", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({ version: "99.0.0" }),
-    });
+    useNpmLatestVersion({ version: "99.0.0" });
     vi.spyOn(console, "log").mockImplementation(() => {});
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
@@ -342,7 +340,6 @@ describe("self update command", () => {
       throw new Error(`process.exit:${code}`);
     }) as never);
 
-    vi.stubGlobal("fetch", fetchMock);
     execFileSyncMock.mockImplementation(() => "/tmp/unsupported-root");
 
     await expect(
@@ -364,7 +361,9 @@ describe("self update command", () => {
       throw new Error(`process.exit:${code}`);
     }) as never);
 
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    mock.server.use(
+      mswHttp.get("https://registry.npmjs.org/*", () => HttpResponse.error())
+    );
 
     await expect(
       createSelfCommand().parseAsync(["update", "--check"], { from: "user" })
@@ -384,13 +383,7 @@ describe("self update command", () => {
       throw new Error(`process.exit:${code}`);
     }) as never);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue({ version: "not-a-version" }),
-      })
-    );
+    useNpmLatestVersion({ version: "not-a-version" });
 
     await expect(
       createSelfCommand().parseAsync(["update", "--check"], { from: "user" })
