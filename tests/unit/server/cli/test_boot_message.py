@@ -1,3 +1,5 @@
+import pytest
+
 from phoenix.server.cli.boot_message import BootMessage
 
 
@@ -56,3 +58,14 @@ def test_render_without_unicode_omits_logo_and_is_ascii() -> None:
     rendered.encode("ascii")
     assert "██████" not in rendered
     assert "Arize Phoenix v1.2.3 - AI Observability & Evaluation" in rendered
+
+
+def test_render_sanitizes_for_windows_even_when_unicode_is_forced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("phoenix.utilities.sys.platform", "win32")
+
+    rendered = _boot_message().render(unicode_ok=True)
+
+    rendered.encode("ascii")
+    assert "██████" not in rendered
