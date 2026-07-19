@@ -9,7 +9,14 @@ import {
 import { useMemo, useState } from "react";
 import { Focusable } from "react-aria";
 
-import { Card, Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Card,
+  DocumentationHelp,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import {
   Tooltip,
@@ -165,6 +172,12 @@ export function SecretsTable({
   return (
     <Card
       title="Secrets"
+      titleExtra={
+        <DocumentationHelp topic="secrets">
+          Store write-only credentials for providers, sandboxes, and other
+          Phoenix integrations.
+        </DocumentationHelp>
+      }
       extra={<NewSecretButton connectionId={connectionId} />}
     >
       <table css={tableCSS}>

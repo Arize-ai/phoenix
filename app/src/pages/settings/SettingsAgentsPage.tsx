@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import {
   Card,
+  DocumentationHelp,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -195,7 +196,14 @@ export function SettingsAgentsPage() {
   );
   return (
     <Flex direction="column" gap="size-200">
-      <Card title="Assistant settings - PXI">
+      <Card
+        title="Assistant settings - PXI"
+        titleExtra={
+          <DocumentationHelp topic="pxi">
+            Configure Phoenix Intelligence and personal assistant preferences.
+          </DocumentationHelp>
+        }
+      >
         <DisclosureGroup defaultExpandedKeys={[PERSONAL_SECTION_ID]}>
           {isAdmin ? (
             <Disclosure id={ADMIN_SECTION_ID}>

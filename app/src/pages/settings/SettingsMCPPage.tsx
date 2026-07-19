@@ -34,8 +34,7 @@ import {
   VSCodeSVG,
 } from "@phoenix/components/project/IntegrationIcons";
 import { BASE_URL } from "@phoenix/config";
-
-const MCP_DOCS_URL = "https://arize.com/docs/phoenix/integrations/remote-mcp";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 
 const statusItemCSS = css`
   white-space: nowrap;
@@ -317,7 +316,7 @@ export function SettingsMCPPage() {
                   ? "Code mode is enabled: clients see a compact set of discovery tools plus a sandboxed execute tool that composes Phoenix operations in one step. "
                   : "Code mode is disabled: Phoenix operations are exposed as plain MCP tools, grouped by category and revealed on demand. "
                 : null}
-              <ExternalLink href={MCP_DOCS_URL}>
+              <ExternalLink href={PHOENIX_DOCUMENTATION_LINKS.remoteMcpServer}>
                 Learn more in the docs
               </ExternalLink>
             </Text>

@@ -28,6 +28,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Chart type: line | `Icons.ChartLine` | Lucide-style chart glyph with axis. Preview for a line / time-series chart. |
 | MCP (Model Context Protocol) | `McpSVG` (from `@phoenix/components/project/IntegrationIcons`) | The official MCP mark (filled, evenodd). Used for the MCP settings tab and anything referencing the built-in `/mcp` endpoint. |
 | Model | `Icons.Cube` | Lucide box glyph (cube). Used for the Models settings tab and anything representing a model as an entity. Prefer this over `LLMOutput` for the model noun. |
+| Custom AI provider | `Icons.Sparkle` | Used for custom provider configuration and its empty state. |
 
 ## When you need an icon
 

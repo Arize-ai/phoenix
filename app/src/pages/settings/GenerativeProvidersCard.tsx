@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  DocumentationHelp,
   Flex,
   Icon,
   Icons,
@@ -155,7 +156,15 @@ export function GenerativeProvidersCard({
   const rows = table.getRowModel().rows;
 
   return (
-    <Card title="AI Providers">
+    <Card
+      title="AI Providers"
+      titleExtra={
+        <DocumentationHelp topic="aiProviders">
+          Configure credentials for built-in AI providers used by the Playground
+          and evaluations.
+        </DocumentationHelp>
+      }
+    >
       <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
