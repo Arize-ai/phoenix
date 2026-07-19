@@ -264,7 +264,7 @@ function SideNav() {
           </li>
           <li key="settings">
             <NavLink
-              to="/settings/general"
+              to="/settings"
               text="Settings"
               leadingVisual={<Icon svg={<Icons.Options />} />}
               isExpanded={isSideNavExpanded}
