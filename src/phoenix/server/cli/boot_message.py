@@ -7,7 +7,7 @@ from typing import Optional
 
 from jinja2 import BaseLoader, Environment
 
-from phoenix.utilities import stdout_supports_unicode
+from phoenix.utilities import no_emojis_on_windows, stdout_supports_unicode
 
 _GITHUB_URL = "https://github.com/Arize-ai/phoenix"
 _SLACK_URL = "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g"
@@ -145,23 +145,25 @@ class BootMessage:
             unicode_ok = stdout_supports_unicode()
         enabled_sandboxes = [name for name, enabled in self.sandbox_providers if enabled]
         disabled_sandboxes = [name for name, enabled in self.sandbox_providers if not enabled]
-        return _BOOT_MESSAGE.render(
-            **vars(self),
-            unicode_ok=unicode_ok,
-            rule="─" if unicode_ok else "-",
-            heavy_rule="━" if unicode_ok else "=",
-            arrow="▶" if unicode_ok else ">",
-            dash="—" if unicode_ok else "-",
-            enabled="✅ Enabled" if unicode_ok else "Enabled",
-            disabled="➖ Disabled" if unicode_ok else "Disabled",
-            not_configured="➖ Not configured" if unicode_ok else "Not configured",
-            enabled_marker="✅ " if unicode_ok else "Enabled: ",
-            disabled_marker="➖ " if unicode_ok else "Disabled: ",
-            enabled_sandboxes=enabled_sandboxes,
-            disabled_sandboxes=disabled_sandboxes,
-            disabled_sandbox_prefix=(" " * 20 if enabled_sandboxes else "Code sandboxes      "),
-            rocket="🚀 " if unicode_ok else "",
-            github_url=_GITHUB_URL,
-            slack_url=_SLACK_URL,
-            docs_url=_DOCS_URL,
+        return no_emojis_on_windows(
+            _BOOT_MESSAGE.render(
+                **vars(self),
+                unicode_ok=unicode_ok,
+                rule="─" if unicode_ok else "-",
+                heavy_rule="━" if unicode_ok else "=",
+                arrow="▶" if unicode_ok else ">",
+                dash="—" if unicode_ok else "-",
+                enabled="✅ Enabled" if unicode_ok else "Enabled",
+                disabled="➖ Disabled" if unicode_ok else "Disabled",
+                not_configured="➖ Not configured" if unicode_ok else "Not configured",
+                enabled_marker="✅ " if unicode_ok else "Enabled: ",
+                disabled_marker="➖ " if unicode_ok else "Disabled: ",
+                enabled_sandboxes=enabled_sandboxes,
+                disabled_sandboxes=disabled_sandboxes,
+                disabled_sandbox_prefix=(" " * 20 if enabled_sandboxes else "Code sandboxes      "),
+                rocket="🚀 " if unicode_ok else "",
+                github_url=_GITHUB_URL,
+                slack_url=_SLACK_URL,
+                docs_url=_DOCS_URL,
+            )
         )
