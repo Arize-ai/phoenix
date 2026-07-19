@@ -21,10 +21,6 @@ import {
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
-import {
-  buildRouteNavigationCatalog,
-  registerRouteNavigationCatalog,
-} from "@phoenix/routing/routeNavigation";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
@@ -42,6 +38,10 @@ import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxes
 import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { SettingsUsersPage } from "@phoenix/pages/settings/SettingsUsersPage";
 import { UserDetailsDrawer } from "@phoenix/pages/settings/UserDetailsDrawer";
+import {
+  buildRouteNavigationCatalog,
+  registerRouteNavigationCatalog,
+} from "@phoenix/routing/routeNavigation";
 
 import type {
   DatasetLoaderData,
