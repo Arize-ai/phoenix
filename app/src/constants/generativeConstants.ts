@@ -32,7 +32,13 @@ export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 /**
  * The default OpenAI API type for built-in OpenAI and Azure OpenAI providers.
  */
-export const DEFAULT_OPENAI_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
+export const DEFAULT_OPENAI_API_TYPE: OpenAIApiType = "RESPONSES";
+
+/**
+ * The fallback for spans and prompts saved before the OpenAI API type was
+ * recorded explicitly. Those payloads historically used Chat Completions.
+ */
+export const LEGACY_OPENAI_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
 
 /**
  * Map of {@link ChatMessageRole} to potential role values.
