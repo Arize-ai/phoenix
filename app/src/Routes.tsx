@@ -38,6 +38,10 @@ import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxes
 import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { SettingsUsersPage } from "@phoenix/pages/settings/SettingsUsersPage";
 import { UserDetailsDrawer } from "@phoenix/pages/settings/UserDetailsDrawer";
+import {
+  buildRouteNavigationCatalog,
+  registerRouteNavigationCatalog,
+} from "@phoenix/routing/routeNavigation";
 
 import type {
   DatasetLoaderData,
@@ -71,7 +75,11 @@ import {
   OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
+  ProfileAccountPage,
+  ProfileAPIKeysPage,
+  ProfileAuthorizedApplicationsPage,
   ProfilePage,
+  ProfilePreferencesPage,
   ProjectIndexPage,
   projectLoader,
   ProjectMetricsPage,
@@ -179,15 +187,92 @@ export const appRouteObjects = createRoutesFromElements(
         <Route
           path="/profile"
           handle={{
-            crumb: () => "profile",
+            crumb: () => "Profile",
             agentRoute: {
               label: "Profile",
               description:
-                "Manage the current user's profile, API keys, password, and display preferences including timezone and code snippet defaults.",
+                "Open personal account settings, API keys, connected applications, and display preferences.",
             },
           }}
           element={<ProfilePage />}
-        />
+        >
+          <Route
+            path="account"
+            element={<ProfileAccountPage />}
+            handle={{
+              crumb: () => "Account",
+              agentRoute: {
+                label: "Profile Account",
+                description:
+                  "View your email and role, update your username, and reset your local password.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Account",
+                description: "Username, email, role, and password",
+                icon: "Person",
+                requiresViewer: true,
+              },
+            }}
+          />
+          <Route
+            path="api-keys"
+            element={<ProfileAPIKeysPage />}
+            handle={{
+              crumb: () => "API Keys",
+              agentRoute: {
+                label: "Profile API Keys",
+                description:
+                  "Create, view, and revoke personal API keys for programmatic access.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "API Keys",
+                description: "Personal keys for programmatic access",
+                icon: "Key",
+                requiresViewer: true,
+              },
+            }}
+          />
+          <Route
+            path="apps"
+            element={<ProfileAuthorizedApplicationsPage />}
+            handle={{
+              crumb: () => "Apps",
+              agentRoute: {
+                label: "Profile Apps",
+                description:
+                  "Review and revoke OAuth applications connected to your Phoenix account.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Apps",
+                description: "OAuth apps connected to your account",
+                icon: "Link2",
+                requiresViewer: true,
+              },
+            }}
+          />
+          <Route
+            path="preferences"
+            element={<ProfilePreferencesPage />}
+            handle={{
+              crumb: () => "Preferences",
+              agentRoute: {
+                label: "Profile Preferences",
+                description:
+                  "Choose your theme, timezone, code language, and package manager defaults.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Preferences",
+                description: "Theme, timezone, and code defaults",
+                icon: "Options",
+              },
+            }}
+          />
+          <Route path="*" />
+        </Route>
         <Route index loader={homeLoader} />
         <Route
           path="/projects"
@@ -197,6 +282,12 @@ export const appRouteObjects = createRoutesFromElements(
               label: "Projects",
               description:
                 "Browse the project list and open project-specific observability views.",
+            },
+            navigation: {
+              section: "Pages",
+              label: "Tracing",
+              description: "Projects, traces, and spans",
+              icon: "Trace",
             },
           }}
           element={<ProjectsRoot />}
@@ -335,6 +426,12 @@ export const appRouteObjects = createRoutesFromElements(
               description:
                 "Browse dashboard-style metric views, charts, and project dashboards.",
             },
+            navigation: {
+              section: "Pages",
+              label: "Dashboards",
+              description: "Monitor projects and metrics",
+              icon: "Grid",
+            },
           }}
           element={<DashboardsRoot />}
           loader={dashboardsLoader}
@@ -361,6 +458,12 @@ export const appRouteObjects = createRoutesFromElements(
               label: "Datasets",
               description:
                 "Browse the dataset list used for experiments, evaluations, and eval data.",
+            },
+            navigation: {
+              section: "Pages",
+              label: "Datasets & Experiments",
+              description: "Curate data and run experiments",
+              icon: "Database",
             },
           }}
         >
@@ -537,6 +640,12 @@ export const appRouteObjects = createRoutesFromElements(
               description:
                 "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
             },
+            navigation: {
+              section: "Pages",
+              label: "Playground",
+              description: "Experiment with prompts and models",
+              icon: "PlayCircle",
+            },
           }}
         >
           <Route
@@ -579,6 +688,12 @@ export const appRouteObjects = createRoutesFromElements(
               description:
                 "Browse and manage evaluators, evals, and evaluation metrics.",
             },
+            navigation: {
+              section: "Pages",
+              label: "Evaluators",
+              description: "Evaluate application output",
+              icon: "Scale",
+            },
           }}
         >
           <Route
@@ -602,6 +717,12 @@ export const appRouteObjects = createRoutesFromElements(
               label: "Prompts",
               description:
                 "Browse the prompt registry, saved prompts, and prompt versions.",
+            },
+            navigation: {
+              section: "Pages",
+              label: "Prompts",
+              description: "Manage and version prompts",
+              icon: "MessageSquare",
             },
           }}
         >
@@ -706,6 +827,12 @@ export const appRouteObjects = createRoutesFromElements(
               description:
                 "Open the Phoenix REST API reference, API docs, and OpenAPI documentation.",
             },
+            navigation: {
+              section: "Pages",
+              label: "REST API",
+              description: "REST API reference",
+              icon: "Code",
+            },
           }}
         />
         <Route
@@ -717,6 +844,12 @@ export const appRouteObjects = createRoutesFromElements(
               label: "GraphQL",
               description:
                 "Open the Phoenix GraphQL API explorer and GraphQL schema browser.",
+            },
+            navigation: {
+              section: "Pages",
+              label: "GraphQL",
+              description: "GraphQL API explorer",
+              icon: "GraphQL",
             },
           }}
         />
@@ -754,6 +887,12 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "General Settings",
                 description:
                   "Configure general Phoenix instance settings including hostname, platform version, database usage, and the default project retention policy.",
+              },
+              navigation: {
+                section: "Pages",
+                label: "Settings",
+                description: "Platform configuration",
+                icon: "Options",
               },
             }}
           />
@@ -948,6 +1087,9 @@ export const appRouteObjects = createRoutesFromElements(
 
 registerRouteInfoCatalog({
   catalog: buildRouteInfoCatalog(appRouteObjects),
+});
+registerRouteNavigationCatalog({
+  catalog: buildRouteNavigationCatalog(appRouteObjects),
 });
 
 const router = createBrowserRouter(appRouteObjects, {

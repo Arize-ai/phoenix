@@ -4,8 +4,8 @@ import { expect, test } from "@playwright/test";
 test.use({ storageState: "playwright/.auth/member.json" });
 
 test("can create user key", async ({ page }) => {
-  // Navigate to profile page
-  await page.goto("/profile");
+  // Navigate to the API Keys tab of the profile page
+  await page.goto("/profile/api-keys");
 
   // Generate a unique key name for this test run
   const keyName = `key-${randomUUID()}`;

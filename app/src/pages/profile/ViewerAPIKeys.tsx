@@ -75,12 +75,13 @@ export function ViewerAPIKeys({
   return (
     <>
       <Card
-        title="API Keys"
+        title="Personal API Keys"
         extra={
           <DialogTrigger>
             <Button
               size="S"
-              leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
             >
               New Key
             </Button>
