@@ -121,6 +121,26 @@ function hasExplicitCredentials({
 }
 
 /**
+ * Whether the provider needs credentials before it can be used: it requires
+ * credentials and none are explicitly set on the server or in the browser.
+ * Default-credential-chain providers (AWS Bedrock, Azure OpenAI) still count
+ * — ambient credentials cannot be detected, so the hint errs on the side of
+ * pointing the user at configuration.
+ */
+export function providerNeedsCredentials({
+  provider,
+  localCredentials,
+}: {
+  provider: ProviderCredentialStatus;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  return (
+    providerRequiresCredentials({ providerKey: provider.key }) &&
+    !hasExplicitCredentials({ provider, localCredentials })
+  );
+}
+
+/**
  * Whether a provider is ready to use: its server dependencies are installed
  * and its credentials are satisfied on the server or in the browser.
  * Providers with no credential requirements (e.g. Ollama) are always ready.

@@ -4,9 +4,72 @@ import {
   hasRequiredLocalCredentials,
   isProviderProvisioned,
   isProviderReady,
+  providerNeedsCredentials,
   providerRequiresCredentials,
   providerSupportsDefaultCredentialChain,
 } from "../modelProviderUtils";
+
+describe("providerNeedsCredentials", () => {
+  it("returns true when credentials are required but not set anywhere", () => {
+    expect(
+      providerNeedsCredentials({
+        provider: {
+          key: "OPENAI",
+          dependenciesInstalled: true,
+          credentialsSet: false,
+        },
+        localCredentials: {},
+      })
+    ).toBe(true);
+    // Chain providers still hint — ambient credentials cannot be detected
+    expect(
+      providerNeedsCredentials({
+        provider: {
+          key: "AWS",
+          dependenciesInstalled: true,
+          credentialsSet: false,
+        },
+        localCredentials: {},
+      })
+    ).toBe(true);
+  });
+
+  it("returns false once credentials are set on the server or locally", () => {
+    expect(
+      providerNeedsCredentials({
+        provider: {
+          key: "OPENAI",
+          dependenciesInstalled: true,
+          credentialsSet: true,
+        },
+        localCredentials: {},
+      })
+    ).toBe(false);
+    expect(
+      providerNeedsCredentials({
+        provider: {
+          key: "ANTHROPIC",
+          dependenciesInstalled: true,
+          credentialsSet: false,
+        },
+        localCredentials: { ANTHROPIC: { ANTHROPIC_API_KEY: "sk-ant" } },
+      })
+    ).toBe(false);
+  });
+
+  it("returns false for providers that require no credentials", () => {
+    expect(
+      providerNeedsCredentials({
+        provider: {
+          key: "OLLAMA",
+          dependenciesInstalled: true,
+          credentialsSet: true,
+        },
+        localCredentials: {},
+      })
+    ).toBe(false);
+  });
+});
 
 describe("providerSupportsDefaultCredentialChain", () => {
   it("returns true for providers with an ambient credential chain", () => {

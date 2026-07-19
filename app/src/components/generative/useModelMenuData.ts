@@ -15,6 +15,7 @@ import {
   isProviderProvisioned,
   isProviderReady,
   type LocalProviderCredentials,
+  providerNeedsCredentials,
 } from "./modelProviderUtils";
 
 export type CustomProviderInfo = {
@@ -46,6 +47,11 @@ export type ModelProviderInfo = {
   readonly name: string;
   readonly dependenciesInstalled: boolean;
   readonly credentialsSet: boolean;
+  /**
+   * True when the provider requires credentials and none are explicitly set
+   * on the server or in the browser. Drives the "Needs credentials" hint.
+   */
+  readonly needsCredentials?: boolean;
 };
 
 /**
@@ -182,14 +188,28 @@ export function useModelMenuData() {
     (state) => state
   );
 
+  // Every provider annotated with whether it still needs credentials, so
+  // menu items can hint at unconfigured providers.
+  const providersWithStatus = useMemo<ModelProviderInfo[]>(
+    () =>
+      data.modelProviders.map((provider) => ({
+        ...provider,
+        needsCredentials: providerNeedsCredentials({
+          provider,
+          localCredentials,
+        }),
+      })),
+    [data.modelProviders, localCredentials]
+  );
+
   // Providers that are usable right now: dependencies installed and
   // credentials satisfied on the server or in the browser.
   const readyProviders = useMemo<ModelProviderInfo[]>(
     () =>
-      data.modelProviders.filter((provider) =>
+      providersWithStatus.filter((provider) =>
         isProviderReady({ provider, localCredentials })
       ),
-    [data.modelProviders, localCredentials]
+    [providersWithStatus, localCredentials]
   );
 
   // Whether the user has explicitly set up any provider — credentials for a
@@ -213,12 +233,12 @@ export function useModelMenuData() {
       return readyProviders;
     }
     const providersByKey = new Map(
-      data.modelProviders.map((provider) => [provider.key, provider])
+      providersWithStatus.map((provider) => [provider.key, provider])
     );
     return FALLBACK_PROVIDER_KEYS.flatMap(
       (key) => providersByKey.get(key) ?? []
     );
-  }, [hasProvisionedProvider, readyProviders, data.modelProviders]);
+  }, [hasProvisionedProvider, readyProviders, providersWithStatus]);
 
   return {
     availableBuiltinModels,

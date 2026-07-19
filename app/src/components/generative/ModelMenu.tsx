@@ -576,11 +576,27 @@ export function ProviderModelMenuItems({
               textValue={provider.name}
               isDisabled={!provider.dependenciesInstalled}
             >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                {isValidProvider && (
-                  <GenerativeProviderIcon provider={providerKey} height={16} />
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+                justifyContent="space-between"
+                width="100%"
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  {isValidProvider && (
+                    <GenerativeProviderIcon
+                      provider={providerKey}
+                      height={16}
+                    />
+                  )}
+                  <Text>{provider.name}</Text>
+                </Flex>
+                {provider.needsCredentials && (
+                  <Text color="text-500" size="XS">
+                    Needs credentials
+                  </Text>
                 )}
-                <Text>{provider.name}</Text>
               </Flex>
             </MenuItem>
             <ProviderModelsSubmenu
