@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e26b3b66876d7deafcac1ac906c03360>>
+ * @generated SignedSource<<c011e1c57de6523840cbc2dc34904d03>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 import { FragmentRefs } from "relay-runtime";
 export type PromptModelConfigurationCard__main$data = {
   readonly model: string;

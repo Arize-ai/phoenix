@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb320cc1f2cc6831f07c74840e5095cb>>
+ * @generated SignedSource<<00bc1615a239e8784b27a15fba84c4cd>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f8108010f866507fa55c68b63554079>>
+ * @generated SignedSource<<1b5be94ac29cc807d247c3f86a1f5aa5>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";

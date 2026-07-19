@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<100bc0fcca001c830626f0fa8194eb51>>
+ * @generated SignedSource<<3e3fd6c20f05442fc3ee596d88229555>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 export type UpdateModelMutationInput = {
   costs: ReadonlyArray<TokenPriceInput>;

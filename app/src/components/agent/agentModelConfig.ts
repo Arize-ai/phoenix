@@ -16,6 +16,7 @@ const GENERATIVE_PROVIDER_KEY_SCHEMA = z.enum([
   "GOOGLE",
   "GROQ",
   "MOONSHOT",
+  "MINIMAX",
   "OLLAMA",
   "OPENAI",
   "PERPLEXITY",

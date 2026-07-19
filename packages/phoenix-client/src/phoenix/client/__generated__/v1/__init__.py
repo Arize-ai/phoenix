@@ -1150,6 +1150,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
     ]
@@ -1830,6 +1831,7 @@ class PromptVersionData(TypedDict):
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
     ]

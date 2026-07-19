@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c94a3a1db8085c4979e7326cc3e92d3b>>
+ * @generated SignedSource<<b78ad805830201cb4f5e3517a27310be>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
 export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";

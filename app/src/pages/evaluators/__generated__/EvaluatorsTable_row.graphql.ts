@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<029f9fd4481a1a17472d1fd2b2478d50>>
+ * @generated SignedSource<<723dc8b2cec9f0bce4d7ce5eed812ab9>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorsTable_row$data = {
   readonly createdAt: string;
