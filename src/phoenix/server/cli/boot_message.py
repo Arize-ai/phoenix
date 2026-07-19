@@ -36,10 +36,6 @@ _BOOT_MESSAGE = Environment(
 {% endif %}
 Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability & Evaluation
 
-{{ header("📡", "Tracing " ~ dash ~ " send traces here", heavy=true) }}
-  {{ arrow }} OTLP over gRPC    {{ otlp_grpc_url }}
-  {{ arrow }} OTLP over HTTP    {{ otlp_http_url }}
-
 {{ header("💾", "Storage") }}
   Database            {{ database }}
 {% if database_schema %}
@@ -101,6 +97,10 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 {% if read_only %}
   Mode                Read-only
 {% endif %}
+
+{{ header("📡", "Tracing " ~ dash ~ " send traces here", heavy=true) }}
+  {{ arrow }} OTLP over gRPC    {{ otlp_grpc_url }}
+  {{ arrow }} OTLP over HTTP    {{ otlp_http_url }}
 
 {{ rocket }}Phoenix is up and running {{ dash }} open {{ ui_url }} to get started.
 """

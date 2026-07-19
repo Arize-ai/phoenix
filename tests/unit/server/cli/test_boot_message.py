@@ -44,12 +44,13 @@ def test_render_displays_configured_urls() -> None:
     assert "http://localhost:6006/phoenix/v1/traces" in rendered
 
 
-def test_render_uses_uniform_dividers_and_places_server_section_last() -> None:
+def test_render_uses_uniform_dividers_and_places_tracing_section_last() -> None:
     rendered = _boot_message().render(unicode_ok=True)
 
     headers = [line for line in rendered.splitlines() if line.startswith(("──", "━━"))]
     assert len({len(header) for header in headers}) == 1
-    assert "Server" in headers[-1]
+    assert "Server" in headers[-2]
+    assert "Tracing" in headers[-1]
 
 
 def test_render_without_unicode_omits_logo_and_is_ascii() -> None:
