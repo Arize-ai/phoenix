@@ -217,6 +217,10 @@ The operation catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk
 
 `execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter — no filesystem, network, or import access, with strict time and memory limits. This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
 
+<Warning>
+Use code mode at your own risk. It relies on [Monty's](https://github.com/pydantic/monty) security model to sandbox agent-written Python. Review Monty's security model and determine whether it meets your security requirements before enabling code mode.
+</Warning>
+
 <Note>
 Prefer not to run agent-written code on your server? Set `PHOENIX_ENABLE_MCP_CODE_MODE=false` to remove the `execute` tool and Monty entirely. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`.
 </Note>
