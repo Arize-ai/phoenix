@@ -22,7 +22,8 @@ _BOOT_MESSAGE = Environment(
     """
 {% macro header(icon, title, heavy=false) -%}
 {% set character = heavy_rule if heavy else rule -%}
-{{ character * 2 }} {{ (icon ~ " ") if unicode_ok else "" }}{{ title }} {{ character * 48 }}
+{% set prefix = character * 2 ~ " " ~ ((icon ~ " ") if unicode_ok else "") ~ title ~ " " -%}
+{{ prefix }}{{ character * (68 - prefix | length) }}
 {%- endmacro %}
 {% if unicode_ok %}
 ██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗
@@ -34,15 +35,6 @@ _BOOT_MESSAGE = Environment(
 
 {% endif %}
 Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability & Evaluation
-
-{{ header("🌐", "Server") }}
-  Web UI              {{ ui_url }}
-  REST API            {{ rest_api_url }}
-  GraphQL API         {{ graphql_url }}
-  MCP server          {{ mcp_url or disabled }}
-{% if read_only %}
-  Mode                Read-only
-{% endif %}
 
 {{ header("📡", "Tracing " ~ dash ~ " send traces here", heavy=true) }}
   {{ arrow }} OTLP over gRPC    {{ otlp_grpc_url }}
@@ -100,6 +92,15 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   Community Slack     {{ slack_url }}
   Documentation       {{ docs_url }}
   Docs MCP            {{ docs_mcp_url or disabled }}
+
+{{ header("🌐", "Server") }}
+  Web UI              {{ ui_url }}
+  REST API            {{ rest_api_url }}
+  GraphQL API         {{ graphql_url }}
+  MCP server          {{ mcp_url or disabled }}
+{% if read_only %}
+  Mode                Read-only
+{% endif %}
 
 {{ rocket }}Phoenix is up and running {{ dash }} open {{ ui_url }} to get started.
 """
