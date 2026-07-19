@@ -110,6 +110,30 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     </Steps>
   </Accordion>
 
+  <Accordion title="OpenCode">
+    <Steps>
+      <Step title="Add the Phoenix MCP server">
+        Add to `~/.config/opencode/opencode.json` (or project `opencode.json`):
+
+        ```json
+        {
+          "$schema": "https://opencode.ai/config.json",
+          "mcp": {
+            "phoenix": {
+              "type": "remote",
+              "url": "http://localhost:6006/mcp",
+              "enabled": true
+            }
+          }
+        }
+        ```
+      </Step>
+      <Step title="Log in">
+        OpenCode prompts you to log in via the browser on first use.
+      </Step>
+    </Steps>
+  </Accordion>
+
   <Accordion title="Codex (OpenAI)">
     Codex configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys), export it as `PHOENIX_API_KEY`, and add to `~/.codex/config.toml`:
 
@@ -120,6 +144,25 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     ```
 
     Launch `codex` and run `/mcp` to verify the server is connected.
+  </Accordion>
+
+  <Accordion title="Antigravity">
+    Antigravity configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys) and add to `~/.gemini/config/mcp_config.json` (or open **Manage MCP Servers → View raw config** from the agent panel):
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "serverUrl": "http://localhost:6006/mcp",
+          "headers": {
+            "Authorization": "Bearer <your-api-key>"
+          }
+        }
+      }
+    }
+    ```
+
+    Antigravity reloads the config automatically when you save. If your Phoenix instance runs without authentication, omit the `headers` block.
   </Accordion>
 
   <Accordion title="Other clients">
@@ -173,6 +216,10 @@ Instead of exposing dozens of individual tools, the server presents a compact **
 The operation catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference), so the MCP surface always matches what your Phoenix version can do.
 
 `execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter — no filesystem, network, or import access, with strict time and memory limits. This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
+
+<Warning>
+Use code mode at your own risk. It relies on [Monty's](https://github.com/pydantic/monty) security model to sandbox agent-written Python. Review Monty's security model and determine whether it meets your security requirements before enabling code mode.
+</Warning>
 
 <Note>
 Prefer not to run agent-written code on your server? Set `PHOENIX_ENABLE_MCP_CODE_MODE=false` to remove the `execute` tool and Monty entirely. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`.

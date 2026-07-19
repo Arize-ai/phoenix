@@ -71,6 +71,13 @@ export default defineConfig(() => {
       environment: "jsdom",
       setupFiles: [resolve(__dirname, "./vitest.setup.ts")],
       globals: true,
+      server: {
+        deps: {
+          // codemirror-json-schema ships ESM with extensionless relative
+          // imports that Node's resolver rejects when externalized
+          inline: ["codemirror-json-schema"],
+        },
+      },
     },
     build: {
       manifest: true,
