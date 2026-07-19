@@ -25,7 +25,7 @@ export const DEFAULT_MODEL_PROVIDER: ModelProvider = "OPENAI";
 /**
  * The default model name
  */
-export const DEFAULT_MODEL_NAME = "gpt-5.6-sol";
+export const DEFAULT_MODEL_NAME = "gpt-5.6-luna";
 
 export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 
