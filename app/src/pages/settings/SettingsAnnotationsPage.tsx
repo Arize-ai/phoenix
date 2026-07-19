@@ -17,6 +17,7 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import type { settingsAnnotationsPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsAnnotationsPageLoaderQuery.graphql";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import type { SettingsAnnotationsPageLoaderType } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -25,6 +26,7 @@ import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SettingsAnnotationsPageFragment$key } from "./__generated__/SettingsAnnotationsPageFragment.graphql";
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 export const SettingsAnnotationsPage = () => {
   const loaderData = useLoaderData<SettingsAnnotationsPageLoaderType>();
@@ -164,6 +166,15 @@ const SettingsAnnotations = ({
   return (
     <Card
       title="Annotation Configs"
+      titleExtra={
+        <SettingsDocumentationHelp
+          href={PHOENIX_DOCUMENTATION_LINKS.annotationConfigs}
+          topic="annotation configs"
+        >
+          Define the labels, scores, and freeform fields people use to annotate
+          traces and spans.
+        </SettingsDocumentationHelp>
+      }
       extra={
         <DialogTrigger>
           <Button size="S">

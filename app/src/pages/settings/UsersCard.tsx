@@ -11,11 +11,13 @@ import {
   Loading,
   View,
 } from "@phoenix/components";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
 import { NewUserDialog } from "./NewUserDialog";
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 import { UsersTable } from "./UsersTable";
 
 export function UsersCard() {
@@ -53,6 +55,14 @@ export function UsersCard() {
   return (
     <Card
       title="Users"
+      titleExtra={
+        <SettingsDocumentationHelp
+          href={PHOENIX_DOCUMENTATION_LINKS.accessControl}
+          topic="user access"
+        >
+          Add users and manage access to this Phoenix instance.
+        </SettingsDocumentationHelp>
+      }
       extra={
         <Button
           onPress={() => {

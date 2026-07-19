@@ -38,6 +38,7 @@ import {
   ProviderServerCredentialsPanel,
 } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -46,6 +47,7 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 export function GenerativeProvidersCard({
   query,
@@ -155,7 +157,18 @@ export function GenerativeProvidersCard({
   const rows = table.getRowModel().rows;
 
   return (
-    <Card title="AI Providers">
+    <Card
+      title="AI Providers"
+      titleExtra={
+        <SettingsDocumentationHelp
+          href={PHOENIX_DOCUMENTATION_LINKS.providers}
+          topic="AI providers"
+        >
+          Configure credentials for built-in AI providers used by the Playground
+          and evaluations.
+        </SettingsDocumentationHelp>
+      }
+    >
       <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (

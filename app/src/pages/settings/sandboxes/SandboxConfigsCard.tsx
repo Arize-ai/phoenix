@@ -1,18 +1,13 @@
 import { useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  Card,
-  ContextualHelp,
-  Flex,
-  Label,
-  Switch,
-  Text,
-} from "@phoenix/components";
+import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { TableEmpty } from "@phoenix/components/table";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
 import type { SandboxConfigsCardConfigEnabledSwitchMutation } from "./__generated__/SandboxConfigsCardConfigEnabledSwitchMutation.graphql";
 import { DeleteSandboxConfigButton } from "./DeleteSandboxConfigButton";
 import { SandboxConfigDialogTrigger } from "./SandboxConfigDialog";
@@ -54,9 +49,12 @@ export function SandboxConfigsCard({
     <Card
       title="Sandbox Configurations"
       titleExtra={
-        <ContextualHelp variant="info">
+        <SettingsDocumentationHelp
+          href={PHOENIX_DOCUMENTATION_LINKS.sandboxes}
+          topic="sandbox configurations"
+        >
           Reusable sandbox configurations for code evaluators.
-        </ContextualHelp>
+        </SettingsDocumentationHelp>
       }
       extra={
         <SandboxConfigDialogTrigger

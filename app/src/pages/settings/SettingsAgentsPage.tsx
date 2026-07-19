@@ -18,12 +18,14 @@ import {
   AgentWebAccessSettings,
   SystemSettingsWarning,
 } from "@phoenix/components/agent";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 /**
  * Whether the subagents (server-side bash tool) setting should be offered in the
@@ -195,7 +197,17 @@ export function SettingsAgentsPage() {
   );
   return (
     <Flex direction="column" gap="size-200">
-      <Card title="Assistant settings - PXI">
+      <Card
+        title="Assistant settings - PXI"
+        titleExtra={
+          <SettingsDocumentationHelp
+            href={PHOENIX_DOCUMENTATION_LINKS.pxi}
+            topic="PXI"
+          >
+            Configure Phoenix Intelligence and personal assistant preferences.
+          </SettingsDocumentationHelp>
+        }
+      >
         <DisclosureGroup defaultExpandedKeys={[PERSONAL_SECTION_ID]}>
           {isAdmin ? (
             <Disclosure id={ADMIN_SECTION_ID}>

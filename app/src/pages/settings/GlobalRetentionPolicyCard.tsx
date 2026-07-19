@@ -17,9 +17,12 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import type { GlobalRetentionPolicyCardMutation } from "@phoenix/pages/settings/__generated__/GlobalRetentionPolicyCardMutation.graphql";
 import type { GlobalRetentionPolicyCardQuery } from "@phoenix/pages/settings/__generated__/GlobalRetentionPolicyCardQuery.graphql";
+
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 export const GlobalRetentionPolicyCard = () => {
   const notifySuccess = useNotifySuccess();
@@ -128,7 +131,18 @@ export const GlobalRetentionPolicyCard = () => {
   );
 
   return (
-    <Card title="Default Project Retention Policy">
+    <Card
+      title="Default Project Retention Policy"
+      titleExtra={
+        <SettingsDocumentationHelp
+          href={PHOENIX_DOCUMENTATION_LINKS.dataRetention}
+          topic="the default retention policy"
+        >
+          Set how long traces are kept for projects without a custom retention
+          policy.
+        </SettingsDocumentationHelp>
+      }
+    >
       {error && <Alert variant="danger">{error}</Alert>}
       <View padding="size-200">
         <Flex

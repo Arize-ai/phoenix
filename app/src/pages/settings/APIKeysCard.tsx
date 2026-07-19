@@ -19,9 +19,11 @@ import {
   CreateAPIKeyDialog,
   OneTimeAPIKeyDialog,
 } from "@phoenix/components/auth";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 
 import type { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
 import type { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
 
 function APIKeysCardContent({ fetchKey }: { fetchKey: number }) {
@@ -96,6 +98,15 @@ export function APIKeysCard() {
     <div>
       <Card
         title="System API Keys"
+        titleExtra={
+          <SettingsDocumentationHelp
+            href={PHOENIX_DOCUMENTATION_LINKS.apiKeys}
+            topic="API keys"
+          >
+            Create system-wide credentials for automated and programmatic access
+            to Phoenix.
+          </SettingsDocumentationHelp>
+        }
         extra={
           <DialogTrigger
             isOpen={showCreateAPIKeyDialog}

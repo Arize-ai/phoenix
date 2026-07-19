@@ -26,6 +26,7 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative/Generativ
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import {
   type GenerativeModelSDK,
   SDK_TO_PROVIDER_MAP,
@@ -42,6 +43,7 @@ import type {
 import { DeleteCustomProviderButton } from "./DeleteCustomProviderButton";
 import { EditCustomProviderButton } from "./EditCustomProviderButton";
 import { NewCustomProviderButton } from "./NewCustomProviderButton";
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 // Compile-time check that GenerativeModelSDK in generativeConstants.ts matches the GraphQL schema.
 // This will cause a TypeScript error if the types diverge.
@@ -320,7 +322,19 @@ export function CustomProvidersCard({
 
   return (
     <ErrorBoundary>
-      <Card title="Custom AI Providers" extra={<NewCustomProviderButton />}>
+      <Card
+        title="Custom AI Providers"
+        titleExtra={
+          <SettingsDocumentationHelp
+            href={PHOENIX_DOCUMENTATION_LINKS.customAiProviders}
+            topic="custom AI providers"
+          >
+            Create shared provider credentials and routing configurations for
+            the Playground and saved prompts.
+          </SettingsDocumentationHelp>
+        }
+        extra={<NewCustomProviderButton />}
+      >
         {isEmpty ? (
           <View padding="size-500">
             <EmptyState

@@ -16,6 +16,7 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import type { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
 import type { settingsModelsLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsModelsLoaderQuery.graphql";
 import type { SettingsModelsLoaderType } from "@phoenix/pages/settings/settingsModelsLoader";
@@ -23,6 +24,7 @@ import { settingsModelsLoaderGql } from "@phoenix/pages/settings/settingsModelsL
 
 import { ModelsTable } from "./ModelsTable";
 import { NewModelButton } from "./NewModelButton";
+import { SettingsDocumentationHelp } from "./SettingsDocumentationHelp";
 
 const ModelKindFilterOptions = [
   { label: "All", id: "ALL" },
@@ -80,6 +82,15 @@ export function SettingsModelsPage() {
       </Flex>
       <Card
         title="Models"
+        titleExtra={
+          <SettingsDocumentationHelp
+            href={PHOENIX_DOCUMENTATION_LINKS.modelCostTracking}
+            topic="model pricing"
+          >
+            Manage the model matching rules and token prices Phoenix uses to
+            calculate costs.
+          </SettingsDocumentationHelp>
+        }
         flex="1 1 auto"
         minHeight={0}
         scrollBody

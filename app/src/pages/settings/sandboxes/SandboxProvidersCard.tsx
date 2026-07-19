@@ -16,8 +16,10 @@ import {
   Text,
 } from "@phoenix/components";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
+import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import { SettingsDocumentationHelp } from "../SettingsDocumentationHelp";
 import type { SandboxProvidersCardProviderEnabledSwitchMutation } from "./__generated__/SandboxProvidersCardProviderEnabledSwitchMutation.graphql";
 import { SandboxProviderCredentialsDialog } from "./SandboxProviderCredentialsDialog";
 import { sandboxesTableCSS } from "./styles";
@@ -40,10 +42,13 @@ export function SandboxProvidersCard({
     <Card
       title="Sandbox Providers"
       titleExtra={
-        <ContextualHelp variant="info">
+        <SettingsDocumentationHelp
+          href={PHOENIX_DOCUMENTATION_LINKS.sandboxes}
+          topic="sandbox providers"
+        >
           Shared provider settings and whether each sandbox runtime can be
           enabled.
-        </ContextualHelp>
+        </SettingsDocumentationHelp>
       }
     >
       <table css={sandboxesTableCSS}>
