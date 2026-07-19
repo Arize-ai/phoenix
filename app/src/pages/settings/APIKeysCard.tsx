@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
   Loading,
@@ -96,6 +97,12 @@ export function APIKeysCard() {
     <div>
       <Card
         title="System API Keys"
+        titleExtra={
+          <DocumentationHelp topic="apiKeys">
+            Create system-wide credentials for automated and programmatic access
+            to Phoenix.
+          </DocumentationHelp>
+        }
         extra={
           <DialogTrigger
             isOpen={showCreateAPIKeyDialog}
@@ -103,8 +110,9 @@ export function APIKeysCard() {
           >
             <Button
               size="S"
+              variant="primary"
               onPress={() => setShowCreateAPIKeyDialog(true)}
-              leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
             >
               System Key
             </Button>

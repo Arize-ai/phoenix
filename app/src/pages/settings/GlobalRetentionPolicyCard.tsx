@@ -7,6 +7,7 @@ import {
   Alert,
   Button,
   Card,
+  DocumentationHelp,
   FieldError,
   Flex,
   Form,
@@ -128,7 +129,15 @@ export const GlobalRetentionPolicyCard = () => {
   );
 
   return (
-    <Card title="Default Project Retention Policy">
+    <Card
+      title="Default Project Retention Policy"
+      titleExtra={
+        <DocumentationHelp topic="defaultRetentionPolicy">
+          Set how long traces are kept for projects without a custom retention
+          policy.
+        </DocumentationHelp>
+      }
+    >
       {error && <Alert variant="danger">{error}</Alert>}
       <View padding="size-200">
         <Flex

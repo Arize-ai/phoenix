@@ -11,6 +11,7 @@ import invariant from "tiny-invariant";
 
 import {
   Card,
+  DocumentationHelp,
   Flex,
   Icon,
   Icons,
@@ -320,11 +321,20 @@ export function CustomProvidersCard({
 
   return (
     <ErrorBoundary>
-      <Card title="Custom AI Providers" extra={<NewCustomProviderButton />}>
+      <Card
+        title="Custom AI Providers"
+        titleExtra={
+          <DocumentationHelp topic="customAiProviders">
+            Create shared provider credentials and routing configurations for
+            the Playground and saved prompts.
+          </DocumentationHelp>
+        }
+        extra={<NewCustomProviderButton />}
+      >
         {isEmpty ? (
           <View padding="size-500">
             <EmptyState
-              graphic={<EmptyStateGraphic variant="genericAdd" />}
+              graphic={<EmptyStateGraphic variant="customAIProvider" />}
               description="No custom AI providers configured yet."
             />
           </View>
