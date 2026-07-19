@@ -5,7 +5,28 @@ import {
   isProviderProvisioned,
   isProviderReady,
   providerRequiresCredentials,
+  providerSupportsDefaultCredentialChain,
 } from "../modelProviderUtils";
+
+describe("providerSupportsDefaultCredentialChain", () => {
+  it("returns true for providers with an ambient credential chain", () => {
+    expect(providerSupportsDefaultCredentialChain({ providerKey: "AWS" })).toBe(
+      true
+    );
+    expect(
+      providerSupportsDefaultCredentialChain({ providerKey: "AZURE_OPENAI" })
+    ).toBe(true);
+  });
+
+  it("returns false for other providers", () => {
+    expect(
+      providerSupportsDefaultCredentialChain({ providerKey: "OPENAI" })
+    ).toBe(false);
+    expect(
+      providerSupportsDefaultCredentialChain({ providerKey: "NOT_A_PROVIDER" })
+    ).toBe(false);
+  });
+});
 
 describe("providerRequiresCredentials", () => {
   it("returns true for providers with credential requirements", () => {
@@ -143,6 +164,44 @@ describe("isProviderReady", () => {
       })
     ).toBe(false);
   });
+
+  it("treats default-credential-chain providers as ready without explicit credentials", () => {
+    // e.g. EC2/ECS with an attached IAM role — no AWS_ACCESS_KEY_ID anywhere
+    expect(
+      isProviderReady({
+        provider: {
+          key: "AWS",
+          dependenciesInstalled: true,
+          credentialsSet: false,
+        },
+        localCredentials: {},
+      })
+    ).toBe(true);
+    // e.g. Azure Managed Identity via DefaultAzureCredential — no API key set
+    expect(
+      isProviderReady({
+        provider: {
+          key: "AZURE_OPENAI",
+          dependenciesInstalled: true,
+          credentialsSet: false,
+        },
+        localCredentials: {},
+      })
+    ).toBe(true);
+  });
+
+  it("still requires dependencies for default-credential-chain providers", () => {
+    expect(
+      isProviderReady({
+        provider: {
+          key: "AWS",
+          dependenciesInstalled: false,
+          credentialsSet: false,
+        },
+        localCredentials: {},
+      })
+    ).toBe(false);
+  });
 });
 
 describe("isProviderProvisioned", () => {
@@ -194,5 +253,58 @@ describe("isProviderProvisioned", () => {
         localCredentials: {},
       })
     ).toBe(false);
+  });
+
+  it("does not count default-credential-chain providers without explicit credentials", () => {
+    // Ready via the ambient chain, but not explicitly provisioned — the
+    // curated "no credentials yet" fallback should still be suppressed only
+    // by explicit setup.
+    expect(
+      isProviderProvisioned({
+        provider: {
+          key: "AWS",
+          dependenciesInstalled: true,
+          credentialsSet: false,
+        },
+        localCredentials: {},
+      })
+    ).toBe(false);
+    expect(
+      isProviderProvisioned({
+        provider: {
+          key: "AZURE_OPENAI",
+          dependenciesInstalled: true,
+          credentialsSet: false,
+        },
+        localCredentials: {},
+      })
+    ).toBe(false);
+  });
+
+  it("counts explicitly-credentialed providers even when dependencies are missing", () => {
+    // Provisioning tracks the user's explicit setup, not server install state
+    expect(
+      isProviderProvisioned({
+        provider: {
+          key: "ANTHROPIC",
+          dependenciesInstalled: false,
+          credentialsSet: false,
+        },
+        localCredentials: { ANTHROPIC: { ANTHROPIC_API_KEY: "sk-ant" } },
+      })
+    ).toBe(true);
+  });
+
+  it("counts default-credential-chain providers once credentials are explicit", () => {
+    expect(
+      isProviderProvisioned({
+        provider: {
+          key: "AWS",
+          dependenciesInstalled: true,
+          credentialsSet: true,
+        },
+        localCredentials: {},
+      })
+    ).toBe(true);
   });
 });

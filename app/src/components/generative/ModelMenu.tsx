@@ -26,10 +26,6 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
-import {
-  type CuratedModel,
-  getCuratedModels,
-} from "@phoenix/components/generative/curatedModels";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import {
   applyBedrockModelPrefix,
@@ -190,33 +186,34 @@ export function ModelMenu({
   );
   const {
     customProviders,
-    data,
-    hasProvisionedProvider,
     modelsByProvider,
     providerInfoMap,
-    readyProviders,
+    visibleProviders,
   } = useModelMenuData();
 
-  const readyProviderKeys = new Set<string>(
-    readyProviders.map((provider) => provider.key)
+  // Providers whose models are searchable: visible in the menu and with
+  // server dependencies installed, so search never surfaces a model that
+  // cannot run.
+  const searchableProviderKeys = useMemo(
+    () =>
+      new Set<string>(
+        visibleProviders
+          .filter((provider) => provider.dependenciesInstalled)
+          .map((provider) => provider.key)
+      ),
+    [visibleProviders]
   );
 
-  // When no provider has been provisioned, surface a curated set of popular
-  // models so the picker is not empty.
-  const curatedModels = hasProvisionedProvider
-    ? []
-    : getCuratedModels({ playgroundModels: data.playgroundModels });
-
   // Filter models when searching (built-in providers)
-  const filteredModelsByProvider = (() => {
+  const filteredModelsByProvider = useMemo(() => {
     if (!searchValue.trim()) {
       return new Map<string, string[]>();
     }
 
     const filtered = new Map<string, string[]>();
     for (const [providerKey, models] of modelsByProvider) {
-      // Skip providers that are missing dependencies or credentials
-      if (!readyProviderKeys.has(providerKey)) {
+      // Skip providers that are hidden from the menu
+      if (!searchableProviderKeys.has(providerKey)) {
         continue;
       }
       const matchingModels = models.filter((model) =>
@@ -227,7 +224,7 @@ export function ModelMenu({
       }
     }
     return filtered;
-  })();
+  }, [searchValue, modelsByProvider, searchableProviderKeys, contains]);
 
   // Filter custom providers when searching
   const filteredCustomProviders = useMemo(() => {
@@ -246,10 +243,6 @@ export function ModelMenu({
   }, [searchValue, customProviders, contains]);
 
   const isSearching = searchValue.trim().length > 0;
-
-  const filteredCuratedModels = isSearching
-    ? curatedModels.filter((model) => contains(model.modelName, searchValue))
-    : curatedModels;
 
   const searchFilter = useCallback(
     (textValue: string, inputValue: string) => contains(textValue, inputValue),
@@ -303,15 +296,13 @@ export function ModelMenu({
               modelsByProvider={filteredModelsByProvider}
               providerInfoMap={providerInfoMap}
               customProviders={filteredCustomProviders}
-              curatedModels={filteredCuratedModels}
               onChange={handleModelChange}
             />
           ) : (
             <ProviderMenu
-              providers={readyProviders}
+              providers={visibleProviders}
               modelsByProvider={modelsByProvider}
               customProviders={customProviders}
-              curatedModels={curatedModels}
               onChange={handleModelChange}
             />
           )}
@@ -331,78 +322,6 @@ export function ModelMenu({
   );
 }
 
-type CuratedModelSectionProps = {
-  curatedModels: readonly CuratedModel[];
-  /**
-   * When provided, items handle their own selection. Omit when the parent
-   * Menu's `onAction` decodes the encoded item key instead.
-   */
-  onChange?: (model: ModelMenuValue) => void;
-};
-
-/**
- * A section of curated models shown when the user has not provisioned
- * credentials for any provider. Each item carries a subtle hint that an API
- * key has not been set.
- */
-function CuratedModelSection({
-  curatedModels,
-  onChange,
-}: CuratedModelSectionProps) {
-  if (curatedModels.length === 0) {
-    return null;
-  }
-  return (
-    <MenuSection>
-      <MenuSectionTitle title="Popular models" />
-      {curatedModels.map((model) => {
-        const itemKey = encodeBuiltInKey({
-          providerKey: model.provider,
-          modelName: model.modelName,
-        });
-        const isValidProvider = isModelProvider(model.provider);
-        return (
-          <MenuItem
-            key={itemKey}
-            id={itemKey}
-            textValue={model.modelName}
-            onAction={
-              onChange
-                ? () =>
-                    onChange({
-                      provider: model.provider,
-                      modelName: model.modelName,
-                    })
-                : undefined
-            }
-          >
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              justifyContent="space-between"
-              width="100%"
-            >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                {isValidProvider && (
-                  <GenerativeProviderIcon
-                    provider={model.provider}
-                    height={16}
-                  />
-                )}
-                <Text>{model.modelName}</Text>
-              </Flex>
-              <Text color="text-500" size="XS">
-                No API key
-              </Text>
-            </Flex>
-          </MenuItem>
-        );
-      })}
-    </MenuSection>
-  );
-}
-
 type ModelsByProviderMenuProps = {
   modelsByProvider: Map<string, string[]>;
   providerInfoMap: Map<
@@ -410,7 +329,6 @@ type ModelsByProviderMenuProps = {
     { name: string; dependenciesInstalled: boolean }
   >;
   customProviders: CustomProviderInfo[];
-  curatedModels: readonly CuratedModel[];
   onChange?: (model: ModelMenuValue) => void;
 };
 
@@ -422,7 +340,6 @@ function ModelsByProviderMenu({
   modelsByProvider,
   providerInfoMap,
   customProviders,
-  curatedModels,
   onChange,
 }: ModelsByProviderMenuProps) {
   const awsBedrockModelPrefix = usePreferencesContext(
@@ -452,8 +369,7 @@ function ModelsByProviderMenu({
 
   const hasBuiltInResults = modelsByProvider.size > 0;
   const hasCustomResults = customProviders.length > 0;
-  const hasCuratedResults = curatedModels.length > 0;
-  const hasResults = hasBuiltInResults || hasCustomResults || hasCuratedResults;
+  const hasResults = hasBuiltInResults || hasCustomResults;
 
   return (
     <Menu
@@ -491,8 +407,6 @@ function ModelsByProviderMenu({
     >
       {hasResults ? (
         <>
-          {/* Curated models — selection is handled by the Menu's onAction */}
-          <CuratedModelSection curatedModels={curatedModels} />
           {/* Custom providers */}
           {customProviders.map((customProvider) => {
             const providerKey = getProviderKeyForGenerativeModelSDK(
@@ -585,24 +499,19 @@ type ProviderMenuProps = {
 
 /**
  * Menu showing a list of providers with submenus for their models.
- * Only providers that are ready to use are listed; when the user has not
- * provisioned any provider, a curated set of models is shown instead.
+ * Once a provider is provisioned only ready providers are listed; before
+ * that, the flagship providers are shown as a fallback.
  * Used as the default view when not searching.
  */
 function ProviderMenu({
   providers,
   modelsByProvider,
   customProviders,
-  curatedModels,
   onChange,
-}: ProviderMenuProps & { curatedModels: readonly CuratedModel[] }) {
-  const isEmpty =
-    providers.length === 0 &&
-    customProviders.length === 0 &&
-    curatedModels.length === 0;
+}: ProviderMenuProps) {
+  const isEmpty = providers.length === 0 && customProviders.length === 0;
   return (
     <Menu css={menuWidthCSS}>
-      <CuratedModelSection curatedModels={curatedModels} onChange={onChange} />
       <ProviderModelMenuItems
         providers={providers}
         modelsByProvider={modelsByProvider}

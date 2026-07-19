@@ -48,6 +48,18 @@ export type ModelProviderInfo = {
   readonly credentialsSet: boolean;
 };
 
+/**
+ * Flagship providers surfaced in the picker when no provider has been
+ * provisioned, in display order.
+ */
+const FALLBACK_PROVIDER_KEYS: readonly GenerativeProviderKey[] = [
+  "OPENAI",
+  "ANTHROPIC",
+  "AZURE_OPENAI",
+  "AWS",
+  "GOOGLE",
+];
+
 export function getModelsByProvider(
   playgroundModels: readonly {
     readonly name: string;
@@ -172,28 +184,50 @@ export function useModelMenuData() {
 
   // Providers that are usable right now: dependencies installed and
   // credentials satisfied on the server or in the browser.
-  const readyProviders: ModelProviderInfo[] = data.modelProviders.filter(
-    (provider) => isProviderReady({ provider, localCredentials })
+  const readyProviders = useMemo<ModelProviderInfo[]>(
+    () =>
+      data.modelProviders.filter((provider) =>
+        isProviderReady({ provider, localCredentials })
+      ),
+    [data.modelProviders, localCredentials]
   );
 
   // Whether the user has explicitly set up any provider — credentials for a
   // built-in provider or a custom provider. Zero-credential providers (e.g.
   // Ollama) are always ready but do not count as provisioned.
-  const hasProvisionedProvider =
-    customProviders.length > 0 ||
-    data.modelProviders.some((provider) =>
-      isProviderProvisioned({ provider, localCredentials })
+  const hasProvisionedProvider = useMemo(
+    () =>
+      customProviders.length > 0 ||
+      data.modelProviders.some((provider) =>
+        isProviderProvisioned({ provider, localCredentials })
+      ),
+    [customProviders, data.modelProviders, localCredentials]
+  );
+
+  // Providers to list in the picker. Once the user has provisioned a
+  // provider, only ready providers are shown; before that, fall back to the
+  // flagship providers so the picker is not empty. Fallback providers with
+  // missing server dependencies render disabled.
+  const visibleProviders = useMemo<ModelProviderInfo[]>(() => {
+    if (hasProvisionedProvider) {
+      return readyProviders;
+    }
+    const providersByKey = new Map(
+      data.modelProviders.map((provider) => [provider.key, provider])
     );
+    return FALLBACK_PROVIDER_KEYS.flatMap(
+      (key) => providersByKey.get(key) ?? []
+    );
+  }, [hasProvisionedProvider, readyProviders, data.modelProviders]);
 
   return {
     availableBuiltinModels,
     availableCustomModels,
     customProviders,
     data,
-    hasProvisionedProvider,
     modelCatalog,
     modelsByProvider,
     providerInfoMap,
-    readyProviders,
+    visibleProviders,
   };
 }
