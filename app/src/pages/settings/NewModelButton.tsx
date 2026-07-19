@@ -70,7 +70,7 @@ export function NewModelButton({
       <Button
         variant="primary"
         size="S"
-        leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
         aria-label="Create a new model"
         onPress={() => {
           setError(null);

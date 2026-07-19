@@ -177,8 +177,11 @@ const SettingsAnnotations = ({
       }
       extra={
         <DialogTrigger>
-          <Button size="S">
-            <Icon svg={<Icons.Plus />} />
+          <Button
+            size="S"
+            variant="primary"
+            leadingVisual={<Icon svg={<Icons.Plus />} />}
+          >
             New Configuration
           </Button>
           <ModalOverlay>

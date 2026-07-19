@@ -88,7 +88,8 @@ export function UsersCard() {
             );
           }}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+          variant="primary"
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           isDisabled={isDisabled}
         >
           Add User

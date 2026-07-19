@@ -49,7 +49,11 @@ export function SettingsDataPage() {
       extra={
         <CanManageRetentionPolicy>
           <DialogTrigger>
-            <Button size="S" leadingVisual={<Icon svg={<Icons.Plus />} />}>
+            <Button
+              size="S"
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
+            >
               New Policy
             </Button>
             <ModalOverlay>
