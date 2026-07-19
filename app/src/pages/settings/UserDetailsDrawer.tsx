@@ -23,7 +23,7 @@ import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/consta
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { normalizeUserRole } from "@phoenix/constants";
-import { useIsAdmin } from "@phoenix/contexts";
+import { useIsAuthenticatedAdmin } from "@phoenix/contexts";
 import { AuthorizedApplicationsCard } from "@phoenix/pages/profile/AuthorizedApplicationsCard";
 import type { UserDetailsDrawerQuery } from "@phoenix/pages/settings/__generated__/UserDetailsDrawerQuery.graphql";
 import { UserAPIKeysCard } from "@phoenix/pages/settings/UserAPIKeysCard";
@@ -139,7 +139,7 @@ function UserDetailsContent({ userId }: { userId: string }) {
 export function UserDetailsDrawer() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAuthenticatedAdmin();
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "settings-user-details",
   });

@@ -21,7 +21,7 @@ import {
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
 
@@ -76,7 +76,7 @@ const settingSwitchCSS = css`
 `;
 
 function AssistantAgentEnabledSetting() {
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAdminOrAuthDisabled();
   const adminAssistantEnabled = useAgentContext(
     (state) => state.agentsConfig.assistantEnabled
   );
@@ -189,7 +189,7 @@ function PersonalSettingsSection() {
 }
 
 export function SettingsAgentsPage() {
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAdminOrAuthDisabled();
   const isExperimentalSettingsEnabled = useFeatureFlag(
     "agent-experimental-settings"
   );

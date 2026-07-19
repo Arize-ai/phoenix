@@ -110,6 +110,30 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     </Steps>
   </Accordion>
 
+  <Accordion title="OpenCode">
+    <Steps>
+      <Step title="Add the Phoenix MCP server">
+        Add to `~/.config/opencode/opencode.json` (or project `opencode.json`):
+
+        ```json
+        {
+          "$schema": "https://opencode.ai/config.json",
+          "mcp": {
+            "phoenix": {
+              "type": "remote",
+              "url": "http://localhost:6006/mcp",
+              "enabled": true
+            }
+          }
+        }
+        ```
+      </Step>
+      <Step title="Log in">
+        OpenCode prompts you to log in via the browser on first use.
+      </Step>
+    </Steps>
+  </Accordion>
+
   <Accordion title="Codex (OpenAI)">
     Codex configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys), export it as `PHOENIX_API_KEY`, and add to `~/.codex/config.toml`:
 
@@ -120,6 +144,25 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     ```
 
     Launch `codex` and run `/mcp` to verify the server is connected.
+  </Accordion>
+
+  <Accordion title="Antigravity">
+    Antigravity configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys) and add to `~/.gemini/config/mcp_config.json` (or open **Manage MCP Servers → View raw config** from the agent panel):
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "serverUrl": "http://localhost:6006/mcp",
+          "headers": {
+            "Authorization": "Bearer <your-api-key>"
+          }
+        }
+      }
+    }
+    ```
+
+    Antigravity reloads the config automatically when you save. If your Phoenix instance runs without authentication, omit the `headers` block.
   </Accordion>
 
   <Accordion title="Other clients">

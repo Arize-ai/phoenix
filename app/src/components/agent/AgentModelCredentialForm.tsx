@@ -5,7 +5,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ProviderServerCredentialsPanel } from "@phoenix/components/generative";
-import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCredentialFormQuery.graphql";
 
@@ -79,7 +79,7 @@ export function AgentModelCredentialForm({
   onCredentialsUpdated: () => void;
   provider: AgentModelCredentialProvider;
 }) {
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAdminOrAuthDisabled();
 
   return (
     <section
