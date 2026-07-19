@@ -90,11 +90,6 @@ const vsCodeConfig = JSON.stringify(
   null,
   2
 );
-const codexConfig = [
-  "[mcp_servers.phoenix]",
-  `url = "${mcpUrl}"`,
-  'bearer_token_env_var = "PHOENIX_API_KEY"',
-].join("\n");
 const apiKeyConfig = JSON.stringify(
   {
     mcpServers: {
@@ -109,105 +104,124 @@ const apiKeyConfig = JSON.stringify(
 );
 
 // One entry per MCP client rendered in the "Connect a client" disclosure
-// group. Everything here is static, so the list lives at module scope.
-const CLIENTS = [
-  {
-    id: "claude-code",
-    label: "Claude Code",
-    icon: <ClaudeSVG />,
-    content: (
-      <>
-        <BashBlockWithCopy
-          value={`claude mcp add --transport http phoenix ${mcpUrl}`}
-        />
+// group. The copy differs by deployment: with auth enabled each client walks
+// through its login flow; without auth the URL alone is a complete config.
+function getClients({ isAuthEnabled }: { isAuthEnabled: boolean }) {
+  const codexConfig = [
+    "[mcp_servers.phoenix]",
+    `url = "${mcpUrl}"`,
+    ...(isAuthEnabled ? ['bearer_token_env_var = "PHOENIX_API_KEY"'] : []),
+  ].join("\n");
+  return [
+    {
+      id: "claude-code",
+      label: "Claude Code",
+      icon: <ClaudeSVG />,
+      content: (
+        <>
+          <BashBlockWithCopy
+            value={`claude mcp add --transport http phoenix ${mcpUrl}`}
+          />
+          <Text size="S" color="text-700">
+            {isAuthEnabled
+              ? "Then run /mcp inside Claude Code, select phoenix, and complete the browser login."
+              : "Then run /mcp inside Claude Code and select phoenix to verify the connection."}
+          </Text>
+        </>
+      ),
+    },
+    {
+      id: "claude-desktop",
+      label: "Claude Desktop",
+      icon: <ClaudeSVG />,
+      content: (
+        <>
+          <Text size="S" color="text-700">
+            Go to Settings → Connectors → Add custom connector and enter the
+            name Phoenix with the URL below.
+            {isAuthEnabled &&
+              " Claude Desktop opens the browser login the first time you use the connector."}
+          </Text>
+          <CopyField value={mcpUrl} aria-label="Phoenix MCP URL">
+            <CopyInput />
+          </CopyField>
+        </>
+      ),
+    },
+    {
+      id: "codex",
+      label: "Codex",
+      icon: <OpenAISVG />,
+      content: (
+        <>
+          <Text size="S" color="text-700">
+            {isAuthEnabled
+              ? "Codex authenticates with an API key. Create a Phoenix API key, export it as PHOENIX_API_KEY, and add to ~/.codex/config.toml:"
+              : "Add to ~/.codex/config.toml:"}
+          </Text>
+          <TomlBlockWithCopy value={codexConfig} />
+        </>
+      ),
+    },
+    {
+      id: "cursor",
+      label: "Cursor",
+      icon: <CursorSVG />,
+      content: (
+        <>
+          <Text size="S" color="text-700">
+            Add to ~/.cursor/mcp.json (or the project&apos;s .cursor/mcp.json).
+            {isAuthEnabled &&
+              " Cursor prompts you to log in via the browser on first use."}
+          </Text>
+          <JSONBlockWithCopy value={cursorConfig} />
+        </>
+      ),
+    },
+    {
+      id: "vscode",
+      label: "VS Code",
+      icon: <VSCodeSVG />,
+      content: (
+        <>
+          <Text size="S" color="text-700">
+            Run MCP: Add Server from the Command Palette, or add to
+            .vscode/mcp.json.
+            {isAuthEnabled &&
+              " VS Code walks you through the browser login when the server first starts."}
+          </Text>
+          <JSONBlockWithCopy value={vsCodeConfig} />
+        </>
+      ),
+    },
+    {
+      id: "other",
+      label: "Other clients",
+      icon: <McpSVG />,
+      content: isAuthEnabled ? (
+        <>
+          <Text size="S" color="text-700">
+            Any client that supports streamable HTTP and OAuth works — configure
+            the URL above and complete the login prompt on first use. For
+            headless environments or clients that can&apos;t complete a browser
+            login, pass a Phoenix API key as a Bearer header instead:
+          </Text>
+          <JSONBlockWithCopy value={apiKeyConfig} />
+        </>
+      ) : (
         <Text size="S" color="text-700">
-          Then run /mcp inside Claude Code, select phoenix, and complete the
-          browser login.
+          Any client that supports streamable HTTP works — configuring the URL
+          above is all it takes; no credentials are required on this deployment.
         </Text>
-      </>
-    ),
-  },
-  {
-    id: "claude-desktop",
-    label: "Claude Desktop",
-    icon: <ClaudeSVG />,
-    content: (
-      <>
-        <Text size="S" color="text-700">
-          Go to Settings → Connectors → Add custom connector and enter the name
-          Phoenix with the URL below. Claude Desktop opens the browser login the
-          first time you use the connector.
-        </Text>
-        <CopyField value={mcpUrl} aria-label="Phoenix MCP URL">
-          <CopyInput />
-        </CopyField>
-      </>
-    ),
-  },
-  {
-    id: "codex",
-    label: "Codex",
-    icon: <OpenAISVG />,
-    content: (
-      <>
-        <Text size="S" color="text-700">
-          Codex authenticates with an API key. Create a Phoenix API key, export
-          it as PHOENIX_API_KEY, and add to ~/.codex/config.toml:
-        </Text>
-        <TomlBlockWithCopy value={codexConfig} />
-      </>
-    ),
-  },
-  {
-    id: "cursor",
-    label: "Cursor",
-    icon: <CursorSVG />,
-    content: (
-      <>
-        <Text size="S" color="text-700">
-          Add to ~/.cursor/mcp.json (or the project&apos;s .cursor/mcp.json).
-          Cursor prompts you to log in via the browser on first use.
-        </Text>
-        <JSONBlockWithCopy value={cursorConfig} />
-      </>
-    ),
-  },
-  {
-    id: "vscode",
-    label: "VS Code",
-    icon: <VSCodeSVG />,
-    content: (
-      <>
-        <Text size="S" color="text-700">
-          Run MCP: Add Server from the Command Palette, or add to
-          .vscode/mcp.json. VS Code walks you through the browser login when the
-          server first starts.
-        </Text>
-        <JSONBlockWithCopy value={vsCodeConfig} />
-      </>
-    ),
-  },
-  {
-    id: "other",
-    label: "Other clients",
-    icon: <McpSVG />,
-    content: (
-      <>
-        <Text size="S" color="text-700">
-          Any client that supports streamable HTTP and OAuth works — configure
-          the URL above and complete the login prompt on first use. For headless
-          environments or clients that can&apos;t complete a browser login, pass
-          a Phoenix API key as a Bearer header instead:
-        </Text>
-        <JSONBlockWithCopy value={apiKeyConfig} />
-      </>
-    ),
-  },
-];
+      ),
+    },
+  ];
+}
 
 export function SettingsMCPPage() {
   const { mcpServerEnabled, mcpCodeModeEnabled, authenticationEnabled } =
     window.Config;
+  const clients = getClients({ isAuthEnabled: authenticationEnabled });
 
   return (
     <Card
@@ -275,7 +289,7 @@ export function SettingsMCPPage() {
               borderRadius="medium"
             >
               <DisclosureGroup defaultExpandedKeys={["claude-code"]}>
-                {CLIENTS.map((client) => (
+                {clients.map((client) => (
                   <Disclosure id={client.id} key={client.id}>
                     <DisclosureTrigger arrowPosition="start">
                       <Icon svg={client.icon} aria-hidden />
