@@ -4,10 +4,7 @@ import type { ReactNode } from "react";
 import { ContextualHelp, ExternalLink, Text } from "@phoenix/components";
 
 const documentationFooterCSS = css`
-  border-top: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
   margin-top: var(--global-dimension-size-100);
-  padding-top: var(--global-dimension-size-100);
 `;
 
 export function SettingsDocumentationHelp({
