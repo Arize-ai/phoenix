@@ -318,6 +318,7 @@ export const ExamplesFilterBar = ({
               onAddExampleCompleted={refreshLatestVersion}
             />
             <Button
+              variant="primary"
               size="M"
               leadingVisual={<Icon svg={<Icons.Edit />} />}
               onPress={() => {
@@ -325,7 +326,7 @@ export const ExamplesFilterBar = ({
                 editStore.getState().beginEditing();
               }}
             >
-              Edit examples
+              Edit
             </Button>
           </Flex>
         )}
