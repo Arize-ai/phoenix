@@ -14,12 +14,12 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
 import type {
   RecentlyViewedResource,
   RecentlyViewedResourceType,
 } from "@phoenix/store/recentlyViewedStore";
 import { useRecentlyViewedStore } from "@phoenix/store/recentlyViewedStore";
-import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
 
 import type { GlobalSearchPaletteQuery } from "./__generated__/GlobalSearchPaletteQuery.graphql";
 import { getMatchingSearchDestinationSections } from "./searchDestinations";
@@ -55,7 +55,7 @@ export function GlobalSearchPalette({
 }) {
   const navigate = useNavigate();
   const { viewer } = useViewer();
-  const { contains } = useFilter({ sensitivity: "base" });
+  const { contains, startsWith } = useFilter({ sensitivity: "base" });
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   // The results query suspends, so drive it through a transition: React keeps
@@ -92,6 +92,7 @@ export function GlobalSearchPalette({
   const matchingDestinationSections = getMatchingSearchDestinationSections({
     inputValue,
     contains,
+    startsWith,
     hasViewer: viewer !== null,
   });
 

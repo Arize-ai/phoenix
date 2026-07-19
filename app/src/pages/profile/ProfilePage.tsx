@@ -7,11 +7,13 @@ import { Navigate, Outlet, useMatches, useNavigate } from "react-router";
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useMediaQuery } from "@phoenix/hooks";
-import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
 import {
   getRegisteredRouteNavigationCatalog,
   getRouteNavigationMetadata,
+  isRouteNavigationEntryVisible,
 } from "@phoenix/routing/routeNavigation";
+import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
+import { normalizePath } from "@phoenix/routing/routeObjects";
 
 const VERTICAL_TABS_MEDIA_QUERY = "(min-width: 900px)";
 
@@ -59,15 +61,20 @@ export function ProfilePage() {
   const profileRoutes = getRegisteredRouteNavigationCatalog().filter(
     (route) => route.metadata.section === "Profile"
   );
-  const tabs = viewer
-    ? profileRoutes
-    : profileRoutes.filter((route) => !route.metadata.requiresViewer);
+  const tabs = profileRoutes.filter((route) =>
+    isRouteNavigationEntryVisible({ entry: route, hasViewer: viewer !== null })
+  );
   const activeProfileMatch = matches.findLast(
     (match) => getRouteNavigationMetadata(match.handle)?.section === "Profile"
   );
-  const selectedTab = tabs.find(
-    (route) => route.path === activeProfileMatch?.pathname
-  );
+  // Router matching is case-insensitive and match.pathname preserves the
+  // URL's casing and trailing slash, while catalog paths are normalized
+  // lowercase patterns — normalize before comparing so deep links like
+  // /profile/api-keys/ select their tab instead of redirecting.
+  const activePathname = activeProfileMatch
+    ? normalizePath(activeProfileMatch.pathname).toLowerCase()
+    : undefined;
+  const selectedTab = tabs.find((route) => route.path === activePathname);
   const defaultTab = tabs[0];
 
   useEffect(() => {

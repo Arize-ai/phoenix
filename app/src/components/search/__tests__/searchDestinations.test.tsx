@@ -1,12 +1,15 @@
+import { appRouteObjects } from "@phoenix/Routes";
+import { buildRouteNavigationCatalog } from "@phoenix/routing/routeNavigation";
+
 import {
   getMatchingSearchDestinationSections,
   getSearchDestinationSections,
 } from "../searchDestinations";
-import { appRouteObjects } from "@phoenix/Routes";
-import { buildRouteNavigationCatalog } from "@phoenix/routing/routeNavigation";
 
 const contains = (value: string, substring: string) =>
   value.toLocaleLowerCase().includes(substring.toLocaleLowerCase());
+const startsWith = (value: string, substring: string) =>
+  value.toLocaleLowerCase().startsWith(substring.toLocaleLowerCase());
 const routeSections = getSearchDestinationSections(
   buildRouteNavigationCatalog(appRouteObjects)
 );
@@ -16,6 +19,7 @@ describe("search destinations", () => {
     const sections = getMatchingSearchDestinationSections({
       inputValue: "profile",
       contains,
+      startsWith,
       hasViewer: true,
       sections: routeSections,
     });
@@ -27,10 +31,25 @@ describe("search destinations", () => {
     ).toEqual(["Account", "API Keys", "Apps", "Preferences"]);
   });
 
+  it("does not match sections on non-prefix substrings of their title", () => {
+    const sections = getMatchingSearchDestinationSections({
+      inputValue: "file",
+      contains,
+      startsWith,
+      hasViewer: true,
+      sections: routeSections,
+    });
+
+    expect(
+      sections.find((section) => section.title === "Profile")
+    ).toBeUndefined();
+  });
+
   it("searches destination descriptions", () => {
     const sections = getMatchingSearchDestinationSections({
       inputValue: "OAuth",
       contains,
+      startsWith,
       hasViewer: true,
       sections: routeSections,
     });
@@ -45,6 +64,7 @@ describe("search destinations", () => {
     const sections = getMatchingSearchDestinationSections({
       inputValue: "profile",
       contains,
+      startsWith,
       hasViewer: false,
       sections: routeSections,
     });

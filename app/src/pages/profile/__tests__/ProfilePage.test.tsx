@@ -102,6 +102,18 @@ describe("ProfilePage", () => {
     }
   );
 
+  it.each(["/profile/api-keys/", "/Profile/API-Keys"])(
+    "selects the matched tab for URL variant %s instead of redirecting",
+    async (initialEntry) => {
+      await renderProfilePage(initialEntry);
+
+      const selectedTab = container.querySelector(
+        '[role="tab"][aria-selected="true"]'
+      );
+      expect(selectedTab?.textContent).toBe("API Keys");
+    }
+  );
+
   it("renders a tab with an icon for every profile section", async () => {
     await renderProfilePage("/profile/account");
 
