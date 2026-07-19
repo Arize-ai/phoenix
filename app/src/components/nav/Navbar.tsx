@@ -90,9 +90,7 @@ export const navLinkCSS = css`
   flex-direction: row;
   align-items: center;
   overflow: hidden;
-  transition:
-    color 0.2s ease-in-out,
-    background-color 0.2s ease-in-out;
+  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
   text-decoration: none;
   cursor: pointer;
 

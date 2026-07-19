@@ -25,10 +25,12 @@ import {
   TomlBlockWithCopy,
 } from "@phoenix/components/code";
 import {
+  AntigravitySVG,
   ClaudeSVG,
   CursorSVG,
   McpSVG,
   OpenAISVG,
+  OpenCodeSVG,
   VSCodeSVG,
 } from "@phoenix/components/project/IntegrationIcons";
 import { BASE_URL } from "@phoenix/config";
@@ -90,6 +92,15 @@ const vsCodeConfig = JSON.stringify(
   null,
   2
 );
+// Mirrors the fragment the px CLI writes via `px setup mcp --agent opencode`.
+const opencodeConfig = JSON.stringify(
+  {
+    $schema: "https://opencode.ai/config.json",
+    mcp: { phoenix: { type: "remote", url: mcpUrl, enabled: true } },
+  },
+  null,
+  2
+);
 const apiKeyConfig = JSON.stringify(
   {
     mcpServers: {
@@ -112,6 +123,22 @@ function getClients({ isAuthEnabled }: { isAuthEnabled: boolean }) {
     `url = "${mcpUrl}"`,
     ...(isAuthEnabled ? ['bearer_token_env_var = "PHOENIX_API_KEY"'] : []),
   ].join("\n");
+  // Antigravity has no OAuth flow for third-party MCP servers — remote servers
+  // use `serverUrl` plus a Bearer header when the deployment requires auth.
+  const antigravityConfig = JSON.stringify(
+    {
+      mcpServers: {
+        phoenix: {
+          serverUrl: mcpUrl,
+          ...(isAuthEnabled
+            ? { headers: { Authorization: "Bearer <your-api-key>" } }
+            : {}),
+        },
+      },
+    },
+    null,
+    2
+  );
   return [
     {
       id: "claude-code",
@@ -149,6 +176,24 @@ function getClients({ isAuthEnabled }: { isAuthEnabled: boolean }) {
       ),
     },
     {
+      id: "antigravity",
+      label: "Antigravity",
+      icon: <AntigravitySVG />,
+      content: (
+        <>
+          <Text size="S" color="text-700">
+            {isAuthEnabled
+              ? "Antigravity authenticates with an API key. Create a Phoenix API key and add to ~/.gemini/config/mcp_config.json:"
+              : "Add to ~/.gemini/config/mcp_config.json:"}
+          </Text>
+          <JSONBlockWithCopy value={antigravityConfig} />
+          <Text size="S" color="text-700">
+            Antigravity reloads the config automatically when you save.
+          </Text>
+        </>
+      ),
+    },
+    {
       id: "codex",
       label: "Codex",
       icon: <OpenAISVG />,
@@ -175,6 +220,22 @@ function getClients({ isAuthEnabled }: { isAuthEnabled: boolean }) {
               " Cursor prompts you to log in via the browser on first use."}
           </Text>
           <JSONBlockWithCopy value={cursorConfig} />
+        </>
+      ),
+    },
+    {
+      id: "opencode",
+      label: "OpenCode",
+      icon: <OpenCodeSVG />,
+      content: (
+        <>
+          <Text size="S" color="text-700">
+            Add to ~/.config/opencode/opencode.json (or the project&apos;s
+            opencode.json).
+            {isAuthEnabled &&
+              " OpenCode prompts you to log in via the browser on first use."}
+          </Text>
+          <JSONBlockWithCopy value={opencodeConfig} />
         </>
       ),
     },
