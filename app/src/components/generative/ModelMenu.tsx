@@ -22,7 +22,6 @@ import {
   MenuSectionTitle,
   MenuTrigger,
   SearchField,
-  SelectChevronUpDownIcon,
   Text,
   useFilter,
 } from "@phoenix/components";
@@ -148,8 +147,8 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   isDisabled?: boolean;
   /**
    * Visual variant of the trigger button.
-   * - `"default"` — standard bordered button with chevron icon.
-   * - `"quiet"` — borderless, no chevron icon.
+   * - `"default"` — standard bordered button.
+   * - `"quiet"` — borderless button.
    * @default "default"
    */
   variant?: "default" | "quiet";
@@ -260,7 +259,6 @@ export function ModelMenu({
         ) : (
           <Text color="text-700">Select a model</Text>
         )}
-        {variant !== "quiet" && <SelectChevronUpDownIcon />}
       </Button>
       <MenuContainer placement={placement} shouldFlip={shouldFlip}>
         <Autocomplete filter={isSearching ? searchFilter : undefined}>
