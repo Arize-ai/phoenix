@@ -338,7 +338,7 @@ export function CustomProvidersCard({
         {isEmpty ? (
           <View padding="size-500">
             <EmptyState
-              graphic={<EmptyStateGraphic variant="genericAdd" />}
+              graphic={<EmptyStateGraphic variant="customAIProvider" />}
               description="No custom AI providers configured yet."
             />
           </View>
