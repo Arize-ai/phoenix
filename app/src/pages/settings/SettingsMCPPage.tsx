@@ -206,7 +206,8 @@ const CLIENTS = [
 ];
 
 export function SettingsMCPPage() {
-  const { mcpServerEnabled, mcpCodeModeEnabled } = window.Config;
+  const { mcpServerEnabled, mcpCodeModeEnabled, authenticationEnabled } =
+    window.Config;
 
   return (
     <Card
@@ -232,8 +233,10 @@ export function SettingsMCPPage() {
               <CopyInput />
             </CopyField>
             <Text size="S" color="text-700">
-              Point any MCP-compatible client at this URL. Clients authenticate
-              with OAuth or a Phoenix API key.{" "}
+              Point any MCP-compatible client at this URL.{" "}
+              {authenticationEnabled
+                ? "Clients authenticate with OAuth or a Phoenix API key. "
+                : "Authentication is disabled on this deployment, so clients connect without credentials. "}
               {mcpServerEnabled
                 ? mcpCodeModeEnabled
                   ? "Code mode is enabled: clients see a compact set of discovery tools plus a sandboxed execute tool that composes Phoenix operations in one step. "
