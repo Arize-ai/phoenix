@@ -7,7 +7,14 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from jinja2 import Template
+from opentelemetry.trace import (
+    SpanContext,
+    TraceFlags,
+    format_span_id,
+    format_trace_id,
+)
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
+from pydantic_ai.usage import RunUsage
 from sqlalchemy import func, select
 
 from phoenix.db import models
@@ -18,6 +25,8 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    TurnTraceContext,
+    _build_message_metadata_chunk,
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
     _load_sandbox_availability,
@@ -129,6 +138,57 @@ class TestPersistDbTracesAndEmitEvent:
             assert project_session is not None
             assert project_session.start_time == start_time
             assert project_session.end_time == start_time + timedelta(seconds=3)
+
+
+class TestBuildMessageMetadataChunk:
+    @staticmethod
+    def _span_context() -> SpanContext:
+        return SpanContext(
+            trace_id=0x0123456789ABCDEF0123456789ABCDEF,
+            span_id=0x0123456789ABCDEF,
+            is_remote=True,
+            trace_flags=TraceFlags(TraceFlags.SAMPLED),
+        )
+
+    def test_omits_trace_when_no_span_or_turn_context(self) -> None:
+        # When tracing is off, `_on_complete` passes no span context and no turn
+        # trace context. The chunk must then advertise no trace so the UI does
+        # not render feedback/trace actions pointing at a nonexistent trace.
+        chunk = _build_message_metadata_chunk(
+            span_context=None,
+            turn_trace_context=None,
+            session_id="session-1",
+            usage=RunUsage(),
+        )
+        assert chunk.message_metadata.trace is None
+
+    def test_uses_turn_trace_context_when_present(self) -> None:
+        turn_trace_context = TurnTraceContext(
+            trace_id="0123456789abcdef0123456789abcdef",
+            root_span_id="0123456789abcdef",
+            started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        chunk = _build_message_metadata_chunk(
+            span_context=self._span_context(),
+            turn_trace_context=turn_trace_context,
+            session_id="session-1",
+            usage=RunUsage(),
+        )
+        assert chunk.message_metadata.trace is not None
+        assert chunk.message_metadata.trace.trace_id == turn_trace_context.trace_id
+        assert chunk.message_metadata.trace.root_span_id == turn_trace_context.root_span_id
+
+    def test_falls_back_to_span_context_when_no_turn_context(self) -> None:
+        span_context = self._span_context()
+        chunk = _build_message_metadata_chunk(
+            span_context=span_context,
+            turn_trace_context=None,
+            session_id="session-1",
+            usage=RunUsage(),
+        )
+        assert chunk.message_metadata.trace is not None
+        assert chunk.message_metadata.trace.trace_id == format_trace_id(span_context.trace_id)
+        assert chunk.message_metadata.trace.root_span_id == format_span_id(span_context.span_id)
 
 
 class TestLoadSandboxAvailability:
