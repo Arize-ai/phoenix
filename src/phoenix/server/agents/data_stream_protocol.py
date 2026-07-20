@@ -51,9 +51,7 @@ from phoenix.db.types.data_stream_protocol import (
 
 _UNKNOWN_TOOL_NAME = "unknown"
 
-_STATIC_TOOL_PART_TYPES = (UIToolPart,)
-_DYNAMIC_TOOL_PART_TYPES = (UIDynamicToolPart,)
-_TOOL_PART_TYPES = (*_STATIC_TOOL_PART_TYPES, *_DYNAMIC_TOOL_PART_TYPES)
+_TOOL_PART_TYPES = (UIToolPart, UIDynamicToolPart)
 
 
 async def accumulate_ui_message_chunks_to_ui_messages(
@@ -622,19 +620,19 @@ def _get_tool_type(tool_name: str) -> str:
 
 
 def _get_tool_name(part: UIMessagePart | None) -> str:
-    if isinstance(part, _DYNAMIC_TOOL_PART_TYPES):
+    if isinstance(part, UIDynamicToolPart):
         return part.tool_name
-    if isinstance(part, _STATIC_TOOL_PART_TYPES):
+    if isinstance(part, UIToolPart):
         return part.type.removeprefix("tool-")
     return _UNKNOWN_TOOL_NAME
 
 
 def _get_static_tool_type(part: UIMessagePart | None) -> str | None:
-    return part.type if isinstance(part, _STATIC_TOOL_PART_TYPES) else None
+    return part.type if isinstance(part, UIToolPart) else None
 
 
 def _is_dynamic_tool_part(part: UIMessagePart | None) -> bool:
-    return isinstance(part, _DYNAMIC_TOOL_PART_TYPES)
+    return isinstance(part, UIDynamicToolPart)
 
 
 def _get_tool_input(part: UIMessagePart | None) -> Any:
