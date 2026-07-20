@@ -57,7 +57,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RunUsage
-from sqlalchemy import Insert, case, exists, func, or_, select, update
+from sqlalchemy import Insert, exists, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1207,15 +1207,13 @@ async def _refresh_and_load_agent_session(
     except ValueError:
         raise HTTPException(status_code=404, detail="Session not found") from None
     now = datetime.now(timezone.utc)
-    refreshed_expiry = now + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
     session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None
         else models.AgentSession.user_id == user_id
     )
     loaded_agent_session = await session.scalar(
-        update(models.AgentSession)
-        .where(
+        select(models.AgentSession).where(
             models.AgentSession.id == agent_session_rowid,
             session_owner_filter,
             or_(
@@ -1223,21 +1221,25 @@ async def _refresh_and_load_agent_session(
                 models.AgentSession.expires_at > now,
             ),
         )
-        .values(
-            expires_at=case(
-                (models.AgentSession.expires_at.is_not(None), refreshed_expiry),
-                else_=models.AgentSession.expires_at,
-            ),
-            updated_at=case(
-                (models.AgentSession.expires_at.is_not(None), func.now()),
-                else_=models.AgentSession.updated_at,
-            ),
-        )
-        .returning(models.AgentSession)
     )
     if loaded_agent_session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    return loaded_agent_session
+    if loaded_agent_session.expires_at is None:
+        return loaded_agent_session
+    refreshed_expiry = now + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
+    refreshed_agent_session = await session.scalar(
+        update(models.AgentSession)
+        .where(
+            models.AgentSession.id == agent_session_rowid,
+            models.AgentSession.expires_at.is_not(None),
+            models.AgentSession.expires_at > now,
+        )
+        .values(expires_at=refreshed_expiry, updated_at=func.now())
+        .returning(models.AgentSession)
+    )
+    if refreshed_agent_session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return refreshed_agent_session
 
 
 async def _update_agent_session(
