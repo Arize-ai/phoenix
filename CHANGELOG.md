@@ -1,5 +1,21 @@
 # Changelog
 
+## [19.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.2.0...arize-phoenix-v19.3.0) (2026-07-20)
+
+
+### Features
+
+* **auth:** negotiate HTTP/2 for OAuth2/OIDC provider requests ([#14559](https://github.com/Arize-ai/phoenix/issues/14559)) ([1bf1603](https://github.com/Arize-ai/phoenix/commit/1bf1603472a13b0acd0d2944bcffbe077e9e8f38))
+* **playground:** filter model picker to provisioned providers ([#14529](https://github.com/Arize-ai/phoenix/issues/14529)) ([2f14ce8](https://github.com/Arize-ai/phoenix/commit/2f14ce8aec1da63968f6a28df60e7d82e810720c))
+* **settings:** add documentation onramps ([#14536](https://github.com/Arize-ai/phoenix/issues/14536)) ([2e748ef](https://github.com/Arize-ai/phoenix/commit/2e748ef5617abffbad79691020e916f7d9836208))
+* **ui:** add routed profile settings tabs ([#14538](https://github.com/Arize-ai/phoenix/issues/14538)) ([326ed65](https://github.com/Arize-ai/phoenix/commit/326ed655b4d5bb1e2c30d727fcf2d61e9c94979d))
+
+
+### Bug Fixes
+
+* **agents:** omit trace metadata for PXI turns when tracing is off ([#14557](https://github.com/Arize-ai/phoenix/issues/14557)) ([3f3d853](https://github.com/Arize-ai/phoenix/commit/3f3d853638696e1907eacdae379119aef3b421a3))
+* **evals:** improve user friction prompt ([#14561](https://github.com/Arize-ai/phoenix/issues/14561)) ([115d3f2](https://github.com/Arize-ai/phoenix/commit/115d3f24c1f5244abc49d2d1a25ef27d40469fae))
+
 ## [19.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.1.0...arize-phoenix-v19.2.0) (2026-07-19)
 
 
