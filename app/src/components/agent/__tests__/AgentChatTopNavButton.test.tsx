@@ -4,6 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
+  DRAWER_CLASS_NAME,
+  MODAL_OVERLAY_CLASS_NAME,
+  MODAL_PORTAL_CONTAINER_ATTR,
+} from "@phoenix/components/core/overlay/constants";
+import {
   AgentProvider,
   useAgentContext,
   useAgentStore,
@@ -83,9 +88,26 @@ describe("AgentChatTopNavButton", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    document
+      .querySelectorAll(`.${DRAWER_CLASS_NAME}, .${MODAL_OVERLAY_CLASS_NAME}`)
+      .forEach((element) => element.remove());
     agentStore = null;
     vi.unstubAllGlobals();
   });
+
+  function installSideOverlays() {
+    const drawer = document.createElement("div");
+    drawer.className = DRAWER_CLASS_NAME;
+    const overlay = document.createElement("div");
+    overlay.className = MODAL_OVERLAY_CLASS_NAME;
+    const modal = document.createElement("div");
+    modal.setAttribute(MODAL_PORTAL_CONTAINER_ATTR, "");
+    modal.dataset.variant = "slideover";
+    overlay.appendChild(modal);
+    document.body.appendChild(drawer);
+    document.body.appendChild(overlay);
+    return { drawer, modal };
+  }
 
   it("uses the quiet PXI button and opens the assistant", () => {
     renderButton();
@@ -103,6 +125,16 @@ describe("AgentChatTopNavButton", () => {
       container.querySelector('[data-testid="agent-open"]')?.textContent
     ).toBe("true");
     expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("stays in its nav slot when side overlays open", () => {
+    const { drawer, modal } = installSideOverlays();
+
+    renderButton();
+
+    expect(container.querySelector("button.pxi-button")).not.toBeNull();
+    expect(drawer.querySelector("button.pxi-button")).toBeNull();
+    expect(modal.querySelector("button.pxi-button")).toBeNull();
   });
 
   it("flashes when the detached assistant closes and returns home", () => {

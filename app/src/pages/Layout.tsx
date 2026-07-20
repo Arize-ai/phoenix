@@ -29,6 +29,7 @@ import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
+  useActiveDrawerWidth,
   useHasOpenDrawer,
   useHasOpenModal,
 } from "@phoenix/hooks/useHasOpenModal";
@@ -97,6 +98,7 @@ export function Layout() {
   );
   const hasOpenModal = useHasOpenModal();
   const hasOpenDrawer = useHasOpenDrawer();
+  const activeDrawerWidth = useActiveDrawerWidth();
   const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
     isAgentAssistantEnabled &&
@@ -129,7 +131,7 @@ export function Layout() {
             onLayoutChanged={onLayoutChanged}
           >
             <Panel id="layout-content" css={layoutContentPanelCSS}>
-              <TopNavbar>
+              <TopNavbar rightInset={activeDrawerWidth}>
                 <SideNavToggleButton />
                 <NavBreadcrumb />
                 <TopNavActionsSlot />
