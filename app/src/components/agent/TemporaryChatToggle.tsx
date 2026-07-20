@@ -22,7 +22,7 @@ const temporaryChatToggleCSS = css`
   }
 
   &[data-is-temporary="true"] {
-    color: var(--global-static-color-white-900);
+    color: var(--global-text-color-900);
   }
 `;
 
