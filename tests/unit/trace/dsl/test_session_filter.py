@@ -342,6 +342,51 @@ async def test_session_filter_candidate_scoping(db: DbSessionFactory) -> None:
         assert second.id not in scoped
 
 
+async def test_session_filter_time_window_uses_interval_overlap(db: DbSessionFactory) -> None:
+    """The time window scopes sessions by interval overlap, matching the sessions connection:
+    a long-running session that starts before the window but is active inside it stays visible
+    when a filter it matches is applied; a session that ends before the window does not."""
+    window_start = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+    window_end = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        # Spans 09:00-11:00 — overlaps the [10:00, 12:00) window despite starting before it.
+        long_running = await _seed_session(
+            session,
+            project,
+            num_traces=2,
+            total_cost=0.0,
+            start_time=datetime(2024, 1, 1, 9, 0, tzinfo=timezone.utc),
+        )
+        long_running.end_time = datetime(2024, 1, 1, 11, 0, tzinfo=timezone.utc)
+        # Ends 08:00 — entirely before the window.
+        before_window = await _seed_session(
+            session,
+            project,
+            num_traces=2,
+            total_cost=0.0,
+            start_time=datetime(2024, 1, 1, 7, 0, tzinfo=timezone.utc),
+        )
+        before_window.end_time = datetime(2024, 1, 1, 8, 0, tzinfo=timezone.utc)
+        await session.flush()
+
+        subquery = SessionFilter("num_traces > 0").as_session_rowids_subquery(
+            project_rowids=[project.id],
+            start_time=window_start,
+            end_time=window_end,
+        )
+        matched = {
+            row
+            for row in (
+                await session.scalars(
+                    select(models.ProjectSession.id).where(models.ProjectSession.id.in_(subquery))
+                )
+            ).all()
+        }
+        assert long_running.id in matched
+        assert before_window.id not in matched
+
+
 async def test_session_filter_tool_call_count_subscript_filters_by_tool_name(
     db: DbSessionFactory,
 ) -> None:

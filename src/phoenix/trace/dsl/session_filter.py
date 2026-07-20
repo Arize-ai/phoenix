@@ -480,8 +480,12 @@ class SessionFilter:
             stmt = stmt.where(models.ProjectSession.project_id.in_(project_rowids))
         if candidate_session_rowids is not None:
             stmt = stmt.where(models.ProjectSession.id.in_(candidate_session_rowids))
+        # Interval-overlap semantics, matching the sessions connection's time
+        # range filter: a session qualifies iff [start_time, end_time] intersects
+        # [start_time, end_time), so long-running sessions stay visible in every
+        # window they overlap even when a filter is applied.
         if start_time is not None:
-            stmt = stmt.where(start_time <= models.ProjectSession.start_time)
+            stmt = stmt.where(start_time <= models.ProjectSession.end_time)
         if end_time is not None:
             stmt = stmt.where(models.ProjectSession.start_time < end_time)
         stmt = self(
