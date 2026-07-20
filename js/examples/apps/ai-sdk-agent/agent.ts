@@ -35,11 +35,11 @@ const agent = new ToolLoopAgent({
 });
 
 const prompt = "What's the weather like in Tokyo right now?";
-console.log(`\n🤖 Asking: ${prompt}\n`);
+console.log(`\n💬 Asking: ${prompt}\n`);
 
 const result = await agent.generate({ prompt });
 
-console.log(`💬 Response: ${result.text}`);
+console.log(`🤖 Response: ${result.text}`);
 
 // Flush the trace before the process exits
 await provider.shutdown();
