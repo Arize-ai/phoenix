@@ -435,7 +435,7 @@ class OAuth2Clients:
         if (idp_name := config.idp_name) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_name}")
         # RFC 6749 §3.3: scope parameter (space-delimited list of scopes)
-        client_kwargs = {"scope": config.scopes}
+        client_kwargs = {"scope": config.scopes, "http2": True}
 
         if config.token_endpoint_auth_method:
             # OIDC Core §9: Client authentication method at token endpoint
