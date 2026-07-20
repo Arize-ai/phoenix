@@ -1,4 +1,4 @@
-# Adapted from ai v0.3.0: https://github.com/vercel/ai-sdk-python
+# Adapted from ai v0.3.0: https://github.com/vercel-labs/ai-python
 # Copyright 2026 Vercel, Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
