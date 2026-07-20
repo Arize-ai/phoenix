@@ -19,5 +19,6 @@ export * from "@arizeai/openinference-core";
 
 // Phoenix abstractions
 export * from "./createNoOpProvider";
+export * from "./lazyOpenInferenceSpanProcessor";
 export * from "./register";
 export * from "./utils";
