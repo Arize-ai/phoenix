@@ -42,6 +42,7 @@ class _VendoredPatchNormalizer(ast.NodeTransformer):
         return None if [alias.name for alias in node.names] == ["secrets"] else node
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom | None:
+        # Phoenix generates message IDs locally instead of importing the Python 3.12 SDK.
         if node.level == 3 and node.module == "types":
             return None
         return node
