@@ -721,11 +721,13 @@ export function ChatView({
               }}
             />
           )}
-          {canToggleEditPermission ? (
+          {canToggleEditPermission || children || canToggleTemporaryChat ? (
             <div className="chat__input-meta">
-              <div className="chat__edit-permissions">
-                <AgentEditPermissionMenu />
-              </div>
+              {canToggleEditPermission ? (
+                <div className="chat__edit-permissions">
+                  <AgentEditPermissionMenu />
+                </div>
+              ) : null}
               {children ? (
                 <div className="chat__children">{children}</div>
               ) : null}
@@ -737,10 +739,6 @@ export function ChatView({
                   }
                 />
               ) : null}
-            </div>
-          ) : children ? (
-            <div className="chat__input-meta">
-              <div className="chat__children">{children}</div>
             </div>
           ) : null}
         </div>
