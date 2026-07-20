@@ -453,6 +453,21 @@ input AzureOpenAICustomProviderConfigInput {
   openaiApiType: OpenAIApiType = RESPONSES
 }
 
+input BranchAgentSessionInput {
+  id: ID!
+
+  """
+  The transcript message (UIMessage id) to branch at. A user message is excluded from the branch along with everything after it; an assistant message is included and everything after it is excluded.
+  """
+  messageId: String!
+}
+
+type BranchAgentSessionMutationPayload {
+  """The newly created branch session."""
+  agentSession: AgentSession!
+  query: Query!
+}
+
 type BuiltInEvaluator implements Evaluator & Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -708,6 +723,16 @@ type CostBreakdown {
   """
   tokens: Float
   cost: Float
+}
+
+input CreateAgentSessionInput {
+  """Optional initial title."""
+  title: String! = ""
+}
+
+type CreateAgentSessionMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 input CreateAnnotationConfigInput {
@@ -2429,6 +2454,9 @@ input ModelsInput {
 }
 
 type Mutation {
+  createAgentSession(input: CreateAgentSessionInput!): CreateAgentSessionMutationPayload!
+  truncateAgentSession(input: TruncateAgentSessionInput!): TruncateAgentSessionMutationPayload!
+  branchAgentSession(input: BranchAgentSessionInput!): BranchAgentSessionMutationPayload!
   deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -4606,6 +4634,20 @@ type TraceTokenCountTimeSeriesDataPoint {
   totalTokenCount: Float
   promptTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
   completionTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
+}
+
+input TruncateAgentSessionInput {
+  id: ID!
+
+  """
+  The transcript message (UIMessage id) to rewind at. A user message is removed along with everything after it; an assistant message is kept and everything after it is removed.
+  """
+  messageId: String!
+}
+
+type TruncateAgentSessionMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 type UnparsableConfig {

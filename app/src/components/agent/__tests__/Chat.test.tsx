@@ -84,7 +84,6 @@ function renderChatView(
     status = "ready",
     initialDraftInputBySessionId,
     sendMessage = vi.fn<ChatViewSendMessage>(),
-    retryMessage,
     rewindToMessage,
     forkFromMessage,
   }: {
@@ -96,9 +95,8 @@ function renderChatView(
     status?: "ready" | "error";
     initialDraftInputBySessionId?: Record<string, string>;
     sendMessage?: ChatViewSendMessage;
-    retryMessage?: (messageId?: string) => void;
-    rewindToMessage?: (messageId: string) => string | null;
-    forkFromMessage?: (messageId: string) => string | null;
+    rewindToMessage?: (messageId: string) => Promise<string | null>;
+    forkFromMessage?: (messageId: string) => void;
   } = {}
 ) {
   act(() => {
@@ -143,7 +141,6 @@ function renderChatView(
             pendingElicitation={null}
             handleElicitationSubmit={vi.fn()}
             handleElicitationCancel={vi.fn()}
-            retryMessage={retryMessage}
             rewindToMessage={rewindToMessage}
             forkFromMessage={forkFromMessage}
             modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
@@ -290,14 +287,15 @@ describe("ChatView", () => {
     expect(textarea?.value).toBe("");
   });
 
-  it("shows retry and technical details for failed turns", () => {
-    const retryMessage = vi.fn();
+  it("truncates and resends the last user message when retrying a failed turn", async () => {
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    const rewindToMessage = vi.fn().mockResolvedValue("What happened?");
     renderChatView(root, {
       chatMessages: messages,
       error: new Error("provider unavailable"),
       status: "error",
-      retryMessage,
-      rewindToMessage: vi.fn(),
+      sendMessage,
+      rewindToMessage,
       forkFromMessage: vi.fn(),
     });
 
@@ -306,11 +304,12 @@ describe("ChatView", () => {
     );
     expect(retryButton).not.toBeUndefined();
 
-    act(() => {
+    await act(async () => {
       retryButton?.click();
     });
 
-    expect(retryMessage).toHaveBeenCalledWith("assistant-message");
+    expect(rewindToMessage).toHaveBeenCalledWith("user-message");
+    expect(sendMessage).toHaveBeenCalledWith({ text: "What happened?" });
     expect(container.textContent).toContain("Show technical details");
     expect(container.textContent).toContain("provider unavailable");
   });
@@ -332,9 +331,9 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Branch before message");
   });
 
-  it("retries an interrupted user message without duplicating it", () => {
+  it("retries an interrupted user message without duplicating it", async () => {
     const sendMessage = vi.fn();
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
@@ -348,7 +347,7 @@ describe("ChatView", () => {
     );
     expect(retryButton).not.toBeUndefined();
 
-    act(() => {
+    await act(async () => {
       retryButton?.click();
     });
 
@@ -357,7 +356,7 @@ describe("ChatView", () => {
   });
 
   it("confirms editing an interrupted user message", () => {
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
@@ -413,12 +412,11 @@ describe("ChatView", () => {
   });
 
   it("confirms undoing a failed turn from the latest user message", () => {
-    const rewindToMessage = vi.fn(() => "What happened?");
+    const rewindToMessage = vi.fn(async () => "What happened?");
     renderChatView(root, {
       chatMessages: messages,
       error: new Error("provider unavailable"),
       status: "error",
-      retryMessage: vi.fn(),
       rewindToMessage,
       forkFromMessage: vi.fn(),
     });
@@ -450,7 +448,6 @@ describe("ChatView", () => {
       chatMessages: messages,
       error: new Error("provider unavailable"),
       status: "error",
-      retryMessage: vi.fn(),
       rewindToMessage: vi.fn(),
       forkFromMessage,
     });

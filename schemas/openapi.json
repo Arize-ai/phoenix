@@ -7954,64 +7954,13 @@
         }
       }
     },
-    "/agents/server/sessions/{session_id}/chat": {
-      "post": {
-        "tags": [
-          "chat"
-        ],
-        "summary": "Run Server Agent",
-        "description": "Stream a chat turn from the GraphQL server agent.\n\nThis is the endpoint the PXI CLI talks to directly (no pre-configured\nagent record): it builds a fresh server agent per request from the\ncaller-supplied model and contexts, then streams the reply back as\nVercel-AI chunks.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
-        "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/agents/{agent_id}/chat": {
+    "/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Chat",
-        "operationId": "chat_agents__agent_id__chat_post",
+        "operationId": "chat_agents__agent_id__sessions__session_id__chat_post",
         "parameters": [
           {
             "name": "agent_id",
@@ -8020,6 +7969,15 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
             }
           }
         ],
@@ -8872,35 +8830,8 @@
           }
         }
       },
-      "ChatRegenerateMessage": {
+      "ChatRequest": {
         "properties": {
-          "trigger": {
-            "type": "string",
-            "const": "regenerate-message",
-            "title": "Trigger"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/PhoenixUIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "messageId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Messageid"
-          },
           "ingestTraces": {
             "type": "boolean",
             "title": "Ingesttraces",
@@ -8923,17 +8854,6 @@
             },
             "type": "array",
             "title": "Contexts"
-          },
-          "agentSessionId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Agentsessionid"
           },
           "editPermission": {
             "type": "string",
@@ -8979,40 +8899,7 @@
                 "type": "null"
               }
             ]
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "trigger",
-          "id",
-          "messages",
-          "model"
-        ],
-        "title": "ChatRegenerateMessage",
-        "description": "Regenerate message extended with Phoenix-specific fields."
-      },
-      "ChatRequest": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/ChatSubmitMessage"
           },
-          {
-            "$ref": "#/components/schemas/ChatRegenerateMessage"
-          }
-        ],
-        "title": "ChatRequest",
-        "description": "Discriminated union of chat request payloads.",
-        "discriminator": {
-          "propertyName": "trigger",
-          "mapping": {
-            "regenerate-message": "#/components/schemas/ChatRegenerateMessage",
-            "submit-message": "#/components/schemas/ChatSubmitMessage"
-          }
-        }
-      },
-      "ChatSubmitMessage": {
-        "properties": {
           "trigger": {
             "type": "string",
             "const": "submit-message",
@@ -9023,102 +8910,19 @@
             "type": "string",
             "title": "Id"
           },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/PhoenixUIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "ingestTraces": {
-            "type": "boolean",
-            "title": "Ingesttraces",
-            "default": false
-          },
-          "exportRemoteTraces": {
-            "type": "boolean",
-            "title": "Exportremotetraces",
-            "default": false
-          },
-          "attachUserId": {
-            "type": "boolean",
-            "title": "Attachuserid",
-            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
-            "default": false
-          },
-          "contexts": {
-            "items": {
-              "$ref": "#/components/schemas/ChatContext"
-            },
-            "type": "array",
-            "title": "Contexts"
-          },
-          "agentSessionId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Agentsessionid"
-          },
-          "editPermission": {
-            "type": "string",
-            "enum": [
-              "manual",
-              "bypass"
-            ],
-            "title": "Editpermission",
-            "default": "manual"
-          },
-          "requestedSkills": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Requestedskills",
-            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
-          },
-          "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
-          },
-          "turnTraceContext": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TurnTraceContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "message": {
+            "$ref": "#/components/schemas/PhoenixUIMessage",
+            "description": "The turn's new message: a user message to append, or the transcript's trailing assistant message updated with client-executed tool results."
           }
         },
-        "additionalProperties": true,
         "type": "object",
         "required": [
+          "model",
           "id",
-          "messages",
-          "model"
+          "message"
         ],
-        "title": "ChatSubmitMessage",
-        "description": "Submit message extended with Phoenix-specific fields."
+        "title": "ChatRequest",
+        "description": "Assistant chat submit request payload."
       },
       "CodeEvaluatorContext": {
         "properties": {
@@ -18387,75 +18191,6 @@
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
       },
-      "SessionCreatedChunk": {
-        "additionalProperties": false,
-        "description": "Transient canonical metadata for an owner-qualified persisted session.\n\nRepeated acknowledgements let a retry reconcile clients that disconnected\nbefore receiving the first stream's event.",
-        "properties": {
-          "type": {
-            "const": "data-session-created",
-            "default": "data-session-created",
-            "title": "Type",
-            "type": "string"
-          },
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Id"
-          },
-          "data": {
-            "$ref": "#/components/schemas/SessionCreatedData"
-          },
-          "transient": {
-            "const": true,
-            "default": true,
-            "title": "Transient",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "SessionCreatedChunk",
-        "type": "object"
-      },
-      "SessionCreatedData": {
-        "description": "Canonical Relay metadata for a newly persisted assistant session.",
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "title": "Createdat",
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "title": "Updatedat",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "createdAt",
-          "updatedAt"
-        ],
-        "title": "SessionCreatedData",
-        "type": "object"
-      },
       "SessionSummaryChunk": {
         "additionalProperties": false,
         "description": "Transient ``data-session-summary`` stream chunk: the LLM-generated\nsession title, emitted on any turn that starts with the session still\nuntitled. Being transient, it reaches the client's ``onData`` callback\nbut is never appended to the message parts.\n\nSee the Vercel AI SDK data stream protocol:\n    - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts\n    - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral",
@@ -18579,6 +18314,57 @@
           "toolExecutionEnvironment"
         ],
         "title": "ToolCallProviderMetadata",
+        "type": "object"
+      },
+      "TranscriptPersistedChunk": {
+        "additionalProperties": false,
+        "description": "Confirms that a streamed assistant message is durable.",
+        "properties": {
+          "type": {
+            "const": "data-transcript-persisted",
+            "default": "data-transcript-persisted",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TranscriptPersistedData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "TranscriptPersistedChunk",
+        "type": "object"
+      },
+      "TranscriptPersistedData": {
+        "properties": {
+          "messageId": {
+            "title": "Messageid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "messageId"
+        ],
+        "title": "TranscriptPersistedData",
         "type": "object"
       }
     }

@@ -1079,13 +1079,6 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
-class SessionCreatedData(TypedDict):
-    id: str
-    title: str
-    createdAt: str
-    updatedAt: str
-
-
 class SessionSummaryChunk(TypedDict):
     type: Literal["data-session-summary"]
     data: str
@@ -1103,6 +1096,10 @@ class ToolCallCallbackProviderMetadata(TypedDict):
 class ToolCallProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
+
+
+class TranscriptPersistedData(TypedDict):
+    messageId: str
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
@@ -1629,9 +1626,9 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
-class SessionCreatedChunk(TypedDict):
-    type: Literal["data-session-created"]
-    data: SessionCreatedData
+class TranscriptPersistedChunk(TypedDict):
+    type: Literal["data-transcript-persisted"]
+    data: TranscriptPersistedData
     id: NotRequired[str]
     transient: NotRequired[bool]
 
@@ -1722,12 +1719,10 @@ class PromptMessage(TypedDict):
     ]
 
 
-class ChatRegenerateMessage(TypedDict):
-    id: str
-    messages: Sequence[PhoenixUIMessage]
+class ChatRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["regenerate-message"]
-    messageId: NotRequired[str]
+    id: str
+    message: PhoenixUIMessage
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
@@ -1751,44 +1746,10 @@ class ChatRegenerateMessage(TypedDict):
             ]
         ]
     ]
-    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
-
-
-class ChatSubmitMessage(TypedDict):
-    id: str
-    messages: Sequence[PhoenixUIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["submit-message"]
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
-    contexts: NotRequired[
-        Sequence[
-            Union[
-                AppContext,
-                ProjectContext,
-                TraceContext,
-                SessionContext,
-                PromptContext,
-                PromptVersionContext,
-                AgentSpanContext,
-                PlaygroundContext,
-                CodeEvaluatorContext,
-                LlmEvaluatorContext,
-                DatasetContext,
-                GraphQLContext,
-                WebAccessContext,
-                SubagentsContext,
-            ]
-        ]
-    ]
-    agentSessionId: NotRequired[str]
-    editPermission: NotRequired[Literal["manual", "bypass"]]
-    requestedSkills: NotRequired[Sequence[str]]
-    turnTraceContext: NotRequired[TurnTraceContext]
+    trigger: NotRequired[str]
 
 
 class PromptChatTemplate(TypedDict):

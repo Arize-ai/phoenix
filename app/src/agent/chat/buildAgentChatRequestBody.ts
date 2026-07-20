@@ -16,22 +16,20 @@ import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
 
-export type AgentModelSelection =
-  components["schemas"]["ChatSubmitMessage"]["model"];
+export type AgentModelSelection = components["schemas"]["ChatRequest"]["model"];
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
   body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
-  /** Node ID for agent session. */
-  agentSessionId?: string | null;
-  /** Full UI message history sent with the request. */
+  /**
+   * Full UI message history from the transport. The server owns the session
+   * transcript, so only the trailing message is sent: the turn's new user
+   * message, or the trailing assistant message updated with client-executed
+   * tool results.
+   */
   messages: AgentUIMessage[];
-  /** Reason the transport is sending this request. */
-  trigger: "submit-message" | "regenerate-message";
-  /** Optional message identifier for regenerate flows. */
-  messageId: string | undefined;
   /** Runtime capability snapshot to expose to the model for this turn. */
   capabilities: AgentCapabilities;
   /** Per-user PXI observability settings for this request. */
@@ -103,15 +101,14 @@ function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
 
 /**
  * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
- * are intentionally omitted because the server is the model-facing authority.
+ * are intentionally omitted because the server is the model-facing authority,
+ * and the message history is reduced to the turn's trailing message because
+ * the server is authoritative for the session transcript.
  */
 export function buildAgentChatRequestBody({
   body,
   id,
-  agentSessionId = null,
   messages,
-  trigger,
-  messageId,
   capabilities,
   observability,
   agentsConfig,
@@ -131,15 +128,9 @@ export function buildAgentChatRequestBody({
     buildSubagentsContext(capabilities),
     ...contexts,
   ];
-  return {
+  const base = {
     ...body,
     id,
-    agentSessionId,
-    messages: toServerSafeUIMessages(
-      enrichMessagesWithClientToolTimings({ messages, toolTimings })
-    ),
-    trigger,
-    messageId,
     ingestTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     attachUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
@@ -148,6 +139,16 @@ export function buildAgentChatRequestBody({
     model: modelSelection,
     turnTraceContext: turnTraceContext ?? undefined,
   };
+  const [message] = toServerSafeUIMessages(
+    enrichMessagesWithClientToolTimings({
+      messages: messages.slice(-1),
+      toolTimings,
+    })
+  );
+  if (!message) {
+    throw new Error("A chat submit request requires a message to send");
+  }
+  return { ...base, trigger: "submit-message", message };
 }
 
 /** Return a copy of resolved tool parts annotated with complete client timings. */

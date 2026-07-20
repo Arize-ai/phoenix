@@ -1,39 +1,32 @@
-import { ConnectionHandler, commitLocalUpdate } from "react-relay";
+import { commitLocalUpdate } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
-import {
-  AGENT_SESSIONS_CONNECTION_KEY,
-  refetchAgentSessions,
-} from "../agentSessionRelay";
+import { refetchAgentSession } from "../agentSessionRelay";
 
-type SessionNode = {
+function sessionPayload({
+  id,
+  title,
+  messages,
+}: {
   id: string;
   title: string;
-};
-
-function sessionsPayload(sessions: SessionNode[]) {
+  messages: unknown[];
+}) {
   return {
     data: {
-      agentSessions: {
-        edges: sessions.map((session, index) => ({
-          node: {
-            ...session,
-            createdAt: "2026-01-01T00:00:00Z",
-            updatedAt: "2026-01-01T00:00:00Z",
-            __typename: "AgentSession",
-          },
-          cursor: `cursor-${index}`,
-        })),
-        pageInfo: {
-          endCursor: sessions.length ? `cursor-${sessions.length - 1}` : null,
-          hasNextPage: false,
-        },
+      agentSession: {
+        __typename: "AgentSession",
+        id,
+        title,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+        messages,
       },
     },
   };
 }
 
-function createEnvironment(payloads: ReturnType<typeof sessionsPayload>[]) {
+function createEnvironment(payloads: ReturnType<typeof sessionPayload>[]) {
   return new Environment({
     network: Network.create(() => {
       const payload = payloads.shift();
@@ -46,61 +39,70 @@ function createEnvironment(payloads: ReturnType<typeof sessionsPayload>[]) {
   });
 }
 
-function getSessions(environment: Environment) {
-  let sessions: Array<{ id: string; title: unknown }> = [];
+function getSessionRecord(environment: Environment, id: string) {
+  let record: { title: unknown; messages: unknown } | null = null;
   commitLocalUpdate(environment, (store) => {
-    const connection = ConnectionHandler.getConnection(
-      store.getRoot(),
-      AGENT_SESSIONS_CONNECTION_KEY
-    );
-    sessions =
-      connection?.getLinkedRecords("edges")?.flatMap((edge) => {
-        const node = edge.getLinkedRecord("node");
-        return node
-          ? [
-              {
-                id: node.getDataID(),
-                title: node.getValue("title"),
-              },
-            ]
-          : [];
-      }) ?? [];
+    const node = store.get(id);
+    record = node
+      ? { title: node.getValue("title"), messages: node.getValue("messages") }
+      : null;
   });
-  return sessions;
+  return record;
 }
 
-describe("refetchAgentSessions", () => {
-  it("hydrates the sessions connection from the server", async () => {
+describe("refetchAgentSession", () => {
+  it("hydrates the session record from the server", async () => {
     const environment = createEnvironment([
-      sessionsPayload([
-        { id: "agent-session-2", title: "Second" },
-        { id: "agent-session-1", title: "First" },
-      ]),
+      sessionPayload({
+        id: "agent-session-1",
+        title: "First",
+        messages: [{ id: "m1", role: "user", parts: [] }],
+      }),
     ]);
 
-    await refetchAgentSessions({ environment });
+    await refetchAgentSession({
+      environment,
+      sessionId: "agent-session-1",
+    });
 
-    expect(getSessions(environment)).toEqual([
-      { id: "agent-session-2", title: "Second" },
-      { id: "agent-session-1", title: "First" },
-    ]);
+    expect(getSessionRecord(environment, "agent-session-1")).toEqual({
+      title: "First",
+      messages: [{ id: "m1", role: "user", parts: [] }],
+    });
   });
 
-  it("resets the connection to the newest server page", async () => {
+  it("refreshes the record on subsequent turn-end refetches", async () => {
     const environment = createEnvironment([
-      sessionsPayload([{ id: "agent-session-1", title: "First" }]),
-      sessionsPayload([
-        { id: "agent-session-2", title: "Second" },
-        { id: "agent-session-1", title: "Renamed" },
-      ]),
+      sessionPayload({
+        id: "agent-session-1",
+        title: "",
+        messages: [{ id: "m1", role: "user", parts: [] }],
+      }),
+      sessionPayload({
+        id: "agent-session-1",
+        title: "Summarized title",
+        messages: [
+          { id: "m1", role: "user", parts: [] },
+          { id: "m2", role: "assistant", parts: [] },
+        ],
+      }),
     ]);
 
-    await refetchAgentSessions({ environment });
-    await refetchAgentSessions({ environment });
+    await refetchAgentSession({
+      environment,
+      sessionId: "agent-session-1",
+    });
+    await refetchAgentSession({
+      environment,
+      sessionId: "agent-session-1",
+    });
 
-    expect(getSessions(environment)).toEqual([
-      { id: "agent-session-2", title: "Second" },
-      { id: "agent-session-1", title: "Renamed" },
-    ]);
+    expect(getSessionRecord(environment, "agent-session-1")).toEqual({
+      title: "Summarized title",
+      messages: [
+        { id: "m1", role: "user", parts: [] },
+        { id: "m2", role: "assistant", parts: [] },
+      ],
+    });
   });
 });

@@ -51,17 +51,15 @@ const chatErrorMessageCSS = css`
 /** Inline request error banner for the active chat turn. */
 export function ChatErrorMessage({
   error,
-  latestAssistantMessageId,
   latestUserMessageId,
   canFork,
   onRetry,
   onRewind,
 }: {
   error: Error;
-  latestAssistantMessageId?: string;
   latestUserMessageId?: string;
   canFork: boolean;
-  onRetry?: (messageId?: string) => void;
+  onRetry?: () => void;
   onRewind?: MessageRewindRequest;
 }) {
   const canRetry = onRetry != null;
@@ -78,11 +76,7 @@ export function ChatErrorMessage({
       {canRetry || canUndoOrFork ? (
         <div className="chat-error-message__actions">
           {canRetry ? (
-            <Button
-              size="S"
-              variant="primary"
-              onPress={() => onRetry(latestAssistantMessageId)}
-            >
+            <Button size="S" variant="primary" onPress={onRetry}>
               Retry
             </Button>
           ) : null}
