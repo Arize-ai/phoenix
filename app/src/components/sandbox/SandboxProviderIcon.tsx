@@ -183,6 +183,19 @@ const WasmSVG = ({ height }: IconProps) => (
   </svg>
 );
 
+const TenkiSVG = ({ height }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Tenki</title>
+    <path d="M6.5 20A5.5 5.5 0 0 1 6 9.02 7 7 0 0 1 19.66 8.5 4.5 4.5 0 0 1 18 20H6.5z" />
+  </svg>
+);
+
 const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   WASM: WasmSVG,
   E2B: E2BSVG,
@@ -190,6 +203,7 @@ const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   VERCEL: VercelSVG,
   DENO: DenoSVG,
   MODAL: ModalSVG,
+  TENKI: TenkiSVG,
 };
 
 export type SandboxProviderIconProps = {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e79843b8d67649c1f494db018b0808ae>>
+ * @generated SignedSource<<35adfa9396d5f6fad37d0807f9c87673>>
  * @lightSyntaxTransform
  */
 
@@ -23,6 +23,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b: E2BConfigInput;
   modal?: never;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -30,6 +31,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -37,6 +39,7 @@ export type SandboxConfigVariantInput = {
   deno: DenoConfigInput;
   e2b?: never;
   modal?: never;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -44,6 +47,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  tenki?: never;
   vercel: VercelConfigInput;
   wasm?: never;
 } | {
@@ -51,6 +55,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  tenki?: never;
   vercel?: never;
   wasm: WASMConfigInput;
 } | {
@@ -58,6 +63,15 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal: ModalConfigInput;
+  tenki?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  tenki: TenkiConfigInput;
   vercel?: never;
   wasm?: never;
 };
@@ -96,6 +110,12 @@ export type WASMConfigInput = {
   language?: Language;
 };
 export type ModalConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language?: Language;
+};
+export type TenkiConfigInput = {
   dependencies?: DependenciesInput | null;
   envVars?: ReadonlyArray<EnvVarInput>;
   internetAccess?: InternetAccessInput | null;

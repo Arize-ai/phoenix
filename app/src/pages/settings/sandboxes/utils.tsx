@@ -221,6 +221,8 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Local Deno TypeScript runtime";
     case "MODAL":
       return "Modal cloud Python sandbox";
+    case "TENKI":
+      return "Tenki Cloud microVM Python sandbox";
     default:
       return "Sandbox runtime";
   }
@@ -347,6 +349,7 @@ const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
     VERCEL: "vercel",
     WASM: "wasm",
     MODAL: "modal",
+    TENKI: "tenki",
   };
 
 export function formValuesToConfigPatch(
