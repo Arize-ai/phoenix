@@ -70,6 +70,54 @@ describe("agentStore", () => {
     });
   });
 
+  describe("defaultTemporaryChat", () => {
+    it("defaults to false", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().defaultTemporaryChat).toBe(false);
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
+    });
+
+    it("updates the preference without touching the live draft toggle", () => {
+      const store = createAgentStore();
+
+      store.getState().setDefaultTemporaryChat(true);
+      expect(store.getState().defaultTemporaryChat).toBe(true);
+      // The already-open draft is not retroactively flipped.
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
+    });
+
+    it("seeds the initial draft toggle from the persisted preference", () => {
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: { defaultTemporaryChat: true },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      expect(store.getState().defaultTemporaryChat).toBe(true);
+      expect(store.getState().isDraftSessionTemporary).toBe(true);
+    });
+
+    it("falls back to false when no preference was persisted", () => {
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: { position: "detached" },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      expect(store.getState().defaultTemporaryChat).toBe(false);
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
+    });
+  });
+
   describe("clearSessionEphemeralState", () => {
     it("drops a session's pending patch, draft input, pending message, and chat status", () => {
       const store = createAgentStore();

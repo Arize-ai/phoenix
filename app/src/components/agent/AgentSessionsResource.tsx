@@ -155,7 +155,8 @@ function AgentSessionsContent({
    * message, so no empty session rows are ever written.
    */
   const startNewSession = useCallback(() => {
-    store.getState().setIsDraftSessionTemporary(false);
+    const state = store.getState();
+    state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
     setActiveSession(DRAFT_SESSION_ID);
   }, [setActiveSession, store]);
 
@@ -212,7 +213,8 @@ function AgentSessionsContent({
         // The draft has no server session; deleting it just resets its
         // ephemeral state (draft input, staged message).
         clearSessionEphemeralState(DRAFT_SESSION_ID);
-        store.getState().setIsDraftSessionTemporary(false);
+        const state = store.getState();
+        state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
         return;
       }
       const isDeletingActiveSession = activeSessionId === sessionId;

@@ -499,7 +499,7 @@ export function useAgentChat({
         );
         const state = store.getState();
         state.clearSessionEphemeralState(DRAFT_SESSION_ID);
-        state.setIsDraftSessionTemporary(false);
+        state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
         state.setActiveSession(newSessionId);
       },
       onError: (mutationError) => {
