@@ -1,0 +1,25 @@
+{
+  "name": "phoenix-otel-ai-sdk-v7-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trace Vercel AI SDK v7 calls with @arizeai/phoenix-otel",
+  "type": "module",
+  "scripts": {
+    "start": "tsx main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.0",
+    "@ai-sdk/otel": "^1.0.0",
+    "@arizeai/phoenix-otel": "^2.0.0",
+    "ai": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

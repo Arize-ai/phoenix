@@ -83,20 +83,9 @@ export const provider = new NodeTracerProvider({
 
 provider.register();
 
-// Register the AI SDK telemetry integration. Optional flags are
-// recommended for fuller OpenInference coverage.
-registerTelemetry(
-  new OpenTelemetry({
-    usage: true,
-    providerMetadata: true,
-    embedding: true,
-    reranking: true,
-    runtimeContext: true,
-    headers: true,
-    toolChoice: true,
-    schema: true,
-  })
-);
+// Register the AI SDK telemetry integration. Header capture is disabled
+// because request headers can contain credentials.
+registerTelemetry(new OpenTelemetry({ headers: false }));
 
 console.log("Provider registered");
 
@@ -135,20 +124,9 @@ const SERVICE_NAME = "phoenix-vercel-ai-sdk-app";
  * correctly in all environments that Next.js can be deployed to
  */
 export function register() {
-  // Register the AI SDK telemetry integration. Optional flags are
-  // recommended for fuller OpenInference coverage.
-  registerTelemetry(
-    new OpenTelemetry({
-      usage: true,
-      providerMetadata: true,
-      embedding: true,
-      reranking: true,
-      runtimeContext: true,
-      headers: true,
-      toolChoice: true,
-      schema: true,
-    })
-  );
+  // Register the AI SDK telemetry integration. Header capture is disabled
+  // because request headers can contain credentials.
+  registerTelemetry(new OpenTelemetry({ headers: false }));
 
   registerOTel({
     serviceName: SERVICE_NAME,
@@ -174,7 +152,7 @@ See Vercel's [instrumentation guide](https://nextjs.org/docs/app/guides/open-tel
 </Tabs>
 
 <Info>
-When instrumenting a Next.js application, traced spans will not be "root spans" when the OpenInference span filter is configured. This is because Next.js parents spans underneath http requests, which do not meet the requirements to be an OpenInference span. Set `reparentOrphanedSpans: true` on the span processor to re-root AI spans whose parent was filtered out.
+When instrumenting a Next.js application, traced spans will not be "root spans" when the OpenInference span filter is configured. This is because Next.js parents spans underneath http requests, which do not meet the requirements to be an OpenInference span.
 
 </Info>
 
@@ -197,7 +175,7 @@ Ensure your installed version of `@opentelemetry/api` matches the version instal
 
 </Warning>
 
-For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry documentation](https://ai-sdk.dev/docs/ai-sdk-core/telemetry).
+For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry documentation](https://sdk.vercel.ai/docs/ai-sdk-core/telemetry).
 
 <Frame>
   <iframe src="https://cdn.iframe.ly/ry2U623" width={1000} height={400} allowFullScreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"></iframe>
@@ -206,11 +184,13 @@ For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry document
 <Note>
 Spans may not be exported if still queued in the processor when your process exits. Use `OpenInferenceSimpleSpanProcessor` for immediate export, or call `provider.shutdown()` to explicitly flush spans before exit when using `OpenInferenceBatchSpanProcessor`.
 
-For simpler setup, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel), which sets up the span processors and registers the AI SDK telemetry integration automatically.
+For simpler setup, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) which handles this automatically.
 </Note>
 
 ### Examples
 
 To see an example go to the [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the [OpenInference repo](https://github.com/Arize-ai/openinference/tree/main/js).
 
-For more information on Vercel OpenTelemetry support see the [Vercel AI SDK Telemetry documentation](https://ai-sdk.dev/docs/ai-sdk-core/telemetry).
+For more information on Vercel OpenTelemetry support see the [Vercel AI SDK Telemetry documentation](https://sdk.vercel.ai/docs/ai-sdk-core/telemetry).
+
+
