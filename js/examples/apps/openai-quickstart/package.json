@@ -1,0 +1,23 @@
+{
+  "name": "openai-quickstart",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Validates Phoenix tracing and evals against the raw OpenAI SDK in an ESM app",
+  "type": "module",
+  "scripts": {
+    "start": "tsx main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.0",
+    "@arizeai/openinference-instrumentation-openai": "^4.1.5",
+    "@arizeai/phoenix-evals": "workspace:*",
+    "@arizeai/phoenix-otel": "workspace:*",
+    "openai": "^6.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  }
+}
