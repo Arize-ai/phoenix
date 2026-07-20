@@ -127,18 +127,24 @@ class AgentSessionMutationMixin:
                 info=info,
                 agent_session_rowid=agent_session_rowid,
             )
-            target = await session.scalar(
-                select(models.AgentSessionMessage).where(
-                    models.AgentSessionMessage.agent_session_id == agent_session.id,
-                    models.AgentSessionMessage.message_id == input.message_id,
+            target = (
+                await session.execute(
+                    select(
+                        models.AgentSessionMessage.position,
+                        models.AgentSessionMessage.message["role"].as_string(),
+                    ).where(
+                        models.AgentSessionMessage.agent_session_id == agent_session.id,
+                        models.AgentSessionMessage.message_id == input.message_id,
+                    )
                 )
-            )
+            ).one_or_none()
             if target is None:
                 raise NotFound(f"No message found for ID '{input.message_id}'")
+            target_position, target_role = target
             # A user target is removed along with everything after it; an
             # assistant target is kept, so deletion starts just after it.
-            delete_from_position = target.position
-            if target.message.role == "assistant":
+            delete_from_position = target_position
+            if target_role == "assistant":
                 delete_from_position += 1
             await session.execute(
                 delete(models.AgentSessionMessage).where(

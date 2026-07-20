@@ -22,6 +22,7 @@ from pydantic_ai import RunUsage
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
@@ -377,6 +378,51 @@ async def test_chat_turn_persists_session_transcript(
     assert user_message_ids == ["msg-user-1", "msg-user-2"]
     assert len(second_turn_messages) > len(messages)
     assert second_turn_message_rowids[: len(message_rowids)] == message_rowids
+
+
+async def test_failed_chat_turn_does_not_persist_partial_transcript(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def failing_run_stream(
+        _adapter: VercelAIAdapter[Any, Any],
+        **_kwargs: Any,
+    ) -> AsyncIterator[BaseChunk]:
+        yield StartChunk(message_id="partial-assistant")
+        yield TextStartChunk(id="text")
+        yield TextDeltaChunk(id="text", delta="partial response")
+        raise RuntimeError("model stream failed")
+
+    monkeypatch.setattr(VercelAIAdapter, "run_stream", failing_run_stream)
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "46464646-4646-4464-8464-464646464646"
+    persisted_messages = [_user_message("earlier message")]
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Already titled",
+        messages=persisted_messages,
+    )
+
+    with pytest.raises(RuntimeError, match="model stream failed"):
+        await httpx_client.post(
+            _chat_url(agent_session_id),
+            json=_chat_body(
+                session_id,
+                _user_message("new message", message_id="msg-user-2"),
+            ),
+        )
+
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assert stored_messages == persisted_messages
 
 
 async def test_client_tool_continuation_extends_the_persisted_assistant_message(

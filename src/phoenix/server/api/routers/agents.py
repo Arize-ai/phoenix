@@ -275,13 +275,7 @@ class _ChatRequestMixin(_ObservabilityMixin):
 
 
 class ChatSubmitMessage(_ChatRequestMixin):
-    """Assistant chat submit request carrying only the turn's new message.
-
-    The server is authoritative for session transcripts: it loads the persisted
-    history and merges ``message`` into it — appending a new user message, or
-    replacing the trailing assistant message when the client resolved its
-    client-executed tool calls.
-    """
+    """Assistant chat submit request carrying only the turn's new message."""
 
     trigger: Literal["submit-message"] = "submit-message"
     id: str
@@ -1178,6 +1172,7 @@ def _merge_messages(
                     "latest transcript message; reload the conversation"
                 ),
             )
+        # Client tool results extend this assistant message rather than create a new one.
         return [*old_messages[:-1], new_message]
     raise HTTPException(status_code=400, detail="Only user or assistant messages can be submitted")
 
@@ -1285,6 +1280,34 @@ async def _upsert_agent_session_snapshot(
     )
 
 
+async def _update_trailing_assistant_message(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+    position: int,
+    message: PhoenixUIMessage,
+) -> None:
+    """Replace the matching trailing assistant message or reject a stale continuation."""
+    updated_message_rowid = await session.scalar(
+        update(models.AgentSessionMessage)
+        .where(
+            models.AgentSessionMessage.agent_session_id == agent_session_rowid,
+            models.AgentSessionMessage.position == position,
+            models.AgentSessionMessage.message_id == message.id,
+        )
+        .values(message=message)
+        .returning(models.AgentSessionMessage.id)
+    )
+    if updated_message_rowid is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "The submitted assistant message is no longer the session's "
+                "latest transcript message; reload the conversation"
+            ),
+        )
+
+
 async def _persist_agent_session_turn(
     db: DbSessionFactory,
     *,
@@ -1312,26 +1335,13 @@ async def _persist_agent_session_turn(
         )
         assert next_position is not None
         if new_messages[0].role == "assistant":
-            updated_message_rowid = await session.scalar(
-                update(models.AgentSessionMessage)
-                .where(
-                    models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-                    models.AgentSessionMessage.position == next_position - 1,
-                    models.AgentSessionMessage.message_id == new_messages[0].id,
-                )
-                .values(
-                    message=new_messages[0],
-                )
-                .returning(models.AgentSessionMessage.id)
+            # Client-tool continuations replace the persisted assistant message.
+            await _update_trailing_assistant_message(
+                session,
+                agent_session_rowid=agent_session_rowid,
+                position=next_position - 1,
+                message=new_messages[0],
             )
-            if updated_message_rowid is None:
-                raise HTTPException(
-                    status_code=409,
-                    detail=(
-                        "The submitted assistant message is no longer the session's "
-                        "latest transcript message; reload the conversation"
-                    ),
-                )
             new_messages = new_messages[1:]
         session.add_all(
             models.AgentSessionMessage(
@@ -1685,13 +1695,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             stream_error: BaseException | None = None
             summary_task: asyncio.Task[str | None] | None = None
             emitted_message_chunks: list[BaseChunk] = []
-            has_persisted_turn = False
 
-            async def _persist_turn(
-                *,
-                require_generated_assistant: bool,
-            ) -> TranscriptPersistedChunk:
-                nonlocal has_persisted_turn
+            async def _persist_turn() -> TranscriptPersistedChunk:
                 session_title = (
                     summary_task.result()
                     if summary_task is not None
@@ -1704,14 +1709,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session_id=otel_session_id,
                     initial_message=(body.message if body.message.role == "assistant" else None),
                 )
-                if generated_assistant_message is None and require_generated_assistant:
+                if generated_assistant_message is None:
                     raise RuntimeError("Failed to assemble the streamed assistant message")
                 if body.message.role == "assistant":
-                    turn_messages = [generated_assistant_message or body.message]
+                    # Continue the submitted assistant message with the generated response.
+                    turn_messages = [generated_assistant_message]
                 else:
-                    turn_messages = [body.message]
-                    if generated_assistant_message is not None:
-                        turn_messages.append(generated_assistant_message)
+                    # Persist the submitted user message and its generated response.
+                    turn_messages = [body.message, generated_assistant_message]
                 await _persist_agent_session_turn(
                     request.app.state.db,
                     agent_session_rowid=agent_session_rowid,
@@ -1720,7 +1725,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     bashkit_snapshot=captured_bash_snapshot,
                     title=session_title,
                 )
-                has_persisted_turn = True
                 return TranscriptPersistedChunk(
                     data=TranscriptPersistedData(message_id=turn_messages[-1].id)
                 )
@@ -1803,7 +1807,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     async for message_chunk in message_chunk_stream:
                         emitted_message_chunks.append(message_chunk)
                         yield message_chunk
-                    yield await _persist_turn(require_generated_assistant=True)
+                    yield await _persist_turn()
             except BaseException as exc:
                 stream_error = exc
                 raise
@@ -1811,14 +1815,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if summary_task is not None:
                     if not summary_task.done():
                         summary_task.cancel()
-                if not has_persisted_turn:
-                    try:
-                        await _persist_turn(require_generated_assistant=False)
-                    except Exception:
-                        logger.exception(
-                            "Failed to persist agent session %r",
-                            str(GlobalID("AgentSession", str(agent_session_rowid))),
-                        )
                 if tracer is not None:
                     if turn_is_terminal or stream_error is not None:
                         _emit_turn_root_span(
