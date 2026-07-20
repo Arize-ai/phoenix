@@ -138,10 +138,8 @@ describe("AgentChatTopNavButton", () => {
     renderButton({ position: "detached" });
 
     act(() => {
-      const sessionId = agentStore?.getState().createSession();
-      if (sessionId) {
-        agentStore?.getState().setSessionResponsePending(sessionId, true);
-      }
+      agentStore?.getState().setActiveSession("session-node-id");
+      agentStore?.getState().setSessionResponsePending("session-node-id", true);
     });
     act(() => agentStore?.getState().setIsOpen(true));
     act(() => agentStore?.getState().setIsOpen(false));
@@ -198,10 +196,8 @@ describe("AgentChatTopNavButton", () => {
     renderButton();
 
     act(() => {
-      const sessionId = agentStore?.getState().createSession();
-      if (sessionId) {
-        agentStore?.getState().setSessionResponsePending(sessionId, true);
-      }
+      agentStore?.getState().setActiveSession("session-node-id");
+      agentStore?.getState().setSessionResponsePending("session-node-id", true);
     });
 
     const button =
