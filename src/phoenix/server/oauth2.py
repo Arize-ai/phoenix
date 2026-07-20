@@ -434,7 +434,10 @@ class OAuth2Clients:
     def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_name}")
-        # RFC 6749 §3.3: scope parameter (space-delimited list of scopes)
+        # scope: RFC 6749 §3.3 (space-delimited list of scopes)
+        # http2: offers "h2" via TLS ALPN alongside "http/1.1" — negotiated, not
+        # forced, so HTTP/1.1-only IDPs are unaffected (needed for IDPs behind
+        # proxies requiring end-to-end HTTP/2, e.g. ZITADEL)
         client_kwargs = {"scope": config.scopes, "http2": True}
 
         if config.token_endpoint_auth_method:
