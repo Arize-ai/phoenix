@@ -1,5 +1,6 @@
 // Copyright (c) 2023 Anton Zhiyanov, MIT License
 // https://github.com/nalgeon/sqlean.py
+// Modified by the Arize Phoenix team, 2026.
 
 // Sqlean extensions bundle.
 
@@ -34,33 +35,48 @@ static void sqlean_version(sqlite3_context* context, int argc, sqlite3_value** a
     sqlite3_result_text(context, SQLEAN_VERSION, -1, SQLITE_STATIC);
 }
 
+// init_one initializes a single extension and logs a failure instead of
+// swallowing it: a silently skipped init would only surface much later as
+// a confusing "no such function" error.
+static int init_one(const char* name, int (*init_fn)(sqlite3* db), sqlite3* db) {
+    int rc = init_fn(db);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "sqlean: failed to initialize the %s extension (error code %d)\n", name,
+                rc);
+    }
+    return rc;
+}
+
 // init_all initializes all extensions.
 static int init_all(sqlite3* db) {
-    crypto_init(db);
-    define_init(db);
-    fileio_init(db);
-    fuzzy_init(db);
+    init_one("crypto", crypto_init, db);
+    init_one("define", define_init, db);
+    init_one("fileio", fileio_init, db);
+    init_one("fuzzy", fuzzy_init, db);
 #if !defined(_WIN32)
-    ipaddr_init(db);
+    init_one("ipaddr", ipaddr_init, db);
 #endif
-    regexp_init(db);
-    stats_init(db);
-    text_init(db);
-    time_init(db);
-    unicode_init(db);
-    uuid_init(db);
-    vsv_init(db);
+    init_one("regexp", regexp_init, db);
+    init_one("stats", stats_init, db);
+    init_one("text", text_init, db);
+    init_one("time", time_init, db);
+    init_one("unicode", unicode_init, db);
+    init_one("uuid", uuid_init, db);
+    init_one("vsv", vsv_init, db);
     return SQLITE_OK;
 }
 
 // init_extension initializes the extension if it's enabled according to the env variable.
-static int init_extension(const char* flag, int (*init_fn)(sqlite3* db), sqlite3* db) {
+static int init_extension(const char* flag,
+                          const char* name,
+                          int (*init_fn)(sqlite3* db),
+                          sqlite3* db) {
     const char* enabled = getenv(flag);
     if (enabled == NULL || strcmp(enabled, "0") == 0) {
         // disable the extension unless it is explicitly enabled
         return SQLITE_OK;
     }
-    return init_fn(db);
+    return init_one(name, init_fn, db);
 }
 
 #ifdef _WIN32
@@ -77,7 +93,11 @@ __declspec(dllexport)
     }
 
     static const int flags = SQLITE_UTF8 | SQLITE_INNOCUOUS | SQLITE_DETERMINISTIC;
-    sqlite3_create_function(db, "sqlean_version", 0, flags, 0, sqlean_version, 0, 0);
+    int rc = sqlite3_create_function(db, "sqlean_version", 0, flags, 0, sqlean_version, 0, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "sqlean: failed to register the sqlean_version function (error code %d)\n",
+                rc);
+    }
 
     if (enable_all != NULL) {
         // SQLEAN_ENABLE != 0, enable all extensions
@@ -86,19 +106,19 @@ __declspec(dllexport)
     }
 
     // SQLEAN_ENABLE is not set, enable individual extensions
-    init_extension("SQLEAN_ENABLE_CRYPTO", crypto_init, db);
-    init_extension("SQLEAN_ENABLE_DEFINE", define_init, db);
-    init_extension("SQLEAN_ENABLE_FILEIO", fileio_init, db);
-    init_extension("SQLEAN_ENABLE_FUZZY", fuzzy_init, db);
+    init_extension("SQLEAN_ENABLE_CRYPTO", "crypto", crypto_init, db);
+    init_extension("SQLEAN_ENABLE_DEFINE", "define", define_init, db);
+    init_extension("SQLEAN_ENABLE_FILEIO", "fileio", fileio_init, db);
+    init_extension("SQLEAN_ENABLE_FUZZY", "fuzzy", fuzzy_init, db);
 #if !defined(_WIN32)
-    init_extension("SQLEAN_ENABLE_IPADDR", ipaddr_init, db);
+    init_extension("SQLEAN_ENABLE_IPADDR", "ipaddr", ipaddr_init, db);
 #endif
-    init_extension("SQLEAN_ENABLE_REGEXP", regexp_init, db);
-    init_extension("SQLEAN_ENABLE_STATS", stats_init, db);
-    init_extension("SQLEAN_ENABLE_TEXT", text_init, db);
-    init_extension("SQLEAN_ENABLE_TIME", time_init, db);
-    init_extension("SQLEAN_ENABLE_UNICODE", unicode_init, db);
-    init_extension("SQLEAN_ENABLE_UUID", uuid_init, db);
-    init_extension("SQLEAN_ENABLE_VSV", vsv_init, db);
+    init_extension("SQLEAN_ENABLE_REGEXP", "regexp", regexp_init, db);
+    init_extension("SQLEAN_ENABLE_STATS", "stats", stats_init, db);
+    init_extension("SQLEAN_ENABLE_TEXT", "text", text_init, db);
+    init_extension("SQLEAN_ENABLE_TIME", "time", time_init, db);
+    init_extension("SQLEAN_ENABLE_UNICODE", "unicode", unicode_init, db);
+    init_extension("SQLEAN_ENABLE_UUID", "uuid", uuid_init, db);
+    init_extension("SQLEAN_ENABLE_VSV", "vsv", vsv_init, db);
     return SQLITE_OK;
 }
