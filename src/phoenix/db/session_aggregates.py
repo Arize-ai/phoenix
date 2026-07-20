@@ -246,8 +246,11 @@ def _apply_scope(
         return stmt
     session_scope = models.ProjectSession.__table__.alias("session_scope")
     stmt = stmt.join(session_scope, session_scope.c.id == _GROUP_KEY)
+    # Interval-overlap semantics, matching the session filter's candidate
+    # universe: a session qualifies iff [start_time, end_time] intersects
+    # [start_time, end_time).
     if start_time is not None:
-        stmt = stmt.where(start_time <= session_scope.c.start_time)
+        stmt = stmt.where(start_time <= session_scope.c.end_time)
     if end_time is not None:
         stmt = stmt.where(session_scope.c.start_time < end_time)
     return stmt
