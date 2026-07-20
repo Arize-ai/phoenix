@@ -6,7 +6,6 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-import pytest
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from sqlalchemy import delete, func, select
