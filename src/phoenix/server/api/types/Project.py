@@ -1192,6 +1192,7 @@ class Project(Node):
                 filter_condition or None,
                 session_filter_condition or None,
                 None,
+                None,
                 annotation_name,
             ),
         )
@@ -1217,6 +1218,7 @@ class Project(Node):
                 time_range or None,
                 filter_condition or None,
                 session_filter_condition or None,
+                None,
                 None,
                 annotation_name,
             ),
@@ -1249,7 +1251,7 @@ class Project(Node):
                 # Mirror the sessions table: the exact match wins and ignores
                 # the time range and substring filter.
                 return await info.context.data_loaders.annotation_summaries.load(
-                    ("session", self.id, None, None, None, session_rowid, annotation_name),
+                    ("session", self.id, None, None, None, None, session_rowid, annotation_name),
                 )
             if not filter_io_substring:
                 return None
@@ -1258,6 +1260,7 @@ class Project(Node):
                 "session",
                 self.id,
                 time_range or None,
+                None,
                 None,
                 filter_io_substring or None,
                 None,
