@@ -291,12 +291,6 @@ class TestEvalSessionWorkUnits(_WorkUnitsSchemaTest):
     entity_table = "project_sessions"
 
 
-class TestEvalTraceWorkUnits(_WorkUnitsSchemaTest):
-    table_name = "eval_trace_work_units"
-    entity_column = "trace_rowid"
-    entity_table = "traces"
-
-
 class _ActivitySchemaTest(_OnlineEvalSchemaTest):
     entity_column: str
     entity_table: str
@@ -336,9 +330,3 @@ class TestEvalSessionActivity(_ActivitySchemaTest):
     table_name = "eval_session_activity"
     entity_column = "project_session_rowid"
     entity_table = "project_sessions"
-
-
-class TestEvalTraceActivity(_ActivitySchemaTest):
-    table_name = "eval_trace_activity"
-    entity_column = "trace_rowid"
-    entity_table = "traces"

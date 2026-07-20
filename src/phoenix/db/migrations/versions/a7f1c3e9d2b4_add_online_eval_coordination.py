@@ -354,28 +354,23 @@ def upgrade() -> None:
         "project_session_rowid",
         "project_sessions",
     )
-    _create_work_units_table("eval_trace_work_units", "trace_rowid", "traces")
     _create_activity_table(
         "eval_session_activity",
         "project_session_rowid",
         "project_sessions",
     )
-    _create_activity_table("eval_trace_activity", "trace_rowid", "traces")
 
 
 def downgrade() -> None:
-    op.drop_index("ix_eval_trace_activity_observed_at", table_name="eval_trace_activity")
-    op.drop_table("eval_trace_activity")
     op.drop_index("ix_eval_session_activity_observed_at", table_name="eval_session_activity")
     op.drop_table("eval_session_activity")
 
-    for table_name in ("eval_trace_work_units", "eval_session_work_units"):
-        op.drop_index(f"ix_{table_name}_criteria_id", table_name=table_name)
-        op.drop_index(f"ix_{table_name}_evaluator_id", table_name=table_name)
-        op.drop_index(f"ix_{table_name}_error_attempts", table_name=table_name)
-        op.drop_index(f"ix_{table_name}_terminal", table_name=table_name)
-        op.drop_index(f"ix_{table_name}_claimable", table_name=table_name)
-        op.drop_table(table_name)
+    op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
+    op.drop_table("eval_session_work_units")
 
     op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")

@@ -229,14 +229,8 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
 
     async with db() as session:
         activity = list(await session.scalars(select(models.EvalSessionActivity)))
-        trace_activity_count = await session.scalar(
-            select(func.count()).select_from(models.EvalTraceActivity)
-        )
         session_work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
-        )
-        trace_work_count = await session.scalar(
-            select(func.count()).select_from(models.EvalTraceWorkUnit)
         )
     assert {row.project_session_rowid: row.last_seen_span_rowid for row in activity} == {
         first_project_session_id: latest_first_span_id,
@@ -247,9 +241,7 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
     )
     assert first_span_id != latest_first_span_id
     assert all(row.observed_at is not None for row in activity)
-    assert trace_activity_count == 0
     assert session_work_count == 0
-    assert trace_work_count == 0
     assert await _work_unit_span_rowids(db) == []
     assert (await _get_cursor(db, cursor_id)).produced_through_id == high_water_span_id
 
@@ -326,11 +318,9 @@ async def test_ineligible_criteria_do_not_record_activity_or_work(
         assert (
             await session.scalar(select(func.count()).select_from(models.EvalSessionActivity)) == 0
         )
-        assert await session.scalar(select(func.count()).select_from(models.EvalTraceActivity)) == 0
         assert (
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
-        assert await session.scalar(select(func.count()).select_from(models.EvalTraceWorkUnit)) == 0
     assert await _work_unit_span_rowids(db) == []
 
 
