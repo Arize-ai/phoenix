@@ -25,6 +25,7 @@ services:
     environment:
       # No PHOENIX_SQL_DATABASE_URL -> Phoenix defaults to SQLite in the working dir.
       - PHOENIX_WORKING_DIR=/phoenix-data
+      - PHOENIX_MAX_SPANS_QUEUE_SIZE=5000
       - PHOENIX_LOGGING_LEVEL=info
     volumes:
       - phoenix_sqlite:/phoenix-data

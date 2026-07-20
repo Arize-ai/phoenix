@@ -64,8 +64,8 @@ MODELS = [
     ("gpt-4o-mini", "openai"),
     ("gpt-4-turbo", "openai"),
     ("o3-mini", "openai"),
-    ("claude-3-5-sonnet-20241022", "anthropic"),
-    ("claude-3-5-haiku-20241022", "anthropic"),
+    ("claude-3-7-sonnet-20250219", "anthropic"),
+    ("claude-3-haiku-20240307", "anthropic"),
     ("claude-3-opus-20240229", "anthropic"),
 ]
 
@@ -152,9 +152,14 @@ def run(
 
 
 def delete_span_costs(backend: str, compose_file: Path) -> int:
-    """Delete all span_cost rows (details cascade) and return the deleted count."""
+    """Delete historical-project span costs and return the deleted count."""
+    before = count_span_costs(backend, compose_file)
     if backend == "postgres":
-        sql = "DELETE FROM span_costs;"
+        sql = (
+            "DELETE FROM span_costs c USING spans s, traces t, projects p "
+            "WHERE c.span_rowid=s.id AND s.trace_rowid=t.id AND t.project_rowid=p.id "
+            f"AND p.name='{HISTORICAL_PROJECT}';"
+        )
         run(
             compose_cmd(
                 compose_file,
@@ -175,15 +180,25 @@ def delete_span_costs(backend: str, compose_file: Path) -> int:
         code = (
             "import sqlite3;"
             "c=sqlite3.connect('/phoenix-data/phoenix.db');"
+            "c.execute('PRAGMA foreign_keys=ON');"
             "c.execute('PRAGMA busy_timeout=30000');"
-            "n=c.execute('DELETE FROM span_costs').rowcount;"
+            'n=c.execute("DELETE FROM span_costs WHERE span_rowid IN '
+            "(SELECT s.id FROM spans s JOIN traces t ON s.trace_rowid=t.id "
+            "JOIN projects p ON t.project_rowid=p.id "
+            f"WHERE p.name='{HISTORICAL_PROJECT}')\").rowcount;"
             "c.commit();print(n)"
         )
         run(compose_cmd(compose_file, "exec", "-T", "dbtools", "python", "-c", code), capture=True)
-    return count_span_costs(backend, compose_file)
+    after = count_span_costs(backend, compose_file)
+    return before - after
 
 
 def count_span_costs(backend: str, compose_file: Path) -> int:
+    joins = (
+        " FROM span_costs c JOIN spans s ON c.span_rowid=s.id "
+        "JOIN traces t ON s.trace_rowid=t.id JOIN projects p ON t.project_rowid=p.id "
+        f"WHERE p.name='{HISTORICAL_PROJECT}'"
+    )
     if backend == "postgres":
         proc = run(
             compose_cmd(
@@ -197,7 +212,7 @@ def count_span_costs(backend: str, compose_file: Path) -> int:
                 "-d",
                 "postgres",
                 "-tAc",
-                "SELECT count(*) FROM span_costs;",
+                f"SELECT count(*){joins};",
             ),
             capture=True,
         )
@@ -206,10 +221,48 @@ def count_span_costs(backend: str, compose_file: Path) -> int:
             "import sqlite3;"
             "c=sqlite3.connect('/phoenix-data/phoenix.db');"
             "c.execute('PRAGMA busy_timeout=30000');"
-            "print(c.execute('SELECT count(*) FROM span_costs').fetchone()[0])"
+            f'print(c.execute("SELECT count(*){joins}").fetchone()[0])'
         )
         proc = run(
             compose_cmd(compose_file, "exec", "-T", "dbtools", "python", "-c", code), capture=True
+        )
+    out = (proc.stdout or "").strip().splitlines()
+    return int(out[-1]) if out and out[-1].strip().isdigit() else 0
+
+
+def count_historical_spans(backend: str, compose_file: Path) -> int:
+    joins = (
+        " FROM spans s JOIN traces t ON s.trace_rowid=t.id "
+        "JOIN projects p ON t.project_rowid=p.id "
+        f"WHERE p.name='{HISTORICAL_PROJECT}'"
+    )
+    if backend == "postgres":
+        proc = run(
+            compose_cmd(
+                compose_file,
+                "exec",
+                "-T",
+                "db",
+                "psql",
+                "-U",
+                "postgres",
+                "-d",
+                "postgres",
+                "-tAc",
+                f"SELECT count(*){joins};",
+            ),
+            capture=True,
+        )
+    else:
+        code = (
+            "import sqlite3;"
+            "c=sqlite3.connect('/phoenix-data/phoenix.db');"
+            "c.execute('PRAGMA busy_timeout=30000');"
+            f'print(c.execute("SELECT count(*){joins}").fetchone()[0])'
+        )
+        proc = run(
+            compose_cmd(compose_file, "exec", "-T", "dbtools", "python", "-c", code),
+            capture=True,
         )
     out = (proc.stdout or "").strip().splitlines()
     return int(out[-1]) if out and out[-1].strip().isdigit() else 0
@@ -244,6 +297,9 @@ class LoadGenerator:
             self._thread.join(timeout=30)
 
     def _run(self) -> None:
+        if self.rate == 0:
+            self._stop.wait()
+            return
         interval = self.batch / self.rate if self.rate else 0.1
         headers = {"content-type": "application/x-protobuf"}
         url = f"{self.base_url}/v1/traces"
@@ -330,31 +386,27 @@ def seed_historical_spans(base_url: str, total: int, request_batch: int) -> None
 
 def wait_until_costed(backend: str, compose_file: Path, expected: int, timeout: float) -> int:
     deadline = time.time() + timeout
-    last = -1
-    stable = 0
     while time.time() < deadline:
-        current = count_span_costs(backend, compose_file)
-        print(f"\r  span_costs rows: {current}/{expected}", end="", flush=True)
-        if current >= expected:
+        spans = count_historical_spans(backend, compose_file)
+        costs = count_span_costs(backend, compose_file)
+        print(f"\r  spans: {spans}/{expected}, span_costs: {costs}/{expected}", end="", flush=True)
+        if spans == expected and costs == expected:
             print()
-            return current
-        if current == last:
-            stable += 1
-            if stable >= 5 and current > 0:  # plateaued below expected; good enough
-                print()
-                return current
-        else:
-            stable = 0
-        last = current
+            return costs
         time.sleep(2)
     print()
-    return count_span_costs(backend, compose_file)
+    raise SystemExit(
+        f"Timed out waiting for ingestion: spans={count_historical_spans(backend, compose_file)}, "
+        f"costs={count_span_costs(backend, compose_file)}, expected={expected}"
+    )
 
 
-def run_backfill(base_url: str, batch_size: int) -> tuple[int, int, list[float]]:
+def run_backfill(base_url: str, batch_size: int) -> tuple[int, int, int, int, list[float]]:
     url = f"{base_url}/v1/projects/{HISTORICAL_PROJECT}/spans/backfill_costs"
     cursor: Optional[str] = None
     total_inserted = 0
+    total_scanned = 0
+    total_skipped = 0
     batches = 0
     latencies: list[float] = []
     with httpx.Client(timeout=120.0) as client:
@@ -369,10 +421,40 @@ def run_backfill(base_url: str, batch_size: int) -> tuple[int, int, list[float]]
             body = resp.json()
             batches += 1
             total_inserted += body["data"]["costs_inserted"]
+            total_scanned += body["data"]["spans_scanned"]
+            total_skipped += body["data"]["spans_skipped"]
             cursor = body["next_cursor"]
             if cursor is None:
                 break
-    return total_inserted, batches, latencies
+    return total_scanned, total_inserted, total_skipped, batches, latencies
+
+
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
+def nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be zero or greater")
+    return parsed
+
+
+def positive_float(value: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
+def nonnegative_float(value: str) -> float:
+    parsed = float(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be zero or greater")
+    return parsed
 
 
 def main() -> None:
@@ -380,42 +462,41 @@ def main() -> None:
     parser.add_argument("--backend", choices=["sqlite", "postgres"], required=True)
     parser.add_argument(
         "--seed-spans",
-        type=int,
+        type=positive_int,
         default=20000,
         help="Number of historical LLM spans to seed and backfill.",
     )
     parser.add_argument(
         "--load-rate",
-        type=int,
+        type=nonnegative_int,
         default=200,
         help="Target live ingestion rate in spans/second during the test.",
     )
     parser.add_argument(
         "--load-batch",
-        type=int,
+        type=positive_int,
         default=50,
         help="Spans per OTLP request from the live load generator.",
     )
     parser.add_argument(
         "--seed-batch",
-        type=int,
+        type=positive_int,
         default=500,
         help="Spans per OTLP request while seeding historical data.",
     )
     parser.add_argument(
         "--backfill-batch-size",
-        type=int,
-        default=1000,
+        type=positive_int,
+        default=100,
         help="`limit` query param for each backfill request.",
     )
     parser.add_argument(
         "--baseline-seconds",
-        type=float,
+        type=positive_float,
         default=15.0,
         help="Duration to measure ingestion before backfill starts.",
     )
-    parser.add_argument("--cooldown-seconds", type=float, default=5.0)
-    parser.add_argument("--phoenix-url", default="http://localhost:6006")
+    parser.add_argument("--cooldown-seconds", type=nonnegative_float, default=5.0)
     parser.add_argument(
         "--no-build",
         action="store_true",
@@ -427,19 +508,23 @@ def main() -> None:
         help="Leave the stack running (and volumes intact) after the test.",
     )
     args = parser.parse_args()
+    if args.backfill_batch_size > 1000:
+        parser.error("--backfill-batch-size must not exceed 1000")
 
     compose_file = COMPOSE_FILES[args.backend]
-    base_url = args.phoenix_url.rstrip("/")
+    base_url = "http://localhost:6006"
 
     print(f"=== Cost-backfill performance harness (backend={args.backend}) ===\n")
+
+    print("Removing any retained benchmark stack and data...")
+    run(compose_cmd(compose_file, "down", "-v", "--remove-orphans"), check=False)
 
     up = compose_cmd(compose_file, "up", "-d")
     if not args.no_build:
         up.append("--build")
-    print("Starting stack (first build can take several minutes)...")
-    run(up)
-
     try:
+        print("Starting stack (first build can take several minutes)...")
+        run(up)
         print("Waiting for Phoenix to become healthy...")
         wait_for_health(base_url, timeout=300)
 
@@ -450,8 +535,11 @@ def main() -> None:
         costed = wait_until_costed(args.backend, compose_file, args.seed_spans, timeout=300)
 
         print("Deleting span_cost rows to simulate historical, un-costed traces...")
-        remaining = delete_span_costs(args.backend, compose_file)
-        print(f"  span_costs before={costed}, after delete={remaining}")
+        deleted = delete_span_costs(args.backend, compose_file)
+        remaining = count_span_costs(args.backend, compose_file)
+        print(f"  span_costs before={costed}, deleted={deleted}, after={remaining}")
+        if deleted != costed or remaining != 0:
+            raise SystemExit("Failed to remove all historical span costs before backfill")
 
         gen = LoadGenerator(base_url=base_url, rate=args.load_rate, batch=args.load_batch)
         print(f"Starting live ingestion load (~{args.load_rate} spans/s) into '{LIVE_PROJECT}'...")
@@ -462,7 +550,9 @@ def main() -> None:
 
             print(f"Running backfill (limit={args.backfill_batch_size}) under load...")
             backfill_start = time.time()
-            inserted, batches, bf_latencies = run_backfill(base_url, args.backfill_batch_size)
+            scanned, inserted, skipped, batches, bf_latencies = run_backfill(
+                base_url, args.backfill_batch_size
+            )
             backfill_end = time.time()
 
             time.sleep(args.cooldown_seconds)
@@ -472,6 +562,13 @@ def main() -> None:
         # ---------------------------------------------------------------- #
         # Report
         # ---------------------------------------------------------------- #
+        final_costs = count_span_costs(args.backend, compose_file)
+        if scanned != costed or inserted != costed or skipped != 0 or final_costs != costed:
+            raise SystemExit(
+                "Backfill validation failed: "
+                f"scanned={scanned}, inserted={inserted}, skipped={skipped}, "
+                f"final_costs={final_costs}, expected={costed}"
+            )
         wall = max(backfill_end - backfill_start, 1e-9)
         print("\n================= RESULTS =================")
         print(f"Backend:              {args.backend}")
@@ -521,7 +618,7 @@ def main() -> None:
             )
         else:
             print("\nTearing down stack...")
-            run(compose_cmd(compose_file, "down", "-v"), check=False)
+            run(compose_cmd(compose_file, "down", "-v", "--remove-orphans"), check=False)
 
 
 if __name__ == "__main__":

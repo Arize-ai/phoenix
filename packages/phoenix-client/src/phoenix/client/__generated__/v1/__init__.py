@@ -67,6 +67,17 @@ class AssistantMessageMetadataUsageTokens(TypedDict):
     total: int
 
 
+class BackfillSpanCostsData(TypedDict):
+    spans_scanned: int
+    costs_inserted: int
+    spans_skipped: int
+
+
+class BackfillSpanCostsResponseBody(TypedDict):
+    data: BackfillSpanCostsData
+    next_cursor: Optional[str]
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]

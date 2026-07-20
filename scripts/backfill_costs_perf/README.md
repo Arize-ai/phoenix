@@ -46,7 +46,8 @@ JSON for the backfill loop — so the numbers reflect end-to-end server behavior
 ## Usage
 
 ```bash
-# SQLite backend, default settings (20k historical spans, ~200 spans/s load)
+# SQLite backend, default settings (20k historical spans, ~200 spans/s load,
+# 100 spans per backfill request)
 uv run scripts/backfill_costs_perf/run_perf_test.py --backend sqlite
 
 # Postgres backend, heavier load
@@ -57,12 +58,17 @@ uv run scripts/backfill_costs_perf/run_perf_test.py \
 The first run builds the Phoenix image, which can take several minutes. Pass
 `--no-build` on subsequent runs to reuse the image, and `--keep-up` to leave
 the stack running for inspection (tear it down later with
-`docker compose -p backfillperf -f <compose-file> down -v`).
+`docker compose -p backfillperf -f <compose-file> down -v --remove-orphans`).
+
+Each run removes any previous `backfillperf` stack and its backend volume before
+starting. This keeps span and cost counts isolated to the current benchmark;
+do not store data you need to retain in this throwaway stack.
 
 Key options (see `--help` for all):
 
 - `--seed-spans` — number of historical spans to seed and backfill.
 - `--load-rate` / `--load-batch` — live ingestion spans/second and spans/request.
+- Set `--load-rate 0` to run without concurrent ingestion.
 - `--backfill-batch-size` — the `limit` query param for each backfill request.
 - `--baseline-seconds` — how long to measure ingestion before backfill starts.
 
@@ -89,8 +95,9 @@ Ingestion impact:     p95 request latency 21.0ms -> 38.5ms (+83%), 0 rejected (5
 
 Use it to compare backends (SQLite's single writer contends more than
 Postgres), to tune `--backfill-batch-size` against ingestion impact, and to
-confirm the endpoint stays cooperative — short transactions per batch, no
-sustained ingestion rejections — under concurrent load.
+measure the endpoint's impact — transaction time, latency changes, and
+ingestion rejections — under concurrent load. Backfills can noticeably raise
+ingestion latency, especially with SQLite or large batches.
 
 ## Notes
 
@@ -102,5 +109,7 @@ sustained ingestion rejections — under concurrent load.
 - The historical project (`HISTORICAL_BACKFILL`) and live project
   (`LIVE_INGESTION`) are separate, so the backfill only ever touches the
   historical spans and the live load's costs are never disturbed.
+- Both stacks cap the ingestion queue at 5,000 spans so backpressure remains
+  observable during a sustained load test.
 - This stack is for benchmarking only — it runs containers as root and uses
   throwaway credentials. Do not use it as a deployment reference.

@@ -5309,7 +5309,7 @@
           "spans"
         ],
         "summary": "Backfill token-based cost for historical LLM spans",
-        "description": "Computes and stores cost records for historical LLM spans in a project that do not already have one, using the same pricing logic applied during live ingestion. Work is done one bounded batch per request: call repeatedly, passing back `next_cursor` each time, until it is `null`. Existing cost records are never modified. Intended to be driven from a client script so that each request stays short and does not disturb live ingestion.",
+        "description": "Computes and stores cost records for historical LLM spans in a project that do not already have one, using the same pricing logic applied during live ingestion. Work is done one bounded batch per request: call repeatedly, passing back `next_cursor` each time, until it is `null`. Existing cost records are never modified. Intended to be driven from a client script so that each request stays bounded and limits its impact on live ingestion.",
         "operationId": "backfillSpanCosts",
         "parameters": [
           {
@@ -5367,10 +5367,10 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 10000,
+              "maximum": 1000,
               "exclusiveMinimum": 0,
               "description": "Maximum number of spans to process in this batch.",
-              "default": 1000,
+              "default": 100,
               "title": "Limit"
             },
             "description": "Maximum number of spans to process in this batch."

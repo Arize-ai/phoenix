@@ -321,7 +321,7 @@ class TestBackfillSpanCosts:
         while True:
             num_calls += 1
             assert num_calls <= num_spans + 2  # guard against infinite loops
-            params = {"limit": 2}
+            params: dict[str, int | str] = {"limit": 2}
             if cursor is not None:
                 params["cursor"] = cursor
             response = await httpx_client.post(
@@ -337,6 +337,44 @@ class TestBackfillSpanCosts:
         assert total_inserted == num_spans
         assert await _count_span_costs(db, trace_rowid) == num_spans
 
+    async def test_pagination_advances_past_existing_costs(
+        self,
+        httpx_client: httpx.AsyncClient,
+        app: FastAPI,
+        db: DbSessionFactory,
+    ) -> None:
+        await _insert_generative_model(db)
+        await _reload_model_store(app)
+        project, trace_rowid = await _insert_project_and_trace(db)
+        for minute in range(2):
+            await _insert_span(
+                db,
+                trace_rowid,
+                span_kind="LLM",
+                attributes=_llm_attributes(_MODEL_NAME, 1000, 500),
+                start_time=_BASE_TIME + timedelta(minutes=minute),
+            )
+
+        first = await httpx_client.post(
+            f"v1/projects/{project.name}/spans/backfill_costs", params={"limit": 1}
+        )
+        cursor = first.json()["next_cursor"]
+        assert cursor is not None
+
+        restart = await httpx_client.post(
+            f"v1/projects/{project.name}/spans/backfill_costs", params={"limit": 1}
+        )
+        assert restart.json()["data"]["spans_scanned"] == 0
+        assert restart.json()["next_cursor"] == cursor
+
+        second = await httpx_client.post(
+            f"v1/projects/{project.name}/spans/backfill_costs",
+            params={"limit": 1, "cursor": cursor},
+        )
+        assert second.json()["data"]["costs_inserted"] == 1
+        assert second.json()["next_cursor"] is None
+        assert await _count_span_costs(db, trace_rowid) == 2
+
     async def test_invalid_cursor_returns_422(
         self,
         httpx_client: httpx.AsyncClient,
@@ -348,6 +386,64 @@ class TestBackfillSpanCosts:
             params={"cursor": "not-a-valid-cursor"},
         )
         assert response.status_code == 422
+
+    async def test_cursor_for_wrong_node_type_returns_422(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await _insert_project_and_trace(db)
+        cursor = str(GlobalID("Project", str(project.id)))
+        response = await httpx_client.post(
+            f"v1/projects/{project.name}/spans/backfill_costs",
+            params={"cursor": cursor},
+        )
+        assert response.status_code == 422
+
+    async def test_invalid_time_range_returns_422(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await _insert_project_and_trace(db)
+        response = await httpx_client.post(
+            f"v1/projects/{project.name}/spans/backfill_costs",
+            params={"start_time": _BASE_TIME.isoformat(), "end_time": _BASE_TIME.isoformat()},
+        )
+        assert response.status_code == 422
+
+    async def test_rejects_oversized_batch(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/projects/does-not-exist/spans/backfill_costs",
+            params={"limit": 1001},
+        )
+        assert response.status_code == 422
+
+    async def test_skips_span_without_matching_price(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, trace_rowid = await _insert_project_and_trace(db)
+        await _insert_span(
+            db,
+            trace_rowid,
+            span_kind="LLM",
+            attributes=_llm_attributes("unknown-model", 1000, 500),
+            start_time=_BASE_TIME,
+        )
+
+        response = await httpx_client.post(f"v1/projects/{project.name}/spans/backfill_costs")
+        assert response.status_code == 200
+        assert response.json()["data"] == {
+            "spans_scanned": 1,
+            "costs_inserted": 0,
+            "spans_skipped": 1,
+        }
+        assert await _count_span_costs(db, trace_rowid) == 0
 
     async def test_unknown_project_returns_404(
         self,

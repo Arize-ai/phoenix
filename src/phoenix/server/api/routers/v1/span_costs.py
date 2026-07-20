@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -12,13 +11,12 @@ from strawberry.relay import GlobalID
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.authorization import is_not_locked
 
 from .models import V1RoutesBaseModel
 from .utils import add_errors_to_responses, get_project_by_identifier
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["spans"])
 
@@ -62,11 +60,14 @@ class BackfillSpanCostsResponseBody(V1RoutesBaseModel):
         "already have one, using the same pricing logic applied during live ingestion. Work is "
         "done one bounded batch per request: call repeatedly, passing back `next_cursor` each "
         "time, until it is `null`. Existing cost records are never modified. Intended to be "
-        "driven from a client script so that each request stays short and does not disturb live "
-        "ingestion."
+        "driven from a client script so that each request stays bounded and limits its impact on "
+        "live ingestion."
     ),
     responses=add_errors_to_responses([404, 422, 507]),
     response_description="Per-batch backfill counts and the cursor for the next batch.",
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
 )
 async def backfill_span_costs(
     request: Request,
@@ -82,9 +83,9 @@ async def backfill_span_costs(
         description="Exclusive upper bound on span start time (ISO 8601).",
     ),
     limit: int = Query(
-        default=1000,
+        default=100,
         gt=0,
-        le=10000,
+        le=1000,
         description="Maximum number of spans to process in this batch.",
     ),
     cursor: Optional[str] = Query(
@@ -99,49 +100,66 @@ async def backfill_span_costs(
 
     async with db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
+        normalized_start_time = (
+            normalize_datetime(start_time, timezone.utc) if start_time is not None else None
+        )
+        normalized_end_time = (
+            normalize_datetime(end_time, timezone.utc) if end_time is not None else None
+        )
+        if (
+            normalized_start_time is not None
+            and normalized_end_time is not None
+            and normalized_start_time >= normalized_end_time
+        ):
+            raise HTTPException(status_code=422, detail="start_time must be earlier than end_time")
         stmt = (
             select(models.Span)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .outerjoin(models.SpanCost, models.SpanCost.span_rowid == models.Span.id)
             .where(models.Trace.project_rowid == project.id)
             .where(models.Span.span_kind == _LLM)
-            .where(models.SpanCost.id.is_(None))
             .order_by(models.Span.id.asc())
         )
-        if start_time is not None:
-            stmt = stmt.where(
-                models.Span.start_time >= normalize_datetime(start_time, timezone.utc)
-            )
-        if end_time is not None:
-            stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+        if normalized_start_time is not None:
+            stmt = stmt.where(models.Span.start_time >= normalized_start_time)
+        if normalized_end_time is not None:
+            stmt = stmt.where(models.Span.start_time < normalized_end_time)
         if cursor is not None:
             try:
-                cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+                cursor_rowid = from_global_id_with_expected_type(
+                    GlobalID.from_id(cursor), SpanNodeType.__name__
+                )
             except (ValueError, TypeError):
                 raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
             stmt = stmt.where(models.Span.id > cursor_rowid)
-        # Fetch one extra row to detect whether another batch remains.
-        stmt = stmt.limit(limit + 1)
-        spans = list((await session.scalars(stmt)).all())
+        # Page all LLM span IDs before checking costs. This bounds work even when most spans
+        # already have costs, while also avoiding large attributes in the candidate sort.
+        candidate_ids = stmt.with_only_columns(models.Span.id).limit(limit + 1).subquery()
+        rows = list(
+            (
+                await session.execute(
+                    select(models.Span, models.SpanCost.id)
+                    .join(candidate_ids, models.Span.id == candidate_ids.c.id)
+                    .outerjoin(models.SpanCost, models.SpanCost.span_rowid == models.Span.id)
+                    .order_by(models.Span.id.asc())
+                )
+            ).tuples()
+        )
 
     # Drop the peeked row: the cursor is anchored on the last *processed* span so
     # that the strict `id > cursor` filter above resumes exactly where we stopped,
     # without skipping or re-processing any span.
-    has_more = len(spans) == limit + 1
+    has_more = len(rows) == limit + 1
     if has_more:
-        spans = spans[:limit]
+        rows = rows[:limit]
+    spans = [span for span, cost_id in rows if cost_id is None]
 
     costs: list[models.SpanCost] = []
     for span in spans:
         # Apply the same gate as live ingestion so backfilled and live cost stay consistent.
         if not should_calculate_span_cost(span.attributes):
             continue
-        try:
-            cost = calculator.calculate_cost(span.start_time, span.attributes)
-        except Exception:
-            logger.exception(f"Failed to calculate cost for span with id={span.id}")
-            continue
-        if cost is None:
+        cost = calculator.calculate_cost(span.start_time, span.attributes)
+        if cost is None or cost.model_id is None or cost.total_cost is None:
             continue
         cost.span_rowid = span.id
         cost.trace_rowid = span.trace_rowid
@@ -152,8 +170,8 @@ async def backfill_span_costs(
             session.add_all(costs)
 
     next_cursor: Optional[str] = None
-    if has_more and spans:
-        next_cursor = str(GlobalID(SpanNodeType.__name__, str(spans[-1].id)))
+    if has_more and rows:
+        next_cursor = str(GlobalID(SpanNodeType.__name__, str(rows[-1][0].id)))
 
     scanned = len(spans)
     return BackfillSpanCostsResponseBody(

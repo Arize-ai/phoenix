@@ -19,6 +19,7 @@ services:
       - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
       # Keep the ingestion queue modest so backpressure (HTTP 503) is observable
       # under load rather than silently absorbing everything.
+      - PHOENIX_MAX_SPANS_QUEUE_SIZE=5000
       - PHOENIX_LOGGING_LEVEL=info
 
   db:
