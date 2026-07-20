@@ -102,6 +102,8 @@ describe("createTranscriptPersistenceCoordinator", () => {
     await expect(
       coordinator.waitForMessage({ messageId: "assistant-1" })
     ).resolves.toBe(true);
+  });
+
   it("releases a waiter when a request fails", async () => {
     const barrier = createTranscriptPersistenceCoordinator({
       initialRevision: 2,

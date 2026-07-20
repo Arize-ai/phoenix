@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import strawberry
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
