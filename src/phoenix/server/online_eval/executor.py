@@ -20,7 +20,6 @@ from phoenix.config import (
     get_env_online_eval_max_transcript_bytes,
 )
 from phoenix.db import models
-from phoenix.db.helpers import token_counts_by_session
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -96,18 +95,11 @@ def span_eval_context(span: models.Span) -> dict[str, Any]:
 
 def session_eval_context(
     *,
-    session_id: str,
     turns: Sequence[dict[str, Any]],
-    num_traces: int,
-    duration_seconds: float,
-    token_count_total: int,
     max_transcript_bytes: int,
 ) -> dict[str, Any]:
-    """Build session context from the root turns loaded by hydration. The transcript byte cap
-    bounds only the rendered ``input`` string (structured ``turns`` stay complete for explicit
-    mappings), the truncation marker counts only loaded turns, and top-level ``metadata`` is
-    Phoenix session identity while ``turns[i].metadata`` is span metadata.
-    """
+    """Build evaluator context with a rendered transcript as ``input``, the final turn's
+    output as ``output``, and loaded turns under ``metadata``."""
     turn_blocks = [
         "User: "
         f"{'' if turn['input'] is None else turn['input']}\n"
@@ -141,19 +133,11 @@ def session_eval_context(
                 transcript = f"{marker}\n\n{retained}"
                 break
 
-    first_input = turns[0]["input"] if turns else None
-    last_output = turns[-1]["output"] if turns else None
+    output = turns[-1]["output"] if turns else None
     return {
         "input": transcript,
-        "output": last_output,
-        "last_output": last_output,
-        "first_input": first_input,
-        "turns": list(turns),
-        "session_id": session_id,
-        "metadata": {"session_id": session_id},
-        "num_traces": num_traces,
-        "duration_seconds": duration_seconds,
-        "token_count_total": token_count_total,
+        "output": output,
+        "metadata": {"turns": list(turns)},
     }
 
 
@@ -273,31 +257,8 @@ class OnlineEvalExecutor:
                     }
                     for span in root_spans
                 ]
-                num_traces = (
-                    await session.scalar(
-                        select(func.count(models.Trace.id)).where(
-                            models.Trace.project_session_rowid == project_session.id
-                        )
-                    )
-                    or 0
-                )
-                token_counts = (
-                    await session.execute(token_counts_by_session([project_session.id]))
-                ).one_or_none()
-                token_count_total = (
-                    (token_counts.prompt or 0) + (token_counts.completion or 0)
-                    if token_counts is not None
-                    else 0
-                )
                 context = session_eval_context(
-                    session_id=project_session.session_id,
                     turns=turns,
-                    num_traces=num_traces,
-                    duration_seconds=max(
-                        0.0,
-                        (project_session.end_time - project_session.start_time).total_seconds(),
-                    ),
-                    token_count_total=token_count_total,
                     max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
                 )
                 max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()

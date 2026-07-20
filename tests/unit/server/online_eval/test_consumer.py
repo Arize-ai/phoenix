@@ -553,47 +553,21 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     )
 
     context = session_eval_context(
-        session_id="session-1",
         turns=turns,
-        num_traces=4,
-        duration_seconds=12.5,
-        token_count_total=123,
         max_transcript_bytes=len(expected_transcript.encode("utf-8")),
     )
 
-    assert set(context) == {
-        "input",
-        "output",
-        "last_output",
-        "first_input",
-        "turns",
-        "session_id",
-        "metadata",
-        "num_traces",
-        "duration_seconds",
-        "token_count_total",
-    }
+    assert set(context) == {"input", "output", "metadata"}
     assert context["input"] == expected_transcript
     assert len(context["input"].encode("utf-8")) <= len(expected_transcript.encode("utf-8"))
-    assert context["turns"] == turns
-    assert context["first_input"] == turns[0]["input"]
-    assert context["last_output"] == turns[-1]["output"]
     assert context["output"] == turns[-1]["output"]
-    assert context["session_id"] == "session-1"
-    assert context["metadata"] == {"session_id": "session-1"}
-    assert context["num_traces"] == 4
-    assert context["duration_seconds"] == 12.5
-    assert context["token_count_total"] == 123
+    assert context["metadata"] == {"turns": turns}
 
     omitted_turn = {"input": "x" * 500, "output": "y" * 500, "metadata": {}}
     omitted_transcript = f"User: {omitted_turn['input']}\nAssistant: {omitted_turn['output']}"
     with pytest.raises(EvalExecutionError) as exc_info:
         session_eval_context(
-            session_id="session-1",
             turns=[omitted_turn],
-            num_traces=1,
-            duration_seconds=0.0,
-            token_count_total=0,
             max_transcript_bytes=256,
         )
     error = str(exc_info.value)
@@ -603,31 +577,22 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     assert "Raise" in error
 
     null_values = session_eval_context(
-        session_id="null-session",
         turns=[{"input": None, "output": None, "metadata": {"raw": True}}],
-        num_traces=1,
-        duration_seconds=0.0,
-        token_count_total=0,
         max_transcript_bytes=256,
     )
     assert null_values["input"] == "User: \nAssistant: "
-    assert null_values["first_input"] is None
-    assert null_values["last_output"] is None
-    assert null_values["turns"] == [{"input": None, "output": None, "metadata": {"raw": True}}]
+    assert null_values["output"] is None
+    assert null_values["metadata"] == {
+        "turns": [{"input": None, "output": None, "metadata": {"raw": True}}]
+    }
 
     empty = session_eval_context(
-        session_id="empty-session",
         turns=[],
-        num_traces=1,
-        duration_seconds=0.0,
-        token_count_total=0,
         max_transcript_bytes=256,
     )
     assert empty["input"] == ""
     assert empty["output"] is None
-    assert empty["last_output"] is None
-    assert empty["first_input"] is None
-    assert empty["turns"] == []
+    assert empty["metadata"] == {"turns": []}
 
 
 async def test_happy_path_claims_evaluates_annotates_and_completes(
@@ -758,10 +723,9 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         project.id,
         evaluation_target="SESSION",
         template_content=(
-            "{{input}}\nLAST={{last_output}}\nFIRST={{first_input}}\n"
-            "COUNT={{num_traces}}\nDURATION={{duration_seconds}}\n"
-            "TOKENS={{token_count_total}}\n"
-            "TURNS={{#turns}}{{input}}/{{output}}/{{metadata.turn}};{{/turns}}"
+            "{{input}}\nOUTPUT={{output}}\n"
+            "TURNS={{#metadata.turns}}{{input}}/{{output}}/{{metadata.turn}};"
+            "{{/metadata.turns}}"
         ),
     )
     unit_id, fingerprint = await _materialize_session_unit(
@@ -787,8 +751,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert client.requests[0]["messages"][0]["content"] == (
         "User: first question\nAssistant: first answer\n\n"
         "User: second question\nAssistant: second answer\n"
-        "LAST=second answer\nFIRST=first question\nCOUNT=4\n"
-        "DURATION=90.0\nTOKENS=18\n"
+        "OUTPUT=second answer\n"
         "TURNS=first question/first answer/1;second question/second answer/2;"
     )
     (annotation,) = await _session_annotations(db)
