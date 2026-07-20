@@ -171,3 +171,27 @@ async def test_agent_session_node_returns_not_found_when_missing(
     assert response.data is None
     assert response.errors
     assert response.errors[0].message == f"Unknown agent session: {agent_session_id}"
+
+
+async def test_agent_session_node_returns_not_found_when_expired(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    # A temporary session whose deadline has already passed reads as gone even
+    # though the sweeper has not yet deleted its row.
+    now = datetime.now(timezone.utc)
+    agent_session_id = await _seed_agent_session(
+        db,
+        title="expired",
+        updated_at=now - timedelta(days=2),
+        expires_at=now - timedelta(seconds=1),
+    )
+
+    response = await gql_client.execute(
+        query=_DETAIL_QUERY,
+        variables={"id": agent_session_id},
+    )
+
+    assert response.data is None
+    assert response.errors
+    assert response.errors[0].message == f"Unknown agent session: {agent_session_id}"

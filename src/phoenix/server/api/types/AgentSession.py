@@ -1,5 +1,5 @@
 from asyncio import gather
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import strawberry
@@ -32,14 +32,18 @@ class AgentSession(Node):
         if self.db_record:
             agent_session_id = self.db_record.id
             owner_id = self.db_record.user_id
+            expires_at = self.db_record.expires_at
         else:
             fields = info.context.data_loaders.agent_session_fields
-            agent_session_id, owner_id = await gather(
+            agent_session_id, owner_id, expires_at = await gather(
                 fields.load((self.id, models.AgentSession.id)),
                 fields.load((self.id, models.AgentSession.user_id)),
+                fields.load((self.id, models.AgentSession.expires_at)),
             )
         viewer_id = info.context.user_id
         if agent_session_id is None or (viewer_id is not None and owner_id != viewer_id):
+            raise self._not_found()
+        if expires_at is not None and expires_at <= datetime.now(timezone.utc):
             raise self._not_found()
 
     @strawberry.field(
