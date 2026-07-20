@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import strawberry
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
@@ -152,7 +152,14 @@ class AgentSessionMutationMixin:
                     models.AgentSessionMessage.position >= delete_from_position,
                 )
             )
-            agent_session.updated_at = func.now()
+            await session.execute(
+                update(models.AgentSession)
+                .where(models.AgentSession.id == agent_session.id)
+                .values(
+                    updated_at=func.now(),
+                    revision=models.AgentSession.revision + 1,
+                )
+            )
         return TruncateAgentSessionMutationPayload(
             agent_session=AgentSession(id=agent_session.id),
             query=Query(),

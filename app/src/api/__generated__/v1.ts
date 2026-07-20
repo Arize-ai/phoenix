@@ -1926,6 +1926,8 @@ export interface components {
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            /** Expectedrevision */
+            expectedRevision?: number | null;
             /**
              * Trigger
              * @default submit-message
@@ -5898,6 +5900,8 @@ export interface components {
         TranscriptPersistedData: {
             /** Messageid */
             messageId: string;
+            /** Revision */
+            revision: number;
         };
     };
     responses: never;

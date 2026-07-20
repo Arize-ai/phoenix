@@ -24,6 +24,7 @@ export const agentSessionQuery = graphql`
         title
         createdAt
         updatedAt
+        revision
         messages
       }
     }

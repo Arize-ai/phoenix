@@ -212,6 +212,7 @@ class SessionSummaryChunk(DataChunk):
 
 class TranscriptPersistedData(_CamelBaseModel):
     message_id: str
+    revision: int
 
 
 @register_openapi_schema
@@ -272,6 +273,7 @@ class _ChatRequestMixin(_ObservabilityMixin):
     )
     model: AgentModelSelection
     turn_trace_context: TurnTraceContext | None = None
+    expected_revision: int | None = Field(default=None, ge=0)
 
 
 class ChatSubmitMessage(_ChatRequestMixin):
@@ -1315,19 +1317,38 @@ async def _persist_agent_session_turn(
     user_id: int | None,
     new_messages: list[PhoenixUIMessage],
     bashkit_snapshot: bytes | None,
+    expected_revision: int,
     title: str | None = None,
-) -> None:
+) -> int:
     if not new_messages:
-        return
+        return expected_revision
     async with db() as session:
-        updated_agent_session_rowid = await _update_agent_session(
-            session,
-            agent_session_rowid=agent_session_rowid,
-            user_id=user_id,
-            title=title or "",
+        values: dict[str, Any] = {
+            "revision": models.AgentSession.revision + 1,
+            "updated_at": func.now(),
+        }
+        if title:
+            values["title"] = title
+        session_owner_filter = (
+            models.AgentSession.user_id.is_(None)
+            if user_id is None
+            else models.AgentSession.user_id == user_id
         )
-        if updated_agent_session_rowid is None:
-            return
+        revision = await session.scalar(
+            update(models.AgentSession)
+            .where(
+                models.AgentSession.id == agent_session_rowid,
+                session_owner_filter,
+                models.AgentSession.revision == expected_revision,
+            )
+            .values(**values)
+            .returning(models.AgentSession.revision)
+        )
+        if revision is None:
+            raise HTTPException(
+                status_code=409,
+                detail="The session transcript changed while this response was running",
+            )
         next_position = await session.scalar(
             select(func.coalesce(func.max(models.AgentSessionMessage.position), -1) + 1).where(
                 models.AgentSessionMessage.agent_session_id == agent_session_rowid
@@ -1357,6 +1378,7 @@ async def _persist_agent_session_turn(
                 agent_session_rowid=agent_session_rowid,
                 bashkit_snapshot=bashkit_snapshot,
             )
+        return revision
 
 
 async def _load_bash_snapshot(
@@ -1449,6 +1471,18 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     agent_session_id=session_id,
                     user_id=request_user_id,
                 )
+                if (
+                    body.expected_revision is not None
+                    and body.expected_revision != agent_session.revision
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "The submitted transcript revision does not match the session's "
+                            "current revision; reload the conversation"
+                        ),
+                    )
+                expected_revision = agent_session.revision
                 persisted_messages = await _load_persisted_messages(
                     session,
                     agent_session_rowid=agent_session.id,
@@ -1717,16 +1751,20 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 else:
                     # Persist the submitted user message and its generated response.
                     turn_messages = [body.message, generated_assistant_message]
-                await _persist_agent_session_turn(
+                revision = await _persist_agent_session_turn(
                     request.app.state.db,
                     agent_session_rowid=agent_session_rowid,
                     user_id=request_user_id,
                     new_messages=turn_messages,
                     bashkit_snapshot=captured_bash_snapshot,
+                    expected_revision=expected_revision,
                     title=session_title,
                 )
                 return TranscriptPersistedChunk(
-                    data=TranscriptPersistedData(message_id=turn_messages[-1].id)
+                    data=TranscriptPersistedData(
+                        message_id=turn_messages[-1].id,
+                        revision=revision,
+                    )
                 )
 
             try:

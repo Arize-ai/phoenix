@@ -90,6 +90,9 @@ type AgentSession implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
 
+  """The persisted transcript revision."""
+  revision: Int!
+
   """The persisted transcript as Vercel AI UIMessage JSON objects."""
   messages: JSON!
 }

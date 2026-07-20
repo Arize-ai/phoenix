@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0136229be71bbe23711c2692f942efda>>
+ * @generated SignedSource<<3b824419168ebfac8094082cf52c31dd>>
  * @lightSyntaxTransform
  */
 
@@ -20,6 +20,7 @@ export type useAgentChatTruncateAgentSessionMutation$data = {
     readonly agentSession: {
       readonly id: string;
       readonly messages: any;
+      readonly revision: number;
       readonly title: string;
       readonly updatedAt: string;
     };
@@ -72,6 +73,13 @@ v1 = [
             "alias": null,
             "args": null,
             "kind": "ScalarField",
+            "name": "revision",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
             "name": "title",
             "storageKey": null
           },
@@ -114,16 +122,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "88b7d9009141c4994c41b61d3d5ad66d",
+    "cacheID": "56fafeab9d1699e36210612abfd67a97",
     "id": null,
     "metadata": {},
     "name": "useAgentChatTruncateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatTruncateAgentSessionMutation(\n  $input: TruncateAgentSessionInput!\n) {\n  truncateAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      updatedAt\n      messages\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatTruncateAgentSessionMutation(\n  $input: TruncateAgentSessionInput!\n) {\n  truncateAgentSession(input: $input) {\n    agentSession {\n      id\n      revision\n      title\n      updatedAt\n      messages\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "039972f6e6de9bcf016ccda08c2ead1d";
+(node as any).hash = "327201a85340513fa3a345f404a69405";
 
 export default node;
