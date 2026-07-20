@@ -401,6 +401,19 @@ class TestTracerProvider:
         assert processors == (first_custom_processor, second_custom_processor)
         first_custom_processor.shutdown.assert_not_called()
 
+    def test_add_span_processor_removes_default_before_shutdown(self) -> None:
+        tracer_provider = TracerProvider(verbose=False)
+        default_processor = tracer_provider._default_processor
+        assert default_processor is not None
+
+        def assert_default_is_inactive() -> None:
+            assert default_processor not in tracer_provider._active_span_processor._span_processors
+            assert tracer_provider._default_processor is None
+
+        with patch.object(default_processor, "shutdown", side_effect=assert_default_is_inactive):
+            with pytest.warns(UserWarning, match="default span processor"):
+                tracer_provider.add_span_processor(Mock(spec=_SimpleSpanProcessor))
+
     def test_register_does_not_warn_on_default_processor_setup(self) -> None:
         # `register` replaces the provider's construction-time default internally as its
         # intended configuration step — that path must stay silent.
