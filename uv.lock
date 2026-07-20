@@ -566,6 +566,7 @@ container = [
     { name = "prometheus-client" },
     { name = "py-grpc-prometheus" },
     { name = "strawberry-graphql", extra = ["opentelemetry"] },
+    { name = "tenki-sandbox" },
     { name = "types-aiobotocore-bedrock-runtime" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vercel" },
@@ -583,6 +584,9 @@ modal = [
 ]
 pg = [
     { name = "asyncpg" },
+]
+tenki = [
+    { name = "tenki-sandbox" },
 ]
 vercel = [
     { name = "vercel" },
@@ -669,6 +673,7 @@ dev = [
     { name = "strawberry-graphql", extra = ["cli", "opentelemetry"] },
     { name = "syrupy" },
     { name = "tenacity" },
+    { name = "tenki-sandbox" },
     { name = "tiktoken" },
     { name = "twine" },
     { name = "ty" },
@@ -769,6 +774,8 @@ requires-dist = [
     { name = "starlette", specifier = ">=0.37.0" },
     { name = "strawberry-graphql", specifier = "==0.320.4" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.320.4" },
+    { name = "tenki-sandbox", marker = "extra == 'container'", specifier = ">=0.3.6" },
+    { name = "tenki-sandbox", marker = "extra == 'tenki'", specifier = ">=0.3.6" },
     { name = "tqdm" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'aws'", specifier = ">=3.6.0" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'container'", specifier = ">=3.6.0" },
@@ -783,7 +790,7 @@ requires-dist = [
     { name = "websockets", marker = "extra == 'vercel'", specifier = ">=14.0" },
     { name = "wrapt", specifier = ">=1.17.2,<3" },
 ]
-provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "experimental", "modal", "pg", "vercel", "wasm"]
+provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "experimental", "modal", "pg", "tenki", "vercel", "wasm"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -860,6 +867,7 @@ dev = [
     { name = "strawberry-graphql", extras = ["opentelemetry", "cli"], specifier = "==0.320.4" },
     { name = "syrupy" },
     { name = "tenacity" },
+    { name = "tenki-sandbox", specifier = ">=0.3.6" },
     { name = "tiktoken" },
     { name = "twine" },
     { name = "ty" },
@@ -2884,15 +2892,15 @@ name = "huggingface-hub"
 version = "1.23.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "filelock", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "fsspec", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "hf-xet", marker = "(python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'arm64') or (python_full_version < '3.14' and platform_machine == 'x86_64') or (platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'win32') or (platform_machine == 'amd64' and sys_platform == 'win32') or (platform_machine == 'arm64' and sys_platform == 'win32') or (platform_machine == 'x86_64' and sys_platform == 'win32')" },
-    { name = "httpx", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "packaging", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "pyyaml", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "tqdm", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "click", marker = "python_full_version < '3.14'" },
+    { name = "filelock", marker = "python_full_version < '3.14'" },
+    { name = "fsspec", marker = "python_full_version < '3.14'" },
+    { name = "hf-xet", marker = "(python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'arm64') or (python_full_version < '3.14' and platform_machine == 'x86_64')" },
+    { name = "httpx", marker = "python_full_version < '3.14'" },
+    { name = "packaging", marker = "python_full_version < '3.14'" },
+    { name = "pyyaml", marker = "python_full_version < '3.14'" },
+    { name = "tqdm", marker = "python_full_version < '3.14'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1a/8f/999e4dda11c6187c78f090eac00895a47e11a0049308f07579bcb7aa3aa2/huggingface_hub-1.23.0.tar.gz", hash = "sha256:c04997fb8bbdace1e57b7703d30ed7678af51f70d00d241819ff411b92ae9a88", size = 919163, upload-time = "2026-07-09T14:49:32.315Z" }
 wheels = [
@@ -2934,7 +2942,7 @@ name = "importlib-metadata"
 version = "8.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "zipp", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e7/72/c600ae4f68c28fc19f9c31b9403053e5dbb8cace2e6842c7b7c3e4d42fe9/importlib_metadata-8.9.0.tar.gz", hash = "sha256:58850626cef4bd2df100378b0f2aea9724a7b92f10770d547725b047078f99ee", size = 56140, upload-time = "2026-03-20T16:56:26.362Z" }
 wheels = [
@@ -3778,18 +3786,18 @@ name = "litellm"
 version = "1.92.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiohttp", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "click", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "fastuuid", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "httpx", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "importlib-metadata", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "jinja2", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "jsonschema", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "openai", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "pydantic", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "python-dotenv", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "tiktoken", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
-    { name = "tokenizers", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "aiohttp", marker = "python_full_version < '3.14'" },
+    { name = "click", marker = "python_full_version < '3.14'" },
+    { name = "fastuuid", marker = "python_full_version < '3.14'" },
+    { name = "httpx", marker = "python_full_version < '3.14'" },
+    { name = "importlib-metadata", marker = "python_full_version < '3.14'" },
+    { name = "jinja2", marker = "python_full_version < '3.14'" },
+    { name = "jsonschema", marker = "python_full_version < '3.14'" },
+    { name = "openai", marker = "python_full_version < '3.14'" },
+    { name = "pydantic", marker = "python_full_version < '3.14'" },
+    { name = "python-dotenv", marker = "python_full_version < '3.14'" },
+    { name = "tiktoken", marker = "python_full_version < '3.14'" },
+    { name = "tokenizers", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/46/ea/5522be7e0dbcaa7c3fddfd2834f387c6e8eab47c0cc65f2a74657c815af7/litellm-1.92.0.tar.gz", hash = "sha256:773adf5503ee1793289689c899394a83df8122993760d9acd782e32aa798db9d", size = 15098143, upload-time = "2026-07-12T01:15:59.828Z" }
 wheels = [
@@ -7566,6 +7574,20 @@ wheels = [
 ]
 
 [[package]]
+name = "tenki-sandbox"
+version = "0.3.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "grpcio" },
+    { name = "protobuf" },
+    { name = "websocket-client" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c8/3e/319d553fb6bd266aed3f5e0ec5d9b1865ee7cb45388c9dc6dac1ee30a51f/tenki_sandbox-0.3.6.tar.gz", hash = "sha256:f4a6e0b7329a7fd42138d5eb582adb1356c084e6f6b3fe046530cbbcd426ffe2", size = 144662, upload-time = "2026-07-10T08:28:16.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/4f/860d1ba154200904b493ed4353e1994aa14627f407144d975b21e4cf51be/tenki_sandbox-0.3.6-py3-none-any.whl", hash = "sha256:324fe804a0b561ffa129e6b1b1874e0d7747ebcb566d976e8485c9dd45ef6853", size = 128658, upload-time = "2026-07-10T08:28:14.925Z" },
+]
+
+[[package]]
 name = "termcolor"
 version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -7684,7 +7706,7 @@ name = "tokenizers"
 version = "0.23.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", marker = "python_full_version < '3.14' or sys_platform == 'win32'" },
+    { name = "huggingface-hub", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c1/60/21f715d9faba5f5407ff759472ade058ec4a507ad62bcea47cb847239a73/tokenizers-0.23.1.tar.gz", hash = "sha256:1feeeadf865a7915adc25445dea30e9933e593c31bb96c277cee36de227c8bfa", size = 365748, upload-time = "2026-04-27T14:43:25.606Z" }
 wheels = [
