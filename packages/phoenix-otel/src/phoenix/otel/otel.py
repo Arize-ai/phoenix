@@ -307,16 +307,17 @@ class TracerProvider(_TracerProvider):
         self._default_processor = span_processor
 
     def _shutdown_default_processor(self) -> None:
-        default_processor = self._default_processor
-        if default_processor is not None:
-            default_processor.shutdown()
-            with self._active_span_processor._lock:
-                self._active_span_processor._span_processors = tuple(
-                    processor
-                    for processor in self._active_span_processor._span_processors
-                    if processor is not default_processor
-                )
+        with self._active_span_processor._lock:
+            default_processor = self._default_processor
+            if default_processor is None:
+                return
+            self._active_span_processor._span_processors = tuple(
+                processor
+                for processor in self._active_span_processor._span_processors
+                if processor is not default_processor
+            )
             self._default_processor = None
+        default_processor.shutdown()
 
     def _tracing_details(self) -> str:
         project = self.resource.attributes.get(PROJECT_NAME)
