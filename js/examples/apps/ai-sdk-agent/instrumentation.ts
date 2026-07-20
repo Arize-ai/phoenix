@@ -8,10 +8,12 @@ import { OpenTelemetry } from "@ai-sdk/otel";
 import { register } from "@arizeai/phoenix-otel";
 import { registerTelemetry } from "ai";
 
+export const projectName = "ai-sdk-agent";
+
 // Register with Phoenix - this handles all the OpenTelemetry boilerplate.
 // batch: false delivers spans immediately, which is ideal for short scripts.
 export const provider = register({
-  projectName: "ai-sdk-agent",
+  projectName,
   batch: false,
 });
 
@@ -19,10 +21,10 @@ export const provider = register({
 // is disabled because headers can contain authorization tokens and cookies.
 registerTelemetry(
   new OpenTelemetry({
-    tracer: provider.getTracer("ai-sdk-agent"),
+    tracer: provider.getTracer(projectName),
     headers: false,
   })
 );
 
 console.log("✅ Phoenix tracing enabled for the AI SDK");
-console.log("   Project: ai-sdk-agent");
+console.log(`   Project: ${projectName}`);

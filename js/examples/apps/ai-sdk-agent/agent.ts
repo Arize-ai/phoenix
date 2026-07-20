@@ -11,7 +11,7 @@ import { stepCountIs, tool, ToolLoopAgent } from "ai";
 import { z } from "zod";
 
 // Importing this module registers Phoenix tracing before any LLM calls run
-import { provider } from "./instrumentation.js";
+import { projectName, provider } from "./instrumentation.js";
 
 const agent = new ToolLoopAgent({
   model: openai("gpt-4o-mini"),
@@ -43,4 +43,13 @@ console.log(`💬 Response: ${result.text}`);
 
 // Flush the trace before the process exits
 await provider.shutdown();
-console.log("\n✅ Done - view the trace at http://localhost:6006");
+
+// The redirect route resolves the project by name, so the link works without
+// knowing the project id
+const phoenixBaseUrl =
+  process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006";
+const projectUrl = new URL(
+  `redirects/projects/${encodeURIComponent(projectName)}`,
+  phoenixBaseUrl.endsWith("/") ? phoenixBaseUrl : `${phoenixBaseUrl}/`
+);
+console.log(`\n✅ Done - view the trace at ${projectUrl}`);
