@@ -6,9 +6,9 @@ title: "Vercel AI SDK Tracing (JS)"
 
 [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ee7dc05f-badge.svg" />](https://badge.fury.io/js/@arizeai%2Fopeninference-vercel)
 
-This package provides a set of utilities to ingest [Vercel AI SDK](https://github.com/vercel/ai)(>= 3.3) spans into platforms like [Arize AX](https://arize.com/) and [Phoenix](https://phoenix.arize.com/).
+This package provides a set of utilities to ingest [Vercel AI SDK](https://github.com/vercel/ai) (>= 7) spans into platforms like [Arize AX](https://arize.com/) and [Phoenix](https://phoenix.arize.com/).
 
-> Note: This package requires you to be using the Vercel AI SDK version 3.3 or higher.
+> Note: `@arizeai/openinference-vercel` v3 targets AI SDK v7 telemetry, which requires Node.js 22 or newer. For AI SDK v6 and older, use `@arizeai/openinference-vercel` v2.
 
 ### Installation
 
@@ -16,23 +16,23 @@ This package provides a set of utilities to ingest [Vercel AI SDK](https://githu
 npm i --save @arizeai/openinference-vercel
 ```
 
-You will also need to install OpenTelemetry packages into your project.
+You will also need to install the AI SDK telemetry package and OpenTelemetry packages into your project.
 
 ```bash
-npm i --save @arizeai/openinference-semantic-conventions @opentelemetry/api @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @opentelemetry/sdk-trace-node @opentelemetry/semantic-conventions
+npm i --save @ai-sdk/otel @arizeai/openinference-semantic-conventions @opentelemetry/api @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @opentelemetry/sdk-trace-node @opentelemetry/semantic-conventions
 ```
 
 ### Usage
 
-`@arizeai/openinference-vercel` provides a set of utilities to help you ingest Vercel AI SDK spans into OpenTelemetry compatible platforms and works in conjunction with Vercel's AI SDK OpenTelemetry support. `@arizeai/openinference-vercel` works with typical node projects, as well as Next.js projects. This page will describe usage within a node project, for detailed usage instructions in Next.js follow Vercel's [guide on instrumenting Next.js](https://nextjs.org/docs/app/guides/open-telemetry#manual-opentelemetry-configuration).
+`@arizeai/openinference-vercel` provides a set of utilities to help you ingest Vercel AI SDK spans into OpenTelemetry compatible platforms and works in conjunction with the AI SDK's OpenTelemetry integration (`@ai-sdk/otel`). `@arizeai/openinference-vercel` works with typical node projects, as well as Next.js projects. This page will describe usage within a node project, for detailed usage instructions in Next.js follow Vercel's [guide on instrumenting Next.js](https://nextjs.org/docs/app/guides/open-telemetry#manual-opentelemetry-configuration).
 
-To process your Vercel AI SDK Spans, setup a typical OpenTelemetry instrumentation boilerplate file, add a `OpenInferenceSimpleSpanProcessor` or `OpenInferenceBatchSpanProcessor` to your OpenTelemetry configuration.
+Since AI SDK v7, telemetry is emitted once you register a telemetry integration with `registerTelemetry(new OpenTelemetry(...))`. To process the resulting spans, setup a typical OpenTelemetry instrumentation boilerplate file and add a `OpenInferenceSimpleSpanProcessor` or `OpenInferenceBatchSpanProcessor` to your OpenTelemetry configuration.
 
 > Note: The `OpenInferenceSpanProcessor` alone does not handle the exporting of spans so you will need to pass it an [exporter](https://opentelemetry.io/docs/languages/js/exporters/) as a parameter.
 
 Here are two example instrumentation configurations:
 
-1. Manual instrumentation config for a Node v23+ application.
+1. Manual instrumentation config for a Node application.
 
 2. Next.js register function utilizing `@vercel/otel` .
 
@@ -48,6 +48,9 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
+// AI SDK telemetry imports
+import { registerTelemetry } from "ai";
+import { OpenTelemetry } from "@ai-sdk/otel";
 // OpenInference Vercel imports
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
@@ -80,6 +83,21 @@ export const provider = new NodeTracerProvider({
 
 provider.register();
 
+// Register the AI SDK telemetry integration. Optional flags are
+// recommended for fuller OpenInference coverage.
+registerTelemetry(
+  new OpenTelemetry({
+    usage: true,
+    providerMetadata: true,
+    embedding: true,
+    reranking: true,
+    runtimeContext: true,
+    headers: true,
+    toolChoice: true,
+    schema: true,
+  })
+);
+
 console.log("Provider registered");
 
 // Run this file before the rest of program execution
@@ -95,6 +113,8 @@ console.log("Provider registered");
 // instrumentation.ts
 // Vercel / Next.js environment instrumentation
 import { registerOTel, OTLPHttpProtoTraceExporter } from "@vercel/otel";
+import { registerTelemetry } from "ai";
+import { OpenTelemetry } from "@ai-sdk/otel";
 import {
   isOpenInferenceSpan,
   OpenInferenceSimpleSpanProcessor,
@@ -115,6 +135,21 @@ const SERVICE_NAME = "phoenix-vercel-ai-sdk-app";
  * correctly in all environments that Next.js can be deployed to
  */
 export function register() {
+  // Register the AI SDK telemetry integration. Optional flags are
+  // recommended for fuller OpenInference coverage.
+  registerTelemetry(
+    new OpenTelemetry({
+      usage: true,
+      providerMetadata: true,
+      embedding: true,
+      reranking: true,
+      runtimeContext: true,
+      headers: true,
+      toolChoice: true,
+      schema: true,
+    })
+  );
+
   registerOTel({
     serviceName: SERVICE_NAME,
     attributes: {
@@ -139,29 +174,30 @@ See Vercel's [instrumentation guide](https://nextjs.org/docs/app/guides/open-tel
 </Tabs>
 
 <Info>
-When instrumenting a Next.js application, traced spans will not be "root spans" when the OpenInference span filter is configured. This is because Next.js parents spans underneath http requests, which do not meet the requirements to be an OpenInference span.
+When instrumenting a Next.js application, traced spans will not be "root spans" when the OpenInference span filter is configured. This is because Next.js parents spans underneath http requests, which do not meet the requirements to be an OpenInference span. Set `reparentOrphanedSpans: true` on the span processor to re-root AI spans whose parent was filtered out.
 
 </Info>
 
-Now enable telemetry in your AI SDK calls by setting the `experimental_telemetry` parameter to `true`.
+Once a telemetry integration is registered, AI SDK calls are traced by default — no per-call configuration is required. Use the `telemetry` option for per-call metadata such as `functionId`, or to opt out with `isEnabled: false`.
 
-```php
+```typescript
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 const result = await generateText({
   model: openai("gpt-4o"),
   prompt: "Write a short story about a cat.",
-  experimental_telemetry: { isEnabled: true },
+  // Optional per-call metadata:
+  telemetry: { functionId: "story-agent" },
 });
 ```
 
 <Warning>
-Ensure your installed version of `@opentelemetry/api` matches the version installed by `ai` otherwise the ai sdk will not emit traces to the TracerProvider that you configure. If you install `ai` before other the packages, then dependency resolution in your package manager should install the correct version.
+Ensure your installed version of `@opentelemetry/api` matches the version installed by `@ai-sdk/otel` otherwise the ai sdk will not emit traces to the TracerProvider that you configure. If you install `ai` before other the packages, then dependency resolution in your package manager should install the correct version.
 
 </Warning>
 
-For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry documentation](https://sdk.vercel.ai/docs/ai-sdk-core/telemetry).
+For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry documentation](https://ai-sdk.dev/docs/ai-sdk-core/telemetry).
 
 <Frame>
   <iframe src="https://cdn.iframe.ly/ry2U623" width={1000} height={400} allowFullScreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"></iframe>
@@ -170,13 +206,11 @@ For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry document
 <Note>
 Spans may not be exported if still queued in the processor when your process exits. Use `OpenInferenceSimpleSpanProcessor` for immediate export, or call `provider.shutdown()` to explicitly flush spans before exit when using `OpenInferenceBatchSpanProcessor`.
 
-For simpler setup, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) which handles this automatically.
+For simpler setup, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel), which sets up the span processors and registers the AI SDK telemetry integration automatically.
 </Note>
 
 ### Examples
 
 To see an example go to the [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the [OpenInference repo](https://github.com/Arize-ai/openinference/tree/main/js).
 
-For more information on Vercel OpenTelemetry support see the [Vercel AI SDK Telemetry documentation](https://sdk.vercel.ai/docs/ai-sdk-core/telemetry).
-
-
+For more information on Vercel OpenTelemetry support see the [Vercel AI SDK Telemetry documentation](https://ai-sdk.dev/docs/ai-sdk-core/telemetry).
