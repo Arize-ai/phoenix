@@ -6,6 +6,8 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import pytest
+from fastapi import HTTPException
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from sqlalchemy import delete, func, select
@@ -20,11 +22,11 @@ from phoenix.server.agents.types import (
 )
 from phoenix.server.api.routers.agents import (
     _interleave_agent_and_subagent_message_chunks,
-    _load_agent_session,
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
     _persist_db_traces_and_emit_event,
+    _refresh_and_load_agent_session,
     _SubagentMessageChunksClosed,
     _update_agent_session,
 )
@@ -60,7 +62,7 @@ class TestAgentSessionPersistence:
             created_project_session_id = created.project_session_id
 
         async with db() as session:
-            loaded = await _load_agent_session(
+            loaded = await _refresh_and_load_agent_session(
                 session,
                 agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
                 user_id=None,
@@ -105,6 +107,98 @@ class TestAgentSessionPersistence:
             session.add(second)
             await session.flush()
             assert second.id > first_rowid
+
+    async def test_refreshes_expiry_for_a_temporary_session(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            temporary = models.AgentSession(
+                project_session_id="33333333-3333-4333-8333-333333333333",
+                user_id=None,
+                title="",
+                project_name="assistant_agent",
+                expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            )
+            session.add(temporary)
+            await session.flush()
+            temporary_rowid = temporary.id
+
+        before_refresh = datetime.now(timezone.utc)
+        async with db() as session:
+            loaded = await _refresh_and_load_agent_session(
+                session,
+                agent_session_id=str(GlobalID("AgentSession", str(temporary_rowid))),
+                user_id=None,
+            )
+            # The sliding window is pushed well past the original near-term expiry.
+            assert loaded.expires_at is not None
+            assert loaded.expires_at > before_refresh + timedelta(hours=23)
+
+        async with db() as session:
+            persisted_expiry = await session.scalar(
+                select(models.AgentSession.expires_at).where(
+                    models.AgentSession.id == temporary_rowid
+                )
+            )
+            assert persisted_expiry is not None
+            assert persisted_expiry > before_refresh + timedelta(hours=23)
+
+    async def test_does_not_refresh_a_persistent_session(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            persistent = models.AgentSession(
+                project_session_id="44444444-4444-4444-8444-444444444444",
+                user_id=None,
+                title="",
+                project_name="assistant_agent",
+            )
+            session.add(persistent)
+            await session.flush()
+            persistent_rowid = persistent.id
+
+        async with db() as session:
+            loaded = await _refresh_and_load_agent_session(
+                session,
+                agent_session_id=str(GlobalID("AgentSession", str(persistent_rowid))),
+                user_id=None,
+            )
+            assert loaded.id == persistent_rowid
+            assert loaded.expires_at is None
+
+    async def test_rejects_an_expired_temporary_session(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            temporary = models.AgentSession(
+                project_session_id="55555555-5555-4555-8555-555555555555",
+                user_id=None,
+                title="",
+                project_name="assistant_agent",
+                expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            )
+            session.add(temporary)
+            await session.flush()
+            temporary_rowid = temporary.id
+
+        async with db() as session:
+            with pytest.raises(HTTPException) as exc_info:
+                await _refresh_and_load_agent_session(
+                    session,
+                    agent_session_id=str(GlobalID("AgentSession", str(temporary_rowid))),
+                    user_id=None,
+                )
+            assert exc_info.value.status_code == 404
+
+        # The refresh never deletes; the expired row is left for the sweeper.
+        async with db() as session:
+            surviving_rowid = await session.scalar(
+                select(models.AgentSession.id).where(models.AgentSession.id == temporary_rowid)
+            )
+            assert surviving_rowid == temporary_rowid
 
 
 class TestPersistDbTracesAndEmitEvent:

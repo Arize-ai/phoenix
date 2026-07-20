@@ -142,11 +142,47 @@ function AssistantFabModeSetting() {
   );
 }
 
+function AssistantTemporaryChatSetting() {
+  const adminAssistantEnabled = useAgentContext(
+    (state) => state.agentsConfig.assistantEnabled
+  );
+  const isAssistantAgentEnabled = usePreferencesContext(
+    (state) => state.isAssistantAgentEnabled
+  );
+  const defaultTemporaryChat = useAgentContext(
+    (state) => state.defaultTemporaryChat
+  );
+  const setDefaultTemporaryChat = useAgentContext(
+    (state) => state.setDefaultTemporaryChat
+  );
+  return (
+    <li css={settingRowCSS}>
+      <Switch
+        labelPlacement="start"
+        isSelected={defaultTemporaryChat}
+        isDisabled={!adminAssistantEnabled || !isAssistantAgentEnabled}
+        onChange={setDefaultTemporaryChat}
+        css={settingSwitchCSS}
+      >
+        <span className="assistant-personal-settings__label">
+          <Text weight="heavy">Start new chats as temporary</Text>
+          <Text color="text-500" size="S">
+            New chats default to temporary mode and are not saved to your
+            history. You can still toggle each chat before sending its first
+            message.
+          </Text>
+        </span>
+      </Switch>
+    </li>
+  );
+}
+
 function AssistantDisplaySettings() {
   return (
     <ul css={settingsListCSS}>
       <AssistantAgentEnabledSetting />
       <AssistantFabModeSetting />
+      <AssistantTemporaryChatSetting />
     </ul>
   );
 }

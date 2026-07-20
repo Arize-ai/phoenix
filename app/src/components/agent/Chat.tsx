@@ -62,6 +62,7 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
+import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
@@ -144,7 +145,7 @@ const chatCSS = css`
     box-sizing: border-box;
     width: 100%;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     column-gap: var(--global-dimension-size-100);
     row-gap: 0;
@@ -368,6 +369,12 @@ export function ChatView({
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
   const setActiveSession = useAgentContext((state) => state.setActiveSession);
+  const isDraftSessionTemporary = useAgentContext(
+    (state) => state.isDraftSessionTemporary
+  );
+  const setIsDraftSessionTemporary = useAgentContext(
+    (state) => state.setIsDraftSessionTemporary
+  );
 
   const setSessionDraftInput = (input: string | null) => {
     if (!sessionId) {
@@ -416,6 +423,8 @@ export function ChatView({
       ? createPendingElicitationDraft(pendingElicitation.toolCallId)
       : elicitationDraft;
   const canToggleEditPermission = hasAcknowledgedConsent && !pendingElicitation;
+  const canToggleTemporaryChat =
+    sessionId === DRAFT_SESSION_ID && showsEmptyState && !pendingElicitation;
 
   const toggleEditPermission = () => {
     setPermissions({ edits: getNextEditPermissionMode(editPermissionMode) });
@@ -712,18 +721,24 @@ export function ChatView({
               }}
             />
           )}
-          {canToggleEditPermission ? (
+          {canToggleEditPermission || children || canToggleTemporaryChat ? (
             <div className="chat__input-meta">
-              <div className="chat__edit-permissions">
-                <AgentEditPermissionMenu />
-              </div>
+              {canToggleEditPermission ? (
+                <div className="chat__edit-permissions">
+                  <AgentEditPermissionMenu />
+                </div>
+              ) : null}
               {children ? (
                 <div className="chat__children">{children}</div>
               ) : null}
-            </div>
-          ) : children ? (
-            <div className="chat__input-meta">
-              <div className="chat__children">{children}</div>
+              {canToggleTemporaryChat ? (
+                <TemporaryChatToggle
+                  isTemporary={isDraftSessionTemporary}
+                  onToggle={() =>
+                    setIsDraftSessionTemporary(!isDraftSessionTemporary)
+                  }
+                />
+              ) : null}
             </div>
           ) : null}
         </div>

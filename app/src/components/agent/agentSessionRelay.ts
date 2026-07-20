@@ -22,6 +22,7 @@ export const agentSessionQuery = graphql`
       ... on AgentSession {
         id
         title
+        isTemporary
         createdAt
         updatedAt
         messages

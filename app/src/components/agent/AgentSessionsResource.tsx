@@ -122,6 +122,7 @@ function AgentSessionsContent({
             node {
               id
               title
+              isTemporary
               createdAt
               updatedAt
             }
@@ -154,13 +155,16 @@ function AgentSessionsContent({
    * message, so no empty session rows are ever written.
    */
   const startNewSession = useCallback(() => {
+    const state = store.getState();
+    state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
     setActiveSession(DRAFT_SESSION_ID);
-  }, [setActiveSession]);
+  }, [setActiveSession, store]);
 
   const serverSessions: AgentSessionListItem[] = data.agentSessions.edges.map(
     ({ node }) => ({
       id: node.id,
       title: node.title,
+      isTemporary: node.isTemporary,
       createdAt: Date.parse(node.createdAt as string),
       isDeleteDisabled:
         chatStatusBySessionId[node.id] === "submitted" ||
@@ -209,6 +213,8 @@ function AgentSessionsContent({
         // The draft has no server session; deleting it just resets its
         // ephemeral state (draft input, staged message).
         clearSessionEphemeralState(DRAFT_SESSION_ID);
+        const state = store.getState();
+        state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
         return;
       }
       const isDeletingActiveSession = activeSessionId === sessionId;
@@ -249,6 +255,7 @@ function AgentSessionsContent({
       notifyError,
       runtime,
       setActiveSession,
+      store,
     ]
   );
 
@@ -295,6 +302,7 @@ function AgentSessionsContent({
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
+        isActiveSessionTemporary={activeSession?.isTemporary}
         position={position}
         isPositionChangeDisabled={isPositionChangeDisabled}
         onSelectSession={setActiveSession}

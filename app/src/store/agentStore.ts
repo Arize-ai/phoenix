@@ -232,6 +232,15 @@ export interface AgentProps {
    * selected yet (e.g. before the panel picks a session on first open).
    */
   activeSessionId: string | null;
+  /** Whether the not-yet-persisted draft will become a temporary session. */
+  isDraftSessionTemporary: boolean;
+  /**
+   * User preference for whether new chats start in temporary mode. Seeds
+   * {@link isDraftSessionTemporary} whenever a fresh draft begins (app load,
+   * starting a new chat, or after the draft's first message is sent).
+   * Persisted; defaults to false.
+   */
+  defaultTemporaryChat: boolean;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
@@ -255,6 +264,8 @@ export interface AgentState extends AgentProps {
   setFabMode: (mode: AgentFabMode) => void;
   setFabPlacement: (placement: AgentFabPlacement) => void;
   setActiveSession: (sessionId: string | null) => void;
+  setIsDraftSessionTemporary: (isTemporary: boolean) => void;
+  setDefaultTemporaryChat: (defaultTemporaryChat: boolean) => void;
   /**
    * Drops all ephemeral per-session state (chat status, draft input, pending
    * message, elicitation, tool proposals) for a deleted or re-keyed session.
@@ -473,9 +484,15 @@ function mergeAgentPersistedState(
     sessions?: unknown;
     sessionMap?: unknown;
   };
+  const defaultTemporaryChat =
+    typeof persisted.defaultTemporaryChat === "boolean"
+      ? persisted.defaultTemporaryChat
+      : currentState.defaultTemporaryChat;
   return {
     ...currentState,
     ...persisted,
+    defaultTemporaryChat,
+    isDraftSessionTemporary: defaultTemporaryChat,
     observability: {
       ...currentState.observability,
       ...persisted.observability,
@@ -560,6 +577,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     fabMode: "pinned",
     fabPlacement: "bottom-end",
     activeSessionId: null,
+    isDraftSessionTemporary: false,
+    defaultTemporaryChat: false,
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
@@ -597,6 +616,16 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setActiveSession: (sessionId) => {
       set({ activeSessionId: sessionId }, false, { type: "setActiveSession" });
+    },
+    setIsDraftSessionTemporary: (isDraftSessionTemporary) => {
+      set({ isDraftSessionTemporary }, false, {
+        type: "setIsDraftSessionTemporary",
+      });
+    },
+    setDefaultTemporaryChat: (defaultTemporaryChat) => {
+      set({ defaultTemporaryChat }, false, {
+        type: "setDefaultTemporaryChat",
+      });
     },
     clearSessionEphemeralState: (sessionId) => {
       set(
@@ -1057,6 +1086,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         position: state.position,
         fabMode: state.fabMode,
         fabPlacement: state.fabPlacement,
+        defaultTemporaryChat: state.defaultTemporaryChat,
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
         permissions: state.permissions,

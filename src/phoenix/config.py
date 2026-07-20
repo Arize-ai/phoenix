@@ -3641,6 +3641,9 @@ PLAYGROUND_PROJECT_NAME = "playground"
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
 """The time to live for ephemeral experiments in hours."""
 
+TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS = 24
+"""How many hours temporary assistant sessions live after their latest chat turn."""
+
 SYSTEM_USER_ID: Optional[int] = None
 """
 The ID of the system user in the database.
