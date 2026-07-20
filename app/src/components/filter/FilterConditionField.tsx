@@ -73,7 +73,7 @@ export const filterConditionFieldCSS = css`
   &[data-is-invalid="true"] {
     border-color: var(--global-color-danger);
   }
-  .filter-condition-field__search-icon {
+  .filter-condition-field__filter-icon {
     margin-left: var(--global-dimension-static-size-100);
   }
 `;
@@ -272,8 +272,8 @@ export function FilterConditionField(props: FilterConditionFieldProps) {
     >
       <Flex direction="row" alignItems="center" width="100%">
         <Icon
-          svg={<Icons.Search />}
-          className="filter-condition-field__search-icon"
+          svg={<Icons.ListFilter />}
+          className="filter-condition-field__filter-icon"
         />
         <CodeMirror
           aria-label={ariaLabel}

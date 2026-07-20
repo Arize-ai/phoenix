@@ -21,7 +21,11 @@ _ANNOTATION = "annotation"
 _ATTRIBUTE_PROXY_TERMS = ("attributes[...]", "user.id", 'metadata["key"]')
 
 
-@strawberry.type
+@strawberry.type(
+    description="One bindable term in a filter DSL: its name, value type, gloss, and "
+    "grouping. Grain-specific resolvers (e.g. Project.sessionFilterVocabulary) serve "
+    "these as the single source for UI autocomplete, agent discovery, and docs."
+)
 class FilterVocabularyTerm:
     """One bindable term in a filter DSL: its name, value type, gloss, and grouping.
 
@@ -29,10 +33,20 @@ class FilterVocabularyTerm:
     source for UI autocomplete, agent discovery, and docs.
     """
 
-    name: str
-    type: str
-    description: str
-    category: str
+    name: str = strawberry.field(
+        description="The bindable name exactly as written in a filter expression."
+    )
+    type: str = strawberry.field(
+        description="Value-type hint for the comparand: 'string', 'number', or 'datetime'."
+    )
+    description: str = strawberry.field(
+        description="Human-readable gloss of what the term means and how it evaluates."
+    )
+    category: str = strawberry.field(
+        description="Presentation/discovery grouping: 'session' (intrinsic column), "
+        "'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), "
+        "or 'annotation' (session annotation access)."
+    )
 
 
 def session_filter_vocabulary_terms(
