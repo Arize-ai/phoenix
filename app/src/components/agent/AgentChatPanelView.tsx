@@ -30,6 +30,7 @@ import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
 import type { AgentSessionListItem } from "./SessionListMenu";
 import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
+import { TemporarySessionIcon } from "./TemporarySessionIcon";
 
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 520;
@@ -101,6 +102,7 @@ export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
+  isActiveSessionTemporary = false,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
@@ -115,6 +117,7 @@ export function AgentChatHeader({
   sessionDisplayName: string;
   orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
+  isActiveSessionTemporary?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
@@ -131,17 +134,22 @@ export function AgentChatHeader({
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
-  // Only surface the beta badge on the empty/new session, where there is no
-  // summary yet competing for space in the header.
   const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
 
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiAnimatedGlyph isIconSized />
-        <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
-          {sessionDisplayName}
-        </Text>
+        <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
+          <Text
+            weight="heavy"
+            css={sessionHeadingCSS}
+            title={sessionDisplayName}
+          >
+            {sessionDisplayName}
+          </Text>
+          {isActiveSessionTemporary ? <TemporarySessionIcon /> : null}
+        </Flex>
         {showBetaBadge ? (
           <TooltipTrigger delay={0}>
             <Pressable>

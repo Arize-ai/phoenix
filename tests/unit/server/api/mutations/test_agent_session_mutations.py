@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -21,6 +21,7 @@ _CREATE_MUTATION = """
       agentSession {
         id
         title
+        isTemporary
         messages
       }
     }
@@ -44,6 +45,7 @@ _BRANCH_MUTATION = """
       agentSession {
         id
         title
+        isTemporary
         messages
       }
     }
@@ -126,6 +128,7 @@ async def _seed_session_with_transcript(
     db: DbSessionFactory,
     *,
     title: str = "",
+    expires_at: datetime | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
@@ -133,6 +136,7 @@ async def _seed_session_with_transcript(
             user_id=None,
             title=title,
             project_name="assistant_agent",
+            expires_at=expires_at,
         )
         session.add(agent_session)
         await session.flush()
@@ -232,6 +236,29 @@ async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
         )
 
 
+async def test_truncate_agent_session_rejects_an_expired_temporary_session(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    agent_session_id = await _seed_session_with_transcript(
+        db,
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+
+    response = await gql_client.execute(
+        query=_TRUNCATE_MUTATION,
+        variables={"id": agent_session_id, "messageId": "user-2"},
+    )
+
+    assert response.errors
+    assert "No agent session found" in response.errors[0].message
+    # The expired session's transcript is left untouched.
+    async with db() as session:
+        assert len((await session.scalars(select(models.AgentSessionMessage))).all()) == len(
+            _transcript_messages()
+        )
+
+
 async def test_branch_agent_session_copies_the_truncated_transcript(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -307,6 +334,25 @@ async def test_branch_agent_session_copies_the_source_title(
     assert response.data["branchAgentSession"]["agentSession"]["title"] == "Debugging traces"
 
 
+async def test_branch_agent_session_preserves_temporary_mode(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    source_agent_session_id = await _seed_session_with_transcript(
+        db,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    )
+
+    response = await gql_client.execute(
+        query=_BRANCH_MUTATION,
+        variables={"id": source_agent_session_id, "messageId": "assistant-1"},
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["branchAgentSession"]["agentSession"]["isTemporary"] is True
+
+
 async def test_branch_agent_session_at_an_assistant_message_includes_it(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -342,6 +388,27 @@ async def test_branch_agent_session_with_unknown_message_id_is_not_found(
         assert len((await session.scalars(select(models.AgentSession))).all()) == 1
 
 
+async def test_branch_agent_session_rejects_an_expired_temporary_session(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    source_agent_session_id = await _seed_session_with_transcript(
+        db,
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+
+    response = await gql_client.execute(
+        query=_BRANCH_MUTATION,
+        variables={"id": source_agent_session_id, "messageId": "assistant-1"},
+    )
+
+    assert response.errors
+    assert "No agent session found" in response.errors[0].message
+    # No branch session is minted from an expired source.
+    async with db() as session:
+        assert len((await session.scalars(select(models.AgentSession))).all()) == 1
+
+
 async def test_create_agent_session_creates_empty_owned_session(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -354,6 +421,7 @@ async def test_create_agent_session_creates_empty_owned_session(
     assert response.data is not None
     payload = response.data["createAgentSession"]["agentSession"]
     assert payload["title"] == ""
+    assert payload["isTemporary"] is False
     assert payload["messages"] == []
     async with db() as session:
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
@@ -363,7 +431,36 @@ async def test_create_agent_session_creates_empty_owned_session(
         assert agent_session.user_id is None
         assert agent_session.title == ""
         assert agent_session.project_session_id
+        assert agent_session.expires_at is None
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
+
+
+async def test_create_agent_session_can_create_temporary_session(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    before_creation = datetime.now(timezone.utc)
+    response = await gql_client.execute(
+        query="""
+          mutation {
+            createAgentSession(input: { temporary: true }) {
+              agentSession {
+                isTemporary
+              }
+            }
+          }
+        """,
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["createAgentSession"]["agentSession"]["isTemporary"] is True
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.expires_at is not None
+        assert before_creation + timedelta(hours=23) < agent_session.expires_at
+        assert agent_session.expires_at < before_creation + timedelta(hours=25)
 
 
 async def test_create_agent_session_persists_a_trimmed_title(

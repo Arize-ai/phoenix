@@ -7,8 +7,10 @@ import {
   MODAL_OVERLAY_CLASS_NAME,
   MODAL_PORTAL_CONTAINER_ATTR,
 } from "@phoenix/components/core/overlay/constants";
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
+import { EMPTY_SESSION_DISPLAY_NAME } from "../sessionTitleUtils";
 
 type TestBounds = {
   height: number;
@@ -45,6 +47,19 @@ describe("AgentChatHeader", () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        media: "",
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -59,6 +74,74 @@ describe("AgentChatHeader", () => {
       .querySelectorAll(`.${MODAL_OVERLAY_CLASS_NAME}`)
       .forEach((element) => element.remove());
     vi.restoreAllMocks();
+  });
+
+  it("shows the beta badge on a new chat", () => {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <MemoryRouter>
+            <AgentChatHeader
+              sessionDisplayName={EMPTY_SESSION_DISPLAY_NAME}
+              orderedSessions={[]}
+              activeSessionId="draft-1"
+              onSelectSession={vi.fn()}
+              onDeleteSession={vi.fn()}
+              onCreateSession={vi.fn()}
+              onClose={vi.fn()}
+            />
+          </MemoryRouter>
+        </ThemeProvider>
+      );
+    });
+
+    expect(container.textContent).toContain("Beta");
+  });
+
+  it("marks a temporary session next to the title", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            isActiveSessionTemporary={true}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('span[aria-label="Temporary chat"]')
+    ).not.toBeNull();
+  });
+
+  it("shows no temporary marker for a persistent session", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            isActiveSessionTemporary={false}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('span[aria-label="Temporary chat"]')
+    ).toBeNull();
   });
 
   it("switches from pinned to floating mode", () => {

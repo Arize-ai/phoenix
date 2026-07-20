@@ -61,6 +61,7 @@ def upgrade() -> None:
             nullable=True,  # sessions may be created while auth is disabled
         ),
         sa.Column("title", sa.String, nullable=False),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -81,6 +82,13 @@ def upgrade() -> None:
         "ix_agent_sessions_user_id_updated_at",
         "agent_sessions",
         ["user_id", sa.column("updated_at").desc()],
+    )
+    op.create_index(
+        "ix_agent_sessions_expires_at",
+        "agent_sessions",
+        ["expires_at"],
+        postgresql_where=sa.text("expires_at IS NOT NULL"),
+        sqlite_where=sa.text("expires_at IS NOT NULL"),
     )
 
     message = sa.Column("message", JSON_, nullable=False)

@@ -444,6 +444,7 @@ CREATE TABLE public.agent_sessions (
     project_name VARCHAR NOT NULL,
     user_id BIGINT,
     title VARCHAR NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
@@ -455,6 +456,8 @@ CREATE TABLE public.agent_sessions (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_agent_sessions_expires_at ON public.agent_sessions
+    USING btree (expires_at) WHERE (expires_at IS NOT NULL);
 CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
     USING btree (user_id, updated_at DESC);
 

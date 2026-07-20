@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b014b222eebb3ca9358ab2df639d3d8e>>
+ * @generated SignedSource<<40414e54817426e1478c45bbd6c7d006>>
  * @lightSyntaxTransform
  */
 
@@ -110,6 +110,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "isTemporary",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -180,16 +187,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e1a95b24d8070106c2eb3675b73ed496",
+    "cacheID": "4156aeb7cd08dc4f430ff30803a1a7b0",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourcePaginationQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "313915caa2a819e2901c35152d905d93";
+(node as any).hash = "515fe0409f4dbcdc6ccaa745913ce438";
 
 export default node;

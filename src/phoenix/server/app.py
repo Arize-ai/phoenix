@@ -113,6 +113,7 @@ from phoenix.server.api.routers.oauth2_authorization_server import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
+from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
@@ -620,6 +621,7 @@ def _lifespan(
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
+    agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
@@ -674,6 +676,7 @@ def _lifespan(
                 await enqueue_annotations(precursor)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
+            await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
@@ -983,6 +986,7 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
+    agent_session_sweeper = AgentSessionSweeper(db)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
     system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
@@ -1069,6 +1073,7 @@ def create_app(
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
+            agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,

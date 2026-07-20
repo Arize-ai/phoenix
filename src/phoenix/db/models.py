@@ -3268,6 +3268,7 @@ class AgentSession(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     user: Mapped[Optional["User"]] = relationship("User")
     snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
         "AgentSessionSnapshot",
@@ -3286,6 +3287,12 @@ class AgentSession(HasId):
             "ix_agent_sessions_user_id_updated_at",
             "user_id",
             updated_at.desc(),
+        ),
+        Index(
+            "ix_agent_sessions_expires_at",
+            "expires_at",
+            postgresql_where=text("expires_at IS NOT NULL"),
+            sqlite_where=text("expires_at IS NOT NULL"),
         ),
         dict(sqlite_autoincrement=True),
     )

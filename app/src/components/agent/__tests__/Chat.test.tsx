@@ -83,6 +83,7 @@ function renderChatView(
     error,
     status = "ready",
     initialDraftInputBySessionId,
+    isDraftSessionTemporary,
     sendMessage = vi.fn<ChatViewSendMessage>(),
     rewindToMessage,
     forkFromMessage,
@@ -94,6 +95,7 @@ function renderChatView(
     error?: Error;
     status?: "ready" | "error";
     initialDraftInputBySessionId?: Record<string, string>;
+    isDraftSessionTemporary?: boolean;
     sendMessage?: ChatViewSendMessage;
     rewindToMessage?: (messageId: string) => Promise<string | null>;
     forkFromMessage?: (messageId: string) => void;
@@ -128,6 +130,9 @@ function renderChatView(
           }}
           {...(initialDraftInputBySessionId
             ? { draftInputBySessionId: initialDraftInputBySessionId }
+            : {})}
+          {...(isDraftSessionTemporary != null
+            ? { isDraftSessionTemporary }
             : {})}
         >
           <ChatView
