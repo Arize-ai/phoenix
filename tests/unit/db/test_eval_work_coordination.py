@@ -171,12 +171,11 @@ async def test_eval_work_unit_accepts_expired_status(db: DbSessionFactory) -> No
         assert fetched.status == "EXPIRED"
 
 
-async def test_per_grain_work_units_are_generation_aware(db: DbSessionFactory) -> None:
+async def test_session_work_units_are_generation_aware(db: DbSessionFactory) -> None:
     _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
         project_session_id = project_session.id
         session.add_all(
             [
@@ -194,23 +193,14 @@ async def test_per_grain_work_units_are_generation_aware(db: DbSessionFactory) -
                     config_fingerprint="session-fp",
                     generation=1,
                 ),
-                models.EvalTraceWorkUnit(
-                    trace_rowid=trace.id,
-                    evaluator_id=evaluator_id,
-                    criteria_id=criteria_id,
-                    config_fingerprint="trace-fp",
-                ),
             ]
         )
         await session.flush()
 
     async with db() as session:
         session_units = list(await session.scalars(select(models.EvalSessionWorkUnit)))
-        trace_unit = (await session.scalars(select(models.EvalTraceWorkUnit))).one()
         assert {unit.generation for unit in session_units} == {0, 1}
         assert all(unit.status == "PENDING" for unit in session_units)
-        assert trace_unit.generation == 0
-        assert trace_unit.status == "PENDING"
 
     with pytest.raises(Exception):
         async with db() as session:
@@ -233,19 +223,12 @@ async def test_activity_rows_survive_latest_span_deletion(db: DbSessionFactory) 
         trace = await _add_trace(session, project, project_session)
         span = await _add_span(session, trace)
         project_session_id = project_session.id
-        trace_id = trace.id
         span_id = span.id
-        session.add_all(
-            [
-                models.EvalSessionActivity(
-                    project_session_rowid=project_session_id,
-                    last_seen_span_rowid=span_id,
-                ),
-                models.EvalTraceActivity(
-                    trace_rowid=trace_id,
-                    last_seen_span_rowid=span_id,
-                ),
-            ]
+        session.add(
+            models.EvalSessionActivity(
+                project_session_rowid=project_session_id,
+                last_seen_span_rowid=span_id,
+            )
         )
 
     async with db() as session:
@@ -255,34 +238,19 @@ async def test_activity_rows_survive_latest_span_deletion(db: DbSessionFactory) 
                 selectinload(models.EvalSessionActivity.last_seen_span),
             )
         )
-        trace_activity = await session.scalar(
-            select(models.EvalTraceActivity).options(
-                selectinload(models.EvalTraceActivity.trace),
-                selectinload(models.EvalTraceActivity.last_seen_span),
-            )
-        )
         assert session_activity is not None
         assert session_activity.project_session.id == project_session_id
         assert session_activity.last_seen_span is not None
         assert session_activity.last_seen_span.id == span_id
         assert session_activity.observed_at is not None
-        assert trace_activity is not None
-        assert trace_activity.trace.id == trace_id
-        assert trace_activity.last_seen_span is not None
-        assert trace_activity.last_seen_span.id == span_id
-        assert trace_activity.observed_at is not None
-
         fetched_span = await session.get(models.Span, span_id)
         assert fetched_span is not None
         await session.delete(fetched_span)
 
     async with db() as session:
         session_activity = await session.scalar(select(models.EvalSessionActivity))
-        trace_activity = await session.scalar(select(models.EvalTraceActivity))
         assert session_activity is not None
         assert session_activity.last_seen_span_rowid is None
-        assert trace_activity is not None
-        assert trace_activity.last_seen_span_rowid is None
 
 
 async def test_project_evaluator_criteria_defaults_and_relationships(
