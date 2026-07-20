@@ -103,6 +103,7 @@ const createAgentSessionMutation = graphql`
         ) {
         id
         title
+        isTemporary
         createdAt
         updatedAt
       }
@@ -138,6 +139,7 @@ const branchAgentSessionMutation = graphql`
         ) {
         id
         title
+        isTemporary
         createdAt
         updatedAt
         messages
@@ -477,7 +479,10 @@ export function useAgentChat({
     }
     isCreatingSessionRef.current = true;
     commitCreateAgentSession({
-      variables: { input: {}, connections: [sessionsConnectionId] },
+      variables: {
+        input: { temporary: store.getState().isDraftSessionTemporary },
+        connections: [sessionsConnectionId],
+      },
       onCompleted: (response) => {
         isCreatingSessionRef.current = false;
         const newSessionId = response.createAgentSession.agentSession.id;
@@ -494,6 +499,7 @@ export function useAgentChat({
         );
         const state = store.getState();
         state.clearSessionEphemeralState(DRAFT_SESSION_ID);
+        state.setIsDraftSessionTemporary(false);
         state.setActiveSession(newSessionId);
       },
       onError: (mutationError) => {

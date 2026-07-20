@@ -90,6 +90,9 @@ type AgentSession implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
 
+  """Whether the session expires after a period of inactivity."""
+  isTemporary: Boolean!
+
   """The persisted transcript as Vercel AI UIMessage JSON objects."""
   messages: JSON!
 }
@@ -728,6 +731,9 @@ type CostBreakdown {
 input CreateAgentSessionInput {
   """Optional initial title."""
   title: String! = ""
+
+  """Whether the session should expire after a period of inactivity."""
+  temporary: Boolean! = false
 }
 
 type CreateAgentSessionMutationPayload {

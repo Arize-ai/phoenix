@@ -1,5 +1,6 @@
 """Mutations for persisted assistant chat sessions."""
 
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import strawberry
@@ -9,7 +10,10 @@ from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import get_env_phoenix_agents_assistant_project_name
+from phoenix.config import (
+    TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS,
+    get_env_phoenix_agents_assistant_project_name,
+)
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
@@ -25,6 +29,10 @@ class CreateAgentSessionInput:
     title: str = strawberry.field(
         default="",
         description=("Optional initial title."),
+    )
+    temporary: bool = strawberry.field(
+        default=False,
+        description="Whether the session should expire after a period of inactivity.",
     )
 
 
@@ -99,6 +107,12 @@ class AgentSessionMutationMixin:
                 user_id=info.context.user_id,
                 title=input.title.strip(),
                 project_name=get_env_phoenix_agents_assistant_project_name(),
+                expires_at=(
+                    datetime.now(timezone.utc)
+                    + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
+                    if input.temporary
+                    else None
+                ),
             )
             session.add(agent_session)
             await session.flush()
@@ -196,6 +210,12 @@ class AgentSessionMutationMixin:
                 user_id=info.context.user_id,
                 title=source_session.title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
+                expires_at=(
+                    datetime.now(timezone.utc)
+                    + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
+                    if source_session.expires_at is not None
+                    else None
+                ),
             )
             session.add(branch_session)
             await session.flush()

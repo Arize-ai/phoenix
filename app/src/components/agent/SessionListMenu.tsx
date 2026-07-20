@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
 import {
-  Badge,
   Button,
   Flex,
   Icon,
@@ -20,6 +19,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
 import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
+import { TemporarySessionIcon } from "./TemporarySessionIcon";
 
 /**
  * Props for the session list menu.
@@ -190,7 +190,7 @@ function SessionMenuItem({
       <Flex direction="column" gap="size-50">
         <Flex direction="row" alignItems="center" gap="size-100">
           <Text>{displayName}</Text>
-          {session.isTemporary ? <Badge>Temporary</Badge> : null}
+          {session.isTemporary ? <TemporarySessionIcon /> : null}
         </Flex>
         {dateLabel && (
           <Text size="XS" color="text-300">

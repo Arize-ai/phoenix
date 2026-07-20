@@ -14,6 +14,7 @@ const temporaryChatTooltipCSS = css`
 `;
 
 const temporaryChatToggleCSS = css`
+  justify-self: end;
   color: var(--global-text-color-300);
 
   .theme--light & {

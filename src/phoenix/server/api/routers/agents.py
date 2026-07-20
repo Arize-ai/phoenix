@@ -67,6 +67,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
+    TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS,
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
@@ -148,8 +149,6 @@ from phoenix.tracers import (
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
 _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
-
-_TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS = 24
 
 register_openapi_schema(ToolCallProviderMetadata)
 register_openapi_schema(ToolCallCallbackProviderMetadata)
@@ -1208,7 +1207,7 @@ async def _refresh_and_load_agent_session(
     except ValueError:
         raise HTTPException(status_code=404, detail="Session not found") from None
     now = datetime.now(timezone.utc)
-    refreshed_expiry = now + timedelta(hours=_TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
+    refreshed_expiry = now + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
     session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None

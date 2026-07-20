@@ -78,6 +78,18 @@ class AgentSession(Node):
         return updated_at
 
     @strawberry.field(
+        description="Whether the session expires after a period of inactivity.",
+    )  # type: ignore
+    async def is_temporary(self, info: Info[Context, None]) -> bool:
+        await self._ensure_access(info)
+        if self.db_record:
+            return self.db_record.expires_at is not None
+        expires_at = await info.context.data_loaders.agent_session_fields.load(
+            (self.id, models.AgentSession.expires_at),
+        )
+        return expires_at is not None
+
+    @strawberry.field(
         description="The persisted transcript as Vercel AI UIMessage JSON objects.",
     )  # type: ignore
     async def messages(self, info: Info[Context, None]) -> JSON:

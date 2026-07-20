@@ -60,6 +60,16 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setIsDraftSessionTemporary", () => {
+    it("toggles whether the draft becomes temporary", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().isDraftSessionTemporary).toBe(false);
+      store.getState().setIsDraftSessionTemporary(true);
+      expect(store.getState().isDraftSessionTemporary).toBe(true);
+    });
+  });
+
   describe("clearSessionEphemeralState", () => {
     it("drops a session's pending patch, draft input, pending message, and chat status", () => {
       const store = createAgentStore();

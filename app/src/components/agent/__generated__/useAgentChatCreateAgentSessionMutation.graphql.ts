@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bcbd1bfb283d31d4a9358efeac441831>>
+ * @generated SignedSource<<c163a63b3a96f9606323955d35c866a5>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type CreateAgentSessionInput = {
+  temporary?: boolean;
   title?: string;
 };
 export type useAgentChatCreateAgentSessionMutation$variables = {
@@ -20,6 +21,7 @@ export type useAgentChatCreateAgentSessionMutation$data = {
     readonly agentSession: {
       readonly createdAt: string;
       readonly id: string;
+      readonly isTemporary: boolean;
       readonly title: string;
       readonly updatedAt: string;
     };
@@ -68,6 +70,13 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "title",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "isTemporary",
       "storageKey": null
     },
     {
@@ -158,16 +167,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9dcb44129dde770e9ea830eb46d9d863",
+    "cacheID": "abb248e86813c760e8fd36d284db7cd9",
     "id": null,
     "metadata": {},
     "name": "useAgentChatCreateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      createdAt\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7ca6a4ee4f7929eb17d6c15c32cb7753";
+(node as any).hash = "e37f340939e99201944a8fc5668a6098";
 
 export default node;
