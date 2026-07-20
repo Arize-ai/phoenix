@@ -582,6 +582,7 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         for part in persisted_assistant.message.parts
     )
 
+
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
     trace_id = "931b2fbce00d0b18834637856fa72c7e"
     root_span_id = "f66a81825e150dc1"
