@@ -53,7 +53,7 @@ Is the response helpful or unhelpful?
 async function main() {
   const prompt = "What's the weather like in Tokyo right now?";
 
-  console.log(`\n🤖 Asking: ${prompt}\n`);
+  console.log(`\n💬 Asking: ${prompt}\n`);
 
   const result = await generateText({
     model: openai("gpt-4o-mini"),
@@ -64,7 +64,7 @@ async function main() {
     stopWhen: stepCountIs(3),
   });
 
-  console.log(`💬 Response: ${result.text}\n`);
+  console.log(`🤖 Response: ${result.text}\n`);
 
   const evaluation = await helpfulnessEvaluator.evaluate({
     input: prompt,
