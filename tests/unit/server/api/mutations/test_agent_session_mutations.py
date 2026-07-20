@@ -236,6 +236,29 @@ async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
         )
 
 
+async def test_truncate_agent_session_rejects_an_expired_temporary_session(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    agent_session_id = await _seed_session_with_transcript(
+        db,
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+
+    response = await gql_client.execute(
+        query=_TRUNCATE_MUTATION,
+        variables={"id": agent_session_id, "messageId": "user-2"},
+    )
+
+    assert response.errors
+    assert "No agent session found" in response.errors[0].message
+    # The expired session's transcript is left untouched.
+    async with db() as session:
+        assert len((await session.scalars(select(models.AgentSessionMessage))).all()) == len(
+            _transcript_messages()
+        )
+
+
 async def test_branch_agent_session_copies_the_truncated_transcript(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -361,6 +384,27 @@ async def test_branch_agent_session_with_unknown_message_id_is_not_found(
 
     assert response.errors
     assert "No message found" in response.errors[0].message
+    async with db() as session:
+        assert len((await session.scalars(select(models.AgentSession))).all()) == 1
+
+
+async def test_branch_agent_session_rejects_an_expired_temporary_session(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    source_agent_session_id = await _seed_session_with_transcript(
+        db,
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+
+    response = await gql_client.execute(
+        query=_BRANCH_MUTATION,
+        variables={"id": source_agent_session_id, "messageId": "assistant-1"},
+    )
+
+    assert response.errors
+    assert "No agent session found" in response.errors[0].message
+    # No branch session is minted from an expired source.
     async with db() as session:
         assert len((await session.scalars(select(models.AgentSession))).all()) == 1
 
