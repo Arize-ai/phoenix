@@ -1579,7 +1579,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/agents/{agent_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1589,24 +1589,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Chat */
-        post: operations["chat_agents__agent_id__sessions__session_id__chat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/agents/{agent_id}/sessions/{session_id}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Summarize Endpoint */
-        post: operations["summarize_endpoint_agents__agent_id__sessions__session_id__summary_post"];
+        post: operations["chat_agents__agent_id__chat_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1827,7 +1810,7 @@ export interface components {
         };
         /**
          * AssistantMessageMetadata
-         * @description Wire schema for the chat stream's `message_metadata` payload.
+         * @description Wire schema for the chat stream's ``message_metadata`` payload.
          */
         AssistantMessageMetadata: {
             /**
@@ -1840,6 +1823,8 @@ export interface components {
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+        } & {
+            [key: string]: unknown;
         };
         /** AssistantMessageMetadataTraceIds */
         AssistantMessageMetadataTraceIds: {
@@ -1972,6 +1957,8 @@ export interface components {
             attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
             /**
              * Editpermission
              * @default manual
@@ -2026,6 +2013,8 @@ export interface components {
             attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /** Agentsessionid */
+            agentSessionId?: string | null;
             /**
              * Editpermission
              * @default manual
@@ -3590,7 +3579,7 @@ export interface components {
         };
         /**
          * PhoenixUIMessage
-         * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+         * @description ``UIMessage`` with metadata narrowed to the Phoenix wire shapes.
          */
         PhoenixUIMessage: {
             /** Id */
@@ -5677,23 +5666,6 @@ export interface components {
              */
             startedAt: string;
         };
-        /**
-         * UIMessage
-         * @description A message as displayed in the UI by Vercel AI Elements.
-         */
-        UIMessage: {
-            /** Id */
-            id: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "system" | "user" | "assistant";
-            /** Metadata */
-            metadata?: unknown | null;
-            /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
-        };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
             /** Data */
@@ -5916,38 +5888,83 @@ export interface components {
             enabled: boolean;
         };
         /**
-         * _SummarizeRequest
-         * @description Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
+         * SessionCreatedChunk
+         * @description Transient canonical metadata for an owner-qualified persisted session.
          *
-         *     Carries the Vercel-style messages array; the backend owns the prompt and
-         *     the structured-output tool schema.
+         *     Repeated acknowledgements let a retry reconcile clients that disconnected
+         *     before receiving the first stream's event.
          */
-        _SummarizeRequest: {
+        SessionCreatedChunk: {
             /**
-             * Ingesttraces
-             * @default false
+             * Type
+             * @default data-session-created
+             * @constant
              */
-            ingestTraces?: boolean;
+            type?: "data-session-created";
             /**
-             * Exportremotetraces
-             * @default false
+             * Id
+             * @default null
              */
-            exportRemoteTraces?: boolean;
+            id?: string | null;
+            data: components["schemas"]["SessionCreatedData"];
             /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
+             * Transient
+             * @default true
+             * @constant
              */
-            attachUserId?: boolean;
-            /** Messages */
-            messages: components["schemas"]["UIMessage"][];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            transient?: true;
         };
-        /** _SummarizeResponse */
-        _SummarizeResponse: {
-            /** Summary */
-            summary: string;
+        /**
+         * SessionCreatedData
+         * @description Canonical Relay metadata for a newly persisted assistant session.
+         */
+        SessionCreatedData: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /**
+         * SessionSummaryChunk
+         * @description Transient ``data-session-summary`` stream chunk: the LLM-generated
+         *     session title, emitted on any turn that starts with the session still
+         *     untitled. Being transient, it reaches the client's ``onData`` callback
+         *     but is never appended to the message parts.
+         *
+         *     See the Vercel AI SDK data stream protocol:
+         *         - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts
+         *         - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral
+         */
+        SessionSummaryChunk: {
+            /**
+             * Type
+             * @default data-session-summary
+             * @constant
+             */
+            type?: "data-session-summary";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            /** Data */
+            data: string;
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
         };
         /**
          * ToolCallCallbackProviderMetadata
@@ -5957,25 +5974,25 @@ export interface components {
          */
         ToolCallCallbackProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
             /**
-             * Client Started At
+             * Clientstartedat
              * @default null
              */
-            client_started_at?: string | null;
+            clientStartedAt?: string | null;
             /**
-             * Client Ended At
+             * Clientendedat
              * @default null
              */
-            client_ended_at?: string | null;
+            clientEndedAt?: string | null;
         };
         /**
          * ToolCallProviderMetadata
@@ -5985,15 +6002,15 @@ export interface components {
          */
         ToolCallProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
         };
     };
     responses: never;
@@ -10928,13 +10945,12 @@ export interface operations {
             };
         };
     };
-    chat_agents__agent_id__sessions__session_id__chat_post: {
+    chat_agents__agent_id__chat_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 agent_id: string;
-                session_id: string;
             };
             cookie?: never;
         };
@@ -10951,42 +10967,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                agent_id: string;
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["_SummarizeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["_SummarizeResponse"];
                 };
             };
             /** @description Validation Error */

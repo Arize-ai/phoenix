@@ -3,7 +3,6 @@ import { isToolUIPart } from "ai";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
-import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
 import {
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
@@ -17,11 +16,16 @@ import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
 
+export type AgentModelSelection =
+  components["schemas"]["ChatSubmitMessage"]["model"];
+
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
   body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
+  /** Node ID for agent session. */
+  agentSessionId?: string | null;
   /** Full UI message history sent with the request. */
   messages: AgentUIMessage[];
   /** Reason the transport is sending this request. */
@@ -54,7 +58,7 @@ type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
  */
 type ClientToolTimingMetadata = Pick<
   components["schemas"]["ToolCallCallbackProviderMetadata"],
-  "client_started_at" | "client_ended_at"
+  "clientStartedAt" | "clientEndedAt"
 >;
 
 export type AgentChatRequestBodyPatch = Pick<
@@ -104,6 +108,7 @@ function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
 export function buildAgentChatRequestBody({
   body,
   id,
+  agentSessionId = null,
   messages,
   trigger,
   messageId,
@@ -129,6 +134,7 @@ export function buildAgentChatRequestBody({
   return {
     ...body,
     id,
+    agentSessionId,
     messages: toServerSafeUIMessages(
       enrichMessagesWithClientToolTimings({ messages, toolTimings })
     ),
@@ -170,8 +176,8 @@ export function enrichMessagesWithClientToolTimings({
       }
       hasChangedPart = true;
       const timingMetadata: ClientToolTimingMetadata = {
-        client_started_at: timing.startedAt,
-        client_ended_at: timing.endedAt,
+        clientStartedAt: timing.startedAt,
+        clientEndedAt: timing.endedAt,
       };
       return {
         ...part,

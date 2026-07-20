@@ -1079,20 +1079,30 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
-class FieldSummarizeResponse(TypedDict):
-    summary: str
+class SessionCreatedData(TypedDict):
+    id: str
+    title: str
+    createdAt: str
+    updatedAt: str
+
+
+class SessionSummaryChunk(TypedDict):
+    type: Literal["data-session-summary"]
+    data: str
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class ToolCallCallbackProviderMetadata(TypedDict):
-    tool_execution_environment: Literal["client", "server"]
-    tool_input_emitted_at: NotRequired[str]
-    client_started_at: NotRequired[str]
-    client_ended_at: NotRequired[str]
+    toolExecutionEnvironment: Literal["client", "server"]
+    toolInputEmittedAt: NotRequired[str]
+    clientStartedAt: NotRequired[str]
+    clientEndedAt: NotRequired[str]
 
 
 class ToolCallProviderMetadata(TypedDict):
-    tool_execution_environment: Literal["client", "server"]
-    tool_input_emitted_at: NotRequired[str]
+    toolExecutionEnvironment: Literal["client", "server"]
+    toolInputEmittedAt: NotRequired[str]
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
@@ -1611,37 +1621,6 @@ class TraceData(TypedDict):
     spans: NotRequired[Sequence[TraceSpanData]]
 
 
-class UIMessage(TypedDict):
-    id: str
-    role: Literal["system", "user", "assistant"]
-    parts: Sequence[
-        Union[
-            TextUIPart,
-            ReasoningUIPart,
-            ToolInputStreamingPart,
-            ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
-            ToolApprovalRequestedPart,
-            ToolApprovalRespondedPart,
-            ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
-            DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
-            DynamicToolApprovalRequestedPart,
-            DynamicToolApprovalRespondedPart,
-            DynamicToolOutputDeniedPart,
-            SourceUrlUIPart,
-            SourceDocumentUIPart,
-            FileUIPart,
-            DataUIPart,
-            StepStartUIPart,
-        ]
-    ]
-    metadata: NotRequired[Any]
-
-
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1650,12 +1629,11 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
-class FieldSummarizeRequest(TypedDict):
-    messages: Sequence[UIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
+class SessionCreatedChunk(TypedDict):
+    type: Literal["data-session-created"]
+    data: SessionCreatedData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class AssignAnnotationConfigToProjectResponseBody(TypedDict):
@@ -1773,6 +1751,7 @@ class ChatRegenerateMessage(TypedDict):
             ]
         ]
     ]
+    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
@@ -1806,6 +1785,7 @@ class ChatSubmitMessage(TypedDict):
             ]
         ]
     ]
+    agentSessionId: NotRequired[str]
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]

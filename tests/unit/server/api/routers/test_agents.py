@@ -6,11 +6,14 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+import pytest
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
@@ -18,12 +21,15 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    _create_agent_session,
     _interleave_agent_and_subagent_message_chunks,
+    _load_agent_session,
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
     _persist_db_traces_and_emit_event,
     _SubagentMessageChunksClosed,
+    _update_agent_session,
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
@@ -36,6 +42,84 @@ class _EventQueue:
 
     def put(self, item: DmlEvent) -> None:
         self.events.append(item)
+
+
+class TestAgentSessionPersistence:
+    async def test_create_load_and_final_update_does_not_recreate_deleted_session(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        messages = [PhoenixUIMessage(id="message-1", role="user", parts=[])]
+        async with db() as session:
+            created = await _create_agent_session(
+                session,
+                otel_session_id="11111111-1111-4111-8111-111111111111",
+                user_id=None,
+                messages=messages,
+                project_name="assistant_agent",
+            )
+            assert created is not None
+            assert created.project_session_id == "11111111-1111-4111-8111-111111111111"
+            created_rowid = created.id
+            created_project_session_id = created.project_session_id
+
+        async with db() as session:
+            loaded = await _load_agent_session(
+                session,
+                agent_session_id=str(GlobalID("AgentSession", str(created_rowid))),
+                user_id=None,
+            )
+            assert loaded is not None
+            assert loaded.id == created_rowid
+            assert loaded.project_session_id == created_project_session_id
+            await session.execute(
+                delete(models.AgentSession).where(models.AgentSession.id == created_rowid)
+            )
+
+        async with db() as session:
+            updated_rowid = await _update_agent_session(
+                session,
+                agent_session_rowid=created_rowid,
+                user_id=None,
+                title="title",
+            )
+            assert updated_rowid is None
+            assert await session.scalar(select(models.AgentSession.id)) is None
+
+    async def test_create_asserts_messages_are_nonempty(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            with pytest.raises(AssertionError):
+                await _create_agent_session(
+                    session,
+                    otel_session_id="11111111-1111-4111-8111-111111111111",
+                    user_id=None,
+                    messages=[],
+                    project_name="assistant_agent",
+                )
+
+    async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            first = models.AgentSession(
+                project_session_id="11111111-1111-4111-8111-111111111111",
+                user_id=None,
+                title="first",
+                project_name="assistant_agent",
+            )
+            session.add(first)
+            await session.flush()
+            first_rowid = first.id
+            await session.delete(first)
+
+        async with db() as session:
+            second = models.AgentSession(
+                project_session_id="22222222-2222-4222-8222-222222222222",
+                user_id=None,
+                title="second",
+                project_name="assistant_agent",
+            )
+            session.add(second)
+            await session.flush()
+            assert second.id > first_rowid
 
 
 class TestPersistDbTracesAndEmitEvent:

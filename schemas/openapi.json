@@ -8005,13 +8005,13 @@
         }
       }
     },
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/agents/{agent_id}/chat": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Chat",
-        "operationId": "chat_agents__agent_id__sessions__session_id__chat_post",
+        "operationId": "chat_agents__agent_id__chat_post",
         "parameters": [
           {
             "name": "agent_id",
@@ -8020,15 +8020,6 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
-            }
-          },
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
             }
           }
         ],
@@ -8048,67 +8039,6 @@
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/agents/{agent_id}/sessions/{session_id}/summary": {
-      "post": {
-        "tags": [
-          "chat"
-        ],
-        "summary": "Summarize Endpoint",
-        "operationId": "summarize_endpoint_agents__agent_id__sessions__session_id__summary_post",
-        "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Agent Id"
-            }
-          },
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/_SummarizeRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/_SummarizeResponse"
-                }
               }
             }
           },
@@ -8636,12 +8566,13 @@
             ]
           }
         },
+        "additionalProperties": true,
         "type": "object",
         "required": [
           "sessionId"
         ],
         "title": "AssistantMessageMetadata",
-        "description": "Wire schema for the chat stream's `message_metadata` payload."
+        "description": "Wire schema for the chat stream's ``message_metadata`` payload."
       },
       "AssistantMessageMetadataTraceIds": {
         "properties": {
@@ -8654,6 +8585,7 @@
             "title": "Rootspanid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "traceId",
@@ -8677,6 +8609,7 @@
             ]
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "tokens"
@@ -8694,6 +8627,7 @@
             "title": "Cachewrite"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "cacheRead",
@@ -8716,6 +8650,7 @@
             "title": "Total"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "prompt",
@@ -8989,6 +8924,17 @@
             "type": "array",
             "title": "Contexts"
           },
+          "agentSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentsessionid"
+          },
           "editPermission": {
             "type": "string",
             "enum": [
@@ -9106,6 +9052,17 @@
             },
             "type": "array",
             "title": "Contexts"
+          },
+          "agentSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentsessionid"
           },
           "editPermission": {
             "type": "string",
@@ -13193,7 +13150,7 @@
           "parts"
         ],
         "title": "PhoenixUIMessage",
-        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."
+        "description": "``UIMessage`` with metadata narrowed to the Phoenix wire shapes."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
@@ -17902,6 +17859,7 @@
             "title": "Startedat"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "traceId",
@@ -17909,112 +17867,6 @@
           "startedAt"
         ],
         "title": "TurnTraceContext"
-      },
-      "UIMessage": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "system",
-              "user",
-              "assistant"
-            ],
-            "title": "Role"
-          },
-          "metadata": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metadata"
-          },
-          "parts": {
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/TextUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceUrlUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceDocumentUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/FileUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DataUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/StepStartUIPart"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Parts"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "role",
-          "parts"
-        ],
-        "title": "UIMessage",
-        "description": "A message as displayed in the UI by Vercel AI Elements."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {
@@ -18466,6 +18318,7 @@
             "title": "Timezone"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "currentDateTime",
@@ -18534,84 +18387,127 @@
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
       },
-      "_SummarizeRequest": {
+      "SessionCreatedChunk": {
+        "additionalProperties": false,
+        "description": "Transient canonical metadata for an owner-qualified persisted session.\n\nRepeated acknowledgements let a retry reconcile clients that disconnected\nbefore receiving the first stream's event.",
         "properties": {
-          "ingestTraces": {
-            "type": "boolean",
-            "title": "Ingesttraces",
-            "default": false
+          "type": {
+            "const": "data-session-created",
+            "default": "data-session-created",
+            "title": "Type",
+            "type": "string"
           },
-          "exportRemoteTraces": {
-            "type": "boolean",
-            "title": "Exportremotetraces",
-            "default": false
-          },
-          "attachUserId": {
-            "type": "boolean",
-            "title": "Attachuserid",
-            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
-            "default": false
-          },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/UIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "model": {
-            "oneOf": [
+          "id": {
+            "anyOf": [
               {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
+                "type": "string"
               },
               {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+                "type": "null"
               }
             ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SessionCreatedData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
           }
         },
-        "type": "object",
         "required": [
-          "messages",
-          "model"
+          "data"
         ],
-        "title": "_SummarizeRequest",
-        "description": "Body for POST /agents/{agent_id}/sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
+        "title": "SessionCreatedChunk",
+        "type": "object"
       },
-      "_SummarizeResponse": {
+      "SessionCreatedData": {
+        "description": "Canonical Relay metadata for a newly persisted assistant session.",
         "properties": {
-          "summary": {
-            "type": "string",
-            "title": "Summary"
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
           }
         },
-        "type": "object",
         "required": [
-          "summary"
+          "id",
+          "title",
+          "createdAt",
+          "updatedAt"
         ],
-        "title": "_SummarizeResponse"
+        "title": "SessionCreatedData",
+        "type": "object"
+      },
+      "SessionSummaryChunk": {
+        "additionalProperties": false,
+        "description": "Transient ``data-session-summary`` stream chunk: the LLM-generated\nsession title, emitted on any turn that starts with the session still\nuntitled. Being transient, it reaches the client's ``onData`` callback\nbut is never appended to the message parts.\n\nSee the Vercel AI SDK data stream protocol:\n    - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts\n    - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral",
+        "properties": {
+          "type": {
+            "const": "data-session-summary",
+            "default": "data-session-summary",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "title": "Data",
+            "type": "string"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionSummaryChunk",
+        "type": "object"
       },
       "ToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -18621,9 +18517,9 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           },
-          "client_started_at": {
+          "clientStartedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -18633,9 +18529,9 @@
               }
             ],
             "default": null,
-            "title": "Client Started At"
+            "title": "Clientstartedat"
           },
-          "client_ended_at": {
+          "clientEndedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -18645,11 +18541,11 @@
               }
             ],
             "default": null,
-            "title": "Client Ended At"
+            "title": "Clientendedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallCallbackProviderMetadata",
         "type": "object"
@@ -18658,15 +18554,15 @@
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
         "properties": {
-          "tool_execution_environment": {
+          "toolExecutionEnvironment": {
             "enum": [
               "client",
               "server"
             ],
-            "title": "Tool Execution Environment",
+            "title": "Toolexecutionenvironment",
             "type": "string"
           },
-          "tool_input_emitted_at": {
+          "toolInputEmittedAt": {
             "anyOf": [
               {
                 "type": "string"
@@ -18676,11 +18572,11 @@
               }
             ],
             "default": null,
-            "title": "Tool Input Emitted At"
+            "title": "Toolinputemittedat"
           }
         },
         "required": [
-          "tool_execution_environment"
+          "toolExecutionEnvironment"
         ],
         "title": "ToolCallProviderMetadata",
         "type": "object"

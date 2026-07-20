@@ -1,15 +1,51 @@
-import warnings
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
+"""Behavioral tests for the agents router.
 
+Tests cover both router-level helpers and observable behavior through the
+public chat route. The LLM is the only mocked seam in behavioral tests.
+"""
+
+import json
+import warnings
+from collections.abc import AsyncIterator
+from datetime import datetime, timedelta, timezone
+from typing import Any
+from unittest.mock import MagicMock
+from uuid import UUID
+
+import httpx
+import pytest
+from fastapi import FastAPI
+from openinference.instrumentation import OITracer, TraceConfig
+from openinference.semconv.resource import ResourceAttributes
+from opentelemetry.sdk.trace import TracerProvider
 from pydantic_ai import RunUsage
-from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.ui.vercel_ai.response_types import (
+    BaseChunk,
+    DataChunk,
+    FinishChunk,
+    FinishStepChunk,
+    MessageMetadataChunk,
+    StartChunk,
+    StartStepChunk,
+    TextDeltaChunk,
+    TextEndChunk,
+    TextStartChunk,
+)
 from sqlalchemy import func, select
 from sqlalchemy.exc import SAWarning
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TurnTraceContext, UIMessage
+from phoenix.server.agents.data_stream_protocol import (
+    accumulate_ui_message_chunks_to_ui_messages,
+)
+from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.routers.agents import (
-    TurnTraceContext,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -18,8 +54,244 @@ from phoenix.server.api.routers.agents import (
     _synthesize_client_tool_spans,
     _turn_parent_context,
 )
+from phoenix.server.settings.registry import AgentTraceRecordingSetting
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, extract_otel_context
+
+_BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
+
+
+def _user_message(text: str, *, message_id: str = "msg-user-1") -> dict[str, Any]:
+    return {
+        "id": message_id,
+        "role": "user",
+        "parts": [{"type": "text", "text": text}],
+    }
+
+
+def _chat_url() -> str:
+    return "/agents/assistant/chat"
+
+
+def _chat_body(
+    session_id: str,
+    messages: list[dict[str, Any]],
+    *,
+    agent_session_id: str | None = None,
+    **overrides: Any,
+) -> dict[str, Any]:
+    return {
+        "trigger": "submit-message",
+        "id": session_id,
+        "agentSessionId": agent_session_id,
+        "messages": messages,
+        "model": {
+            "providerType": "builtin",
+            "provider": "OPENAI",
+            "modelName": "gpt-test",
+        },
+        **overrides,
+    }
+
+
+def _stream_chunks(response_text: str) -> list[dict[str, Any]]:
+    """Parse the Vercel AI SSE data stream into its JSON chunks."""
+    chunks = []
+    for line in response_text.splitlines():
+        if line.startswith("data: ") and line != "data: [DONE]":
+            chunks.append(json.loads(line[len("data: ") :]))
+    return chunks
+
+
+def _created_agent_session_id(response_text: str) -> str:
+    agent_session_id = next(
+        chunk["data"]["id"]
+        for chunk in _stream_chunks(response_text)
+        if chunk.get("type") == "data-session-created"
+    )
+    assert isinstance(agent_session_id, str)
+    return agent_session_id
+
+
+async def _accumulate_streamed_assistant_message(
+    chunks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    chunk_types: dict[str, type[BaseChunk]] = {
+        "finish": FinishChunk,
+        "finish-step": FinishStepChunk,
+        "message-metadata": MessageMetadataChunk,
+        "start": StartChunk,
+        "start-step": StartStepChunk,
+        "text-delta": TextDeltaChunk,
+        "text-end": TextEndChunk,
+        "text-start": TextStartChunk,
+    }
+
+    async def _iter_chunks() -> AsyncIterator[BaseChunk]:
+        for chunk in chunks:
+            chunk_type = chunk["type"]
+            model = DataChunk if chunk_type.startswith("data-") else chunk_types.get(chunk_type)
+            if model is not None:
+                yield model.model_validate(chunk)
+
+    latest_message: UIMessage | None = None
+    async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_chunks()):
+        latest_message = message
+    assert latest_message is not None
+    return latest_message.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+
+async def _load_session_messages(
+    session: AsyncSession,
+    agent_session_rowid: int,
+) -> list[dict[str, Any]]:
+    messages = (
+        await session.scalars(
+            select(models.AgentSessionMessage.message)
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .order_by(models.AgentSessionMessage.position)
+        )
+    ).all()
+    return [
+        message.model_dump(mode="json", by_alias=True, exclude_none=True) for message in messages
+    ]
+
+
+def _scripted_model(
+    *,
+    bash_command: str | None = None,
+    summary: str | None = "Scripted title",
+) -> FunctionModel:
+    """A model double for a single chat turn.
+
+    The streamed chat run calls the ``bash`` tool once with ``bash_command``
+    (when provided) and then replies with text. The non-streamed request made
+    by session-title summarization calls the ``summary`` output tool, or raises
+    when ``summary`` is None to simulate a summarization failure.
+    """
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        # Only the turn's own tool round matters: earlier turns' bash calls
+        # are already in the history, so inspect just the latest message.
+        already_ran_bash_this_turn = any(
+            isinstance(part, ToolReturnPart) and part.tool_name == "bash"
+            for part in messages[-1].parts
+        )
+        if bash_command is not None and not already_ran_bash_this_turn:
+            yield {
+                1: DeltaToolCall(
+                    name="bash",
+                    json_args=json.dumps({"summary": "run a command", "command": bash_command}),
+                )
+            }
+        else:
+            yield "done"
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        if summary is None:
+            raise RuntimeError("summarization model is down")
+        return ModelResponse(parts=[ToolCallPart(tool_name="summary", args={"summary": summary})])
+
+    return FunctionModel(function=function, stream_function=stream_function)
+
+
+def _mock_turn_models(monkeypatch: pytest.MonkeyPatch, *turn_models: FunctionModel) -> None:
+    """Serve one scripted model per chat turn, in order."""
+    remaining_models = iter(turn_models)
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> FunctionModel:
+        return next(remaining_models)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+
+async def test_chat_turn_persists_session_transcript(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A full chat turn writes the agent_sessions row whose transcript
+    contains the incoming history plus the streamed assistant reply (with
+    turn metadata), assembled entirely server-side."""
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "44444444-4444-4444-8444-444444444444"
+    body = _chat_body(session_id, [_user_message("What datasets exist?")])
+
+    response = await httpx_client.post(_chat_url(), json=body)
+    assert response.status_code == 200
+    chunks = _stream_chunks(response.text)
+    created_chunks = [chunk for chunk in chunks if chunk.get("type") == "data-session-created"]
+    assert len(created_chunks) == 1
+    assert created_chunks[0]["transient"] is True
+    agent_session_id = created_chunks[0]["data"]["id"]
+    assert "sessionId" not in created_chunks[0]["data"]
+    chunk_types = [chunk.get("type") for chunk in chunks]
+    assert chunk_types.index("start") < chunk_types.index("data-session-created")
+    assert chunk_types.index("data-session-created") < chunk_types.index("finish")
+    # A new session's first turn streams the LLM session title as a transient
+    # data chunk (TestModel fills the summary tool with generated args: "a").
+    assert "data-session-summary" in response.text
+
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.user_id is None
+        assert UUID(agent_session.project_session_id).version == 4
+        assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
+        # The in-stream summary is persisted as the session title.
+        assert agent_session.title == "a"
+        messages = await _load_session_messages(session, agent_session.id)
+        persisted_session_id = agent_session.project_session_id
+        # No bash command this turn, so no shell-state snapshot row.
+        assert await session.scalar(select(models.AgentSessionSnapshot)) is None
+
+    assert messages[0]["role"] == "user"
+    assistant_messages = [message for message in messages if message["role"] == "assistant"]
+    assert assistant_messages
+    assert assistant_messages[-1] == await _accumulate_streamed_assistant_message(chunks)
+    metadata = assistant_messages[-1]["metadata"]
+    assert metadata["sessionId"] == persisted_session_id
+    assert metadata["usage"]["tokens"]["total"] > 0
+    # Resuming a session sends the persisted transcript back through the chat
+    # request's message validation, so every stored message must round-trip.
+    for message in messages:
+        PhoenixUIMessage.model_validate(message)
+
+    second_response = await httpx_client.post(
+        _chat_url(),
+        json={
+            **body,
+            "agentSessionId": agent_session_id,
+            "messages": [
+                *messages,
+                _user_message("And experiments?", message_id="msg-user-2"),
+            ],
+        },
+    )
+    assert second_response.status_code == 200
+    # The persisted-session acknowledgement is idempotent so a retry can
+    # reconcile Relay even if the first stream disconnected before receiving it.
+    assert "data-session-created" in second_response.text
+    # Only a session's first turn summarizes; later turns keep the stored title.
+    assert "data-session-summary" not in second_response.text
+    second_metadata_chunks = [
+        chunk["messageMetadata"]
+        for chunk in _stream_chunks(second_response.text)
+        if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
+    ]
+    assert len(second_metadata_chunks) == 1
+    assert second_metadata_chunks[0]["sessionId"] == persisted_session_id
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.title == "a"
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
@@ -107,10 +379,10 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
                         "output": {"ok": True},
                         "callProviderMetadata": {
                             "phoenix": {
-                                "tool_execution_environment": "client",
-                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
-                                "client_started_at": (now - timedelta(minutes=1)).isoformat(),
-                                "client_ended_at": (now + timedelta(minutes=1)).isoformat(),
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=1)).isoformat(),
+                                "clientStartedAt": (now - timedelta(minutes=1)).isoformat(),
+                                "clientEndedAt": (now + timedelta(minutes=1)).isoformat(),
                             }
                         },
                     }
@@ -183,8 +455,8 @@ def test_error_parts_record_exception_events() -> None:
                         "errorText": "tool exploded",
                         "callProviderMetadata": {
                             "phoenix": {
-                                "tool_execution_environment": "client",
-                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=1)).isoformat(),
                             }
                         },
                     }
@@ -317,11 +589,7 @@ async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFact
 
 
 async def test_persist_db_traces_merge_keeps_all_spans_in_batch(db: DbSessionFactory) -> None:
-    """Regression: the merge path iterated ``db_trace.spans`` while
-    ``db_span.trace = existing_trace`` back-populated the same collection,
-    skipping every other span. In production this dropped each follow-up
-    request's ``pxi.iter.server`` span, orphaning its LLM child and rendering
-    duplicate turns in the session view."""
+    """Every span in a backend batch is retained while merging into a trace."""
     trace_id = "dd1221e156495558c48e177a21f84891"
     browser_root_span_id = "3789d49049f9d108"
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -339,7 +607,6 @@ async def test_persist_db_traces_merge_keeps_all_spans_in_batch(db: DbSessionFac
             )
         )
 
-    # Production buffer order: the LLM child ends before its parent iter span.
     batch = _build_backend_trace(
         project_id=project_id,
         trace_id=trace_id,
@@ -373,10 +640,6 @@ async def test_persist_db_traces_merge_keeps_all_spans_in_batch(db: DbSessionFac
 
 
 async def test_persist_db_traces_merge_with_session_does_not_warn(db: DbSessionFactory) -> None:
-    """Merging backend spans into an ingested browser trace must not associate
-    transient Trace objects with the persistent ProjectSession, which triggers
-    SAWarning: "Object of type <Trace> not in session, add operation along
-    'ProjectSession.traces' will not proceed" on every autoflush."""
     trace_id = "cc1221e156495558c48e177a21f84891"
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
@@ -384,13 +647,14 @@ async def test_persist_db_traces_merge_with_session_does_not_warn(db: DbSessionF
         session.add(project)
         await session.flush()
         project_id = project.id
-        existing_trace = models.Trace(
-            project_rowid=project_id,
-            trace_id=trace_id,
-            start_time=now,
-            end_time=now,
+        session.add(
+            models.Trace(
+                project_rowid=project_id,
+                trace_id=trace_id,
+                start_time=now,
+                end_time=now,
+            )
         )
-        session.add(existing_trace)
 
     backend_trace = _build_backend_trace(
         project_id=project_id, trace_id=trace_id, span_id="span-session-1"
@@ -465,3 +729,469 @@ def _build_backend_trace(
         spans=spans,
         span_costs=[],
     )
+
+
+async def test_chat_stream_metadata_uses_turn_trace_context(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The streamed and persisted assistant metadata use the browser's turn ids."""
+    trace_id = "931b2fbce00d0b18834637856fa72c7e"
+    root_span_id = "f66a81825e150dc1"
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "11111111-1111-4111-8111-111111111111"
+
+    response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_id,
+            [_user_message("hello")],
+            turnTraceContext={
+                "traceId": trace_id,
+                "rootSpanId": root_span_id,
+                "startedAt": datetime.now(timezone.utc).isoformat(),
+            },
+        ),
+    )
+    assert response.status_code == 200
+
+    # The stream carries pydantic-ai's own metadata chunk too; the Phoenix one
+    # is identified by its sessionId payload.
+    phoenix_metadata_chunks = [
+        chunk["messageMetadata"]
+        for chunk in _stream_chunks(response.text)
+        if chunk.get("type") == "message-metadata" and "sessionId" in chunk["messageMetadata"]
+    ]
+    assert len(phoenix_metadata_chunks) == 1
+    assert phoenix_metadata_chunks[0]["trace"] == {
+        "traceId": trace_id,
+        "rootSpanId": root_span_id,
+    }
+
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
+    assert assistant_messages
+    assert assistant_messages[-1]["metadata"]["trace"] == {
+        "traceId": trace_id,
+        "rootSpanId": root_span_id,
+    }
+
+
+async def test_chat_turn_without_messages_returns_bad_request(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """An empty message history is rejected without persisting a session."""
+    session_id = "22222222-2222-4222-8222-222222222222"
+
+    response = await httpx_client.post(_chat_url(), json=_chat_body(session_id, []))
+    assert response.status_code == 400
+    assert response.text == "At least one message is required"
+
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSession))).all() == []
+
+
+async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed first-turn summarization still persists the transcript but
+    leaves the session untitled; the next turn retries summarization and the
+    non-empty title then wins over the stored empty one."""
+    session_id = "33333333-3333-4333-8333-333333333333"
+    _mock_turn_models(
+        monkeypatch,
+        _scripted_model(summary=None),
+        _scripted_model(summary="Second-turn title"),
+    )
+
+    first_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(session_id, [_user_message("first question")]),
+    )
+    assert first_response.status_code == 200
+    assert "data-session-summary" not in first_response.text
+    async with db() as session:
+        agent_sessions = (await session.scalars(select(models.AgentSession))).all()
+        assert len(agent_sessions) == 1
+        assert agent_sessions[0].title == ""
+        stored_messages = await _load_session_messages(session, agent_sessions[0].id)
+        assert stored_messages
+    agent_session_id = _created_agent_session_id(first_response.text)
+
+    second_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_id,
+            [*stored_messages, _user_message("second question", message_id="msg-user-2")],
+            agent_session_id=agent_session_id,
+        ),
+    )
+    assert second_response.status_code == 200
+    # The session is still untitled, so the second turn summarizes again.
+    summary_chunks = [
+        chunk
+        for chunk in _stream_chunks(second_response.text)
+        if chunk.get("type") == "data-session-summary"
+    ]
+    assert [chunk["data"] for chunk in summary_chunks] == ["Second-turn title"]
+    async with db() as session:
+        agent_sessions = (await session.scalars(select(models.AgentSession))).all()
+        assert len(agent_sessions) == 1
+        assert agent_sessions[0].title == "Second-turn title"
+        assert len(await _load_session_messages(session, agent_sessions[0].id)) > len(
+            stored_messages
+        )
+
+
+async def test_bash_shell_state_persists_across_chat_turns(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Shell state written by a bash command in one turn survives to later
+    turns: the snapshot is persisted, left intact by turns without bash
+    activity, and restored into the next turn's shell."""
+    session_id = "55555555-5555-4555-8555-555555555555"
+    note_path = "/home/user/workspace/note.txt"
+    _mock_turn_models(
+        monkeypatch,
+        _scripted_model(bash_command=f"echo hello > {note_path}"),
+        _scripted_model(bash_command=None),
+        _scripted_model(bash_command=f"cat {note_path}"),
+    )
+
+    first_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(session_id, [_user_message("write a note")]),
+    )
+    assert first_response.status_code == 200
+    first_chunks = _stream_chunks(first_response.text)
+    async with db() as session:
+        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        assert len(snapshots) == 1
+        first_snapshot = snapshots[0].bashkit_snapshot
+        assert first_snapshot
+        agent_session_rowid = snapshots[0].agent_session_id
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    agent_session_id = _created_agent_session_id(first_response.text)
+
+    assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
+    assert len(assistant_messages) == 1
+    part_types = [part["type"] for part in assistant_messages[0]["parts"]]
+    assert "tool-bash" in part_types
+    assert "text" in part_types
+    assert part_types.count("step-start") == sum(
+        chunk.get("type") == "start-step" for chunk in first_chunks
+    )
+
+    second_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_id,
+            [*stored_messages, _user_message("thanks", message_id="msg-user-2")],
+            agent_session_id=agent_session_id,
+        ),
+    )
+    assert second_response.status_code == 200
+    async with db() as session:
+        # A turn without bash activity leaves the stored shell state intact.
+        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        assert len(snapshots) == 1
+        assert snapshots[0].bashkit_snapshot == first_snapshot
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+
+    third_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_id,
+            [*stored_messages, _user_message("read it back", message_id="msg-user-3")],
+            agent_session_id=agent_session_id,
+        ),
+    )
+    assert third_response.status_code == 200
+    # The third turn's shell was restored from the persisted snapshot, so the
+    # file written in the first turn is still there.
+    bash_outputs = [
+        chunk["output"]
+        for chunk in _stream_chunks(third_response.text)
+        if chunk.get("type") == "tool-output-available" and "output" in chunk
+    ]
+    assert any(output.get("stdout") == "hello\n" for output in bash_outputs)
+    async with db() as session:
+        # A turn with bash activity overwrites the session's single snapshot
+        # row in place rather than accumulating rows.
+        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        assert len(snapshots) == 1
+
+
+# ---------------------------------------------------------------------------
+# Trace ingestion
+# ---------------------------------------------------------------------------
+
+
+_BROWSER_TRACE_ID = "541221e156495558c48e177a21f84891"
+_BROWSER_ROOT_SPAN_ID = "3789d49049f9d108"
+_BROWSER_TURN_TIME = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+async def _enable_local_trace_recording(app: FastAPI) -> None:
+    await app.state.system_settings.update_agent_trace_recording(
+        AgentTraceRecordingSetting(allow_local_traces=True)
+    )
+
+
+async def _ingest_browser_trace(db: DbSessionFactory) -> None:
+    """Simulate the browser having already ingested the turn's root span."""
+    async with db() as session:
+        project = models.Project(name=get_env_phoenix_agents_assistant_project_name())
+        session.add(project)
+        await session.flush()
+        browser_trace = models.Trace(
+            project_rowid=project.id,
+            trace_id=_BROWSER_TRACE_ID,
+            start_time=_BROWSER_TURN_TIME,
+            end_time=_BROWSER_TURN_TIME,
+        )
+        browser_trace.spans = [
+            models.Span(
+                span_id=_BROWSER_ROOT_SPAN_ID,
+                parent_id=None,
+                name="pxi.turn",
+                span_kind="AGENT",
+                start_time=_BROWSER_TURN_TIME,
+                end_time=_BROWSER_TURN_TIME,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+                llm_token_count_prompt=0,
+                llm_token_count_completion=0,
+            )
+        ]
+        session.add(browser_trace)
+
+
+def _mock_traced_test_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mirror ``build_model``'s OpenInference wrapping so the turn's model
+    calls are recorded as LLM spans by the route's tracer."""
+
+    async def _fake_build_model(
+        *args: object,
+        tracer_provider: TracerProvider | None = None,
+        **kwargs: object,
+    ) -> OpenInferenceModelWrapper:
+        provider = tracer_provider if tracer_provider is not None else TracerProvider()
+        tracer = OITracer(provider.get_tracer(__name__), config=TraceConfig())
+        return OpenInferenceModelWrapper(TestModel(call_tools=[]), tracer=tracer)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+
+async def _post_traced_chat_turn(
+    httpx_client: httpx.AsyncClient,
+    session_id: str,
+) -> httpx.Response:
+    return await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_id,
+            [_user_message("What datasets exist?")],
+            ingestTraces=True,
+            turnTraceContext={
+                "traceId": _BROWSER_TRACE_ID,
+                "rootSpanId": _BROWSER_ROOT_SPAN_ID,
+                "startedAt": _BROWSER_TURN_TIME.isoformat(),
+            },
+        ),
+    )
+
+
+async def test_chat_turn_trace_ingestion_merges_backend_spans_into_browser_trace(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With trace ingestion enabled and the browser's turn context propagated,
+    the turn's backend spans land in the browser's existing trace: no duplicate
+    trace row, every span in the batch persisted under the browser root, the
+    trace's time range widened, and the root's cumulative token counts updated."""
+    await _enable_local_trace_recording(app)
+    await _ingest_browser_trace(db)
+    _mock_traced_test_model(monkeypatch)
+    session_id = "66666666-6666-4666-8666-666666666666"
+
+    response = await _post_traced_chat_turn(httpx_client, session_id)
+    assert response.status_code == 200
+
+    async with db() as session:
+        traces = (
+            await session.scalars(
+                select(models.Trace).where(models.Trace.trace_id == _BROWSER_TRACE_ID)
+            )
+        ).all()
+        assert len(traces) == 1
+        merged_trace = traces[0]
+        spans = (
+            await session.scalars(
+                select(models.Span)
+                .join(models.Trace)
+                .where(models.Trace.trace_id == _BROWSER_TRACE_ID)
+            )
+        ).all()
+
+    backend_spans = [span for span in spans if span.span_id != _BROWSER_ROOT_SPAN_ID]
+    # The first turn records both the chat request and the session-title
+    # summarization as LLM spans; both must survive the merge (a prior
+    # regression dropped every other span in the batch).
+    assert len(backend_spans) >= 2
+    assert all(span.parent_id == _BROWSER_ROOT_SPAN_ID for span in backend_spans)
+    assert all(span.span_kind == "LLM" for span in backend_spans)
+
+    browser_root_span = next(span for span in spans if span.span_id == _BROWSER_ROOT_SPAN_ID)
+    total_root_tokens = (
+        browser_root_span.cumulative_llm_token_count_prompt
+        + browser_root_span.cumulative_llm_token_count_completion
+    )
+    assert total_root_tokens > 0
+
+    assert merged_trace.start_time == _BROWSER_TURN_TIME
+    assert merged_trace.end_time > _BROWSER_TURN_TIME
+
+
+async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warnings(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Merging backend spans into a browser-ingested trace groups the trace
+    under a project session keyed by the persisted agent session ID, without tripping
+    SQLAlchemy's transient-object relationship warnings on autoflush."""
+    await _enable_local_trace_recording(app)
+    await _ingest_browser_trace(db)
+    _mock_traced_test_model(monkeypatch)
+    session_id = "77777777-7777-4777-8777-777777777777"
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", SAWarning)
+        response = await _post_traced_chat_turn(httpx_client, session_id)
+        assert response.status_code == 200
+
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        project_session = await session.scalar(
+            select(models.ProjectSession).where(
+                models.ProjectSession.session_id == agent_session.project_session_id
+            )
+        )
+        assert project_session is not None
+        merged_trace = await session.scalar(
+            select(models.Trace).where(models.Trace.trace_id == _BROWSER_TRACE_ID)
+        )
+        assert merged_trace is not None
+        assert merged_trace.project_session_rowid == project_session.id
+
+
+async def test_resumed_chat_turn_keeps_original_trace_project(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A session's persisted project remains authoritative after configuration changes."""
+    await _enable_local_trace_recording(app)
+    tracer_project_names: list[str] = []
+
+    async def _fake_build_model(
+        *args: object,
+        tracer_provider: TracerProvider | None = None,
+        **kwargs: object,
+    ) -> OpenInferenceModelWrapper:
+        assert tracer_provider is not None
+        project_name = tracer_provider.resource.attributes[ResourceAttributes.PROJECT_NAME]
+        assert isinstance(project_name, str)
+        tracer_project_names.append(project_name)
+        tracer = OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig())
+        return OpenInferenceModelWrapper(TestModel(call_tools=[]), tracer=tracer)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    original_project_name = "original-assistant-project"
+    changed_project_name = "changed-assistant-project"
+    first_trace_id = "8" * 32
+    second_trace_id = "a" * 32
+    session_request_id = "88888888-8888-4888-8888-888888888888"
+
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", original_project_name)
+    first_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_request_id,
+            [_user_message("first question")],
+            ingestTraces=True,
+            turnTraceContext={
+                "traceId": first_trace_id,
+                "rootSpanId": "9" * 16,
+                "startedAt": _BROWSER_TURN_TIME.isoformat(),
+            },
+        ),
+    )
+    assert first_response.status_code == 200
+    agent_session_id = _created_agent_session_id(first_response.text)
+
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", changed_project_name)
+    second_response = await httpx_client.post(
+        _chat_url(),
+        json=_chat_body(
+            session_request_id,
+            [_user_message("second question", message_id="msg-user-2")],
+            agent_session_id=agent_session_id,
+            ingestTraces=True,
+            turnTraceContext={
+                "traceId": second_trace_id,
+                "rootSpanId": "b" * 16,
+                "startedAt": (_BROWSER_TURN_TIME + timedelta(minutes=1)).isoformat(),
+            },
+        ),
+    )
+    assert second_response.status_code == 200
+
+    assert tracer_project_names == [original_project_name, original_project_name]
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        assert agent_session.project_name == original_project_name
+        traces = (
+            await session.scalars(
+                select(models.Trace).where(
+                    models.Trace.trace_id.in_([first_trace_id, second_trace_id])
+                )
+            )
+        ).all()
+        assert len(traces) == 2
+        assert len({trace.project_rowid for trace in traces}) == 1
+        assert len({trace.project_session_rowid for trace in traces}) == 1
+        project = await session.get(models.Project, traces[0].project_rowid)
+        assert project is not None
+        assert project.name == original_project_name
+        assert (
+            await session.scalar(
+                select(func.count()).where(models.Project.name == changed_project_name)
+            )
+            == 0
+        )
