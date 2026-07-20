@@ -9,8 +9,9 @@ or custom templates — so evaluations stay on stock guest images.
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from pydantic import SecretStr
 from typing_extensions import override
@@ -42,9 +43,14 @@ _CREATE_TIMEOUT_SECONDS = 180
 
 
 class TenkiSandboxBackend(BaseNoSessionBackend):
-    """Stateless sandbox backend executing code in ephemeral Tenki microVMs."""
+    """Stateless sandbox backend executing code in ephemeral Tenki microVMs.
 
-    provider: ClassVar[str] = "TENKI"
+    ``provider`` is intentionally left as the inherited ``""``: stateless
+    backends bypass ``SandboxSessionManager``'s per-provider tracking, so a
+    provider token would never be read (and would misleadingly imply Tenki is
+    subject to a per-provider concurrency cap, which stateless backends are
+    not).
+    """
 
     def __init__(
         self,
@@ -65,6 +71,9 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
         # cache it here — mirroring the auto-resolution other Tenki SDKs do.
         self._project_id = project_id
         self._resolved_project_id: Optional[str] = project_id
+        # Serializes the one-time who_am_i() resolution so a concurrent first
+        # batch fires the lookup once rather than once per in-flight call.
+        self._project_id_lock = asyncio.Lock()
         self.secret_values = compose_secret_values(user_env, self._api_key)
 
     def _get_client(self) -> AsyncClient:
@@ -81,20 +90,27 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
 
         The create RPC rejects a missing ``project_id`` ("project_id is
         required"), and the Python SDK does not auto-resolve it, so we do:
-        ``who_am_i`` → first workspace that has a project. Cached after the
-        first lookup so a batch of evaluations pays the round-trip once.
+        ``who_am_i`` → first workspace that has a project. The lookup is cached
+        and guarded by a lock, so a batch of evaluations pays the round-trip
+        exactly once even if the first calls run concurrently.
         """
         if self._resolved_project_id is not None:
             return self._resolved_project_id
-        identity = await client.who_am_i()
-        for workspace in identity.workspaces:
-            if workspace.projects:
-                self._resolved_project_id = workspace.projects[0].id
+        async with self._project_id_lock:
+            # Re-check under the lock: a concurrent caller may have resolved it
+            # while we waited to acquire.
+            if self._resolved_project_id is not None:
                 return self._resolved_project_id
-        raise RuntimeError(
-            "Tenki API key resolves to no workspace/project; set a project in "
-            "Settings → Sandboxes → Tenki → Deployment, or use a key scoped to one."
-        )
+            identity = await client.who_am_i()
+            for workspace in identity.workspaces:
+                if workspace.projects:
+                    self._resolved_project_id = workspace.projects[0].id
+                    return self._resolved_project_id
+            raise RuntimeError(
+                "Tenki API key resolves to no workspace/project. Use an API key "
+                "scoped to a workspace that has a project, or pin one via the Tenki "
+                "provider's deployment config (project_id)."
+            )
 
     def _create_kwargs(self, project_id: str) -> dict[str, Any]:
         """Build kwargs for ``AsyncClient.create()``.

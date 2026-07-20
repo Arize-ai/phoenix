@@ -127,6 +127,30 @@ async def test_resolve_project_id_is_cached() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolve_project_id_concurrent_calls_resolve_once() -> None:
+    """A batch whose first calls race must fire who_am_i() exactly once
+    (the resolution lock + re-check guarantees it)."""
+    import asyncio
+
+    calls = 0
+
+    async def _slow_who_am_i() -> Any:
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.01)  # widen the race window before the cache fills
+        return _make_identity("proj_x")
+
+    client = MagicMock()
+    client.who_am_i = AsyncMock(side_effect=_slow_who_am_i)
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
+
+    results = await asyncio.gather(*(backend._resolve_project_id(client) for _ in range(5)))
+
+    assert results == ["proj_x"] * 5
+    assert calls == 1
+
+
+@pytest.mark.asyncio
 async def test_resolve_project_id_skips_who_am_i_when_pinned() -> None:
     client = _make_mock_client()
     backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
