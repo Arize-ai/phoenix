@@ -673,7 +673,12 @@ class Project(Node):
         description="Sessions in the project. The time range filter uses interval-overlap "
         "semantics: a session is included iff [startTime, endTime] intersects "
         "[timeRange.start, timeRange.end), i.e. the session had activity inside the "
-        "window. Long-running sessions therefore appear in every window they overlap."
+        "window. Long-running sessions therefore appear in every window they overlap. "
+        "filterIoSubstring matches a case-insensitive substring of root-span "
+        "input/output; sessionFilterCondition is a session filter expression (see "
+        "sessionFilterVocabulary); both filters AND together. An exact sessionId "
+        "match takes precedence over the other filters, mirroring the sessions "
+        "table search."
     )  # type: ignore
     async def sessions(
         self,
@@ -1227,7 +1232,12 @@ class Project(Node):
                 error_message=str(e),
             )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Validate a session filter expression without executing it. A condition "
+        "that fails to compile returns isValid=false with an errorMessage; a condition that "
+        "compiles but references names not observed in this project (e.g. an annotation or "
+        "tool name) returns isValid=true with advisory warnings."
+    )  # type: ignore
     async def validate_session_filter_condition(
         self,
         info: Info[Context, None],
@@ -1280,7 +1290,13 @@ class Project(Node):
                 )
         return ValidationResult(is_valid=True, error_message=None, warnings=warnings)
 
-    @strawberry.field
+    @strawberry.field(
+        description="The bindable terms of the session filter expression language for this "
+        "project, for autocomplete, agent discovery, and docs. Static terms derive from the "
+        "filter compiler's own bindings so they cannot drift from what compiles; observed "
+        "per-project names (session annotations, tool names, root-span attribute paths) are "
+        "folded in."
+    )  # type: ignore
     async def session_filter_vocabulary(
         self,
         info: Info[Context, None],
