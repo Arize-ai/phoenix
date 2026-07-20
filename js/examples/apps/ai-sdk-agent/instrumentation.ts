@@ -15,10 +15,16 @@ export const projectName = "ai-sdk-agent";
 export const provider = register({
   projectName,
   batch: false,
+  // Authenticates trace export when Phoenix has auth enabled. register()
+  // reads PHOENIX_API_KEY on its own; it is passed explicitly here to make
+  // the wiring visible.
+  apiKey: process.env.PHOENIX_API_KEY,
 });
 
-// AI SDK v7 telemetry registration is process-global. Request-header capture
-// is disabled because headers can contain authorization tokens and cookies.
+// AI SDK v7 telemetry registration is process-global. headers: false only
+// stops the AI SDK from recording outgoing LLM request headers as span
+// attributes (they can contain authorization tokens and cookies) — it is
+// unrelated to the Phoenix API key above.
 registerTelemetry(
   new OpenTelemetry({
     tracer: provider.getTracer(projectName),
