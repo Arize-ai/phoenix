@@ -76,28 +76,7 @@ describe("AgentChatHeader", () => {
     vi.restoreAllMocks();
   });
 
-  it("hides the beta badge once a message has been submitted", () => {
-    act(() => {
-      root.render(
-        <MemoryRouter>
-          <AgentChatHeader
-            sessionDisplayName={EMPTY_SESSION_DISPLAY_NAME}
-            orderedSessions={[]}
-            activeSessionId="session-1"
-            isActiveSessionUnsent={false}
-            onSelectSession={vi.fn()}
-            onDeleteSession={vi.fn()}
-            onCreateSession={vi.fn()}
-            onClose={vi.fn()}
-          />
-        </MemoryRouter>
-      );
-    });
-
-    expect(container.textContent).not.toContain("Beta");
-  });
-
-  it("shows the beta badge on a fresh unsent chat", () => {
+  it("shows the beta badge on a new chat", () => {
     act(() => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
@@ -106,7 +85,6 @@ describe("AgentChatHeader", () => {
               sessionDisplayName={EMPTY_SESSION_DISPLAY_NAME}
               orderedSessions={[]}
               activeSessionId="draft-1"
-              isActiveSessionUnsent={true}
               onSelectSession={vi.fn()}
               onDeleteSession={vi.fn()}
               onCreateSession={vi.fn()}

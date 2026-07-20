@@ -103,7 +103,6 @@ export function AgentChatHeader({
   orderedSessions,
   activeSessionId,
   isActiveSessionTemporary = false,
-  isActiveSessionUnsent = true,
   position,
   isPositionChangeDisabled = false,
   onSelectSession,
@@ -119,7 +118,6 @@ export function AgentChatHeader({
   orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
   isActiveSessionTemporary?: boolean;
-  isActiveSessionUnsent?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
@@ -136,8 +134,7 @@ export function AgentChatHeader({
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
-  const showBetaBadge =
-    sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME && isActiveSessionUnsent;
+  const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
 
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
