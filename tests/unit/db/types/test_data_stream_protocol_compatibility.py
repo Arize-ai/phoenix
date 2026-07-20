@@ -37,10 +37,6 @@ _PART_MODEL_NAMES = (
 class _VendoredPatchNormalizer(ast.NodeTransformer):
     """Remove only the documented Phoenix patches before comparing source ASTs."""
 
-    def visit_Import(self, node: ast.Import) -> ast.Import | None:
-        # Phoenix uses secrets for its local, Python 3.10-compatible message ID factory.
-        return None if [alias.name for alias in node.names] == ["secrets"] else node
-
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom | None:
         # Phoenix generates message IDs locally instead of importing the Python 3.12 SDK.
         if node.level == 3 and node.module == "types":

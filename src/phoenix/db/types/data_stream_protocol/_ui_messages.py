@@ -18,7 +18,6 @@ AI SDK v6 uses a `parts` array instead of legacy `content` string.
 
 from __future__ import annotations
 
-import secrets
 from typing import Any, Literal, cast
 
 import pydantic
@@ -27,6 +26,8 @@ _UI_MODEL_CONFIG = pydantic.ConfigDict(populate_by_name=True, extra="forbid")
 
 
 def _generate_message_id() -> str:
+    import secrets  # Avoid importing the Python 3.12-only ai SDK for ID generation.
+
     return f"msg_{secrets.token_hex(6)}"
 
 
