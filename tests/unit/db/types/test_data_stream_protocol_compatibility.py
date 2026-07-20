@@ -38,18 +38,21 @@ class _VendoredPatchNormalizer(ast.NodeTransformer):
     """Remove only the documented Phoenix patches before comparing source ASTs."""
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom | None:
-        # Phoenix generates message IDs locally instead of importing the Python 3.12 SDK.
+        # Remove the upstream ID-generator import; Phoenix uses a local Python 3.10 helper.
         if node.level == 3 and node.module == "types":
             return None
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef | None:
+        # Remove the Phoenix-only replacement for the upstream ID generator.
         if node.name == "_generate_message_id":
             return None
+        # Ignore Phoenix's fail-closed unknown-part behavior and non-optional return type.
         if node.name == "_parse_ui_part":
             node.returns = ast.Name(id="UIMessagePart")
             node.body = [ast.Pass()]
             return node
+        # Ignore the corresponding difference between raising and dropping unknown parts.
         if node.name == "parse_parts":
             node.body = [ast.Pass()]
             return node
@@ -65,6 +68,7 @@ class _VendoredPatchNormalizer(ast.NodeTransformer):
             isinstance(target, ast.Name) and target.id == "_UI_MODEL_CONFIG"
             for target in node.targets
         ):
+            # Equate Phoenix's extra="forbid" with upstream's extra="allow".
             assert isinstance(node.value, ast.Call)
             for keyword in node.value.keywords:
                 if keyword.arg == "extra":
@@ -81,8 +85,10 @@ class _VendoredPatchNormalizer(ast.NodeTransformer):
             ):
                 continue
             if node.name == "UIToolPart" and statement.target.id == "input":
+                # Ignore Phoenix's broader tool-input type retained for persisted rows.
                 statement.annotation = ast.Name(id="NormalizedToolInput")
             if node.name == "UIMessage" and statement.target.id == "id":
+                # Equate the local ID factory with the upstream ai.types factory.
                 statement.value = ast.Constant(value="normalized-id-factory")
         return node
 
