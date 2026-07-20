@@ -32,6 +32,14 @@ table {
     font-size: 1.5rem !important;
 }
 
+[data-component-part="step-title"]:empty {
+    display: none;
+}
+
+.step-semantic-heading {
+    margin-top: 0.5rem !important;
+}
+
 /* Invert monochrome-black logos in dark mode (e.g. vendor SVGs with hardcoded fill="#000"). */
 .dark .invert-on-dark {
     filter: invert(1);
