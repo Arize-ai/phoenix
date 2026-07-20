@@ -20,11 +20,11 @@ from pydantic_ai.ui.vercel_ai.request_types import UIMessage as PydanticAIUIMess
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.db.types.data_stream_protocol import (
-    DataUIPart,
-    ReasoningUIPart,
-    StepStartUIPart,
-    TextUIPart,
+    UIDataPart,
     UIMessage,
+    UIReasoningPart,
+    UIStepStartPart,
+    UITextPart,
 )
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.data_stream_protocol import (
@@ -147,9 +147,9 @@ class CallSubAgentCapability(AbstractStaticCapability[AgentDepsT], Generic[Agent
 def _has_renderable_ui_message_parts(message: UIMessage) -> bool:
     """Return whether a UI message has content worth publishing as progress."""
     for part in message.parts:
-        if isinstance(part, StepStartUIPart):
+        if isinstance(part, UIStepStartPart):
             continue
-        if isinstance(part, TextUIPart | ReasoningUIPart):
+        if isinstance(part, UITextPart | UIReasoningPart):
             if part.text:
                 return True
             continue
@@ -173,12 +173,12 @@ def _get_dummy_request_data(*, tool_call_id: str, task: str) -> PydanticAISubmit
 
 def _get_fallback_subagent_summary(message: UIMessage) -> str:
     """Use streamed text, or a data-error message, when the final result is unavailable."""
-    text = "".join(part.text for part in message.parts if isinstance(part, TextUIPart)).strip()
+    text = "".join(part.text for part in message.parts if isinstance(part, UITextPart)).strip()
     if text:
         return text
     for part in message.parts:
         if (
-            isinstance(part, DataUIPart)
+            isinstance(part, UIDataPart)
             and part.type == "data-error"
             and isinstance(part.data, dict)
         ):

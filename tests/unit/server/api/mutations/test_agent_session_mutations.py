@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
-    TextUIPart,
+    UITextPart,
 )
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
@@ -102,22 +102,25 @@ def _transcript_messages() -> list[PhoenixUIMessage]:
         PhoenixUIMessage(
             id="user-1",
             role="user",
-            parts=[TextUIPart(text="How do I trace OpenAI?")],
+            parts=[UITextPart(type="text", text="How do I trace OpenAI?")],
         ),
         PhoenixUIMessage(
             id="assistant-1",
             role="assistant",
-            parts=[TextUIPart(text="Use register().")],
+            parts=[UITextPart(type="text", text="Use register().")],
         ),
         PhoenixUIMessage(
             id="user-2",
             role="user",
-            parts=[TextUIPart(text="Show "), TextUIPart(text="an example")],
+            parts=[
+                UITextPart(type="text", text="Show "),
+                UITextPart(type="text", text="an example"),
+            ],
         ),
         PhoenixUIMessage(
             id="assistant-2",
             role="assistant",
-            parts=[TextUIPart(text="Here is an example.")],
+            parts=[UITextPart(type="text", text="Here is an example.")],
         ),
     ]
 

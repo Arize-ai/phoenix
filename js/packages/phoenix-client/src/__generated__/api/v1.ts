@@ -2231,18 +2231,6 @@ export interface components {
             /** Modelname */
             modelName: string;
         };
-        /**
-         * DataUIPart
-         * @description Data part with dynamic type based on data name.
-         */
-        DataUIPart: {
-            /** Type */
-            type: string;
-            /** Id */
-            id?: string | null;
-            /** Data */
-            data: unknown;
-        };
         /** Dataset */
         Dataset: {
             /** Id */
@@ -2376,264 +2364,6 @@ export interface components {
              * @description List of session identifiers to delete. All identifiers must be the same type: either all GlobalIDs or all user-provided session_id strings.
              */
             session_identifiers: string[];
-        };
-        /**
-         * DynamicToolApprovalRequestedPart
-         * @description Dynamic tool part in approval-requested state (awaiting user decision).
-         */
-        DynamicToolApprovalRequestedPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default approval-requested
-             * @constant
-             */
-            state?: "approval-requested";
-            /** Input */
-            input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolApprovalRespondedPart
-         * @description Dynamic tool part in approval-responded state (user approved/denied, execution pending).
-         */
-        DynamicToolApprovalRespondedPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default approval-responded
-             * @constant
-             */
-            state?: "approval-responded";
-            /** Input */
-            input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolInputAvailablePart
-         * @description Dynamic tool part in input-available state.
-         */
-        DynamicToolInputAvailablePart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-available
-             * @constant
-             */
-            state?: "input-available";
-            /** Input */
-            input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolInputStreamingPart
-         * @description Dynamic tool part in input-streaming state.
-         */
-        DynamicToolInputStreamingPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-streaming
-             * @constant
-             */
-            state?: "input-streaming";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolOutputAvailablePart
-         * @description Dynamic tool part in output-available state.
-         */
-        DynamicToolOutputAvailablePart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-available
-             * @constant
-             */
-            state?: "output-available";
-            /** Input */
-            input: unknown;
-            /** Output */
-            output: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Preliminary */
-            preliminary?: boolean | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolOutputDeniedPart
-         * @description Dynamic tool part in output-denied state (tool was denied, terminal state).
-         */
-        DynamicToolOutputDeniedPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-denied
-             * @constant
-             */
-            state?: "output-denied";
-            /** Input */
-            input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolOutputErrorPart
-         * @description Dynamic tool part in output-error state.
-         */
-        DynamicToolOutputErrorPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-error
-             * @constant
-             */
-            state?: "output-error";
-            /** Input */
-            input: unknown;
-            /** Errortext */
-            errorText: string;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** Experiment */
         Experiment: {
@@ -2779,30 +2509,6 @@ export interface components {
              * @description The ID of the experiment
              */
             experiment_id: string;
-        };
-        /**
-         * FileUIPart
-         * @description A file part of a message.
-         */
-        FileUIPart: {
-            /**
-             * Type
-             * @default file
-             * @constant
-             */
-            type?: "file";
-            /** Mediatype */
-            mediaType: string;
-            /** Filename */
-            filename?: string | null;
-            /** Url */
-            url: string;
-            /** Providermetadata */
-            providerMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
         };
         /** FreeformAnnotationConfig */
         FreeformAnnotationConfig: {
@@ -3488,16 +3194,16 @@ export interface components {
          */
         PhoenixUIMessage: {
             /** Id */
-            id: string;
+            id?: string;
             /**
              * Role
              * @enum {string}
              */
-            role: "system" | "user" | "assistant";
+            role: "user" | "assistant" | "system";
             /** Metadata */
             metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts?: (components["schemas"]["UITextPart"] | components["schemas"]["UIReasoningPart"] | components["schemas"]["UICustomPart"] | components["schemas"]["UIToolInvocationPart"] | components["schemas"]["UIStepStartPart"] | components["schemas"]["UIToolPart"] | components["schemas"]["UIDynamicToolPart"] | components["schemas"]["UIFilePart"] | components["schemas"]["UIReasoningFilePart"] | components["schemas"]["UISourceUrlPart"] | components["schemas"]["UISourceDocumentPart"] | components["schemas"]["UIDataPart"])[];
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -4447,28 +4153,6 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /**
-         * ReasoningUIPart
-         * @description A reasoning part of a message.
-         */
-        ReasoningUIPart: {
-            /**
-             * Type
-             * @default reasoning
-             * @constant
-             */
-            type?: "reasoning";
-            /** Text */
-            text: string;
-            /** State */
-            state?: ("streaming" | "done") | null;
-            /** Providermetadata */
-            providerMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-        };
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
             data: components["schemas"]["UpsertOrDeleteSecretsResult"];
@@ -4697,56 +4381,6 @@ export interface components {
             data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
-        };
-        /**
-         * SourceDocumentUIPart
-         * @description A document source part of a message.
-         */
-        SourceDocumentUIPart: {
-            /**
-             * Type
-             * @default source-document
-             * @constant
-             */
-            type?: "source-document";
-            /** Sourceid */
-            sourceId: string;
-            /** Mediatype */
-            mediaType: string;
-            /** Title */
-            title: string;
-            /** Filename */
-            filename?: string | null;
-            /** Providermetadata */
-            providerMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-        };
-        /**
-         * SourceUrlUIPart
-         * @description A source part of a message.
-         */
-        SourceUrlUIPart: {
-            /**
-             * Type
-             * @default source-url
-             * @constant
-             */
-            type?: "source-url";
-            /** Sourceid */
-            sourceId: string;
-            /** Url */
-            url: string;
-            /** Title */
-            title?: string | null;
-            /** Providermetadata */
-            providerMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
         };
         /**
          * Span
@@ -5038,18 +4672,6 @@ export interface components {
             next_cursor: string | null;
         };
         /**
-         * StepStartUIPart
-         * @description A step boundary part of a message.
-         */
-        StepStartUIPart: {
-            /**
-             * Type
-             * @default step-start
-             * @constant
-             */
-            type?: "step-start";
-        };
-        /**
          * SubagentsContext
          * @description User's per-turn request to expose the subagent-spawning tool.
          */
@@ -5071,108 +4693,6 @@ export interface components {
             type: "text";
             /** Text */
             text: string;
-        };
-        /**
-         * TextUIPart
-         * @description A text part of a message.
-         */
-        TextUIPart: {
-            /**
-             * Type
-             * @default text
-             * @constant
-             */
-            type?: "text";
-            /** Text */
-            text: string;
-            /** State */
-            state?: ("streaming" | "done") | null;
-            /** Providermetadata */
-            providerMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-        };
-        /**
-         * ToolApprovalRequested
-         * @description Tool approval in requested state (awaiting user response).
-         */
-        ToolApprovalRequested: {
-            /** Id */
-            id: string;
-        };
-        /**
-         * ToolApprovalRequestedPart
-         * @description Tool part in approval-requested state (awaiting user decision).
-         */
-        ToolApprovalRequestedPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default approval-requested
-             * @constant
-             */
-            state?: "approval-requested";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * ToolApprovalResponded
-         * @description Tool approval in responded state (user has approved or denied).
-         */
-        ToolApprovalResponded: {
-            /** Id */
-            id: string;
-            /** Approved */
-            approved: boolean;
-            /** Reason */
-            reason?: string | null;
-        };
-        /**
-         * ToolApprovalRespondedPart
-         * @description Tool part in approval-responded state (user approved/denied, execution pending).
-         */
-        ToolApprovalRespondedPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default approval-responded
-             * @constant
-             */
-            state?: "approval-responded";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** ToolCallContentPart */
         ToolCallContentPart: {
@@ -5197,164 +4717,6 @@ export interface components {
             name: string;
             /** Arguments */
             arguments: string;
-        };
-        /**
-         * ToolInputAvailablePart
-         * @description Tool part in input-available state.
-         */
-        ToolInputAvailablePart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-available
-             * @constant
-             */
-            state?: "input-available";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * ToolInputStreamingPart
-         * @description Tool part in input-streaming state.
-         */
-        ToolInputStreamingPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-streaming
-             * @constant
-             */
-            state?: "input-streaming";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * ToolOutputAvailablePart
-         * @description Tool part in output-available state.
-         */
-        ToolOutputAvailablePart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-available
-             * @constant
-             */
-            state?: "output-available";
-            /** Input */
-            input?: unknown | null;
-            /** Output */
-            output?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Preliminary */
-            preliminary?: boolean | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * ToolOutputDeniedPart
-         * @description Tool part in output-denied state (tool was denied, terminal state).
-         */
-        ToolOutputDeniedPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-denied
-             * @constant
-             */
-            state?: "output-denied";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * ToolOutputErrorPart
-         * @description Tool part in output-error state.
-         */
-        ToolOutputErrorPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-error
-             * @constant
-             */
-            state?: "output-error";
-            /** Input */
-            input?: unknown | null;
-            /** Rawinput */
-            rawInput?: unknown | null;
-            /** Errortext */
-            errorText: string;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** ToolResultContentPart */
         ToolResultContentPart: {
@@ -5570,6 +4932,324 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /**
+         * UICustomPart
+         * @description Provider-specific content that does not fit standard UI parts.
+         */
+        UICustomPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "custom";
+            /** Kind */
+            kind: string;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIDataPart
+         * @description Custom data part with a dynamic ``data-*`` type.
+         */
+        UIDataPart: {
+            /** Type */
+            type: string;
+            /** Id */
+            id?: string | null;
+            /** Data */
+            data: unknown;
+            /** Transient */
+            transient?: boolean | null;
+        };
+        /**
+         * UIDynamicToolPart
+         * @description Dynamic tool part where the tool name is a field, not the type suffix.
+         */
+        UIDynamicToolPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "input-streaming" | "input-available" | "approval-requested" | "approval-responded" | "output-available" | "output-error" | "output-denied";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText?: string | null;
+            approval?: components["schemas"]["UIToolApproval"] | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Toolmetadata */
+            toolMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Title */
+            title?: string | null;
+        };
+        /**
+         * UIFilePart
+         * @description File part. TODO: FilePart not yet supported in core messages.
+         */
+        UIFilePart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "file";
+            /** Mediatype */
+            mediaType: string;
+            /** Url */
+            url: string;
+            /** Filename */
+            filename?: string | null;
+            /** Providerreference */
+            providerReference?: {
+                [key: string]: unknown;
+            } | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIReasoningFilePart
+         * @description Reasoning file part generated as part of model reasoning.
+         */
+        UIReasoningFilePart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "reasoning-file";
+            /** Mediatype */
+            mediaType: string;
+            /** Url */
+            url: string;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIReasoningPart
+         * @description Reasoning/thinking content part in AI SDK v6 format.
+         *
+         *     Wire shape from the AI SDK frontend is
+         *     ``{type: "reasoning", text, state}``.  ``state`` is
+         *     ``"streaming"`` while the block is open and ``"done"`` once closed;
+         *     we accept it but don't currently route on it.
+         */
+        UIReasoningPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "reasoning";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UISourceDocumentPart
+         * @description Source document part. TODO: SourceDocumentPart not yet supported.
+         */
+        UISourceDocumentPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "source-document";
+            /** Sourceid */
+            sourceId: string;
+            /** Mediatype */
+            mediaType: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UISourceUrlPart
+         * @description Source URL part. TODO: SourceUrlPart not yet supported.
+         */
+        UISourceUrlPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "source-url";
+            /** Sourceid */
+            sourceId: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIStepStartPart
+         * @description Step boundary marker. Skipped during conversion to internal format.
+         */
+        UIStepStartPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "step-start";
+        };
+        /**
+         * UITextPart
+         * @description Text content part in AI SDK v6 format.
+         */
+        UITextPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "text";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIToolApproval
+         * @description Approval state on a tool part (AI SDK v6 protocol).
+         *
+         *     Present when a tool requires user approval before execution.
+         *     ``id`` matches the hook label used by the ToolApproval hook.
+         *     ``approved`` is None while awaiting a response, True/False after.
+         */
+        UIToolApproval: {
+            /** Id */
+            id: string;
+            /** Approved */
+            approved?: boolean | null;
+            /** Reason */
+            reason?: string | null;
+            /** Isautomatic */
+            isAutomatic?: boolean | null;
+        };
+        /**
+         * UIToolInvocationPart
+         * @description Tool invocation part in AI SDK v6 format.
+         *
+         *     Note: The AI SDK frontend typically sends tool-{toolName} format instead.
+         *     The legacy type is ``tool-invocation``.
+         *     This model is kept for backwards compatibility.
+         *
+         *     Reference: https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message
+         */
+        UIToolInvocationPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "tool-invocation";
+            /** Toolinvocationid */
+            toolInvocationId: string;
+            /** Toolname */
+            toolName: string;
+            /** Args */
+            args?: {
+                [key: string]: unknown;
+            };
+            /**
+             * State
+             * @default input-available
+             * @enum {string}
+             */
+            state?: "input-streaming" | "input-available" | "approval-requested" | "approval-responded" | "output-available" | "output-error" | "output-denied";
+            /** Result */
+            result?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+        };
+        /**
+         * UIToolPart
+         * @description Tool part with dynamic type pattern: tool-{toolName}.
+         *
+         *     The AI SDK frontend sends tool parts with type like "tool-get_weather"
+         *     where the tool name is embedded in the type string.
+         */
+        UIToolPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "input-streaming" | "input-available" | "approval-requested" | "approval-responded" | "output-available" | "output-error" | "output-denied";
+            /** Input */
+            input?: unknown;
+            /** Output */
+            output?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText?: string | null;
+            approval?: components["schemas"]["UIToolApproval"] | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Toolmetadata */
+            toolMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Title */
+            title?: string | null;
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {

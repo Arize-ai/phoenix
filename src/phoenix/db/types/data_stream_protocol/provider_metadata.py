@@ -7,10 +7,11 @@ namespace they describe is persisted inside every tool part of a
 validator in ``phoenix_types``.
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 from ._models import CamelBaseModel
 
+ProviderMetadata = dict[str, Any]
 ToolExecutionEnvironment = Literal["client", "server"]
 
 

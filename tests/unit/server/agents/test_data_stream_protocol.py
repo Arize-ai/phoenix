@@ -27,15 +27,15 @@ from pydantic_ai.ui.vercel_ai.response_types import (
 )
 
 from phoenix.db.types.data_stream_protocol import (
-    DataUIPart,
-    FileUIPart,
-    ReasoningUIPart,
-    SourceDocumentUIPart,
-    SourceUrlUIPart,
-    StepStartUIPart,
-    TextUIPart,
-    ToolOutputAvailablePart,
+    UIDataPart,
+    UIFilePart,
     UIMessage,
+    UIReasoningPart,
+    UISourceDocumentPart,
+    UISourceUrlPart,
+    UIStepStartPart,
+    UITextPart,
+    UIToolPart,
 )
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
@@ -82,7 +82,7 @@ class TestAccumulateUIMessageChunksToUIMessages:
             id="message-1",
             role="assistant",
             metadata={"initial": True},
-            parts=[TextUIPart(text="before", state="done")],
+            parts=[UITextPart(type="text", text="before", state="done")],
         )
 
         messages = await _collect_messages_with_initial(
@@ -101,10 +101,10 @@ class TestAccumulateUIMessageChunksToUIMessages:
         assert final_message.id == initial_message.id
         assert final_message.metadata == {"initial": True, "continued": True}
         assert final_message.parts[0] == initial_message.parts[0]
-        assert isinstance(final_message.parts[1], StepStartUIPart)
-        assert isinstance(final_message.parts[2], TextUIPart)
+        assert isinstance(final_message.parts[1], UIStepStartPart)
+        assert isinstance(final_message.parts[2], UITextPart)
         assert final_message.parts[2].text == "after"
-        assert initial_message.parts == [TextUIPart(text="before", state="done")]
+        assert initial_message.parts == [UITextPart(type="text", text="before", state="done")]
 
     async def test_accumulates_text_reasoning_metadata_and_step_boundaries(self) -> None:
         messages = await _collect_messages(
@@ -143,9 +143,9 @@ class TestAccumulateUIMessageChunksToUIMessages:
             "middle": True,
             "finish": True,
         }
-        assert isinstance(final_message.parts[0], StepStartUIPart)
+        assert isinstance(final_message.parts[0], UIStepStartPart)
         text_part = final_message.parts[1]
-        assert isinstance(text_part, TextUIPart)
+        assert isinstance(text_part, UITextPart)
         assert text_part.text == "hello world"
         assert text_part.state == "done"
         assert text_part.provider_metadata == {
@@ -154,7 +154,7 @@ class TestAccumulateUIMessageChunksToUIMessages:
             }
         }
         reasoning_part = final_message.parts[2]
-        assert isinstance(reasoning_part, ReasoningUIPart)
+        assert isinstance(reasoning_part, UIReasoningPart)
         assert reasoning_part.text == "thinking"
         assert reasoning_part.state == "done"
 
@@ -188,7 +188,7 @@ class TestAccumulateUIMessageChunksToUIMessages:
         )
 
         [tool_part] = messages[-1].parts
-        assert isinstance(tool_part, ToolOutputAvailablePart)
+        assert isinstance(tool_part, UIToolPart)
         assert tool_part.type == "tool-lookup"
         assert tool_part.tool_call_id == "tool-call-1"
         assert tool_part.input == {"query": "latency"}
@@ -217,18 +217,18 @@ class TestAccumulateUIMessageChunksToUIMessages:
         )
 
         data_part, source_url_part, source_document_part, file_part, error_part = messages[-1].parts
-        assert isinstance(data_part, DataUIPart)
+        assert isinstance(data_part, UIDataPart)
         assert data_part.type == "data-progress"
         assert data_part.id == "data-1"
         assert data_part.data == {"percent": 50}
-        assert isinstance(source_url_part, SourceUrlUIPart)
+        assert isinstance(source_url_part, UISourceUrlPart)
         assert source_url_part.url == "https://example.com"
         assert source_url_part.title == "Example"
-        assert isinstance(source_document_part, SourceDocumentUIPart)
+        assert isinstance(source_document_part, UISourceDocumentPart)
         assert source_document_part.media_type == "text/plain"
         assert source_document_part.filename == "document.txt"
-        assert isinstance(file_part, FileUIPart)
+        assert isinstance(file_part, UIFilePart)
         assert file_part.url == "data:text/plain;base64,aGk="
-        assert isinstance(error_part, DataUIPart)
+        assert isinstance(error_part, UIDataPart)
         assert error_part.type == "data-error"
         assert error_part.data == {"errorText": "subagent failed"}
