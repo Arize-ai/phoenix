@@ -274,7 +274,14 @@ async def _load_owned_agent_session(
     """Load a session the viewer owns, or raise a not-found error."""
     agent_session = await session.get(models.AgentSession, agent_session_rowid)
     viewer_id = info.context.user_id
-    if agent_session is None or (viewer_id is not None and agent_session.user_id != viewer_id):
+    if (
+        agent_session is None
+        or (viewer_id is not None and agent_session.user_id != viewer_id)
+        or (
+            agent_session.expires_at is not None
+            and agent_session.expires_at <= datetime.now(timezone.utc)
+        )
+    ):
         raise NotFound(f"No agent session found for row ID '{agent_session_rowid}'")
     return agent_session
 
