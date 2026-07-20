@@ -14,7 +14,6 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
-import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
 import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
@@ -22,14 +21,16 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import { hasAcknowledgedCurrentTraceConsent } from "@phoenix/store/agentStore";
+import {
+  DRAFT_SESSION_ID,
+  hasAcknowledgedCurrentTraceConsent,
+} from "@phoenix/store/agentStore";
 
 import { AgentChatInput } from "./AgentChatInput";
 import { AgentConsentGate } from "./AgentConsentGate";
@@ -62,7 +63,6 @@ import {
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
 import { isToolUIPart } from "./toolPartTypes";
-import { useAgentChat } from "./useAgentChat";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -281,63 +281,6 @@ function getMessageText(message: AgentUIMessage): string {
     .join("");
 }
 
-/** Connects the presentational chat view to the agent chat controller hook. */
-export function Chat({
-  sessionId,
-  chatApiUrl,
-  modelSelection,
-  modelMenuValue,
-  onModelChange,
-  emptyStateSubtext,
-  emptyStateQuickActions,
-}: {
-  sessionId: string | null;
-  chatApiUrl: string;
-  modelSelection: AgentModelSelection;
-  modelMenuValue: ModelMenuValue;
-  onModelChange: (model: ModelMenuValue) => void;
-  emptyStateSubtext?: ReactNode;
-  emptyStateQuickActions?: EmptyStateQuickAction[];
-}) {
-  const {
-    messages,
-    sendMessage,
-    stop,
-    status,
-    error,
-    pendingElicitation,
-    handleElicitationSubmit,
-    handleElicitationCancel,
-    retryMessage,
-    rewindToMessage,
-    forkFromMessage,
-  } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
-
-  return (
-    <ChatView
-      key={sessionId ?? "no-session"}
-      sessionId={sessionId}
-      messages={messages}
-      sendMessage={sendMessage}
-      stop={stop}
-      status={status}
-      error={error}
-      pendingElicitation={pendingElicitation}
-      handleElicitationSubmit={handleElicitationSubmit}
-      handleElicitationCancel={handleElicitationCancel}
-      retryMessage={retryMessage}
-      rewindToMessage={rewindToMessage}
-      forkFromMessage={forkFromMessage}
-      modelMenuValue={modelMenuValue}
-      onModelChange={onModelChange}
-      emptyStateSubtext={emptyStateSubtext}
-      emptyStateQuickActions={emptyStateQuickActions}
-    >
-      {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
-    </ChatView>
-  );
-}
-
 /**
  * Pure chat view used both by the legacy mounted panel and by the headless
  * controller path that keeps streaming alive while the panel is hidden.
@@ -352,7 +295,6 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
-  retryMessage,
   rewindToMessage,
   forkFromMessage,
   modelMenuValue,
@@ -374,15 +316,14 @@ export function ChatView({
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
-  /** Retries an assistant response; absent on read-only surfaces. */
-  retryMessage?: (messageId?: string) => void;
   /**
-   * Truncates the active session at a message; returns user text to restore.
-   * Absent on read-only surfaces, which hides the rewind/branch controls.
+   * Truncates the active session at a message; resolves to user text to
+   * restore. Absent on read-only surfaces, which hides the rewind/branch
+   * controls.
    */
-  rewindToMessage?: (messageId: string) => string | null;
+  rewindToMessage?: (messageId: string) => Promise<string | null>;
   /** Branches a new session from a message; absent hides the branch control. */
-  forkFromMessage?: (messageId: string) => string | null;
+  forkFromMessage?: (messageId: string) => void;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -426,7 +367,7 @@ export function ChatView({
     (state) => state.permissions.edits
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
-  const createSession = useAgentContext((state) => state.createSession);
+  const setActiveSession = useAgentContext((state) => state.setActiveSession);
 
   const setSessionDraftInput = (input: string | null) => {
     if (!sessionId) {
@@ -529,7 +470,7 @@ export function ChatView({
     return (request) => setRewindRequest(request);
   }, [hasChatSettled, rewindToMessage]);
 
-  const handleConfirmRewind = () => {
+  const handleConfirmRewind = async () => {
     if (!rewindRequest) {
       return;
     }
@@ -540,7 +481,7 @@ export function ChatView({
       // forked session receives restored text through draftInputBySessionId.
       forkFromMessage?.(messageId);
     } else {
-      const restoredInput = rewindToMessage?.(messageId);
+      const restoredInput = (await rewindToMessage?.(messageId)) ?? null;
       if (restoredInput != null) {
         setSessionDraftInput(restoredInput);
         textareaRef.current?.focus();
@@ -548,18 +489,28 @@ export function ChatView({
     }
   };
 
-  const handleRetryInterruptedMessage = () => {
-    if (latestMessage?.role !== "user") {
+  const retryUserMessage = async (message: AgentUIMessage | undefined) => {
+    if (message?.role !== "user") {
       return;
     }
-    const messageText = getMessageText(latestMessage).trim();
+    const messageText = getMessageText(message).trim();
     if (!messageText) {
       return;
     }
-    rewindToMessage?.(latestMessage.id);
+    // The server-side truncation must land before re-sending, or the resent
+    // request would still carry the interrupted user turn.
+    const restoredInput = await rewindToMessage?.(message.id);
+    if (restoredInput == null) {
+      return;
+    }
     void scrollToBottom();
     sendMessage({ text: messageText });
   };
+
+  const handleRetryInterruptedMessage = () => retryUserMessage(latestMessage);
+
+  const handleRetryFailedMessage = () =>
+    retryUserMessage(messages.findLast((message) => message.role === "user"));
 
   useLayoutEffect(() => {
     if (
@@ -661,16 +612,14 @@ export function ChatView({
                 {error && (
                   <ChatErrorMessage
                     error={error}
-                    latestAssistantMessageId={getLatestMessageId({
-                      messages,
-                      role: "assistant",
-                    })}
                     latestUserMessageId={getLatestMessageId({
                       messages,
                       role: "user",
                     })}
                     canFork
-                    onRetry={retryMessage}
+                    onRetry={
+                      rewindToMessage ? handleRetryFailedMessage : undefined
+                    }
                     onRewind={onRewindRequest}
                   />
                 )}
@@ -732,7 +681,10 @@ export function ChatView({
                   runPromptCommands(
                     { commandNames, text, requestedSkills },
                     {
-                      createSession,
+                      startNewSession: () => {
+                        setActiveSession(DRAFT_SESSION_ID);
+                        return DRAFT_SESSION_ID;
+                      },
                       setPendingMessage: store.getState().setPendingMessage,
                     }
                   );

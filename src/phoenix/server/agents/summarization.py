@@ -4,9 +4,7 @@ from pydantic import BaseModel
 from pydantic_ai.messages import (
     InstructionPart,
     ModelMessage,
-    ModelRequest,
     ToolCallPart,
-    UserPromptPart,
 )
 from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
@@ -42,12 +40,9 @@ async def summarize_messages(
             InstructionPart(content=SUMMARIZATION_INSTRUCTIONS_TEMPLATE.render(), dynamic=False),
         ],
     )
-    final_request = ModelRequest(
-        parts=[UserPromptPart(content="Summarize this conversation.")],
-    )
     try:
         response = await model.request(
-            [*messages, final_request],
+            [*messages],
             model_settings=None,
             model_request_parameters=request_params,
         )

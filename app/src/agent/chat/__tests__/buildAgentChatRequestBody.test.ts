@@ -12,6 +12,12 @@ import {
 import { createClientToolTimingRecorder } from "../clientToolTimings";
 import type { AgentUIMessage } from "../types";
 
+const userMessage: AgentUIMessage = {
+  id: "user-1",
+  role: "user",
+  parts: [{ type: "text", text: "hello" }],
+};
+
 const agentsConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
@@ -32,9 +38,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: false,
@@ -58,11 +62,9 @@ describe("buildAgentChatRequestBody", () => {
 
   it("merges the transport body with PXI chat metadata and omits client-supplied prompt overrides", () => {
     const body = buildAgentChatRequestBody({
-      body: { existing: true },
+      body: { requestedSkills: ["debug-trace"] },
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,
@@ -81,7 +83,7 @@ describe("buildAgentChatRequestBody", () => {
     });
 
     expect(body).toMatchObject({
-      existing: true,
+      requestedSkills: ["debug-trace"],
       trigger: "submit-message",
       attachUserId: false,
       editPermission: "manual",
@@ -102,9 +104,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities,
       observability: {
         storeLocalTraces: false,
@@ -132,9 +132,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: {} as AgentCapabilities,
       observability: {
         storeLocalTraces: false,
@@ -170,9 +168,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,
@@ -206,9 +202,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,
@@ -237,9 +231,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: false,
@@ -258,6 +250,44 @@ describe("buildAgentChatRequestBody", () => {
     });
 
     expect(body.attachUserId).toBe(true);
+  });
+
+  it("sends only the trailing message; the server owns the transcript", () => {
+    const earlierAssistant: AgentUIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "earlier reply" }],
+    };
+    const newUserMessage: AgentUIMessage = {
+      id: "user-2",
+      role: "user",
+      parts: [{ type: "text", text: "follow-up" }],
+    };
+
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage, earlierAssistant, newUserMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.trigger).toBe("submit-message");
+    expect(body).not.toHaveProperty("messages");
+    expect("message" in body && body.message.id).toBe("user-2");
   });
 });
 

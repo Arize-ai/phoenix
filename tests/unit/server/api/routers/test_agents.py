@@ -6,7 +6,6 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
 from jinja2 import Template
 from opentelemetry.trace import (
     SpanContext,
@@ -20,7 +19,6 @@ from sqlalchemy import delete, func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
@@ -31,7 +29,6 @@ from phoenix.server.api.routers.agents import (
     TurnTraceContext,
     _build_message_metadata_chunk,
     _get_current_context_usage,
-    _create_agent_session,
     _interleave_agent_and_subagent_message_chunks,
     _load_agent_session,
     _load_phoenix_user_email,
@@ -59,16 +56,15 @@ class TestAgentSessionPersistence:
         self,
         db: DbSessionFactory,
     ) -> None:
-        messages = [PhoenixUIMessage(id="message-1", role="user", parts=[])]
         async with db() as session:
-            created = await _create_agent_session(
-                session,
-                otel_session_id="11111111-1111-4111-8111-111111111111",
+            created = models.AgentSession(
+                project_session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
-                messages=messages,
+                title="",
                 project_name="assistant_agent",
             )
-            assert created is not None
+            session.add(created)
+            await session.flush()
             assert created.project_session_id == "11111111-1111-4111-8111-111111111111"
             created_rowid = created.id
             created_project_session_id = created.project_session_id
@@ -95,17 +91,6 @@ class TestAgentSessionPersistence:
             )
             assert updated_rowid is None
             assert await session.scalar(select(models.AgentSession.id)) is None
-
-    async def test_create_asserts_messages_are_nonempty(self, db: DbSessionFactory) -> None:
-        async with db() as session:
-            with pytest.raises(AssertionError):
-                await _create_agent_session(
-                    session,
-                    otel_session_id="11111111-1111-4111-8111-111111111111",
-                    user_id=None,
-                    messages=[],
-                    project_name="assistant_agent",
-                )
 
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
         async with db() as session:

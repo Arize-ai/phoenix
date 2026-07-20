@@ -3299,6 +3299,12 @@ class AgentSessionMessage(HasId):
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     message: Mapped[PhoenixUIMessage] = mapped_column(_UIMessage, nullable=False)
+    message_id: Mapped[str] = mapped_column(
+        String,
+        sa.Computed(message["id"].as_string(), persisted=True),
+        nullable=False,
+        unique=True,
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     agent_session: Mapped[AgentSession] = relationship(
         "AgentSession",

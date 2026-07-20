@@ -24,7 +24,6 @@ export type {
   PxiButtonVariant,
 } from "./PxiButton";
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
-export { Chat } from "./Chat";
 export { AssistantMessage, UserMessage } from "./ChatMessage";
 export {
   AGENT_MODEL_LOCAL_STORAGE_KEY,

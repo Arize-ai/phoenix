@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<728db6ef72bb26890222cce4a0affd32>>
+ * @generated SignedSource<<5703a1995338a022271d8e9bff36b3d1>>
  * @lightSyntaxTransform
  */
 
@@ -8,25 +8,26 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type AgentSessionsResourceSessionQuery$variables = {
+export type agentSessionRelaySessionQuery$variables = {
   id: string;
 };
-export type AgentSessionsResourceSessionQuery$data = {
+export type agentSessionRelaySessionQuery$data = {
   readonly agentSession: {
     readonly __typename: "AgentSession";
     readonly createdAt: string;
     readonly id: string;
     readonly messages: any;
     readonly title: string;
+    readonly updatedAt: string;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
 };
-export type AgentSessionsResourceSessionQuery = {
-  response: AgentSessionsResourceSessionQuery$data;
-  variables: AgentSessionsResourceSessionQuery$variables;
+export type agentSessionRelaySessionQuery = {
+  response: agentSessionRelaySessionQuery$data;
+  variables: agentSessionRelaySessionQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -76,6 +77,13 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "messages",
   "storageKey": null
 };
@@ -84,7 +92,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "AgentSessionsResourceSessionQuery",
+    "name": "agentSessionRelaySessionQuery",
     "selections": [
       {
         "alias": "agentSession",
@@ -101,7 +109,8 @@ return {
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v6/*:: as any*/)
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -117,7 +126,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "AgentSessionsResourceSessionQuery",
+    "name": "agentSessionRelaySessionQuery",
     "selections": [
       {
         "alias": "agentSession",
@@ -134,7 +143,8 @@ return {
             "selections": [
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v6/*:: as any*/)
+              (v6/*:: as any*/),
+              (v7/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -145,16 +155,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5d6f3956a3509d65796db179899d5887",
+    "cacheID": "5028d1ac238205bb4ff36fb37ddbbee4",
     "id": null,
     "metadata": {},
-    "name": "AgentSessionsResourceSessionQuery",
+    "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      createdAt\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      createdAt\n      updatedAt\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "83571c638255dfc75976738a033a0320";
+(node as any).hash = "ff2dd67d032d27efa67170147fa43c92";
 
 export default node;

@@ -13,18 +13,16 @@ type AgentMessageMetadata = NonNullable<
 
 /** Wire schema of the transient `data-session-summary` stream chunk. */
 type SessionSummaryChunk = components["schemas"]["SessionSummaryChunk"];
-
-/** Canonical session metadata emitted after first-message persistence. */
-type SessionCreatedChunk = components["schemas"]["SessionCreatedChunk"];
-export type AgentSessionCreatedData = SessionCreatedChunk["data"];
+type TranscriptPersistedChunk =
+  components["schemas"]["TranscriptPersistedChunk"];
 
 /**
  * Payloads of the custom `data-*` chunks the backend chat route streams
  * alongside the message. Keys are the chunk type without the `data-` prefix.
  */
 type AgentUIDataTypes = {
-  "session-created": AgentSessionCreatedData;
   "session-summary": SessionSummaryChunk["data"];
+  "transcript-persisted": TranscriptPersistedChunk["data"];
 };
 
 /**

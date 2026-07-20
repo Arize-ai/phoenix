@@ -1,30 +1,35 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
-import { useCallback, useEffect, useRef } from "react";
-import { useRelayEnvironment } from "react-relay";
+import {
+  DefaultChatTransport,
+  getToolName,
+  isTextUIPart,
+  isToolUIPart,
+} from "ai";
+import { useCallback, useRef } from "react";
+import {
+  ConnectionHandler,
+  commitLocalUpdate,
+  graphql,
+  useMutation,
+  useRelayEnvironment,
+} from "react-relay";
 
 import {
   buildAgentChatRequestBody,
   type AgentChatRequestBodyPatch,
   type AgentModelSelection,
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-import {
-  createClientToolTimingRecorder,
-  type ClientToolTimingRecorder,
-} from "@phoenix/agent/chat/clientToolTimings";
+import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
-import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
 import {
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
+import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import {
-  createTurnTraceContextManager,
-  type TurnTraceContextManager,
-} from "@phoenix/agent/chat/turnTraceContext";
+import { createTurnTraceContextManager } from "@phoenix/agent/chat/turnTraceContext";
 import {
   getAssistantMessageMetadata,
   type AgentUIMessage,
@@ -45,21 +50,101 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import type { paths } from "@phoenix/api/__generated__/v1";
 import { authFetch } from "@phoenix/authFetch";
+import { useNotifyError } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
-import { refetchAgentSessions } from "./agentSessionRelay";
+import type { useAgentChatBranchAgentSessionMutation } from "./__generated__/useAgentChatBranchAgentSessionMutation.graphql";
+import type { useAgentChatCreateAgentSessionMutation } from "./__generated__/useAgentChatCreateAgentSessionMutation.graphql";
+import type { useAgentChatTruncateAgentSessionMutation } from "./__generated__/useAgentChatTruncateAgentSessionMutation.graphql";
+import {
+  AGENT_SESSIONS_CONNECTION_KEY,
+  refetchAgentSession,
+} from "./agentSessionRelay";
 
 type TurnClientState = {
-  turnTraceContext: TurnTraceContextManager;
-  toolTimings: ClientToolTimingRecorder;
+  turnTraceContext: ReturnType<typeof createTurnTraceContextManager>;
+  toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
 };
 
 const turnClientStateByChat = new WeakMap<
   Chat<AgentUIMessage>,
   TurnClientState
 >();
+
+const CHAT_PATH_TEMPLATE =
+  "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
+const ASSISTANT_AGENT_ID = "assistant";
+
+function buildAgentChatApiUrl(sessionId: string): string {
+  return prependBasename(
+    CHAT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
+  );
+}
+
+const createAgentSessionMutation = graphql`
+  mutation useAgentChatCreateAgentSessionMutation(
+    $input: CreateAgentSessionInput!
+    $connections: [ID!]!
+  ) {
+    createAgentSession(input: $input) {
+      agentSession
+        @prependNode(
+          connections: $connections
+          edgeTypeName: "AgentSessionEdge"
+        ) {
+        id
+        title
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+const truncateAgentSessionMutation = graphql`
+  mutation useAgentChatTruncateAgentSessionMutation(
+    $input: TruncateAgentSessionInput!
+  ) {
+    truncateAgentSession(input: $input) {
+      agentSession {
+        id
+        title
+        updatedAt
+        messages
+      }
+    }
+  }
+`;
+
+const branchAgentSessionMutation = graphql`
+  mutation useAgentChatBranchAgentSessionMutation(
+    $input: BranchAgentSessionInput!
+    $connections: [ID!]!
+  ) {
+    branchAgentSession(input: $input) {
+      agentSession
+        @prependNode(
+          connections: $connections
+          edgeTypeName: "AgentSessionEdge"
+        ) {
+        id
+        title
+        createdAt
+        updatedAt
+        messages
+      }
+    }
+  }
+`;
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
@@ -72,28 +157,55 @@ const turnClientStateByChat = new WeakMap<
  * in the app-level runtime registry, then binds the current React surface to
  * whichever runtime instance should own the session right now.
  *
- * Durable state still lives in the agent store:
- * - messages are mirrored into Zustand so an idle chat can be reconstructed
- * - pending elicitation is store-backed and survives remounts
- * - titles arrive in-band from the chat stream and are store-backed
+ * Session lifecycle: sessions are created imperatively on the server. When
+ * `sessionId` is the draft sentinel ({@link DRAFT_SESSION_ID}) no server
+ * session exists yet; the first send runs the `createAgentSession` mutation,
+ * seeds a runtime chat under the returned Relay ID, and activates it. Relay is
+ * the durable source of truth for session identity, titles, and transcripts —
+ * each completed turn refetches the session node so the store stays canonical.
  */
 export function useAgentChat({
   sessionId,
-  chatApiUrl,
   modelSelection,
   initialMessages,
 }: {
+  /**
+   * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
+   * not-yet-persisted new-chat draft.
+   */
   sessionId: string | null;
-  chatApiUrl: string;
   modelSelection: AgentModelSelection;
+  /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
+  const notifyError = useNotifyError();
+  const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
+
+  const [commitCreateAgentSession] =
+    useMutation<useAgentChatCreateAgentSessionMutation>(
+      createAgentSessionMutation
+    );
+  const [commitTruncateAgentSession] =
+    useMutation<useAgentChatTruncateAgentSessionMutation>(
+      truncateAgentSessionMutation
+    );
+  const [commitBranchAgentSession] =
+    useMutation<useAgentChatBranchAgentSessionMutation>(
+      branchAgentSessionMutation
+    );
+  const sessionsConnectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    AGENT_SESSIONS_CONNECTION_KEY
+  );
+  // Guards the draft surface against double-submits while the create-session
+  // mutation is in flight.
+  const isCreatingSessionRef = useRef(false);
 
   // The Chat is cached per-session in the runtime registry, so its transport
   // and onFinish closures are captured once and reused across model changes.
@@ -102,158 +214,168 @@ export function useAgentChat({
   const modelSelectionRef = useRef(modelSelection);
   modelSelectionRef.current = modelSelection;
 
+  /**
+   * Builds the imperative AI SDK chat runtime for a persisted session. The
+   * closures capture the session's canonical Relay ID, so a draft surface only
+   * builds a chat after the create-session mutation returns one.
+   */
+  const createChatForSession = useCallback(
+    (
+      targetSessionId: string,
+      seedMessages: AgentUIMessage[]
+    ): Chat<AgentUIMessage> => {
+      const chatApiUrl = buildAgentChatApiUrl(targetSessionId);
+      const turnTraceContext = createTurnTraceContextManager();
+      const toolTimings = createClientToolTimingRecorder();
+      const transcriptPersistence = createTranscriptPersistenceCoordinator();
+      const turnCompletionGate = createTurnCompletionGate({
+        endTurn: async () => {
+          store.getState().setSessionResponsePending(targetSessionId, false);
+          turnTraceContext.clear();
+          toolTimings.clear();
+        },
+        finalize: () => {
+          // The server persisted the turn's transcript (and possibly a
+          // summarized title); refetch the canonical session record so Relay
+          // reflects it.
+          void refetchAgentSession({
+            environment: relayEnvironment,
+            sessionId: targetSessionId,
+          });
+        },
+      });
+      const chat = new Chat<AgentUIMessage>({
+        id: targetSessionId,
+        messages: seedMessages,
+        generateId: () => crypto.randomUUID(),
+        transport: new DefaultChatTransport({
+          api: chatApiUrl,
+          fetch: authFetch,
+          prepareSendMessagesRequest: ({ body, id, messages }) => {
+            // The gate may clear state for a stale completed turn before
+            // this request reads the active turn trace context.
+            turnCompletionGate.beginTurn();
+            store.getState().setSessionResponsePending(targetSessionId, true);
+            return {
+              body: buildAgentChatRequestBody({
+                body,
+                id,
+                messages,
+                capabilities: store.getState().capabilities,
+                observability: store.getState().observability,
+                agentsConfig: store.getState().agentsConfig,
+                permissions: store.getState().permissions,
+                contexts: selectActiveContexts(store.getState()),
+                modelSelection: modelSelectionRef.current,
+                turnTraceContext: turnTraceContext.getActive(),
+                toolTimings,
+              }),
+            };
+          },
+        }),
+        // Tool execution must target the runtime-owned chat instance so
+        // tool outputs continue to attach to the correct conversation
+        // even if the visible React surface remounts during the request.
+        onToolCall: ({ toolCall }) => {
+          const providerMetadata =
+            "providerMetadata" in toolCall ? toolCall.providerMetadata : null;
+          const phoenixMetadata = isRecord(providerMetadata)
+            ? providerMetadata.phoenix
+            : null;
+          const isServerExecuted =
+            isRecord(phoenixMetadata) &&
+            phoenixMetadata.toolExecutionEnvironment === "server";
+          if (!isServerExecuted) {
+            toolTimings.recordStart(toolCall.toolCallId);
+          }
+          void handleAgentToolCall({
+            toolCall,
+            sessionId: targetSessionId,
+            addToolOutput: async (toolOutput) => {
+              toolTimings.recordEnd(toolCall.toolCallId);
+              await chat.addToolOutput(toolOutput);
+            },
+            appendMessagePart: (part) => {
+              chat.messages = appendPartToToolMessage({
+                messages: chat.messages,
+                toolCallId: toolCall.toolCallId,
+                part,
+              });
+            },
+            agentStore: store,
+          });
+        },
+        onData: (dataPart) => {
+          if (dataPart.type === "data-session-summary") {
+            // The stream's summarized title is already persisted server-side;
+            // mirror it onto the Relay record so the session list updates live.
+            commitLocalUpdate(relayEnvironment, (relayStore) => {
+              relayStore.get(targetSessionId)?.setValue(dataPart.data, "title");
+            });
+          } else if (dataPart.type === "data-transcript-persisted") {
+            transcriptPersistence.acknowledge(dataPart.data);
+          }
+        },
+        sendAutomaticallyWhen: async ({ messages }) => {
+          const shouldSendAutomatically =
+            await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
+          if (!shouldSendAutomatically) {
+            return false;
+          }
+          const assistantMessage = messages.at(-1);
+          if (assistantMessage?.role !== "assistant") {
+            return false;
+          }
+          return transcriptPersistence.waitForMessage({
+            messageId: assistantMessage.id,
+          });
+        },
+        onError: (error) => {
+          transcriptPersistence.cancelPendingWaiters();
+          turnCompletionGate.fail(error);
+        },
+        onFinish: ({ messages: finalMessages, message }) => {
+          turnTraceContext.captureFromMetadata(
+            getAssistantMessageMetadata(message)?.turnTraceContext
+          );
+          turnCompletionGate.handleFinish({ finalMessages, message });
+        },
+      });
+      turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
+      return chat;
+    },
+    [relayEnvironment, store]
+  );
+
   // Resolve the imperative runtime instance for this session/model pair. The
   // runtime owns replacement semantics when the transport changes, while the
   // hook simply binds the current render surface to the selected instance.
+  // Draft surfaces have no runtime until the first send creates a session.
+  const persistedSessionId = isDraft ? null : sessionId;
+  const chatApiUrl = persistedSessionId
+    ? buildAgentChatApiUrl(persistedSessionId)
+    : null;
   const chatInstance =
-    sessionId === null
-      ? null
-      : runtime.getOrCreateChat({
-          sessionId,
+    chatApiUrl && persistedSessionId
+      ? runtime.getOrCreateChat({
+          sessionId: persistedSessionId,
           chatApiUrl,
-          createChat: () => {
-            // Rehydrate from store-backed messages so evicted idle runtimes can
-            // be recreated without losing visible conversation history.
-            const runtimeMessages =
-              store.getState().sessionMap[sessionId]?.messages ??
-              initialMessages ??
-              [];
-            const turnTraceContext = createTurnTraceContextManager();
-            const toolTimings = createClientToolTimingRecorder();
-            const turnCompletionGate = createTurnCompletionGate({
-              endTurn: async () => {
-                store.getState().setSessionResponsePending(sessionId, false);
-                turnTraceContext.clear();
-                toolTimings.clear();
-              },
-              finalize: ({ finalMessages, message }) => {
-                const usage = getAssistantMessageMetadata(message)?.usage;
-                if (usage != null) {
-                  store.getState().setSessionUsage(sessionId, {
-                    ...usage.tokens,
-                    ...(usage.promptDetails
-                      ? { promptDetails: usage.promptDetails }
-                      : {}),
-                  });
-                }
-                // Finalized history is mirrored into the durable store so idle
-                // runtimes can be reclaimed and later reconstructed from state.
-                if (finalMessages) {
-                  store.getState().setSessionMessages(sessionId, finalMessages);
-                }
-              },
-            });
-            const chat = new Chat<AgentUIMessage>({
-              id: sessionId,
-              messages: runtimeMessages,
-              transport: new DefaultChatTransport({
-                api: chatApiUrl,
-                fetch: authFetch,
-                prepareSendMessagesRequest: ({
-                  body,
-                  id,
-                  messages,
-                  trigger,
-                  messageId,
-                }) => {
-                  // The gate may clear state for a stale completed turn before
-                  // this request reads the active turn trace context.
-                  turnCompletionGate.beginTurn();
-                  store.getState().setSessionResponsePending(sessionId, true);
-                  return {
-                    body: buildAgentChatRequestBody({
-                      body,
-                      id,
-                      agentSessionId:
-                        store.getState().sessionMap[sessionId]?.id ?? null,
-                      messages,
-                      trigger,
-                      messageId,
-                      capabilities: store.getState().capabilities,
-                      observability: store.getState().observability,
-                      agentsConfig: store.getState().agentsConfig,
-                      permissions: store.getState().permissions,
-                      contexts: selectActiveContexts(store.getState()),
-                      modelSelection: modelSelectionRef.current,
-                      turnTraceContext: turnTraceContext.getActive(),
-                      toolTimings,
-                    }),
-                  };
-                },
-              }),
-              // Tool execution must target the runtime-owned chat instance so
-              // tool outputs continue to attach to the correct conversation
-              // even if the visible React surface remounts during the request.
-              onToolCall: ({ toolCall }) => {
-                const providerMetadata =
-                  "providerMetadata" in toolCall
-                    ? toolCall.providerMetadata
-                    : null;
-                const phoenixMetadata = isRecord(providerMetadata)
-                  ? providerMetadata.phoenix
-                  : null;
-                const isServerExecuted =
-                  isRecord(phoenixMetadata) &&
-                  phoenixMetadata.toolExecutionEnvironment === "server";
-                if (!isServerExecuted) {
-                  toolTimings.recordStart(toolCall.toolCallId);
-                }
-                void handleAgentToolCall({
-                  toolCall,
-                  sessionId,
-                  addToolOutput: async (toolOutput) => {
-                    toolTimings.recordEnd(toolCall.toolCallId);
-                    await chat.addToolOutput(toolOutput);
-                  },
-                  appendMessagePart: (part) => {
-                    chat.messages = appendPartToToolMessage({
-                      messages: chat.messages,
-                      toolCallId: toolCall.toolCallId,
-                      part,
-                    });
-                  },
-                  agentStore: store,
-                });
-              },
-              onData: (dataPart) => {
-                if (dataPart.type === "data-session-created") {
-                  store
-                    .getState()
-                    .setSessionPersisted(sessionId, dataPart.data.id);
-                  void refetchAgentSessions({ environment: relayEnvironment });
-                  return;
-                }
-                if (dataPart.type === "data-session-summary") {
-                  store.getState().updateSessionTitle(sessionId, dataPart.data);
-                }
-              },
-              sendAutomaticallyWhen: ({ messages }) =>
-                turnCompletionGate.handleSendAutomaticallyWhen({ messages }),
-              onError: (error) => {
-                turnCompletionGate.fail(error);
-              },
-              onFinish: ({ messages: finalMessages, message }) => {
-                turnTraceContext.captureFromMetadata(
-                  getAssistantMessageMetadata(message)?.turnTraceContext
-                );
-                turnCompletionGate.handleFinish({ finalMessages, message });
-              },
-            });
-            turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
-            return chat;
-          },
-        });
+          createChat: (previousMessages) =>
+            createChatForSession(
+              persistedSessionId,
+              previousMessages ?? initialMessages ?? []
+            ),
+        })
+      : null;
 
   // `useChat` subscribes the current React tree to the already-created runtime
-  // instance. When `sessionId` is null we intentionally expose an inert chat
-  // shape rather than creating a shared fallback runtime through this hook.
+  // instance. Draft surfaces expose an inert chat shape until the first send.
   const chat = useChat<AgentUIMessage>(
     chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
   );
   const {
     messages,
     sendMessage,
-    regenerate,
     status,
     error,
     addToolOutput,
@@ -337,7 +459,62 @@ export function useAgentChat({
     setMessages(removeInterruptedToolInputParts);
   };
 
+  /**
+   * Creates the server session for a draft surface, then sends the first
+   * message through a freshly seeded runtime chat keyed by the new session's
+   * Relay ID. Activating the new session re-keys the visible surface.
+   */
+  const createSessionAndSendMessage = (
+    ...args: Parameters<typeof sendMessage>
+  ) => {
+    const [message, options] = args;
+    const text =
+      message != null && "text" in message && typeof message.text === "string"
+        ? message.text.trim()
+        : "";
+    if (!text || isCreatingSessionRef.current) {
+      return;
+    }
+    isCreatingSessionRef.current = true;
+    commitCreateAgentSession({
+      variables: { input: {}, connections: [sessionsConnectionId] },
+      onCompleted: (response) => {
+        isCreatingSessionRef.current = false;
+        const newSessionId = response.createAgentSession.agentSession.id;
+        const newChatApiUrl = buildAgentChatApiUrl(newSessionId);
+        const newChat = runtime.getOrCreateChat({
+          sessionId: newSessionId,
+          chatApiUrl: newChatApiUrl,
+          createChat: (previousMessages) =>
+            createChatForSession(newSessionId, previousMessages ?? []),
+        });
+        void newChat.sendMessage(
+          { text, metadata: buildUserMessageMetadata() },
+          options
+        );
+        const state = store.getState();
+        state.clearSessionEphemeralState(DRAFT_SESSION_ID);
+        state.setActiveSession(newSessionId);
+      },
+      onError: (mutationError) => {
+        isCreatingSessionRef.current = false;
+        // Give the user their message back to retry.
+        store.getState().setDraftInput(DRAFT_SESSION_ID, text);
+        const errorMessages =
+          getErrorMessagesFromRelayMutationError(mutationError);
+        notifyError({
+          title: "Conversation could not be started",
+          message: errorMessages?.[0] ?? mutationError.message,
+        });
+      },
+    });
+  };
+
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
+    if (isDraft) {
+      createSessionAndSendMessage(...args);
+      return;
+    }
     if (chatInstance && isRequestActive(chatInstance.status)) {
       return;
     }
@@ -357,20 +534,6 @@ export function useAgentChat({
       options
     );
   };
-
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-
-  // Persist the latest in-memory transcript when this binding unmounts because
-  // the visible surface moved, the active session changed, or the model swap
-  // caused the runtime instance to be replaced.
-  useEffect(() => {
-    return () => {
-      if (sessionId && messagesRef.current.length > 0) {
-        store.getState().setSessionMessages(sessionId, messagesRef.current);
-      }
-    };
-  }, [sessionId, store]);
 
   // Elicitation responses are written back through the runtime-owned chat so
   // the pending tool call resolves against the correct assistant turn.
@@ -452,72 +615,132 @@ export function useAgentChat({
     [pendingElicitation, sessionId, store]
   );
 
-  // Rewinds the active session in place to the chosen message, truncating the
-  // transcript and releasing stale tool state. Returns the user message text to
-  // restore into the input (user target) or null (assistant target / no-op).
+  // Rewinds the active session in place at the chosen message. The truncation
+  // itself runs server-side (`truncateAgentSession`); the runtime chat is then
+  // reset to the persisted transcript and stale tool state is released.
+  // Resolves to the user message text to restore into the input (user target)
+  // or null (assistant target / no-op / failure).
   const rewindToMessage = useCallback(
-    (messageId: string): string | null => {
-      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
-        return null;
+    (messageId: string): Promise<string | null> => {
+      if (
+        isDraft ||
+        !sessionId ||
+        !chatInstance ||
+        isRequestActive(chatInstance.status)
+      ) {
+        return Promise.resolve(null);
       }
-      const result = rewindMessages({
-        messages: chatInstance.messages,
-        messageId,
+      // A rewind at a user message removes it; remember its text now so it
+      // can be placed back into the prompt input once the truncation lands.
+      const restoredInput = getRemovedUserMessageText(
+        chatInstance.messages,
+        messageId
+      );
+      return new Promise((resolve) => {
+        commitTruncateAgentSession({
+          variables: { input: { id: sessionId, messageId } },
+          onCompleted: (response) => {
+            const payload = response.truncateAgentSession;
+            const nextMessages = Array.isArray(payload.agentSession.messages)
+              ? (payload.agentSession.messages as AgentUIMessage[])
+              : [];
+            clearDroppedToolState({
+              previous: chatInstance.messages,
+              next: nextMessages,
+            });
+            setMessages(nextMessages);
+            clearError();
+            resolve(restoredInput);
+          },
+          onError: (mutationError) => {
+            const errorMessages =
+              getErrorMessagesFromRelayMutationError(mutationError);
+            notifyError({
+              title: "Conversation could not be rewound",
+              message: errorMessages?.[0] ?? mutationError.message,
+            });
+            resolve(null);
+          },
+        });
       });
-      if (!result) {
-        return null;
-      }
-      clearDroppedToolState({
-        previous: chatInstance.messages,
-        next: result.messages,
-      });
-      setMessages(result.messages);
-      clearError();
-      store.getState().setSessionMessages(sessionId, result.messages);
-      return result.restoredInput;
     },
     [
       chatInstance,
       clearDroppedToolState,
       clearError,
+      commitTruncateAgentSession,
+      isDraft,
+      notifyError,
       sessionId,
       setMessages,
-      store,
     ]
   );
 
-  // Branches the active session into a new session truncated to the chosen
-  // message, leaving the current session untouched. Returns the new session id.
+  // Branches the active session into a new server session truncated at the
+  // chosen message, leaving the current session untouched. The server copies
+  // the truncated transcript and derives the branch title; the UI seeds a
+  // runtime chat from the returned transcript and activates it.
   const forkFromMessage = useCallback(
-    (messageId: string): string | null => {
-      if (!sessionId || !chatInstance) {
-        return null;
-      }
-      const result = rewindMessages({
-        messages: chatInstance.messages,
-        messageId,
-      });
-      if (!result) {
-        return null;
-      }
-      clearError();
-      return store.getState().forkSession({
-        sourceSessionId: sessionId,
-        messages: result.messages,
-        restoredInput: result.restoredInput,
-      });
-    },
-    [chatInstance, clearError, sessionId, store]
-  );
-
-  const retryMessage = useCallback(
-    (messageId?: string) => {
-      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
+    (messageId: string): void => {
+      if (isDraft || !sessionId || !chatInstance) {
         return;
       }
-      void regenerate(messageId ? { messageId } : undefined);
+      clearError();
+      // Branching at a user message drops it from the branch; remember its
+      // text now so the branch's composer starts with it.
+      const restoredInput = getRemovedUserMessageText(
+        chatInstance.messages,
+        messageId
+      );
+      commitBranchAgentSession({
+        variables: {
+          input: { id: sessionId, messageId },
+          connections: [sessionsConnectionId],
+        },
+        onCompleted: (response) => {
+          const payload = response.branchAgentSession;
+          const branchSessionId = payload.agentSession.id;
+          const branchChatApiUrl = buildAgentChatApiUrl(branchSessionId);
+          const branchMessages = Array.isArray(payload.agentSession.messages)
+            ? (payload.agentSession.messages as AgentUIMessage[])
+            : [];
+          runtime.getOrCreateChat({
+            sessionId: branchSessionId,
+            chatApiUrl: branchChatApiUrl,
+            createChat: (previousMessages) =>
+              createChatForSession(
+                branchSessionId,
+                previousMessages ?? branchMessages
+              ),
+          });
+          const state = store.getState();
+          if (restoredInput) {
+            state.setDraftInput(branchSessionId, restoredInput);
+          }
+          state.setActiveSession(branchSessionId);
+        },
+        onError: (mutationError) => {
+          const errorMessages =
+            getErrorMessagesFromRelayMutationError(mutationError);
+          notifyError({
+            title: "Conversation could not be branched",
+            message: errorMessages?.[0] ?? mutationError.message,
+          });
+        },
+      });
     },
-    [chatInstance, regenerate, sessionId]
+    [
+      chatInstance,
+      clearError,
+      commitBranchAgentSession,
+      createChatForSession,
+      isDraft,
+      notifyError,
+      runtime,
+      sessionId,
+      sessionsConnectionId,
+      store,
+    ]
   );
 
   return {
@@ -529,7 +752,6 @@ export function useAgentChat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
-    retryMessage,
     rewindToMessage,
     forkFromMessage,
   } as {
@@ -544,9 +766,8 @@ export function useAgentChat({
     pendingElicitation: PendingElicitation | null;
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
-    retryMessage: (messageId?: string) => void;
-    rewindToMessage: (messageId: string) => string | null;
-    forkFromMessage: (messageId: string) => string | null;
+    rewindToMessage: (messageId: string) => Promise<string | null>;
+    forkFromMessage: (messageId: string) => void;
   };
 }
 
@@ -565,6 +786,24 @@ function removeInterruptedToolInputParts(
       }),
     };
   });
+}
+
+/**
+ * The text of the user message a rewind/branch at `messageId` removes, or null
+ * when the target is not a user message (assistant targets are retained).
+ */
+function getRemovedUserMessageText(
+  messages: AgentUIMessage[],
+  messageId: string
+): string | null {
+  const target = messages.find((message) => message.id === messageId);
+  if (!target || target.role !== "user") {
+    return null;
+  }
+  return target.parts
+    .filter(isTextUIPart)
+    .map((part) => part.text)
+    .join("");
 }
 
 function isRequestActive(status: ChatStatus): boolean {

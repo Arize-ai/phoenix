@@ -3,24 +3,24 @@ import type { PendingAgentMessage } from "@phoenix/store/agentStore";
 
 function createContext() {
   return {
-    createSession: vi.fn(() => "new-session"),
+    startNewSession: vi.fn(() => "draft-session"),
     setPendingMessage:
       vi.fn<(sessionId: string, message: PendingAgentMessage) => void>(),
   };
 }
 
 describe("runPromptCommands", () => {
-  it("clear with no remaining text creates a session and stages nothing", () => {
+  it("clear with no remaining text starts a draft and stages nothing", () => {
     const context = createContext();
     runPromptCommands(
       { commandNames: ["clear"], text: "", requestedSkills: [] },
       context
     );
-    expect(context.createSession).toHaveBeenCalledTimes(1);
+    expect(context.startNewSession).toHaveBeenCalledTimes(1);
     expect(context.setPendingMessage).not.toHaveBeenCalled();
   });
 
-  it("clear with remaining text stages it for the new session", () => {
+  it("clear with remaining text stages it for the draft surface", () => {
     const context = createContext();
     runPromptCommands(
       {
@@ -30,7 +30,7 @@ describe("runPromptCommands", () => {
       },
       context
     );
-    expect(context.setPendingMessage).toHaveBeenCalledWith("new-session", {
+    expect(context.setPendingMessage).toHaveBeenCalledWith("draft-session", {
       text: "fix this bug",
       requestedSkills: ["debug-trace"],
     });
@@ -44,7 +44,7 @@ describe("runPromptCommands", () => {
         context
       )
     ).toThrow("Unknown prompt command: unknown");
-    expect(context.createSession).not.toHaveBeenCalled();
+    expect(context.startNewSession).not.toHaveBeenCalled();
     expect(context.setPendingMessage).not.toHaveBeenCalled();
   });
 });

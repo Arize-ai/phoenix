@@ -83,6 +83,7 @@ def upgrade() -> None:
         ["user_id", sa.column("updated_at").desc()],
     )
 
+    message = sa.Column("message", JSON_, nullable=False)
     op.create_table(
         "agent_session_messages",
         sa.Column("id", _Integer, primary_key=True),
@@ -93,7 +94,14 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("position", sa.Integer, nullable=False),
-        sa.Column("message", JSON_, nullable=False),
+        message,
+        sa.Column(
+            "message_id",
+            sa.String,
+            sa.Computed(message["id"].as_string(), persisted=True),
+            nullable=False,
+            unique=True,
+        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
