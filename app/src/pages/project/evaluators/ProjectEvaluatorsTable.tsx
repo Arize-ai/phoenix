@@ -21,11 +21,11 @@ import type {
   EvaluationTarget,
   ProjectEvaluatorsTable_row$key,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
-import { MOCK_PROJECT_EVALUATOR_ROWS } from "@phoenix/pages/project/evaluators/projectEvaluatorsMockData";
 import { classNames } from "@phoenix/utils/classNames";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 100;
+const EMPTY_CONNECTION_IDS: string[] = [];
 
 function readProjectEvaluatorRow(row: ProjectEvaluatorsTable_row$key) {
   return readInlineData(
@@ -167,12 +167,7 @@ const PROJECT_EVALUATOR_COLUMNS: ColumnDef<ProjectEvaluatorTableRow>[] = [
 export function useProjectEvaluatorsTable(
   project: ProjectEvaluatorsTable_evaluators$key
 ) {
-  const {
-    data: _,
-    hasNext,
-    isLoadingNext,
-    loadNext,
-  } = usePaginationFragment(
+  const { data, hasNext, isLoadingNext, loadNext } = usePaginationFragment(
     graphql`
       fragment ProjectEvaluatorsTable_evaluators on Project
       @refetchable(queryName: "ProjectEvaluatorsTableEvaluatorsQuery")
@@ -182,6 +177,7 @@ export function useProjectEvaluatorsTable(
       ) {
         evaluators(first: $first, after: $after)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
+          __id
           edges {
             node {
               ...ProjectEvaluatorsTable_row
@@ -194,22 +190,27 @@ export function useProjectEvaluatorsTable(
   );
 
   const projectEvaluators = useMemo(() => {
-    return MOCK_PROJECT_EVALUATOR_ROWS;
-
-    // return data.evaluators.edges.map((edge) =>
-    //   readProjectEvaluatorRow(edge.node)
-    // );
-  }, []);
+    return data.evaluators.edges.map((edge) =>
+      readProjectEvaluatorRow(edge.node)
+    );
+  }, [data]);
+  const updateConnectionIds = useMemo(() => {
+    return data.evaluators.__id ? [data.evaluators.__id] : EMPTY_CONNECTION_IDS;
+  }, [data.evaluators.__id]);
 
   return {
     projectEvaluators,
+    updateConnectionIds,
     hasNext,
     isLoadingNext,
     loadNext: () => loadNext(PAGE_SIZE),
   };
 }
 
-type ProjectEvaluatorsTableProps = ReturnType<typeof useProjectEvaluatorsTable>;
+type ProjectEvaluatorsTableProps = Omit<
+  ReturnType<typeof useProjectEvaluatorsTable>,
+  "updateConnectionIds"
+>;
 
 export function ProjectEvaluatorsTable({
   projectEvaluators,

@@ -1,25 +1,55 @@
+import { createLLMEvaluatorDefinitionPayload } from "@phoenix/components/evaluators/utils";
+import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import type { CreateProjectLLMEvaluatorInput } from "@phoenix/pages/project/evaluators/__generated__/CreateLLMProjectEvaluatorSlideover_createProjectLlmEvaluatorMutation.graphql";
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
+import type { EvaluatorInputMapping } from "@phoenix/types";
 
-export type CreateProjectLLMEvaluatorResult = {
-  id: string;
-  name: string;
+const EVALUATION_TARGET_BY_PROJECT_TARGET: Record<
+  ProjectEvaluatorTarget,
+  CreateProjectLLMEvaluatorInput["evaluationTarget"]
+> = {
+  span: "SPAN",
+  trace: "TRACE",
+  session: "SESSION",
 };
 
-/**
- * TODO(project-evaluators): replace with a createProjectLlmEvaluator Relay
- * mutation once the project-evaluator GraphQL schema lands. Building the full
- * mutation input (prompt version, output configs, input mapping) comes with
- * that swap — see CreateLLMDatasetEvaluatorSlideover for the pattern.
- */
-export async function createProjectLlmEvaluator({
+export function createProjectLLMEvaluatorPayload({
+  playgroundStore,
+  instanceId,
+  projectId,
+  targetType,
   name,
+  description,
+  outputConfigs,
+  inputMapping,
+  includeExplanation,
 }: {
+  playgroundStore: ReturnType<typeof usePlaygroundStore>;
+  instanceId: number;
   projectId: string;
   targetType: ProjectEvaluatorTarget;
   name: string;
-}): Promise<CreateProjectLLMEvaluatorResult> {
+  description: string;
+  outputConfigs: AnnotationConfig[];
+  inputMapping: EvaluatorInputMapping;
+  includeExplanation: boolean;
+}): CreateProjectLLMEvaluatorInput {
   return {
-    id: `stub-project-evaluator:${name}`,
-    name,
+    ...createLLMEvaluatorDefinitionPayload({
+      playgroundStore,
+      instanceId,
+      name,
+      description,
+      outputConfigs,
+      includeExplanation,
+    }),
+    projectId,
+    inputMapping,
+    evaluationTarget: EVALUATION_TARGET_BY_PROJECT_TARGET[targetType],
+    // TODO: enable customizing the below fields
+    samplingRate: 1,
+    filterCondition: "",
+    enabled: true,
   };
 }

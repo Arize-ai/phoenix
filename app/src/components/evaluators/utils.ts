@@ -66,7 +66,6 @@ const createPromptVersionInput = ({
 }: {
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
   instanceId: number;
-  name: string;
   /**
    * The description of the evaluator.
    */
@@ -79,14 +78,6 @@ const createPromptVersionInput = ({
    * Whether to include an explanation for the evaluation score.
    */
   includeExplanation: boolean;
-  /**
-   * The input mapping of the evaluator.
-   */
-  inputMapping?: EvaluatorInputMapping;
-  /**
-   * The dataset ID to assign the evaluator to.
-   */
-  datasetId?: string;
 }) => {
   const { promptInput, promptVersionId } = getInstancePromptParamsFromStore(
     instanceId,
@@ -148,7 +139,6 @@ export const updateLLMEvaluatorPayload = ({
     createPromptVersionInput({
       playgroundStore,
       instanceId,
-      name,
       description,
       outputConfigs,
       includeExplanation,
@@ -165,6 +155,47 @@ export const updateLLMEvaluatorPayload = ({
     promptVersionId: promptVersionId ?? null,
   };
 };
+
+/**
+ * Create the evaluator definition shared by dataset and project LLM
+ * evaluator mutations.
+ */
+export const createLLMEvaluatorDefinitionPayload = ({
+  playgroundStore,
+  instanceId,
+  name: rawName,
+  description: rawDescription,
+  outputConfigs,
+  includeExplanation,
+}: {
+  playgroundStore: ReturnType<typeof usePlaygroundStore>;
+  instanceId: number;
+  name: string;
+  description: string;
+  outputConfigs: AnnotationConfig[];
+  includeExplanation: boolean;
+}) => {
+  const name = rawName.trim();
+  const description = rawDescription.trim() || undefined;
+
+  const { prunedPromptInput: promptVersion, promptVersionId } =
+    createPromptVersionInput({
+      playgroundStore,
+      instanceId,
+      description,
+      outputConfigs,
+      includeExplanation,
+    });
+
+  return {
+    name,
+    description,
+    promptVersion,
+    outputConfigs: buildOutputConfigsInput(outputConfigs),
+    promptVersionId: promptVersionId ?? null,
+  };
+};
+
 /**
  * Create a payload for the createLLMEvaluator or updateLLMEvaluator mutations.
  */
@@ -211,27 +242,17 @@ export const createLLMEvaluatorPayload = ({
    */
   datasetId: string;
 }): CreateDatasetLLMEvaluatorInput => {
-  const name = rawName.trim();
-  const description = rawDescription.trim() || undefined;
-
-  const { prunedPromptInput: promptVersion, promptVersionId } =
-    createPromptVersionInput({
+  return {
+    ...createLLMEvaluatorDefinitionPayload({
       playgroundStore,
       instanceId,
-      name,
-      description,
+      name: rawName,
+      description: rawDescription,
       outputConfigs,
       includeExplanation,
-    });
-
-  return {
-    name,
-    description,
+    }),
     datasetId,
-    inputMapping: inputMapping,
-    promptVersion,
-    outputConfigs: buildOutputConfigsInput(outputConfigs),
-    promptVersionId: promptVersionId ?? null,
+    inputMapping,
   };
 };
 

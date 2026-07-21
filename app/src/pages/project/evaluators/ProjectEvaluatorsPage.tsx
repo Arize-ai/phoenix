@@ -28,25 +28,35 @@ export function ProjectEvaluatorsPage() {
         min-height: 0;
       `}
     >
-      <View padding="size-100" flex="none">
-        <Flex direction="row" justifyContent="end">
-          <AddProjectEvaluatorMenu size="M" projectId={projectId} />
-        </Flex>
-      </View>
       <Suspense fallback={<Loading />}>
-        <ProjectEvaluatorsPageContent />
+        <ProjectEvaluatorsPageContent projectId={projectId} />
       </Suspense>
     </main>
   );
 }
 
-function ProjectEvaluatorsPageContent() {
+function ProjectEvaluatorsPageContent({ projectId }: { projectId: string }) {
   const loaderData = useLoaderData<typeof projectEvaluatorsLoader>();
   invariant(loaderData, "loaderData is required");
   const data = useOwnedPreloadedQuery({
     query: projectEvaluatorsLoaderGQL,
     queryRef: loaderData,
   });
-  const tableProps = useProjectEvaluatorsTable(data.project);
-  return <ProjectEvaluatorsTable {...tableProps} />;
+  const { updateConnectionIds, ...tableProps } = useProjectEvaluatorsTable(
+    data.project
+  );
+  return (
+    <>
+      <View padding="size-100" flex="none">
+        <Flex direction="row" justifyContent="end">
+          <AddProjectEvaluatorMenu
+            size="M"
+            projectId={projectId}
+            updateConnectionIds={updateConnectionIds}
+          />
+        </Flex>
+      </View>
+      <ProjectEvaluatorsTable {...tableProps} />
+    </>
+  );
 }

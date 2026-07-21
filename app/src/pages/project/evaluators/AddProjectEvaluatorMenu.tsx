@@ -22,10 +22,12 @@ import { CreateLLMProjectEvaluatorSlideover } from "@phoenix/pages/project/evalu
 export const AddProjectEvaluatorMenu = ({
   size,
   projectId,
+  updateConnectionIds,
   ...props
 }: {
   size: ButtonProps["size"];
   projectId: string;
+  updateConnectionIds?: string[];
 } & Omit<MenuTriggerProps, "children">) => {
   const [isCreateLLMEvaluatorOpen, setIsCreateLLMEvaluatorOpen] =
     useState(false);
@@ -65,6 +67,7 @@ export const AddProjectEvaluatorMenu = ({
         isOpen={isCreateLLMEvaluatorOpen}
         onOpenChange={setIsCreateLLMEvaluatorOpen}
         projectId={projectId}
+        updateConnectionIds={updateConnectionIds}
       />
     </>
   );

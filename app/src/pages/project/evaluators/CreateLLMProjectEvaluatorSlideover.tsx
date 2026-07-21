@@ -1,5 +1,6 @@
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
+import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -11,7 +12,12 @@ import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/Eval
 import { getOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
-import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
+import type { CreateLLMProjectEvaluatorSlideover_createProjectLlmEvaluatorMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateLLMProjectEvaluatorSlideover_createProjectLlmEvaluatorMutation.graphql";
+import { createProjectLLMEvaluatorPayload } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectEvaluatorTargetField } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetField";
 import { ProjectEvaluatorTestPlaceholder } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestPlaceholder";
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
@@ -20,12 +26,15 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export const CreateLLMProjectEvaluatorSlideover = ({
   projectId,
+  updateConnectionIds,
   ...props
 }: {
   projectId: string;
+  updateConnectionIds?: string[];
 } & ModalOverlayProps) => {
   return (
     <ModalOverlay {...props}>
@@ -37,6 +46,7 @@ export const CreateLLMProjectEvaluatorSlideover = ({
                 <CreateProjectEvaluatorDialog
                   onClose={close}
                   projectId={projectId}
+                  updateConnectionIds={updateConnectionIds}
                 />
               </EvaluatorPlaygroundProvider>
             </Suspense>
@@ -50,70 +60,133 @@ export const CreateLLMProjectEvaluatorSlideover = ({
 const CreateProjectEvaluatorDialog = ({
   onClose,
   projectId,
+  updateConnectionIds,
 }: {
   onClose: () => void;
   projectId: string;
+  updateConnectionIds?: string[];
 }) => {
+  const playgroundStore = usePlaygroundStore();
+  const instances = usePlaygroundContext((state) => state.instances);
+  const instanceId = useMemo(() => instances[0].id, [instances]);
+  invariant(instanceId != null, "instanceId is required");
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | undefined>(undefined);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [targetType, setTargetType] = useState<ProjectEvaluatorTarget>("span");
+  const [createProjectLlmEvaluator, isCreating] =
+    useMutation<CreateLLMProjectEvaluatorSlideover_createProjectLlmEvaluatorMutation>(
+      graphql`
+        mutation CreateLLMProjectEvaluatorSlideover_createProjectLlmEvaluatorMutation(
+          $input: CreateProjectLLMEvaluatorInput!
+          $connectionIds: [ID!]!
+        ) {
+          createProjectLlmEvaluator(input: $input) {
+            evaluator
+              @appendNode(
+                connections: $connectionIds
+                edgeTypeName: "ProjectEvaluatorEdge"
+              ) {
+              id
+              name
+              ...ProjectEvaluatorsTable_row
+            }
+          }
+        }
+      `
+    );
 
   const defaultOutputConfig =
     DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
   const defaultEvaluatorName =
     DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName;
-  const initialState = {
-    ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
-    // Keep the output config name in sync with the evaluator name, as the
-    // dataset create dialog does
-    outputConfigs: [{ ...defaultOutputConfig, name: defaultEvaluatorName }],
-  } satisfies EvaluatorStoreProps;
+  const initialState = useMemo(
+    () =>
+      ({
+        ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+        // Keep the output config name in sync with the evaluator name, as the
+        // dataset create dialog does
+        outputConfigs: [{ ...defaultOutputConfig, name: defaultEvaluatorName }],
+      }) satisfies EvaluatorStoreProps,
+    [defaultEvaluatorName, defaultOutputConfig]
+  );
 
-  const onSubmit = async (
-    store: EvaluatorStoreInstance
-  ): Promise<EvaluatorSubmitResult> => {
-    const {
-      evaluator: { globalName },
-      outputConfigs,
-    } = store.getState();
-    invariant(
-      outputConfigs && outputConfigs.length > 0,
-      "At least one output config is required"
-    );
+  const onSubmit = useCallback(
+    (store: EvaluatorStoreInstance): Promise<EvaluatorSubmitResult> => {
+      setError(undefined);
+      const {
+        evaluator: {
+          globalName,
+          description,
+          inputMapping,
+          includeExplanation,
+        },
+        outputConfigs,
+      } = store.getState();
+      invariant(
+        outputConfigs && outputConfigs.length > 0,
+        "At least one output config is required"
+      );
 
-    const validationErrors = getOutputConfigValidationErrors(outputConfigs);
-    if (validationErrors.length > 0) {
-      const message = validationErrors.join("\n");
-      setError(message);
-      return { ok: false, error: message };
-    }
+      const validationErrors = getOutputConfigValidationErrors(outputConfigs);
+      if (validationErrors.length > 0) {
+        const message = validationErrors.join("\n");
+        setError(message);
+        return Promise.resolve({ ok: false, error: message });
+      }
 
-    setIsSubmitting(true);
-    try {
-      const evaluator = await createProjectLlmEvaluator({
+      const input = createProjectLLMEvaluatorPayload({
+        playgroundStore,
+        instanceId,
         projectId,
         targetType,
-        name: globalName.trim(),
+        name: globalName,
+        description,
+        outputConfigs,
+        inputMapping,
+        includeExplanation,
       });
-      onClose();
-      notifySuccess({
-        title: "Evaluator created",
+      return new Promise<EvaluatorSubmitResult>((resolve) => {
+        createProjectLlmEvaluator({
+          variables: {
+            input,
+            connectionIds: updateConnectionIds ?? [],
+          },
+          onCompleted: (response) => {
+            const createdEvaluator =
+              response.createProjectLlmEvaluator.evaluator;
+            onClose();
+            notifySuccess({ title: "Evaluator created" });
+            resolve({
+              ok: true,
+              acceptedBy: "user",
+              evaluator: {
+                id: createdEvaluator.id,
+                name: createdEvaluator.name,
+              },
+            });
+          },
+          onError: (mutationError) => {
+            const message =
+              getErrorMessagesFromRelayMutationError(mutationError)?.join(
+                "\n"
+              ) ?? mutationError.message;
+            setError(message);
+            resolve({ ok: false, error: message });
+          },
+        });
       });
-      return {
-        ok: true,
-        acceptedBy: "user",
-        evaluator,
-      };
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to create evaluator";
-      setError(message);
-      return { ok: false, error: message };
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+    [
+      createProjectLlmEvaluator,
+      instanceId,
+      notifySuccess,
+      onClose,
+      playgroundStore,
+      projectId,
+      targetType,
+      updateConnectionIds,
+    ]
+  );
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
@@ -121,7 +194,7 @@ const CreateProjectEvaluatorDialog = ({
         <EditLLMEvaluatorDialogContent
           onClose={onClose}
           onSubmit={() => onSubmit(store)}
-          isSubmitting={isSubmitting}
+          isSubmitting={isCreating}
           mode="create"
           error={error}
           formLeftPanelExtra={
