@@ -2893,7 +2893,7 @@ type ProjectEvaluator implements Node {
   samplingRate: Float!
 
   """
-  Evaluation grain. SPAN is currently executable; TRACE and SESSION are stored but remain inactive until their runtimes are available.
+  SPAN is currently executable; TRACE and SESSION are stored but remain inactive until their runtimes are available.
   """
   evaluationTarget: EvaluationTarget!
   inputMapping: EvaluatorInputMapping!
