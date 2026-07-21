@@ -12,11 +12,7 @@ export function DatasetEvaluatorSpans({ projectId }: { projectId: string }) {
   const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<DatasetEvaluatorSpansQuery>(
     graphql`
-      query DatasetEvaluatorSpansQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-        $orphanSpanAsRootSpan: Boolean!
-      ) {
+      query DatasetEvaluatorSpansQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
             ...SpansTable_spans
@@ -27,7 +23,6 @@ export function DatasetEvaluatorSpans({ projectId }: { projectId: string }) {
     {
       id: projectId,
       timeRange: timeRangeISOStrings,
-      orphanSpanAsRootSpan: true,
     },
     {
       fetchPolicy: "store-and-network",

@@ -69,7 +69,12 @@ const spanFilterCompletions: Completion[] = [
   {
     label: "parent_id",
     type: "variable",
-    info: "The ID of a span's parent - None for root spans",
+    info: "The ID of a span's parent - use `parent_id is None` for root spans",
+  },
+  {
+    label: "parent_span",
+    type: "variable",
+    info: "The parent span - use `parent_span is None` for root spans, including orphans (spans whose parent is missing)",
   },
   {
     label: "latency_ms",
@@ -177,6 +182,10 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
   {
     label: "filter for root spans",
     snippet: "parent_id is None",
+  },
+  {
+    label: "filter for root spans (incl. orphans)",
+    snippet: "parent_span is None",
   },
   {
     label: "filter by trace id",

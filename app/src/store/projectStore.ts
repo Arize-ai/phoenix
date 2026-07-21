@@ -18,15 +18,6 @@ export interface ProjectState {
   defaultTab: ProjectTab;
   setDefaultTab: (tab: ProjectTab) => void;
   /**
-   * Whether to treat orphan spans as roots.
-   * @default false
-   */
-  treatOrphansAsRoots: boolean;
-  /**
-   * Set whether to treat orphan spans as roots.
-   */
-  setTreatOrphansAsRoots: (treatOrphansAsRoots: boolean) => void;
-  /**
    * Whether to show the aside panel on the spans and traces tables.
    * @default true
    */
@@ -68,12 +59,6 @@ export function createProjectStore({
         defaultTab: "spans",
         setDefaultTab: (tab: ProjectTab) => {
           set({ defaultTab: tab }, false, { type: "setDefaultTab" });
-        },
-        treatOrphansAsRoots: false,
-        setTreatOrphansAsRoots: (treatOrphansAsRoots: boolean) => {
-          set({ treatOrphansAsRoots }, false, {
-            type: "setTreatOrphansAsRoots",
-          });
         },
         showTableAside: true,
         setShowTableAside: (showTableAside: boolean) => {

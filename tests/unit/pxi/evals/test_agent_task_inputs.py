@@ -23,7 +23,6 @@ class TestBuildContexts:
         assert contexts.project is not None
         assert contexts.project.project_node_id == "UHJvamVjdDox"
         assert contexts.project.span_filter == ""
-        assert contexts.project.root_spans_only is False
 
     def test_parses_browser_context_shape(self) -> None:
         contexts = _build_contexts(
@@ -38,8 +37,7 @@ class TestBuildContexts:
                     {
                         "type": "project",
                         "projectNodeId": "UHJvamVjdDoxMg==",
-                        "spanFilter": "span_kind == 'LLM'",
-                        "rootSpansOnly": True,
+                        "spanFilter": "span_kind == 'LLM' and parent_span is None",
                     },
                 ]
             }
@@ -51,8 +49,7 @@ class TestBuildContexts:
         assert contexts.graphql.mutations_enabled is False
         assert contexts.project is not None
         assert contexts.project.project_node_id == "UHJvamVjdDoxMg=="
-        assert contexts.project.span_filter == "span_kind == 'LLM'"
-        assert contexts.project.root_spans_only is True
+        assert contexts.project.span_filter == "span_kind == 'LLM' and parent_span is None"
 
     def test_rejects_non_list_contexts(self) -> None:
         with pytest.raises(ValueError, match="input.contexts must be a list"):
