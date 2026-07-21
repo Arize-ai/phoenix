@@ -26,6 +26,8 @@ AI SDK v7 requires Node.js 22.12 or newer.
 ```shell
 # From the js/ directory
 pnpm install
+# Build the workspace-linked @arizeai/phoenix-otel package
+pnpm --filter @arizeai/phoenix-otel build
 
 export OPENAI_API_KEY=sk-...
 pnpm --filter ai-sdk-agent start

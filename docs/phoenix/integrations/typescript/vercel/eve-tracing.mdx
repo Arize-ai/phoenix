@@ -17,7 +17,7 @@ keywords: ['vercel', 'eve', 'agents', 'ai-sdk', 'opentelemetry', 'openinference'
 In your Eve project, add the Arize OpenInference processor and the OpenTelemetry packages it exports through:
 
 ```bash
-npm install @arizeai/openinference-vercel@^3 \
+npm install @arizeai/openinference-vercel@^3.1 \
   @arizeai/openinference-semantic-conventions \
   @vercel/otel \
   @opentelemetry/api \
@@ -138,12 +138,12 @@ New to reading traces in Phoenix? Here's how to make sense of what Eve sends, st
 
 1. **Open your project.** Go to [localhost:6006](http://localhost:6006/) and click the project named `weather-agent` (or whatever you set in `PHOENIX_PROJECT_NAME`). That opens the project's **Spans** table. New spans show up within ~30 seconds of a turn. By default, only "Root spans" are shown. You can toggle on "All" to see all the spans.
 1. **Open a trace.** Navigate to the "Traces" tab. Each row in the Traces table is one _trace_: a full agent turn, from the incoming message to the final reply. Click a row to open a _span tree_. Each **span** is one unit of work inside the turn (a model call, a tool run, a reasoning step), nested to show what ran inside what.
-1. **Read a span by its name and its _kind_.** Eve emits [Vercel AI SDK spans](https://ai-sdk.dev/docs/ai-sdk-core/telemetry#collected-data) that follow OpenTelemetry's GenAI convention, and `@arizeai/openinference-vercel` v3.1+ gives them descriptive names on export — `invoke_agent gpt-4o-mini`, `step 1`, `chat gpt-4o-mini`, `execute_tool get_weather`. Alongside the name, each span carries a **span kind**, a colored label Phoenix adds to denote what it is:
+1. **Read a span by its name and its _kind_.** Eve registers the AI SDK's [`@ai-sdk/otel`](https://ai-sdk.dev/docs/ai-sdk-core/telemetry) telemetry adapter, which names spans per OpenTelemetry's GenAI conventions — `invoke_agent gpt-4o-mini`, `step 1`, `chat gpt-4o-mini`, `execute_tool get_weather` — and `@arizeai/openinference-vercel` translates their attributes to OpenInference on export. Alongside the name, each span carries a **span kind**, a colored label Phoenix adds to denote what it is:
     - **agent** a step of the agent's turn (its reasoning and orchestration).
     - **llm** a model request (the `chat` span). Open it to see the prompt, the response, and token usage.
     - **tool** a tool execution (the `execute_tool` span), carrying a `tool.name` attribute such as `get_weather`.
 1. **Find the session context.** Click any span and open its **Attributes** panel. Eve attaches session identifiers under the `ai.settings.context.eve.*` prefix — `ai.settings.context.eve.session.id`, `ai.settings.context.eve.turn.id`, `ai.settings.context.eve.step.index`, and `ai.settings.context.eve.channel.kind` — so you can trace any span back to the session and turn it came from.
-1. **Read the tree top-down.** At the top sits Eve's `ai.eve.turn` span, shown as an **agent** root — `reparentOrphanedSpans` is promoting Eve's turn wrapper to a clean root, one per turn. Beneath it sits one `invoke_agent` span (kind **agent**) per step Eve took in the turn, each wrapping a `step N` span (kind **chain**) that holds the actual model request — a `chat` span of kind **llm**. If the step ran a tool, that shows up as an `execute_tool` span of kind **tool** carrying `tool.name`.
+1. **Read the tree top-down.** At the top sits Eve's `ai.eve.turn` span, shown as an **agent** root — `reparentOrphanedSpans` is promoting Eve's turn wrapper to a clean root, one per turn. Beneath it sits one `invoke_agent` span (kind **agent**) per step Eve took in the turn, each wrapping a span named `step 1` (kind **chain**) that holds the actual model request — a `chat` span of kind **llm**. Eve makes exactly one model call per step, so the AI SDK's per-call step counter always reads `1`; count the `invoke_agent` spans to count steps. If the step ran a tool, that shows up as an `execute_tool` span of kind **tool** carrying `tool.name`.
 
     <Note>
     If you turn off `spanFilter`/`reparentOrphanedSpans` in **instrumentation.ts**, this tree will be cluttered with raw HTTP spans, or with the `gen_ai` spans floating loose under no root; see the accordion under [Setup tracing](#setup-tracing).

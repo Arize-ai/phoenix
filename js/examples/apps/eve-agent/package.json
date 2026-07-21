@@ -4,9 +4,6 @@
   "private": true,
   "description": "Minimal Vercel Eve agent traced with @arizeai/phoenix-otel",
   "type": "module",
-  "imports": {
-    "#*": "./agent/*"
-  },
   "scripts": {
     "dev": "eve dev",
     "typecheck": "tsc"

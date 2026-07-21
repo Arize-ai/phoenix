@@ -25,13 +25,16 @@ for a full walkthrough of reading Eve traces in Phoenix, including a
 ```shell
 # From the js/ directory
 pnpm install
+# Build the workspace-linked @arizeai/phoenix-otel package
+pnpm --filter @arizeai/phoenix-otel build
 
 export OPENAI_API_KEY=sk-...
 pnpm --filter eve-agent dev
 ```
 
-`eve dev` opens an interactive terminal UI on `http://127.0.0.1:2000` — send a
-message like "What's the weather in Brooklyn?" there, or over HTTP:
+`eve dev` opens an interactive terminal UI and serves the agent's HTTP channel
+on `http://127.0.0.1:2000` — send a message like "What's the weather in
+Brooklyn?" in the terminal UI, or over HTTP:
 
 ```shell
 curl -X POST http://127.0.0.1:2000/eve/v1/session \
