@@ -40,6 +40,8 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 npm install @arizeai/phoenix-otel
 ```
 
+Requires Node.js 18 or newer. Both ESM and CommonJS entry points are provided.
+
 ## Quick Start
 
 ### Basic Usage
@@ -122,6 +124,47 @@ The `register` function accepts the following parameters:
 | `diagLogLevel`     | `DiagLogLevel`           | `undefined`               | Diagnostic logging level for debugging                 |
 
 ## Usage Examples
+
+### With the Vercel AI SDK (v7+)
+
+AI SDK v7 telemetry registration is process-global, so applications configure
+it explicitly. Install `ai` and `@ai-sdk/otel`, then register the integration
+alongside the Phoenix provider. Request-header capture is disabled below
+because headers can contain authorization tokens and cookies.
+
+```typescript
+// instrumentation.ts
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { registerTelemetry } from "ai";
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-ai-app",
+});
+
+registerTelemetry(
+  new OpenTelemetry({
+    tracer: provider.getTracer("@arizeai/phoenix-otel/ai-sdk"),
+    headers: false,
+  })
+);
+```
+
+```typescript
+// main.ts
+import "./instrumentation.ts";
+import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
+
+const result = await generateText({
+  model: openai("gpt-4o-mini"),
+  prompt: "Write a short story about a cat.",
+});
+```
+
+> **Note**: AI SDK v6 and older emit a different span shape that is not
+> supported by the bundled span processors. Use `@arizeai/phoenix-otel` 1.x
+> (with `@arizeai/openinference-vercel` 2.x) for AI SDK v6.
 
 ### With Auto-Instrumentation
 
