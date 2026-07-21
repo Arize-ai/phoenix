@@ -56,6 +56,7 @@ async def test_evaluation_summaries(
     expected = trace_df.loc[:, "mean_score"].to_list() + span_df.loc[:, "mean_score"].to_list()
     kinds: list[Literal["span", "trace"]] = ["trace", "span"]
     session_filter_condition = None
+    filter_io_substring = None
     session_rowid = None
     keys: list[Key] = [
         (
@@ -64,6 +65,7 @@ async def test_evaluation_summaries(
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
             session_filter_condition,
+            filter_io_substring,
             session_rowid,
             eval_name,
         )
@@ -105,6 +107,7 @@ async def test_multiple_annotations_score_weighting(
     loader = AnnotationSummaryDataLoader(db)
     filter_condition = None
     session_filter_condition = None
+    filter_io_substring = None
     session_rowid = None
     result = await loader.load(
         (
@@ -113,6 +116,7 @@ async def test_multiple_annotations_score_weighting(
             TimeRange(start=start_time, end=end_time),
             filter_condition,
             session_filter_condition,
+            filter_io_substring,
             session_rowid,
             "quality",
         )
@@ -152,6 +156,7 @@ async def test_missing_label_aggregation(
         assert isinstance(project_id, int)
     filter_condition = None
     session_filter_condition = None
+    filter_io_substring = None
     session_rowid = None
     result = await loader.load(
         (
@@ -160,6 +165,7 @@ async def test_missing_label_aggregation(
             TimeRange(start=start_time, end=end_time),
             filter_condition,
             session_filter_condition,
+            filter_io_substring,
             session_rowid,
             "distribution",
         )
@@ -197,6 +203,7 @@ async def test_mixed_emit_coverage_counts(
             "span",
             project_id,
             TimeRange(start=start_time, end=end_time),
+            None,
             None,
             None,
             None,
@@ -239,6 +246,7 @@ async def test_pure_score_only_coverage_counts(
             None,
             None,
             None,
+            None,
             "unlabeled",
         )
     )
@@ -270,6 +278,7 @@ async def test_null_label_handling(
     loader = AnnotationSummaryDataLoader(db)
     filter_condition = None
     session_filter_condition = None
+    filter_io_substring = None
     session_rowid = None
     result = await loader.load(
         (
@@ -278,6 +287,7 @@ async def test_null_label_handling(
             TimeRange(start=start_time, end=end_time),
             filter_condition,
             session_filter_condition,
+            filter_io_substring,
             session_rowid,
             "unlabeled",
         )

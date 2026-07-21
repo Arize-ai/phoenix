@@ -2060,6 +2060,25 @@ type FailureDetail {
   errorType: String!
 }
 
+"""
+One bindable term in a filter DSL: its name, value type, gloss, and grouping. Grain-specific resolvers (e.g. Project.sessionFilterVocabulary) serve these as the single source for UI autocomplete, agent discovery, and docs.
+"""
+type FilterVocabularyTerm {
+  """The bindable name exactly as written in a filter expression."""
+  name: String!
+
+  """Value-type hint for the comparand: 'string', 'number', or 'datetime'."""
+  type: String!
+
+  """Human-readable gloss of what the term means and how it evaluates."""
+  description: String!
+
+  """
+  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), or 'annotation' (session annotation access).
+  """
+  category: String!
+}
+
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2766,14 +2785,14 @@ type Project implements Node {
   spans(timeRange: TimeRange, first: Int!, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
 
   """
-  Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap.
+  Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. filterIoSubstring matches a case-insensitive substring of root-span input/output; sessionFilterCondition is a session filter expression (see sessionFilterVocabulary); both filters AND together. An exact sessionId match takes precedence over the other filters, mirroring the sessions table search.
   """
-  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
+  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionFilterCondition: String, sessionId: String): ProjectSessionConnection!
 
   """
-  Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  Number of sessions in the project, optionally filtered by a time range, a substring of the session input/output, or a session filter expression. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Int!
+  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionFilterCondition: String, sessionId: String): Int!
 
   """
   Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
@@ -2832,6 +2851,16 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+
+  """
+  Validate a session filter expression without executing it. A condition that fails to compile returns isValid=false with an errorMessage; a condition that compiles but references names not observed in this project (e.g. an annotation or tool name) returns isValid=true with advisory warnings.
+  """
+  validateSessionFilterCondition(condition: String!): ValidationResult!
+
+  """
+  The bindable terms of the session filter expression language for this project, for autocomplete, agent discovery, and docs. Static terms derive from the filter compiler's own bindings so they cannot drift from what compiles; observed per-project names (session annotations, tool names, root-span attribute paths) are folded in.
+  """
+  sessionFilterVocabulary: [FilterVocabularyTerm!]!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
@@ -4749,6 +4778,7 @@ enum UserRoleInput {
 type ValidationResult {
   isValid: Boolean!
   errorMessage: String
+  warnings: [String!]!
 }
 
 input VercelConfigInput {

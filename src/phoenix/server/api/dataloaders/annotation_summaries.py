@@ -14,7 +14,10 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
-from phoenix.server.session_filters import get_filtered_session_rowids_subquery
+from phoenix.server.session_filters import (
+    get_filtered_session_rowids_subquery,
+    get_io_substring_session_rowids_subquery,
+)
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -22,7 +25,11 @@ Kind: TypeAlias = Literal["span", "trace", "session"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+# A session filter DSL expression (see phoenix.trace.dsl.session_filter).
 SessionFilterCondition: TypeAlias = Optional[str]
+# A case-insensitive substring matched against session root-span input/output,
+# mirroring the sessions table search box.
+FilterIoSubstring: TypeAlias = Optional[str]
 # Rowid of a single session to scope the summary to, used when the sessions
 # table search resolves to an exact session-ID match.
 SessionRowId: TypeAlias = Optional[int]
@@ -34,6 +41,7 @@ Segment: TypeAlias = tuple[
     TimeInterval,
     FilterCondition,
     SessionFilterCondition,
+    FilterIoSubstring,
     SessionRowId,
 ]
 Param: TypeAlias = AnnotationName
@@ -44,6 +52,7 @@ Key: TypeAlias = tuple[
     Optional[TimeRange],
     FilterCondition,
     SessionFilterCondition,
+    FilterIoSubstring,
     SessionRowId,
     AnnotationName,
 ]
@@ -59,6 +68,7 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
         time_range,
         filter_condition,
         session_filter_condition,
+        filter_io_substring,
         session_rowid,
         eval_name,
     ) = key
@@ -71,12 +81,15 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
         interval,
         filter_condition,
         session_filter_condition,
+        filter_io_substring,
         session_rowid,
     ), eval_name
 
 
 _Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition, SessionRowId]
+_SubKey: TypeAlias = tuple[
+    TimeInterval, FilterCondition, SessionFilterCondition, FilterIoSubstring, SessionRowId
+]
 
 
 class AnnotationSummaryCache(
@@ -104,6 +117,7 @@ class AnnotationSummaryCache(
                 interval,
                 filter_condition,
                 session_filter_condition,
+                filter_io_substring,
                 session_rowid,
             ),
             annotation_name,
@@ -112,6 +126,7 @@ class AnnotationSummaryCache(
             interval,
             filter_condition,
             session_filter_condition,
+            filter_io_substring,
             session_rowid,
         )
 
@@ -159,6 +174,7 @@ def _get_stmt(
         (start_time, end_time),
         filter_condition,
         session_filter_condition,
+        filter_io_substring,
         session_rowid,
     ) = segment
 
@@ -242,6 +258,14 @@ def _get_stmt(
         entity_count_query = entity_count_query.where(
             session_rowid_column.in_(filtered_session_rowids)
         )
+    if filter_io_substring:
+        io_session_rowids = get_io_substring_session_rowids_subquery(
+            io_substring=filter_io_substring,
+            project_rowids=[project_rowid],
+            start_time=start_time,
+            end_time=end_time,
+        )
+        entity_count_query = entity_count_query.where(session_rowid_column.in_(io_session_rowids))
     if session_rowid is not None:
         entity_count_query = entity_count_query.where(session_rowid_column == session_rowid)
 
@@ -281,6 +305,14 @@ def _get_stmt(
             end_time=end_time,
         )
         base_stmt = base_stmt.where(session_rowid_column.in_(filtered_session_rowids))
+    if filter_io_substring:
+        io_session_rowids = get_io_substring_session_rowids_subquery(
+            io_substring=filter_io_substring,
+            project_rowids=[project_rowid],
+            start_time=start_time,
+            end_time=end_time,
+        )
+        base_stmt = base_stmt.where(session_rowid_column.in_(io_session_rowids))
     if session_rowid is not None:
         base_stmt = base_stmt.where(session_rowid_column == session_rowid)
 

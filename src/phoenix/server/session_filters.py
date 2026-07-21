@@ -6,6 +6,7 @@ from sqlalchemy import distinct, or_, select
 from sqlalchemy.sql.selectable import ScalarSelect
 
 from phoenix.db import models
+from phoenix.trace.dsl.session_filter import AggregateShape, SessionFilter
 
 
 def get_filtered_session_rowids_subquery(
@@ -13,9 +14,34 @@ def get_filtered_session_rowids_subquery(
     project_rowids: Sequence[int],
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
+    aggregate_shape: AggregateShape = "grouped",
 ) -> ScalarSelect[int]:
+    """Compile the session filter DSL into a subquery of matching project-session rowids.
+
+    ``session_filter_condition`` is a session-grain filter expression (see
+    :class:`~phoenix.trace.dsl.session_filter.SessionFilter`), not a substring. The returned
+    ``ScalarSelect[int]`` is the shared session-filter contract every fan-out consumer
+    (counts, cost/latency summaries, the sessions list) applies as ``.where(id.in_(subquery))``.
     """
-    Returns a subquery that contains the project session rowids that match the session filter.
+    return SessionFilter(condition=session_filter_condition).as_session_rowids_subquery(
+        project_rowids=list(project_rowids),
+        start_time=start_time,
+        end_time=end_time,
+        aggregate_shape=aggregate_shape,
+    )
+
+
+def get_io_substring_session_rowids_subquery(
+    io_substring: str,
+    project_rowids: Sequence[int],
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+) -> ScalarSelect[int]:
+    """Return session rowids whose root-span input or output contains ``io_substring``.
+
+    Case-insensitive substring match over root spans only, backing the sessions list's free-text
+    search. This is the pre-DSL matcher; the structured session filter lives in
+    :func:`get_filtered_session_rowids_subquery`.
 
     The substring may match the root span input/output of any trace in the session,
     regardless of when that trace occurred. ``start_time``/``end_time`` scope the
@@ -24,7 +50,6 @@ def get_filtered_session_rowids_subquery(
     the same semantics as the time range filter on the sessions connection, so all
     callers agree on which sessions match for a given window.
     """
-
     filtered_session_rowids = (
         select(distinct(models.Trace.project_session_rowid).label("id"))
         .join_from(models.Trace, models.Span)
@@ -34,11 +59,11 @@ def get_filtered_session_rowids_subquery(
             or_(
                 models.CaseInsensitiveContains(
                     models.Span.attributes[INPUT_VALUE].as_string(),
-                    session_filter_condition,
+                    io_substring,
                 ),
                 models.CaseInsensitiveContains(
                     models.Span.attributes[OUTPUT_VALUE].as_string(),
-                    session_filter_condition,
+                    io_substring,
                 ),
             )
         )

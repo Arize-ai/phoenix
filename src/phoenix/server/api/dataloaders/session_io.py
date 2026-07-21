@@ -49,7 +49,13 @@ class SessionIODataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
-                    order_by=[models.Trace.start_time.asc(), models.Trace.id.asc()],
+                    # Span.id breaks ties when a trace has multiple root spans, keeping the picked
+                    # root span in lockstep with the session-filter window (session_aggregates).
+                    order_by=[
+                        models.Trace.start_time.asc(),
+                        models.Trace.id.asc(),
+                        models.Span.id.asc(),
+                    ],
                 )
                 .label("rank"),
             )
@@ -60,7 +66,13 @@ class SessionIODataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
-                    order_by=[models.Trace.start_time.desc(), models.Trace.id.desc()],
+                    # Span.id breaks ties when a trace has multiple root spans, keeping the picked
+                    # root span in lockstep with the session-filter window (session_aggregates).
+                    order_by=[
+                        models.Trace.start_time.desc(),
+                        models.Trace.id.desc(),
+                        models.Span.id.desc(),
+                    ],
                 )
                 .label("rank"),
             )

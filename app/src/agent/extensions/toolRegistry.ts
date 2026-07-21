@@ -92,6 +92,7 @@ import { savePromptAgentTool } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { setTemplateVariablesPathAgentTool } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { setVariableValuesAgentTool } from "@phoenix/agent/tools/playgroundVariableValues";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
+import { setSessionsFilterAgentTool } from "@phoenix/agent/tools/sessionsFilter";
 import { setSpansFilterAgentTool } from "@phoenix/agent/tools/spansFilter";
 import { addSpansToDatasetAgentTool } from "@phoenix/agent/tools/spansToDataset";
 import { setTimeRangeAgentTool } from "@phoenix/agent/tools/timeRange";
@@ -110,6 +111,7 @@ export type { AgentToolCall, AgentToolUIBehavior } from "./registry/defineTool";
 const clientActionTools: AgentToolDefinition[] = [
   setTimeRangeAgentTool,
   setSpansFilterAgentTool,
+  setSessionsFilterAgentTool,
   readPromptAgentTool,
   clonePromptInstanceAgentTool,
   addPromptInstanceAgentTool,

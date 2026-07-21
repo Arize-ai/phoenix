@@ -78,6 +78,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
       <Flex direction="row">
         <Icon svg={<Icons.Search />} className="search-icon" />
         <CodeMirror
+          aria-label="Search sessions by message or session ID"
           css={codeMirrorCSS}
           indentWithTab={false}
           basicSetup={basicSetupOptions}
@@ -91,6 +92,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
           placeholder={placeholder}
         />
         <button
+          aria-label="Clear session search"
           css={css`
             margin-right: var(--global-dimension-size-100);
             color: var(--global-text-color-700);
