@@ -4,8 +4,8 @@ import { useMemo } from "react";
 
 const trackCSS = css`
   height: var(--global-dimension-size-75);
-  border-radius: 3px;
-  background-color: var(--global-color-gray-300);
+  border-radius: 2px;
+  background-color: var(--global-color-gray-200);
   width: 100%;
   position: relative;
   overflow: hidden;
