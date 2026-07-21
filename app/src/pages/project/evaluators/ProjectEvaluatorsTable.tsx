@@ -26,6 +26,12 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 100;
 const EMPTY_CONNECTION_IDS: string[] = [];
+const projectEvaluatorsTableCSS = css`
+  thead tr th {
+    border-top: var(--global-border-size-thin) solid
+      var(--global-border-color-default);
+  }
+`;
 
 function readProjectEvaluatorRow(row: ProjectEvaluatorsTable_row$key) {
   return readInlineData(
@@ -286,7 +292,7 @@ export function ProjectEvaluatorsTable({
       ref={tableContainerRef}
     >
       <table
-        css={selectableTableCSS}
+        css={css(selectableTableCSS, projectEvaluatorsTableCSS)}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
