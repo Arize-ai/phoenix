@@ -3124,6 +3124,7 @@ class ProjectEvaluatorCriteria(HasId):
         ),
         nullable=False,
     )
+    evaluation_delay_seconds: Mapped[Optional[int]] = mapped_column(Integer)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -3232,4 +3233,98 @@ class EvalWorkUnit(HasId):
             postgresql_where=text("status = 'ERROR'"),
             sqlite_where=text("status = 'ERROR'"),
         ),
+    )
+
+
+class EvalSessionWorkUnit(HasId):
+    """A session eval task addressed once per session generation."""
+
+    __tablename__ = "eval_session_work_units"
+    project_session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    criteria_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(
+            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
+            name="valid_eval_work_status",
+        ),
+        default="PENDING",
+        server_default="PENDING",
+    )
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "project_session_rowid",
+            "evaluator_id",
+            "config_fingerprint",
+            "generation",
+        ),
+        Index(
+            "ix_eval_session_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_session_work_units_terminal",
+            "updated_at",
+            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_session_work_units_error_attempts",
+            "attempts",
+            postgresql_where=text("status = 'ERROR'"),
+            sqlite_where=text("status = 'ERROR'"),
+        ),
+    )
+
+
+class EvalSessionActivity(HasId):
+    """Latest observed span activity, one row per project session."""
+
+    __tablename__ = "eval_session_activity"
+    project_session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    last_seen_span_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("spans.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    observed_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    last_seen_span: Mapped[Optional["Span"]] = relationship("Span")
+
+    __table_args__ = (
+        UniqueConstraint("project_session_rowid"),
+        Index("ix_eval_session_activity_observed_at", "observed_at"),
     )

@@ -9,7 +9,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
-from .._helpers import _add_project, _add_span, _add_trace
+from .._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
 async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, int, int]:
@@ -171,6 +171,88 @@ async def test_eval_work_unit_accepts_expired_status(db: DbSessionFactory) -> No
         assert fetched.status == "EXPIRED"
 
 
+async def test_session_work_units_are_generation_aware(db: DbSessionFactory) -> None:
+    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        project_session_id = project_session.id
+        session.add_all(
+            [
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session_id,
+                    evaluator_id=evaluator_id,
+                    criteria_id=criteria_id,
+                    config_fingerprint="session-fp",
+                    generation=0,
+                ),
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session_id,
+                    evaluator_id=evaluator_id,
+                    criteria_id=criteria_id,
+                    config_fingerprint="session-fp",
+                    generation=1,
+                ),
+            ]
+        )
+        await session.flush()
+
+    async with db() as session:
+        session_units = list(await session.scalars(select(models.EvalSessionWorkUnit)))
+        assert {unit.generation for unit in session_units} == {0, 1}
+        assert all(unit.status == "PENDING" for unit in session_units)
+
+    with pytest.raises(Exception):
+        async with db() as session:
+            session.add(
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session_id,
+                    evaluator_id=evaluator_id,
+                    criteria_id=criteria_id,
+                    config_fingerprint="session-fp",
+                    generation=0,
+                )
+            )
+            await session.flush()
+
+
+async def test_activity_rows_survive_latest_span_deletion(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        project_session_id = project_session.id
+        span_id = span.id
+        session.add(
+            models.EvalSessionActivity(
+                project_session_rowid=project_session_id,
+                last_seen_span_rowid=span_id,
+            )
+        )
+
+    async with db() as session:
+        session_activity = await session.scalar(
+            select(models.EvalSessionActivity).options(
+                selectinload(models.EvalSessionActivity.project_session),
+                selectinload(models.EvalSessionActivity.last_seen_span),
+            )
+        )
+        assert session_activity is not None
+        assert session_activity.project_session.id == project_session_id
+        assert session_activity.last_seen_span is not None
+        assert session_activity.last_seen_span.id == span_id
+        assert session_activity.observed_at is not None
+        fetched_span = await session.get(models.Span, span_id)
+        assert fetched_span is not None
+        await session.delete(fetched_span)
+
+    async with db() as session:
+        session_activity = await session.scalar(select(models.EvalSessionActivity))
+        assert session_activity is not None
+        assert session_activity.last_seen_span_rowid is None
+
+
 async def test_project_evaluator_criteria_defaults_and_relationships(
     db: DbSessionFactory,
 ) -> None:
@@ -192,6 +274,7 @@ async def test_project_evaluator_criteria_defaults_and_relationships(
         assert fetched.evaluation_target == "SPAN"
         assert fetched.input_mapping is None
         assert fetched.sampling_rate == 1.0
+        assert fetched.evaluation_delay_seconds is None
         assert fetched.evaluator.id == evaluator_id
         assert fetched.project is not None
 

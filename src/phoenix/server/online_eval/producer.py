@@ -56,6 +56,7 @@ TICK_INTERVAL_SECONDS = 10.0
 
 _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
+_SESSION_ACTIVITY_UNIQUE_BY = ("project_session_rowid",)
 _CONSUMER_GROUP = "default"
 _PENDING_TTL_EXCEEDED_ERROR = "pending ttl exceeded"
 
@@ -257,12 +258,19 @@ class OnlineEvalProducer(DaemonTask):
 
             budget = await self._admission_budget()
             active = await self._load_active_criteria() if budget > 0 else []
+            session_activity_project_ids = (
+                await self._load_session_activity_project_ids() if budget > 0 else []
+            )
 
             advanced = False
             if budget > 0 and frontier is not None:
                 await self._renew_lease(datetime.now(timezone.utc))
                 advanced, budget = await self._materialize_and_advance(
-                    active, produced_through_id, frontier, budget
+                    active,
+                    session_activity_project_ids,
+                    produced_through_id,
+                    frontier,
+                    budget,
                 )
                 if advanced:
                     produced_through_id = frontier
@@ -541,9 +549,25 @@ class OnlineEvalProducer(DaemonTask):
                 )
         return active
 
+    async def _load_session_activity_project_ids(self) -> list[int]:
+        async with self._db() as session:
+            return list(
+                await session.scalars(
+                    select(models.ProjectEvaluatorCriteria.project_id)
+                    .where(
+                        models.ProjectEvaluatorCriteria.enabled,
+                        models.ProjectEvaluatorCriteria.evaluation_target == "SESSION",
+                        models.ProjectEvaluatorCriteria.filter_condition == "",
+                        models.ProjectEvaluatorCriteria.sampling_rate == 1.0,
+                    )
+                    .distinct()
+                )
+            )
+
     async def _materialize_and_advance(
         self,
         active: list[_ActiveCriteria],
+        session_activity_project_ids: list[int],
         low_exclusive: int,
         frontier: int,
         budget: int,
@@ -568,6 +592,12 @@ class OnlineEvalProducer(DaemonTask):
                     )
                     await self._fence_mutating_session(session)
                     return False, budget
+            await self._record_session_activity(
+                session,
+                session_activity_project_ids,
+                low_exclusive,
+                frontier,
+            )
             advanced = await session.scalar(
                 update(models.EvalWorkCursor)
                 .where(
@@ -582,6 +612,51 @@ class OnlineEvalProducer(DaemonTask):
                 self._lease_held = False
                 raise _CursorLeaseLost
         return True, budget
+
+    async def _record_session_activity(
+        self,
+        session: AsyncSession,
+        project_ids: list[int],
+        low_exclusive: int,
+        frontier: int,
+    ) -> None:
+        if not project_ids:
+            return
+        rows = (
+            await session.execute(
+                select(
+                    models.Trace.project_session_rowid,
+                    func.max(models.Span.id),
+                )
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .where(
+                    models.Span.id > low_exclusive,
+                    models.Span.id <= frontier,
+                    models.Trace.project_rowid.in_(project_ids),
+                    models.Trace.project_session_rowid.is_not(None),
+                )
+                .group_by(models.Trace.project_session_rowid)
+            )
+        ).all()
+        records = [
+            {
+                "project_session_rowid": project_session_rowid,
+                "last_seen_span_rowid": last_seen_span_rowid,
+                "observed_at": func.now(),
+            }
+            for project_session_rowid, last_seen_span_rowid in rows
+            if project_session_rowid is not None and last_seen_span_rowid is not None
+        ]
+        for start in range(0, len(records), _INSERT_BATCH_SIZE):
+            await session.execute(
+                insert_on_conflict(
+                    *records[start : start + _INSERT_BATCH_SIZE],
+                    table=models.EvalSessionActivity,
+                    dialect=self._db.dialect,
+                    unique_by=_SESSION_ACTIVITY_UNIQUE_BY,
+                    on_conflict=OnConflict.DO_UPDATE,
+                )
+            )
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
