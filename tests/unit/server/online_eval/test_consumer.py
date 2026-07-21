@@ -52,6 +52,7 @@ from phoenix.server.online_eval.executor import (
     EvalExecutionError,
     HydratedWorkUnit,
     OnlineEvalExecutor,
+    span_eval_context,
 )
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.sandbox.types import ExecutionResult
@@ -425,6 +426,36 @@ async def _annotations(db: DbSessionFactory) -> list[models.SpanAnnotation]:
         return list(await session.scalars(select(models.SpanAnnotation)))
 
 
+async def test_span_eval_context_nests_span_fields_under_metadata(
+    db: DbSessionFactory,
+) -> None:
+    attributes = {
+        "input": {"value": "span input"},
+        "output": {"value": "span output"},
+        "metadata": {"user": "value"},
+        "custom": {"nested": "value"},
+    }
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace, attributes=attributes)
+
+        context = span_eval_context(span)
+
+    assert set(context) == {"input", "output", "metadata"}
+    assert context == {
+        "input": "span input",
+        "output": "span output",
+        "metadata": {
+            "attributes": attributes,
+            "name": span.name,
+            "span_kind": "LLM",
+            "status_code": "OK",
+            "status_message": "test_status_message",
+        },
+    }
+
+
 async def test_happy_path_claims_evaluates_annotates_and_completes(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -481,7 +512,7 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
         project.id,
         template_content="Question: {{question}}\nAnswer: {{answer}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"question": "attributes.remapped.question"},
+            path_mapping={"question": "metadata.attributes.remapped.question"},
             literal_mapping={"answer": "literal answer"},
         ),
     )
@@ -522,7 +553,7 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
             sampling_rate=1.0,
             evaluation_target="SPAN",
             input_mapping=InputMapping(
-                path_mapping={"text": "attributes.remapped.text"},
+                path_mapping={"text": "metadata.attributes.remapped.text"},
                 literal_mapping={"words": "mapped value"},
             ),
         )
@@ -555,7 +586,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
         db,
         project.id,
         criteria_input_mapping=InputMapping(
-            path_mapping={"output": "attributes.remapped.value"},
+            path_mapping={"output": "metadata.attributes.remapped.value"},
             literal_mapping={"metadata": "criteria literal"},
         ),
     )
