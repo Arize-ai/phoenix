@@ -6,13 +6,11 @@ import { Loading } from "@phoenix/components";
 import {
   ChartPanel,
   EvaluationMetricsChart,
-  EvaluationMetricsLabelCountSelect,
   type EvaluationMetricsInputPoint,
   type EvaluationMetricsSeries,
   EvaluationMetricsViewToggle,
   getDefaultEvaluationMetricsView,
   getEmptyEvaluationMetricsSeries,
-  MAX_EVALUATION_LABEL_COUNT,
   normalizeEvaluationMetrics,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -29,8 +27,9 @@ import {
 } from "./experimentXAxisProps";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import {
-  type ExperimentAnnotationMetricsDatum,
-  useExperimentAnnotationMetricsData,
+  useExperimentAnnotationMetricNames,
+  useExperimentEvaluationMetricData,
+  type ExperimentEvaluationMetricDatum,
 } from "./useExperimentMetricsData";
 
 const evaluationGridCSS = css`
@@ -68,25 +67,31 @@ function ExperimentEvaluationMetricsPanels({
 }: {
   datasetId: string;
 }) {
-  const { evaluationSeries, baselineSequenceNumber } =
-    useExperimentEvaluationMetricsSeries(datasetId);
+  const evaluationNames = useExperimentAnnotationMetricNames(datasetId);
 
   return (
     <>
-      {evaluationSeries.map((series) => (
-        <ExperimentEvaluationMetricsPanel
-          key={series.name}
-          series={series}
-          baselineSequenceNumber={baselineSequenceNumber}
+      {evaluationNames.map((evaluationName) => (
+        <ExperimentEvaluationMetricPanel
+          key={evaluationName}
+          datasetId={datasetId}
+          evaluationName={evaluationName}
         />
       ))}
     </>
   );
 }
 
-export function useExperimentEvaluationMetricsSeries(datasetId: string) {
-  const { experiments, baselineExperiment } =
-    useExperimentAnnotationMetricsData(datasetId);
+export function useExperimentEvaluationMetricSeries({
+  datasetId,
+  evaluationName,
+}: {
+  datasetId: string;
+  evaluationName: string;
+}) {
+  const { experiments, baselineExperiment } = useExperimentEvaluationMetricData(
+    { datasetId, evaluationName }
+  );
   const evaluationSeries = normalizeEvaluationMetrics({
     points: experiments.map(toEvaluationMetricsInputPoint),
     referencePoint:
@@ -99,7 +104,8 @@ export function useExperimentEvaluationMetricsSeries(datasetId: string) {
   });
 
   return {
-    evaluationSeries,
+    series:
+      evaluationSeries[0] ?? getEmptyEvaluationMetricsSeries(evaluationName),
     baselineSequenceNumber: baselineExperiment?.sequenceNumber,
   };
 }
@@ -145,11 +151,8 @@ function ExperimentEvaluationMetricPanelContent({
   evaluationName: string;
   fillHeight: boolean;
 }) {
-  const { evaluationSeries, baselineSequenceNumber } =
-    useExperimentEvaluationMetricsSeries(datasetId);
-  const series =
-    evaluationSeries.find(({ name }) => name === evaluationName) ??
-    getEmptyEvaluationMetricsSeries(evaluationName);
+  const { series, baselineSequenceNumber } =
+    useExperimentEvaluationMetricSeries({ datasetId, evaluationName });
   return (
     <ExperimentEvaluationMetricsPanel
       series={series}
@@ -171,20 +174,12 @@ export function ExperimentEvaluationMetricsPanel({
   const [view, setView] = useState(() =>
     getDefaultEvaluationMetricsView(series)
   );
-  const maxLabelCount = Math.min(
-    series.labels.length,
-    MAX_EVALUATION_LABEL_COUNT
-  );
-  const [labelCount, setLabelCount] = useState(maxLabelCount);
   // A refetch can change the visible evaluation shape while preserving this
   // keyed panel, so fall back when its previous view is no longer available.
   const activeView = series.views.includes(view)
     ? view
     : getDefaultEvaluationMetricsView(series);
   const reference = series.referenceByView[activeView];
-  const visibleLabelCount = Math.min(labelCount, maxLabelCount);
-  const showLabelCountSelect =
-    activeView === "labels" && series.labels.length > 5;
   const showViewToggle = series.views.length > 1;
   return (
     <ChartPanel
@@ -200,7 +195,6 @@ export function ExperimentEvaluationMetricsPanel({
       <EvaluationMetricsChart
         series={series}
         view={activeView}
-        labelCount={visibleLabelCount}
         xAxisProps={{
           ...getExperimentXAxisProps(baselineSequenceNumber),
           dataKey: "x",
@@ -212,15 +206,6 @@ export function ExperimentEvaluationMetricsPanel({
         additionalLegendItems={getExperimentBaselineLegendItems(
           activeView === "scores" ? reference?.meanScore : null
         )}
-        legendTrailingContent={
-          showLabelCountSelect ? (
-            <EvaluationMetricsLabelCountSelect
-              count={visibleLabelCount}
-              maxCount={maxLabelCount}
-              onChange={setLabelCount}
-            />
-          ) : undefined
-        }
         renderTooltipHeader={(point) => (
           <ExperimentMetricsTooltipHeader
             sequenceNumber={point.x}
@@ -246,7 +231,7 @@ export function ExperimentEvaluationMetricsPanel({
 }
 
 function toEvaluationMetricsInputPoint(
-  experiment: ExperimentAnnotationMetricsDatum
+  experiment: ExperimentEvaluationMetricDatum
 ): EvaluationMetricsInputPoint {
   return {
     x: experiment.sequenceNumber,
@@ -255,7 +240,7 @@ function toEvaluationMetricsInputPoint(
       isBaseline: experiment.isBaseline,
     },
     summaries: experiment.annotationSummaries.map((summary) => ({
-      name: summary.name,
+      name: summary.annotationName,
       meanScore: summary.meanScore,
       labelFractions: summary.labelFractions,
     })),

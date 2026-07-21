@@ -183,27 +183,6 @@ describe("InteractiveLegend", () => {
     ).toBe("4 4");
   });
 
-  it("renders trailing content beside the legend items", () => {
-    act(() => {
-      root.render(
-        <TestChart
-          legendProps={{
-            trailingContent: (
-              <button type="button">Include top 5 labels</button>
-            ),
-          }}
-        />
-      );
-    });
-
-    expect(findLegendButton("Hide uv")).toBeTruthy();
-    expect(
-      Array.from(container.querySelectorAll("button")).some(
-        (button) => button.textContent === "Include top 5 labels"
-      )
-    ).toBe(true);
-  });
-
   it("calls the provided legend onClick before toggling", () => {
     const onClick = vi.fn<NonNullable<InteractiveLegendProps["onClick"]>>();
 

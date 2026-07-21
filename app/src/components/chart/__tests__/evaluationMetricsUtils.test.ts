@@ -112,7 +112,6 @@ describe("normalizeEvaluationMetrics", () => {
     expect(
       getEvaluationOtherFraction({
         point: series.dataByView.labels[0]!,
-        visibleLabelCount: series.labels.length,
       })
     ).toBe(1);
     expect(series.dataByView.labels[1]?.fractions).toEqual([undefined, 1]);
@@ -382,22 +381,16 @@ describe("getEvaluationOtherFraction", () => {
     fractions,
   });
 
-  it("combines omitted labels and annotations without labels", () => {
+  it("returns the fraction of results without labels", () => {
     const point = makePoint({ fractions: [0.5, 0.25, 0.1] });
 
-    expect(
-      getEvaluationOtherFraction({ point, visibleLabelCount: 3 })
-    ).toBeCloseTo(0.15);
-    expect(
-      getEvaluationOtherFraction({ point, visibleLabelCount: 2 })
-    ).toBeCloseTo(0.25);
+    expect(getEvaluationOtherFraction({ point })).toBeCloseTo(0.15);
   });
 
   it("treats a result-bearing summary without labels as entirely other", () => {
     expect(
       getEvaluationOtherFraction({
         point: makePoint({ fractions: [] }),
-        visibleLabelCount: 0,
       })
     ).toBe(1);
   });
@@ -409,7 +402,6 @@ describe("getEvaluationOtherFraction", () => {
           fractions: [],
           hasAnnotationSummary: false,
         }),
-        visibleLabelCount: 0,
       })
     ).toBeUndefined();
   });
@@ -418,19 +410,16 @@ describe("getEvaluationOtherFraction", () => {
     expect(
       getEvaluationOtherFraction({
         point: makePoint({ fractions: [0.6, 0.4] }),
-        visibleLabelCount: 2,
       })
     ).toBeUndefined();
     expect(
       getEvaluationOtherFraction({
         point: makePoint({ fractions: [0.6, 0.3999999995] }),
-        visibleLabelCount: 2,
       })
     ).toBeUndefined();
     expect(
       getEvaluationOtherFraction({
         point: makePoint({ fractions: [0.7, 0.5] }),
-        visibleLabelCount: 2,
       })
     ).toBeUndefined();
   });

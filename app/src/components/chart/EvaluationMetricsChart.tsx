@@ -155,8 +155,6 @@ export function EvaluationMetricsChart({
   chartProps,
   additionalLegendItems,
   renderReference,
-  labelCount = series.labels.length,
-  legendTrailingContent,
 }: {
   series: EvaluationMetricsSeries;
   view: EvaluationMetricsView;
@@ -167,8 +165,6 @@ export function EvaluationMetricsChart({
   chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
   renderReference?: (state: { isMeanScoreHidden: boolean }) => ReactNode;
-  labelCount?: number;
-  legendTrailingContent?: ReactNode;
 }) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
@@ -190,22 +186,19 @@ export function EvaluationMetricsChart({
     !isScoreView || scoreValuesFitUnitDomain
       ? ([0, 1] as [number, number])
       : undefined;
-  const visibleLabels = series.labels.slice(0, labelCount);
+  const visibleLabels = series.labels;
   // A score baseline is a non-chronological comparison value, so show it as
   // a horizontal reference without inserting it into the connected line.
   const baseChartData = isScoreView
     ? data
     : getEvaluationMetricsChartData({ data, reference });
-  // Selector-excluded labels roll into `other`; labels hidden interactively
-  // stay classified so toggling a series does not change the other values.
+  // Labels hidden interactively stay classified so toggling a series does not
+  // change the other values.
   const chartData = isScoreView
     ? baseChartData
     : baseChartData.map((point) => ({
         ...point,
-        otherFraction: getEvaluationOtherFraction({
-          point,
-          visibleLabelCount: visibleLabels.length,
-        }),
+        otherFraction: getEvaluationOtherFraction({ point }),
       }));
   const hasOtherValues = chartData.some(
     (point) => "otherFraction" in point && point.otherFraction != null
@@ -325,8 +318,7 @@ export function EvaluationMetricsChart({
             hiddenDataKeys={hiddenDataKeys}
             iconType={isScoreView ? "line" : undefined}
             iconSize={8}
-            // The server caps labels using full-window frequency. Preserve the
-            // response-derived order so label colors remain stable by index.
+            // Preserve the normalized order so label colors remain stable by index.
             itemSorter={null}
             onToggleDataKey={toggleDataKey}
             additionalLegendItems={[
@@ -335,7 +327,6 @@ export function EvaluationMetricsChart({
                 ? []
                 : (additionalLegendItems ?? [])),
             ]}
-            trailingContent={legendTrailingContent}
           />
         </ComposedChart>
       </ResponsiveContainer>

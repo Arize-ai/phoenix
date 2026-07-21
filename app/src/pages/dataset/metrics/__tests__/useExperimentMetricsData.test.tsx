@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   ExperimentMetricsDataProvider,
-  useExperimentAnnotationMetricsData,
+  useExperimentAnnotationMetricNames,
 } from "../useExperimentMetricsData";
 
 describe("ExperimentMetricsDataProvider", () => {
@@ -54,7 +54,7 @@ describe("ExperimentMetricsDataProvider", () => {
     expect(container.textContent).toBe("metrics");
   });
 
-  it("lets annotation consumers share a query without the core provider", async () => {
+  it("loads annotation names without requesting experiment metrics", async () => {
     const requestedOperations: string[] = [];
     const environment = new Environment({
       network: Network.create((operation) => {
@@ -68,11 +68,8 @@ describe("ExperimentMetricsDataProvider", () => {
       root.render(
         <RelayEnvironmentProvider environment={environment}>
           <>
-            <Suspense fallback={<div>loading annotations one</div>}>
-              <AnnotationMetricsConsumer datasetId="dataset-1" />
-            </Suspense>
-            <Suspense fallback={<div>loading annotations two</div>}>
-              <AnnotationMetricsConsumer datasetId="dataset-1" />
+            <Suspense fallback={<div>loading annotation names</div>}>
+              <AnnotationNamesConsumer datasetId="dataset-1" />
             </Suspense>
           </>
         </RelayEnvironmentProvider>
@@ -80,15 +77,13 @@ describe("ExperimentMetricsDataProvider", () => {
     });
 
     expect(requestedOperations).toEqual([
-      "useExperimentAnnotationMetricsDataQuery",
+      "useExperimentAnnotationMetricNamesQuery",
     ]);
-    expect(container.textContent).toBe(
-      "loading annotations oneloading annotations two"
-    );
+    expect(container.textContent).toBe("loading annotation names");
   });
 });
 
-function AnnotationMetricsConsumer({ datasetId }: { datasetId: string }) {
-  useExperimentAnnotationMetricsData(datasetId);
-  return <div>annotations</div>;
+function AnnotationNamesConsumer({ datasetId }: { datasetId: string }) {
+  useExperimentAnnotationMetricNames(datasetId);
+  return <div>annotation names</div>;
 }
