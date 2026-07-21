@@ -18,20 +18,7 @@ _JITTER_SECONDS = 60
 
 
 class AgentSessionSweeper(DaemonTask):
-    """Periodically delete agent sessions that have outlived their lifetime.
-
-    Each sweep runs three passes:
-
-    1. Temporary GC — delete temporary sessions (``expires_at IS NOT NULL``)
-       whose stored deadline has passed.
-    2. Idle retention — delete persisted sessions idle longer than the
-       workspace ``max_idle_days`` setting.
-    3. Count retention — keep only the newest ``max_count_per_user`` persisted
-       sessions per user.
-
-    The retention passes read the live ``agent.assistant.session_retention``
-    setting each sweep and never touch temporary sessions.
-    """
+    """Periodically delete expired agent sessions."""
 
     def __init__(self, db: DbSessionFactory, settings: SystemSettings) -> None:
         super().__init__()
@@ -47,14 +34,14 @@ class AgentSessionSweeper(DaemonTask):
             await sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
 
     async def _sweep(self) -> None:
-        await self._delete_expired_agent_sessions()
+        await self._delete_expired_temporary_sessions()
         retention = self._settings.agent_session_retention
         if retention.max_idle_days > 0:
             await self._delete_idle_persisted_sessions(retention.max_idle_days)
         if retention.max_count_per_user > 0:
             await self._enforce_per_user_count_cap(retention.max_count_per_user)
 
-    async def _delete_expired_agent_sessions(self) -> None:
+    async def _delete_expired_temporary_sessions(self) -> None:
         stmt = (
             sa.delete(models.AgentSession)
             .where(models.AgentSession.expires_at.is_not(None))
@@ -80,7 +67,6 @@ class AgentSessionSweeper(DaemonTask):
             logger.info("Deleted %d idle agent session(s).", num_deleted)
 
     async def _enforce_per_user_count_cap(self, max_count_per_user: int) -> None:
-        # Sessions with no user (auth disabled) are exempt from the cap.
         ranked = (
             sa.select(
                 models.AgentSession.id,
@@ -95,7 +81,6 @@ class AgentSessionSweeper(DaemonTask):
                 .label("rank"),
             )
             .where(models.AgentSession.expires_at.is_(None))
-            .where(models.AgentSession.user_id.is_not(None))
             .cte("ranked_agent_sessions")
         )
         stmt = sa.delete(models.AgentSession).where(

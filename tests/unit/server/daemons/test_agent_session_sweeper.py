@@ -116,7 +116,7 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
         )
 
     settings = await _make_settings(db)
-    await AgentSessionSweeper(db, settings=settings)._delete_expired_agent_sessions()
+    await AgentSessionSweeper(db, settings=settings)._delete_expired_temporary_sessions()
 
     async with db() as session:
         remaining_ids = set((await session.scalars(select(models.AgentSession.id))).all())
@@ -185,7 +185,7 @@ async def test_count_pass_keeps_newest_sessions_per_user(
         user_id=second_user_id,
         updated_at=now - timedelta(days=9),
     )
-    # Sessions without a user (auth disabled) are never capped.
+    # Sessions without a user (auth disabled) share one capped partition.
     anonymous_session_ids = [
         await _add_agent_session(
             db,
@@ -202,7 +202,7 @@ async def test_count_pass_keeps_newest_sessions_per_user(
         *first_user_session_ids[:2],
         first_user_temporary_id,
         second_user_session_id,
-        *anonymous_session_ids,
+        *anonymous_session_ids[:2],
     }
 
 

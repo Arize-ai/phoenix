@@ -228,7 +228,7 @@ async def test_expires_at_is_null_when_idle_retention_is_off(
     )
     mutation_response = await gql_client.execute(
         query=_SET_RETENTION_MUTATION,
-        variables={"input": {"maxIdleDays": 0, "maxCountPerUser": 0}},
+        variables={"input": {}},
     )
     assert not mutation_response.errors
 

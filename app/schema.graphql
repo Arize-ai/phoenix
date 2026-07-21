@@ -3922,11 +3922,15 @@ input SetAgentAssistantEnabledInput {
 }
 
 input SetAgentSessionRetentionInput {
-  """Delete persisted sessions idle longer than this many days. 0 disables."""
-  maxIdleDays: Float!
+  """
+  Delete persisted sessions idle longer than this many days. Omit to disable idle-based deletion.
+  """
+  maxIdleDays: Float
 
-  """Keep only the newest N persisted sessions per user. 0 disables."""
-  maxCountPerUser: Int!
+  """
+  Keep only the newest N persisted sessions per user. Omit to disable the per-user count limit.
+  """
+  maxCountPerUser: Int
 }
 
 input SetAgentTraceRecordingInput {

@@ -63,17 +63,71 @@ async def test_query_returns_defaults_when_setting_is_unset(
 
 
 @pytest.mark.asyncio
+async def test_mutation_disables_omitted_retention_dimensions(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    initial = await gql_client.execute(
+        _SET_RETENTION_MUTATION,
+        {"input": {"maxIdleDays": 7.5, "maxCountPerUser": 200}},
+    )
+    assert not initial.errors
+
+    result = await gql_client.execute(
+        _SET_RETENTION_MUTATION,
+        {"input": {"maxIdleDays": 14}},
+    )
+
+    assert not result.errors
+    assert result.data is not None
+    assert result.data["setAgentSessionRetention"] == {
+        "maxIdleDays": 14,
+        "maxCountPerUser": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("input_", "expected"),
+    [
+        (
+            {"maxIdleDays": None, "maxCountPerUser": 200},
+            {"maxIdleDays": 0, "maxCountPerUser": 200},
+        ),
+        (
+            {"maxIdleDays": 14, "maxCountPerUser": None},
+            {"maxIdleDays": 14, "maxCountPerUser": 0},
+        ),
+    ],
+)
+async def test_mutation_disables_explicitly_null_retention_dimensions(
+    gql_client: AsyncGraphQLClient,
+    input_: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    result = await gql_client.execute(
+        _SET_RETENTION_MUTATION,
+        {"input": input_},
+    )
+
+    assert not result.errors
+    assert result.data is not None
+    assert result.data["setAgentSessionRetention"] == expected
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "variables",
     [
-        {"input": {"maxIdleDays": -1, "maxCountPerUser": 0}},
-        {"input": {"maxIdleDays": 0, "maxCountPerUser": -1}},
+        {"input": {"maxIdleDays": -1}},
+        {"input": {"maxIdleDays": 0}},
+        {"input": {"maxCountPerUser": -1}},
+        {"input": {"maxCountPerUser": 0}},
     ],
 )
-async def test_mutation_rejects_negative_values(
+async def test_mutation_rejects_nonpositive_set_values(
     gql_client: AsyncGraphQLClient,
     variables: dict[str, Any],
 ) -> None:
     result = await gql_client.execute(_SET_RETENTION_MUTATION, variables)
     assert result.errors
-    assert "greater than or equal to 0" in result.errors[0].message
+    assert "must be greater than 0 when set" in result.errors[0].message

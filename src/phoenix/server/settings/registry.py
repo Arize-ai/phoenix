@@ -33,13 +33,7 @@ class AgentAssistantEnabledSetting(BaseModel):
 
 
 class AgentSessionRetentionSetting(BaseModel):
-    """Workspace-wide retention for persisted (non-temporary) agent sessions.
-
-    Temporary sessions are governed by their own ``expires_at`` TTL and are
-    never touched by retention. Either dimension can be turned off with ``0``:
-    ``max_idle_days=0`` means sessions are never deleted for idleness, and
-    ``max_count_per_user=0`` means no per-user count cap.
-    """
+    """Workspace-wide retention for non-temporary agent sessions."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
 

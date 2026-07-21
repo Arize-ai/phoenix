@@ -49,11 +49,19 @@ class SetAgentTraceRecordingInput:
 
 @strawberry.input
 class SetAgentSessionRetentionInput:
-    max_idle_days: float = strawberry.field(
-        description="Delete persisted sessions idle longer than this many days. 0 disables.",
+    max_idle_days: float | None = strawberry.field(
+        default=strawberry.UNSET,
+        description=(
+            "Delete persisted sessions idle longer than this many days. "
+            "Omit to disable idle-based deletion."
+        ),
     )
-    max_count_per_user: int = strawberry.field(
-        description="Keep only the newest N persisted sessions per user. 0 disables.",
+    max_count_per_user: int | None = strawberry.field(
+        default=strawberry.UNSET,
+        description=(
+            "Keep only the newest N persisted sessions per user. "
+            "Omit to disable the per-user count limit."
+        ),
     )
 
 
@@ -103,10 +111,22 @@ class SystemSettingsMutationMixin:
         info: Info[Context, None],
         input: SetAgentSessionRetentionInput,
     ) -> AgentSessionRetention:
+        max_idle_days = input.max_idle_days
+        if max_idle_days is strawberry.UNSET or max_idle_days is None:
+            max_idle_days = 0
+        elif max_idle_days <= 0:
+            raise BadRequest("maxIdleDays must be greater than 0 when set")
+
+        max_count_per_user = input.max_count_per_user
+        if max_count_per_user is strawberry.UNSET or max_count_per_user is None:
+            max_count_per_user = 0
+        elif max_count_per_user <= 0:
+            raise BadRequest("maxCountPerUser must be greater than 0 when set")
+
         try:
             value = AgentSessionRetentionSetting(
-                max_idle_days=input.max_idle_days,
-                max_count_per_user=input.max_count_per_user,
+                max_idle_days=max_idle_days,
+                max_count_per_user=max_count_per_user,
             )
         except ValidationError as error:
             raise BadRequest(str(error)) from error

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e65357e2df2da72b7220645507bd1904>>
+ * @generated SignedSource<<ee0ea39a8465c67a74c5bc488d449a09>>
  * @lightSyntaxTransform
  */
 
@@ -9,8 +9,8 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type SetAgentSessionRetentionInput = {
-  maxCountPerUser: number;
-  maxIdleDays: number;
+  maxCountPerUser?: number | null;
+  maxIdleDays?: number | null;
 };
 export type SettingsAgentsWorkspaceCardSetSessionRetentionMutation$variables = {
   input: SetAgentSessionRetentionInput;

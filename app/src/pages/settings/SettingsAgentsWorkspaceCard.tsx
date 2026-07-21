@@ -11,7 +11,6 @@ import type { SettingsAgentsWorkspaceCardSetTraceRecordingMutation } from "./__g
 
 /**
  * Values restored when an admin re-enables a retention rule that was off
- * (a rule set to 0 is disabled).
  */
 const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 30;
 const DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER = 200;
@@ -147,12 +146,14 @@ export function SettingsAgentsAdminSettingsSection() {
     maxIdleDays?: number;
     maxCountPerUser?: number;
   }) => {
+    const maxIdleDays = patch.maxIdleDays ?? sessionRetentionMaxIdleDays;
+    const maxCountPerUser =
+      patch.maxCountPerUser ?? sessionRetentionMaxCountPerUser;
     setSessionRetention({
       variables: {
         input: {
-          maxIdleDays: patch.maxIdleDays ?? sessionRetentionMaxIdleDays,
-          maxCountPerUser:
-            patch.maxCountPerUser ?? sessionRetentionMaxCountPerUser,
+          maxIdleDays: maxIdleDays > 0 ? maxIdleDays : undefined,
+          maxCountPerUser: maxCountPerUser > 0 ? maxCountPerUser : undefined,
         },
       },
       onCompleted: (response) => {
@@ -268,8 +269,8 @@ export function SettingsAgentsAdminSettingsSection() {
 
 /**
  * A retention rule row: a switch that turns the rule on and off, plus a
- * number input for the rule's value while it is on. A value of 0 means the
- * rule is off; re-enabling restores {@link AdminRetentionSettingProps.enabledDefault}.
+ * number input for the rule's value while it is on.
+ * {@link AdminRetentionSettingProps.enabledDefault}.
  */
 type AdminRetentionSettingProps = {
   label: string;
