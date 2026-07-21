@@ -117,8 +117,6 @@ const provider = register({
 | `apiKey` | API key sent as a bearer token. Falls back to `PHOENIX_API_KEY`. |
 | `headers` | Additional OTLP headers merged with the auth header. |
 | `batch` | `true` for batched export, `false` for immediate export during debugging. |
-| `spanFilter` | Predicate deciding which spans are exported. Pass `isOpenInferenceSpan` from `@arizeai/openinference-vercel` to keep only AI spans and drop infrastructure spans (HTTP requests, framework workflow internals). |
-| `reparentOrphanedSpans` | Re-root AI spans whose parents were dropped by `spanFilter`, so each trace keeps a clean root. Defaults to `false`. |
 | `instrumentations` | OpenTelemetry instrumentations to register with the provider. |
 | `spanProcessors` | Custom span processors. When provided, these replace the default Phoenix exporter setup. |
 | `global` | Whether to attach the provider to the global OpenTelemetry APIs automatically. |

@@ -99,7 +99,7 @@ Both options act client-side, before spans are exported, and control which spans
 </Note>
 
 <Note>
-For simpler setup, [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) (2.1+) replaces the exporter and provider wiring above with a single `register()` call that accepts the same `spanFilter` and `reparentOrphanedSpans` options — see the runnable [eve-agent example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/eve-agent) in the Phoenix repo.
+[`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) can host this processor instead of `@vercel/otel`: pass it through `register()`'s `spanProcessors` option and `register()` handles the provider, project-name resource attribute, and global wiring — see the runnable [eve-agent example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/eve-agent) in the Phoenix repo.
 </Note>
 
 ## Run Eve

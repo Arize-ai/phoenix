@@ -1,6 +1,3 @@
-import type { SpanFilter } from "@arizeai/openinference-vercel" with {
-  "resolution-mode": "import",
-};
 import type { Context } from "@opentelemetry/api";
 import { diag } from "@opentelemetry/api";
 import type {
@@ -42,38 +39,23 @@ export class LazyOpenInferenceSpanProcessor implements SpanProcessor {
   private pendingEnds: ReadableSpan[] = [];
   private readonly delegateReady: Promise<void>;
 
-  constructor({
-    exporter,
-    batch,
-    spanFilter,
-    reparentOrphanedSpans,
-  }: {
-    exporter: SpanExporter;
-    batch: boolean;
-    spanFilter?: SpanFilter;
-    reparentOrphanedSpans?: boolean;
-  }) {
+  constructor({ exporter, batch }: { exporter: SpanExporter; batch: boolean }) {
     this.delegateReady = import("@arizeai/openinference-vercel")
       .then((openInferenceVercel) => {
         this.setDelegate(
           batch
             ? new openInferenceVercel.OpenInferenceBatchSpanProcessor({
                 exporter,
-                spanFilter,
-                reparentOrphanedSpans,
               })
             : new openInferenceVercel.OpenInferenceSimpleSpanProcessor({
                 exporter,
-                spanFilter,
-                reparentOrphanedSpans,
               })
         );
       })
       .catch((error) => {
         diag.warn(
           "@arizeai/phoenix-otel: failed to load @arizeai/openinference-vercel; " +
-            "spans will be exported without OpenInference translation of Vercel AI SDK telemetry, " +
-            "and any spanFilter/reparentOrphanedSpans options will not apply.",
+            "spans will be exported without OpenInference translation of Vercel AI SDK telemetry.",
           error
         );
         this.setDelegate(

@@ -1,7 +1,4 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import type { SpanFilter } from "@arizeai/openinference-vercel" with {
-  "resolution-mode": "import",
-};
 import { warnIfUsingFileEndpointWithCredentials } from "@arizeai/phoenix-config";
 import type { DiagLogLevel } from "@opentelemetry/api";
 import {
@@ -111,42 +108,6 @@ export type RegisterParams = {
    * @default true
    */
   batch?: boolean;
-
-  /**
-   * A predicate applied to each span before export; only spans it returns
-   * `true` for are sent to Phoenix.
-   *
-   * Use `isOpenInferenceSpan` from `@arizeai/openinference-vercel` to keep
-   * only AI spans and drop infrastructure spans (HTTP requests, framework
-   * workflow internals) that would otherwise clutter the Phoenix trace view.
-   * Combine with {@link reparentOrphanedSpans} so AI spans whose parents are
-   * filtered out are re-rooted instead of appearing orphaned.
-   *
-   * Ignored when {@link spanProcessors} is provided.
-   *
-   * @example
-   * ```typescript
-   * import { isOpenInferenceSpan } from "@arizeai/openinference-vercel";
-   *
-   * register({
-   *   projectName: "my-agent",
-   *   spanFilter: isOpenInferenceSpan,
-   *   reparentOrphanedSpans: true,
-   * });
-   * ```
-   */
-  spanFilter?: SpanFilter;
-
-  /**
-   * Whether to re-root AI spans whose parent spans were dropped by
-   * {@link spanFilter}, so each trace shows a clean root instead of spans
-   * pointing at a parent that was never exported.
-   *
-   * Ignored when {@link spanProcessors} is provided.
-   *
-   * @default false
-   */
-  reparentOrphanedSpans?: boolean;
 
   /**
    * A list of OpenTelemetry instrumentations to automatically register.
@@ -601,16 +562,9 @@ export function getDefaultSpanProcessor({
   apiKey: paramsApiKey,
   headers: paramsHeaders = {},
   batch = true,
-  spanFilter,
-  reparentOrphanedSpans,
 }: Pick<
   RegisterParams,
-  | "url"
-  | "apiKey"
-  | "batch"
-  | "headers"
-  | "spanFilter"
-  | "reparentOrphanedSpans"
+  "url" | "apiKey" | "batch" | "headers"
 >): SpanProcessor {
   const envConfig = getEnvConfig();
   const configuredUrl = paramsUrl || envConfig.endpoint.value;
@@ -682,8 +636,6 @@ export function getDefaultSpanProcessor({
   const spanProcessor: SpanProcessor = new LazyOpenInferenceSpanProcessor({
     exporter,
     batch,
-    spanFilter,
-    reparentOrphanedSpans,
   });
   return spanProcessor;
 }
