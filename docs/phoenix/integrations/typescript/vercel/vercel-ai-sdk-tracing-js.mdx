@@ -62,6 +62,8 @@ const result = await generateText({
 });
 ```
 
+This applies to agents as well — a `ToolLoopAgent` run is traced end to end, with the agent, each LLM step, and every tool call captured as spans in a single trace. See the [AI SDK agent example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/ai-sdk-agent) for a complete runnable project.
+
 <Note>
 `register()` uses a batch span processor by default, so spans still queued when a short-lived script exits may not be exported. Call `await provider.shutdown()` before exit to flush them, or pass `batch: false` to `register()` for immediate export.
 </Note>
@@ -132,7 +134,7 @@ When instrumenting a Next.js application, traced spans will not be "root spans" 
 
 ## Examples
 
-- [AI SDK Quickstart](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/ai-sdk-quickstart) — the smallest AI SDK v7 app traced with `@arizeai/phoenix-otel`
+- [AI SDK Agent](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/ai-sdk-agent) — an AI SDK v7 `ToolLoopAgent` traced with `@arizeai/phoenix-otel`
 - [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the [OpenInference repo](https://github.com/Arize-ai/openinference/tree/main/js)
 
 For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry documentation](https://sdk.vercel.ai/docs/ai-sdk-core/telemetry).
