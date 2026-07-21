@@ -1117,12 +1117,9 @@ class Project(Node):
 
     @strawberry.field(
         description=(
-            "Parses a span filter condition and reports how it relates to root-span "
-            "scoping, so a client can tell whether a filtered view is root-scoped "
-            "without parsing the expression itself. Structural only: it does not "
-            "validate the condition, so a condition reported as root-scoped may "
-            "still be rejected when the query runs. Use validateSpanFilterCondition "
-            "to check validity."
+            "How a span filter condition relates to root-span scoping, so clients "
+            "need not parse the DSL. Structural only; use "
+            "`validateSpanFilterCondition` to check validity."
         )
     )  # type: ignore
     def analyze_span_filter_condition(
