@@ -143,17 +143,22 @@ export function SettingsAgentsAdminSettingsSection() {
   };
 
   const handleSessionRetentionChange = (patch: {
-    maxIdleDays?: number;
-    maxCountPerUser?: number;
+    maxIdleDays?: number | null;
+    maxCountPerUser?: number | null;
   }) => {
-    const maxIdleDays = patch.maxIdleDays ?? sessionRetentionMaxIdleDays;
+    const maxIdleDays =
+      patch.maxIdleDays !== undefined
+        ? patch.maxIdleDays
+        : sessionRetentionMaxIdleDays;
     const maxCountPerUser =
-      patch.maxCountPerUser ?? sessionRetentionMaxCountPerUser;
+      patch.maxCountPerUser !== undefined
+        ? patch.maxCountPerUser
+        : sessionRetentionMaxCountPerUser;
     setSessionRetention({
       variables: {
         input: {
-          maxIdleDays: maxIdleDays > 0 ? maxIdleDays : undefined,
-          maxCountPerUser: maxCountPerUser > 0 ? maxCountPerUser : undefined,
+          maxIdleDays,
+          maxCountPerUser,
         },
       },
       onCompleted: (response) => {
@@ -269,7 +274,7 @@ export function SettingsAgentsAdminSettingsSection() {
 
 /**
  * A retention rule row: a switch that turns the rule on and off, plus a
- * number input for the rule's value while it is on.
+ * number input for the rule's value while it is on. Re-enabling restores
  * {@link AdminRetentionSettingProps.enabledDefault}.
  */
 type AdminRetentionSettingProps = {
@@ -279,8 +284,8 @@ type AdminRetentionSettingProps = {
   valueLabel: string;
   /** Unit text rendered beside the number input (e.g. "days"). */
   unit: string;
-  value: number;
-  onChange: (value: number) => void;
+  value: number | null;
+  onChange: (value: number | null) => void;
   enabledDefault: number;
   isDisabled: boolean;
 };
@@ -295,14 +300,14 @@ function AdminRetentionSetting({
   enabledDefault,
   isDisabled,
 }: AdminRetentionSettingProps) {
-  const isEnabled = value > 0;
+  const isEnabled = value !== null;
   return (
     <>
       <AdminSettingsSwitch
         label={label}
         description={description}
         isSelected={isEnabled}
-        onChange={(enabled) => onChange(enabled ? enabledDefault : 0)}
+        onChange={(enabled) => onChange(enabled ? enabledDefault : null)}
         isDisabled={isDisabled}
       />
       {isEnabled ? (

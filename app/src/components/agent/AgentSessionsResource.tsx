@@ -24,7 +24,6 @@ import { Loading } from "@phoenix/components/core";
 import { useNotifyError } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -162,15 +161,12 @@ function AgentSessionsContent({
     setActiveSession(DRAFT_SESSION_ID);
   }, [setActiveSession, store]);
 
-  // The per-user count cap applies only to authenticated users' persisted
-  // sessions; the list is ordered by recency, so persisted sessions ranked
-  // beyond the cap are deleted at the next retention sweep.
+  // The count cap applies per user when auth is enabled and to the shared
+  // anonymous partition otherwise. The list is ordered by recency, so sessions
+  // ranked beyond the cap are deleted at the next retention sweep.
   const sessionRetentionMaxCountPerUser = useAgentContext(
     (state) => state.agentsConfig.sessionRetentionMaxCountPerUser
   );
-  const { viewer } = useViewer();
-  const isCountCapEnforced =
-    viewer != null && sessionRetentionMaxCountPerUser > 0;
   let persistedSessionRank = 0;
   const serverSessions: AgentSessionListItem[] = data.agentSessions.edges.map(
     ({ node }) => {
@@ -185,7 +181,7 @@ function AgentSessionsContent({
         expiresAt:
           node.expiresAt != null ? Date.parse(node.expiresAt as string) : null,
         isOverCountCap:
-          isCountCapEnforced &&
+          sessionRetentionMaxCountPerUser !== null &&
           !node.isTemporary &&
           persistedSessionRank > sessionRetentionMaxCountPerUser,
         isDeleteDisabled:

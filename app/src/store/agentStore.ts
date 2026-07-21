@@ -67,14 +67,14 @@ export type AgentServerConfig = {
   allowRemoteExport: boolean;
   /**
    * Idle days after which persisted (non-temporary) sessions are deleted by
-   * the workspace retention setting. 0 means never.
+   * the workspace retention setting. Null means never.
    */
-  sessionRetentionMaxIdleDays: number;
+  sessionRetentionMaxIdleDays: number | null;
   /**
    * Maximum persisted (non-temporary) sessions kept per user by the workspace
-   * retention setting; the newest by activity are retained. 0 means no cap.
+   * retention setting; the newest by activity are retained. Null means no cap.
    */
-  sessionRetentionMaxCountPerUser: number;
+  sessionRetentionMaxCountPerUser: number | null;
 };
 
 export type AgentTraceConsentSettings = Pick<
@@ -145,8 +145,8 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   assistantEnabled: false,
   allowLocalTraces: false,
   allowRemoteExport: false,
-  sessionRetentionMaxIdleDays: 30,
-  sessionRetentionMaxCountPerUser: 0,
+  sessionRetentionMaxIdleDays: null,
+  sessionRetentionMaxCountPerUser: null,
 };
 
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {

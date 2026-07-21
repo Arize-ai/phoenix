@@ -18,21 +18,21 @@ from phoenix.server.types import DbSessionFactory
 async def test_update_agent_trace_recording_persists_and_updates_cache(
     db: DbSessionFactory,
 ) -> None:
-    ss = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
-    await ss.bootstrap()
+    settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    await settings.bootstrap()
     default = AgentTraceRecordingSetting()
 
     # Flip the flags to test the update
     allow_local = not default.allow_local_traces
     allow_remote = not default.allow_remote_export
-    await ss.update_agent_trace_recording(
+    await settings.update_agent_trace_recording(
         AgentTraceRecordingSetting(
             allow_local_traces=allow_local, allow_remote_export=allow_remote
         ),
         user_id=None,
     )
-    assert ss.agent_trace_recording.allow_local_traces is allow_local
-    assert ss.agent_trace_recording.allow_remote_export is allow_remote
+    assert settings.agent_trace_recording.allow_local_traces is allow_local
+    assert settings.agent_trace_recording.allow_remote_export is allow_remote
 
     expected = {
         "allow_local_traces": allow_local,
@@ -48,10 +48,10 @@ async def test_update_agent_trace_recording_persists_and_updates_cache(
 async def test_agent_session_retention_defaults_when_unset(
     db: DbSessionFactory,
 ) -> None:
-    ss = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
-    await ss.bootstrap()
-    retention = ss.agent_session_retention
-    assert retention.max_idle_days == 30
+    settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    await settings.bootstrap()
+    retention = settings.agent_session_retention
+    assert retention.max_idle_days == 0
     assert retention.max_count_per_user == 0
 
 
@@ -59,15 +59,15 @@ async def test_agent_session_retention_defaults_when_unset(
 async def test_update_agent_session_retention_persists_and_updates_cache(
     db: DbSessionFactory,
 ) -> None:
-    ss = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
-    await ss.bootstrap()
+    settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    await settings.bootstrap()
 
-    await ss.update_agent_session_retention(
+    await settings.update_agent_session_retention(
         AgentSessionRetentionSetting(max_idle_days=7.5, max_count_per_user=200),
         user_id=None,
     )
-    assert ss.agent_session_retention.max_idle_days == 7.5
-    assert ss.agent_session_retention.max_count_per_user == 200
+    assert settings.agent_session_retention.max_idle_days == 7.5
+    assert settings.agent_session_retention.max_count_per_user == 200
 
     async with db() as session:
         row = await session.get(models.SystemSetting, "agent.assistant.session_retention")

@@ -1702,8 +1702,8 @@ class Query:
             assistant_enabled=agent_assistant_enabled.enabled,
             allow_local_traces=force_tracing or trace_recording.allow_local_traces,
             allow_remote_export=force_tracing or trace_recording.allow_remote_export,
-            session_retention_max_idle_days=session_retention.max_idle_days,
-            session_retention_max_count_per_user=session_retention.max_count_per_user,
+            session_retention_max_idle_days=session_retention.max_idle_days or None,
+            session_retention_max_count_per_user=session_retention.max_count_per_user or None,
         )
 
     @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore

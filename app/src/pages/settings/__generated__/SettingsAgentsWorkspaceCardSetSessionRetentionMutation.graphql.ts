@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ee0ea39a8465c67a74c5bc488d449a09>>
+ * @generated SignedSource<<e80666a63650ab1ad547a819bccb5c39>>
  * @lightSyntaxTransform
  */
 
@@ -17,8 +17,8 @@ export type SettingsAgentsWorkspaceCardSetSessionRetentionMutation$variables = {
 };
 export type SettingsAgentsWorkspaceCardSetSessionRetentionMutation$data = {
   readonly setAgentSessionRetention: {
-    readonly maxCountPerUser: number;
-    readonly maxIdleDays: number;
+    readonly maxCountPerUser: number | null;
+    readonly maxIdleDays: number | null;
   };
 };
 export type SettingsAgentsWorkspaceCardSetSessionRetentionMutation = {

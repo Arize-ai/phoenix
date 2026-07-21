@@ -121,8 +121,8 @@ type AgentSessionEdge {
 }
 
 type AgentSessionRetention {
-  maxIdleDays: Float!
-  maxCountPerUser: Int!
+  maxIdleDays: Float
+  maxCountPerUser: Int
 }
 
 type AgentSkill {
@@ -180,14 +180,14 @@ type AgentsConfig {
   allowRemoteExport: Boolean!
 
   """
-  Number of idle days after which persisted (non-temporary) agent sessions are deleted. Sourced from the `agent.assistant.session_retention` system setting. 0 means sessions are never deleted for idleness.
+  Number of idle days after which persisted (non-temporary) agent sessions are deleted. Sourced from the `agent.assistant.session_retention` system setting. Null means sessions are never deleted for idleness.
   """
-  sessionRetentionMaxIdleDays: Float!
+  sessionRetentionMaxIdleDays: Float
 
   """
-  Maximum number of persisted (non-temporary) agent sessions kept per user; the newest sessions by activity are retained. Sourced from the `agent.assistant.session_retention` system setting. 0 means no cap.
+  Maximum number of persisted (non-temporary) agent sessions kept per user; the newest sessions by activity are retained. Sourced from the `agent.assistant.session_retention` system setting. Null means no cap.
   """
-  sessionRetentionMaxCountPerUser: Int!
+  sessionRetentionMaxCountPerUser: Int
 }
 
 interface Annotation {

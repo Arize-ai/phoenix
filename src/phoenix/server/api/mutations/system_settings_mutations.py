@@ -32,8 +32,8 @@ class AgentAssistantEnabled:
 
 @strawberry.type
 class AgentSessionRetention:
-    max_idle_days: float
-    max_count_per_user: int
+    max_idle_days: float | None
+    max_count_per_user: int | None
 
 
 @strawberry.input
@@ -136,6 +136,6 @@ class SystemSettingsMutationMixin:
         )
         retention = info.context.settings.agent_session_retention
         return AgentSessionRetention(
-            max_idle_days=retention.max_idle_days,
-            max_count_per_user=retention.max_count_per_user,
+            max_idle_days=retention.max_idle_days or None,
+            max_count_per_user=retention.max_count_per_user or None,
         )

@@ -203,6 +203,11 @@ async def test_expires_at_is_derived_from_idle_retention_window(
         title="persisted",
         updated_at=updated_at,
     )
+    mutation_response = await gql_client.execute(
+        query=_SET_RETENTION_MUTATION,
+        variables={"input": {"maxIdleDays": 30}},
+    )
+    assert not mutation_response.errors
 
     response = await gql_client.execute(
         query=_EXPIRES_AT_QUERY,
@@ -213,7 +218,6 @@ async def test_expires_at_is_derived_from_idle_retention_window(
     assert response.data is not None
     expires_at = response.data["agentSession"]["expiresAt"]
     assert expires_at is not None
-    # The default retention setting deletes persisted sessions after 30 idle days.
     assert datetime.fromisoformat(expires_at) == updated_at + timedelta(days=30)
 
 

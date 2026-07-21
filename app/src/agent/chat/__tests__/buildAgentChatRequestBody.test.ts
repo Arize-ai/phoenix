@@ -27,7 +27,7 @@ const agentsConfig = {
   allowLocalTraces: false,
   allowRemoteExport: false,
   sessionRetentionMaxIdleDays: 30,
-  sessionRetentionMaxCountPerUser: 0,
+  sessionRetentionMaxCountPerUser: null,
 };
 
 describe("buildAgentChatRequestBody", () => {

@@ -58,8 +58,8 @@ async def test_query_returns_defaults_when_setting_is_unset(
     assert not q.errors
     assert q.data is not None
     config = q.data["agentsConfig"]
-    assert config["sessionRetentionMaxIdleDays"] == 30
-    assert config["sessionRetentionMaxCountPerUser"] == 0
+    assert config["sessionRetentionMaxIdleDays"] is None
+    assert config["sessionRetentionMaxCountPerUser"] is None
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,7 @@ async def test_mutation_disables_omitted_retention_dimensions(
     assert result.data is not None
     assert result.data["setAgentSessionRetention"] == {
         "maxIdleDays": 14,
-        "maxCountPerUser": 0,
+        "maxCountPerUser": None,
     }
 
 
@@ -91,11 +91,11 @@ async def test_mutation_disables_omitted_retention_dimensions(
     [
         (
             {"maxIdleDays": None, "maxCountPerUser": 200},
-            {"maxIdleDays": 0, "maxCountPerUser": 200},
+            {"maxIdleDays": None, "maxCountPerUser": 200},
         ),
         (
             {"maxIdleDays": 14, "maxCountPerUser": None},
-            {"maxIdleDays": 14, "maxCountPerUser": 0},
+            {"maxIdleDays": 14, "maxCountPerUser": None},
         ),
     ],
 )

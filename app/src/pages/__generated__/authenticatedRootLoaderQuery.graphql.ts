@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<11b7dc03a7eca733f86b311175c7199b>>
+ * @generated SignedSource<<ee1f38273069ead68d35f9ac3e16f94d>>
  * @lightSyntaxTransform
  */
 
@@ -18,8 +18,8 @@ export type authenticatedRootLoaderQuery$data = {
     readonly assistantProjectName: string;
     readonly collectorEndpoint: string | null;
     readonly forceTracing: boolean;
-    readonly sessionRetentionMaxCountPerUser: number;
-    readonly sessionRetentionMaxIdleDays: number;
+    readonly sessionRetentionMaxCountPerUser: number | null;
+    readonly sessionRetentionMaxIdleDays: number | null;
     readonly webAccessEnabled: boolean;
   };
   readonly viewer: {

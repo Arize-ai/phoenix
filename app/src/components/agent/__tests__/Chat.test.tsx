@@ -114,7 +114,7 @@ function renderChatView(
             allowLocalTraces: true,
             allowRemoteExport: false,
             sessionRetentionMaxIdleDays: 30,
-            sessionRetentionMaxCountPerUser: 0,
+            sessionRetentionMaxCountPerUser: null,
           }}
           observability={{
             storeLocalTraces: true,

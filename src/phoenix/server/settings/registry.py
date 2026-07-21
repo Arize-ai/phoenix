@@ -37,7 +37,7 @@ class AgentSessionRetentionSetting(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
 
-    max_idle_days: float = Field(default=30, ge=0)
+    max_idle_days: float = Field(default=0, ge=0)
     max_count_per_user: int = Field(default=0, ge=0)
 
 
