@@ -1,9 +1,10 @@
-# AI SDK Quickstart
+# AI SDK v7 Agent Tracing
 
-The smallest [Vercel AI SDK](https://ai-sdk.dev/) v7 app traced with
+A minimal [Vercel AI SDK](https://ai-sdk.dev/) v7 agent traced with
 `@arizeai/phoenix-otel`. Importing [`instrumentation.ts`](./instrumentation.ts)
-registers Phoenix telemetry; [`main.ts`](./main.ts) then makes a single
-`generateText` call that shows up as a trace in Phoenix.
+registers Phoenix telemetry; [`agent.ts`](./agent.ts) then runs a
+`ToolLoopAgent` with a single weather tool — the agent span, each LLM step,
+and the tool call all show up as one trace in Phoenix.
 
 ## Version compatibility
 
@@ -27,11 +28,11 @@ AI SDK v7 requires Node.js 22.12 or newer.
 pnpm install
 
 export OPENAI_API_KEY=sk-...
-pnpm --filter ai-sdk-quickstart start
+pnpm --filter ai-sdk-agent start
 ```
 
 Open [http://localhost:6006](http://localhost:6006) to see the trace in the
-`ai-sdk-quickstart` project.
+`ai-sdk-agent` project.
 
 ## Configuration
 
