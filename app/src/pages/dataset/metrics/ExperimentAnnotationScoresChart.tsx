@@ -31,7 +31,7 @@ import {
 } from "./experimentXAxisProps";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
-import { useExperimentAnnotationMetricsData } from "./useExperimentMetricsData";
+import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 /**
  * Animation duration (ms) for the chart's marks. Recharts' default line
@@ -84,14 +84,14 @@ export function ExperimentAnnotationScoresChart({
 }: ExperimentMetricViewProps) {
   const { theme } = useTheme();
   const { experiments, baselineExperiment } =
-    useExperimentAnnotationMetricsData(datasetId);
+    useExperimentMetricsData(datasetId);
 
   const scoreKeySet = new Set<string>();
   const chartData = experiments.map((experiment) => {
     const scores: Record<string, number | undefined> = {};
     for (const summary of experiment.annotationSummaries) {
-      scoreKeySet.add(summary.name);
-      scores[summary.name] = summary.meanScore ?? undefined;
+      scoreKeySet.add(summary.annotationName);
+      scores[summary.annotationName] = summary.meanScore ?? undefined;
     }
     return {
       sequenceNumber: experiment.sequenceNumber,

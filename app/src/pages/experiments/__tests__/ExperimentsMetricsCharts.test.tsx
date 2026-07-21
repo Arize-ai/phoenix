@@ -41,7 +41,7 @@ vi.mock("@phoenix/components/resize", () => ({
 }));
 
 vi.mock("@phoenix/pages/dataset/metrics/chartCatalog", async () => {
-  const { useExperimentAnnotationMetricsData } = await vi.importActual<
+  const { useExperimentEvaluationMetricData } = await vi.importActual<
     typeof ExperimentMetricsDataModule
   >("@phoenix/pages/dataset/metrics/useExperimentMetricsData");
 
@@ -49,9 +49,12 @@ vi.mock("@phoenix/pages/dataset/metrics/chartCatalog", async () => {
     return <div>core metric</div>;
   }
 
-  function AnnotationMetricChart({ datasetId }: { datasetId: string }) {
-    useExperimentAnnotationMetricsData(datasetId);
-    return <div>annotation metric</div>;
+  function EvaluationMetricChart({ datasetId }: { datasetId: string }) {
+    useExperimentEvaluationMetricData({
+      datasetId,
+      evaluationName: "quality",
+    });
+    return <div>evaluation metric</div>;
   }
 
   return {
@@ -62,10 +65,7 @@ vi.mock("@phoenix/pages/dataset/metrics/chartCatalog", async () => {
           key,
           name: key,
           description: key,
-          Panel:
-            key === "annotation_scores" || isEvaluationChart
-              ? AnnotationMetricChart
-              : CoreMetricChart,
+          Panel: isEvaluationChart ? EvaluationMetricChart : CoreMetricChart,
         };
       }),
   };
@@ -87,7 +87,7 @@ describe("ExperimentsMetricsCharts", () => {
     container.remove();
   });
 
-  it("provides core metrics without requesting annotation aggregation", async () => {
+  it("provides the shared experiment metrics query", async () => {
     const requestedOperations: string[] = [];
     const environment = createPendingEnvironment(requestedOperations);
 
@@ -103,7 +103,7 @@ describe("ExperimentsMetricsCharts", () => {
     expect(container.textContent).not.toContain("Something went wrong");
   });
 
-  it("requests annotation aggregation when its catalog chart is selected", async () => {
+  it("uses the shared query for the aggregate annotation chart", async () => {
     datasetContextState.experimentsMetricChartKeys = ["annotation_scores"];
     const requestedOperations: string[] = [];
     const environment = createPendingEnvironment(requestedOperations);
@@ -116,12 +116,7 @@ describe("ExperimentsMetricsCharts", () => {
       );
     });
 
-    expect(new Set(requestedOperations)).toEqual(
-      new Set([
-        "useExperimentMetricsDataQuery",
-        "useExperimentAnnotationMetricsDataQuery",
-      ])
-    );
+    expect(requestedOperations).toEqual(["useExperimentMetricsDataQuery"]);
     expect(container.textContent).not.toContain("Something went wrong");
   });
 
@@ -141,7 +136,7 @@ describe("ExperimentsMetricsCharts", () => {
     expect(new Set(requestedOperations)).toEqual(
       new Set([
         "useExperimentMetricsDataQuery",
-        "useExperimentAnnotationMetricsDataQuery",
+        "ExperimentEvaluationMetricQuery",
       ])
     );
   });

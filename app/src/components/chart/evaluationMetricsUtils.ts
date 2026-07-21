@@ -78,24 +78,21 @@ export function getEvaluationMetricsChartData({
 const OTHER_FRACTION_EPSILON = 1e-9;
 
 /**
- * Returns the share not represented by the labels currently drawn. This
- * combines annotations without labels and labels omitted by either the server
- * cap or the user's visible-label limit without renormalizing the selected
- * labels.
+ * Returns the result-bearing share without a label. Missing labels are not
+ * renormalized so each stacked distribution still totals 100%.
  */
 export function getEvaluationOtherFraction({
   point,
-  visibleLabelCount,
 }: {
   point: EvaluationMetricsChartPoint;
-  visibleLabelCount: number;
 }): number | undefined {
   if (!point.hasAnnotationSummary) {
     return undefined;
   }
-  const includedFraction = point.fractions
-    .slice(0, visibleLabelCount)
-    .reduce<number>((total, fraction) => total + (fraction ?? 0), 0);
+  const includedFraction = point.fractions.reduce<number>(
+    (total, fraction) => total + (fraction ?? 0),
+    0
+  );
   const residual = Math.min(Math.max(1 - includedFraction, 0), 1);
   return residual < OTHER_FRACTION_EPSILON ? undefined : residual;
 }
@@ -147,9 +144,8 @@ export function normalizeEvaluationMetrics({
         .find(
           ({ summary }) => (summary?.labelFractions.length ?? 0) > 0
         )?.summary;
-      // The server caps the shared label set by frequency across the requested
-      // window. Individual summaries omit zero-frequency labels, so rebuild a
-      // stable union starting with the baseline/latest comparison points.
+      // Individual summaries can have different labels, so build a stable
+      // union starting with the baseline and latest comparison points.
       const labels = Array.from(
         new Set(
           [

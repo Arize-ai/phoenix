@@ -3,7 +3,6 @@ export * from "./ChartPanel";
 export * from "./ChartPanelStrip";
 export * from "./ChartTypeIcon";
 export * from "./EvaluationMetricsChart";
-export * from "./EvaluationMetricsLabelCountSelect";
 export * from "./EvaluationMetricsViewToggle";
 export * from "./evaluationMetricsUtils";
 export * from "./MetricsChartSelector";

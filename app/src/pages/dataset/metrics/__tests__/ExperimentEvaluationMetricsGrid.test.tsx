@@ -21,12 +21,10 @@ vi.mock("@phoenix/components/experiment/SequenceNumberToken", () => ({
 vi.mock("@phoenix/components/chart", () => ({
   ChartPanel: ({ children }: { children: ReactNode }) => children,
   EvaluationMetricsChart: () => null,
-  EvaluationMetricsLabelCountSelect: () => null,
   EvaluationMetricsViewToggle: () => null,
   compactCategoryXAxisProps: {},
   compactYAxisProps: {},
   getDefaultEvaluationMetricsView: () => "labels",
-  MAX_EVALUATION_LABEL_COUNT: 12,
   normalizeEvaluationMetrics: () => [],
 }));
 
@@ -35,7 +33,7 @@ vi.mock("@phoenix/components/exception", () => ({
 }));
 
 vi.mock("../useExperimentMetricsData", () => ({
-  useExperimentAnnotationMetricsData: () => {
+  useExperimentAnnotationMetricNames: () => {
     throw new Promise(() => undefined);
   },
 }));

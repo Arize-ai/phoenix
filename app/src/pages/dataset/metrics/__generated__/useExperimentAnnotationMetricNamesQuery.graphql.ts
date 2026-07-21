@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d57c544dd88e81cbbdd380ad3c927cd2>>
+ * @generated SignedSource<<bc95ed1905bfa4607debc5da0df54698>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,9 @@ export type useExperimentAnnotationMetricNamesQuery$variables = {
 };
 export type useExperimentAnnotationMetricNamesQuery$data = {
   readonly dataset: {
-    readonly experimentAnnotationNames?: ReadonlyArray<string>;
+    readonly experimentAnnotationSummaries?: ReadonlyArray<{
+      readonly annotationName: string;
+    }>;
   };
 };
 export type useExperimentAnnotationMetricNamesQuery = {
@@ -42,8 +44,19 @@ v2 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "experimentAnnotationNames",
+      "concreteType": "DatasetExperimentAnnotationSummary",
+      "kind": "LinkedField",
+      "name": "experimentAnnotationSummaries",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "annotationName",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -108,16 +121,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a065f45cf5c1011575224df029a61b1a",
+    "cacheID": "39a624c4acfd232a4879207556d7e028",
     "id": null,
     "metadata": {},
     "name": "useExperimentAnnotationMetricNamesQuery",
     "operationKind": "query",
-    "text": "query useExperimentAnnotationMetricNamesQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      experimentAnnotationNames\n    }\n    id\n  }\n}\n"
+    "text": "query useExperimentAnnotationMetricNamesQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      experimentAnnotationSummaries {\n        annotationName\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "34e654a7fbdde06771cccd062a1f1332";
+(node as any).hash = "530a2f745f6b18f58d8cb5024cbc51ef";
 
 export default node;

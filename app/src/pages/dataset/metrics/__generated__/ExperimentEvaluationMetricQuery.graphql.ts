@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc7eb94b6e4fdc81d582b2fef31c8029>>
+ * @generated SignedSource<<8c6999c345e6cc826d8271e95fa0e54e>>
  * @lightSyntaxTransform
  */
 
@@ -9,72 +9,69 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type useExperimentMetricsDataQuery$variables = {
+export type ExperimentEvaluationMetricQuery$variables = {
+  annotationName: string;
   count: number;
   id: string;
 };
-export type useExperimentMetricsDataQuery$data = {
+export type ExperimentEvaluationMetricQuery$data = {
   readonly dataset: {
     readonly baselineExperiment?: {
-      readonly " $fragmentSpreads": FragmentRefs<"useExperimentMetricsData_experiment">;
+      readonly " $fragmentSpreads": FragmentRefs<"ExperimentEvaluationMetric_experiment">;
     } | null;
     readonly metricsExperiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
-          readonly " $fragmentSpreads": FragmentRefs<"useExperimentMetricsData_experiment">;
+          readonly " $fragmentSpreads": FragmentRefs<"ExperimentEvaluationMetric_experiment">;
         };
       }>;
     };
   };
 };
-export type useExperimentMetricsDataQuery = {
-  response: useExperimentMetricsDataQuery$data;
-  variables: useExperimentMetricsDataQuery$variables;
+export type ExperimentEvaluationMetricQuery = {
+  response: ExperimentEvaluationMetricQuery$data;
+  variables: ExperimentEvaluationMetricQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "count"
+  "name": "annotationName"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "count"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "id"
 },
-v2 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = [
+v5 = [
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "tokens",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
+    "kind": "Variable",
+    "name": "annotationName",
+    "variableName": "annotationName"
   }
 ],
-v5 = [
-  (v3/*:: as any*/),
+v6 = [
+  (v4/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -91,28 +88,7 @@ v5 = [
   },
   {
     "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "averageRunLatencyMs",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "errorRate",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "runCount",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
+    "args": (v5/*:: as any*/),
     "concreteType": "ExperimentAnnotationSummary",
     "kind": "LinkedField",
     "name": "annotationSummaries",
@@ -131,62 +107,48 @@ v5 = [
         "kind": "ScalarField",
         "name": "meanScore",
         "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "SpanCostSummary",
-    "kind": "LinkedField",
-    "name": "costSummary",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "CostBreakdown",
-        "kind": "LinkedField",
-        "name": "prompt",
-        "plural": false,
-        "selections": (v4/*:: as any*/),
-        "storageKey": null
       },
       {
         "alias": null,
         "args": null,
-        "concreteType": "CostBreakdown",
+        "concreteType": "LabelFraction",
         "kind": "LinkedField",
-        "name": "completion",
-        "plural": false,
-        "selections": (v4/*:: as any*/),
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "CostBreakdown",
-        "kind": "LinkedField",
-        "name": "total",
-        "plural": false,
-        "selections": (v4/*:: as any*/),
+        "name": "labelFractions",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "label",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "fraction",
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ],
     "storageKey": null
-  }
-],
-v6 = [
-  {
-    "kind": "InlineDataFragmentSpread",
-    "name": "useExperimentMetricsData_experiment",
-    "selections": (v5/*:: as any*/),
-    "args": null,
-    "argumentDefinitions": ([]/*:: as any*/)
   }
 ],
 v7 = [
+  {
+    "kind": "InlineDataFragmentSpread",
+    "name": "ExperimentEvaluationMetric_experiment",
+    "selections": (v6/*:: as any*/),
+    "args": (v5/*:: as any*/),
+    "argumentDefinitions": [
+      (v0/*:: as any*/)
+    ]
+  }
+],
+v8 = [
   {
     "kind": "Variable",
     "name": "first",
@@ -197,15 +159,16 @@ return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*:: as any*/),
-      (v1/*:: as any*/)
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "useExperimentMetricsDataQuery",
+    "name": "ExperimentEvaluationMetricQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v2/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -221,12 +184,93 @@ return {
                 "kind": "LinkedField",
                 "name": "baselineExperiment",
                 "plural": false,
+                "selections": (v7/*:: as any*/),
+                "storageKey": null
+              },
+              {
+                "alias": "metricsExperiments",
+                "args": (v8/*:: as any*/),
+                "concreteType": "ExperimentConnection",
+                "kind": "LinkedField",
+                "name": "experiments",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "ExperimentEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "experiment",
+                        "args": null,
+                        "concreteType": "Experiment",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": (v7/*:: as any*/),
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Dataset",
+            "abstractKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
+    "type": "Query",
+    "abstractKey": null
+  },
+  "kind": "Request",
+  "operation": {
+    "argumentDefinitions": [
+      (v2/*:: as any*/),
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
+    ],
+    "kind": "Operation",
+    "name": "ExperimentEvaluationMetricQuery",
+    "selections": [
+      {
+        "alias": "dataset",
+        "args": (v3/*:: as any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "__typename",
+            "storageKey": null
+          },
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Experiment",
+                "kind": "LinkedField",
+                "name": "baselineExperiment",
+                "plural": false,
                 "selections": (v6/*:: as any*/),
                 "storageKey": null
               },
               {
                 "alias": "metricsExperiments",
-                "args": (v7/*:: as any*/),
+                "args": (v8/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -259,104 +303,24 @@ return {
             ],
             "type": "Dataset",
             "abstractKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
-    "type": "Query",
-    "abstractKey": null
-  },
-  "kind": "Request",
-  "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
-    "kind": "Operation",
-    "name": "useExperimentMetricsDataQuery",
-    "selections": [
-      {
-        "alias": "dataset",
-        "args": (v2/*:: as any*/),
-        "concreteType": null,
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
           },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Experiment",
-                "kind": "LinkedField",
-                "name": "baselineExperiment",
-                "plural": false,
-                "selections": (v5/*:: as any*/),
-                "storageKey": null
-              },
-              {
-                "alias": "metricsExperiments",
-                "args": (v7/*:: as any*/),
-                "concreteType": "ExperimentConnection",
-                "kind": "LinkedField",
-                "name": "experiments",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "ExperimentEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": "experiment",
-                        "args": null,
-                        "concreteType": "Experiment",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": (v5/*:: as any*/),
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "Dataset",
-            "abstractKey": null
-          },
-          (v3/*:: as any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "c2e5ffc009c7ad3a489cd73b22eeaa24",
+    "cacheID": "d011be24cc1ad99e682eec9592371896",
     "id": null,
     "metadata": {},
-    "name": "useExperimentMetricsDataQuery",
+    "name": "ExperimentEvaluationMetricQuery",
     "operationKind": "query",
-    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
+    "text": "query ExperimentEvaluationMetricQuery(\n  $id: ID!\n  $count: Int!\n  $annotationName: String!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...ExperimentEvaluationMetric_experiment_3VbSQz\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...ExperimentEvaluationMetric_experiment_3VbSQz\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentEvaluationMetric_experiment_3VbSQz on Experiment {\n  id\n  name\n  sequenceNumber\n  annotationSummaries(annotationName: $annotationName) {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aeb501a2259b975d916fdfb807e47b40";
+(node as any).hash = "4da8c0734c31bf10ba3616a8b29f42ee";
 
 export default node;

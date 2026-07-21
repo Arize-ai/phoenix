@@ -13,9 +13,9 @@ import invariant from "tiny-invariant";
 import { Loading } from "@phoenix/components";
 import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
 
+import type { ExperimentEvaluationMetric_experiment$key } from "./__generated__/ExperimentEvaluationMetric_experiment.graphql";
+import type { ExperimentEvaluationMetricQuery } from "./__generated__/ExperimentEvaluationMetricQuery.graphql";
 import type { useExperimentAnnotationMetricNamesQuery } from "./__generated__/useExperimentAnnotationMetricNamesQuery.graphql";
-import type { useExperimentAnnotationMetricsData_dataPoint$key } from "./__generated__/useExperimentAnnotationMetricsData_dataPoint.graphql";
-import type { useExperimentAnnotationMetricsDataQuery } from "./__generated__/useExperimentAnnotationMetricsDataQuery.graphql";
 import type { useExperimentMetricsData_experiment$key } from "./__generated__/useExperimentMetricsData_experiment.graphql";
 import type { useExperimentMetricsDataQuery } from "./__generated__/useExperimentMetricsDataQuery.graphql";
 
@@ -27,6 +27,10 @@ const experimentMetricsExperimentFragment = graphql`
     averageRunLatencyMs
     errorRate
     runCount
+    annotationSummaries {
+      annotationName
+      meanScore
+    }
     costSummary {
       prompt {
         tokens
@@ -45,8 +49,8 @@ const experimentMetricsExperimentFragment = graphql`
 `;
 
 /**
- * Core experiment metrics intentionally exclude annotations so these charts
- * can render while the independent annotation aggregation is still loading.
+ * Keep the existing aggregate score summaries with the core metrics query.
+ * Per-evaluation label distributions load independently in the filtered query below.
  */
 export const experimentMetricsQuery = graphql`
   query useExperimentMetricsDataQuery($id: ID!, $count: Int!) {
@@ -67,16 +71,27 @@ export const experimentMetricsQuery = graphql`
   }
 `;
 
-const experimentAnnotationMetricsDataPointFragment = graphql`
-  fragment useExperimentAnnotationMetricsData_dataPoint on ExperimentAnnotationMetricsDataPoint
-  @inline {
-    experiment {
-      id
-      name
-      sequenceNumber
+const experimentAnnotationMetricNamesQuery = graphql`
+  query useExperimentAnnotationMetricNamesQuery($id: ID!) {
+    dataset: node(id: $id) {
+      ... on Dataset {
+        experimentAnnotationSummaries {
+          annotationName
+        }
+      }
     }
-    annotationSummaries {
-      name
+  }
+`;
+
+const experimentEvaluationMetricFragment = graphql`
+  fragment ExperimentEvaluationMetric_experiment on Experiment
+  @inline
+  @argumentDefinitions(annotationName: { type: "String!" }) {
+    id
+    name
+    sequenceNumber
+    annotationSummaries(annotationName: $annotationName) {
+      annotationName
       meanScore
       labelFractions {
         label
@@ -86,28 +101,26 @@ const experimentAnnotationMetricsDataPointFragment = graphql`
   }
 `;
 
-export const experimentAnnotationMetricsQuery = graphql`
-  query useExperimentAnnotationMetricsDataQuery($id: ID!, $count: Int!) {
+const experimentEvaluationMetricQuery = graphql`
+  query ExperimentEvaluationMetricQuery(
+    $id: ID!
+    $count: Int!
+    $annotationName: String!
+  ) {
     dataset: node(id: $id) {
       ... on Dataset {
-        experimentAnnotationMetrics(first: $count) {
-          baselineExperiment {
-            ...useExperimentAnnotationMetricsData_dataPoint
-          }
-          recentExperiments {
-            ...useExperimentAnnotationMetricsData_dataPoint
+        baselineExperiment {
+          ...ExperimentEvaluationMetric_experiment
+            @arguments(annotationName: $annotationName)
+        }
+        metricsExperiments: experiments(first: $count) {
+          edges {
+            experiment: node {
+              ...ExperimentEvaluationMetric_experiment
+                @arguments(annotationName: $annotationName)
+            }
           }
         }
-      }
-    }
-  }
-`;
-
-const experimentAnnotationMetricNamesQuery = graphql`
-  query useExperimentAnnotationMetricNamesQuery($id: ID!) {
-    dataset: node(id: $id) {
-      ... on Dataset {
-        experimentAnnotationNames
       }
     }
   }
@@ -121,12 +134,31 @@ export type ExperimentMetricsDatum = {
   averageRunLatencyMs: number | null;
   errorRate: number | null;
   runCount: number;
+  annotationSummaries: readonly {
+    annotationName: string;
+    meanScore: number | null;
+  }[];
   promptCost: number | null;
   completionCost: number | null;
   totalCost: number | null;
   promptTokens: number | null;
   completionTokens: number | null;
   totalTokens: number | null;
+};
+
+export type ExperimentEvaluationMetricDatum = {
+  id: string;
+  name: string;
+  sequenceNumber: number;
+  isBaseline: boolean;
+  annotationSummaries: readonly {
+    annotationName: string;
+    meanScore: number | null;
+    labelFractions: ReadonlyArray<{
+      label: string;
+      fraction: number;
+    }>;
+  }[];
 };
 
 function readExperimentMetricsDatum({
@@ -148,47 +180,13 @@ function readExperimentMetricsDatum({
     averageRunLatencyMs: data.averageRunLatencyMs,
     errorRate: data.errorRate,
     runCount: data.runCount,
+    annotationSummaries: data.annotationSummaries,
     promptCost: data.costSummary.prompt.cost,
     completionCost: data.costSummary.completion.cost,
     totalCost: data.costSummary.total.cost,
     promptTokens: data.costSummary.prompt.tokens,
     completionTokens: data.costSummary.completion.tokens,
     totalTokens: data.costSummary.total.tokens,
-  };
-}
-
-export type ExperimentAnnotationMetricsDatum = {
-  id: string;
-  name: string;
-  sequenceNumber: number;
-  isBaseline: boolean;
-  annotationSummaries: readonly {
-    name: string;
-    meanScore: number | null;
-    labelFractions: ReadonlyArray<{
-      label: string;
-      fraction: number;
-    }>;
-  }[];
-};
-
-function readExperimentAnnotationMetricsDatum({
-  dataPoint,
-  isBaseline,
-}: {
-  dataPoint: useExperimentAnnotationMetricsData_dataPoint$key;
-  isBaseline: boolean;
-}): ExperimentAnnotationMetricsDatum {
-  const data = readInlineData<useExperimentAnnotationMetricsData_dataPoint$key>(
-    experimentAnnotationMetricsDataPointFragment,
-    dataPoint
-  );
-  return {
-    id: data.experiment.id,
-    name: data.experiment.name,
-    sequenceNumber: data.experiment.sequenceNumber,
-    isBaseline,
-    annotationSummaries: data.annotationSummaries,
   };
 }
 
@@ -290,43 +288,6 @@ export function useExperimentMetricsData(datasetId: string): {
   };
 }
 
-export function useExperimentAnnotationMetricsData(datasetId: string): {
-  experiments: ExperimentAnnotationMetricsDatum[];
-  baselineExperiment: ExperimentAnnotationMetricsDatum | null;
-} {
-  // Both annotation chart surfaces use this identical operation and variable
-  // set so Relay can reuse its in-flight request or cached store result.
-  const data = useLazyLoadQuery<useExperimentAnnotationMetricsDataQuery>(
-    experimentAnnotationMetricsQuery,
-    {
-      id: datasetId,
-      count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
-    },
-    { fetchPolicy: "store-or-network" }
-  );
-  const metrics = data.dataset.experimentAnnotationMetrics;
-  invariant(metrics, "Dataset annotation metrics are required");
-  const baselineExperiment =
-    metrics.baselineExperiment == null
-      ? null
-      : readExperimentAnnotationMetricsDatum({
-          dataPoint: metrics.baselineExperiment,
-          isBaseline: true,
-        });
-  const baselineExperimentId = baselineExperiment?.id;
-  const experiments = metrics.recentExperiments
-    .map((dataPoint) =>
-      readExperimentAnnotationMetricsDatum({ dataPoint, isBaseline: false })
-    )
-    .map((experiment) => ({
-      ...experiment,
-      isBaseline: experiment.id === baselineExperimentId,
-    }))
-    .sort((left, right) => left.sequenceNumber - right.sequenceNumber);
-
-  return { experiments, baselineExperiment };
-}
-
 export function useExperimentAnnotationMetricNames(
   datasetId: string
 ): ReadonlyArray<string> {
@@ -338,5 +299,69 @@ export function useExperimentAnnotationMetricNames(
     { id: datasetId },
     { fetchPolicy: "store-or-network" }
   );
-  return data.dataset.experimentAnnotationNames ?? [];
+  return (data.dataset.experimentAnnotationSummaries ?? []).map(
+    ({ annotationName }) => annotationName
+  );
+}
+
+export function useExperimentEvaluationMetricData({
+  datasetId,
+  evaluationName,
+}: {
+  datasetId: string;
+  evaluationName: string;
+}): {
+  experiments: ExperimentEvaluationMetricDatum[];
+  baselineExperiment: ExperimentEvaluationMetricDatum | null;
+} {
+  const data = useLazyLoadQuery<ExperimentEvaluationMetricQuery>(
+    experimentEvaluationMetricQuery,
+    {
+      id: datasetId,
+      count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+      annotationName: evaluationName,
+    },
+    { fetchPolicy: "store-or-network" }
+  );
+  const baselineExperiment =
+    data.dataset.baselineExperiment == null
+      ? null
+      : readExperimentEvaluationMetricDatum({
+          experiment: data.dataset.baselineExperiment,
+          isBaseline: true,
+        });
+  const baselineExperimentId = baselineExperiment?.id;
+  const experiments = (data.dataset.metricsExperiments?.edges ?? [])
+    .map(({ experiment }) =>
+      readExperimentEvaluationMetricDatum({
+        experiment,
+        isBaseline: false,
+      })
+    )
+    .map((experiment) => ({
+      ...experiment,
+      isBaseline: experiment.id === baselineExperimentId,
+    }))
+    .sort((left, right) => left.sequenceNumber - right.sequenceNumber);
+  return { experiments, baselineExperiment };
+}
+
+function readExperimentEvaluationMetricDatum({
+  experiment,
+  isBaseline,
+}: {
+  experiment: ExperimentEvaluationMetric_experiment$key;
+  isBaseline: boolean;
+}): ExperimentEvaluationMetricDatum {
+  const data = readInlineData<ExperimentEvaluationMetric_experiment$key>(
+    experimentEvaluationMetricFragment,
+    experiment
+  );
+  return {
+    id: data.id,
+    name: data.name,
+    sequenceNumber: data.sequenceNumber,
+    isBaseline,
+    annotationSummaries: data.annotationSummaries,
+  };
 }
