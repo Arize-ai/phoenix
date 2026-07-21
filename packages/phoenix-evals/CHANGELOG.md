@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.1.1...arize-phoenix-evals-v3.2.0) (2026-07-21)
+
+
+### Features
+
+* **evals:** add user friction evaluator ([#14193](https://github.com/Arize-ai/phoenix/issues/14193)) ([1ae1a39](https://github.com/Arize-ai/phoenix/commit/1ae1a3933d4c0aa1dcf43660287da024dd8dbc6f))
+
+
+### Bug Fixes
+
+* **evals:** improve user friction prompt ([#14561](https://github.com/Arize-ai/phoenix/issues/14561)) ([115d3f2](https://github.com/Arize-ai/phoenix/commit/115d3f24c1f5244abc49d2d1a25ef27d40469fae))
+* **evals:** skip LiteLLM on Python 3.14 ([#14407](https://github.com/Arize-ai/phoenix/issues/14407)) ([bc9b533](https://github.com/Arize-ai/phoenix/commit/bc9b533e5b4526478a8d3ca59dce284e8a0acef3))
+
+
+### Documentation
+
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+
 ## [3.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.1.0...arize-phoenix-evals-v3.1.1) (2026-07-14)
 
 
