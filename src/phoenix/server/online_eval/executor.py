@@ -69,18 +69,17 @@ class HydratedWorkUnit:
 
 
 def span_eval_context(span: models.Span) -> dict[str, Any]:
-    """Span-level evaluation context. ``input`` / ``output`` surface the span's
-    IO values for direct template-variable binding; ``attributes`` exposes the
-    full attribute tree to ``path_mapping`` expressions."""
+    """Span context; ``metadata.attributes`` roots attribute ``path_mapping`` expressions."""
     return {
         "input": span.input_value,
         "output": span.output_value,
-        "metadata": span.metadata_,
-        "attributes": span.attributes,
-        "name": span.name,
-        "span_kind": span.span_kind,
-        "status_code": span.status_code,
-        "status_message": span.status_message,
+        "metadata": {
+            "attributes": span.attributes,
+            "name": span.name,
+            "span_kind": span.span_kind,
+            "status_code": span.status_code,
+            "status_message": span.status_message,
+        },
     }
 
 
