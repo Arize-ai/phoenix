@@ -1,4 +1,4 @@
-"""Shared LLM judge configuration for PXI offline LLM evaluators.
+"""Shared LLM judge configuration for PXI online LLM evaluators.
 
 One provider/model pair configures every LLM evaluator in this package via
 ``PHOENIX_AGENTS_EVALS_PROVIDER`` / ``PHOENIX_AGENTS_EVALS_MODEL`` (defaults:

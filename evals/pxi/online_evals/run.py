@@ -14,10 +14,10 @@ from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
-from evals.pxi.offline_evals import judge
-from evals.pxi.offline_evals.evaluators import EVALUATORS
-from evals.pxi.offline_evals.models import EvaluatorSpec, RunSummary
-from evals.pxi.offline_evals.topology import span_id, trace_id
+from evals.pxi.online_evals import judge
+from evals.pxi.online_evals.evaluators import EVALUATORS
+from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
+from evals.pxi.online_evals.topology import span_id, trace_id
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +303,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             dry_run=args.dry_run,
         )
     )
-    print(f"PXI offline evals: project={args.project} dry_run={args.dry_run}")
+    print(f"PXI online evals: project={args.project} dry_run={args.dry_run}")
     for name, summary in summaries.items():
         annotation_verb = "would_write" if args.dry_run else "written"
         print(

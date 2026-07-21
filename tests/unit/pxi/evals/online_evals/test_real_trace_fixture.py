@@ -17,9 +17,9 @@ from unittest import mock
 
 from phoenix.client.__generated__ import v1
 
-from evals.pxi.offline_evals.conversation import segment_turns, transcript
-from evals.pxi.offline_evals.evaluators import user_friction
-from evals.pxi.offline_evals.evaluators.tool_count_per_turn import evaluate_tool_count_per_turn
+from evals.pxi.online_evals.conversation import segment_turns, transcript
+from evals.pxi.online_evals.evaluators import user_friction
+from evals.pxi.online_evals.evaluators.tool_count_per_turn import evaluate_tool_count_per_turn
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "pxi_turn_trace.json"
 

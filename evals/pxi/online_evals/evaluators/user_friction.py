@@ -1,4 +1,4 @@
-"""Offline `user_friction` evaluator: the built-in phoenix-evals judge over PXI turns.
+"""Online `user_friction` evaluator: the built-in phoenix-evals judge over PXI turns.
 
 Judges whether the turn's (human) user message expresses friction with the
 assistant's preceding behavior. The conversation history is reconstructed
@@ -6,8 +6,8 @@ from the turn's own last LLM span (the history the agent itself saw),
 rendered in two tiers (compact prior turns, detailed reacted-to turn), and
 passed to the built-in :class:`UserFrictionEvaluator` from phoenix-evals.
 
-The judge provider/model is the shared PXI offline judge configuration (see
-:mod:`evals.pxi.offline_evals.judge`).
+The judge provider/model is the shared PXI online judge configuration (see
+:mod:`evals.pxi.online_evals.judge`).
 """
 
 from __future__ import annotations
@@ -19,12 +19,12 @@ from functools import lru_cache
 from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
-from evals.pxi.offline_evals import judge
-from evals.pxi.offline_evals.conversation import Turn, segment_turns, transcript
-from evals.pxi.offline_evals.message_origin import is_human_message
-from evals.pxi.offline_evals.models import EvaluatorSpec
-from evals.pxi.offline_evals.rendering import render_conversation
-from evals.pxi.offline_evals.topology import PXI_TURN_ROOT_NAME
+from evals.pxi.online_evals import judge
+from evals.pxi.online_evals.conversation import Turn, segment_turns, transcript
+from evals.pxi.online_evals.message_origin import is_human_message
+from evals.pxi.online_evals.models import EvaluatorSpec
+from evals.pxi.online_evals.rendering import render_conversation
+from evals.pxi.online_evals.topology import PXI_TURN_ROOT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -111,5 +111,5 @@ USER_FRICTION = EvaluatorSpec(
     evaluate=evaluate_user_friction,
     annotator_kind="LLM",
     sample_rate=1.0,
-    identifier="pxi-offline-evals:user-friction:v1",
+    identifier="pxi-online-evals:user-friction:v1",
 )

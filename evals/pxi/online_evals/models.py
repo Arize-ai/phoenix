@@ -22,7 +22,7 @@ class EvaluatorSpec:
     Everything else — applicability, judge configuration, input extraction —
     lives inside the ``evaluate`` function itself. LLM evaluators
     (``annotator_kind="LLM"``) share one judge provider/model (see
-    :mod:`evals.pxi.offline_evals.judge`); the runner validates the judge
+    :mod:`evals.pxi.online_evals.judge`); the runner validates the judge
     credentials for them and appends ``provider:model`` to their checkpoint
     identifier so a model change starts a new result series.
     """
@@ -32,7 +32,7 @@ class EvaluatorSpec:
     evaluate: EvaluateArtifact
     annotator_kind: Literal["CODE", "LLM"] = "CODE"
     sample_rate: float = 1.0
-    identifier: str = "pxi-offline-evals"
+    identifier: str = "pxi-online-evals"
     """Versioned checkpoint identity; bump ``vN`` when scoring semantics change."""
 
     def __post_init__(self) -> None:

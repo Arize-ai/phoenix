@@ -1,4 +1,4 @@
-name: PXI Offline Evals
+name: PXI Online Evals
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ on:
         type: boolean
 
 concurrency:
-  group: pxi-offline-evals
+  group: pxi-online-evals
   cancel-in-progress: false
 
 env:
@@ -63,4 +63,4 @@ jobs:
           if [[ "${PXI_DRY_RUN}" == "true" ]]; then
             args+=(--dry-run)
           fi
-          uv run python -m evals.pxi.offline_evals.run "${args[@]}"
+          uv run python -m evals.pxi.online_evals.run "${args[@]}"

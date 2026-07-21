@@ -1,4 +1,4 @@
-# PXI Offline Evals — How It Works
+# PXI Online Evals — How It Works
 
 A scheduled batch job that pulls recently ingested `pxi.turn` traces from
 Phoenix, runs quality evaluators over them, and writes results back as
@@ -71,6 +71,10 @@ flowchart LR
 
 The last LLM span's input is the exact history the agent itself saw: all
 prior turns of the session plus this turn's user message and tool traffic.
+Earlier top-level LLM calls are cumulative snapshots of that same conversation,
+so they are not merged separately. LLM calls nested under `call_subagent` are
+the subagent's private conversation and are deliberately excluded; the
+top-level `call_subagent` tool invocation remains visible in the main transcript.
 Segmentation splits **only on `role == "user"`** — assistant/tool messages
 that follow the final user message (the agent "talking to itself" between
 tool calls) fold into that same turn. So the target is always the *latest
@@ -99,8 +103,8 @@ Phoenix which roots already carry the evaluator's annotation and skips them:
 
 | Evaluator | Checkpoint identifier |
 |---|---|
-| `tool_count_per_turn` | `pxi-offline-evals:tool-count-per-turn:v1` |
-| `user_friction` | `pxi-offline-evals:user-friction:v1:openai:gpt-5.5` |
+| `tool_count_per_turn` | `pxi-online-evals:tool-count-per-turn:v1` |
+| `user_friction` | `pxi-online-evals:user-friction:v1:openai:gpt-5.5` |
 
 - The 48h lookback **overlaps** the 12h schedule ~4×, so missed or crashed
   runs self-heal without double-evaluating.
@@ -145,7 +149,9 @@ rate 0.25  █████                 subset of the 0.50 selection
    turn's user message on the root's `input.value`. (Holds for the
    post-July-2026 trace format; verified on recent production traces.)
 2. **The last top-level LLM span carries the full session history** — no
-   session-level fetching is needed to reconstruct the conversation.
+   session-level fetching or merging of intermediate LLM snapshots is needed
+   to reconstruct the conversation. Nested subagent LLM histories are not part
+   of the user-facing transcript.
 3. **UI context never arrives as a user message** in current traces (it
    flows through agent instructions). The `<phoenix_ui_context>` check in
    the classifier is a legacy-format guard kept for gold-label parity and
@@ -157,7 +163,7 @@ rate 0.25  █████                 subset of the 0.50 selection
 ## Operations
 
 - **Schedule**: GitHub Actions, 00:17 / 12:17 UTC; manual dispatch defaults
-  to `--dry-run`; local CLI: `uv run python -m evals.pxi.offline_evals.run --dry-run`.
+  to `--dry-run`; local CLI: `uv run python -m evals.pxi.online_evals.run --dry-run`.
 - **Judge config** (shared by all LLM evaluators):
   `PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`
   (default `openai` / `gpt-5.5`, validated on the gold dev split).

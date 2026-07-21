@@ -10,10 +10,10 @@ import pytest
 from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
-from evals.pxi.offline_evals import run as run_module
-from evals.pxi.offline_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
-from evals.pxi.offline_evals.models import RunSummary
-from evals.pxi.offline_evals.run import _fetch_batch_spans, _sampled, run_evaluators
+from evals.pxi.online_evals import run as run_module
+from evals.pxi.online_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
+from evals.pxi.online_evals.models import RunSummary
+from evals.pxi.online_evals.run import _fetch_batch_spans, _sampled, run_evaluators
 
 
 def _run(*args: Any, **kwargs: Any) -> dict[str, RunSummary]:
@@ -96,7 +96,7 @@ class _BatchFakeSpans:
 def _existing(
     span_id: str,
     *,
-    identifier: str = "pxi-offline-evals:tool-count-per-turn:v1",
+    identifier: str = "pxi-online-evals:tool-count-per-turn:v1",
 ) -> v1.SpanAnnotation:
     return {
         "id": "annotation-1",
@@ -196,7 +196,7 @@ def test_filters_existing_annotations_before_hydrating_traces() -> None:
             "name": "tool_count_per_turn",
             "annotator_kind": "CODE",
             "span_id": "new-root",
-            "identifier": "pxi-offline-evals:tool-count-per-turn:v1",
+            "identifier": "pxi-online-evals:tool-count-per-turn:v1",
             "result": {
                 "score": 1.0,
                 "explanation": "1 top-level PXI tool call in this turn",
@@ -274,7 +274,7 @@ def test_serializes_categorical_label_as_annotation_result() -> None:
             "name": "categorical",
             "annotator_kind": "CODE",
             "span_id": "root",
-            "identifier": "pxi-offline-evals:tool-count-per-turn:v1",
+            "identifier": "pxi-online-evals:tool-count-per-turn:v1",
             "result": {"score": 1.0, "label": "friction"},
             "metadata": {"provider": "openai"},
         }
@@ -327,7 +327,7 @@ def test_llm_identifier_embeds_the_shared_judge_provider_and_model() -> None:
         )
 
     assert [annotation["identifier"] for annotation in spans.writes] == [
-        "pxi-offline-evals:tool-count-per-turn:v1:anthropic:claude-test"
+        "pxi-online-evals:tool-count-per-turn:v1:anthropic:claude-test"
     ]
 
 

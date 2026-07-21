@@ -6,8 +6,8 @@ from typing import Any
 from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
-from evals.pxi.offline_evals.models import EvaluatorSpec
-from evals.pxi.offline_evals.topology import PXI_TURN_ROOT_NAME, top_level_tool_spans
+from evals.pxi.online_evals.models import EvaluatorSpec
+from evals.pxi.online_evals.topology import PXI_TURN_ROOT_NAME, top_level_tool_spans
 
 
 def _tool_name(span: v1.Span) -> str:
@@ -34,5 +34,5 @@ TOOL_COUNT_PER_TURN = EvaluatorSpec(
     root_span_name=PXI_TURN_ROOT_NAME,
     evaluate=evaluate_tool_count_per_turn,
     sample_rate=1.0,
-    identifier="pxi-offline-evals:tool-count-per-turn:v1",
+    identifier="pxi-online-evals:tool-count-per-turn:v1",
 )

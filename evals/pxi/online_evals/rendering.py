@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from evals.pxi.offline_evals.conversation import Message, Turn
-from evals.pxi.offline_evals.message_origin import is_human_message
+from evals.pxi.online_evals.conversation import Message, Turn
+from evals.pxi.online_evals.message_origin import is_human_message
 
 _ERROR_MARKERS = ("error", "exception", "traceback", "failed")
 

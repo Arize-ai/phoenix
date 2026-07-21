@@ -7,23 +7,26 @@ live-model PXI server-side evals as Phoenix experiments.
 
 - `harness/` runs live PXI agent experiments against Phoenix datasets.
 - `datasets/` stores YAML datasets shared by harness and CI workflows.
-- `evaluators/` stores code evaluators for PXI tool behavior.
-- `offline_evals/` evaluates already-ingested PXI traces and annotates them.
+- `evaluators/` stores experiment evaluators over `(output, expected)` pairs.
+- `online_evals/` evaluates already-ingested PXI traces and annotates them.
 - `trace_ingest/` is reserved for future trace-to-dataset tooling.
 
 Fast unit coverage for the harness and evaluators lives under
 `tests/unit/pxi/evals/`.
 
-## Offline production evals
+## Online production evals
 
-The offline runner evaluates recent `pxi.turn` traces after ingestion. It uses
+The online runner evaluates recent `pxi.turn` traces after ingestion. It uses
 annotations as its checkpoint: before hydrating a trace or invoking an
 evaluator, it skips turn roots that already carry the evaluator's annotation
 name and identifier. The default 48-hour overlap therefore recovers from
 missed scheduled runs without evaluating the same turn twice.
 
-Evaluators live in `evals/pxi/offline_evals/evaluators/`; run the CLI with
-`--help` to list what is currently registered.
+Trace evaluators live in `evals/pxi/online_evals/evaluators/`; run the CLI
+with `--help` to list what is currently registered. They remain separate from
+`evals.pxi.evaluators` because the latter implements the experiment contract
+over `(output, expected)` pairs, while online evaluators consume a hydrated
+`(root_span, trace_spans)` pair and produce root-span annotations.
 
 All LLM evaluators share one judge configuration:
 `PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`, defaulting to
@@ -55,7 +58,7 @@ Run them locally against the standard Phoenix client environment variables:
 
 ```bash
 PHOENIX_PROJECT=pxi_dev \
-uv run python -m evals.pxi.offline_evals.run --dry-run
+uv run python -m evals.pxi.online_evals.run --dry-run
 ```
 
 The runner waits five minutes before considering a turn settled and evaluates
@@ -85,7 +88,7 @@ The initial scheduled project is `pxi_dev`. The Phoenix Cloud production PXI
 traces are in `pxi_phoenix_cloud`; add that project only after validating the
 runner on new-format development traces.
 
-### Adding an offline evaluator
+### Adding an online evaluator
 
 An evaluator is an async function that receives the root span and every
 hydrated span in its trace. It returns a `phoenix.evals` `Score`, or `None`
@@ -107,12 +110,12 @@ async def evaluate(root: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
 Declare an `EvaluatorSpec` with a name, the expected root span name, the
 evaluate function, annotator kind, sampling rate, and a versioned identifier.
 LLM evaluators (`annotator_kind="LLM"`) automatically share the judge
-configuration from `evals/pxi/offline_evals/judge.py`: the runner validates
+configuration from `evals/pxi/online_evals/judge.py`: the runner validates
 the judge credentials at startup and appends `provider:model` to their
 checkpoint identifier.
 
-Register the spec in `evals/pxi/offline_evals/evaluators/__init__.py` and add
-focused coverage under `tests/unit/pxi/evals/offline_evals/`. Runner-level tests
+Register the spec in `evals/pxi/online_evals/evaluators/__init__.py` and add
+focused coverage under `tests/unit/pxi/evals/online_evals/`. Runner-level tests
 should assert the exact persisted annotation shape as well as failure,
 not-applicable, sampling, and checkpoint behavior relevant to the evaluator.
 

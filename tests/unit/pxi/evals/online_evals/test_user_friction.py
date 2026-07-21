@@ -7,16 +7,16 @@ from unittest import mock
 import pytest
 from phoenix.client.__generated__ import v1
 
-from evals.pxi.offline_evals.conversation import (
+from evals.pxi.online_evals.conversation import (
     Message,
     Turn,
     messages_from_attributes,
     segment_turns,
     transcript,
 )
-from evals.pxi.offline_evals.evaluators import user_friction
-from evals.pxi.offline_evals.message_origin import is_human_message
-from evals.pxi.offline_evals.rendering import render_conversation, render_turn_detailed
+from evals.pxi.online_evals.evaluators import user_friction
+from evals.pxi.online_evals.message_origin import is_human_message
+from evals.pxi.online_evals.rendering import render_conversation, render_turn_detailed
 
 
 def _evaluate(root: v1.Span, spans: list[v1.Span]) -> Any:
@@ -376,4 +376,4 @@ def test_spec_configuration() -> None:
     assert spec.annotator_kind == "LLM"
     assert spec.root_span_name == "pxi.turn"
     assert spec.sample_rate == 1.0
-    assert spec.identifier == "pxi-offline-evals:user-friction:v1"
+    assert spec.identifier == "pxi-online-evals:user-friction:v1"

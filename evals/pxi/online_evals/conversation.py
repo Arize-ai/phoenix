@@ -1,10 +1,12 @@
 """Conversation reconstruction from an ingested PXI turn trace.
 
 The *last* top-level ``LLM`` span in a ``pxi.turn`` trace carries the full
-input message history (all prior turns in the session, as the agent saw them)
-plus the final assistant output, so a single trace reconstructs the entire
-transcript — no session-level fetching is required. We then segment that
-transcript into turns (split on ``user`` messages).
+input message history (all prior turns in the session and all preceding model
+and tool activity, as the agent saw them) plus the final assistant output.
+Earlier top-level LLM spans are therefore intermediate snapshots, not missing
+conversation data that needs to be merged. A single trace reconstructs the
+entire user-facing transcript — no session-level fetching is required. We
+then segment that transcript into turns (split on ``user`` messages).
 
 The Phoenix REST API returns span attributes fully flattened with dotted,
 index-numbered keys, e.g.::
@@ -126,11 +128,13 @@ def messages_from_attributes(
 def _last_llm_span(spans: Sequence[v1.Span]) -> v1.Span | None:
     """The trace's final top-level ``LLM`` span.
 
-    Subagents (e.g. ``call_subagent``) nest their own LLM spans inside the
-    same trace, and one of those can start after the main agent's final call —
-    picking it would reconstruct the subagent's internal conversation instead
-    of the user-facing transcript. Prefer LLM spans that are direct children
-    of the trace root; fall back to all LLM spans only when none are.
+    Intermediate main-agent LLM calls are cumulative snapshots; only the last
+    one's input is needed. Subagents (e.g. ``call_subagent``) nest their own
+    LLM spans inside the same trace, and one of those can start after the main
+    agent's final call — picking it would reconstruct the subagent's internal
+    conversation instead of the user-facing transcript. Prefer LLM spans that
+    are direct children of the trace root; fall back to all LLM spans only when
+    none are.
     Ties on ``start_time`` keep the later span (stable sort).
     """
     llm_spans = [span for span in spans if span.get("span_kind") == "LLM"]
