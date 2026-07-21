@@ -35,3 +35,15 @@ export const CustomTooltip: Story = {
     tooltipText: "Copy Span ID",
   },
 };
+
+/**
+ * The quiet variant renders bare muted mono text for blending into
+ * surrounding metadata, with a background wash on hover as the invitation
+ * to click-to-copy.
+ */
+export const Quiet: Story = {
+  args: {
+    id: "c5b943dba87507a2",
+    variant: "quiet",
+  },
+};

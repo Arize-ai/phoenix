@@ -6,6 +6,7 @@ import { Button as AriaButton } from "react-aria-components";
 import { Badge } from "@phoenix/components/core/badge";
 import { Text } from "@phoenix/components/core/content";
 import { Icon } from "@phoenix/components/core/icon";
+import { quietHoverCSS } from "@phoenix/components/core/styles";
 import { Tooltip, TooltipTrigger } from "@phoenix/components/core/tooltip";
 import type { ComponentSize } from "@phoenix/components/core/types";
 
@@ -28,6 +29,11 @@ const idBadgeCSS = css`
     color: var(--global-text-color-500);
     transition: color 0.2s;
   }
+  &[data-variant="quiet"] {
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    ${quietHoverCSS}
+  }
 `;
 
 interface IDBadgeProps {
@@ -45,6 +51,15 @@ interface IDBadgeProps {
    * @default "Copy ID"
    */
   tooltipText?: string;
+  /**
+   * The visual treatment of the ID.
+   * - "badge": a bordered pill with an ID icon
+   * - "quiet": bare muted mono text with only the copy icon, for blending
+   *   into surrounding metadata text; invites interaction with a background
+   *   wash on hover
+   * @default 'badge'
+   */
+  variant?: "badge" | "quiet";
 }
 
 /**
@@ -56,13 +71,23 @@ export const IDBadge = ({
   id,
   size = "S",
   tooltipText = "Copy ID",
+  variant = "badge",
 }: IDBadgeProps) => {
   const [isCopied, setIsCopied] = useState(false);
+
+  const copyIcon = (
+    <Icon
+      className="id-badge__copy-icon"
+      color={isCopied ? "success" : "inherit"}
+      svgKey={isCopied ? "Checkmark" : "Duplicate"}
+    />
+  );
 
   return (
     <TooltipTrigger>
       <AriaButton
         css={idBadgeCSS}
+        data-variant={variant}
         aria-label={`${tooltipText} ${id}`}
         onPress={() => {
           copy(id);
@@ -72,17 +97,22 @@ export const IDBadge = ({
           }, SHOW_COPIED_TIMEOUT_MS);
         }}
       >
-        <Badge size={size}>
-          <Icon svgKey="ID" />
-          <Text fontFamily="mono" size="S" color="text-700">
-            {id}
-          </Text>
-          <Icon
-            className="id-badge__copy-icon"
-            color={isCopied ? "success" : "inherit"}
-            svgKey={isCopied ? "Checkmark" : "Duplicate"}
-          />
-        </Badge>
+        {variant === "badge" ? (
+          <Badge size={size}>
+            <Icon svgKey="ID" />
+            <Text fontFamily="mono" size="S" color="text-700">
+              {id}
+            </Text>
+            {copyIcon}
+          </Badge>
+        ) : (
+          <>
+            <Text fontFamily="mono" size="S" color="text-500">
+              {id}
+            </Text>
+            {copyIcon}
+          </>
+        )}
       </AriaButton>
       <Tooltip offset={1}>{isCopied ? "Copied" : tooltipText}</Tooltip>
     </TooltipTrigger>
