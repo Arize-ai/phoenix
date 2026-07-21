@@ -23,8 +23,8 @@ def normalize_datetime(
     tz: Optional[tzinfo] = None,
 ) -> Optional[datetime]:
     """
-    If the input datetime is timezone-naive, it is localized as local timezone
-    unless tzinfo is specified.
+    If the input datetime is timezone-naive, it is localized to the local
+    timezone unless tzinfo is specified.
     """
     if not isinstance(dt, datetime):
         return None
