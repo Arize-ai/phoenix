@@ -34,7 +34,6 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -332,14 +331,7 @@ function SessionTurnDivider({
       >
         Trace
       </LinkButton>
-      <IDBadge id={traceId} />
-      <CopyToClipboardButton
-        text={traceId}
-        size="S"
-        variant="quiet"
-        tooltipText="Copy trace ID"
-        aria-label="Copy trace ID"
-      />
+      <IDBadge id={traceId} tooltipText="Copy Trace ID" />
     </Flex>
   );
 }
