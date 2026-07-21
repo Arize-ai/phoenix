@@ -1,5 +1,11 @@
 # @arizeai/phoenix-mcp
 
+## 4.2.2
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.1
+
 ## 4.2.1
 
 ### Patch Changes
