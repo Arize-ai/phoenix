@@ -14,6 +14,7 @@ name
 filterCondition
 samplingRate
 evaluationTarget
+evaluationDelaySeconds
 enabled
 inputMapping { literalMapping pathMapping }
 evaluator {
@@ -137,6 +138,7 @@ def _code_add_input(
         "inputMapping": _mapping(context="override"),
         "filterCondition": "span_kind == 'LLM'",
         "enabled": False,
+        "evaluationDelaySeconds": 30,
     }
 
 
@@ -211,6 +213,7 @@ async def test_project_code_evaluator_crud_and_connection(
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "SPAN"
+    assert created["evaluationDelaySeconds"] is None
     assert created["inputMapping"] == _mapping(output="value")
     assert created["evaluator"]["kind"] == "CODE"
 
@@ -234,6 +237,7 @@ async def test_project_code_evaluator_crud_and_connection(
                 "inputMapping": _mapping(context="override"),
                 "samplingRate": 0.25,
                 "evaluationTarget": "SESSION",
+                "evaluationDelaySeconds": 30,
                 "filterCondition": "span_kind == 'LLM'",
                 "enabled": False,
             }
@@ -243,6 +247,7 @@ async def test_project_code_evaluator_crud_and_connection(
     updated = update_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert updated["name"] == "updated-code"
     assert updated["evaluationTarget"] == "SESSION"
+    assert updated["evaluationDelaySeconds"] == 30
     assert updated["inputMapping"] == _mapping(context="override")
     assert updated["evaluator"]["name"] == "updated-code"
 
@@ -252,6 +257,7 @@ async def test_project_code_evaluator_crud_and_connection(
         assert criteria is not None
         assert criteria.input_mapping is not None
         assert criteria.input_mapping.literal_mapping == {"context": "override"}
+        assert criteria.evaluation_delay_seconds == 30
 
     omitted_result = await gql_client.execute(
         _UPDATE_CODE,
@@ -271,11 +277,13 @@ async def test_project_code_evaluator_crud_and_connection(
     assert omitted_result.data and not omitted_result.errors
     omitted = omitted_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert omitted["inputMapping"] == _mapping(context="override")
+    assert omitted["evaluationDelaySeconds"] == 30
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
         assert criteria.input_mapping is not None
         assert criteria.input_mapping.literal_mapping == {"context": "override"}
+        assert criteria.evaluation_delay_seconds == 30
 
     inherited_result = await gql_client.execute(
         _UPDATE_CODE,
@@ -288,6 +296,7 @@ async def test_project_code_evaluator_crud_and_connection(
                 "inputMapping": None,
                 "samplingRate": 1.0,
                 "evaluationTarget": "SPAN",
+                "evaluationDelaySeconds": None,
                 "filterCondition": "",
                 "enabled": True,
             }
@@ -296,10 +305,12 @@ async def test_project_code_evaluator_crud_and_connection(
     assert inherited_result.data and not inherited_result.errors
     inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert inherited["inputMapping"] == _mapping(output="inherited")
+    assert inherited["evaluationDelaySeconds"] is None
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
         assert criteria.input_mapping is None
+        assert criteria.evaluation_delay_seconds is None
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -346,6 +357,7 @@ async def test_add_project_code_evaluator_binds_existing_core(
     assert attached["inputMapping"] == _mapping(context="override")
     assert attached["filterCondition"] == "span_kind == 'LLM'"
     assert attached["enabled"] is False
+    assert attached["evaluationDelaySeconds"] == 30
 
     project_result = await gql_client.execute(
         _PROJECT_EVALUATORS,
@@ -460,10 +472,12 @@ async def test_project_llm_evaluator_create_update_delete(
 ) -> None:
     project = await _add_project(db)
     create_input = _llm_input(project, name="llm-evaluator", text="Evaluate {{input}}")
+    create_input["evaluationDelaySeconds"] = 60
     create_result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "TRACE"
+    assert created["evaluationDelaySeconds"] == 60
     assert created["evaluator"]["kind"] == "LLM"
 
     update_input = _llm_input(project, name="updated-llm", text="Updated {{input}}")
@@ -475,6 +489,23 @@ async def test_project_llm_evaluator_create_update_delete(
     updated = update_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert updated["evaluator"]["name"] == "updated-llm"
     assert updated["evaluationTarget"] == "SPAN"
+    assert updated["evaluationDelaySeconds"] == 60
+
+    clear_input = _llm_input(project, name="cleared-llm", text="Clear {{input}}")
+    clear_input.pop("projectId")
+    clear_input["projectEvaluatorId"] = created["id"]
+    clear_input["evaluationTarget"] = "SESSION"
+    clear_input["evaluationDelaySeconds"] = None
+    clear_result = await gql_client.execute(_UPDATE_LLM, {"input": clear_input})
+    assert clear_result.data and not clear_result.errors
+    cleared = clear_result.data["updateProjectLlmEvaluator"]["evaluator"]
+    assert cleared["evaluationDelaySeconds"] is None
+
+    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        assert criteria.evaluation_delay_seconds is None
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -562,6 +593,75 @@ async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
     assert update_llm_result.errors
     assert update_llm_result.errors[0].message == error_message
     assert await _row_counts(db) == before
+
+
+async def test_evaluation_delay_rejected_before_project_evaluator_writes(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    error_message = "evaluationDelaySeconds must be at least 10 seconds"
+
+    create_code_input = _code_create_input(project, sandbox_config)
+    create_code_input["evaluationDelaySeconds"] = 9
+    before = await _row_counts(db)
+    create_code_result = await gql_client.execute(_CREATE_CODE, {"input": create_code_input})
+    assert create_code_result.errors
+    assert create_code_result.errors[0].message == error_message
+    assert await _row_counts(db) == before
+
+    create_llm_input = _llm_input(project, name="invalid-delay-llm", text="Evaluate {{input}}")
+    create_llm_input["evaluationDelaySeconds"] = 9
+    create_llm_result = await gql_client.execute(_CREATE_LLM, {"input": create_llm_input})
+    assert create_llm_result.errors
+    assert create_llm_result.errors[0].message == error_message
+    assert await _row_counts(db) == before
+
+    valid_code_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert valid_code_result.data and not valid_code_result.errors
+    code_evaluator_id = valid_code_result.data["createProjectCodeEvaluator"]["evaluator"]["id"]
+    update_code_result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": code_evaluator_id,
+                "name": f"invalid-delay-code-{token_hex(4)}",
+                "evaluatorInputMapping": _mapping(output="value"),
+                "samplingRate": 1.0,
+                "evaluationTarget": "SESSION",
+                "evaluationDelaySeconds": 9,
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+    assert update_code_result.errors
+    assert update_code_result.errors[0].message == error_message
+
+    valid_llm_input = _llm_input(project, name="valid-delay-llm", text="Evaluate {{input}}")
+    valid_llm_result = await gql_client.execute(_CREATE_LLM, {"input": valid_llm_input})
+    assert valid_llm_result.data and not valid_llm_result.errors
+    llm_evaluator_id = valid_llm_result.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    update_llm_input = _llm_input(project, name="invalid-delay-llm", text="Update {{input}}")
+    update_llm_input.pop("projectId")
+    update_llm_input["projectEvaluatorId"] = llm_evaluator_id
+    update_llm_input["evaluationDelaySeconds"] = 9
+    update_llm_result = await gql_client.execute(_UPDATE_LLM, {"input": update_llm_input})
+    assert update_llm_result.errors
+    assert update_llm_result.errors[0].message == error_message
+
+    async with db() as session:
+        code_criteria_id = int(GlobalID.from_id(code_evaluator_id).node_id)
+        llm_criteria_id = int(GlobalID.from_id(llm_evaluator_id).node_id)
+        code_criteria = await session.get(models.ProjectEvaluatorCriteria, code_criteria_id)
+        llm_criteria = await session.get(models.ProjectEvaluatorCriteria, llm_criteria_id)
+        assert code_criteria is not None and llm_criteria is not None
+        assert code_criteria.evaluation_delay_seconds is None
+        assert llm_criteria.evaluation_delay_seconds is None
 
 
 async def test_update_code_evaluator_rejects_explicit_null_source_code(

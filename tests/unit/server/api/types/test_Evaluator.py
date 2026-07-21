@@ -22,7 +22,11 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator, DatasetEvaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    DatasetEvaluator,
+    LLMEvaluator,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -201,6 +205,49 @@ class TestEvaluatorFields:
         )
         assert not resp.errors and resp.data
         assert resp.data["node"]["datasetEvaluators"] == []
+
+
+async def test_project_evaluator_evaluation_delay_seconds(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"criteria-{token_hex(4)}"),
+            evaluation_target="SESSION",
+            sampling_rate=1.0,
+            evaluation_delay_seconds=45,
+        )
+        session.add(criteria)
+        await session.flush()
+        project_id = project.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on Project {
+                    evaluators { edges { node { evaluationDelaySeconds } } }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("Project", str(project_id)))},
+    )
+
+    assert not response.errors and response.data
+    edges = response.data["node"]["evaluators"]["edges"]
+    assert [edge["node"]["evaluationDelaySeconds"] for edge in edges] == [45]
 
 
 class TestDatasetEvaluatorDescriptionFallback:

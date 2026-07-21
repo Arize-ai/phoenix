@@ -36,6 +36,10 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.online_eval.session_policy import (
+    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    MINIMUM_EVALUATION_DELAY_SECONDS,
+)
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
@@ -45,6 +49,14 @@ if TYPE_CHECKING:
     from .PromptVersionTag import PromptVersionTag
     from .SandboxConfig import SandboxConfig
     from .User import User
+
+_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+    "SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling "
+    "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
+    "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
+    "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
+    "evaluators are stored but not scheduled."
+)
 
 
 @strawberry.enum
@@ -1129,14 +1141,22 @@ class ProjectEvaluator(Node):
         return (await self._get_record(info)).sampling_rate
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "SPAN is currently executable; TRACE and SESSION are "
-            "stored but remain inactive until their runtimes are available."
-        )
+        description=_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION
     )
     async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
         record = await self._get_record(info)
         return EvaluationTarget(record.evaluation_target)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
+            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Null uses the default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation."
+        )
+    )
+    async def evaluation_delay_seconds(self, info: Info[Context, None]) -> Optional[int]:
+        return (await self._get_record(info)).evaluation_delay_seconds
 
     @strawberry.field
     async def input_mapping(self, info: Info[Context, None]) -> EvaluatorInputMapping:
