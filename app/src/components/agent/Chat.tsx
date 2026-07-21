@@ -67,8 +67,8 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
-import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { useScrollAnchor } from "./scrollAnchor";
+import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
