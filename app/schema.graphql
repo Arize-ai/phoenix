@@ -70,6 +70,21 @@ input AddExamplesToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+input AddProjectCodeEvaluatorInput {
+  projectId: ID!
+  evaluatorId: ID!
+  name: Identifier!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+
+  """
+  Project-specific CODE input mapping. Null inherits the evaluator input mapping; an object overrides it.
+  """
+  inputMapping: EvaluatorInputMappingInput = null
+  filterCondition: String! = ""
+  enabled: Boolean! = true
+}
+
 input AddSpansToDatasetInput {
   datasetId: ID!
   spanIds: [ID!]!
@@ -2467,12 +2482,17 @@ type Mutation {
   updateProjectLlmEvaluator(input: UpdateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
+  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  """
+  addProjectCodeEvaluator(input: AddProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
   Create a CODE project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
   """
   createProjectCodeEvaluator(input: CreateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Update a CODE project evaluator. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
+  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN is executable; TRACE and SESSION are stored but inactive until their runtimes are available.
   """
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
   deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
