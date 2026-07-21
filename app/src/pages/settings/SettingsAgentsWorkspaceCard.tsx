@@ -13,7 +13,7 @@ import type { SettingsAgentsWorkspaceCardSetTraceRecordingMutation } from "./__g
  * Values restored when an admin re-enables a retention rule that was off
  */
 const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 30;
-const DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER = 200;
+const DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER = 30;
 
 const settingsListCSS = css`
   display: flex;
