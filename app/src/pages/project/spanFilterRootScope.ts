@@ -28,24 +28,31 @@ export const ORPHAN_AWARE_ROOT_SPANS_CONDITION = "parent_span is None";
 export const DEFAULT_SPAN_FILTER_CONDITION = STRICT_ROOT_SPANS_CONDITION;
 
 /**
- * Asks the server whether a filter condition confines the result set to root
- * spans, which decides whether the table shows cumulative or per-span metrics
- * (a cumulative rollup on a nested span double-counts against its ancestors).
+ * Whether a filter condition confines the result set to root spans, which
+ * decides whether the table shows cumulative or per-span metrics (a cumulative
+ * rollup on a nested span double-counts against its ancestors).
  *
- * The question is answered server-side on purpose: it is a question about the
+ * The condition is analyzed server-side on purpose: it is a question about the
  * structure of the expression — is the root predicate binding on every row? —
  * and answering it here would mean maintaining a second parser in TypeScript,
  * free to drift from the real one. A root predicate nested under `or` scopes
  * the result only if every other branch is scoped too, which no amount of
  * substring matching can tell you.
  *
+ * The answer depends only on the condition, so repeats are served from the
+ * Relay store rather than the network — re-analyzing a condition already seen
+ * (toggling back to a previous filter, remounting the table) costs nothing.
+ *
  * Returns `null` when the answer cannot be obtained, so callers can keep
  * whatever they last resolved rather than flipping the columns on a hiccup.
  */
-export async function fetchSelectsRootSpansOnly(
-  condition: string,
-  projectId: string
-): Promise<boolean | null> {
+export async function analyzeSpanFilterCondition({
+  condition,
+  projectId,
+}: {
+  condition: string;
+  projectId: string;
+}): Promise<boolean | null> {
   const response = await fetchQuery<spanFilterRootScopeQuery>(
     environment,
     graphql`
@@ -59,7 +66,8 @@ export async function fetchSelectsRootSpansOnly(
         }
       }
     `,
-    { condition, id: projectId }
+    { condition, id: projectId },
+    { fetchPolicy: "store-or-network" }
   ).toPromise();
   return (
     response?.project?.analyzeSpanFilterCondition?.selectsRootSpansOnly ?? null

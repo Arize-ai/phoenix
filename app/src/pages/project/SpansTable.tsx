@@ -84,7 +84,7 @@ import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
-import { fetchSelectsRootSpansOnly } from "./spanFilterRootScope";
+import { analyzeSpanFilterCondition } from "./spanFilterRootScope";
 import { useSpanFilters } from "./SpanFiltersContext";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
@@ -252,7 +252,7 @@ export function SpansTable(props: SpansTableProps) {
       return;
     }
     let cancelled = false;
-    fetchSelectsRootSpansOnly(filterCondition, projectId).then(
+    analyzeSpanFilterCondition({ condition: filterCondition, projectId }).then(
       (selectsRootSpansOnly) => {
         if (!cancelled && selectsRootSpansOnly !== null) {
           startTransition(() => {
