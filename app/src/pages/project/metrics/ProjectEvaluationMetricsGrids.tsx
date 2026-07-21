@@ -7,10 +7,8 @@ import { Loading, Text } from "@phoenix/components";
 import {
   ChartPanel,
   EvaluationMetricsChart,
-  EvaluationMetricsLabelCountSelect,
   type EvaluationMetricsSeries,
   EvaluationMetricsViewToggle,
-  MAX_EVALUATION_LABEL_COUNT,
   TimeRangeChartBrush,
   compactTimeXAxisProps,
   compactYAxisProps,
@@ -122,17 +120,9 @@ export function ProjectEvaluationMetricsPanel({
   const [view, setView] = useState(() =>
     getDefaultEvaluationMetricsView(series)
   );
-  const maxLabelCount = Math.min(
-    series.labels.length,
-    MAX_EVALUATION_LABEL_COUNT
-  );
-  const [labelCount, setLabelCount] = useState(maxLabelCount);
   const activeView = series.views.includes(view)
     ? view
     : getDefaultEvaluationMetricsView(series);
-  const visibleLabelCount = Math.min(labelCount, maxLabelCount);
-  const showLabelCountSelect =
-    activeView === "labels" && series.labels.length > 5;
   const showViewToggle = series.views.length > 1;
 
   return (
@@ -151,7 +141,6 @@ export function ProjectEvaluationMetricsPanel({
           <EvaluationMetricsChart
             series={series}
             view={activeView}
-            labelCount={visibleLabelCount}
             xAxisProps={{
               ...compactTimeXAxisProps,
               dataKey: "x",
@@ -162,15 +151,6 @@ export function ProjectEvaluationMetricsPanel({
             yAxisProps={compactYAxisProps}
             syncId={PROJECT_METRICS_CHART_SYNC_ID}
             chartProps={chartProps}
-            legendTrailingContent={
-              showLabelCountSelect ? (
-                <EvaluationMetricsLabelCountSelect
-                  count={visibleLabelCount}
-                  maxCount={maxLabelCount}
-                  onChange={setLabelCount}
-                />
-              ) : undefined
-            }
             renderTooltipHeader={(point) => (
               <Text weight="heavy" size="S">
                 {fullTimeFormatter(new Date(point.x))}
