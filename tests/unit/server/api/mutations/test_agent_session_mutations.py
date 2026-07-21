@@ -34,6 +34,8 @@ _TRUNCATE_MUTATION = """
       agentSession {
         id
         messages
+        compactionMessageId
+        compactionSummary
       }
     }
   }
@@ -216,6 +218,82 @@ async def test_truncate_agent_session_at_an_assistant_message_retains_it(
         )
         assert stored_message is not None
         assert stored_message.message_id == stored_message.message.id
+
+
+async def test_truncate_agent_session_clears_a_checkpoint_whose_boundary_is_removed(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    agent_session_id = await _seed_session_with_transcript(db)
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        session.add(
+            models.AgentSessionSnapshot(
+                agent_session_id=agent_session_rowid,
+                bashkit_snapshot=b"shell-state",
+                compaction_summary='{"objectives":["test"]}',
+                compacted_through_position=3,
+                compaction_event_position=3,
+            )
+        )
+
+    response = await gql_client.execute(
+        query=_TRUNCATE_MUTATION,
+        variables={"id": agent_session_id, "messageId": "user-2"},
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["truncateAgentSession"]["agentSession"]["compactionMessageId"] is None
+    assert response.data["truncateAgentSession"]["agentSession"]["compactionSummary"] is None
+    async with db() as session:
+        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
+        assert snapshot is not None
+        assert snapshot.bashkit_snapshot == b"shell-state"
+        assert snapshot.compaction_summary is None
+        assert snapshot.compacted_through_position is None
+        assert snapshot.compaction_event_position is None
+
+
+async def test_truncate_agent_session_preserves_a_checkpoint_before_the_removed_suffix(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    agent_session_id = await _seed_session_with_transcript(db)
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        session.add(
+            models.AgentSessionSnapshot(
+                agent_session_id=agent_session_rowid,
+                compaction_summary='{"objectives":["test"]}',
+                compacted_through_position=1,
+                compaction_event_position=1,
+            )
+        )
+
+    response = await gql_client.execute(
+        query=_TRUNCATE_MUTATION,
+        variables={"id": agent_session_id, "messageId": "assistant-1"},
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert (
+        response.data["truncateAgentSession"]["agentSession"]["compactionMessageId"]
+        == "assistant-1"
+    )
+    assert (
+        response.data["truncateAgentSession"]["agentSession"]["compactionSummary"]
+        == '{"objectives":["test"]}'
+    )
+    async with db() as session:
+        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
+        assert snapshot is not None
+        assert snapshot.compaction_summary == '{"objectives":["test"]}'
+        assert snapshot.compacted_through_position == 1
+        assert snapshot.compaction_event_position == 1
 
 
 async def test_truncate_agent_session_with_unknown_message_id_is_not_found(

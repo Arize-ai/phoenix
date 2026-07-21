@@ -362,6 +362,16 @@ function AgentSessionTranscript({
         : [],
     [agentSession?.messages]
   );
+  const initialCompaction = useMemo(
+    () =>
+      agentSession?.compactionMessageId && agentSession.compactionSummary
+        ? {
+            messageId: agentSession.compactionMessageId,
+            summary: agentSession.compactionSummary,
+          }
+        : null,
+    [agentSession?.compactionMessageId, agentSession?.compactionSummary]
+  );
 
   useEffect(() => {
     if (!agentSession) {
@@ -373,16 +383,25 @@ function AgentSessionTranscript({
     return <Loading />;
   }
   return (
-    <AgentChatController sessionId={sessionId} initialMessages={messages} />
+    <AgentChatController
+      sessionId={sessionId}
+      initialMessages={messages}
+      initialCompaction={initialCompaction}
+    />
   );
 }
 
 function AgentChatController({
   sessionId,
   initialMessages,
+  initialCompaction,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
+  initialCompaction?: {
+    messageId: string;
+    summary: string;
+  } | null;
 }) {
   const { modelSelection, menuValue, handleModelChange } =
     useAgentChatPanelState();
@@ -395,12 +414,16 @@ function AgentChatController({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    compactSession,
+    isCompacting,
+    compaction,
     rewindToMessage,
     forkFromMessage,
   } = useAgentChat({
     sessionId,
     modelSelection,
     initialMessages,
+    initialCompaction,
   });
 
   return (
@@ -415,13 +438,19 @@ function AgentChatController({
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
+      compactSession={compactSession}
+      isCompacting={isCompacting}
+      compaction={compaction}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
       modelMenuValue={menuValue}
       onModelChange={handleModelChange}
       autoFocusInput
     >
-      <ChatSessionUsage messages={messages} />
+      <ChatSessionUsage
+        messages={messages}
+        compactionMessageId={compaction?.messageId}
+      />
     </ChatView>
   );
 }

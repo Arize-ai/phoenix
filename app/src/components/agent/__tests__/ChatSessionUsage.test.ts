@@ -63,7 +63,7 @@ describe("getConversationUsage", () => {
       }),
     ];
 
-    expect(getConversationUsage(messages)).toEqual({
+    expect(getConversationUsage({ messages })).toEqual({
       tokenCount: {
         prompt: 300,
         completion: 50,
@@ -92,7 +92,7 @@ describe("getConversationUsage", () => {
       }),
     ];
 
-    expect(getConversationUsage(messages)).toEqual({
+    expect(getConversationUsage({ messages })).toEqual({
       tokenCount: {
         prompt: 300,
         completion: 50,
@@ -103,13 +103,71 @@ describe("getConversationUsage", () => {
 
   it("returns null when no assistant turn reports usage", () => {
     expect(
-      getConversationUsage([
-        {
-          id: "assistant-1",
-          role: "assistant",
-          parts: [{ type: "text", text: "response" }],
+      getConversationUsage({
+        messages: [
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [{ type: "text", text: "response" }],
+          },
+        ],
+      })
+    ).toBeNull();
+  });
+
+  it("accumulates only usage after the compaction boundary", () => {
+    const messages: AgentUIMessage[] = [
+      createAssistantMessage({
+        id: "assistant-before-compaction",
+        prompt: 1_000,
+        completion: 100,
+      }),
+      {
+        id: "compaction-boundary",
+        role: "user",
+        parts: [{ type: "text", text: "compact" }],
+      },
+      createAssistantMessage({
+        id: "assistant-after-compaction",
+        prompt: 200,
+        completion: 30,
+        cacheRead: 150,
+        cacheWrite: 5,
+      }),
+    ];
+
+    expect(
+      getConversationUsage({
+        messages,
+        afterMessageId: "compaction-boundary",
+      })
+    ).toEqual({
+      tokenCount: {
+        prompt: 200,
+        completion: 30,
+        total: 230,
+        promptDetails: {
+          cacheRead: 150,
+          cacheWrite: 5,
         },
-      ])
+      },
+    });
+  });
+
+  it("returns null immediately after compaction", () => {
+    const messages = [
+      createAssistantMessage({
+        id: "assistant-before-compaction",
+        prompt: 1_000,
+        completion: 100,
+      }),
+    ];
+
+    expect(
+      getConversationUsage({
+        messages,
+        afterMessageId: "assistant-before-compaction",
+      })
     ).toBeNull();
   });
 });

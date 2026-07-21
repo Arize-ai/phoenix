@@ -81,6 +81,12 @@ class CodeEvaluatorContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CompactAgentSessionResponse(TypedDict):
+    compacted: bool
+    compactionMessageId: NotRequired[str]
+    compactionSummary: NotRequired[str]
+
+
 class CreateAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
     temporary: NotRequired[bool]
@@ -1656,6 +1662,10 @@ class AssistantMessageMetadata(TypedDict):
     trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
+
+
+class CompactAgentSessionRequest(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):

@@ -26,6 +26,8 @@ export const agentSessionQuery = graphql`
         createdAt
         updatedAt
         messages
+        compactionMessageId
+        compactionSummary
       }
     }
   }

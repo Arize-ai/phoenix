@@ -1,6 +1,7 @@
 import { css, keyframes } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import {
+  Fragment,
   useCallback,
   type CSSProperties,
   type ReactNode,
@@ -16,6 +17,7 @@ import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
+import type { PromptCommandContext } from "@phoenix/agent/slashCommands/promptCommands";
 import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
 import type {
   ElicitToolOutput,
@@ -24,11 +26,14 @@ import type {
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
+import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { MarkdownBlock } from "@phoenix/components/markdown";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
+  type AgentSessionCompaction,
   hasAcknowledgedCurrentTraceConsent,
 } from "@phoenix/store/agentStore";
 
@@ -63,6 +68,7 @@ import {
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
+import { useScrollAnchor } from "./scrollAnchor";
 import { isToolUIPart } from "./toolPartTypes";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
@@ -130,6 +136,16 @@ const chatEmptyItemFadeUp = keyframes`
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+`;
+
+const compactionProgressPulse = keyframes`
+  0%, 100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
   }
 `;
 
@@ -220,6 +236,37 @@ const chatCSS = css`
     line-height: var(--global-line-height-s);
   }
 
+  .chat__compaction-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    width: 100%;
+    margin: var(--global-dimension-size-100) 0;
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-xs);
+  }
+
+  .chat__compaction-divider::before,
+  .chat__compaction-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background-color: var(--global-border-color-default);
+  }
+
+  .chat__compaction-divider-label {
+    flex: none;
+  }
+
+  .chat__compaction-progress {
+    animation: ${compactionProgressPulse} 1.4s ease-in-out infinite;
+  }
+
+  .chat__compaction-summary {
+    margin-bottom: var(--global-dimension-size-100);
+    padding: 0 var(--global-dimension-size-100);
+  }
+
   &.chat--empty {
     .chat__messages {
       min-height: 100%;
@@ -282,6 +329,107 @@ function getMessageText(message: AgentUIMessage): string {
     .join("");
 }
 
+const COMPACTION_SUMMARY_SECTIONS = [
+  ["objectives", "Objectives"],
+  ["constraints_and_preferences", "Constraints and preferences"],
+  ["decisions", "Decisions"],
+  ["completed_work", "Completed work"],
+  ["active_work", "Active work"],
+  ["blockers", "Blockers"],
+  ["next_steps", "Next steps"],
+  ["important_details", "Important details"],
+] as const;
+
+const COMPACTION_SUMMARY_COLLAPSED_HEIGHT_PX = 320;
+
+function getCompactionSummaryMarkdown(summary: string): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(summary);
+  } catch {
+    return summary;
+  }
+  if (typeof parsed !== "object" || parsed === null) {
+    return summary;
+  }
+  const record = parsed as Record<string, unknown>;
+  const sections = COMPACTION_SUMMARY_SECTIONS.flatMap(([key, label]) => {
+    const items = Array.isArray(record[key])
+      ? record[key].filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim() !== ""
+        )
+      : [];
+    if (items.length === 0) {
+      return [];
+    }
+    const markdownItems = items
+      .map((item) => `- ${item.trim().replaceAll("\n", "\n  ")}`)
+      .join("\n");
+    return [`### ${label}\n\n${markdownItems}`];
+  });
+  return sections.length > 0 ? sections.join("\n\n") : summary;
+}
+
+function ChatCompaction({ summary }: { summary: string }) {
+  const containerRef = useRef<HTMLElement>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const scrollAnchor = useScrollAnchor();
+  const markdown = getCompactionSummaryMarkdown(summary);
+  const handleExpandedChange = useCallback(
+    (nextIsExpanded: boolean) => {
+      scrollAnchor.capture(containerRef.current);
+      setIsExpanded(nextIsExpanded);
+      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+    },
+    [scrollAnchor]
+  );
+
+  return (
+    <>
+      <div
+        className="chat__compaction-divider"
+        role="separator"
+        aria-label="Conversation context compacted"
+      >
+        <span className="chat__compaction-divider-label">
+          Context compacted
+        </span>
+      </div>
+      <section
+        ref={containerRef}
+        className="chat__compaction-summary"
+        aria-label="Compaction summary"
+      >
+        <ExpandableContent
+          height={COMPACTION_SUMMARY_COLLAPSED_HEIGHT_PX}
+          expandedBehavior="grow"
+          isExpanded={isExpanded}
+          onExpandedChange={handleExpandedChange}
+        >
+          <MarkdownBlock mode="markdown" margin="none">
+            {markdown}
+          </MarkdownBlock>
+        </ExpandableContent>
+      </section>
+    </>
+  );
+}
+
+function ChatCompactionProgress() {
+  return (
+    <div
+      className="chat__compaction-divider chat__compaction-progress"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="chat__compaction-divider-label">
+        Compacting conversation…
+      </span>
+    </div>
+  );
+}
+
 /**
  * Pure chat view used both by the legacy mounted panel and by the headless
  * controller path that keeps streaming alive while the panel is hidden.
@@ -296,6 +444,9 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
+  compactSession,
+  isCompacting = false,
+  compaction,
   rewindToMessage,
   forkFromMessage,
   modelMenuValue,
@@ -317,6 +468,9 @@ export function ChatView({
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
+  compactSession: PromptCommandContext["compactSession"];
+  isCompacting?: boolean;
+  compaction?: AgentSessionCompaction;
   /**
    * Truncates the active session at a message; resolves to user text to
    * restore. Absent on read-only surfaces, which hides the rewind/branch
@@ -410,6 +564,7 @@ export function ChatView({
     status === "submitted" || status === "streaming";
   const isSendDisabledForMissingCredentials =
     !isWaitingForAssistant && Boolean(missingCredentialsProvider);
+  const isSubmitDisabled = isSendDisabledForMissingCredentials || isCompacting;
   const showThinkingIndicator = shouldShowThinkingIndicator({
     status,
     messages,
@@ -578,37 +733,46 @@ export function ChatView({
                   </ChatEmptyState>
                 )}
                 {messages.map((message, index) => {
+                  let renderedMessage: ReactNode;
                   if (message.role === "user") {
-                    return (
+                    renderedMessage = (
                       <UserMessage
-                        key={message.id}
                         message={message}
                         onRewindRequest={onRewindRequest}
                       />
                     );
+                  } else {
+                    // Only the last assistant message can still be streaming — hide
+                    // its actions until the chat reports it is settled.
+                    const isLast = index === messages.length - 1;
+                    const showActions = !isLast || hasChatSettled;
+                    // Pin the most recent assistant turn's toolbar so its actions
+                    // stay visible; other turns reveal their toolbars on hover to
+                    // cut down on stacked-toolbar clutter.
+                    const pinToolbar = isLast && hasChatSettled;
+                    // Rewinding to the last assistant turn is a no-op: nothing
+                    // follows it to truncate and, once settled, it has no pending
+                    // tool calls to clear. Hide the rewind control there.
+                    renderedMessage = (
+                      <AssistantMessage
+                        message={message}
+                        showActions={showActions}
+                        pinToolbar={pinToolbar}
+                        onRewindRequest={onRewindRequest}
+                        allowRewind={!isLast}
+                      />
+                    );
                   }
-                  // Only the last assistant message can still be streaming — hide
-                  // its actions until the chat reports it is settled.
-                  const isLast = index === messages.length - 1;
-                  const showActions = !isLast || hasChatSettled;
-                  // Pin the most recent assistant turn's toolbar so its actions
-                  // stay visible; other turns reveal their toolbars on hover to
-                  // cut down on stacked-toolbar clutter.
-                  const pinToolbar = isLast && hasChatSettled;
-                  // Rewinding to the last assistant turn is a no-op: nothing
-                  // follows it to truncate and, once settled, it has no pending
-                  // tool calls to clear. Hide the rewind control there.
                   return (
-                    <AssistantMessage
-                      key={message.id}
-                      message={message}
-                      showActions={showActions}
-                      pinToolbar={pinToolbar}
-                      onRewindRequest={onRewindRequest}
-                      allowRewind={!isLast}
-                    />
+                    <Fragment key={message.id}>
+                      {renderedMessage}
+                      {message.id === compaction?.messageId ? (
+                        <ChatCompaction summary={compaction.summary} />
+                      ) : null}
+                    </Fragment>
                   );
                 })}
+                {isCompacting ? <ChatCompactionProgress /> : null}
                 {showThinkingIndicator && <Loading />}
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
@@ -690,6 +854,7 @@ export function ChatView({
                   runPromptCommands(
                     { commandNames, text, requestedSkills },
                     {
+                      compactSession,
                       startNewSession: () => {
                         setActiveSession(DRAFT_SESSION_ID);
                         return DRAFT_SESSION_ID;
@@ -715,7 +880,8 @@ export function ChatView({
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}
-              isSubmitDisabled={isSendDisabledForMissingCredentials}
+              isInputDisabled={isCompacting}
+              isSubmitDisabled={isSubmitDisabled}
               onStop={() => {
                 void stop();
               }}

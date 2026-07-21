@@ -120,6 +120,11 @@ export type PendingAgentMessage = {
   requestedSkills: string[];
 };
 
+export type AgentSessionCompaction = {
+  messageId: string;
+  summary: string;
+};
+
 /**
  * Sentinel session key for the not-yet-persisted "new chat" draft surface.
  *
@@ -322,6 +327,15 @@ export interface AgentState extends AgentProps {
   /** Whether a logical PXI turn is still awaiting its terminal response. */
   isResponsePendingBySessionId: Partial<Record<string, boolean>>;
   setSessionResponsePending: (sessionId: string, isPending: boolean) => void;
+  /** Whether a manual context compaction is in progress for a session. */
+  isCompactionPendingBySessionId: Partial<Record<string, boolean>>;
+  setSessionCompactionPending: (sessionId: string, isPending: boolean) => void;
+  /** Latest visible compaction event keyed by session ID. */
+  compactionBySessionId: Partial<Record<string, AgentSessionCompaction>>;
+  setSessionCompaction: (
+    sessionId: string,
+    compaction: AgentSessionCompaction | null
+  ) => void;
 
   /**
    * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
@@ -656,6 +670,14 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...state.isResponsePendingBySessionId,
           };
           delete newIsResponsePendingBySessionId[sessionId];
+          const newIsCompactionPendingBySessionId = {
+            ...state.isCompactionPendingBySessionId,
+          };
+          delete newIsCompactionPendingBySessionId[sessionId];
+          const newCompactionBySessionId = {
+            ...state.compactionBySessionId,
+          };
+          delete newCompactionBySessionId[sessionId];
           const newDraftInputBySessionId = { ...state.draftInputBySessionId };
           delete newDraftInputBySessionId[sessionId];
           const newPendingMessageBySessionId = {
@@ -671,6 +693,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
             isResponsePendingBySessionId: newIsResponsePendingBySessionId,
+            isCompactionPendingBySessionId: newIsCompactionPendingBySessionId,
+            compactionBySessionId: newCompactionBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
             pendingPatchExperimentsByToolCallId:
@@ -834,6 +858,38 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setSessionResponsePending" }
+      );
+    },
+    isCompactionPendingBySessionId: {},
+    setSessionCompactionPending: (sessionId, isPending) => {
+      set(
+        (state) => {
+          const next = { ...state.isCompactionPendingBySessionId };
+          if (isPending) {
+            next[sessionId] = true;
+          } else {
+            delete next[sessionId];
+          }
+          return { isCompactionPendingBySessionId: next };
+        },
+        false,
+        { type: "setSessionCompactionPending" }
+      );
+    },
+    compactionBySessionId: {},
+    setSessionCompaction: (sessionId, compaction) => {
+      set(
+        (state) => {
+          const next = { ...state.compactionBySessionId };
+          if (compaction) {
+            next[sessionId] = compaction;
+          } else {
+            delete next[sessionId];
+          }
+          return { compactionBySessionId: next };
+        },
+        false,
+        { type: "setSessionCompaction" }
       );
     },
 

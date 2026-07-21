@@ -17,6 +17,7 @@ async def _seed_agent_session(
     updated_at: datetime,
     messages: list[dict[str, Any]] | None = None,
     expires_at: datetime | None = None,
+    compacted_through_position: int | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
@@ -38,6 +39,15 @@ async def _seed_agent_session(
             )
             for position, message in enumerate(messages or [])
         )
+        if compacted_through_position is not None:
+            session.add(
+                models.AgentSessionSnapshot(
+                    agent_session_id=agent_session.id,
+                    compaction_summary='{"objectives":["test"]}',
+                    compacted_through_position=compacted_through_position,
+                    compaction_event_position=compacted_through_position,
+                )
+            )
         return str(GlobalID("AgentSession", str(agent_session.id)))
 
 
@@ -60,6 +70,8 @@ _DETAIL_QUERY = """
         id
         title
         messages
+        compactionMessageId
+        compactionSummary
       }
     }
   }
@@ -136,12 +148,16 @@ async def test_agent_session_loads_transcript_by_id(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    messages = [{"id": "message-1", "role": "user", "parts": []}]
+    messages = [
+        {"id": "message-1", "role": "user", "parts": []},
+        {"id": "message-2", "role": "assistant", "parts": []},
+    ]
     agent_session_id = await _seed_agent_session(
         db,
         title="Session one",
         updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         messages=messages,
+        compacted_through_position=1,
     )
 
     response = await gql_client.execute(
@@ -155,6 +171,8 @@ async def test_agent_session_loads_transcript_by_id(
             "id": agent_session_id,
             "title": "Session one",
             "messages": messages,
+            "compactionMessageId": "message-2",
+            "compactionSummary": '{"objectives":["test"]}',
         }
     }
 

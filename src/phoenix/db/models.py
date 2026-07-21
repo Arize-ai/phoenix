@@ -25,6 +25,7 @@ from sqlalchemy import (
     Null,
     PrimaryKeyConstraint,
     String,
+    Text,
     TypeDecorator,
     UniqueConstraint,
     case,
@@ -3332,6 +3333,9 @@ class AgentSessionSnapshot(HasId):
         unique=True,
     )
     bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    compaction_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    compacted_through_position: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    compaction_event_position: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

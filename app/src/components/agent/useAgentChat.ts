@@ -6,7 +6,7 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from "ai";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -52,10 +52,14 @@ import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPro
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import type { paths } from "@phoenix/api/__generated__/v1";
 import { authFetch } from "@phoenix/authFetch";
-import { useNotifyError } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
+import {
+  DRAFT_SESSION_ID,
+  type AgentSessionCompaction,
+  type PendingAgentMessage,
+} from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -79,11 +83,22 @@ const turnClientStateByChat = new WeakMap<
 
 const CHAT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
+const COMPACT_PATH_TEMPLATE =
+  "/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
 const ASSISTANT_AGENT_ID = "assistant";
 
 function buildAgentChatApiUrl(sessionId: string): string {
   return prependBasename(
     CHAT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
+  );
+}
+
+function buildAgentCompactApiUrl(sessionId: string): string {
+  return prependBasename(
+    COMPACT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
       "{session_id}",
       encodeURIComponent(sessionId)
     )
@@ -121,6 +136,8 @@ const truncateAgentSessionMutation = graphql`
         title
         updatedAt
         messages
+        compactionMessageId
+        compactionSummary
       }
     }
   }
@@ -170,6 +187,7 @@ export function useAgentChat({
   sessionId,
   modelSelection,
   initialMessages,
+  initialCompaction,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -179,12 +197,23 @@ export function useAgentChat({
   modelSelection: AgentModelSelection;
   /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
+  /** Server compaction event used to seed ephemeral session state. */
+  initialCompaction?: AgentSessionCompaction | null;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
   const notifyError = useNotifyError();
+  const notifySuccess = useNotifySuccess();
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
+  const isCompacting = useAgentContext((state) =>
+    sessionId
+      ? (state.isCompactionPendingBySessionId[sessionId] ?? false)
+      : false
+  );
+  const compaction = useAgentContext((state) =>
+    sessionId ? state.compactionBySessionId[sessionId] : undefined
+  );
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -208,6 +237,12 @@ export function useAgentChat({
   // Guards the draft surface against double-submits while the create-session
   // mutation is in flight.
   const isCreatingSessionRef = useRef(false);
+
+  useEffect(() => {
+    if (sessionId && initialCompaction !== undefined) {
+      store.getState().setSessionCompaction(sessionId, initialCompaction);
+    }
+  }, [initialCompaction, sessionId, store]);
 
   // The Chat is cached per-session in the runtime registry, so its transport
   // and onFinish closures are captured once and reused across model changes.
@@ -541,6 +576,106 @@ export function useAgentChat({
     );
   };
 
+  const compactSession = (pendingMessage?: PendingAgentMessage): void => {
+    const restorePendingMessage = () => {
+      if (pendingMessage && sessionId) {
+        store.getState().setDraftInput(sessionId, pendingMessage.text);
+      }
+    };
+    if (isDraft || !sessionId || !chatInstance) {
+      restorePendingMessage();
+      notifyError({
+        title: "Conversation could not be compacted",
+        message: "There is no persisted conversation to compact.",
+      });
+      return;
+    }
+    if (isRequestActive(chatInstance.status)) {
+      restorePendingMessage();
+      notifyError({
+        title: "Conversation could not be compacted",
+        message: "Wait for the current response to finish and try again.",
+      });
+      return;
+    }
+    if (store.getState().isCompactionPendingBySessionId[sessionId]) {
+      restorePendingMessage();
+      notifyError({
+        title: "Conversation could not be compacted",
+        message: "Conversation compaction is already in progress.",
+      });
+      return;
+    }
+
+    store.getState().setSessionCompactionPending(sessionId, true);
+    void (async () => {
+      try {
+        const response = await authFetch(buildAgentCompactApiUrl(sessionId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: modelSelectionRef.current }),
+        });
+        if (!response.ok) {
+          throw new Error(await getAgentCompactErrorMessage(response));
+        }
+        const result: unknown = await response.json();
+        const wasCompacted =
+          isRecord(result) && typeof result.compacted === "boolean"
+            ? result.compacted
+            : false;
+        const compactionMessageId =
+          isRecord(result) && typeof result.compactionMessageId === "string"
+            ? result.compactionMessageId
+            : null;
+        const compactionSummary =
+          isRecord(result) && typeof result.compactionSummary === "string"
+            ? result.compactionSummary
+            : null;
+        store
+          .getState()
+          .setSessionCompaction(
+            sessionId,
+            compactionMessageId && compactionSummary
+              ? { messageId: compactionMessageId, summary: compactionSummary }
+              : null
+          );
+        commitLocalUpdate(relayEnvironment, (relayStore) => {
+          const sessionRecord = relayStore.get(sessionId);
+          sessionRecord?.setValue(compactionMessageId, "compactionMessageId");
+          sessionRecord?.setValue(compactionSummary, "compactionSummary");
+        });
+        notifySuccess({
+          title: wasCompacted
+            ? "Conversation compacted"
+            : "Conversation already compact",
+          message: wasCompacted
+            ? "Older turns will be represented by a durable checkpoint."
+            : "There are no older complete turns to compact.",
+        });
+        if (pendingMessage) {
+          store.getState().setSessionCompactionPending(sessionId, false);
+          await handleSendMessage(
+            { text: pendingMessage.text },
+            pendingMessage.requestedSkills.length > 0
+              ? { body: { requestedSkills: pendingMessage.requestedSkills } }
+              : undefined
+          );
+        }
+      } catch (error) {
+        restorePendingMessage();
+        notifyError({
+          title: "Conversation could not be compacted",
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred.",
+        });
+      } finally {
+        store.getState().setSessionCompactionPending(sessionId, false);
+      }
+    })();
+  };
+
   // Elicitation responses are written back through the runtime-owned chat so
   // the pending tool call resolves against the correct assistant turn.
   const handleElicitationSubmit = (output: ElicitToolOutput) => {
@@ -655,6 +790,18 @@ export function useAgentChat({
               next: nextMessages,
             });
             setMessages(nextMessages);
+            const compactionMessageId =
+              payload.agentSession.compactionMessageId;
+            const compactionSummary = payload.agentSession.compactionSummary;
+            store.getState().setSessionCompaction(
+              sessionId,
+              compactionMessageId && compactionSummary
+                ? {
+                    messageId: compactionMessageId,
+                    summary: compactionSummary,
+                  }
+                : null
+            );
             clearError();
             resolve(restoredInput);
           },
@@ -679,6 +826,7 @@ export function useAgentChat({
       notifyError,
       sessionId,
       setMessages,
+      store,
     ]
   );
 
@@ -758,6 +906,9 @@ export function useAgentChat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    compactSession,
+    isCompacting,
+    compaction,
     rewindToMessage,
     forkFromMessage,
   } as {
@@ -772,6 +923,9 @@ export function useAgentChat({
     pendingElicitation: PendingElicitation | null;
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
+    compactSession: (message?: PendingAgentMessage) => void;
+    isCompacting: boolean;
+    compaction: AgentSessionCompaction | undefined;
     rewindToMessage: (messageId: string) => Promise<string | null>;
     forkFromMessage: (messageId: string) => void;
   };
@@ -814,6 +968,20 @@ function getRemovedUserMessageText(
 
 function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
+}
+
+async function getAgentCompactErrorMessage(
+  response: Response
+): Promise<string> {
+  try {
+    const body: unknown = await response.json();
+    if (isRecord(body) && typeof body.detail === "string") {
+      return body.detail;
+    }
+  } catch {
+    // Fall back to the HTTP status when the response is not JSON.
+  }
+  return `Compaction failed with status ${response.status}.`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

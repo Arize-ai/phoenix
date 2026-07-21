@@ -10,6 +10,8 @@ import { ChatTokenUsage } from "./ChatTokenUsage";
 type ChatSessionUsageProps = {
   /** The session's current transcript; token usage is accumulated across assistant turns. */
   messages: AgentUIMessage[];
+  /** The compaction boundary, before which usage is no longer part of the active context. */
+  compactionMessageId?: string;
 };
 
 /**
@@ -31,19 +33,28 @@ export type AgentSessionUsage = {
 };
 
 /**
- * Accumulate token usage across the conversation while retaining cache details
- * from only the latest assistant turn that reported usage.
+ * Accumulate token usage after an optional message boundary while retaining
+ * cache details from only the latest assistant turn that reported usage.
  */
-export function getConversationUsage(
-  messages: AgentUIMessage[]
-): AgentSessionUsage | null {
+export function getConversationUsage({
+  messages,
+  afterMessageId,
+}: {
+  messages: AgentUIMessage[];
+  afterMessageId?: string;
+}): AgentSessionUsage | null {
   let prompt = 0;
   let completion = 0;
   let total = 0;
   let promptDetails: AgentSessionUsage["tokenCount"]["promptDetails"];
   let hasUsage = false;
 
-  for (const message of messages) {
+  const boundaryIndex = afterMessageId
+    ? messages.findIndex((message) => message.id === afterMessageId)
+    : -1;
+  const activeMessages = messages.slice(boundaryIndex + 1);
+
+  for (const message of activeMessages) {
     if (message?.role !== "assistant") {
       continue;
     }
@@ -72,8 +83,18 @@ export function getConversationUsage(
   } satisfies AgentSessionUsage;
 }
 
-export const ChatSessionUsage = ({ messages }: ChatSessionUsageProps) => {
-  const usage = useMemo(() => getConversationUsage(messages), [messages]);
+export const ChatSessionUsage = ({
+  messages,
+  compactionMessageId,
+}: ChatSessionUsageProps) => {
+  const usage = useMemo(
+    () =>
+      getConversationUsage({
+        messages,
+        afterMessageId: compactionMessageId,
+      }),
+    [compactionMessageId, messages]
+  );
   if (!usage) return null;
   return (
     <ChatTokenUsage

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import strawberry
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
@@ -140,6 +140,7 @@ class AgentSessionMutationMixin:
                 session,
                 info=info,
                 agent_session_rowid=agent_session_rowid,
+                for_update=True,
             )
             target = (
                 await session.execute(
@@ -164,6 +165,24 @@ class AgentSessionMutationMixin:
                 delete(models.AgentSessionMessage).where(
                     models.AgentSessionMessage.agent_session_id == agent_session.id,
                     models.AgentSessionMessage.position >= delete_from_position,
+                )
+            )
+            await session.execute(
+                update(models.AgentSessionSnapshot)
+                .where(
+                    models.AgentSessionSnapshot.agent_session_id == agent_session.id,
+                    or_(
+                        models.AgentSessionSnapshot.compacted_through_position
+                        >= delete_from_position,
+                        models.AgentSessionSnapshot.compaction_event_position
+                        >= delete_from_position,
+                    ),
+                )
+                .values(
+                    compaction_summary=None,
+                    compacted_through_position=None,
+                    compaction_event_position=None,
+                    updated_at=func.now(),
                 )
             )
             agent_session.updated_at = func.now()
@@ -270,9 +289,13 @@ async def _load_owned_agent_session(
     *,
     info: Info[Context, None],
     agent_session_rowid: int,
+    for_update: bool = False,
 ) -> models.AgentSession:
     """Load a session the viewer owns, or raise a not-found error."""
-    agent_session = await session.get(models.AgentSession, agent_session_rowid)
+    statement = select(models.AgentSession).where(models.AgentSession.id == agent_session_rowid)
+    if for_update:
+        statement = statement.with_for_update()
+    agent_session = await session.scalar(statement)
     viewer_id = info.context.user_id
     if (
         agent_session is None

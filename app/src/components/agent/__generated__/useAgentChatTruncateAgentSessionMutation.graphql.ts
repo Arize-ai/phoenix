@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0136229be71bbe23711c2692f942efda>>
+ * @generated SignedSource<<5cd777211675cb1658e1b2fe0e688e70>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,8 @@ export type useAgentChatTruncateAgentSessionMutation$variables = {
 export type useAgentChatTruncateAgentSessionMutation$data = {
   readonly truncateAgentSession: {
     readonly agentSession: {
+      readonly compactionMessageId: string | null;
+      readonly compactionSummary: string | null;
       readonly id: string;
       readonly messages: any;
       readonly title: string;
@@ -88,6 +90,20 @@ v1 = [
             "kind": "ScalarField",
             "name": "messages",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "compactionMessageId",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "compactionSummary",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -114,16 +130,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "88b7d9009141c4994c41b61d3d5ad66d",
+    "cacheID": "86cb987192ed12fb93804f66f554054f",
     "id": null,
     "metadata": {},
     "name": "useAgentChatTruncateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatTruncateAgentSessionMutation(\n  $input: TruncateAgentSessionInput!\n) {\n  truncateAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      updatedAt\n      messages\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatTruncateAgentSessionMutation(\n  $input: TruncateAgentSessionInput!\n) {\n  truncateAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      updatedAt\n      messages\n      compactionMessageId\n      compactionSummary\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "039972f6e6de9bcf016ccda08c2ead1d";
+(node as any).hash = "3f40a32b1a750d52585e626fa670441a";
 
 export default node;

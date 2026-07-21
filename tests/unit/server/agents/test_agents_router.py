@@ -89,6 +89,20 @@ def _server_agent_chat_url(agent_session_id: str) -> str:
     return f"/agents/server/sessions/{agent_session_id}/chat"
 
 
+def _compact_url(agent_session_id: str) -> str:
+    return f"/agents/assistant/sessions/{agent_session_id}/compact"
+
+
+def _compact_body() -> dict[str, Any]:
+    return {
+        "model": {
+            "providerType": "builtin",
+            "provider": "OPENAI",
+            "modelName": "gpt-test",
+        }
+    }
+
+
 def _chat_body(
     session_id: str,
     message: dict[str, Any] | None,
@@ -262,6 +276,155 @@ def _mock_turn_models(monkeypatch: pytest.MonkeyPatch, *turn_models: FunctionMod
         return next(remaining_models)
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+
+async def test_compact_agent_session_persists_checkpoint_and_projects_model_history(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_messages: list[ModelMessage] = []
+    chat_messages: list[ModelMessage] = []
+    checkpoint = {
+        "objectives": ["Investigate the trace"],
+        "constraints_and_preferences": [],
+        "decisions": [],
+        "completed_work": ["Located the slow span"],
+        "active_work": [],
+        "blockers": [],
+        "next_steps": ["Inspect the latest turn"],
+        "important_details": ["trace-id-123"],
+    }
+
+    def compact_function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        summary_messages.extend(messages)
+        return ModelResponse(
+            parts=[ToolCallPart(tool_name="conversation_checkpoint", args=checkpoint)]
+        )
+
+    async def chat_stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str]:
+        chat_messages.extend(messages)
+        yield "done"
+
+    compact_model = FunctionModel(function=compact_function)
+    chat_model = FunctionModel(stream_function=chat_stream_function)
+    _mock_turn_models(monkeypatch, compact_model, chat_model)
+
+    transcript = [
+        _user_message("Find the slow span", message_id="user-1"),
+        {
+            "id": "assistant-1",
+            "role": "assistant",
+            "parts": [{"type": "text", "text": "The slow span is trace-id-123."}],
+        },
+        _user_message("What should I inspect next?", message_id="user-2"),
+        {
+            "id": "assistant-2",
+            "role": "assistant",
+            "parts": [{"type": "text", "text": "Inspect the latest model call."}],
+        },
+    ]
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id="91919191-9191-4191-8191-919191919191",
+        title="Existing session",
+        messages=transcript,
+    )
+    async with db() as session:
+        seeded_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert seeded_session_rowid is not None
+        session.add(
+            models.AgentSessionSnapshot(
+                agent_session_id=seeded_session_rowid,
+                bashkit_snapshot=b"shell-state",
+            )
+        )
+
+    compact_response = await httpx_client.post(
+        _compact_url(agent_session_id),
+        json=_compact_body(),
+    )
+
+    assert compact_response.status_code == 200
+    assert compact_response.json() == {
+        "compacted": True,
+        "compactionMessageId": "assistant-2",
+        "compactionSummary": json.dumps(checkpoint, separators=(",", ":")),
+    }
+    assert "Find the slow span" in str(summary_messages)
+    assert "trace-id-123" in str(summary_messages)
+    assert "What should I inspect next?" in str(summary_messages)
+    assert "Inspect the latest model call." in str(summary_messages)
+    async with db() as session:
+        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
+        assert snapshot is not None
+        assert snapshot.bashkit_snapshot == b"shell-state"
+        assert snapshot.compacted_through_position == 3
+        assert snapshot.compaction_event_position == 3
+        assert json.loads(snapshot.compaction_summary or "{}") == checkpoint
+        agent_session_rowid = snapshot.agent_session_id
+        original_messages = await _load_session_messages(session, agent_session_rowid)
+    assert [message["id"] for message in original_messages] == [
+        "user-1",
+        "assistant-1",
+        "user-2",
+        "assistant-2",
+    ]
+
+    chat_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "91919191-9191-4191-8191-919191919191",
+            _user_message("Continue", message_id="user-3"),
+        ),
+    )
+
+    assert chat_response.status_code == 200
+    projected_history = str(chat_messages)
+    assert "Investigate the trace" in projected_history
+    assert "Find the slow span" not in projected_history
+    assert "The slow span is trace-id-123." not in projected_history
+    assert "What should I inspect next?" not in projected_history
+    assert "Inspect the latest model call." not in projected_history
+    assert "Continue" in projected_history
+    async with db() as session:
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assert [message["id"] for message in stored_messages[:5]] == [
+        "user-1",
+        "assistant-1",
+        "user-2",
+        "assistant-2",
+        "user-3",
+    ]
+
+
+async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _unexpected_build_model(*args: object, **kwargs: object) -> FunctionModel:
+        raise AssertionError("a no-op compaction must not build a model")
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _unexpected_build_model)
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id="92929292-9292-4292-8292-929292929292",
+        title="Incomplete turn",
+        messages=[
+            _user_message("Hello", message_id="user-1"),
+        ],
+    )
+
+    response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
+
+    assert response.status_code == 200
+    assert response.json() == {"compacted": False}
+    async with db() as session:
+        assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
 
 async def test_chat_turn_persists_session_transcript(

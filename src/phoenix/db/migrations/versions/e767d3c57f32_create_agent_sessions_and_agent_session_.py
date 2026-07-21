@@ -131,6 +131,9 @@ def upgrade() -> None:
             unique=True,
         ),
         sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
+        sa.Column("compaction_summary", sa.Text, nullable=True),
+        sa.Column("compacted_through_position", sa.Integer, nullable=True),
+        sa.Column("compaction_event_position", sa.Integer, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
