@@ -2843,6 +2843,11 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+
+  """
+  Parses a span filter condition and reports how it relates to root-span scoping, so a client can tell whether a filtered view is root-scoped without parsing the expression itself. Structural only: it does not validate the condition, so a condition reported as root-scoped may still be rejected when the query runs. Use validateSpanFilterCondition to check validity.
+  """
+  analyzeSpanFilterCondition(condition: String!): SpanFilterConditionAnalysis!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
@@ -4166,6 +4171,15 @@ type SpanEvent {
   message: String!
   timestamp: DateTime!
   attributes: JSON!
+}
+
+type SpanFilterConditionAnalysis {
+  """
+  Whether the condition is established to match only root spans -- that is, whether a root predicate (`parent_span is None` or `parent_id is None`) binds every row the condition can match. A conjunct qualifies; a branch of an `or` qualifies only if every other branch is root-scoped too, since a row need satisfy just one of them.
+  
+  `false` means this could not be established, not that the condition admits non-root spans. Recognition covers the boolean structure of the expression, so a root-only condition written in a form that would require reasoning about the predicates themselves -- a branch that silently contradicts itself, say -- reports `false`. `true` is always a guarantee; `false` is the absence of one.
+  """
+  selectsRootSpansOnly: Boolean!
 }
 
 type SpanIOValue {

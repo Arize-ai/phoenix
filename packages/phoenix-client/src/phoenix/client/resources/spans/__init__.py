@@ -188,6 +188,10 @@ class Spans:
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
             root_spans_only (Optional[bool]): Whether to return only root spans.
+                Deprecated: express root-span scoping in the query instead, e.g.
+                `SpanQuery().where("parent_span is None")` to match root spans
+                including orphans (spans whose parent is absent), or
+                `parent_id is None` to match only spans with no parent id.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
@@ -1464,6 +1468,10 @@ class AsyncSpans:
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
             root_spans_only (Optional[bool]): Whether to return only root spans.
+                Deprecated: express root-span scoping in the query instead, e.g.
+                `SpanQuery().where("parent_span is None")` to match root spans
+                including orphans (spans whose parent is absent), or
+                `parent_id is None` to match only spans with no parent id.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)

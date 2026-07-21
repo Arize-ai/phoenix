@@ -525,10 +525,15 @@ class SpanQuery(_HasTmpSuffix):
             end_time (datetime, optional): The end time for the query range. Default None.
             limit (int, optional): Maximum number of spans to return. Defaults to DEFAULT_SPAN_LIMIT.
             root_spans_only (bool, optional): If True, only root spans are returned. Default None.
+                Deprecated. Express root-span scoping in the filter condition instead, via
+                `.where("parent_span is None")` (roots including orphans) or
+                `.where("parent_id is None")` (only spans with no parent id), so the whole
+                query lives in one expression that composes with other clauses.
             stop_time (datetime, optional): Deprecated. Use end_time instead. Default None.
             orphan_span_as_root_span (bool): If True, orphan spans are treated as root spans. An
                 orphan span has a non-null `parent_id` but a span with that ID is currently not
-                found in the database. Default True.
+                found in the database. Default True. Deprecated along with `root_spans_only`;
+                `parent_span is None` treats orphans as roots, `parent_id is None` does not.
 
         Returns:
             pd.DataFrame: A DataFrame containing the query results. The structure of the DataFrame
@@ -552,6 +557,18 @@ class SpanQuery(_HasTmpSuffix):
                 DeprecationWarning,
             )
             end_time = end_time or stop_time
+        # `orphan_span_as_root_span` defaults to True, so an explicit True is
+        # indistinguishable from the default (and is a no-op without
+        # `root_spans_only` anyway); an explicit False is detectable and warns.
+        if root_spans_only is not None or orphan_span_as_root_span is not True:
+            # Deprecated. Raise a warning
+            warnings.warn(
+                "root_spans_only and orphan_span_as_root_span are deprecated. Express "
+                'root-span scoping in the filter condition instead: .where("parent_span '
+                'is None") for roots including orphans, or .where("parent_id is None") '
+                "for only spans with no parent id.",
+                DeprecationWarning,
+            )
         if not (self._select or self._explode or self._concat):
             return _get_spans_dataframe(
                 session,
@@ -580,6 +597,16 @@ class SpanQuery(_HasTmpSuffix):
             stmt = stmt.where(models.Span.start_time < end_time)
         if limit is not None:
             stmt = stmt.limit(limit)
+        # The flag is redundant when the filter already restricts at least as
+        # narrowly; applying both pays for two correlated subqueries selecting
+        # the same rows.
+        filter_root_scope = self._filter.root_scope if self._filter else None
+        if (
+            root_spans_only
+            and filter_root_scope is not None
+            and (orphan_span_as_root_span or filter_root_scope == "strict")
+        ):
+            root_spans_only = False
         if root_spans_only:
             # A root span is either a span with no parent_id or an orphan span
             # (a span whose parent_id references a span that doesn't exist in the database)
@@ -809,6 +836,16 @@ def _get_spans_dataframe(
         stmt = stmt.where(models.Span.start_time < end_time)
     # Default newest-first ordering by start_time, with id as a stable tiebreaker
     stmt = stmt.order_by(models.Span.start_time.desc(), models.Span.id.desc())
+    # The flag is redundant when the filter already restricts at least as
+    # narrowly; applying both pays for two correlated subqueries selecting the
+    # same rows.
+    filter_root_scope = span_filter.root_scope if span_filter else None
+    if (
+        root_spans_only
+        and filter_root_scope is not None
+        and (orphan_span_as_root_span or filter_root_scope == "strict")
+    ):
+        root_spans_only = False
     if root_spans_only:
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)

@@ -50,12 +50,16 @@ from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
+from phoenix.server.api.types.SpanFilterConditionAnalysis import (
+    SpanFilterConditionAnalysis,
+)
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
 
 DEFAULT_PAGE_SIZE = 30
 _TOKEN_COUNT_DETAIL_EPSILON = 1e-9
@@ -505,9 +509,11 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Span.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Span.start_time < time_range.end)
+        filter_root_scope: Optional[RootSpanScope] = None
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
+            filter_root_scope = span_filter.root_scope
         sort_config: Optional[SpanSortConfig] = None
         cursor_rowid_column: Any = models.Span.id
         if sort:
@@ -533,6 +539,15 @@ class Project(Node):
             else:
                 stmt = stmt.where(models.Span.id > cursor.rowid)
         stmt = stmt.order_by(cursor_rowid_column)
+        # The flag is redundant when the condition already restricts at least as
+        # narrowly, and applying both would add a second correlated subquery (plus,
+        # in the orphan-aware branch, a CTE over `spans`) selecting the same rows.
+        if (
+            root_spans_only
+            and filter_root_scope is not None
+            and (orphan_span_as_root_span or filter_root_scope == "strict")
+        ):
+            root_spans_only = False
         if root_spans_only:
             # A root span is either a span with no parent_id or an orphan span
             # (a span whose parent_id references a span that doesn't exist in the database)
@@ -1099,6 +1114,24 @@ class Project(Node):
                 is_valid=False,
                 error_message=str(e),
             )
+
+    @strawberry.field(
+        description=(
+            "Parses a span filter condition and reports how it relates to root-span "
+            "scoping, so a client can tell whether a filtered view is root-scoped "
+            "without parsing the expression itself. Structural only: it does not "
+            "validate the condition, so a condition reported as root-scoped may "
+            "still be rejected when the query runs. Use validateSpanFilterCondition "
+            "to check validity."
+        )
+    )  # type: ignore
+    def analyze_span_filter_condition(
+        self,
+        condition: str,
+    ) -> SpanFilterConditionAnalysis:
+        return SpanFilterConditionAnalysis(
+            selects_root_spans_only=root_span_scope(condition) is not None,
+        )
 
     @strawberry.field
     async def annotation_configs(
