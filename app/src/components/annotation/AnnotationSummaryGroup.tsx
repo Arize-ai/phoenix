@@ -173,7 +173,7 @@ export const AnnotationSummaryGroupTokens = ({
   }
 
   return (
-    <Flex direction="row" gap="size-50" wrap="wrap">
+    <Flex direction="row" gap="size-50" wrap="wrap" alignItems="center">
       {sortedSummariesByName.map((summary) => {
         const latestAnnotation = annotationsByName[summary.name]?.[0];
         const meanScore = summary?.meanScore;

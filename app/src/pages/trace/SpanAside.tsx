@@ -1,17 +1,20 @@
 import { Suspense, useRef } from "react";
-import { FocusScope } from "react-aria";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useFragment } from "react-relay";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group } from "react-resizable-panels";
 
-import { Flex, KeyboardToken, View } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { FocusHotkey } from "@phoenix/components/FocusHotkey";
+import {
+  Flex,
+  Icon,
+  IconButton,
+  Icons,
+  KeyboardToken,
+  View,
+} from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
 import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
-import type { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
 
 import type { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import {
@@ -20,10 +23,12 @@ import {
   SpanNotesEditorSkeleton,
 } from "./SpanNotesEditor";
 
-const SPAN_ANNOTATION_LIST_HOTKEY = "s";
-
 type SpanAsideProps = {
   span: SpanAside_span$key;
+  /**
+   * Called when the user dismisses the aside
+   */
+  onClose?: () => void;
 };
 
 /**
@@ -73,8 +78,6 @@ export function SpanAside(props: SpanAsideProps) {
         endTime
         tokenCountTotal
         ...TraceHeaderRootSpanAnnotationsFragment
-        ...SpanAsideAnnotationList_span
-        ...AnnotationSummaryGroup
       }
     `,
     props.span
@@ -100,17 +103,24 @@ export function SpanAside(props: SpanAsideProps) {
 
   return (
     <Group orientation="vertical">
-      <Suspense>
-        <SpanAsideAnnotationList span={data} />
-      </Suspense>
       <TitledPanel
         ref={editAnnotationsPanelRef}
-        resizable
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
             <span>Edit Annotations</span>
             <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
           </Flex>
+        }
+        extra={
+          props.onClose ? (
+            <IconButton
+              size="S"
+              aria-label="Close annotations"
+              onPress={props.onClose}
+            >
+              <Icon svg={<Icons.Close />} />
+            </IconButton>
+          ) : null
         }
         panelProps={{ minSize: "10%" }}
       >
@@ -142,74 +152,5 @@ export function SpanAside(props: SpanAsideProps) {
         </View>
       </TitledPanel>
     </Group>
-  );
-}
-
-function SpanAsideAnnotationList(props: {
-  span: SpanAsideAnnotationList_span$key;
-}) {
-  const data = useFragment<SpanAsideAnnotationList_span$key>(
-    graphql`
-      fragment SpanAsideAnnotationList_span on Span {
-        project {
-          id
-          annotationConfigs {
-            configs: edges {
-              config: node {
-                ... on Node {
-                  id
-                }
-                ... on AnnotationConfigBase {
-                  name
-                }
-              }
-            }
-          }
-        }
-        spanAnnotations {
-          id
-        }
-        ...AnnotationSummaryGroup
-      }
-    `,
-    props.span
-  );
-  const annotationListPanelRef = useRef<PanelImperativeHandle>(null);
-  useHotkeys(SPAN_ANNOTATION_LIST_HOTKEY, () => {
-    if (
-      annotationListPanelRef.current &&
-      annotationListPanelRef.current.isCollapsed()
-    ) {
-      annotationListPanelRef.current.expand();
-    }
-  });
-  const hasAnnotations = data.spanAnnotations.length > 0;
-  return (
-    <TitledPanel
-      ref={annotationListPanelRef}
-      title={
-        <Flex direction={"row"} gap="size-100" alignItems={"center"}>
-          <span>Annotation Summary</span>
-          <KeyboardToken>{SPAN_ANNOTATION_LIST_HOTKEY}</KeyboardToken>
-        </Flex>
-      }
-      disabled={!hasAnnotations}
-      panelProps={{
-        defaultSize: hasAnnotations ? "20%" : "0%",
-        minSize: hasAnnotations ? "20%" : "0%",
-      }}
-    >
-      <FocusScope>
-        <FocusHotkey hotkey={SPAN_ANNOTATION_LIST_HOTKEY} />
-        <View
-          paddingY="size-200"
-          paddingX="size-200"
-          overflow="auto"
-          maxHeight="100%"
-        >
-          <AnnotationSummaryGroupTokens span={data} />
-        </View>
-      </FocusScope>
-    </TitledPanel>
   );
 }

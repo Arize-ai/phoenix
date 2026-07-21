@@ -2,6 +2,8 @@ export * from "./AnnotationColorSwatch";
 export * from "./AnnotationLabel";
 export * from "./AnnotationTooltip";
 export * from "./optimizationUtils";
+export * from "./AddAnnotationButton";
 export * from "./AnnotationScoreText";
+export * from "./AnnotationSummaryRow";
 export * from "./types";
 export * from "./AnnotationNameAndValue";

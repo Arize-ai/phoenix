@@ -39,7 +39,6 @@ import {
   Heading,
   Icon,
   Icons,
-  Keyboard,
   LazyTabPanel,
   LinkButton,
   Loading,
@@ -49,9 +48,10 @@ import {
   TabList,
   Tabs,
   Text,
-  ToggleButton,
   View,
 } from "@phoenix/components";
+import { AnnotationSummaryRow } from "@phoenix/components/annotation";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { AttributesJSONBlock } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
@@ -241,6 +241,7 @@ export function SpanDetails({
             ...SpanHeader_span
             ...SpanFeedback_annotations
             ...SpanAside_span
+            ...AnnotationSummaryGroup
           }
         }
       }
@@ -306,35 +307,25 @@ export function SpanDetails({
                     span={span}
                     buttonText={isCondensedView ? null : "Add to Dataset"}
                   />
-                  <ToggleButton
-                    size="S"
-                    isSelected={isAnnotatingSpans}
-                    onPress={() => {
-                      const next = !isAnnotatingSpans;
-                      setIsAnnotatingSpans(next);
-                      const asidePanel = asidePanelRef.current;
-                      if (asidePanel) {
-                        if (next) {
-                          asidePanel.expand();
-                        } else {
-                          asidePanel.collapse();
-                        }
-                      }
-                    }}
-                    leadingVisual={<Icon svg={<Icons.Edit2 />} />}
-                    trailingVisual={
-                      !isCondensedView &&
-                      !isAnnotatingSpans && (
-                        <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
-                      )
-                    }
-                  >
-                    {isCondensedView ? null : "Annotate"}
-                  </ToggleButton>
                 </>
               }
             />
           </View>
+          <div data-testid="span-annotations-row">
+            <AnnotationSummaryRow
+              isEmpty={
+                !span.spanAnnotations.some(
+                  (annotation) => annotation.name !== "note"
+                )
+              }
+              onAddAnnotation={() => {
+                setIsAnnotatingSpans(true);
+                asidePanelRef.current?.expand();
+              }}
+            >
+              <AnnotationSummaryGroupTokens span={span} />
+            </AnnotationSummaryRow>
+          </div>
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
@@ -406,7 +397,13 @@ export function SpanDetails({
           }
         }}
       >
-        <SpanAside span={span} />
+        <SpanAside
+          span={span}
+          onClose={() => {
+            setIsAnnotatingSpans(false);
+            asidePanelRef.current?.collapse();
+          }}
+        />
       </Panel>
     </Group>
   );
