@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.server.online_eval import session_sweeper
-from phoenix.server.online_eval.derivation import ResolvedCriteria
+from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+    LEASE_TTL_SECONDS,
+)
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
@@ -101,6 +105,40 @@ async def test_materializes_generation_zero_and_prunes_resolved_activity(
     assert unit.status == "PENDING"
     assert activity_count == 0
     assert cursor.claimed_by == sweeper._sweeper_id
+
+
+async def test_terminalizes_exhausted_lapsed_session_lease(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_activity(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.project_session_rowid == project_session_id)
+            .values(
+                status="RUNNING",
+                claimed_at=_now() - timedelta(seconds=LEASE_TTL_SECONDS + 1),
+                claimed_by="stopped-consumer",
+                attempts=MAX_ATTEMPTS - 1,
+            )
+        )
+
+    await sweeper._tick()
+
+    async with db() as session:
+        unit = (
+            await session.scalars(
+                select(models.EvalSessionWorkUnit).where(
+                    models.EvalSessionWorkUnit.project_session_rowid == project_session_id
+                )
+            )
+        ).one()
+    assert unit.status == "ERROR"
+    assert unit.attempts == MAX_ATTEMPTS
+    assert unit.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
 
 
 async def test_not_yet_due_activity_does_not_consume_scan_limit(

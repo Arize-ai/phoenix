@@ -9,7 +9,10 @@ from sqlalchemy import func, select, update
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval import producer as producer_module
-from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
+from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+    LEASE_TTL_SECONDS,
+)
 from phoenix.server.online_eval.db_coordinator import (
     STALE_FINGERPRINT_ERROR,
     DbEvalWorkCoordinator,
@@ -897,7 +900,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
     assert lapsed_row is not None
     assert lapsed_row.status == "ERROR"
     assert lapsed_row.attempts == MAX_ATTEMPTS
-    assert lapsed_row.error == "lease lapsed with attempts exhausted"
+    assert lapsed_row.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
     assert failed_lapsed_row is not None
     assert failed_lapsed_row.status == "ERROR"
     assert failed_lapsed_row.attempts == MAX_ATTEMPTS

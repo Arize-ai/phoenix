@@ -360,6 +360,16 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 The outstanding work-unit count above which the online-eval producer stops materializing
 new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
 """
+ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES = "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES"
+"""
+The maximum UTF-8 byte size of the default transcript supplied to session evaluators.
+Defaults to 32768.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
+"""
+The maximum UTF-8 byte size of a rendered session code-evaluator payload.
+Defaults to 65536.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -3332,6 +3342,34 @@ def get_env_online_eval_max_outstanding() -> int:
             f"{max_outstanding}. Value must be a positive integer."
         )
     return max_outstanding
+
+
+def get_env_online_eval_max_transcript_bytes() -> int:
+    """Get the session transcript cap, whose minimum is 256 UTF-8 bytes.
+
+    The cap bounds only the rendered ``input`` string. Structured ``turns`` values used
+    by explicit mappings are not truncated.
+    """
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES, 32_768)
+    if max_bytes < 256:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 256."
+        )
+    return max_bytes
+
+
+def get_env_online_eval_max_sandbox_payload_bytes() -> int:
+    """Get the session sandbox payload cap, whose minimum is 1024 UTF-8 bytes."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
+        )
+    return max_bytes
 
 
 def get_env_client_headers() -> dict[str, str]:

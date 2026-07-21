@@ -37,6 +37,11 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_PENDING_WORK_UNITS,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
+    ONLINE_EVAL_SESSION_EXHAUSTED_ERROR_WORK_UNITS,
+    ONLINE_EVAL_SESSION_OLDEST_PENDING_AGE_SECONDS,
+    ONLINE_EVAL_SESSION_PENDING_WORK_UNITS,
+    ONLINE_EVAL_SESSION_RETRYABLE_ERROR_WORK_UNITS,
+    ONLINE_EVAL_SESSION_RUNNING_WORK_UNITS,
 )
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
@@ -114,13 +119,16 @@ class OnlineEvalConsumer(DaemonTask):
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         coordinator: Optional[EvalWorkCoordinator] = None,
+        evaluation_target: models.EvaluationTarget = "SPAN",
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
         claim_batch_size: int = CLAIM_BATCH_SIZE,
         execution_deadline_seconds: float = EXECUTION_DEADLINE_SECONDS,
     ) -> None:
         super().__init__()
         self._db = db
-        self._evaluation_target: models.EvaluationTarget = "SPAN"
+        if evaluation_target not in ("SPAN", "SESSION"):
+            raise ValueError("Online evaluation consumers support SPAN and SESSION targets")
+        self._evaluation_target = evaluation_target
         self._coordinator: EvalWorkCoordinator = coordinator or DbEvalWorkCoordinator(
             db, evaluation_target=self._evaluation_target
         )
@@ -153,6 +161,15 @@ class OnlineEvalConsumer(DaemonTask):
 
     async def _publish_queue_metrics(self) -> None:
         lag = await self._coordinator.lag()
+        if self._evaluation_target == "SESSION":
+            ONLINE_EVAL_SESSION_PENDING_WORK_UNITS.set(lag.pending_count)
+            ONLINE_EVAL_SESSION_RUNNING_WORK_UNITS.set(lag.running_count)
+            ONLINE_EVAL_SESSION_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)
+            ONLINE_EVAL_SESSION_EXHAUSTED_ERROR_WORK_UNITS.set(lag.exhausted_error_count)
+            ONLINE_EVAL_SESSION_OLDEST_PENDING_AGE_SECONDS.set(
+                lag.oldest_pending_age_seconds or 0.0
+            )
+            return
         ONLINE_EVAL_PENDING_WORK_UNITS.set(lag.pending_count)
         ONLINE_EVAL_RUNNING_WORK_UNITS.set(lag.running_count)
         ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)

@@ -2585,6 +2585,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
         timeout: Optional[int] = None,
         evaluator_version_id: Optional[str] = None,
         session_key: Optional[str] = None,
+        max_payload_bytes: Optional[int] = None,
+        payload_limit_remediation: str = (
+            "Reduce the mapped inputs or raise the caller's payload limit."
+        ),
     ) -> None:
         self._name = name
         self._description = description
@@ -2594,6 +2598,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._language = language.upper()
         self._timeout = timeout
         self._evaluator_version_id = evaluator_version_id
+        self._max_payload_bytes = max_payload_bytes
+        self._payload_limit_remediation = payload_limit_remediation
         # ``session_key`` is required on the managed path; the ephemeral
         # path does not consult it.
         if sandbox_session_manager is not None and session_key is None:
@@ -2758,6 +2764,20 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 code = self._build_python_harness(mapped_inputs)
             else:
                 code = self._build_typescript_harness(mapped_inputs)
+
+            if self._max_payload_bytes is not None:
+                payload_bytes = len(code.encode("utf-8"))
+                if payload_bytes > self._max_payload_bytes:
+                    err = (
+                        f"Rendered sandbox payload is {payload_bytes} bytes, which exceeds the "
+                        f"allowed {self._max_payload_bytes} bytes. "
+                        f"{self._payload_limit_remediation}"
+                    )
+                    evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
 
             session_key = self._session_key or ""
 
