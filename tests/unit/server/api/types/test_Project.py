@@ -5527,8 +5527,8 @@ class TestAnnotationMetricsTimeSeries:
             assert mixed_summary["labelCount"] == 2
             assert mixed_summary["meanScore"] == pytest.approx(0.4)
             assert mixed_summary["labelFractions"] == [
-                {"label": "pass", "fraction": pytest.approx(1 / 2)},
                 {"label": "fail", "fraction": pytest.approx(1 / 2)},
+                {"label": "pass", "fraction": pytest.approx(1 / 2)},
             ]
             assert metrics["data"][2]["annotationSummaries"] == []
 
@@ -5658,12 +5658,12 @@ class TestAnnotationMetricsTimeSeries:
                 "labelCount": 11,
                 "meanScore": pytest.approx(0.4),
                 "labelFractions": [
-                    {"label": "pass", "fraction": pytest.approx(1 / 3)},
                     {"label": "fail", "fraction": pytest.approx(1 / 3)},
+                    {"label": "pass", "fraction": pytest.approx(1 / 3)},
                 ],
             }
 
-    async def test_label_fractions_are_bounded_by_window_frequency(
+    async def test_each_time_bin_returns_its_observed_labels(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -5684,14 +5684,8 @@ class TestAnnotationMetricsTimeSeries:
                 session, project, project_session_three, start_time=hour_three
             )
             labels_by_trace = (
-                (
-                    trace_one,
-                    ["label-14"] * 20 + [f"label-{index:02d}" for index in range(15)],
-                ),
-                (
-                    trace_two,
-                    ["label-00"] * 10 + [f"label-{index:02d}" for index in range(1, 15)],
-                ),
+                (trace_one, ["pass", "pass", "pass", "fail"]),
+                (trace_two, ["pass", "review"]),
             )
             for trace, labels in labels_by_trace:
                 session.add_all(
@@ -5763,23 +5757,19 @@ class TestAnnotationMetricsTimeSeries:
         assert not response.errors
         assert response.data is not None
         data = response.data["node"]["traceAnnotationMetricsTimeSeries"]["data"]
-        expected_labels = [
-            "label-14",
-            "label-00",
-            *[f"label-{index:02d}" for index in range(1, 11)],
-        ]
         first_summary = data[0]["annotationSummaries"][0]
         second_summary = data[1]["annotationSummaries"][0]
         third_summary = data[2]["annotationSummaries"][0]
-        assert first_summary["count"] == first_summary["labelCount"] == 35
-        assert second_summary["count"] == second_summary["labelCount"] == 24
-        assert [item["label"] for item in first_summary["labelFractions"]] == expected_labels
-        assert [item["label"] for item in second_summary["labelFractions"]] == expected_labels
-        assert sum(item["fraction"] for item in first_summary["labelFractions"]) == pytest.approx(
-            32 / 35
-        )
+        assert first_summary["count"] == first_summary["labelCount"] == 4
+        assert second_summary["count"] == second_summary["labelCount"] == 2
+        assert [item["label"] for item in first_summary["labelFractions"]] == ["fail", "pass"]
+        assert [item["label"] for item in second_summary["labelFractions"]] == [
+            "pass",
+            "review",
+        ]
+        assert sum(item["fraction"] for item in first_summary["labelFractions"]) == pytest.approx(1)
         assert sum(item["fraction"] for item in second_summary["labelFractions"]) == pytest.approx(
-            21 / 24
+            1
         )
         assert third_summary["scoreCount"] == 1
         assert third_summary["labelFractions"] == []

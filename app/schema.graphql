@@ -998,14 +998,6 @@ type Dataset implements Node {
 
   """The experiment tagged as this dataset's baseline, if one is set."""
   baselineExperiment: Experiment
-
-  """Evaluation metrics for the most recent non-ephemeral experiments."""
-  experimentAnnotationMetrics(first: Int! = 7): ExperimentAnnotationMetrics!
-
-  """
-  Names of all available experiment annotations for this dataset. (The list contains no duplicates.)
-  """
-  experimentAnnotationNames: [String!]!
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
@@ -1747,7 +1739,7 @@ type Experiment implements Node {
   Expected number of experiment runs: dataset examples in scope times repetitions.
   """
   expectedRunCount: Int!
-  annotationSummaries: [ExperimentAnnotationSummary!]!
+  annotationSummaries(annotationName: String): [ExperimentAnnotationSummary!]!
   errorRate: Float
   averageRunLatencyMs: Float
   project: Project
@@ -1756,17 +1748,6 @@ type Experiment implements Node {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   datasetSplits: DatasetSplitConnection!
   job: ExperimentJob
-}
-
-type ExperimentAnnotationMetrics {
-  names: [String!]!
-  baselineExperiment: ExperimentAnnotationMetricsDataPoint
-  recentExperiments: [ExperimentAnnotationMetricsDataPoint!]!
-}
-
-type ExperimentAnnotationMetricsDataPoint {
-  experiment: Experiment!
-  annotationSummaries: [AnnotationSummary!]!
 }
 
 type ExperimentAnnotationSummary {
@@ -1778,6 +1759,7 @@ type ExperimentAnnotationSummary {
   errorCount: Int!
   scoreCount: Int!
   labelCount: Int!
+  labelFractions: [LabelFraction!]!
 }
 
 type ExperimentComparison implements Node {

@@ -2,7 +2,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.sql.elements import ColumnElement
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
@@ -20,10 +21,12 @@ class ExperimentAnnotationSummary:
     error_count: int
     score_count: int
     label_count: int
+    label_fractions: list[tuple[str, float]]
 
 
 ExperimentID: TypeAlias = int
-Key: TypeAlias = ExperimentID
+AnnotationName: TypeAlias = str
+Key: TypeAlias = tuple[ExperimentID, Optional[AnnotationName]]
 Result: TypeAlias = list[ExperimentAnnotationSummary]
 
 
@@ -37,8 +40,35 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        experiment_ids = keys
-        summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
+        requested_keys = set(keys)
+        summaries: defaultdict[Key, Result] = defaultdict(list)
+        label_counts_by_summary: defaultdict[tuple[ExperimentID, str], list[tuple[str, int]]] = (
+            defaultdict(list)
+        )
+        result_counts_by_summary: defaultdict[tuple[ExperimentID, str], int] = defaultdict(int)
+
+        # A batch can mix legacy callers requesting every summary with chart
+        # callers requesting one exact name, so build one predicate for both.
+        unfiltered_experiment_ids = [
+            experiment_id for experiment_id, annotation_name in keys if annotation_name is None
+        ]
+        filtered_experiment_ids_by_name: defaultdict[str, list[int]] = defaultdict(list)
+        for experiment_id, annotation_name in keys:
+            if annotation_name is not None:
+                filtered_experiment_ids_by_name[annotation_name].append(experiment_id)
+        annotation_filter_conditions: list[ColumnElement[bool]] = []
+        if unfiltered_experiment_ids:
+            annotation_filter_conditions.append(
+                models.ExperimentRun.experiment_id.in_(unfiltered_experiment_ids)
+            )
+        for annotation_name, filtered_experiment_ids in filtered_experiment_ids_by_name.items():
+            annotation_filter_conditions.append(
+                and_(
+                    models.ExperimentRun.experiment_id.in_(filtered_experiment_ids),
+                    models.ExperimentRunAnnotation.name == annotation_name,
+                )
+            )
+        annotation_filter = or_(*annotation_filter_conditions)
         repetition_mean_scores_by_example_subquery = (
             select(
                 models.ExperimentRun.experiment_id.label("experiment_id"),
@@ -50,7 +80,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 models.ExperimentRun,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
             )
-            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+            .where(annotation_filter)
             .group_by(
                 models.ExperimentRun.experiment_id,
                 models.ExperimentRun.dataset_example_id,
@@ -93,7 +123,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 models.ExperimentRun,
                 models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
             )
-            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+            .where(annotation_filter)
             .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
             .subquery()
         )
@@ -121,21 +151,73 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
-        async with self._db.read() as session:
-            async for scores_tuple in await session.stream(run_scores_query):
-                summaries[scores_tuple.experiment_id].append(
-                    ExperimentAnnotationSummary(
-                        annotation_name=scores_tuple.annotation_name,
-                        min_score=scores_tuple.min_score,
-                        max_score=scores_tuple.max_score,
-                        mean_score=scores_tuple.mean_score,
-                        count=scores_tuple.count_,
-                        error_count=scores_tuple.error_count,
-                        score_count=scores_tuple.score_count,
-                        label_count=scores_tuple.label_count,
-                    )
+        label_counts_query = (
+            select(
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                models.ExperimentRunAnnotation.name.label("annotation_name"),
+                models.ExperimentRunAnnotation.label.label("label"),
+                func.count().label("count"),
+            )
+            .select_from(models.ExperimentRunAnnotation)
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+            )
+            .where(annotation_filter)
+            .where(models.ExperimentRunAnnotation.error.is_(None))
+            .where(
+                or_(
+                    models.ExperimentRunAnnotation.score.is_not(None),
+                    models.ExperimentRunAnnotation.label.is_not(None),
                 )
-        return [
-            sorted(summaries[experiment_id], key=lambda summary: summary.annotation_name)
-            for experiment_id in experiment_ids
-        ]
+            )
+            .group_by(
+                models.ExperimentRun.experiment_id,
+                models.ExperimentRunAnnotation.name,
+                models.ExperimentRunAnnotation.label,
+            )
+            .order_by(
+                models.ExperimentRun.experiment_id,
+                models.ExperimentRunAnnotation.name,
+                models.ExperimentRunAnnotation.label,
+            )
+        )
+        async with self._db.read() as session:
+            async for label_count_row in await session.stream(label_counts_query):
+                summary_key = (
+                    label_count_row.experiment_id,
+                    label_count_row.annotation_name,
+                )
+                count = int(label_count_row[3])
+                result_counts_by_summary[summary_key] += count
+                if label_count_row.label is not None:
+                    label_counts_by_summary[summary_key].append((label_count_row.label, count))
+            async for scores_tuple in await session.stream(run_scores_query):
+                summary_key = (
+                    scores_tuple.experiment_id,
+                    scores_tuple.annotation_name,
+                )
+                result_count = result_counts_by_summary[summary_key]
+                summary = ExperimentAnnotationSummary(
+                    annotation_name=scores_tuple.annotation_name,
+                    min_score=scores_tuple.min_score,
+                    max_score=scores_tuple.max_score,
+                    mean_score=scores_tuple.mean_score,
+                    count=scores_tuple.count_,
+                    error_count=scores_tuple.error_count,
+                    score_count=scores_tuple.score_count,
+                    label_count=scores_tuple.label_count,
+                    label_fractions=[
+                        (label, count / result_count)
+                        for label, count in label_counts_by_summary[summary_key]
+                    ]
+                    if result_count
+                    else [],
+                )
+                unfiltered_key = (scores_tuple.experiment_id, None)
+                filtered_key = (scores_tuple.experiment_id, scores_tuple.annotation_name)
+                if unfiltered_key in requested_keys:
+                    summaries[unfiltered_key].append(summary)
+                if filtered_key in requested_keys:
+                    summaries[filtered_key].append(summary)
+        return [sorted(summaries[key], key=lambda summary: summary.annotation_name) for key in keys]

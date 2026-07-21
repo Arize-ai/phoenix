@@ -1,67 +1,20 @@
 """Shared query builders for annotation metrics responses."""
 
-from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy import Select, and_, distinct, func, literal, select, tuple_, union_all
-
-MAX_ANNOTATION_LABEL_COUNT = 12
-
-
-def build_top_annotation_labels_stmt(
-    annotation_rows: Select[Any],
-    limit: int = MAX_ANNOTATION_LABEL_COUNT,
-) -> Select[Any]:
-    """Select each evaluation's most frequent labels across the requested window."""
-    rows = annotation_rows.subquery()
-    label_counts = (
-        select(
-            rows.c.name,
-            rows.c.label,
-            func.count().label("label_count"),
-        )
-        .where(rows.c.label.is_not(None))
-        .group_by(rows.c.name, rows.c.label)
-        .subquery()
-    )
-    ranked_labels = select(
-        label_counts.c.name,
-        label_counts.c.label,
-        func.row_number()
-        .over(
-            partition_by=label_counts.c.name,
-            order_by=(
-                label_counts.c.label_count.desc(),
-                label_counts.c.label,
-            ),
-        )
-        .label("label_rank"),
-    ).subquery()
-    return (
-        select(
-            ranked_labels.c.name,
-            ranked_labels.c.label,
-        )
-        .where(ranked_labels.c.label_rank <= limit)
-        .order_by(
-            ranked_labels.c.name,
-            ranked_labels.c.label_rank,
-        )
-    )
+from sqlalchemy import Select, and_, distinct, func, literal, select, union_all
 
 
 def build_entity_weighted_annotation_metrics_stmt(
     annotation_rows: Select[Any],
-    selected_label_pairs: Iterable[tuple[str, str]],
 ) -> Select[Any]:
-    """Aggregate bounded time-series rows using the existing entity-weighted convention."""
+    """Aggregate time-series rows using the existing entity-weighted convention."""
     rows = annotation_rows.subquery()
     # Keep the same weighting order as `dataloaders/annotation_summaries.py`:
     # first calculate each entity's distribution and score, then average those
     # entity-level values so repeated annotations do not give an entity more weight.
-    # All result-bearing entities stay in the denominator. The unreturned
-    # share covers both omitted labels and entities without labels, and can be
-    # exposed as a future `other` bucket without renormalizing these fractions.
+    # All result-bearing entities stay in the denominator, so the unreturned
+    # share represents entities without labels and can be shown as `other`.
     entity_counts = (
         select(
             rows.c.bucket,
@@ -122,10 +75,6 @@ def build_entity_weighted_annotation_metrics_stmt(
         ),
     )
 
-    selected_label_pairs = list(selected_label_pairs)
-    if not selected_label_pairs:
-        return coverage_rows.order_by(coverage.c.bucket, coverage.c.name)
-
     label_counts_by_entity = (
         select(
             rows.c.bucket,
@@ -152,9 +101,7 @@ def build_entity_weighted_annotation_metrics_stmt(
         )
         .subquery()
     )
-    # Apply the selected-label filter after computing each entity's full label
-    # total so omitted labels do not inflate the fractions that remain.
-    selected_label_fractions_by_entity = (
+    label_fractions_by_entity = (
         select(
             label_counts_by_entity.c.bucket,
             label_counts_by_entity.c.entity_id,
@@ -172,34 +119,28 @@ def build_entity_weighted_annotation_metrics_stmt(
                 label_counts_by_entity.c.name == label_totals_by_entity.c.name,
             ),
         )
-        .where(
-            tuple_(label_counts_by_entity.c.name, label_counts_by_entity.c.label).in_(
-                selected_label_pairs
-            )
-        )
         .subquery()
     )
     label_fractions = (
         select(
-            selected_label_fractions_by_entity.c.bucket,
-            selected_label_fractions_by_entity.c.name,
-            selected_label_fractions_by_entity.c.label,
+            label_fractions_by_entity.c.bucket,
+            label_fractions_by_entity.c.name,
+            label_fractions_by_entity.c.label,
             (
-                func.sum(selected_label_fractions_by_entity.c.label_fraction)
-                / entity_counts.c.entity_count
+                func.sum(label_fractions_by_entity.c.label_fraction) / entity_counts.c.entity_count
             ).label("avg_label_fraction"),
         )
         .join(
             entity_counts,
             and_(
-                selected_label_fractions_by_entity.c.bucket == entity_counts.c.bucket,
-                selected_label_fractions_by_entity.c.name == entity_counts.c.name,
+                label_fractions_by_entity.c.bucket == entity_counts.c.bucket,
+                label_fractions_by_entity.c.name == entity_counts.c.name,
             ),
         )
         .group_by(
-            selected_label_fractions_by_entity.c.bucket,
-            selected_label_fractions_by_entity.c.name,
-            selected_label_fractions_by_entity.c.label,
+            label_fractions_by_entity.c.bucket,
+            label_fractions_by_entity.c.name,
+            label_fractions_by_entity.c.label,
             entity_counts.c.entity_count,
         )
         .subquery()

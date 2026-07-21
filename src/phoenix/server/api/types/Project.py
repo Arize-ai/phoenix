@@ -19,10 +19,7 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
-from phoenix.server.api.annotation_metrics import (
-    build_entity_weighted_annotation_metrics_stmt,
-    build_top_annotation_labels_stmt,
-)
+from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
@@ -2301,20 +2298,9 @@ async def _annotation_metrics_time_series(
     if time_range.end:
         stmt = stmt.where(start_time_col < time_range.end)
 
-    selected_labels_by_name: dict[str, list[str]] = {}
-    async with db.read() as session:
-        async for name, label in await session.stream(build_top_annotation_labels_stmt(stmt)):
-            selected_labels_by_name.setdefault(name, []).append(label)
-    selected_label_pairs = [
-        (name, label) for name, labels in selected_labels_by_name.items() for label in labels
-    ]
-
     rows_by_timestamp_and_name: dict[tuple[datetime, str], list[dict[str, Any]]] = {}
     unique_names: set[str] = set()
-    metrics_stmt = build_entity_weighted_annotation_metrics_stmt(
-        stmt,
-        selected_label_pairs,
-    )
+    metrics_stmt = build_entity_weighted_annotation_metrics_stmt(stmt)
     async with db.read() as session:
         async for result_row in await session.stream(metrics_stmt):
             timestamp = _as_datetime(result_row.bucket)
@@ -2334,15 +2320,6 @@ async def _annotation_metrics_time_series(
 
     summaries_by_timestamp: dict[datetime, list[AnnotationSummary]] = {}
     for (timestamp, name), rows in rows_by_timestamp_and_name.items():
-        label_order = {
-            label: index for index, label in enumerate(selected_labels_by_name.get(name, []))
-        }
-        rows.sort(
-            key=lambda row: (
-                row["label"] is None,
-                label_order.get(row["label"], len(label_order)),
-            )
-        )
         summaries_by_timestamp.setdefault(timestamp, []).append(
             AnnotationSummary(name=name, df=DataFrame(rows))
         )

@@ -684,6 +684,10 @@ class TestExperimentAnnotationSummaries:
                         meanScore
                         count
                         errorCount
+                        labelFractions {
+                          label
+                          fraction
+                        }
                       }
                     }
                   }
@@ -720,6 +724,7 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 1.0,
                                         "count": 2,
                                         "errorCount": 0,
+                                        "labelFractions": [{"label": "label-1", "fraction": 1.0}],
                                     },
                                     {
                                         "annotationName": "annotation-name-3",
@@ -728,6 +733,7 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": None,
                                         "count": 4,
                                         "errorCount": 4,
+                                        "labelFractions": [],
                                     },
                                 ],
                             }
@@ -743,6 +749,10 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 1 / 3,
                                         "count": 6,
                                         "errorCount": 0,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 2 / 3},
+                                            {"label": "label-1", "fraction": 1 / 3},
+                                        ],
                                     },
                                     {
                                         "annotationName": "annotation-name-2",
@@ -751,12 +761,74 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 3 / 4,
                                         "count": 4,
                                         "errorCount": 1,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 1 / 3},
+                                            {"label": "label-1", "fraction": 1 / 3},
+                                        ],
                                     },
                                 ],
                             }
                         },
                     ]
                 },
+            }
+        }
+
+    async def test_filters_summaries_by_annotation_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        query = """
+          query ($datasetId: ID!, $annotationName: String) {
+            dataset: node(id: $datasetId) {
+              ... on Dataset {
+                experiments {
+                  edges {
+                    experiment: node {
+                      annotationSummaries(annotationName: $annotationName) {
+                        annotationName
+                        meanScore
+                        labelFractions { label fraction }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID(type_name="Dataset", node_id="1")),
+                "annotationName": "annotation-name-2",
+            },
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "dataset": {
+                "experiments": {
+                    "edges": [
+                        {"experiment": {"annotationSummaries": []}},
+                        {"experiment": {"annotationSummaries": []}},
+                        {
+                            "experiment": {
+                                "annotationSummaries": [
+                                    {
+                                        "annotationName": "annotation-name-2",
+                                        "meanScore": 3 / 4,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 1 / 3},
+                                            {"label": "label-1", "fraction": 1 / 3},
+                                        ],
+                                    }
+                                ]
+                            }
+                        },
+                    ]
+                }
             }
         }
 
