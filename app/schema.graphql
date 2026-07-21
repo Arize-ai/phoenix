@@ -93,11 +93,6 @@ type AgentSession implements Node {
   """Whether the session expires after a period of inactivity."""
   isTemporary: Boolean!
 
-  """
-  When the workspace retention policy will delete this session if it stays idle, derived from the last activity plus the admin-configured idle window. Null for temporary sessions and when idle-based retention is off.
-  """
-  expiresAt: DateTime
-
   """The persisted transcript as Vercel AI UIMessage JSON objects."""
   messages: JSON!
 }

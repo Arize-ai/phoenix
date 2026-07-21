@@ -53,15 +53,13 @@ class AgentsConfig:
     )
     session_retention_max_idle_days: Optional[float] = strawberry.field(
         description=(
-            "Number of idle days after which persisted (non-temporary) agent sessions "
-            "are deleted. Sourced from the `agent.assistant.session_retention` system "
-            "setting. Null means sessions are never deleted for idleness."
+            "Number of idle days after which agent sessions "
+            "are deleted. Null means idle sessions are never deleted."
         ),
     )
     session_retention_max_count_per_user: Optional[int] = strawberry.field(
         description=(
-            "Maximum number of persisted (non-temporary) agent sessions kept per user; "
-            "the newest sessions by activity are retained. Sourced from the "
-            "`agent.assistant.session_retention` system setting. Null means no cap."
+            "Maximum number of agent sessions kept per user; "
+            "the most recently active sessions are retained. Null means no cap."
         ),
     )

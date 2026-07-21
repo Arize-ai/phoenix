@@ -18,7 +18,6 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
-import { getSessionRetentionLabel } from "./sessionExpiryUtils";
 import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionTitleUtils";
 import { TemporarySessionIcon } from "./TemporarySessionIcon";
 
@@ -47,16 +46,6 @@ export type AgentSessionListItem = {
   createdAt: number;
   isTemporary?: boolean;
   isDeleteDisabled?: boolean;
-  /**
-   * When the workspace idle-retention rule will delete the session, in epoch
-   * milliseconds. Null for temporary sessions and when idle retention is off.
-   */
-  expiresAt?: number | null;
-  /**
-   * Whether the session is beyond the workspace per-user count cap and will
-   * be deleted at the next retention sweep.
-   */
-  isOverCountCap?: boolean;
 };
 
 export function SessionListMenu({
@@ -162,11 +151,6 @@ function SessionMenuItem({
 }) {
   const displayName = session.title || EMPTY_SESSION_DISPLAY_NAME;
   const dateLabel = formatRelativeShort(session.createdAt);
-  const retentionLabel = getSessionRetentionLabel({
-    expiresAt: session.expiresAt ?? null,
-    isOverCountCap: Boolean(session.isOverCountCap),
-    now: Date.now(),
-  });
 
   const handleFocusChange = useCallback(
     (isFocused: boolean) => {
@@ -208,19 +192,10 @@ function SessionMenuItem({
           <Text>{displayName}</Text>
           {session.isTemporary ? <TemporarySessionIcon /> : null}
         </Flex>
-        {(dateLabel || retentionLabel) && (
-          <Flex direction="row" alignItems="center" gap="size-100">
-            {dateLabel && (
-              <Text size="XS" color="text-300">
-                {dateLabel}
-              </Text>
-            )}
-            {retentionLabel && (
-              <Text size="XS" color="warning">
-                {retentionLabel}
-              </Text>
-            )}
-          </Flex>
+        {dateLabel && (
+          <Text size="XS" color="text-300">
+            {dateLabel}
+          </Text>
         )}
       </Flex>
     </MenuItem>

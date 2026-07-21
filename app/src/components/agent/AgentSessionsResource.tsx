@@ -125,7 +125,6 @@ function AgentSessionsContent({
               isTemporary
               createdAt
               updatedAt
-              expiresAt
             }
           }
         }
@@ -161,34 +160,16 @@ function AgentSessionsContent({
     setActiveSession(DRAFT_SESSION_ID);
   }, [setActiveSession, store]);
 
-  // The count cap applies per user when auth is enabled and to the shared
-  // anonymous partition otherwise. The list is ordered by recency, so sessions
-  // ranked beyond the cap are deleted at the next retention sweep.
-  const sessionRetentionMaxCountPerUser = useAgentContext(
-    (state) => state.agentsConfig.sessionRetentionMaxCountPerUser
-  );
-  let persistedSessionRank = 0;
   const serverSessions: AgentSessionListItem[] = data.agentSessions.edges.map(
-    ({ node }) => {
-      if (!node.isTemporary) {
-        persistedSessionRank += 1;
-      }
-      return {
-        id: node.id,
-        title: node.title,
-        isTemporary: node.isTemporary,
-        createdAt: Date.parse(node.createdAt as string),
-        expiresAt:
-          node.expiresAt != null ? Date.parse(node.expiresAt as string) : null,
-        isOverCountCap:
-          sessionRetentionMaxCountPerUser !== null &&
-          !node.isTemporary &&
-          persistedSessionRank > sessionRetentionMaxCountPerUser,
-        isDeleteDisabled:
-          chatStatusBySessionId[node.id] === "submitted" ||
-          chatStatusBySessionId[node.id] === "streaming",
-      };
-    }
+    ({ node }) => ({
+      id: node.id,
+      title: node.title,
+      isTemporary: node.isTemporary,
+      createdAt: Date.parse(node.createdAt as string),
+      isDeleteDisabled:
+        chatStatusBySessionId[node.id] === "submitted" ||
+        chatStatusBySessionId[node.id] === "streaming",
+    })
   );
   const draftSession: AgentSessionListItem | null =
     activeSessionId === DRAFT_SESSION_ID
