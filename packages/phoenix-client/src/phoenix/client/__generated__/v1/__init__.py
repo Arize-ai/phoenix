@@ -1671,6 +1671,102 @@ class GetTracesResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class LegacyAssistantMetadataUIMessage(TypedDict):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: Sequence[
+        Union[
+            TextUIPart,
+            ReasoningUIPart,
+            ToolInputStreamingPart,
+            ToolInputAvailablePart,
+            ToolOutputAvailablePart,
+            ToolOutputErrorPart,
+            ToolApprovalRequestedPart,
+            ToolApprovalRespondedPart,
+            ToolOutputDeniedPart,
+            DynamicToolInputStreamingPart,
+            DynamicToolInputAvailablePart,
+            DynamicToolOutputAvailablePart,
+            DynamicToolOutputErrorPart,
+            DynamicToolApprovalRequestedPart,
+            DynamicToolApprovalRespondedPart,
+            DynamicToolOutputDeniedPart,
+            SourceUrlUIPart,
+            SourceDocumentUIPart,
+            FileUIPart,
+            DataUIPart,
+            StepStartUIPart,
+        ]
+    ]
+    metadata: NotRequired[AssistantMessageMetadata]
+
+
+class LegacyChatRegenerateMessage(TypedDict):
+    id: str
+    messages: Sequence[LegacyAssistantMetadataUIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    trigger: Literal["regenerate-message"]
+    messageId: NotRequired[str]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+
+
+class LegacyChatSubmitMessage(TypedDict):
+    id: str
+    messages: Sequence[LegacyAssistantMetadataUIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    trigger: Literal["submit-message"]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+
+
 class PhoenixUIMessage(TypedDict):
     id: str
     role: Literal["system", "user", "assistant"]

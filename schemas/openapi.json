@@ -7954,6 +7954,58 @@
         }
       }
     },
+    "/agents/server/sessions/{session_id}/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Run Server Agent",
+        "description": "Stream a chat turn from the GraphQL server agent (deprecated).\n\nDeprecated transcript-in/stream-out contract kept for published CLI\nclients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the\nfull ``messages`` transcript and a self-minted session id, and the\nserver builds a fresh agent per request without persisting anything.\n\nNew clients should create an ``AgentSession`` via the\n``createAgentSession`` GraphQL mutation and POST single-message turns\nto ``/agents/assistant/sessions/{session_id}/chat`` instead.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
+        "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegacyChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -11885,6 +11937,319 @@
           "auth_method"
         ],
         "title": "LDAPUserData"
+      },
+      "LegacyAssistantMetadataUIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "LegacyAssistantMetadataUIMessage",
+        "description": "``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``."
+      },
+      "LegacyChatRegenerateMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "regenerate-message",
+            "title": "Trigger"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/LegacyAssistantMetadataUIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "ingestTraces": {
+            "type": "boolean",
+            "title": "Ingesttraces",
+            "default": false
+          },
+          "exportRemoteTraces": {
+            "type": "boolean",
+            "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
+            "default": false
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ChatContext"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
+          },
+          "requestedSkills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requestedskills",
+            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
+          },
+          "model": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomProviderModelSelection"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+              }
+            ],
+            "title": "Model",
+            "discriminator": {
+              "propertyName": "providerType",
+              "mapping": {
+                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+                "custom": "#/components/schemas/CustomProviderModelSelection"
+              }
+            }
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trigger",
+          "id",
+          "messages",
+          "model"
+        ],
+        "title": "LegacyChatRegenerateMessage",
+        "description": "Regenerate message extended with Phoenix-specific fields."
+      },
+      "LegacyChatRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/LegacyChatSubmitMessage"
+          },
+          {
+            "$ref": "#/components/schemas/LegacyChatRegenerateMessage"
+          }
+        ],
+        "title": "LegacyChatRequest",
+        "description": "Discriminated union of legacy chat request payloads.",
+        "discriminator": {
+          "propertyName": "trigger",
+          "mapping": {
+            "regenerate-message": "#/components/schemas/LegacyChatRegenerateMessage",
+            "submit-message": "#/components/schemas/LegacyChatSubmitMessage"
+          }
+        }
+      },
+      "LegacyChatSubmitMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "submit-message",
+            "title": "Trigger",
+            "default": "submit-message"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/LegacyAssistantMetadataUIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "ingestTraces": {
+            "type": "boolean",
+            "title": "Ingesttraces",
+            "default": false
+          },
+          "exportRemoteTraces": {
+            "type": "boolean",
+            "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
+            "default": false
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ChatContext"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
+          },
+          "requestedSkills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requestedskills",
+            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
+          },
+          "model": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomProviderModelSelection"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+              }
+            ],
+            "title": "Model",
+            "discriminator": {
+              "propertyName": "providerType",
+              "mapping": {
+                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+                "custom": "#/components/schemas/CustomProviderModelSelection"
+              }
+            }
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "messages",
+          "model"
+        ],
+        "title": "LegacyChatSubmitMessage",
+        "description": "Submit message extended with Phoenix-specific fields."
       },
       "ListDatasetExamplesData": {
         "properties": {

@@ -1545,6 +1545,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/server/sessions/{session_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Server Agent
+         * @deprecated
+         * @description Stream a chat turn from the GraphQL server agent (deprecated).
+         *
+         *     Deprecated transcript-in/stream-out contract kept for published CLI
+         *     clients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the
+         *     full ``messages`` transcript and a self-minted session id, and the
+         *     server builds a fresh agent per request without persisting anything.
+         *
+         *     New clients should create an ``AgentSession`` via the
+         *     ``createAgentSession`` GraphQL mutation and POST single-message turns
+         *     to ``/agents/assistant/sessions/{session_id}/chat`` instead.
+         *
+         *     The request contexts gate capabilities — GraphQL mutations, web access,
+         *     and subagents — and mutations are refused for viewer users. When trace
+         *     recording is enabled (and permitted by system settings), the run is
+         *     traced; locally ingested traces are persisted to the agent's project
+         *     once the stream completes.
+         *
+         *     Returns ``403`` if agents or the server agent are disabled, or if a
+         *     viewer requests mutations.
+         */
+        post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -3099,6 +3138,125 @@ export interface components {
              * @enum {string}
              */
             auth_method: "LDAP";
+        };
+        /**
+         * LegacyAssistantMetadataUIMessage
+         * @description ``UIMessage`` with ``metadata`` narrowed to ``AssistantMessageMetadata``.
+         */
+        LegacyAssistantMetadataUIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            metadata?: components["schemas"]["AssistantMessageMetadata"] | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+        };
+        /**
+         * LegacyChatRegenerateMessage
+         * @description Regenerate message extended with Phoenix-specific fields.
+         */
+        LegacyChatRegenerateMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["LegacyAssistantMetadataUIMessage"][];
+            /** Messageid */
+            messageId?: string | null;
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
+             */
+            requestedSkills?: string[];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LegacyChatRequest
+         * @description Discriminated union of legacy chat request payloads.
+         */
+        LegacyChatRequest: components["schemas"]["LegacyChatSubmitMessage"] | components["schemas"]["LegacyChatRegenerateMessage"];
+        /**
+         * LegacyChatSubmitMessage
+         * @description Submit message extended with Phoenix-specific fields.
+         */
+        LegacyChatSubmitMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["LegacyAssistantMetadataUIMessage"][];
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
+             */
+            requestedSkills?: string[];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+        } & {
+            [key: string]: unknown;
         };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
@@ -10776,6 +10934,41 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_server_agent_agents_server_sessions__session_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LegacyChatRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
