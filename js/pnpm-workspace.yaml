@@ -8,9 +8,6 @@ managePackageManagerVersions: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - "@arizeai/openinference-core"
-  # eve releases multiple times a day, so no stable version is ever 3 days
-  # old; the eve-agent example tracks the latest minor.
-  - eve
   # typescript@7.0.2 and its @typescript/typescript-* platform binaries were
   # published same-day as the TS 7 migration; remove once 3 days have passed.
   - typescript

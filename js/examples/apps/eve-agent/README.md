@@ -3,13 +3,14 @@
 A minimal [Vercel Eve](https://eve.dev/) agent traced with
 `@arizeai/phoenix-otel`. Eve auto-discovers
 [`agent/instrumentation.ts`](./agent/instrumentation.ts) at server startup;
-its `register()` call handles the provider and global wiring, with an
-OpenInference span processor passed via `spanProcessors` to keep only AI spans.
-Every turn then lands in Phoenix as one trace: the `ai.eve.turn` root, each
-model step, and the [`get_weather`](./agent/tools/get_weather.ts) tool call.
+its `register()` call is the entire OpenTelemetry setup. Every turn then lands
+in Phoenix with the `ai.eve.turn` span, each model step, and the
+[`get_weather`](./agent/tools/get_weather.ts) tool call, alongside the spans
+of Eve's workflow engine.
 
 See the [Vercel Eve integration docs](https://arize.com/docs/phoenix/integrations/typescript/vercel/eve-tracing)
-for a full walkthrough of reading Eve traces in Phoenix.
+for a full walkthrough of reading Eve traces in Phoenix, including a
+`spanFilter` setup that exports only the AI spans.
 
 ## Prerequisites
 

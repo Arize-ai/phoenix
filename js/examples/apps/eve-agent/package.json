@@ -13,11 +13,9 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.0",
-    "@arizeai/openinference-vercel": "^3.1.0",
     "@arizeai/phoenix-otel": "workspace:*",
-    "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
     "ai": "^7.0.26",
-    "eve": "^0.27.0",
+    "eve": "^0.25.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
