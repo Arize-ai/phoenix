@@ -46,9 +46,13 @@ async def _add_agent_session(
         return agent_session.id
 
 
-async def _add_user(db: DbSessionFactory, username: str) -> int:
+async def _add_user(
+    db: DbSessionFactory,
+    username: str,
+    role_name: models.UserRoleName,
+) -> int:
     async with db() as session:
-        user_role = models.UserRole(name=f"role-{username}")
+        user_role = models.UserRole(name=role_name)
         session.add(user_role)
         await session.flush()
         user = models.User(
@@ -158,8 +162,8 @@ async def test_count_pass_keeps_newest_sessions_per_user(
     db: DbSessionFactory,
 ) -> None:
     now = datetime.now(timezone.utc)
-    first_user_id = await _add_user(db, "first-user")
-    second_user_id = await _add_user(db, "second-user")
+    first_user_id = await _add_user(db, "first-user", "ADMIN")
+    second_user_id = await _add_user(db, "second-user", "MEMBER")
 
     # Four persisted sessions for the first user, newest first.
     first_user_session_ids = [
@@ -210,7 +214,7 @@ async def test_all_zero_setting_runs_only_temporary_gc(
     db: DbSessionFactory,
 ) -> None:
     now = datetime.now(timezone.utc)
-    user_id = await _add_user(db, "capped-user")
+    user_id = await _add_user(db, "capped-user", "MEMBER")
     ancient_session_ids = [
         await _add_agent_session(
             db,
