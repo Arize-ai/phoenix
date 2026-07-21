@@ -112,16 +112,18 @@ values.
 
 The `register` function accepts the following parameters:
 
-| Parameter          | Type                     | Default                   | Description                                            |
-| ------------------ | ------------------------ | ------------------------- | ------------------------------------------------------ |
-| `projectName`      | `string`                 | `"default"`               | The project name for organizing traces in Phoenix      |
-| `url`              | `string`                 | `"http://localhost:6006"` | The URL to your Phoenix instance                       |
-| `apiKey`           | `string`                 | `undefined`               | API key for Phoenix authentication                     |
-| `headers`          | `Record<string, string>` | `{}`                      | Custom headers for OTLP requests                       |
-| `batch`            | `boolean`                | `true`                    | Use batch span processing (recommended for production) |
-| `instrumentations` | `Instrumentation[]`      | `undefined`               | Array of OpenTelemetry instrumentations to register    |
-| `global`           | `boolean`                | `true`                    | Register the tracer provider globally                  |
-| `diagLogLevel`     | `DiagLogLevel`           | `undefined`               | Diagnostic logging level for debugging                 |
+| Parameter               | Type                     | Default                   | Description                                                                                                                       |
+| ----------------------- | ------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `projectName`           | `string`                 | `"default"`               | The project name for organizing traces in Phoenix                                                                                 |
+| `url`                   | `string`                 | `"http://localhost:6006"` | The URL to your Phoenix instance                                                                                                  |
+| `apiKey`                | `string`                 | `undefined`               | API key for Phoenix authentication                                                                                                |
+| `headers`               | `Record<string, string>` | `{}`                      | Custom headers for OTLP requests                                                                                                  |
+| `batch`                 | `boolean`                | `true`                    | Use batch span processing (recommended for production)                                                                            |
+| `spanFilter`            | `SpanFilter`             | `undefined`               | Predicate deciding which spans are exported; use `isOpenInferenceSpan` from `@arizeai/openinference-vercel` to keep only AI spans |
+| `reparentOrphanedSpans` | `boolean`                | `false`                   | Re-root AI spans whose parents were dropped by `spanFilter`                                                                       |
+| `instrumentations`      | `Instrumentation[]`      | `undefined`               | Array of OpenTelemetry instrumentations to register                                                                               |
+| `global`                | `boolean`                | `true`                    | Register the tracer provider globally                                                                                             |
+| `diagLogLevel`          | `DiagLogLevel`           | `undefined`               | Diagnostic logging level for debugging                                                                                            |
 
 ## Usage Examples
 
