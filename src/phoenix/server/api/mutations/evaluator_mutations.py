@@ -435,6 +435,24 @@ class UpdateProjectLLMEvaluatorInput:
 
 
 @strawberry.input
+class AddProjectCodeEvaluatorInput:
+    project_id: GlobalID
+    evaluator_id: GlobalID
+    name: Identifier
+    sampling_rate: float
+    evaluation_target: EvaluationTarget
+    input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
+        default=None,
+        description=(
+            "Project-specific CODE input mapping. Null inherits the evaluator input mapping; "
+            "an object overrides it."
+        ),
+    )
+    filter_condition: str = ""
+    enabled: bool = True
+
+
+@strawberry.input
 class CreateProjectCodeEvaluatorInput:
     project_id: GlobalID
     name: Identifier
@@ -781,6 +799,62 @@ class EvaluatorMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
+            "Bind an existing CODE evaluator to a project. The evaluator's configuration is "
+            "shared with every project and dataset it is bound to. SPAN is executable; TRACE "
+            "and SESSION are stored but inactive until their runtimes are available."
+        ),
+    )  # type: ignore
+    async def add_project_code_evaluator(
+        self, info: Info[Context, None], input: AddProjectCodeEvaluatorInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+        except ValueError:
+            raise BadRequest(f"Invalid project id: {input.project_id}")
+        try:
+            evaluator_id, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
+        except ValueError as error:
+            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {error}")
+        if evaluator_kind != "CODE":
+            raise BadRequest("Evaluator must be a CODE evaluator")
+        try:
+            name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(str(error))
+        _validate_project_evaluator_filter(input.filter_condition)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
+
+        try:
+            async with info.context.db() as session:
+                if await session.get(models.Project, project_id) is None:
+                    raise NotFound(f"Project not found: {input.project_id}")
+                if await session.get(models.CodeEvaluator, evaluator_id) is None:
+                    raise BadRequest("CODE evaluator not found")
+                criteria = models.ProjectEvaluatorCriteria(
+                    project_id=project_id,
+                    evaluator_id=evaluator_id,
+                    name=name,
+                    filter_condition=input.filter_condition,
+                    sampling_rate=input.sampling_rate,
+                    evaluation_target=input.evaluation_target.value,
+                    input_mapping=(
+                        input.input_mapping.to_orm() if input.input_mapping is not None else None
+                    ),
+                    enabled=input.enabled,
+                )
+                session.add(criteria)
+                await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict("A project evaluator with this name already exists for this project")
+
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
             "Create a CODE project evaluator. SPAN is executable; TRACE and SESSION "
             "are stored but inactive until their runtimes are available."
         ),
@@ -866,8 +940,9 @@ class EvaluatorMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
-            "Update a CODE project evaluator. SPAN is executable; TRACE and SESSION "
-            "are stored but inactive until their runtimes are available."
+            "Update a CODE project evaluator. Editing changes the underlying evaluator, which "
+            "applies to every project and dataset it is bound to. SPAN is executable; TRACE and "
+            "SESSION are stored but inactive until their runtimes are available."
         ),
     )  # type: ignore
     async def update_project_code_evaluator(
