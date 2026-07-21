@@ -20,6 +20,7 @@ import {
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import { projectEvaluatorsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -312,6 +313,7 @@ export const appRouteObjects = createRoutesFromElements(
               <Route
                 path="evaluators"
                 element={<ProjectEvaluatorsPage />}
+                loader={projectEvaluatorsLoader}
                 handle={{
                   agentRoute: {
                     label: "Project Evaluators",

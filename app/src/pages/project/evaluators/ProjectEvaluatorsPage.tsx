@@ -1,14 +1,20 @@
 import { css } from "@emotion/react";
-import { useParams } from "react-router";
+import { Suspense } from "react";
+import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Empty, Flex, View } from "@phoenix/components";
+import { Flex, Loading, View } from "@phoenix/components";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import type { projectEvaluatorsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
+import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
+import {
+  ProjectEvaluatorsTable,
+  useProjectEvaluatorsTable,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 
 /**
- * Lists the evaluators that run against a project's live spans, traces, and
- * sessions. The list itself is not built yet — the tab currently offers the
- * create flow with a stubbed submit.
+ * Lists the evaluators that run against a project's live spans, traces, and sessions.
  */
 export function ProjectEvaluatorsPage() {
   const { projectId } = useParams();
@@ -27,7 +33,20 @@ export function ProjectEvaluatorsPage() {
           <AddProjectEvaluatorMenu size="M" projectId={projectId} />
         </Flex>
       </View>
-      <Empty message="No evaluators are set up for this project" />
+      <Suspense fallback={<Loading />}>
+        <ProjectEvaluatorsPageContent />
+      </Suspense>
     </main>
   );
+}
+
+function ProjectEvaluatorsPageContent() {
+  const loaderData = useLoaderData<typeof projectEvaluatorsLoader>();
+  invariant(loaderData, "loaderData is required");
+  const data = useOwnedPreloadedQuery({
+    query: projectEvaluatorsLoaderGQL,
+    queryRef: loaderData,
+  });
+  const tableProps = useProjectEvaluatorsTable(data.project);
+  return <ProjectEvaluatorsTable {...tableProps} />;
 }
