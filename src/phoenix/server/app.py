@@ -96,6 +96,7 @@ from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.api.routers import (
     create_agents_router,
     create_auth_router,
+    create_legacy_agents_router,
     create_v1_router,
     oauth2_as_router,
     oauth2_as_well_known_router,
@@ -1102,6 +1103,10 @@ def create_app(
     )
     app.include_router(create_v1_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
+        # Starlette matches routes in registration order: the deprecated
+        # /agents/server/... route must precede the agents router, or the
+        # /agents/{agent_id}/... route captures it with agent_id="server".
+        app.include_router(create_legacy_agents_router(authentication_enabled))
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
