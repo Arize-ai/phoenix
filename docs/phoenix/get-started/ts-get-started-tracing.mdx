@@ -1,6 +1,9 @@
 ---
 title: "Send Traces From Your App"
 ---
+
+import StartPhoenixLocal from "../../snippets/start-phoenix-local.mdx";
+
 <Info>
   **Want your coding agent to do this for you?** If you're using Claude Code, Cursor, Copilot, or another AI coding assistant, try [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) to add Phoenix tracing automatically with a single command.
 </Info>
@@ -26,19 +29,9 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
 ---
 ## **Step 1: Start Phoenix**
 
-Before we can send traces anywhere, we need Phoenix running.
+Before we can send traces anywhere, we need Phoenix running. Phoenix ships as a Python package, so `uvx` is the quickest local option even for a TypeScript app.
 
-The fastest way to get an instance is to run it locally from your terminal:
-
-```bash
-uvx arize-phoenix serve
-```
-
-This starts Phoenix at [http://localhost:6006](http://localhost:6006) — open that URL in your browser to see the UI. Leave it running in its own terminal tab for the rest of this guide.
-
-<Info>
-  Phoenix ships as a Python package, so `uvx` (or `pip install arize-phoenix` followed by `phoenix serve`) is the quickest local option even for a TypeScript app. If you'd rather not install Python, `docker run -p 6006:6006 arizephoenix/phoenix:latest` works too. For a persistent deployment, see the [self-hosting guide](/docs/phoenix/self-hosting).
-</Info>
+<StartPhoenixLocal />
 
 ## **Step 2: Configure your Environment**
 

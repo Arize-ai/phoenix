@@ -211,6 +211,4 @@ AWS (CloudFormation), Kubernetes (Helm), Docker, Railway
 
 **Self-Hosting**: Phoenix can be self-hosted on Docker, Kubernetes, AWS, Railway, or locally. Self-hosted instances support authentication, email configuration, and data retention policies.
 
-**Phoenix Cloud**: Managed Phoenix hosting service with automatic updates, scaling, and maintenance handled by Arize team.
-
 > For additional documentation: https://arize.com/docs/phoenix/llms.txt

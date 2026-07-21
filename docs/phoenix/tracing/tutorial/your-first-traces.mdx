@@ -3,6 +3,9 @@ title: "Your First Traces"
 description: "Build a support agent and trace every LLM call, tool execution, and RAG retrieval"
 ---
 
+import StartPhoenixLocal from "../../../snippets/start-phoenix-local.mdx";
+import PhoenixAuthNote from "../../../snippets/phoenix-auth-note.mdx";
+
 When building agents and LLM applications, it's hard to see what's actually going on under the hood. Even if you set up a comprehensive agent architecture with multiple prompts, descriptive tools, and data retrievals, you're left answering questions like:
 
 - Why did the agent choose that tool instead of this one?
@@ -69,15 +72,9 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
 
 ## Start Phoenix
 
-In order to send traces to Phoenix, you need a Phoenix instance running. Start one locally in its own terminal tab:
+In order to send traces to Phoenix, you need a Phoenix instance running.
 
-```bash
-uvx arize-phoenix serve
-```
-
-If you don't have [uv](https://docs.astral.sh/uv/) installed, use `pip install arize-phoenix && phoenix serve` instead.
-
-Phoenix will be available at [http://localhost:6006](http://localhost:6006). If you'd rather run it as a persistent deployment, see the [self-hosting guide](/docs/phoenix/self-hosting).
+<StartPhoenixLocal />
 
 Now point your application at it:
 
@@ -101,11 +98,7 @@ Now point your application at it:
   </Tab>
 </Tabs>
 
-<Note>
-If your Phoenix deployment has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also set `PHOENIX_API_KEY` to an API key from its **Settings** page. A local `phoenix serve` doesn't need one.
-</Note>
-
-
+<PhoenixAuthNote />
 
 ## Configure Tracing
 
@@ -164,7 +157,6 @@ Without tracing, you're forced to build your own logging or debugging, and there
 For SupportBot, tracing LLM calls will give us observability into the classification stage. We'll see exactly what class all our support queries are, and what lead to that classification.
 
 It will also give us observability into the final generation stage. How was the final output delivered to the user, and what context went into that final LLM call that generated the final output?
-
 
 <Tabs>
   <Tab title="TypeScript" icon="js">

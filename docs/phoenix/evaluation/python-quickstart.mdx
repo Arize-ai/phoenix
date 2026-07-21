@@ -3,19 +3,16 @@ title: "Get Started: Evaluations"
 sidebarTitle: "Python Quickstart"
 ---
 
+import StartPhoenixLocal from "../../snippets/start-phoenix-local.mdx";
+import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
+
 Now that you have Phoenix up and running, and sent traces to your first project, the next step you can take is running **evaluations** of your Python application. Evaluations let you measure and monitor the quality of your application by scoring traces against metrics like accuracy, relevance, or custom checks.
 
 <Steps>
   <Step title={<span className="step-title">Launch Phoenix</span>}>
     Before running evals, make sure Phoenix is running & you have sent traces in your project. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started) & [Get Started with Tracing guide](/docs/phoenix/get-started/get-started-tracing).
 
-    To run Phoenix on your local machine:
-
-    ```bash
-    uvx arize-phoenix serve
-    ```
-
-    Then navigate to [http://localhost:6006](http://localhost:6006) in your browser.
+    <StartPhoenixLocal />
 
     Next, tell the Phoenix client where that instance lives. Run this alongside the rest of the code in this guide (in your notebook or script):
 
@@ -25,7 +22,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
     ```
 
-    For a persistent deployment you have a variety of options — Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation. ([Learn more: Self-Hosting](/docs/phoenix/self-hosting)) Point `PHOENIX_COLLECTOR_ENDPOINT` at that deployment's hostname instead, and if it has authentication enabled also set `os.environ["PHOENIX_API_KEY"]` using a key from its **Settings** page.
+    <PhoenixAuthNote />
   </Step>
 
   <Step title={<span className="step-title">Install Phoenix Evals</span>}>

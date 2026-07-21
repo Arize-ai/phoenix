@@ -3,87 +3,22 @@ title: "AutoGen AgentChat Tracing"
 description: Auto-instrument your AgentChat application for seamless observability
 ---
 
+import LaunchPhoenixTabs from "../../../../snippets/launch-phoenix-tabs.mdx";
+import SetPhoenixEndpointPython from "../../../../snippets/set-phoenix-endpoint-python.mdx";
+
 [AutoGen AgentChat](https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/index.html) is the framework within Microsoft's AutoGen that enables robust multi-agent application.
 
-<Tabs>
-  <Tab title="Command Line">
-    **Launch your local Phoenix instance:**
+## Launch Phoenix
 
-    ``` bash
-    uvx arize-phoenix serve
-    ```
+<LaunchPhoenixTabs />
 
-    If you don't have [uv](https://docs.astral.sh/uv/) installed, use `pip install arize-phoenix && phoenix serve` instead.
+**Install packages:**
 
-    For details on customizing a local terminal deployment, see [Terminal Setup](/docs/phoenix/environments#terminal).
+```bash
+pip install arize-phoenix-otel
+```
 
-    **Install packages:**
-
-    ``` bash
-    pip install arize-phoenix-otel
-    ```
-
-    **Set your Phoenix endpoint:**
-
-    ```javascript
-    import os
-
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-    ```
-
-    See [Terminal](/docs/phoenix/environments#terminal) for more details.
-  </Tab>
-  <Tab title="Docker">
-    **Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
-
-    ```bash
-    docker pull arizephoenix/phoenix:latest
-    ```
-
-    **Run your containerized instance:**
-
-    ```bash
-    docker run -p 6006:6006 arizephoenix/phoenix:latest
-    ```
-
-    This will expose the Phoenix on `localhost:6006`
-
-    **Install packages:**
-
-    ``` bash
-    pip install arize-phoenix-otel
-    ```
-
-    **Set your Phoenix endpoint:**
-
-    ```javascript
-    import os
-
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-    ```
-
-    For more info on using Phoenix with Docker, see [Docker](/docs/phoenix/self-hosting/deployment-options/docker).
-  </Tab>
-    <Tab title="Notebook">
-    **Install packages:**
-
-    ``` bash
-    pip install arize-phoenix
-    ```
-
-    **Launch Phoenix:**
-
-    ```javascript
-    import phoenix as px
-    px.launch_app()
-    ```
-
-    <Info>
-    By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](/docs/phoenix/self-hosting) or use one of the other deployment options to retain traces.
-
-    </Info>
-  </Tab>
-</Tabs>
+<SetPhoenixEndpointPython />
 
 ## Install
 
@@ -175,5 +110,4 @@ Phoenix provides visibility into your AgentChat operations by automatically trac
 * [AutoGen AgentChat documentation](https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/index.html)
 
 * [AutoGen AgentChat OpenInference Package](https://pypi.org/project/openinference-instrumentation-autogen-agentchat/)
-
 

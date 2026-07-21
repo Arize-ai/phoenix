@@ -3,6 +3,8 @@ title: "Mastra Tracing"
 description: Instrument agent applications built with Mastra
 ---
 
+import StartPhoenixLocal from "../../../../snippets/start-phoenix-local.mdx";
+
 Mastra is an agentic framework that simplifies building complex AI applications with multi-agent workflows, tool integrations, and memory management.
 
 ## Install
@@ -13,7 +15,9 @@ npm install @mastra/arize @mastra/observability
 
 ## Configure Environment
 
-Start Phoenix — `uvx arize-phoenix serve` runs it locally (or `pip install arize-phoenix && phoenix serve` if you don't have [uv](https://docs.astral.sh/uv/)). See [self-hosting](/docs/phoenix/self-hosting) for Docker, Kubernetes, and other deployment options.
+First, start Phoenix:
+
+<StartPhoenixLocal />
 
 Then create a `.env` file that points Mastra at it:
 

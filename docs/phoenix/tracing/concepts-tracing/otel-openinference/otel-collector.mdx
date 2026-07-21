@@ -76,14 +76,14 @@ Reasons to put a Collector between your applications and Phoenix:
 | **Fan-out to multiple backends** | Send the same spans to Phoenix and a long-term storage system, or to Phoenix and a metrics backend, without duplicating instrumentation in the app. |
 | **Project routing** | Use a `routing` connector to send spans to different Phoenix projects (or different Phoenix instances) based on span attributes — for example, splitting tenant traffic. Phoenix itself doesn't expose multi-project routing in the SDK; the Collector is where that logic belongs. |
 | **Tail sampling** | Buffer complete traces and decide which to keep based on outcome (error spans, slow requests, specific attributes). |
-| **Credential centralization** | Application code stays free of Phoenix Cloud API keys; the Collector handles authentication at a single chokepoint. |
+| **Credential centralization** | Application code stays free of Phoenix API keys; the Collector handles authentication at a single chokepoint. |
 | **Tail-end batching** | Reduce the number of network round-trips from your fleet to Phoenix by batching across applications at the Collector. |
 
 # Common Pitfalls
 
 A few Collector failure modes to know about:
 
-- **Forgetting Phoenix Cloud authentication** — when exporting to Phoenix Cloud or any authenticated Phoenix instance, the Collector needs to add `Authorization: Bearer <api-key>` to outbound requests. Use the `headers_setter` extension or set them in the exporter configuration. Local Phoenix doesn't require auth.
+- **Forgetting authentication** — when exporting to a Phoenix instance with authentication enabled, the Collector needs to add `Authorization: Bearer <api-key>` to outbound requests. Use the `headers_setter` extension or set them in the exporter configuration. Local Phoenix doesn't require auth.
 - **Modifying shared span objects across pipelines** — when one pipeline mutates a span, every other pipeline that processes the same span sees the modification. Use a `routing` connector to duplicate spans cleanly before fan-out.
 - **No batch processor at the end of the pipeline** — for production volumes, the last processor in a pipeline should be a `batch` processor. Without it, the Collector exports one span at a time, which is inefficient.
 - **Wrong Collector endpoint** — applications need to point at the Collector's OTLP endpoint (gRPC: `:4317`, HTTP: `:4318`), not at Phoenix directly. Mixing the two is a common source of "why are some spans missing?" debugging.
@@ -95,7 +95,7 @@ Both with and without a Collector, your application code looks the same — the 
 
 ```
 Without Collector:
-  App → Exporter → http://localhost:6006 (or Phoenix Cloud)
+  App → Exporter → http://localhost:6006 (or a remote Phoenix)
 
 With Collector:
   App → Exporter → Collector → (processors) → Phoenix (and/or other backends)

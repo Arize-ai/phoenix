@@ -3,6 +3,9 @@ title: "Spring AI Tracing"
 description: "How to use OpenInference instrumentation with Spring AI and export traces to Arize Phoenix."
 ---
 
+import LaunchPhoenixTerminal from "../../../../snippets/launch-phoenix-terminal.mdx";
+import LaunchPhoenixDocker from "../../../../snippets/launch-phoenix-docker.mdx";
+
 ## Prerequisites
 
 * Java 11 or higher
@@ -33,42 +36,13 @@ dependencies {
 ## **Setup Phoenix**
 
 <Tabs>
-<Tab title="Docker">
+  <Tab title="Command Line">
+    <LaunchPhoenixTerminal />
+  </Tab>
 
-**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
-
-```bash
-docker pull arizephoenix/phoenix:latest
-```
-
-**Run your containerized instance:**
-
-```bash
-docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
-```
-
-This command:
-
-* Exposes port 6006 for the Phoenix web UI
-* Exposes port 4317 for the OTLP gRPC endpoint (where traces are sent)
-
-For more info on using Phoenix with Docker, see [Docker](/docs/phoenix/self-hosting/deployment-options/docker).
-</Tab>
-
-<Tab title="Command Line">
-
-**Launch a local Phoenix instance:**
-
-```bash
-uvx arize-phoenix serve
-```
-
-If you don't have [uv](https://docs.astral.sh/uv/) installed, use `pip install arize-phoenix && phoenix serve` instead.
-
-This serves the web UI on port 6006 and the OTLP gRPC endpoint on port 4317.
-
-For other deployment options, see [Self-Hosting](/docs/phoenix/self-hosting).
-</Tab>
+  <Tab title="Docker">
+    <LaunchPhoenixDocker />
+  </Tab>
 </Tabs>
 
 <Warning>

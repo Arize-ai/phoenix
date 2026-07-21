@@ -478,12 +478,9 @@
 - [How do I resolve Phoenix Evals showing NOT\_PARSABLE?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable): `NOT_PARSABLE` errors often occur when LLM responses exceed the `max_tokens` limit or produce incomplete JSON
 - [Langfuse alternative? Arize Phoenix vs Langfuse: Key differences](https://arize.com/docs/phoenix/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences): Langfuse alternative? Arize Phoenix vs Langfuse: Key differences
 - [Open Source LangSmith Alternative: Arize Phoenix vs. LangSmith](https://arize.com/docs/phoenix/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith): Compare Phoenix and LangSmith across observability, evaluation, and open-source features
-- [Phoenix Cloud Migration Guide: Legacy to New Version](https://arize.com/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version): To move to the new Phoenix Cloud, simply [create a new Phoenix
-- [What is LlamaTrace vs Phoenix Cloud?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud): LlamaTrace and Phoenix Cloud are the same tool. They are the hosted version of Phoenix provided on
 - [What is my Phoenix Endpoint?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint): What is my Phoenix Endpoint?
 - [What is the difference between GRPC and HTTP?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http): gRPC and HTTP are communication protocols used to transfer data between client and server applications
 - [What is the difference between Phoenix and Arize?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize): Arize is the company that makes Phoenix. Phoenix is an open source LLM observability tool offered by Arize
-- [Will Phoenix Cloud be on the latest version of Phoenix?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix): We update the Phoenix version used by Phoenix Cloud on a weekly basis
 ## SDK & API Reference
 
 - [SDK Overview](https://arize.com/docs/phoenix/sdk-api-reference): Navigate all Phoenix SDK and API reference docs
@@ -760,7 +757,6 @@
 
 - [07.02.2024: Function call evaluations](https://arize.com/docs/phoenix/release-notes/2024/07-02-2024-function-call-evaluations): Available in Phoenix 4.6+
 - [07.03.2024: Datasets & experiments](https://arize.com/docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments): Available in Phoenix 4.6+
-- [07.11.2024: Hosted Phoenix and llamatrace](https://arize.com/docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace): Phoenix is now available for deployment as a fully hosted service
 - [07.18.2024: Guardrails AI integrations](https://arize.com/docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations): Available in Phoenix 4.11+
 - [09.26.2024: Authentication & RBAC](https://arize.com/docs/phoenix/release-notes/2024/09-26-2024-authentication-and-rbac): Available in Phoenix 5.0+
 - [11.18.2024: Prompt playground](https://arize.com/docs/phoenix/release-notes/2024/11-18-2024-prompt-playground): Available in Phoenix 6.0+
@@ -856,7 +852,6 @@
 - [06.13.2025: Session filtering](https://arize.com/docs/phoenix/release-notes/06-2025/06-13-2025-session-filtering): Available in Phoenix 10.12+
 - [06.25.2025: Amazon Bedrock support in playground](https://arize.com/docs/phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground): Available in Phoenix 10.15+
 - [06.25.2025: Cost tracking](https://arize.com/docs/phoenix/release-notes/06-2025/06-25-2025-cost-tracking): Available in Phoenix 11.0+
-- [06.25.2025: New Phoenix Cloud](https://arize.com/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud): 06.25.2025: New Phoenix Cloud
 - [07.02.2025: Cursor MCP button](https://arize.com/docs/phoenix/release-notes/07-2025/07-02-2025-cursor-mcp-button): Available in Phoenix 11.3+
 - [07.03.2025: Cost summaries in trace headers](https://arize.com/docs/phoenix/release-notes/07-2025/07-03-2025-cost-summaries-in-trace-headers): Available in Phoenix 11.4+
 - [07.07.2025: Database disk usage monitor](https://arize.com/docs/phoenix/release-notes/07-2025/07-07-2025-databse-disk-usage-monitor): Available in Phoenix 11.5+

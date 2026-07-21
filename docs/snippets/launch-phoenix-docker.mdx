@@ -1,0 +1,15 @@
+**Pull the latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
+
+```bash
+docker pull arizephoenix/phoenix:latest
+```
+
+**Run your containerized instance:**
+
+```bash
+docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
+```
+
+This exposes port 6006 for the web UI and the OTLP HTTP endpoint, and port 4317 for the OTLP gRPC endpoint.
+
+For more info on using Phoenix with Docker, see [Docker](/docs/phoenix/self-hosting/deployment-options/docker).

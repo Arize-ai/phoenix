@@ -1,0 +1,11 @@
+The fastest way to get an instance is to run it locally from your terminal:
+
+```bash
+uvx arize-phoenix serve
+```
+
+This starts Phoenix at [http://localhost:6006](http://localhost:6006) — open that URL in your browser to see the UI. Leave it running in its own terminal tab.
+
+<Info>
+  No [uv](https://docs.astral.sh/uv/)? `pip install arize-phoenix` followed by `phoenix serve` does the same thing, and `docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest` works without installing Python at all. For a persistent deployment backed by PostgreSQL — Docker, Kubernetes, Helm, Railway, or AWS CloudFormation — see the [self-hosting guide](/docs/phoenix/self-hosting).
+</Info>

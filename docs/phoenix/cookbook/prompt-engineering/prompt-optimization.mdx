@@ -3,6 +3,9 @@ title: "Prompt Optimization Techniques"
 description: "This tutorial will use Phoenix to compare the performance of different prompt optimization techniques."
 ---
 
+import ConnectToPhoenixPython from "../../../snippets/connect-to-phoenix-python.mdx";
+
+
 <Frame>
 <iframe src="https://cdn.iframe.ly/XKrGMjE" width={1000} height={400} allowFullScreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"></iframe>
 </Frame>
@@ -37,15 +40,13 @@ Let's get started!
 !pip install -q "arize-phoenix>=8.0.0" datasets
 ```
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](/docs/phoenix/self-hosting) if you'd prefer.
+<ConnectToPhoenixPython />
+
+Then provide your OpenAI key, which this tutorial uses for the LLM calls:
 
 ```py
 import os
 from getpass import getpass
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-if not os.environ.get("PHOENIX_CLIENT_HEADERS"):
-    os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=" + getpass("Enter your Phoenix API key: ")
 
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")

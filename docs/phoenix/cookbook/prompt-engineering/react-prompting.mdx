@@ -3,6 +3,9 @@ title: "ReAct Prompting"
 description: "**ReAct (Reasoning + Acting)** is a prompting technique that enables LLMs to think step-by-step before taking action. Unlike traditional prompting, where a model directly provides an answer, ReAct prompts guide the model to reason through a problem first, then decide which tools or actions are necessary to reach the best solution."
 ---
 
+import ConnectToPhoenixPython from "../../../snippets/connect-to-phoenix-python.mdx";
+
+
 <Frame>
 <iframe width="744" height="419" src="https://www.youtube.com/embed/PB7hrp0mz54" title="ReAct Prompting" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </Frame>
@@ -36,15 +39,13 @@ Let’s get started! 🚀
 !pip install -qqq "arize-phoenix>=8.0.0" datasets openinference-instrumentation-openai
 ```
 
-Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](/docs/phoenix/self-hosting) if you'd prefer.
+<ConnectToPhoenixPython />
+
+Then provide your OpenAI key, which this tutorial uses for the LLM calls:
 
 ```py
 import os
 from getpass import getpass
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-if not os.environ.get("PHOENIX_CLIENT_HEADERS"):
-    os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=" + getpass("Enter your Phoenix API key: ")
 
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
@@ -74,7 +75,7 @@ nest_asyncio.apply()
 
 ```py
 tracer_provider = register(
-    project_name="ReAct-examples", endpoint="https://app.phoenix.arize.com/v1/traces"
+    project_name="ReAct-examples", endpoint="http://localhost:6006/v1/traces"
 )
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```

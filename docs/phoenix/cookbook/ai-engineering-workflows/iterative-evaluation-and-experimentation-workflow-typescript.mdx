@@ -16,7 +16,7 @@ In this tutorial, you will:
 
 ⚠️ **Prerequisites**: This tutorial requires:
 
-* A free [Arize Phoenix Cloud](https://app.phoenix.arize.com/) account or local Phoenix instance
+* A running Phoenix instance (`uvx arize-phoenix serve`, or see [self-hosting](/docs/phoenix/self-hosting))
 * An OpenAI API key
 * Node.js and npm installed
 
@@ -90,7 +90,7 @@ Always use multiple tools in sequence to provide comprehensive recommendations. 
     # Phoenix Configuration
     PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
     PHOENIX_PROJECT_NAME=mastra-project
-    PHOENIX_API_KEY=your-api-key  # Required for Phoenix Cloud
+    PHOENIX_API_KEY=your-api-key  # Only if authentication is enabled
     ```
   </Step>
 

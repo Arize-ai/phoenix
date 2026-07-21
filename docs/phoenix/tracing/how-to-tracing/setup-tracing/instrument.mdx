@@ -79,7 +79,7 @@ const tracerProvider = register({
 </Tab>
 
 <Tab title="Go" icon="golang">
-Configure the OpenTelemetry Go SDK with an OTLP/HTTP exporter pointed at Phoenix, then obtain a tracer. For Phoenix Cloud, set `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`.
+Configure the OpenTelemetry Go SDK with an OTLP/HTTP exporter pointed at Phoenix, then obtain a tracer. For a remote deployment, set `PHOENIX_COLLECTOR_ENDPOINT` and, if it has authentication enabled, `PHOENIX_API_KEY`.
 
 ```go
 import (

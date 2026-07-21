@@ -2,6 +2,8 @@
 title: "TypeScript Quickstart"
 ---
 
+import StartPhoenixLocal from "../../snippets/start-phoenix-local.mdx";
+
 The Phoenix TypeScript Evals package makes it easy to evaluate your application end-to-end by defining datasets, tasks, and evaluators that reveal how well your system performs and where it can improve.
 
 <Card title="@arizeai/phoenix-evals" href="https://www.npmjs.com/package/@arizeai/phoenix-evals" icon="js" description="TypeScript evals package"/>
@@ -20,13 +22,7 @@ If you'd like to follow along with this evaluation example, you can check out th
   <Step title={<span className="step-title">Set up and Connect to Phoenix</span>}>
     Before running your experiment and evaluations, make sure Phoenix is running and your environment is set up with the required dependencies.
 
-    Start Phoenix locally in its own terminal tab (or point at an existing deployment — see [self-hosting](/docs/phoenix/self-hosting)):
-
-    ```bash
-    uvx arize-phoenix serve
-    ```
-
-    If you don't have [uv](https://docs.astral.sh/uv/) installed, use `pip install arize-phoenix && phoenix serve`, or run it without Python via `docker run -p 6006:6006 arizephoenix/phoenix:latest`.
+    <StartPhoenixLocal />
 
     Then install the dependencies this guide uses into your TypeScript project:
 

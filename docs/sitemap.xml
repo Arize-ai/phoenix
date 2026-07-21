@@ -1274,11 +1274,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud</loc>
-    
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/07-2025/07-02-2025-cursor-mcp-button</loc>
     
   </url>
@@ -1604,11 +1599,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace</loc>
-    
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations</loc>
     
   </url>
@@ -1694,16 +1684,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version</loc>
-    
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud</loc>
-    
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint</loc>
     
   </url>
@@ -1715,11 +1695,6 @@
 
   <url>
     <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize</loc>
-    
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix</loc>
     
   </url>
 

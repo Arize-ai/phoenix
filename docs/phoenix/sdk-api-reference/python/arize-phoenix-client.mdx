@@ -41,7 +41,7 @@ export PHOENIX_BASE_URL="http://localhost:6006"
 
 # Cloud Instance
 export PHOENIX_API_KEY="your-api-key"
-export PHOENIX_BASE_URL="https://app.phoenix.arize.com/s/your-space"
+export PHOENIX_BASE_URL="https://your-phoenix.example.com"
 
 # For custom Phoenix instances with API key authentication
 export PHOENIX_BASE_URL="https://your-phoenix-instance.com"
@@ -65,7 +65,7 @@ client = Client(base_url="http://localhost:6006")  # Local Phoenix server
 
 # Cloud instance with API key
 client = Client(
-    base_url="https://app.phoenix.arize.com/s/your-space",
+    base_url="https://your-phoenix.example.com",
     api_key="your-api-key"
 )
 
@@ -79,7 +79,7 @@ client = Client(
 async_client = AsyncClient()
 async_client = AsyncClient(base_url="http://localhost:6006")
 async_client = AsyncClient(
-    base_url="https://app.phoenix.arize.com/s/your-space",
+    base_url="https://your-phoenix.example.com",
     api_key="your-api-key"
 )
 ```

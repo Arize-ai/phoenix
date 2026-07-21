@@ -26,7 +26,7 @@ print(result)  # {"total_received": 5, "total_queued": 5}
 ```
 
 <Info>
-If you're using Phoenix Cloud, set `PHOENIX_CLIENT_HEADERS` and `PHOENIX_COLLECTOR_ENDPOINT` before creating the client. See [Connect to Phoenix](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces#connect-to-phoenix).
+If Phoenix is running elsewhere, set `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if it has authentication enabled) before creating the client. See [Connect to Phoenix](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces#connect-to-phoenix).
 </Info>
 
 ### Trace hierarchy

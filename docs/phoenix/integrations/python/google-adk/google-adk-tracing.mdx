@@ -121,7 +121,7 @@ remote_agent = agent_engines.create(
     ],
     extra_packages=["adk_agent.py"],
     env_vars={
-        "PHOENIX_COLLECTOR_ENDPOINT": "https://app.phoenix.arize.com/s/<handle>/v1/traces",  # Or your self-hosted Phoenix URL
+        "PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006/v1/traces",  # Or your Phoenix deployment URL
         "PHOENIX_API_KEY": "<your-phoenix-api-key>",
     },
 )
