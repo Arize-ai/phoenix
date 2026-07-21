@@ -1,5 +1,5 @@
 from asyncio import gather
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import strawberry
@@ -92,6 +92,32 @@ class AgentSession(Node):
             (self.id, models.AgentSession.expires_at),
         )
         return expires_at is not None
+
+    @strawberry.field(
+        description=(
+            "When the workspace retention policy will delete this session if it stays "
+            "idle, derived from the last activity plus the admin-configured idle window. "
+            "Null for temporary sessions and when idle-based retention is off."
+        ),
+    )  # type: ignore
+    async def expires_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        await self._ensure_access(info)
+        if self.db_record:
+            stored_expires_at = self.db_record.expires_at
+            updated_at = self.db_record.updated_at
+        else:
+            fields = info.context.data_loaders.agent_session_fields
+            stored_expires_at, updated_at = await gather(
+                fields.load((self.id, models.AgentSession.expires_at)),
+                fields.load((self.id, models.AgentSession.updated_at)),
+            )
+        if stored_expires_at is not None:
+            return None
+        max_idle_days = info.context.settings.agent_session_retention.max_idle_days
+        if max_idle_days <= 0:
+            return None
+        assert isinstance(updated_at, datetime)
+        return updated_at + timedelta(days=max_idle_days)
 
     @strawberry.field(
         description="The persisted transcript as Vercel AI UIMessage JSON objects.",

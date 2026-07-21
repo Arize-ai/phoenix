@@ -165,6 +165,8 @@ describe("AgentChatWidget", () => {
                 assistantEnabled: true,
                 allowLocalTraces: true,
                 allowRemoteExport: false,
+                sessionRetentionMaxIdleDays: 30,
+                sessionRetentionMaxCountPerUser: 0,
               }}
             >
               <AgentStoreCapture />
@@ -486,6 +488,8 @@ describe("AgentChatWidget", () => {
                 assistantEnabled: true,
                 allowLocalTraces: true,
                 allowRemoteExport: false,
+                sessionRetentionMaxIdleDays: 30,
+                sessionRetentionMaxCountPerUser: 0,
               }}
             >
               <AgentWidgetWithBoundary />

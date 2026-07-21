@@ -32,9 +32,25 @@ class AgentAssistantEnabledSetting(BaseModel):
     enabled: bool = Field(default=True)
 
 
+class AgentSessionRetentionSetting(BaseModel):
+    """Workspace-wide retention for persisted (non-temporary) agent sessions.
+
+    Temporary sessions are governed by their own ``expires_at`` TTL and are
+    never touched by retention. Either dimension can be turned off with ``0``:
+    ``max_idle_days=0`` means sessions are never deleted for idleness, and
+    ``max_count_per_user=0`` means no per-user count cap.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
+
+    max_idle_days: float = Field(default=30, ge=0)
+    max_count_per_user: int = Field(default=0, ge=0)
+
+
 SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType(
     {
         "agent.assistant.trace_recording": AgentTraceRecordingSetting,
         "agent.assistant.enabled": AgentAssistantEnabledSetting,
+        "agent.assistant.session_retention": AgentSessionRetentionSetting,
     }
 )

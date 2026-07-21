@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<032e23f02a5598562e8b44f06ffc614e>>
+ * @generated SignedSource<<87b3e1226f0fe9d5b14f2876cc125212>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,7 @@ export type AgentSessionsResource_sessions$data = {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly createdAt: string;
+        readonly expiresAt: string | null;
         readonly id: string;
         readonly isTemporary: boolean;
         readonly title: string;
@@ -135,6 +136,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "expiresAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "__typename",
                   "storageKey": null
                 }
@@ -185,6 +193,6 @@ return {
 };
 })();
 
-(node as any).hash = "515fe0409f4dbcdc6ccaa745913ce438";
+(node as any).hash = "c5beeac0d2b49dc1d7064a5cb9fffc91";
 
 export default node;

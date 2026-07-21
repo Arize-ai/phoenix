@@ -337,6 +337,8 @@ describe("agentStore", () => {
           assistantEnabled: true,
           allowLocalTraces: true,
           allowRemoteExport: true,
+          sessionRetentionMaxIdleDays: 30,
+          sessionRetentionMaxCountPerUser: 0,
         },
       });
 
@@ -388,6 +390,8 @@ describe("agentStore", () => {
           assistantEnabled: true,
           allowLocalTraces: false,
           allowRemoteExport: false,
+          sessionRetentionMaxIdleDays: 30,
+          sessionRetentionMaxCountPerUser: 0,
         },
         observability: {
           storeLocalTraces: false,

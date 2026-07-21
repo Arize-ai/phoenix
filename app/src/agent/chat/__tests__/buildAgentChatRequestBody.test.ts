@@ -26,6 +26,8 @@ const agentsConfig = {
   assistantEnabled: true,
   allowLocalTraces: false,
   allowRemoteExport: false,
+  sessionRetentionMaxIdleDays: 30,
+  sessionRetentionMaxCountPerUser: 0,
 };
 
 describe("buildAgentChatRequestBody", () => {

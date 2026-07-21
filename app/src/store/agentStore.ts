@@ -65,6 +65,16 @@ export type AgentServerConfig = {
   assistantEnabled: boolean;
   allowLocalTraces: boolean;
   allowRemoteExport: boolean;
+  /**
+   * Idle days after which persisted (non-temporary) sessions are deleted by
+   * the workspace retention setting. 0 means never.
+   */
+  sessionRetentionMaxIdleDays: number;
+  /**
+   * Maximum persisted (non-temporary) sessions kept per user by the workspace
+   * retention setting; the newest by activity are retained. 0 means no cap.
+   */
+  sessionRetentionMaxCountPerUser: number;
 };
 
 export type AgentTraceConsentSettings = Pick<
@@ -135,6 +145,8 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   assistantEnabled: false,
   allowLocalTraces: false,
   allowRemoteExport: false,
+  sessionRetentionMaxIdleDays: 30,
+  sessionRetentionMaxCountPerUser: 0,
 };
 
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
@@ -279,7 +291,11 @@ export interface AgentState extends AgentProps {
     patch: Partial<
       Pick<
         AgentServerConfig,
-        "assistantEnabled" | "allowLocalTraces" | "allowRemoteExport"
+        | "assistantEnabled"
+        | "allowLocalTraces"
+        | "allowRemoteExport"
+        | "sessionRetentionMaxIdleDays"
+        | "sessionRetentionMaxCountPerUser"
       >
     >
   ) => void;

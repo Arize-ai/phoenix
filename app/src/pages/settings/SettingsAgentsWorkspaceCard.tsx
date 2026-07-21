@@ -1,12 +1,20 @@
 import { css } from "@emotion/react";
 import { graphql, useMutation } from "react-relay";
 
-import { Flex, Switch, Text } from "@phoenix/components";
+import { Flex, Input, NumberField, Switch, Text } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import type { SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation } from "./__generated__/SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation.graphql";
+import type { SettingsAgentsWorkspaceCardSetSessionRetentionMutation } from "./__generated__/SettingsAgentsWorkspaceCardSetSessionRetentionMutation.graphql";
 import type { SettingsAgentsWorkspaceCardSetTraceRecordingMutation } from "./__generated__/SettingsAgentsWorkspaceCardSetTraceRecordingMutation.graphql";
+
+/**
+ * Values restored when an admin re-enables a retention rule that was off
+ * (a rule set to 0 is disabled).
+ */
+const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 30;
+const DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER = 200;
 
 const settingsListCSS = css`
   display: flex;
@@ -41,6 +49,23 @@ const settingSwitchCSS = css`
   }
 `;
 
+const settingValueCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  padding: 0 var(--global-dimension-size-150) var(--global-dimension-size-150);
+
+  .assistant-admin-settings__value-input {
+    width: var(--global-dimension-size-1000);
+
+    .react-aria-Input {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+  }
+`;
+
 export function SettingsAgentsAdminSettingsSection() {
   const { viewer } = useViewer();
   // Match IsAdminIfAuthEnabled server-side: no viewer => auth disabled => treat as admin
@@ -60,6 +85,12 @@ export function SettingsAgentsAdminSettingsSection() {
   );
   const forceTracing = useAgentContext(
     (state) => state.agentsConfig.forceTracing
+  );
+  const sessionRetentionMaxIdleDays = useAgentContext(
+    (state) => state.agentsConfig.sessionRetentionMaxIdleDays
+  );
+  const sessionRetentionMaxCountPerUser = useAgentContext(
+    (state) => state.agentsConfig.sessionRetentionMaxCountPerUser
   );
   const store = useAgentStore();
 
@@ -86,7 +117,20 @@ export function SettingsAgentsAdminSettingsSection() {
       }
     `);
 
-  const isBusy = isUpdatingEnabled || isUpdatingTraceRecording;
+  const [setSessionRetention, isUpdatingSessionRetention] =
+    useMutation<SettingsAgentsWorkspaceCardSetSessionRetentionMutation>(graphql`
+      mutation SettingsAgentsWorkspaceCardSetSessionRetentionMutation(
+        $input: SetAgentSessionRetentionInput!
+      ) {
+        setAgentSessionRetention(input: $input) {
+          maxIdleDays
+          maxCountPerUser
+        }
+      }
+    `);
+
+  const isBusy =
+    isUpdatingEnabled || isUpdatingTraceRecording || isUpdatingSessionRetention;
 
   const handleEnabledChange = (next: boolean) => {
     setAgentAssistantEnabled({
@@ -94,6 +138,29 @@ export function SettingsAgentsAdminSettingsSection() {
       onCompleted: (response) => {
         store.getState().setAgentsConfig({
           assistantEnabled: response.setAgentAssistantEnabled.enabled,
+        });
+      },
+    });
+  };
+
+  const handleSessionRetentionChange = (patch: {
+    maxIdleDays?: number;
+    maxCountPerUser?: number;
+  }) => {
+    setSessionRetention({
+      variables: {
+        input: {
+          maxIdleDays: patch.maxIdleDays ?? sessionRetentionMaxIdleDays,
+          maxCountPerUser:
+            patch.maxCountPerUser ?? sessionRetentionMaxCountPerUser,
+        },
+      },
+      onCompleted: (response) => {
+        store.getState().setAgentsConfig({
+          sessionRetentionMaxIdleDays:
+            response.setAgentSessionRetention.maxIdleDays,
+          sessionRetentionMaxCountPerUser:
+            response.setAgentSessionRetention.maxCountPerUser,
         });
       },
     });
@@ -166,8 +233,100 @@ export function SettingsAgentsAdminSettingsSection() {
             />
           </li>
         ) : null}
+        <li css={settingRowCSS}>
+          <AdminRetentionSetting
+            label="Delete idle chats"
+            description="Deletes each user's saved chats after this many days without activity. Temporary chats are unaffected."
+            valueLabel="Days of inactivity before deletion"
+            unit="days"
+            value={sessionRetentionMaxIdleDays}
+            onChange={(maxIdleDays) =>
+              handleSessionRetentionChange({ maxIdleDays })
+            }
+            enabledDefault={DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS}
+            isDisabled={isBusy}
+          />
+        </li>
+        <li css={settingRowCSS}>
+          <AdminRetentionSetting
+            label="Limit saved chats per user"
+            description="Keeps only each user's most recent saved chats; older chats beyond the limit are deleted."
+            valueLabel="Maximum saved chats per user"
+            unit="chats"
+            value={sessionRetentionMaxCountPerUser}
+            onChange={(maxCountPerUser) =>
+              handleSessionRetentionChange({ maxCountPerUser })
+            }
+            enabledDefault={DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER}
+            isDisabled={isBusy}
+          />
+        </li>
       </ul>
     </Flex>
+  );
+}
+
+/**
+ * A retention rule row: a switch that turns the rule on and off, plus a
+ * number input for the rule's value while it is on. A value of 0 means the
+ * rule is off; re-enabling restores {@link AdminRetentionSettingProps.enabledDefault}.
+ */
+type AdminRetentionSettingProps = {
+  label: string;
+  description: string;
+  /** Accessible label for the number input. */
+  valueLabel: string;
+  /** Unit text rendered beside the number input (e.g. "days"). */
+  unit: string;
+  value: number;
+  onChange: (value: number) => void;
+  enabledDefault: number;
+  isDisabled: boolean;
+};
+
+function AdminRetentionSetting({
+  label,
+  description,
+  valueLabel,
+  unit,
+  value,
+  onChange,
+  enabledDefault,
+  isDisabled,
+}: AdminRetentionSettingProps) {
+  const isEnabled = value > 0;
+  return (
+    <>
+      <AdminSettingsSwitch
+        label={label}
+        description={description}
+        isSelected={isEnabled}
+        onChange={(enabled) => onChange(enabled ? enabledDefault : 0)}
+        isDisabled={isDisabled}
+      />
+      {isEnabled ? (
+        <div css={settingValueCSS}>
+          <NumberField
+            aria-label={valueLabel}
+            value={value}
+            minValue={1}
+            onChange={(nextValue) => {
+              if (Number.isFinite(nextValue) && nextValue > 0) {
+                onChange(nextValue);
+              }
+            }}
+            isDisabled={isDisabled}
+            size="S"
+            className="assistant-admin-settings__value-input"
+          >
+            <Input />
+          </NumberField>
+          <Text color="text-500" size="S">
+            {unit}
+          </Text>
+        </div>
+      ) : null}
+    </>
   );
 }
 

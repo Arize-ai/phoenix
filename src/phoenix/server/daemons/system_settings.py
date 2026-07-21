@@ -15,6 +15,7 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.settings.registry import (
     SETTINGS_REGISTRY,
     AgentAssistantEnabledSetting,
+    AgentSessionRetentionSetting,
     AgentTraceRecordingSetting,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
@@ -41,6 +42,10 @@ class _SettingsCache:
     def get(
         self, key: Literal["agent.assistant.enabled"]
     ) -> Optional[AgentAssistantEnabledSetting]: ...
+    @overload
+    def get(
+        self, key: Literal["agent.assistant.session_retention"]
+    ) -> Optional[AgentSessionRetentionSetting]: ...
     def get(self, key: SystemSettingKey) -> Optional[BaseModel]:
         return self._data.get(key)
 
@@ -92,6 +97,20 @@ class SystemSettings(DaemonTask):
         user_id: Optional[int] = None,
     ) -> None:
         await self._set("agent.assistant.enabled", value, user_id=user_id)
+
+    @property
+    def agent_session_retention(self) -> AgentSessionRetentionSetting:
+        return self._cache.get("agent.assistant.session_retention") or (
+            AgentSessionRetentionSetting()
+        )
+
+    async def update_agent_session_retention(
+        self,
+        value: AgentSessionRetentionSetting,
+        *,
+        user_id: Optional[int] = None,
+    ) -> None:
+        await self._set("agent.assistant.session_retention", value, user_id=user_id)
 
     async def _set(
         self,

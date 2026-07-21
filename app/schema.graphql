@@ -93,6 +93,11 @@ type AgentSession implements Node {
   """Whether the session expires after a period of inactivity."""
   isTemporary: Boolean!
 
+  """
+  When the workspace retention policy will delete this session if it stays idle, derived from the last activity plus the admin-configured idle window. Null for temporary sessions and when idle-based retention is off.
+  """
+  expiresAt: DateTime
+
   """The persisted transcript as Vercel AI UIMessage JSON objects."""
   messages: JSON!
 }
@@ -113,6 +118,11 @@ type AgentSessionEdge {
 
   """The item at the end of the edge"""
   node: AgentSession!
+}
+
+type AgentSessionRetention {
+  maxIdleDays: Float!
+  maxCountPerUser: Int!
 }
 
 type AgentSkill {
@@ -168,6 +178,16 @@ type AgentsConfig {
   Admin ceiling for exporting PXI traces to the remote collector. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on remote trace export for themselves.
   """
   allowRemoteExport: Boolean!
+
+  """
+  Number of idle days after which persisted (non-temporary) agent sessions are deleted. Sourced from the `agent.assistant.session_retention` system setting. 0 means sessions are never deleted for idleness.
+  """
+  sessionRetentionMaxIdleDays: Float!
+
+  """
+  Maximum number of persisted (non-temporary) agent sessions kept per user; the newest sessions by activity are retained. Sourced from the `agent.assistant.session_retention` system setting. 0 means no cap.
+  """
+  sessionRetentionMaxCountPerUser: Int!
 }
 
 interface Annotation {
@@ -2571,6 +2591,7 @@ type Mutation {
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
   setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
+  setAgentSessionRetention(input: SetAgentSessionRetentionInput!): AgentSessionRetention!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
@@ -3898,6 +3919,14 @@ type ServerStatus {
 
 input SetAgentAssistantEnabledInput {
   enabled: Boolean!
+}
+
+input SetAgentSessionRetentionInput {
+  """Delete persisted sessions idle longer than this many days. 0 disables."""
+  maxIdleDays: Float!
+
+  """Keep only the newest N persisted sessions per user. 0 disables."""
+  maxCountPerUser: Int!
 }
 
 input SetAgentTraceRecordingInput {

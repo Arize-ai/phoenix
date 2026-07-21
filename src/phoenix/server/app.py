@@ -986,10 +986,10 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
-    agent_session_sweeper = AgentSessionSweeper(db)
+    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
-    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,

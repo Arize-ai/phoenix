@@ -6,7 +6,11 @@ import pytest
 
 from phoenix.db import models
 from phoenix.server.daemons.system_settings import SystemSettings
-from phoenix.server.settings.registry import SETTINGS_REGISTRY, AgentTraceRecordingSetting
+from phoenix.server.settings.registry import (
+    SETTINGS_REGISTRY,
+    AgentSessionRetentionSetting,
+    AgentTraceRecordingSetting,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -38,3 +42,41 @@ async def test_update_agent_trace_recording_persists_and_updates_cache(
         row = await session.get(models.SystemSetting, "agent.assistant.trace_recording")
         assert row is not None
         assert row.value == expected
+
+
+@pytest.mark.asyncio
+async def test_agent_session_retention_defaults_when_unset(
+    db: DbSessionFactory,
+) -> None:
+    ss = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    await ss.bootstrap()
+    retention = ss.agent_session_retention
+    assert retention.max_idle_days == 30
+    assert retention.max_count_per_user == 0
+
+
+@pytest.mark.asyncio
+async def test_update_agent_session_retention_persists_and_updates_cache(
+    db: DbSessionFactory,
+) -> None:
+    ss = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    await ss.bootstrap()
+
+    await ss.update_agent_session_retention(
+        AgentSessionRetentionSetting(max_idle_days=7.5, max_count_per_user=200),
+        user_id=None,
+    )
+    assert ss.agent_session_retention.max_idle_days == 7.5
+    assert ss.agent_session_retention.max_count_per_user == 200
+
+    async with db() as session:
+        row = await session.get(models.SystemSetting, "agent.assistant.session_retention")
+        assert row is not None
+        assert row.value == {"max_idle_days": 7.5, "max_count_per_user": 200}
+
+
+def test_agent_session_retention_setting_rejects_negative_values() -> None:
+    with pytest.raises(ValueError):
+        AgentSessionRetentionSetting(max_idle_days=-1)
+    with pytest.raises(ValueError):
+        AgentSessionRetentionSetting(max_count_per_user=-1)

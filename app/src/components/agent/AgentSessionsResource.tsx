@@ -24,6 +24,7 @@ import { Loading } from "@phoenix/components/core";
 import { useNotifyError } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -125,6 +126,7 @@ function AgentSessionsContent({
               isTemporary
               createdAt
               updatedAt
+              expiresAt
             }
           }
         }
@@ -160,16 +162,37 @@ function AgentSessionsContent({
     setActiveSession(DRAFT_SESSION_ID);
   }, [setActiveSession, store]);
 
+  // The per-user count cap applies only to authenticated users' persisted
+  // sessions; the list is ordered by recency, so persisted sessions ranked
+  // beyond the cap are deleted at the next retention sweep.
+  const sessionRetentionMaxCountPerUser = useAgentContext(
+    (state) => state.agentsConfig.sessionRetentionMaxCountPerUser
+  );
+  const { viewer } = useViewer();
+  const isCountCapEnforced =
+    viewer != null && sessionRetentionMaxCountPerUser > 0;
+  let persistedSessionRank = 0;
   const serverSessions: AgentSessionListItem[] = data.agentSessions.edges.map(
-    ({ node }) => ({
-      id: node.id,
-      title: node.title,
-      isTemporary: node.isTemporary,
-      createdAt: Date.parse(node.createdAt as string),
-      isDeleteDisabled:
-        chatStatusBySessionId[node.id] === "submitted" ||
-        chatStatusBySessionId[node.id] === "streaming",
-    })
+    ({ node }) => {
+      if (!node.isTemporary) {
+        persistedSessionRank += 1;
+      }
+      return {
+        id: node.id,
+        title: node.title,
+        isTemporary: node.isTemporary,
+        createdAt: Date.parse(node.createdAt as string),
+        expiresAt:
+          node.expiresAt != null ? Date.parse(node.expiresAt as string) : null,
+        isOverCountCap:
+          isCountCapEnforced &&
+          !node.isTemporary &&
+          persistedSessionRank > sessionRetentionMaxCountPerUser,
+        isDeleteDisabled:
+          chatStatusBySessionId[node.id] === "submitted" ||
+          chatStatusBySessionId[node.id] === "streaming",
+      };
+    }
   );
   const draftSession: AgentSessionListItem | null =
     activeSessionId === DRAFT_SESSION_ID
