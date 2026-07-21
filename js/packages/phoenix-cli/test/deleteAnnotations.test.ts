@@ -5,64 +5,51 @@ import { createSpanAnnotationsCommand } from "../src/commands/spanAnnotations";
 import { createTraceAnnotationsCommand } from "../src/commands/traceAnnotations";
 import { ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
+import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
-function makeFetchMock(
-  responses: Array<
-    | { ok: boolean; status?: number; body?: unknown; text?: string }
-    | { error: Error }
-  >
+const mock = setupMockPhoenixServer();
+
+const PROJECT_ARGS = [...BASE_ARGS, "--project", "default"];
+
+/** Pin project-name resolution to a stable project ID. */
+function useProjectResolution() {
+  mock.server.use(
+    http.get("/v1/projects/{project_identifier}", ({ response }) =>
+      response(200).json({
+        data: { id: "project-default", name: "default" },
+      })
+    )
+  );
+}
+
+/**
+ * Register a 204 handler for the given annotation delete endpoint and record
+ * how many times it matched plus the query string of the last request.
+ */
+function captureAnnotationDelete(
+  path:
+    | "/v1/projects/{project_identifier}/trace_annotations"
+    | "/v1/projects/{project_identifier}/span_annotations"
+    | "/v1/projects/{project_identifier}/session_annotations"
 ) {
-  let callIndex = 0;
-  return vi.fn().mockImplementation((requestOrUrl: Request | string) => {
-    const response = responses[callIndex++] ?? responses[responses.length - 1];
-    if ("error" in response) {
-      return Promise.reject(response.error);
-    }
-    const status = response.status ?? (response.ok ? 200 : 500);
-    const url =
-      requestOrUrl instanceof Request ? requestOrUrl.url : requestOrUrl;
-    const body = response.body ?? {};
-    const text = response.text ?? JSON.stringify(body);
-    return Promise.resolve({
-      ok: response.ok,
-      status,
-      statusText: response.ok ? "OK" : "Error",
-      url,
-      headers: new Headers(),
-      json: () => Promise.resolve(body),
-      text: () => Promise.resolve(text),
-    });
-  });
+  const captured: {
+    count: number;
+    projectIdentifier?: string;
+    query?: URLSearchParams;
+  } = { count: 0 };
+
+  mock.server.use(
+    http.delete(path, ({ params, request, response }) => {
+      captured.count += 1;
+      captured.projectIdentifier = params.project_identifier;
+      captured.query = new URL(request.url).searchParams;
+      return response(204).empty();
+    })
+  );
+
+  return captured;
 }
-
-function getFetchUrl(arg: unknown): string {
-  if (arg instanceof Request) return arg.url;
-  return String(arg);
-}
-
-function getFetchMethod(arg: unknown, init?: RequestInit): string {
-  if (arg instanceof Request) return arg.method;
-  return init?.method ?? "GET";
-}
-
-const BASE_ARGS = [
-  "--endpoint",
-  "http://localhost:6006",
-  "--project",
-  "default",
-  "--no-progress",
-];
-
-const PROJECT_RESPONSE = {
-  ok: true as const,
-  body: { data: { id: "project-default" } },
-};
-
-const DELETE_204 = {
-  ok: true as const,
-  status: 204,
-  body: {},
-} satisfies { ok: true; status: 204; body: object };
 
 beforeEach(() => {
   process.env[ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES] = "true";
@@ -71,15 +58,15 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env[ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES];
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 
 describe("trace-annotations delete", () => {
   it("DELETEs with delete_all=true when --all is set, then emits structured success", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    useProjectResolution();
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/trace_annotations"
+    );
+    const io = captureCliOutput();
 
     await createTraceAnnotationsCommand().parseAsync(
       [
@@ -90,19 +77,17 @@ describe("trace-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(getFetchMethod(fetchMock.mock.calls[1][0])).toBe("DELETE");
-    const url = new URL(getFetchUrl(fetchMock.mock.calls[1][0]));
-    expect(url.pathname).toBe("/v1/projects/project-default/trace_annotations");
-    expect(url.searchParams.get("identifier")).toBe("coding-session:demo");
-    expect(url.searchParams.get("delete_all")).toBe("true");
+    expect(captured.count).toBe(1);
+    expect(captured.projectIdentifier).toBe("project-default");
+    expect(captured.query?.get("identifier")).toBe("coding-session:demo");
+    expect(captured.query?.get("delete_all")).toBe("true");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "trace",
@@ -111,10 +96,11 @@ describe("trace-annotations delete", () => {
   });
 
   it("DELETEs with a bounded time window when --start-time/--end-time are set", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    useProjectResolution();
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/trace_annotations"
+    );
+    const io = captureCliOutput();
 
     await createTraceAnnotationsCommand().parseAsync(
       [
@@ -126,17 +112,16 @@ describe("trace-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
 
-    const url = new URL(getFetchUrl(fetchMock.mock.calls[1][0]));
-    expect(url.searchParams.get("start_time")).toBe("2026-01-01T00:00:00Z");
-    expect(url.searchParams.get("end_time")).toBe("2026-01-02T00:00:00Z");
-    expect(url.searchParams.get("delete_all")).toBeNull();
+    expect(captured.query?.get("start_time")).toBe("2026-01-01T00:00:00Z");
+    expect(captured.query?.get("end_time")).toBe("2026-01-02T00:00:00Z");
+    expect(captured.query?.get("delete_all")).toBeNull();
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "trace",
@@ -148,14 +133,11 @@ describe("trace-annotations delete", () => {
   });
 
   it("rejects an underspecified delete before any HTTP call", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/trace_annotations"
+    );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceAnnotationsCommand().parseAsync(
@@ -166,14 +148,14 @@ describe("trace-annotations delete", () => {
           "-y",
           "--format",
           "raw",
-          ...BASE_ARGS,
+          ...PROJECT_ARGS,
         ],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
     const stderrCall = stderrSpy.mock.calls[0]?.[0];
     const parsed = JSON.parse(String(stderrCall));
     expect(parsed.code).toBe("INVALID_ARGUMENT");
@@ -181,10 +163,11 @@ describe("trace-annotations delete", () => {
   });
 
   it("threads narrowing filters into the DELETE query string", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
-    vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    useProjectResolution();
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/trace_annotations"
+    );
+    captureCliOutput();
 
     await createTraceAnnotationsCommand().parseAsync(
       [
@@ -197,24 +180,24 @@ describe("trace-annotations delete", () => {
         "human",
         "--all",
         "-y",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
 
-    const url = new URL(getFetchUrl(fetchMock.mock.calls[1][0]));
-    expect(url.searchParams.get("name")).toBe("axial_coding_category");
-    expect(url.searchParams.get("annotator_kind")).toBe("HUMAN");
-    expect(url.searchParams.get("delete_all")).toBe("true");
+    expect(captured.query?.get("name")).toBe("axial_coding_category");
+    expect(captured.query?.get("annotator_kind")).toBe("HUMAN");
+    expect(captured.query?.get("delete_all")).toBe("true");
   });
 });
 
 describe("span-annotations delete", () => {
   it("DELETEs /span_annotations with delete_all=true and emits structured success", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    useProjectResolution();
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/span_annotations"
+    );
+    const io = captureCliOutput();
 
     await createSpanAnnotationsCommand().parseAsync(
       [
@@ -225,16 +208,16 @@ describe("span-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
 
-    const url = new URL(getFetchUrl(fetchMock.mock.calls[1][0]));
-    expect(url.pathname).toBe("/v1/projects/project-default/span_annotations");
-    expect(url.searchParams.get("delete_all")).toBe("true");
+    expect(captured.count).toBe(1);
+    expect(captured.projectIdentifier).toBe("project-default");
+    expect(captured.query?.get("delete_all")).toBe("true");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "span",
@@ -243,33 +226,37 @@ describe("span-annotations delete", () => {
   });
 
   it("rejects underspecified deletes for span", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/span_annotations"
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanAnnotationsCommand().parseAsync(
-        ["delete", "--identifier", "coding-session:demo", "-y", ...BASE_ARGS],
+        [
+          "delete",
+          "--identifier",
+          "coding-session:demo",
+          "-y",
+          ...PROJECT_ARGS,
+        ],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
   });
 });
 
 describe("session-annotations delete", () => {
   it("DELETEs /session_annotations with delete_all=true and emits structured success", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    useProjectResolution();
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/session_annotations"
+    );
+    const io = captureCliOutput();
 
     await createSessionAnnotationsCommand().parseAsync(
       [
@@ -280,18 +267,16 @@ describe("session-annotations delete", () => {
         "-y",
         "--format",
         "raw",
-        ...BASE_ARGS,
+        ...PROJECT_ARGS,
       ],
       { from: "user" }
     );
 
-    const url = new URL(getFetchUrl(fetchMock.mock.calls[1][0]));
-    expect(url.pathname).toBe(
-      "/v1/projects/project-default/session_annotations"
-    );
-    expect(url.searchParams.get("delete_all")).toBe("true");
+    expect(captured.count).toBe(1);
+    expect(captured.projectIdentifier).toBe("project-default");
+    expect(captured.query?.get("delete_all")).toBe("true");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(JSON.parse(String(output))).toEqual({
       deleted: true,
       target: "session",
@@ -300,36 +285,36 @@ describe("session-annotations delete", () => {
   });
 
   it("rejects underspecified deletes for session", async () => {
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/session_annotations"
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionAnnotationsCommand().parseAsync(
-        ["delete", "--identifier", "coding-session:demo", "-y", ...BASE_ARGS],
+        [
+          "delete",
+          "--identifier",
+          "coding-session:demo",
+          "-y",
+          ...PROJECT_ARGS,
+        ],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
   });
 
   it("disables delete commands when the dangerous-deletes env var is unset", async () => {
     delete process.env[ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES];
-    const fetchMock = makeFetchMock([PROJECT_RESPONSE]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureAnnotationDelete(
+      "/v1/projects/{project_identifier}/session_annotations"
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSessionAnnotationsCommand().parseAsync(
@@ -339,13 +324,13 @@ describe("session-annotations delete", () => {
           "coding-session:demo",
           "--all",
           "-y",
-          ...BASE_ARGS,
+          ...PROJECT_ARGS,
         ],
         { from: "user" }
       )
     ).rejects.toThrow(/process\.exit:/);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
   });
 });

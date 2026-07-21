@@ -29,9 +29,8 @@ const identityCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-150);
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   border-bottom: 1px solid var(--global-menu-border-color);
 `;
 

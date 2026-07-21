@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import type { PhoenixConfig } from "../config";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { renderCurlCommand } from "../curl";
@@ -63,6 +64,8 @@ export function buildGraphqlRequest({
   };
   if (config.apiKey) {
     headers["Authorization"] = `Bearer ${config.apiKey}`;
+  } else if (config.oauthTokens) {
+    headers["Authorization"] = `Bearer ${config.oauthTokens.accessToken}`;
   }
 
   return {
@@ -129,7 +132,10 @@ async function apiGraphqlHandler(
     }
 
     // 4. POST using Node 22 built-in fetch
-    const response = await fetch(request.url, {
+    const apiFetch = hasOAuthCredentials(config)
+      ? createOAuthFetch({ config })
+      : fetch;
+    const response = await apiFetch(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.body,
@@ -139,6 +145,10 @@ async function apiGraphqlHandler(
       writeError({
         message: `Error: HTTP ${response.status} ${response.statusText} from ${request.url}`,
       });
+      if (response.status === 401 && config.credentialSource === "oauth") {
+        writeError({ message: "Session expired. Run: px auth login" });
+        process.exit(ExitCode.AUTH_REQUIRED);
+      }
       if (response.status === 401 || response.status === 403) {
         process.exit(ExitCode.AUTH_REQUIRED);
       }

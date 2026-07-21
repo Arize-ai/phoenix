@@ -15,10 +15,10 @@ export interface paths {
          * List annotation configurations
          * @description Retrieve a paginated list of all annotation configurations in the system.
          */
-        get: operations["list_annotation_configs_v1_annotation_configs_get"];
+        get: operations["listAnnotationConfigs"];
         put?: never;
         /** Create an annotation configuration */
-        post: operations["create_annotation_config_v1_annotation_configs_post"];
+        post: operations["createAnnotationConfig"];
         delete?: never;
         options?: never;
         head?: never;
@@ -33,7 +33,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get an annotation configuration by ID or name */
-        get: operations["get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get"];
+        get: operations["getAnnotationConfig"];
         put?: never;
         post?: never;
         delete?: never;
@@ -51,10 +51,10 @@ export interface paths {
         };
         get?: never;
         /** Update an annotation configuration */
-        put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
+        put: operations["updateAnnotationConfig"];
         post?: never;
         /** Delete an annotation configuration */
-        delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
+        delete: operations["deleteAnnotationConfig"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1190,7 +1190,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Annotate Span Documents */
+        /** Create span document annotations */
         post: operations["annotateSpanDocuments"];
         delete?: never;
         options?: never;
@@ -6004,7 +6004,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_annotation_configs_v1_annotation_configs_get: {
+    listAnnotationConfigs: {
         parameters: {
             query?: {
                 /** @description Cursor for pagination (base64-encoded annotation config ID) */
@@ -6047,7 +6047,7 @@ export interface operations {
             };
         };
     };
-    create_annotation_config_v1_annotation_configs_post: {
+    createAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -6089,7 +6089,7 @@ export interface operations {
             };
         };
     };
-    get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get: {
+    getAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -6130,7 +6130,7 @@ export interface operations {
             };
         };
     };
-    update_annotation_config_v1_annotation_configs__config_id__put: {
+    updateAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -6175,7 +6175,7 @@ export interface operations {
             };
         };
     };
-    delete_annotation_config_v1_annotation_configs__config_id__delete: {
+    deleteAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;

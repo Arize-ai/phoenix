@@ -6,6 +6,7 @@ import {
   Card,
   ContextualHelp,
   DialogTrigger,
+  DocumentationHelp,
   Flex,
   Icon,
   Icons,
@@ -40,10 +41,10 @@ export function SandboxProvidersCard({
     <Card
       title="Sandbox Providers"
       titleExtra={
-        <ContextualHelp variant="info">
+        <DocumentationHelp topic="sandboxProviders">
           Shared provider settings and whether each sandbox runtime can be
           enabled.
-        </ContextualHelp>
+        </DocumentationHelp>
       }
     >
       <table css={sandboxesTableCSS}>

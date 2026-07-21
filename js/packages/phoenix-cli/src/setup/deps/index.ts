@@ -17,6 +17,7 @@ import type { ClipboardWriter } from "./clipboard";
 import type { Clock } from "./clock";
 import type { RunContext } from "./context";
 import type { DocsFetcher } from "./docs";
+import type { OAuthLogin } from "./oauthLogin";
 import type { PhoenixClientFactory } from "./phoenixClient";
 import type { ProcessRunner } from "./processes";
 import type { Prompter } from "./prompter";
@@ -32,6 +33,8 @@ export interface SetupDeps {
   /** Typed Phoenix client; tests inject a fake transport beneath it. */
   createClient: PhoenixClientFactory;
   fetchDocs: DocsFetcher;
+  /** Browser OAuth login for minting an API key; tests script outcomes. */
+  oauthLogin: OAuthLogin;
 }
 
 export type { ClipboardWriter } from "./clipboard";
@@ -43,6 +46,11 @@ export type {
   DocsPrefetchOptions,
   DocsPrefetchResult,
 } from "./docs";
+export type {
+  OAuthLogin,
+  OAuthLoginArgs,
+  OAuthLoginOutcome,
+} from "./oauthLogin";
 export type { PhoenixClientArgs, PhoenixClientFactory } from "./phoenixClient";
 export type { CommandSpec, ExecResult, ProcessRunner } from "./processes";
 export type { Prompter, SelectOption } from "./prompter";

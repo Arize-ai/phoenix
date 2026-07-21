@@ -7,3 +7,6 @@ build/
 .mcp.json
 opencode.json
 .cursor/
+
+# Added by px setup — local Phoenix credentials
+.px/

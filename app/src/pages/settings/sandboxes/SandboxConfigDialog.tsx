@@ -163,7 +163,7 @@ const envVarFieldFillCSS = css`
 // label-less remove button needs to be nudged down by the height of a field
 // label so it lines up with the inputs rather than the labels.
 const envVarRemoveButtonOffsetCSS = css`
-  padding-top: var(--global-dimension-static-size-300);
+  padding-top: var(--global-dimension-size-300);
 `;
 
 function defaultConfigName(provider: ProviderRow): string {

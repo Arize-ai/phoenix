@@ -7,13 +7,25 @@ import {
   MODAL_OVERLAY_CLASS_NAME,
   MODAL_PORTAL_CONTAINER_ATTR,
 } from "@phoenix/components/core/overlay/constants";
-import { AgentProvider, useAgentContext } from "@phoenix/contexts/AgentContext";
+import {
+  AgentProvider,
+  useAgentContext,
+  useAgentStore,
+} from "@phoenix/contexts/AgentContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { AgentChatWidget } from "../AgentChatWidget";
 
 installTestStorage();
+
+let agentStore: AgentStore | null = null;
+
+function AgentStoreCapture() {
+  agentStore = useAgentStore();
+  return null;
+}
 
 function AgentOpenState() {
   const isOpen = useAgentContext((state) => state.isOpen);
@@ -116,6 +128,7 @@ describe("AgentChatWidget", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    agentStore = null;
   });
 
   afterEach(() => {
@@ -123,6 +136,7 @@ describe("AgentChatWidget", () => {
       root.unmount();
     });
     container.remove();
+    agentStore = null;
     document
       .querySelectorAll(`.${MODAL_OVERLAY_CLASS_NAME}`)
       .forEach((element) => element.remove());
@@ -153,6 +167,7 @@ describe("AgentChatWidget", () => {
                 allowRemoteExport: false,
               }}
             >
+              <AgentStoreCapture />
               <AgentChatWidget />
               <AgentOpenState />
             </AgentProvider>
@@ -406,6 +421,43 @@ describe("AgentChatWidget", () => {
     expect(
       document.body.querySelector('[data-entrance-animation="true"]')
     ).not.toBeNull();
+  });
+
+  it("keeps the thinking treatment until the active response settles", () => {
+    renderWidget();
+
+    act(() => {
+      const sessionId = agentStore?.getState().createSession();
+      if (sessionId) {
+        agentStore?.getState().setSessionResponsePending(sessionId, true);
+      }
+    });
+
+    expect(
+      document.body.querySelector(".agent-chat-widget__shimmer")
+    ).not.toBeNull();
+
+    act(() => {
+      const sessionId = agentStore?.getState().activeSessionId;
+      if (sessionId) {
+        agentStore?.getState().setSessionChatStatus(sessionId, "ready");
+      }
+    });
+
+    expect(
+      document.body.querySelector(".agent-chat-widget__shimmer")
+    ).not.toBeNull();
+
+    act(() => {
+      const sessionId = agentStore?.getState().activeSessionId;
+      if (sessionId) {
+        agentStore?.getState().setSessionResponsePending(sessionId, false);
+      }
+    });
+
+    expect(
+      document.body.querySelector(".agent-chat-widget__shimmer")
+    ).toBeNull();
   });
 
   it("marks the FAB ready on first render when constrained to a boundary", async () => {

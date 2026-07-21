@@ -6,7 +6,7 @@ import {
 } from "@phoenix/agent/extensions/capabilities";
 import { Flex, Switch, Text } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
@@ -89,7 +89,7 @@ export function AgentWebAccessSettings() {
   const isWebAccessEnabled = useAgentContext(
     (state) => state.agentsConfig.webAccessEnabled
   );
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAdminOrAuthDisabled();
   const definition = getAgentCapabilityDefinition("web.access");
 
   return (

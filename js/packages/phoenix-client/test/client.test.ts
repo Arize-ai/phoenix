@@ -1,32 +1,48 @@
-import { describe, expect, it } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { createClient, HttpError } from "../src";
+import { HttpError } from "../src";
+import { createTestClient } from "./testUtils";
 
-/** A client whose transport answers every request with `response`. */
-function clientAnswering(response: Response) {
-  return createClient({
-    getEnvironmentOptions: () => ({}),
-    options: {
-      baseUrl: "https://phoenix.example.com",
-      fetch: async () => response,
-    },
-  });
-}
+const http = createHttp();
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 describe("non-2xx responses", () => {
   it("throw an HttpError carrying the status, so callers can branch on it", async () => {
-    const client = clientAnswering(
-      new Response(JSON.stringify({ detail: "unauthorized" }), {
-        status: 401,
-        statusText: "Unauthorized",
-        headers: { "content-type": "application/json" },
-      })
+    server.use(
+      http.get("/v1/projects", ({ response }) =>
+        response.untyped(
+          new Response(JSON.stringify({ detail: "unauthorized" }), {
+            status: 401,
+            statusText: "Unauthorized",
+            headers: { "content-type": "application/json" },
+          })
+        )
+      )
     );
 
-    const error = await client.GET("/v1/projects").catch((e: unknown) => e);
+    const error = await createTestClient()
+      .GET("/v1/projects")
+      .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(HttpError);
     expect(error).toMatchObject({ status: 401, statusText: "Unauthorized" });
+    expect((error as HttpError).response.status).toBe(401);
     expect((error as HttpError).message).toContain("401 Unauthorized");
   });
 });

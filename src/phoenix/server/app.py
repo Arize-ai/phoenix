@@ -68,12 +68,16 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_disable_agent_assistant,
+    get_env_enable_mcp_server,
+    get_env_enable_oauth2_authorization_server,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_grpc_port,
     get_env_host,
+    get_env_host_root_path,
     get_env_max_spans_queue_size,
+    get_env_mcp_code_mode,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -93,9 +97,19 @@ from phoenix.server.api.routers import (
     create_agents_router,
     create_auth_router,
     create_v1_router,
+    oauth2_as_router,
+    oauth2_as_well_known_router,
     oauth2_router,
 )
+from phoenix.server.api.routers.auth_md import (
+    mcp_protected_resource_metadata,
+    protected_resource_metadata,
+)
 from phoenix.server.api.routers.auth_md import router as auth_md_router
+from phoenix.server.api.routers.oauth2_authorization_server import (
+    authorization_server_enabled,
+    authorization_server_metadata,
+)
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
@@ -111,8 +125,14 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.middleware.anonymous_cors import (
+    AnonymousCorsMiddleware,
+    AnonymousPaths,
+    anonymous_paths,
+)
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
@@ -162,6 +182,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+_RESERVED_OAUTH2_IDP_NAMES = frozenset({"authorize", "token", "revoke", "register", "consent"})
 
 """
 Threshold (in minutes) to determine if database is booted up for the first time.
@@ -232,6 +253,10 @@ class AppConfig(NamedTuple):
     """ Whether the agent assistant feature is disabled at the deployment level"""
     agent_bash_disabled: bool = False
     """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
+    mcp_server_enabled: bool = False
+    """ Whether the in-process MCP server is mounted at /mcp """
+    mcp_code_mode_enabled: bool = False
+    """ Whether the MCP server presents the code-mode tool surface """
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
 
@@ -273,6 +298,12 @@ class Static(StaticFiles):
         except HTTPException as e:
             if e.status_code != 404:
                 raise e
+            # Never mask a missing well-known document with index.html: RFC 8615
+            # consumers (OAuth/OIDC discovery, MCP clients) probe several
+            # /.well-known/ URLs and rely on a 404 to move to the next candidate;
+            # a 200 with HTML reads as a malformed discovery document instead.
+            if path == ".well-known" or path.startswith(".well-known/"):
+                raise e
             # Fallback to the index.html
             request = Request(scope)
             response = templates.TemplateResponse(
@@ -298,6 +329,8 @@ class Static(StaticFiles):
                     "allow_external_resources": self._app_config.allow_external_resources,
                     "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
                     "agent_bash_disabled": self._app_config.agent_bash_disabled,
+                    "mcp_server_enabled": self._app_config.mcp_server_enabled,
+                    "mcp_code_mode_enabled": self._app_config.mcp_code_mode_enabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -307,15 +340,29 @@ class Static(StaticFiles):
 
 
 class RequestOriginHostnameValidator(BaseHTTPMiddleware):
-    def __init__(self, *args: Any, trusted_hostnames: list[str], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        trusted_hostnames: list[str],
+        anonymous_paths: AnonymousPaths,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._trusted_hostnames = trusted_hostnames
+        self._anonymous_paths = anonymous_paths
 
     async def dispatch(
         self,
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        # The anonymous OAuth/MCP surfaces are deliberately open to arbitrary
+        # browser origins (see AnonymousCorsMiddleware): they honor no cookies,
+        # so an origin check protects nothing there and would 401 exactly the
+        # requests whose preflights the CORS layer approved. Cookie-honoring
+        # endpoints (/oauth2/authorize, the consent decision) are not in the set.
+        if self._anonymous_paths.matches(request.scope):
+            return await call_next(request)
         headers = request.headers
         for key in "origin", "referer":
             if not (url := headers.get(key)):
@@ -594,7 +641,7 @@ def _lifespan(
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
+    async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -651,6 +698,9 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
+            # Start the mounted MCP server's session manager (set in create_app).
+            if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
+                await stack.enter_async_context(mcp_http_app.lifespan(app))
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -787,8 +837,11 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     """
     headers = dict(getattr(exc, "headers", None) or {})
     if exc.status_code == 401 and getattr(request.app.state, "authentication_enabled", False):
-        base_url = str(request.base_url).rstrip("/")
-        prm_url = f"{base_url}/.well-known/oauth-protected-resource"
+        # public_origin, not request.base_url: behind a proxy that does not
+        # rewrite forwarded headers the latter names the internal host. The
+        # challenge must name the same document the discovery routes serve,
+        # honoring PHOENIX_ROOT_URL and the configured root path.
+        prm_url = f"{public_origin(request)}/.well-known/oauth-protected-resource"
         headers.setdefault(
             "WWW-Authenticate",
             f'Bearer realm="Arize Phoenix", resource_metadata="{prm_url}"',
@@ -858,6 +911,7 @@ def create_app(
     welcome_message: str | None = None,
 ) -> FastAPI:
     verify_server_environment_variables()
+    _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
@@ -878,6 +932,17 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
+    # Resolved before the middleware stack: the anonymous-surface path set feeds
+    # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
+    # of this function, and it depends on whether the MCP endpoint is mounted
+    # (the mount itself happens after the routers). The import stays deferred so
+    # fastmcp is only loaded when the mount is enabled.
+    mcp_mount_path: Optional[str] = None
+    if get_env_enable_mcp_server():
+        from phoenix.server.mcp_server import MCP_MOUNT_PATH
+
+        mcp_mount_path = MCP_MOUNT_PATH
+    anonymous_surfaces = anonymous_paths(mcp_mount_path)
     middlewares: list[Middleware] = [
         Middleware(HeadersMiddleware),
         Middleware(RedactorMiddleware),
@@ -889,6 +954,7 @@ def create_app(
             Middleware(
                 RequestOriginHostnameValidator,
                 trusted_hostnames=trusted_hostnames,
+                anonymous_paths=anonymous_surfaces,
             )
         )
     elif email_sender or oauth2_client_configs:
@@ -1036,9 +1102,39 @@ def create_app(
     app.include_router(graphql_router)
     app.include_router(auth_md_router)
     if authentication_enabled:
+        app.include_router(oauth2_as_well_known_router)
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
+        app.include_router(oauth2_as_router)
         app.include_router(oauth2_router)
+    # RFC 8414 §3 / RFC 9728 §3.1 path-inserted well-known aliases. Under a root
+    # path the issuer carries a path component, and spec-following discovery puts
+    # the well-known segment between host and path — a URL at the *host root*,
+    # outside the root path. Starlette matches such routes as-is (root_path is
+    # only stripped when present), so registering them here makes discovery work
+    # for any reverse proxy that forwards /.well-known/* to Phoenix unmodified.
+    if host_root_path := get_env_host_root_path():
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}",
+            protected_resource_metadata,
+            include_in_schema=False,
+        )
+        # The MCP PRM handler 404s by itself when the mount is disabled. The /mcp
+        # literal mirrors the path-appended route in auth_md.py, whose handler
+        # verifies it against the mcp_mount_path state so drift cannot be silent.
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}/mcp",
+            mcp_protected_resource_metadata,
+            include_in_schema=False,
+        )
+        if authentication_enabled:
+            for well_known in ("oauth-authorization-server", "openid-configuration"):
+                app.add_api_route(
+                    f"/.well-known/{well_known}{host_root_path}",
+                    authorization_server_metadata,
+                    include_in_schema=False,
+                    dependencies=[Depends(authorization_server_enabled)],
+                )
 
     def _openapi() -> dict[str, Any]:
         """Generate the OpenAPI schema served to Swagger UI.
@@ -1064,6 +1160,32 @@ def create_app(
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
+    mcp_http_app = None
+    if mcp_mount_path is not None:
+        # Build after ``app.openapi`` is customized so the generated tools mirror
+        # the same /v1 schema, and mount before the static UI ("/") catch-all so
+        # requests to the MCP endpoint are not swallowed by it. The app's
+        # lifespan (its session manager) is entered in ``_lifespan`` above.
+        from phoenix.server.mcp_server import (
+            BearerAuthGuard,
+            MountPathNormalizer,
+            create_phoenix_mcp_app,
+        )
+
+        mcp_http_app = create_phoenix_mcp_app(app)
+        # The guard reads scope["user"], so it is installed exactly when the
+        # AuthenticationMiddleware that populates it is (token_store above).
+        app.mount(
+            mcp_mount_path,
+            BearerAuthGuard(mcp_http_app) if token_store is not None else mcp_http_app,
+        )
+        # Starlette mounts do not match the bare mount path, which is the URL MCP
+        # clients are configured with; rewrite it to the mount root before routing.
+        app.add_middleware(MountPathNormalizer)
+    app.state.mcp_http_app = mcp_http_app
+    # Consumed by the OAuth2 authorization server (resource-indicator validation)
+    # and the protected-resource metadata routes; None when the mount is disabled.
+    app.state.mcp_mount_path = mcp_mount_path
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1111,6 +1233,10 @@ def create_app(
                     allow_external_resources=get_env_allow_external_resources(),
                     agent_assistant_disabled=get_env_disable_agent_assistant(),
                     agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
+                    # The mount decision above is the source of truth for whether
+                    # /mcp exists; code mode only matters when the mount is live.
+                    mcp_server_enabled=mcp_mount_path is not None,
+                    mcp_code_mode_enabled=mcp_mount_path is not None and get_env_mcp_code_mode(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
                 ),
@@ -1118,6 +1244,9 @@ def create_app(
             name="static",
         )
     app.state.authentication_enabled = authentication_enabled
+    app.state.oauth2_authorization_server_enabled = (
+        authentication_enabled and get_env_enable_oauth2_authorization_server()
+    )
     app.state.read_only = read_only
     app.state.password_reset_token_expiry = password_reset_token_expiry
     app.state.access_token_expiry = access_token_expiry
@@ -1173,7 +1302,39 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
+    # Added after (= outside) the credentialed allowlist middleware so it wins
+    # on its paths: browser-based OAuth public clients fetch these anonymous
+    # endpoints from origins that cannot be known in advance. The cookie-honoring
+    # OAuth endpoints (/oauth2/authorize is navigated to; the consent decision
+    # endpoint enforces a strict Origin check) are deliberately not listed.
+    #
+    # The MCP endpoint joins the set when mounted: browser-based MCP clients call
+    # it directly with a bearer token, which is not an ambient credential (a
+    # hostile page cannot make the browser attach it), and they must be able to
+    # read the session id and the 401 challenge that bootstraps their OAuth flow.
+    # The path set is shared with the CSRF origin validator, which bypasses
+    # exactly these surfaces.
+    app.add_middleware(
+        AnonymousCorsMiddleware,
+        paths=anonymous_surfaces,
+        expose_headers="Mcp-Session-Id, WWW-Authenticate" if mcp_mount_path is not None else "",
+    )
     return app
+
+
+def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfig]) -> None:
+    collisions = sorted(
+        config.idp_name
+        for config in oauth2_client_configs
+        if config.idp_name.lower() in _RESERVED_OAUTH2_IDP_NAMES
+    )
+    if collisions:
+        names = ", ".join(collisions)
+        reserved = ", ".join(sorted(_RESERVED_OAUTH2_IDP_NAMES))
+        raise ValueError(
+            f"OAuth2 identity provider names cannot use reserved authorization server paths: "
+            f"{names}. Reserved names: {reserved}."
+        )
 
 
 def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:

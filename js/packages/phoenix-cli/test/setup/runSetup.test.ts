@@ -120,8 +120,8 @@ describe("runSetup", () => {
 
   it("auth-on happy path with a pasted API key", async () => {
     const prompter = scriptedPrompter([
-      "sk-pasted", // API key
       "my-app", // project name
+      "sk-pasted", // API key
       "clipboard", // instrumentation mode
       true, // I've run the prompt
       false, // no px profile
@@ -145,8 +145,8 @@ describe("runSetup", () => {
 
   it("re-prompts only for a rejected API key", async () => {
     const prompter = scriptedPrompter([
-      "sk-rejected", // API key
       "my-app", // project name
+      "sk-rejected", // API key
       "sk-pasted", // replacement API key
       "manual",
       true,

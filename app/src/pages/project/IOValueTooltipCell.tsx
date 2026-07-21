@@ -181,7 +181,7 @@ const scrollFadeBottomCSS = css`
 const loadingCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
 `;
 
 function formatPreview(value: unknown): string {

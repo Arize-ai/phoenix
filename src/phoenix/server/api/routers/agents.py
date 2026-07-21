@@ -1476,10 +1476,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if isinstance(result.output, str):
                 turn_is_terminal = True
                 turn_final_output_text = result.output.strip() or None
+            # Only advertise a trace when the tracer is actually recording
             span_context = (
-                agent_span_recorder.span_context
-                if agent_span_recorder and agent_span_recorder.span_context is not None
-                else request_parent_span_context
+                (
+                    agent_span_recorder.span_context
+                    if agent_span_recorder and agent_span_recorder.span_context is not None
+                    else request_parent_span_context
+                )
+                if tracer is not None
+                else None
             )
             yield _build_message_metadata_chunk(
                 span_context=span_context,

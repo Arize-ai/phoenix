@@ -11,6 +11,7 @@ import { createSystemClipboardWriter } from "./clipboard";
 import { createSystemClock } from "./clock";
 import { captureRunContext } from "./context";
 import { fetchDocs } from "./docs";
+import { createSystemOAuthLogin } from "./oauthLogin";
 import { createPhoenixClientFactory } from "./phoenixClient";
 import { createSystemProcessRunner } from "./processes";
 import type { SetupDeps } from "./index";
@@ -32,5 +33,6 @@ export function buildDefaultDeps({
     writeClipboard: createSystemClipboardWriter(processes.exec),
     createClient: createPhoenixClientFactory({ apiUrl }),
     fetchDocs,
+    oauthLogin: createSystemOAuthLogin({ apiUrl, fetchImpl: fetch }),
   };
 }

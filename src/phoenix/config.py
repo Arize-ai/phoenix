@@ -100,6 +100,22 @@ Whether to disable the agent assistant feature (the /chat endpoint). Defaults to
 meaning the assistant is enabled by default. Set to True on the Phoenix server to turn
 it off for the whole deployment.
 """
+ENV_PHOENIX_ENABLE_MCP_SERVER = "PHOENIX_ENABLE_MCP_SERVER"
+"""
+Whether to mount the in-process MCP server (generated from the /v1 REST API) at
+/mcp. Defaults to True. When enabled, the MCP server reuses Phoenix's existing
+bearer-token authentication.
+"""
+ENV_PHOENIX_ENABLE_MCP_CODE_MODE = "PHOENIX_ENABLE_MCP_CODE_MODE"
+"""
+Whether the mounted MCP server presents its tools through FastMCP's code-mode
+surface. Defaults to True. Under code mode, clients see discovery meta-tools
+(search, get_schema, tags, list_tools) plus an `execute` tool that runs
+LLM-written Python in a sandbox where `call_tool(name, params)` is the only
+available function. Set to False to present the group-gated progressive-
+disclosure tool list instead. Has no effect unless PHOENIX_ENABLE_MCP_SERVER is
+also set.
+"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
@@ -414,6 +430,47 @@ The duration, in minutes, before access tokens expire.
 ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES = "PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before refresh tokens expire.
+"""
+ENV_PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER = "PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER"
+"""
+Whether Phoenix serves its built-in OAuth2 authorization server (interactive OAuth
+login for the CLI and other public clients). Defaults to true. When false, the
+/oauth2/* endpoints and the RFC 8414 discovery document respond 404, and the
+protected-resource metadata stops advertising an authorization server. Previously
+minted OAuth2 access tokens remain valid until they expire, but grants can no
+longer be refreshed. API keys and browser login are unaffected. Has no effect
+unless authentication is enabled.
+"""
+ENV_PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS = "PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS"
+"""
+The duration, in days, before an OAuth2 grant expires. Refresh-token rotation never
+extends a token's life past its grant's expiry. Defaults to 90 days.
+"""
+ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK = "PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK"
+"""
+Controls Origin-header enforcement on OAuth2 consent decisions. Defaults to strict.
+"""
+ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION = "PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION"
+"""
+Controls public-client redirect URI mechanisms for dynamic client registration.
+One of: disabled, local_only, enabled. Defaults to enabled: MCP clients in the
+wild (e.g. Cursor) register HTTPS redirect URIs alongside loopback and
+private-use-scheme ones as part of standard RFC 7591 registration, and
+rejecting HTTPS breaks those clients out of the box. Registration grants no
+authority by itself — a token is minted only after a logged-in user approves
+the consent page, the authorization code is delivered only to the exact
+registered redirect URI, and PKCE binds the exchange to the flow's initiator.
+Operators can restrict which hosts may receive HTTPS deliveries with
+PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS, or set local_only / disabled.
+"""
+ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS = "PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS"
+"""
+A comma-separated list of HTTPS redirect hosts allowed for dynamic OAuth2 client registration.
+When unset, all HTTPS redirect hosts are accepted while dynamic client registration is enabled.
+"""
+ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR = "PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR"
+"""
+Maximum dynamic OAuth2 client registrations accepted per IP address each hour. Defaults to 10.
 """
 ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
 """
@@ -1462,6 +1519,82 @@ def get_env_refresh_token_expiry() -> timedelta:
     )
     assert minutes > 0
     return timedelta(minutes=minutes)
+
+
+def get_env_enable_oauth2_authorization_server() -> bool:
+    """
+    Gets whether the built-in OAuth2 authorization server is served.
+    """
+    return _bool_val(ENV_PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER, True)
+
+
+DEFAULT_OAUTH2_GRANT_EXPIRY_DAYS = 90
+
+
+def get_env_oauth2_grant_expiry() -> timedelta:
+    """
+    Gets the OAuth2 grant expiry ceiling applied to newly minted grants.
+    """
+    days = _float_val(
+        ENV_PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS,
+        DEFAULT_OAUTH2_GRANT_EXPIRY_DAYS,
+    )
+    assert days > 0
+    return timedelta(days=days)
+
+
+def get_env_oauth2_consent_origin_check() -> Literal["strict", "off"]:
+    """
+    Gets the OAuth2 consent Origin-header enforcement mode.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK, "strict").lower()
+    if value not in ("strict", "off"):
+        raise ValueError(
+            f"The environment variable `{ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK}` must be "
+            "one of: strict, off."
+        )
+    return cast(Literal["strict", "off"], value)
+
+
+def get_env_oauth2_dynamic_client_registration() -> Literal["disabled", "local_only", "enabled"]:
+    """
+    Gets which public-client redirect URI mechanisms are enabled.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION, "enabled").lower()
+    if value not in ("disabled", "local_only", "enabled"):
+        raise ValueError(
+            f"The environment variable `{ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION}` must be "
+            "one of: disabled, local_only, enabled."
+        )
+    return cast(Literal["disabled", "local_only", "enabled"], value)
+
+
+def get_env_oauth2_allowed_redirect_hosts() -> frozenset[str]:
+    """
+    Gets the HTTPS redirect host allowlist for dynamic OAuth2 client registration.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS)
+    if not value:
+        return frozenset()
+    hosts = frozenset(host.strip().lower() for host in value.split(",") if host.strip())
+    if not hosts:
+        return frozenset()
+    for host in hosts:
+        if urlparse(f"https://{host}").hostname != host:
+            raise ValueError(
+                f"The environment variable `{ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS}` "
+                f"contains an invalid host: {host}"
+            )
+    return hosts
+
+
+def get_env_oauth2_dcr_rate_limit_per_hour() -> int:
+    """
+    Gets the per-IP hourly dynamic OAuth2 client registration limit.
+    """
+    limit = _int_val(ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR, 10)
+    assert limit > 0
+    return limit
 
 
 def get_env_csrf_trusted_origins() -> list[str]:
@@ -3370,6 +3503,14 @@ def get_env_disable_migrations() -> bool:
 
 def get_env_disable_agent_assistant() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_AGENT_ASSISTANT, False)
+
+
+def get_env_enable_mcp_server() -> bool:
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_SERVER, True)
+
+
+def get_env_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:

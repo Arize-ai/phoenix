@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren, ReactNode } from "react";
+import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
 import { Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 
@@ -15,15 +15,37 @@ import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
 import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
-  padding: var(--global-dimension-static-size-100);
-  padding-right: var(--global-dimension-static-size-200);
+  --top-nav-right-inset: 0px;
+  padding: var(--global-dimension-size-100);
+  padding-right: calc(
+    var(--global-dimension-size-200) + var(--top-nav-right-inset)
+  );
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+
+  /* Clip the PXI button's decorative glow without creating a scroll
+     container or horizontal scrollbar in the surrounding layout panel. */
+  overflow-x: clip;
+
+  /* The breadcrumb trail (an <ol> from the Breadcrumbs component) is the
+     nav's designated shrinking region: give the whole chain a min-width so
+     crumb links can compress to their ellipsis and right-aligned controls
+     (page actions, the PXI button) stay visible when the nav narrows —
+     e.g. beside a detail drawer or docked assistant panel. */
+  & > ol {
+    flex: 0 1 auto;
+    min-width: 0;
+
+    .breadcrumb,
+    .breadcrumb > div {
+      min-width: 0;
+    }
+  }
 
   .copy-action-menu__button {
     opacity: 0;
@@ -38,8 +60,7 @@ const topNavCSS = css`
 `;
 
 const sideNavCSS = css`
-  padding: var(--global-dimension-static-size-200)
-    var(--global-dimension-static-size-100);
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-100);
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
@@ -60,7 +81,7 @@ const sideNavCSS = css`
 
 export const navLinkCSS = css`
   --nav-link-icon-size: calc(
-    var(--nav-collapsed-width) - var(--global-dimension-static-size-200)
+    var(--nav-collapsed-width) - var(--global-dimension-size-200)
   );
 
   width: 100%;
@@ -112,11 +133,11 @@ const brandCSS = css`
   color: var(--global-text-color-900);
   font-size: var(--global-font-size-xl);
   text-decoration: none;
-  margin: 0 0 var(--global-dimension-static-size-200) 0;
+  margin: 0 0 var(--global-dimension-size-200) 0;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-150);
+  gap: var(--global-dimension-size-150);
   overflow: hidden;
   & > * {
     flex: none;
@@ -187,8 +208,25 @@ export function Brand() {
   );
 }
 
-export function TopNavbar({ children }: { children: ReactNode }) {
-  return <nav css={topNavCSS}>{children}</nav>;
+type TopNavbarStyle = CSSProperties & {
+  "--top-nav-right-inset": string;
+};
+
+export function TopNavbar({
+  children,
+  rightInset = 0,
+}: {
+  children: ReactNode;
+  rightInset?: number;
+}) {
+  const style: TopNavbarStyle = {
+    "--top-nav-right-inset": `${rightInset}px`,
+  };
+  return (
+    <nav css={topNavCSS} style={style}>
+      {children}
+    </nav>
+  );
 }
 
 export function SideNavbar({

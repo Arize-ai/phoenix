@@ -36,7 +36,7 @@
     "typecheck": "pnpm run -r typecheck"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.31.0",
+    "@changesets/cli": "^2.31.1",
     "oxfmt": "^0.58.0",
     "oxlint": "~1.73.0",
     "pkg-pr-new": "^0.0.75",
@@ -44,7 +44,7 @@
     "tsc-alias": "1.9.0",
     "typedoc": "^0.28.20",
     "typescript": "^7.0.2",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
   "engines": {

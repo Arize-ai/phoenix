@@ -12,8 +12,7 @@ import { VersionUpdateNoticeItem } from "@phoenix/components/nav/VersionUpdateNo
 const sideNavFrameCSS = css`
   box-sizing: border-box;
   width: var(--nav-expanded-width);
-  padding: var(--global-dimension-static-size-200)
-    var(--global-dimension-static-size-100);
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-100);
   background-color: var(--global-color-gray-100);
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);

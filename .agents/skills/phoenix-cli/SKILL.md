@@ -43,6 +43,8 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px auth login
+px auth logout
 px auth status
 px profile list
 px profile show [name]
@@ -59,6 +61,10 @@ export PHOENIX_HOST=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
+
+For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
+OAuth access tokens are refreshed automatically for REST, GraphQL, and PXI
+requests, and rotated tokens are persisted to the selected profile.
 
 Always use `--format raw --no-progress` when piping to `jq`.
 
@@ -105,6 +111,25 @@ px setup instrument --agent claude   # instrument + verify only
 px setup skills                      # install the Phoenix coding-agent skills
 ```
 
+### `px setup mcp` — register the remote MCP server
+
+Wire the Phoenix remote MCP server (`<endpoint>/mcp`) into a coding agent so it
+can query Phoenix data. The endpoint is inferred from `--endpoint`, the active
+profile, or `PHOENIX_HOST`. Bare command prompts for scope (global default) then
+agent; `--agent` skips both prompts.
+
+```bash
+px setup mcp --agent codex --no-input --format raw
+px setup mcp --agent claude --local            # write this repo's .mcp.json
+```
+
+Agents: `claude`, `codex`, `gemini`, `cursor`, `opencode`, `vscode`. Scope is
+`--global` (default) or `--local` (repo; Codex is global-only). Auth is OAuth by
+default (URL-only config, browser login on first use); pass `--header "Name:
+value"` (repeatable) for an API-key bearer fallback — for Codex a
+`Authorization: Bearer ${VAR}` header becomes `bearer_token_env_var`. `--format
+raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
+
 ## Quick Reference
 
 | Task | Files |
@@ -131,10 +156,16 @@ Both stages tag every artifact with one shared **coding annotation identifier** 
 ## Auth
 
 ```bash
+px auth login                                 # browser-based OAuth login
+px auth login --no-browser                    # print URL for SSH/headless use
+px auth logout                                # clear OAuth tokens; leaves API keys
 px auth status                                # check connection and authentication
 px auth status --endpoint http://other:6006   # check a specific endpoint
 px auth status --profile staging              # check a named profile's connection
+px auth status --format raw                   # machine-readable credential source
 ```
+
+`auth status` reports the credential source (`flag`, `env`, `profile-key`, `oauth`, or `none`). OAuth status includes the token expiry.
 
 ## Profiles
 

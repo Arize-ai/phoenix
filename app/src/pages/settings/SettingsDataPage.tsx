@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
   Modal,
@@ -35,10 +36,20 @@ export function SettingsDataPage() {
   return (
     <Card
       title="Retention Policies"
+      titleExtra={
+        <DocumentationHelp topic="dataRetention">
+          Automatically purge project traces by age or trace count on a
+          configurable schedule.
+        </DocumentationHelp>
+      }
       extra={
         <CanManageRetentionPolicy>
           <DialogTrigger>
-            <Button size="S" leadingVisual={<Icon svg={<Icons.Plus />} />}>
+            <Button
+              size="S"
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
+            >
               New Policy
             </Button>
             <ModalOverlay>

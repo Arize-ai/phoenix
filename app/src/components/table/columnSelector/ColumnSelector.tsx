@@ -43,7 +43,7 @@ export interface ColumnSelectorMenuProps {
 }
 
 /** Shared horizontal inset so the whole menu reads as one aligned column. */
-const MENU_INSET = "var(--global-dimension-static-size-50)";
+const MENU_INSET = "var(--global-dimension-size-50)";
 
 const columnSelectorMenuCSS = css`
   display: flex;
@@ -78,15 +78,15 @@ export const columnRowCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
-  min-height: var(--global-dimension-static-size-400);
-  padding: 0 var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+  min-height: var(--global-dimension-size-400);
+  padding: 0 var(--global-dimension-size-100);
   border-radius: var(--global-rounding-small);
   label {
     flex: 1 1 auto;
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-100);
+    gap: var(--global-dimension-size-100);
     min-width: 0;
   }
   .column-selector-row__handle {
@@ -95,8 +95,8 @@ export const columnRowCSS = css`
     align-items: center;
     justify-content: center;
     flex: none;
-    width: var(--global-dimension-static-size-225);
-    height: var(--global-dimension-static-size-225);
+    width: var(--global-dimension-size-225);
+    height: var(--global-dimension-size-225);
     font-size: var(--global-font-size-m);
   }
   &:hover {

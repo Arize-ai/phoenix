@@ -76,8 +76,16 @@
                 "group": "Coding Agents",
                 "pages": [
                   "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/integrations/phoenix-mcp-server",
                   "docs/phoenix/agent-assisted-setup"
+                ]
+              },
+              {
+                "group": "MCP",
+                "pages": [
+                  "docs/phoenix/integrations/mcp",
+                  "docs/phoenix/integrations/remote-mcp",
+                  "docs/phoenix/integrations/docs-mcp",
+                  "docs/phoenix/integrations/phoenix-mcp-server"
                 ]
               },
               "docs/phoenix/end-to-end-features-notebook",
@@ -489,7 +497,16 @@
             "group": "Developer Tools",
             "icon": "code",
             "pages": [
-              "docs/phoenix/integrations/developer-tools/coding-agents",
+              "docs/phoenix/integrations/developer-tools/coding-agents"
+            ]
+          },
+          {
+            "group": "MCP",
+            "icon": "plug",
+            "pages": [
+              "docs/phoenix/integrations/mcp",
+              "docs/phoenix/integrations/remote-mcp",
+              "docs/phoenix/integrations/docs-mcp",
               "docs/phoenix/integrations/phoenix-mcp-server"
             ]
           },
@@ -1299,6 +1316,7 @@
               {
                 "group": "07.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
                   "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
                   "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
                 ]

@@ -1,5 +1,27 @@
 # @arizeai/phoenix-cli
 
+## 1.10.1
+
+### Patch Changes
+
+- 1f3c4b6: `px auth login` now probes the server's `.well-known/oauth-authorization-server` discovery document before starting the browser flow, bailing out cleanly with a network error when the server is unreachable and an auth error when the server does not support OAuth login
+
+## 1.10.0
+
+### Minor Changes
+
+- 3abafcf: Add `px setup mcp` to register the Phoenix remote MCP server with a coding agent (Claude Code, Cursor, Codex, and others), with OAuth by default, `--header` for API-key auth, and local/global scopes
+
+## 1.9.1
+
+### Patch Changes
+
+- d6b1cbb: Add a reusable refreshable-credential fetch wrapper to the Phoenix TypeScript
+  client, use it for OAuth-authenticated CLI API and PXI requests, and keep each
+  profile bound to the endpoint that issued its OAuth tokens.
+- Updated dependencies [d6b1cbb]
+  - @arizeai/phoenix-client@6.14.0
+
 ## 1.9.0
 
 ### Minor Changes

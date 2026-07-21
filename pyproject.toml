@@ -41,7 +41,7 @@ dependencies = [
   "grpcio",
   "grpc-interceptor",
   "tqdm",
-  "httpx",
+  "httpx[http2]",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
@@ -60,6 +60,7 @@ dependencies = [
   "arize-phoenix-evals>=3.1.1",
   "arize-phoenix-otel>=0.16.1",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
+  "fastmcp-slim[server,code-mode]>=3.4.2",  # server extra powers the in-process MCP server mounted at /mcp (generated from the v1 OpenAPI routes); code-mode extra provides the pydantic-monty sandbox for the PHOENIX_ENABLE_MCP_CODE_MODE tool surface; client extra is already pulled transitively by pydantic-ai-slim[mcp]
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.0.0,<3",
   "bashkit>=0.10.0",
@@ -109,7 +110,7 @@ dev = [
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
   "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
-  "mypy==2.2.0",
+  "mypy==2.3.0",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
@@ -421,6 +422,13 @@ exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-p
 override-dependencies = [
   "openai>=2.30.0",
   "python-dotenv>=1.1.0",
+  # Security stopgap: fastmcp-slim[code-mode] hard-pins pydantic-monty==0.0.17, which has
+  # an uncatchable in-process stack-overflow DoS in the code-mode sandbox — a
+  # few-thousand-term bool-op/ternary chain segfaults the interpreter at compile time and
+  # crashes the whole Phoenix process (verified end-to-end). 0.0.18 fixes it (monty
+  # #437/#449) with no filesystem-isolation regression. Override fastmcp's exact pin until
+  # a fastmcp-slim release adopts 0.0.18.
+  "pydantic-monty==0.0.18",
 ]
 
 [tool.uv.workspace]

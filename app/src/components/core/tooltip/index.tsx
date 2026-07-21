@@ -1,6 +1,8 @@
 export { TooltipTrigger, OverlayArrow } from "react-aria-components";
 export { Tooltip } from "./Tooltip";
 export { TooltipArrow } from "./TooltipArrow";
+export { DocumentationHelp } from "./DocumentationHelp";
+export type { DocumentationHelpProps } from "./DocumentationHelp";
 export { TriggerWrap } from "./TriggerWrap";
 export {
   RichTooltip,

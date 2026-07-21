@@ -1,5 +1,116 @@
 # Migrations
 
+## v18.x to v19.0.0
+
+### Built-in OAuth2 authorization server
+
+Phoenix now serves a built-in OAuth2 authorization server whenever authentication is enabled. It provides browser-based
+login for OAuth2 public clients — most notably `px auth login` in the Phoenix CLI — and advertises itself through the
+standard discovery documents (`/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`).
+It is on by default and requires no configuration.
+
+Operators who do not want this surface exposed — for example, deployments that mandate API-key-only access — can disable
+it with the new environment variable:
+
+- `PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER` (default `true`). When set to `false`, every `/oauth2/*` endpoint and the
+  `/.well-known/oauth-authorization-server` discovery document respond with `404`, and the protected-resource metadata
+  stops advertising an authorization server. API keys, browser login, and password-based access tokens are unaffected.
+  OAuth2 access tokens minted before the switch was flipped remain valid until they expire, but their grants can no
+  longer be refreshed. The CLI reports "This Phoenix server does not support OAuth login; use an API key" when it
+  encounters such a deployment. The variable has no effect when authentication is disabled.
+
+Related dials for deployments that keep the authorization server enabled:
+
+- `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` (default `enabled`) controls dynamic client registration (RFC 7591) and
+  which redirect URIs registered clients may use. The default admits HTTPS redirect URIs in addition to loopback and
+  private-use schemes, because MCP clients in the wild (Cursor, for example) register an HTTPS callback as part of
+  standard registration and rejecting it breaks those clients out of the box. Registration by itself grants no access:
+  a token is minted only after a logged-in user approves the consent page, the authorization code is delivered only to
+  the exact registered redirect URI, and PKCE binds the token exchange to the client that started the flow. Set
+  `local_only` to restrict code delivery to processes on the approving user's machine (loopback and private-use schemes
+  only), or `disabled` to turn dynamic registration off entirely.
+- `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS` (unset by default) restricts which hosts may appear in HTTPS redirect URIs
+  when registration is `enabled` — for example, `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS=www.cursor.com` admits Cursor
+  and nothing else.
+
+A note on CORS: the anonymous OAuth surfaces (`/.well-known/*` discovery documents, `/oauth2/register`, `/oauth2/token`,
+and `/oauth2/revoke`) answer cross-origin requests from any origin with non-credentialed wildcard CORS, so browser-based
+OAuth clients work without configuration. These endpoints honor no cookies; the cookie-authenticated app API remains
+governed by the `PHOENIX_ALLOWED_ORIGINS` allowlist, and the OAuth consent endpoint keeps its strict same-origin check.
+
+### In-process MCP server
+
+Phoenix now mounts an in-process MCP server at `/mcp` by default. The endpoint speaks Streamable HTTP and, when
+authentication is enabled, reuses Phoenix's existing bearer-token authentication (including the OAuth2 authorization
+server's access tokens and API keys). When authentication is disabled, `/mcp` is reachable without credentials.
+
+Operators who do not want the MCP surface exposed can disable it with:
+
+- `PHOENIX_ENABLE_MCP_SERVER` (default `true`). When set to `false`, the `/mcp` mount and the path-inserted protected
+  resource metadata at `/.well-known/oauth-protected-resource/mcp` respond with `404`.
+
+By default the `/mcp` endpoint now presents FastMCP's **code-mode** tool surface: instead of the `/v1`-derived tool
+list, clients see discovery meta-tools (`search`, `get_schema`, `tags`, `list_tools`) and an `execute` tool that runs
+model-written Python in a `pydantic-monty` sandbox where `call_tool(name, params)` is the only function in scope. The
+`execute` tool can only invoke tools the caller is already authorized for, and each block is bounded by the FastMCP
+sandbox defaults (30s wall clock, 100 MB memory, at most 50 `call_tool` invocations). To restore the previous
+group-gated progressive-disclosure tool list instead, set:
+
+- `PHOENIX_ENABLE_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
+  effect unless `PHOENIX_ENABLE_MCP_SERVER` is also set.
+
+### Deployments behind a reverse proxy
+
+The authorization server and the MCP endpoint place requirements on a fronting reverse proxy that ordinary UI and API
+traffic never did. Deployments that expose Phoenix directly need none of this. For everyone else:
+
+- **Set `PHOENIX_ROOT_URL`** (and `PHOENIX_HOST_ROOT_PATH` when Phoenix is served under a subpath). The OAuth2 issuer,
+  every discovery URL, and the MCP 401 challenge are derived from `PHOENIX_ROOT_URL`, never from request `Host` headers,
+  so this is what makes the deployment's advertised identity match the URL clients actually use.
+- **Forward host-root `/.well-known/*` to Phoenix unmodified** when Phoenix is served under a subpath. RFC 8414 §3 and
+  RFC 9728 §3.1 place the well-known segment *between the host and the path*: for a deployment at
+  `https://example.com/phoenix`, clients fetch `https://example.com/.well-known/oauth-authorization-server/phoenix` —
+  a URL at the host root, outside the subpath the proxy routes to Phoenix. Phoenix registers matching routes for these
+  path-inserted documents whenever `PHOENIX_HOST_ROOT_PATH` is set; the proxy only needs to deliver them without
+  stripping or rewriting the path.
+- **Do not put proxy-level authentication in front of the anonymous surfaces**: `/mcp`, `/oauth2/register`,
+  `/oauth2/token`, `/oauth2/revoke`, and `/.well-known/*`. OAuth and MCP clients bootstrap from Phoenix's own `401`
+  response and its `WWW-Authenticate` header; a proxy that answers with a `302` to a login page or an SSO interstitial
+  ends the flow before it starts. These endpoints are safe to expose without a proxy gate — they honor no cookies, and
+  each validates its own inputs (see the CORS note above for the same boundary).
+- **Let `OPTIONS` requests through untouched** on those same paths. Browsers send a preflight `OPTIONS` before
+  cross-origin requests, and preflights carry no credentials by specification; one intercepted by a proxy auth layer
+  fails the real request with an opaque CORS error.
+- **Do not buffer or time out the MCP response stream.** `/mcp` holds a long-lived `text/event-stream` response open
+  for server-to-client messages. Response buffering (`proxy_buffering` in nginx, for example) or short read/write
+  timeouts silently break the session.
+- **Pass response headers through unmodified**, in particular `WWW-Authenticate`, `Mcp-Session-Id`, and the
+  `Access-Control-*` family — clients read all three, and browser-based clients cannot see the first two at all if a
+  proxy strips the CORS header that exposes them.
+- **Let 404s stay 404s.** Discovery clients probe several candidate `/.well-known/*` URLs and rely on a clean `404` to
+  move to the next one. A proxy that substitutes a custom HTML error page (or any `200`) makes the probe look like a
+  malformed discovery document, and clients abort instead of falling through.
+
+### GraphQL API keys can no longer create API keys
+
+Through Phoenix 18, the GraphQL mutations `createUserApiKey` and `createSystemApiKey` accepted API-key-authenticated callers for backward compatibility: a user API key could mint another user key for the same owner, and an `ADMIN`-role user key could mint a system key. This allowed a compromised key to issue a durable replacement before the original was revoked.
+
+As of Phoenix 19, both GraphQL mutations reject API-key-authenticated callers with an `Unauthorized` error, matching the policy the REST API-key endpoints (`POST /v1/user/api_keys`, `POST /v1/system/api_keys`) have enforced since their introduction:
+
+- User API keys are created from an authenticated human session.
+- System API keys are created from a human `ADMIN` session or with `PHOENIX_ADMIN_SECRET`.
+- API keys (user or system) cannot create API keys, on either surface.
+
+The GraphQL schema is unchanged, and listing and revoking keys work exactly as before, including with API-key authentication where previously permitted.
+
+**Migration:** If you have automation that uses an existing API key to mint new keys through GraphQL, switch it to one of the supported issuance origins:
+
+- Create keys interactively under **Settings → API Keys**, or
+- Authenticate the automation as a session (log in with user credentials to obtain an access token), or
+- For system keys, authenticate with `PHOENIX_ADMIN_SECRET` and call `POST /v1/system/api_keys` (or the GraphQL mutation).
+
+Keys created before the upgrade remain valid; only the ability of a key to create further keys is removed.
+
 ## v17.x to v18.0.0
 
 ### DB Index for Sessions Time Range

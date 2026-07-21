@@ -66,12 +66,13 @@ px --help
 
 ## MCP
 
-MCP has two different Phoenix integrations, and they serve different goals.
+Phoenix offers a few MCP integrations, and they serve different goals.
 
 | MCP Integration | Purpose | When to use |
 |---|---|---|
 | `Phoenix Docs MCP` | Search Phoenix documentation from your coding agent | Recommended for all users |
-| `Phoenix MCP Server` | Operate directly on your Phoenix instance (projects, traces, sessions, prompts, datasets, experiments, and more) | Use when you want agent-driven Phoenix data operations |
+| [`Remote MCP Server`](/docs/phoenix/integrations/remote-mcp) (beta) | Operate directly on your Phoenix instance via the `/mcp` endpoint built into the server — no install | Primary choice for Phoenix data operations |
+| `Phoenix MCP Server` (npm, maintenance mode) | Operate directly on your Phoenix instance via a local stdio `npx` server | Only with Phoenix versions that don't serve `/mcp` |
 
 ### Phoenix Docs MCP (Documentation Access)
 
@@ -154,11 +155,12 @@ https://arizeai-433a7140.mintlify.app/mcp
 Reference docs: [Claude Code MCP](https://docs.anthropic.com/en/docs/claude-code/mcp), [Cursor MCP](https://docs.cursor.com/context/model-context-protocol), [VS Code MCP servers](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf MCP](https://docs.windsurf.com/windsurf/mcp).
 </Note>
 
-### Phoenix MCP Server (Direct Phoenix Operations)
+### Direct Phoenix Operations (Remote MCP or npm)
 
-For direct operations against your Phoenix instance (traces, sessions, prompts, datasets, experiments, and more), use the dedicated setup guide:
+For direct operations against your Phoenix instance (traces, sessions, prompts, datasets, experiments, and more), use the dedicated setup guides:
 
-- [/docs/phoenix/integrations/phoenix-mcp-server](/docs/phoenix/integrations/phoenix-mcp-server)
+- [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) (beta) — built into the Phoenix server, no install. The primary way to connect going forward.
+- [Phoenix MCP Server](/docs/phoenix/integrations/phoenix-mcp-server) — the `@arizeai/phoenix-mcp` npm package, in maintenance mode; for Phoenix versions without `/mcp`.
 
 <Info>
 Install both MCP integrations if you want your coding agent to both look up docs and perform direct Phoenix instance operations.
@@ -250,7 +252,7 @@ This means your agent can look up accurate API signatures, implementations, and 
   <Card title="Retrieve Traces via CLI" icon="download" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli">
     Detailed guide for fetching traces from Phoenix.
   </Card>
-  <Card title="Phoenix MCP Server" icon="plug" href="/docs/phoenix/integrations/phoenix-mcp-server">
-    Interact with projects, traces, sessions, prompts, datasets, and experiments via the Phoenix MCP Server.
+  <Card title="MCP Servers" icon="plug" href="/docs/phoenix/integrations/mcp">
+    Interact with projects, traces, sessions, prompts, datasets, and experiments via the Phoenix MCP servers.
   </Card>
 </CardGroup>

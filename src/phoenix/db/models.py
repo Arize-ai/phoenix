@@ -999,6 +999,12 @@ class Span(HasId):
             .is_not(None),
             sqlite_where=column("attributes", JSON_)[["session", "id"]].as_string().is_not(None),
         ),
+        Index(
+            "ix_spans_user_id",
+            column("attributes", JSON_)[["user", "id"]].as_string(),
+            postgresql_where=column("attributes", JSON_)[["user", "id"]].as_string().is_not(None),
+            sqlite_where=column("attributes", JSON_)[["user", "id"]].as_string().is_not(None),
+        ),
     )
 
 
@@ -2278,6 +2284,108 @@ class PasswordResetToken(HasId):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+class OAuth2Client(HasId):
+    """Registered OAuth2 client that can request authorization codes and tokens."""
+
+    __tablename__ = "oauth2_clients"
+    client_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    logo_uri: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    redirect_uris: Mapped[list[str]] = mapped_column(JsonList, nullable=False)
+    grant_types: Mapped[list[str]] = mapped_column(JsonList, nullable=False)
+    token_endpoint_auth_method: Mapped[str] = mapped_column(String, nullable=False)
+    is_first_party: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    metadata_: Mapped[Optional[dict[str, Any]]] = mapped_column("metadata", JSON_, nullable=True)
+    # Server-observed peer address at registration. Kept out of metadata_, which holds
+    # unvalidated client-supplied fields, so no request body can forge this provenance.
+    # NULL for clients that were seeded rather than dynamically registered.
+    registration_client_ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    grants: Mapped[list["OAuth2Grant"]] = relationship(
+        "OAuth2Grant", back_populates="client", cascade="all, delete-orphan"
+    )
+    authorization_codes: Mapped[list["OAuth2AuthorizationCode"]] = relationship(
+        "OAuth2AuthorizationCode", back_populates="client", cascade="all, delete-orphan"
+    )
+    __table_args__ = (
+        # Bounds the per-IP registration rate-limit count to one address's own recent
+        # registrations instead of scanning every client registered in the window.
+        Index(
+            "ix_oauth2_clients_registration_client_ip",
+            "registration_client_ip",
+            "created_at",
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class OAuth2Grant(HasId):
+    """One consented OAuth2 session between a user and a client.
+
+    Each completed authorization creates a grant. Tokens hang off the grant; revoking the
+    grant ends the session. Grants are immutable — change access by revoking and re-authorizing.
+    """
+
+    __tablename__ = "oauth2_grants"
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user: Mapped["User"] = relationship("User")
+    oauth2_client_id: Mapped[int] = mapped_column(
+        ForeignKey("oauth2_clients.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    client: Mapped["OAuth2Client"] = relationship("OAuth2Client", back_populates="grants")
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+        "RefreshToken", back_populates="oauth2_grant"
+    )
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class OAuth2AuthorizationCode(HasId):
+    """Single-use authorization code issued after consent, redeemed for tokens.
+
+    The raw code is never stored — only its SHA-256 hash. Codes expire after a short TTL and
+    are deleted in the same transaction that creates the grant before token issuance.
+    """
+
+    __tablename__ = "oauth2_authorization_codes"
+    code_hash: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user: Mapped["User"] = relationship("User")
+    oauth2_client_id: Mapped[int] = mapped_column(
+        ForeignKey("oauth2_clients.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    client: Mapped["OAuth2Client"] = relationship(
+        "OAuth2Client", back_populates="authorization_codes"
+    )
+    redirect_uri: Mapped[str] = mapped_column(String, nullable=False)
+    code_challenge: Mapped[str] = mapped_column(String, nullable=False)
+    code_challenge_method: Mapped[str] = mapped_column(String, nullable=False)
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    resource: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
 class RefreshToken(HasId):
     __tablename__ = "refresh_tokens"
     user_id: Mapped[int] = mapped_column(
@@ -2287,6 +2395,21 @@ class RefreshToken(HasId):
     user: Mapped["User"] = relationship("User", back_populates="refresh_tokens")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    oauth2_grant_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("oauth2_grants.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    oauth2_grant: Mapped[Optional["OAuth2Grant"]] = relationship(
+        "OAuth2Grant", back_populates="refresh_tokens"
+    )
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    # Set when the token is spent in a rotation. NULL means live; a timestamp means the
+    # row is a tombstone, retained until expiry so that presenting the token again is
+    # recognizable as a replay rather than an unknown token. A consumed row must never
+    # authenticate: every read path filters on consumed_at IS NULL.
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2304,6 +2427,8 @@ class AccessToken(HasId):
         index=True,
         unique=True,
     )
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2318,6 +2443,8 @@ class ApiKey(HasId):
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 

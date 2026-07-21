@@ -6,6 +6,9 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 
 | Noun | Icon | Notes |
 |------|------|-------|
+| Account / user profile | `Icons.Person` | A user's identity, account details, or profile settings. |
+| API key | `Icons.Key` | Personal or system credentials used for programmatic access. |
+| Authorized application / OAuth grant | `Icons.Link2` | An application connected to a user's Phoenix account through OAuth. |
 | Project | `Icons.Grid` | Phoenix projects (the namespace concept). |
 | Trace | `Icons.Trace` | A single trace. |
 | Span | `Icons.Workflow` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
@@ -26,6 +29,10 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Chart type: vertical bars | `Icons.ChartNoAxesColumn` | Lucide-style glyph (three ascending columns, no axis). Preview for a vertical bar / column chart in the metric chart picker. Distinct from `BarChart` (eva glyph used as the generic "charts" action icon). |
 | Chart type: horizontal / ranked bars | `Icons.ChartBarDecreasing` | Lucide-style chart glyph with axis and descending horizontal bars. Preview for a ranked "top N" horizontal bar chart. |
 | Chart type: line | `Icons.ChartLine` | Lucide-style chart glyph with axis. Preview for a line / time-series chart. |
+| MCP (Model Context Protocol) | `McpSVG` (from `@phoenix/components/project/IntegrationIcons`) | The official MCP mark (filled, evenodd). Used for the MCP settings tab and anything referencing the built-in `/mcp` endpoint. |
+| Model | `Icons.Cube` | Lucide box glyph (cube). Used for the Models settings tab and anything representing a model as an entity. Prefer this over `LLMOutput` for the model noun. |
+| User preferences | `Icons.Options` | User-selectable theme, timezone, and code presentation preferences. |
+| Custom AI provider | `Icons.Sparkle` | Used for custom provider configuration and its empty state. |
 
 ## When you need an icon
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<abfb4cef7690befcc5c0c87f154fc9a6>>
+ * @generated SignedSource<<468484cac6c4b27ad157ebabd56dda17>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type APIKeysCardQuery$variables = Record<PropertyKey, never>;
 export type APIKeysCardQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"SystemAPIKeysTableFragment" | "UserAPIKeysTableFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"SystemAPIKeysTableFragment">;
 };
 export type APIKeysCardQuery = {
   response: APIKeysCardQuery$data;
@@ -26,40 +26,36 @@ var v0 = {
   "name": "id",
   "storageKey": null
 },
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "description",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "createdAt",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "expiresAt",
-  "storageKey": null
-},
-v5 = [
+v1 = [
   (v0/*:: as any*/),
-  (v1/*:: as any*/),
-  (v2/*:: as any*/),
-  (v3/*:: as any*/),
-  (v4/*:: as any*/)
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "name",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "description",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "createdAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "expiresAt",
+    "storageKey": null
+  }
 ];
 return {
   "fragment": {
@@ -72,11 +68,6 @@ return {
         "args": null,
         "kind": "FragmentSpread",
         "name": "SystemAPIKeysTableFragment"
-      },
-      {
-        "args": null,
-        "kind": "FragmentSpread",
-        "name": "UserAPIKeysTableFragment"
       }
     ],
     "type": "Query",
@@ -95,7 +86,7 @@ return {
         "kind": "LinkedField",
         "name": "systemApiKeys",
         "plural": true,
-        "selections": (v5/*:: as any*/),
+        "selections": (v1/*:: as any*/),
         "storageKey": null
       },
       {
@@ -113,61 +104,26 @@ return {
             "kind": "LinkedField",
             "name": "apiKeys",
             "plural": true,
-            "selections": (v5/*:: as any*/),
+            "selections": (v1/*:: as any*/),
             "storageKey": null
           },
           (v0/*:: as any*/)
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "UserApiKey",
-        "kind": "LinkedField",
-        "name": "userApiKeys",
-        "plural": true,
-        "selections": [
-          (v0/*:: as any*/),
-          (v1/*:: as any*/),
-          (v2/*:: as any*/),
-          (v3/*:: as any*/),
-          (v4/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "User",
-            "kind": "LinkedField",
-            "name": "user",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "username",
-                "storageKey": null
-              },
-              (v0/*:: as any*/)
-            ],
-            "storageKey": null
-          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "dffededefc14bbb83fd2538c612b4e32",
+    "cacheID": "0535a19ed70430d314272881d12e28c0",
     "id": null,
     "metadata": {},
     "name": "APIKeysCardQuery",
     "operationKind": "query",
-    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  viewer {\n    ...APIKeysTableFragment\n    id\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      username\n      id\n    }\n  }\n}\n"
+    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  viewer {\n    ...ViewerAPIKeysListFragment\n    id\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ad967afd45af0d5976982c70eaadb330";
+(node as any).hash = "c3d10193f41d6556ae921b604ec89d8c";
 
 export default node;

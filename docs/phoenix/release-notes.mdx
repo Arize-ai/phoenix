@@ -13,6 +13,18 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize-devrel/user-interview).
 </Info>
 
+<ReleaseUpdate label="07.17.2026" href="/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server" title="OAuth2 Authorization Server & Remote MCP">
+**Available in arize-phoenix 19.0.0+**
+
+Phoenix becomes its own OAuth2 authorization server, so the Phoenix CLI and MCP clients log in through the browser with short-lived, user-scoped tokens instead of long-lived API keys.
+
+- **OAuth2 authorization server** — authorization-code + PKCE, dynamic client registration, refresh-token rotation with replay detection, a redesigned consent screen, and admin grant management
+- **Browser-based CLI login** — `px auth login`, `status`, and `logout` obtain and silently refresh tokens per profile
+- **Remote MCP server (beta)** — a built-in `/mcp` endpoint that MCP clients (Claude Code, Cursor) connect to over OAuth
+- **API key management** — REST CRUD for user and system keys, dedicated settings tabs, and scope/audience columns
+- **Breaking change** — GraphQL `createUserApiKey`/`createSystemApiKey` no longer accept API-key-authenticated callers
+</ReleaseUpdate>
+
 <ReleaseUpdate label="07.14.2026" href="/docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables" title="Command Palette, Session Tools, and Table Customization">
 **Available in arize-phoenix 17.21.0–18.0.0, arize-phoenix-client 2.13.0+ (Python), @arizeai/phoenix-config 0.3.0+ (TypeScript)**
 

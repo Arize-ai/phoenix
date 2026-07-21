@@ -120,6 +120,7 @@ export function useAgentChat({
             const toolTimings = createClientToolTimingRecorder();
             const turnCompletionGate = createTurnCompletionGate({
               endTurn: async () => {
+                store.getState().setSessionResponsePending(sessionId, false);
                 turnTraceContext.clear();
                 toolTimings.clear();
               },
@@ -160,6 +161,7 @@ export function useAgentChat({
                   // The gate may clear state for a stale completed turn before
                   // this request reads the active turn trace context.
                   turnCompletionGate.beginTurn();
+                  store.getState().setSessionResponsePending(sessionId, true);
                   return {
                     body: buildAgentChatRequestBody({
                       body,
@@ -307,6 +309,9 @@ export function useAgentChat({
 
   const handleStopWithToolCleanup = async () => {
     await stop();
+    if (sessionId) {
+      store.getState().setSessionResponsePending(sessionId, false);
+    }
     const latestMessages = chatInstance?.messages ?? messages;
     await addInterruptedToolOutputs({
       messages: latestMessages,

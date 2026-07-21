@@ -10,6 +10,6 @@ export const spansTableCSS = css`
 
   // Style the column selector
   .dropdown__button {
-    min-width: var(--global-dimension-static-size-300);
+    min-width: var(--global-dimension-size-300);
   }
 `;

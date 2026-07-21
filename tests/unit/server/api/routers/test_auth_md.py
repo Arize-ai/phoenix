@@ -58,7 +58,7 @@ class TestProtectedResourceMetadata:
         assert data["resource_name"] == "Arize Phoenix"
         assert data["authorization_servers"] == []
         assert data["bearer_methods_supported"] == ["header"]
-        assert data["scopes_supported"] == []
+        assert "scopes_supported" not in data
         assert data["resource_documentation"] == "http://test/auth.md"
 
 
@@ -101,3 +101,59 @@ class TestWWWAuthenticateHeader:
         resp = await client_with_auth.get("/healthz")
         assert resp.status_code == 200
         assert "WWW-Authenticate" not in resp.headers
+
+    @pytest.mark.parametrize(
+        "env,expected_origin",
+        [
+            pytest.param(
+                {"PHOENIX_ROOT_URL": "https://phoenix.example.com"},
+                "https://phoenix.example.com",
+                id="root-url",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ROOT_URL": "https://phoenix.example.com/phoenix",
+                    "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+                },
+                "https://phoenix.example.com/phoenix",
+                id="root-url-with-root-path",
+            ),
+            pytest.param(
+                {"PHOENIX_HOST_ROOT_PATH": "/phoenix"},
+                "http://test/phoenix",
+                id="root-path-only",
+            ),
+        ],
+    )
+    async def test_401_challenge_names_the_configured_public_origin(
+        self,
+        env: dict[str, str],
+        expected_origin: str,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The challenge must agree with the discovery documents and the MCP
+        guard, which derive their URLs from the configured public origin —
+        request.base_url would leak the internal host behind a proxy that does
+        not rewrite forwarded headers."""
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        async with contextlib.AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_grpc_server())
+            app = create_app(
+                db=db,
+                authentication_enabled=True,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+                secret=SecretStr("test-secret-at-least-32-chars-long!!"),
+            )
+            manager = await stack.enter_async_context(LifespanManager(app))
+            client = httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=manager.app),
+                base_url="http://test",
+            )
+            resp = await client.get("/v1/projects")
+        assert resp.status_code == 401
+        www_auth = resp.headers.get("WWW-Authenticate", "")
+        prm_url = f"{expected_origin}/.well-known/oauth-protected-resource"
+        assert f'resource_metadata="{prm_url}"' in www_auth

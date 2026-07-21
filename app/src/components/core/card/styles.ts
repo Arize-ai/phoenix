@@ -20,12 +20,12 @@ export const cardCSS = (style?: CSSProperties) => css`
     flex: none;
     justify-content: space-between;
     align-items: center;
-    padding: 0 var(--global-dimension-static-size-200);
+    padding: 0 var(--global-dimension-size-200);
     height: var(--global-card-header-height);
     transition: background-color 0.2s ease-in-out;
 
     & .card__collapse-toggle-icon {
-      margin-right: var(--global-dimension-static-size-100);
+      margin-right: var(--global-dimension-size-100);
     }
 
     & .card__title {
@@ -33,7 +33,7 @@ export const cardCSS = (style?: CSSProperties) => css`
       line-height: var(--global-line-height-m);
       display: flex;
       align-items: center;
-      gap: var(--global-dimension-static-size-100);
+      gap: var(--global-dimension-size-100);
     }
 
     & .card__sub-title {

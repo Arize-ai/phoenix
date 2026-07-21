@@ -4,14 +4,14 @@ import type { SwitchProps as AriaSwitchProps } from "react-aria-components";
 import { Switch as AriaSwitch } from "react-aria-components";
 
 const switchCSS = css`
-  --switch-track-width: var(--global-dimension-static-size-450);
-  --switch-track-height: var(--global-dimension-static-size-250);
+  --switch-track-width: var(--global-dimension-size-450);
+  --switch-track-height: var(--global-dimension-size-250);
   --switch-track-bg: var(--global-color-gray-400);
   --switch-track-bg-selected: var(--global-color-primary);
-  --switch-thumb-size: var(--global-dimension-static-size-200);
+  --switch-thumb-size: var(--global-dimension-size-200);
   --switch-thumb-bg: var(--global-color-gray-900);
   --switch-thumb-bg-selected: var(--global-color-gray-50);
-  --switch-thumb-inset: var(--global-dimension-static-size-25);
+  --switch-thumb-inset: var(--global-dimension-size-25);
 
   display: flex;
   position: relative;
@@ -90,9 +90,9 @@ const switchCSS = css`
   }
 
   &[data-size="S"] {
-    --switch-track-width: var(--global-dimension-static-size-400);
-    --switch-track-height: var(--global-dimension-static-size-225);
-    --switch-thumb-size: var(--global-dimension-static-size-175);
+    --switch-track-width: var(--global-dimension-size-400);
+    --switch-track-height: var(--global-dimension-size-225);
+    --switch-thumb-size: var(--global-dimension-size-175);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }

@@ -405,9 +405,9 @@ test.describe("Playground prompt configuration round-trip", () => {
   // and different canonicalization on the RESPONSES write path
   // (`max_output_tokens` → `max_completion_tokens`, nested `reasoning.effort`
   // → flat `reasoning_effort`). Running both ensures neither branch silently
-  // drops a shared field. The API Type is asserted after reload: the Responses
-  // case includes a raw Responses-only tool, so prompt rehydration must infer
-  // the Responses API surface instead of falling back to Chat Completions.
+  // drops a shared field. Saved prompts don't record the API type — on reload
+  // it is inferred from Responses-only tool shapes and otherwise assumed to be
+  // Responses (the default) — so both cases rehydrate to the Responses surface.
   for (const apiTypeLabel of ["Chat Completions", "Responses"] as const) {
     test(`OpenAI (${apiTypeLabel}): prompt configuration survives reload`, async ({
       page,
@@ -471,7 +471,7 @@ test.describe("Playground prompt configuration round-trip", () => {
       ).toHaveValue(expectedMaxCompletionTokens);
       await expect(
         reopened.getByTestId("invocation-param-apiType")
-      ).toContainText(apiTypeLabel);
+      ).toContainText("Responses");
       await expect(
         reopened.getByTestId("invocation-param-reasoningEffort")
       ).toContainText(expectedReasoningEffort);

@@ -63,6 +63,31 @@ const phoenix = createClient({
 });
 ```
 
+For credentials that can expire, create an authenticated fetch implementation
+and pass it to the client. The token provider controls storage and refresh-token
+rotation. Requests that receive a `401` share one refresh operation and are
+retried once.
+
+```ts
+import { createAuthFetch, createClient } from "@arizeai/phoenix-client";
+
+const authFetch = createAuthFetch({
+  getAccessToken: async ({ forceRefresh }) => {
+    if (forceRefresh) {
+      await refreshAndPersistTokens();
+    }
+    return loadTokens().accessToken;
+  },
+});
+
+const phoenix = createClient({
+  options: {
+    baseUrl: "http://localhost:6006",
+    fetch: authFetch,
+  },
+});
+```
+
 ## Prompts
 
 `@arizeai/phoenix-client` provides a `prompts` export that exposes utilities for working with prompts for LLMs.

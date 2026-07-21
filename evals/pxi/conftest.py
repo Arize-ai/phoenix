@@ -7,6 +7,8 @@ on the xdist controller. It never decides pass/fail and never touches
 ``session.exitstatus`` -- ``gate.py`` is the sole decider.
 """
 
+# ruff: noqa: I001 -- repository import formatter and lint resolver disagree on local `evals`.
+
 from __future__ import annotations
 
 import json
@@ -15,16 +17,16 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 import pytest_asyncio
-from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPrivateUsage]
 
 from evals.pxi.harness.agent_task import (
     build_shared_docs_mcp_server,
     flush_agent_telemetry,
 )
+from evals.pxi.rowstate import SCHEMA_VERSION, row_state
+from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPrivateUsage]
 
 RESULTS_PATH_ENV = "PXI_EVAL_RESULTS_PATH"
 DEFAULT_RESULTS_PATH = "pxi-eval-results.json"
-SCHEMA_VERSION = 3
 RECORD_PROPERTY_KEY = "pxi_eval"
 
 # Per-process buffers. Under xdist the controller's ``pytest_runtest_logreport``
@@ -91,15 +93,36 @@ def _recording_status(config: Any) -> dict[str, Any]:
     """
     state = _get_state(config)
     if state is None:
-        return {"expected": False, "bootstrapped": False, "experiments": 0, "error": None}
+        return {
+            "expected": False,
+            "bootstrapped": False,
+            "experiments": 0,
+            "error": None,
+            "datasets": [],
+        }
     groups = state.groups
     experiments = sum(1 for g in groups.values() if g.experiment_id is not None)
     error = state.bootstrap_error
+    base_url = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006").rstrip("/")
+    datasets = [
+        {
+            "dataset": name,
+            "dataset_id": group.dataset_id,
+            "experiment_id": group.experiment_id,
+            "experiment_url": (
+                f"{base_url}/datasets/{group.dataset_id}/compare?experimentId={group.experiment_id}"
+                if group.dataset_id and group.experiment_id
+                else None
+            ),
+        }
+        for name, group in sorted(groups.items())
+    ]
     return {
         "expected": bool(os.environ.get("PHOENIX_API_KEY")) and not state.config.offline,
         "bootstrapped": error is None and len(groups) > 0 and experiments == len(groups),
         "experiments": experiments,
         "error": repr(error) if error is not None else None,
+        "datasets": datasets,
     }
 
 
@@ -107,16 +130,47 @@ def _pass_rate(passed: int, scored: int) -> float:
     return passed / scored if scored else 0.0
 
 
+def _empty_tally() -> dict[str, int]:
+    return {"rows": 0, "assessed": 0, "infra": 0, "passed": 0}
+
+
+def _add_row(tally: dict[str, int], row: dict[str, Any]) -> None:
+    tally["rows"] += 1
+    # Classify via the shared rule so the uploaded aggregates and the CI gate
+    # can never disagree about what counts as infra vs. an assessed verdict.
+    state = row_state(row)
+    if state == "infra":
+        tally["infra"] += 1
+        return
+    tally["assessed"] += 1
+    if state == "passed":
+        tally["passed"] += 1
+
+
+def _render_tally(tally: dict[str, int]) -> dict[str, Any]:
+    assessed = tally["assessed"]
+    passed = tally["passed"]
+    return {
+        "rows": tally["rows"],
+        "assessed": assessed,
+        # Keep ``scored`` as the compatibility spelling for the actual
+        # behavioral denominator. Infrastructure rows never enter it.
+        "scored": assessed,
+        "infra": tally["infra"],
+        "passed": passed,
+        "failed": assessed - passed,
+        "pass_rate": _pass_rate(passed, assessed),
+    }
+
+
 def _build_artifact(exitstatus: int, recording: dict[str, Any]) -> dict[str, Any]:
-    # dataset -> evaluator -> split -> {scored, passed}
+    # dataset -> evaluator -> split -> assessed/infra tally
     grouped: dict[str, dict[str, dict[str, dict[str, int]]]] = {}
     for row in _rows:
         evaluators = grouped.setdefault(str(row["dataset"]), {})
         splits = evaluators.setdefault(str(row["evaluator"]), {})
-        tally = splits.setdefault(str(row["split"]), {"scored": 0, "passed": 0})
-        tally["scored"] += 1
-        if row["passed"]:
-            tally["passed"] += 1
+        tally = splits.setdefault(str(row["split"]), _empty_tally())
+        _add_row(tally, row)
 
     datasets_out: list[dict[str, Any]] = []
     for dataset_name in sorted(grouped):
@@ -124,23 +178,16 @@ def _build_artifact(exitstatus: int, recording: dict[str, Any]) -> dict[str, Any
         for evaluator_name in sorted(grouped[dataset_name]):
             split_tallies = grouped[dataset_name][evaluator_name]
             splits_out: dict[str, Any] = {}
-            total_scored = 0
-            total_passed = 0
+            total = _empty_tally()
             for split_name in sorted(split_tallies):
                 tally = split_tallies[split_name]
-                total_scored += tally["scored"]
-                total_passed += tally["passed"]
-                splits_out[split_name] = {
-                    "scored": tally["scored"],
-                    "passed": tally["passed"],
-                    "pass_rate": _pass_rate(tally["passed"], tally["scored"]),
-                }
+                for key in total:
+                    total[key] += tally[key]
+                splits_out[split_name] = _render_tally(tally)
             evaluators_out.append(
                 {
                     "evaluator": evaluator_name,
-                    "scored": total_scored,
-                    "passed": total_passed,
-                    "pass_rate": _pass_rate(total_passed, total_scored),
+                    **_render_tally(total),
                     "splits": splits_out,
                 }
             )

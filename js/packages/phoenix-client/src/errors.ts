@@ -6,6 +6,7 @@
  * for instance, is how a caller learns that auth is enabled on the deployment.
  */
 export class HttpError extends Error {
+  readonly response: Response;
   readonly status: number;
   readonly statusText: string;
   readonly url: string;
@@ -13,6 +14,7 @@ export class HttpError extends Error {
   constructor(response: Response) {
     super(`${response.url}: ${response.status} ${response.statusText}`);
     this.name = "HttpError";
+    this.response = response;
     this.status = response.status;
     this.statusText = response.statusText;
     this.url = response.url;

@@ -85,6 +85,12 @@ services:
       - "traefik.http.services.phoenix.loadbalancer.server.port=6006"
       - "traefik.http.middlewares.phoenix-stripprefix.stripprefix.prefixes=/phoenix"
       - "traefik.http.routers.phoenix.middlewares=phoenix-stripprefix"
+      # OAuth discovery lives at the host root: RFC 8414/9728 path-inserted
+      # well-knowns put the segment between host and path, so MCP clients probe
+      # /.well-known/... outside /phoenix. Forward them unmodified (no strip);
+      # Phoenix registers the matching aliases under PHOENIX_HOST_ROOT_PATH.
+      - "traefik.http.routers.phoenix-wellknown.rule=Host(`localhost`) && PathPrefix(`/.well-known/`)"
+      - "traefik.http.routers.phoenix-wellknown.service=phoenix"
       - "service.name=phoenix"
       - "service.type=application"
       - "monitoring.priority=high"

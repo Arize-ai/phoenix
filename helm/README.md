@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 10.0.0](https://img.shields.io/badge/Version-10.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 18.0.0](https://img.shields.io/badge/AppVersion-18.0.0-informational?style=flat-square)
+![Version: 11.0.2](https://img.shields.io/badge/Version-11.0.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 19.3.0](https://img.shields.io/badge/AppVersion-19.3.0-informational?style=flat-square)
 
 <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=helm/README.md" />
 
@@ -71,6 +71,12 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
 | auth.oauth2.enabled | bool | `false` | Enable OAuth2/OIDC authentication |
 | auth.oauth2.providers | string | `nil` | List of OAuth2 identity providers to configure Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none"), and oidc_config_url You can also define corresponding ENVs via auth.secrets[].valueFrom to use existing secrets ENVs: PHOENIX_OAUTH2_{{ $provider_upper }}_{{ setting }}, e.g. PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET |
+| auth.oauth2AuthorizationServer.allowedRedirectHosts | list | `[]` | List of HTTPS redirect hosts allowed for dynamically registered OAuth2 clients (PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS) When empty, all HTTPS redirect hosts are accepted while dynamicClientRegistration is "enabled"; set this to restrict HTTPS deliveries to specific hosts. Loopback redirect URIs are always allowed. Example: ["app.example.com"] |
+| auth.oauth2AuthorizationServer.consentOriginCheck | string | `"strict"` | Origin-header enforcement mode for the OAuth2 consent endpoint (PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK) Valid values: "strict" (reject consent decisions from untrusted origins) or "off" |
+| auth.oauth2AuthorizationServer.dcrRateLimitPerHour | int | `10` | Per-IP hourly rate limit for dynamic OAuth2 client registration (PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR) |
+| auth.oauth2AuthorizationServer.dynamicClientRegistration | string | `"enabled"` | Dynamic client registration mode (PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION) Valid values: "disabled", "local_only" (loopback redirect URIs only), or "enabled" |
+| auth.oauth2AuthorizationServer.enabled | bool | `true` | Serve the built-in OAuth2 authorization server (PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER) |
+| auth.oauth2AuthorizationServer.grantExpiryDays | int | `90` | Expiry ceiling in days applied to newly minted OAuth2 grants (PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS) |
 | auth.passwordResetTokenExpiryMinutes | int | `60` | Duration in minutes before password reset tokens expire (PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES) |
 | auth.refreshTokenExpiryMinutes | int | `43200` | Duration in minutes before refresh tokens expire (PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES) |
 | auth.secret[0] | object | `{"key":"PHOENIX_SECRET","value":""}` | Environment variable name for the main Phoenix secret key used for encryption |
@@ -126,7 +132,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-18.0.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-19.3.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -173,6 +179,8 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | server.allowExternalResources | bool | `true` | Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES) Set to false in air-gapped environments to prevent external requests that can cause UI loading delays |
 | server.allowedProviders | string | `""` | Comma-separated list of model provider names to display in the playground UI (PHOENIX_ALLOWED_PROVIDERS) When unset, all providers are shown. Set to "NONE" to hide all providers. Supported values: OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA, AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER Example: "OPENAI,ANTHROPIC" |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
+| server.enableMcpCodeMode | bool | `true` | Enable code mode for the built-in MCP server, which exposes tools through a code-execution interface (PHOENIX_ENABLE_MCP_CODE_MODE) Only applies when the MCP server is enabled |
+| server.enableMcpServer | bool | `true` | Serve the built-in MCP server (PHOENIX_ENABLE_MCP_SERVER) |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |
 | server.host | string | `"::"` | Host IP to bind Phoenix server (PHOENIX_HOST) |

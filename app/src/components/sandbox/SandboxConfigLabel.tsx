@@ -72,7 +72,7 @@ const settingsListCSS = css`
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
 `;
 
 const settingRowCSS = css`
@@ -80,7 +80,7 @@ const settingRowCSS = css`
   flex-direction: row;
   justify-content: space-between;
   align-items: baseline;
-  gap: var(--global-dimension-static-size-200);
+  gap: var(--global-dimension-size-200);
 `;
 
 function SandboxConfigLabelDetails({

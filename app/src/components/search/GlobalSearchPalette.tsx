@@ -13,6 +13,8 @@ import {
   MatchText,
   useFilter,
 } from "@phoenix/components";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { RouteNavigationIcon } from "@phoenix/routing/RouteNavigationIcon";
 import type {
   RecentlyViewedResource,
   RecentlyViewedResourceType,
@@ -20,78 +22,12 @@ import type {
 import { useRecentlyViewedStore } from "@phoenix/store/recentlyViewedStore";
 
 import type { GlobalSearchPaletteQuery } from "./__generated__/GlobalSearchPaletteQuery.graphql";
+import { getMatchingSearchDestinationSections } from "./searchDestinations";
 
 const SEARCH_DEBOUNCE_MS = 200;
 const MAX_RECENTLY_VIEWED_SHOWN = 5;
 
-type SearchDestination = {
-  path: string;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-};
-
-/**
- * Top-level pages reachable from the palette. Mirrors the side navigation.
- */
-const DESTINATIONS: SearchDestination[] = [
-  {
-    path: "/projects",
-    label: "Tracing",
-    description: "Projects, traces, and spans",
-    icon: <Icon svg={<Icons.Trace />} />,
-  },
-  {
-    path: "/dashboards",
-    label: "Dashboards",
-    description: "Monitor projects and metrics",
-    icon: <Icon svg={<Icons.Grid />} />,
-  },
-  {
-    path: "/datasets",
-    label: "Datasets & Experiments",
-    description: "Curate data and run experiments",
-    icon: <Icon svg={<Icons.Database />} />,
-  },
-  {
-    path: "/playground",
-    label: "Playground",
-    description: "Experiment with prompts and models",
-    icon: <Icon svg={<Icons.PlayCircle />} />,
-  },
-  {
-    path: "/evaluators",
-    label: "Evaluators",
-    description: "Evaluate application output",
-    icon: <Icon svg={<Icons.Scale />} />,
-  },
-  {
-    path: "/prompts",
-    label: "Prompts",
-    description: "Manage and version prompts",
-    icon: <Icon svg={<Icons.MessageSquare />} />,
-  },
-  {
-    path: "/apis/rest",
-    label: "REST API",
-    description: "REST API reference",
-    icon: <Icon svg={<Icons.Code />} />,
-  },
-  {
-    path: "/apis/graphql",
-    label: "GraphQL",
-    description: "GraphQL API explorer",
-    icon: <Icon svg={<Icons.GraphQL />} />,
-  },
-  {
-    path: "/settings/general",
-    label: "Settings",
-    description: "Platform configuration",
-    icon: <Icon svg={<Icons.Options />} />,
-  },
-];
-
-const RESOURCE_ICONS: Record<RecentlyViewedResourceType, React.ReactNode> = {
+const RESOURCE_ICONS: Record<RecentlyViewedResourceType, ReactNode> = {
   project: <Icon svg={<Icons.Trace />} />,
   dataset: <Icon svg={<Icons.Database />} />,
   experiment: <Icon svg={<Icons.Experiment />} />,
@@ -118,7 +54,8 @@ export function GlobalSearchPalette({
   onOpenChange: (isOpen: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const { contains } = useFilter({ sensitivity: "base" });
+  const { viewer } = useViewer();
+  const { contains, startsWith } = useFilter({ sensitivity: "base" });
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   // The results query suspends, so drive it through a transition: React keeps
@@ -152,9 +89,12 @@ export function GlobalSearchPalette({
   const matchingRecentlyViewed = recentlyViewed
     .filter((resource) => !inputValue || contains(resource.name, inputValue))
     .slice(0, MAX_RECENTLY_VIEWED_SHOWN);
-  const matchingDestinations = DESTINATIONS.filter(
-    (destination) => !inputValue || contains(destination.label, inputValue)
-  );
+  const matchingDestinationSections = getMatchingSearchDestinationSections({
+    inputValue,
+    contains,
+    startsWith,
+    hasViewer: viewer !== null,
+  });
 
   return (
     <SearchResultsLoader searchQuery={searchQuery.trim()}>
@@ -163,7 +103,7 @@ export function GlobalSearchPalette({
           isOpen={isOpen}
           onOpenChange={onOpenChange}
           aria-label="Search Phoenix"
-          placeholder="Search projects, datasets, experiments, prompts…"
+          placeholder="Search pages, projects, datasets, experiments, prompts…"
           inputValue={inputValue}
           isPending={isPending}
           onInputChange={(value) => {
@@ -187,25 +127,30 @@ export function GlobalSearchPalette({
               ))}
             </CommandPaletteSection>
           )}
-          {matchingDestinations.length > 0 && (
-            <CommandPaletteSection title="Pages">
-              {matchingDestinations.map((destination) => (
+          {matchingDestinationSections.map((section) => (
+            <CommandPaletteSection key={section.title} title={section.title}>
+              {section.destinations.map((destination) => (
                 <CommandPaletteItem
                   key={`page:${destination.path}`}
                   id={`page:${destination.path}`}
-                  textValue={destination.label}
-                  icon={destination.icon}
-                  description={destination.description}
+                  textValue={destination.metadata.label}
+                  icon={
+                    <RouteNavigationIcon icon={destination.metadata.icon} />
+                  }
+                  description={destination.metadata.description}
                   onAction={() => {
                     onOpenChange(false);
                     navigate(destination.path);
                   }}
                 >
-                  <MatchText text={destination.label} match={inputValue} />
+                  <MatchText
+                    text={destination.metadata.label}
+                    match={inputValue}
+                  />
                 </CommandPaletteItem>
               ))}
             </CommandPaletteSection>
-          )}
+          ))}
           {RESULT_SECTIONS.map((section) => {
             const entries = resultsByType.get(section.type) ?? [];
             if (entries.length === 0) {

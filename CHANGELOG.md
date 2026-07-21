@@ -1,5 +1,116 @@
 # Changelog
 
+## [19.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.2.0...arize-phoenix-v19.3.0) (2026-07-20)
+
+
+### Features
+
+* **auth:** negotiate HTTP/2 for OAuth2/OIDC provider requests ([#14559](https://github.com/Arize-ai/phoenix/issues/14559)) ([1bf1603](https://github.com/Arize-ai/phoenix/commit/1bf1603472a13b0acd0d2944bcffbe077e9e8f38))
+* **playground:** filter model picker to provisioned providers ([#14529](https://github.com/Arize-ai/phoenix/issues/14529)) ([2f14ce8](https://github.com/Arize-ai/phoenix/commit/2f14ce8aec1da63968f6a28df60e7d82e810720c))
+* **settings:** add documentation onramps ([#14536](https://github.com/Arize-ai/phoenix/issues/14536)) ([2e748ef](https://github.com/Arize-ai/phoenix/commit/2e748ef5617abffbad79691020e916f7d9836208))
+* **ui:** add routed profile settings tabs ([#14538](https://github.com/Arize-ai/phoenix/issues/14538)) ([326ed65](https://github.com/Arize-ai/phoenix/commit/326ed655b4d5bb1e2c30d727fcf2d61e9c94979d))
+
+
+### Bug Fixes
+
+* **agents:** omit trace metadata for PXI turns when tracing is off ([#14557](https://github.com/Arize-ai/phoenix/issues/14557)) ([3f3d853](https://github.com/Arize-ai/phoenix/commit/3f3d853638696e1907eacdae379119aef3b421a3))
+* **evals:** improve user friction prompt ([#14561](https://github.com/Arize-ai/phoenix/issues/14561)) ([115d3f2](https://github.com/Arize-ai/phoenix/commit/115d3f24c1f5244abc49d2d1a25ef27d40469fae))
+
+## [19.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.1.0...arize-phoenix-v19.2.0) (2026-07-19)
+
+
+### Features
+
+* **cli:** improve server startup banner ([3904c49](https://github.com/Arize-ai/phoenix/commit/3904c49d04422faf7ca37858790ad8c6073b6f11))
+* **server:** show dev tooling info in boot banner ([7e36376](https://github.com/Arize-ai/phoenix/commit/7e36376fefd318b89c91fe97151cd9f82cc6176f))
+* **settings:** add Antigravity and OpenCode MCP client instructions ([8180357](https://github.com/Arize-ai/phoenix/commit/8180357d838667f01e9deb5bb7d4ba5bb3b30a27))
+
+
+### Bug Fixes
+
+* **app:** inline codemirror-json-schema in vitest to fix ESM resolution ([dc0d641](https://github.com/Arize-ai/phoenix/commit/dc0d64127bcee9970f60db149bc5ec13b6f37c78))
+* **cli:** sanitize startup banner on windows ([1474c9b](https://github.com/Arize-ai/phoenix/commit/1474c9b4615d99c18cf3a3f439301e2e9e756fac))
+* **playground:** assume Responses API when unspecified ([3476db9](https://github.com/Arize-ai/phoenix/commit/3476db9aa7d9132224ce9cf32fe5476bd2d7eabf))
+* **playground:** default OpenAI models to Responses API ([3a8f361](https://github.com/Arize-ai/phoenix/commit/3a8f36145df032ae4895b5d776ae4b2b726291e1))
+* **playground:** default to gpt-5.6-sol ([dc1258f](https://github.com/Arize-ai/phoenix/commit/dc1258f950e4a42c2a8c3316a1db06fb143458b2))
+* **settings:** adapt MCP auth wording when authentication is disabled ([1e9132a](https://github.com/Arize-ai/phoenix/commit/1e9132a654d7a8c44a746887ce9ad45a36a27fb0))
+* **settings:** adapt MCP client instructions when authentication is disabled ([93ac955](https://github.com/Arize-ai/phoenix/commit/93ac955b9e80d19207dfb23a457514dafd41e06d))
+* **settings:** gate admin tabs behind authentication ([518e909](https://github.com/Arize-ai/phoenix/commit/518e909d88745bd0ff67540ea9fa628632463c5a))
+
+## [19.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.0.0...arize-phoenix-v19.1.0) (2026-07-18)
+
+
+### Features
+
+* **cli:** px setup mcp — register the Phoenix remote MCP server with a coding agent ([#14507](https://github.com/Arize-ai/phoenix/issues/14507)) ([f9cd97a](https://github.com/Arize-ai/phoenix/commit/f9cd97ae360f760045a5563e5fc37fa57c68d19d))
+* **ui:** add icon prefixes to settings tabs ([#14512](https://github.com/Arize-ai/phoenix/issues/14512)) ([7868a58](https://github.com/Arize-ai/phoenix/commit/7868a584b784c634e7ebdf5bfa45e2bca480663e))
+* **ui:** add MCP settings tab with setup guide ([#14515](https://github.com/Arize-ai/phoenix/issues/14515)) ([0587fca](https://github.com/Arize-ai/phoenix/commit/0587fca06ddd0ecacd2861b7a6c9b52cbda52d16))
+
+
+### Documentation
+
+* rewrite agent-assisted setup around px setup; MCP docs updates ([#14505](https://github.com/Arize-ai/phoenix/issues/14505)) ([f3d7af3](https://github.com/Arize-ai/phoenix/commit/f3d7af30c303bf828c67ae0a9fbc4c26e4b3ebec))
+
+## [19.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v18.1.0...arize-phoenix-v19.0.0) (2026-07-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** GraphQL createUserApiKey and createSystemApiKey no longer accept API-key-authenticated callers. Workflows that used an existing API key for unattended key creation must issue keys from a session-authenticated context or, for system keys, PHOENIX_ADMIN_SECRET.
+
+### Features
+
+* **auth:** add OAuth2 authorization server and CLI login ([#14175](https://github.com/Arize-ai/phoenix/issues/14175)) ([d6b1cbb](https://github.com/Arize-ai/phoenix/commit/d6b1cbb591fdc3de32511383c7c2c4c74400abc3))
+* improved pxi token display ([#14421](https://github.com/Arize-ai/phoenix/issues/14421)) ([98ea567](https://github.com/Arize-ai/phoenix/commit/98ea567a2f74324540fdc7984af53f0da536b619))
+* PXI button relocation ([#14384](https://github.com/Arize-ai/phoenix/issues/14384)) ([ee1b677](https://github.com/Arize-ai/phoenix/commit/ee1b6770b8b1af9620d58a0037a540428cf75bdd))
+
+
+### Bug Fixes
+
+* **evals:** trustworthy PXI regression gate — task-error exclusion, confirm-on-retry, reporting ([#14214](https://github.com/Arize-ai/phoenix/issues/14214)) ([2a7a879](https://github.com/Arize-ai/phoenix/commit/2a7a87946a88652dfc705c7286faa722818fc166))
+* tab padding broken ([#14478](https://github.com/Arize-ai/phoenix/issues/14478)) ([8ecea00](https://github.com/Arize-ai/phoenix/commit/8ecea00b2f752146dd156d7e3d5155b6ad3df086))
+
+## [18.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v18.0.0...arize-phoenix-v18.1.0) (2026-07-17)
+
+
+### Features
+
+* **api:** REST CRUD for user and system API keys ([257a77d](https://github.com/Arize-ai/phoenix/commit/257a77d5812916ff575f9b494dbdbd8534e8b14c))
+* **api:** REST CRUD for user and system API keys with a unified authority model ([50cc3db](https://github.com/Arize-ai/phoenix/commit/50cc3db8e8a1e692f1758d232100a2489837ea89))
+* **api:** REST requires a human session to issue API keys ([7e30e1a](https://github.com/Arize-ai/phoenix/commit/7e30e1a0b8f2a0fae83ed9cf9702666d6726ec0d))
+* **cli:** offer the Phoenix docs MCP server during px setup ([99dec5a](https://github.com/Arize-ai/phoenix/commit/99dec5a927659d2c86008bf23dc75a4a85012126))
+* **cli:** px setup — connect an app to Phoenix and verify traces arrive ([f94067b](https://github.com/Arize-ai/phoenix/commit/f94067bc77971ef286b42f4a01b04f8fc1060c3f))
+* **evals:** add user friction evaluator ([#14193](https://github.com/Arize-ai/phoenix/issues/14193)) ([1ae1a39](https://github.com/Arize-ai/phoenix/commit/1ae1a3933d4c0aa1dcf43660287da024dd8dbc6f))
+* **settings:** split users and API keys into dedicated settings tabs ([c58854f](https://github.com/Arize-ai/phoenix/commit/c58854fc37026daaed15f49d54cbcdc531950909))
+* **settings:** vertical settings tabs on large screens with responsive fallback ([df56d8d](https://github.com/Arize-ai/phoenix/commit/df56d8da3d2293b4a3094d7884509930f34f7642))
+* **settings:** virtualize the models table ([20de8b9](https://github.com/Arize-ai/phoenix/commit/20de8b972419572d52dfb9c64fc96a858aa5dd03))
+* **tracing:** surface user.id span attribute on spans, traces, and sessions ([#14398](https://github.com/Arize-ai/phoenix/issues/14398)) ([3245845](https://github.com/Arize-ai/phoenix/commit/32458453c90106d436c76b40481b318d47cfacfe))
+* **ui:** clarify AI provider credential storage with browser/server tabs ([49ac09c](https://github.com/Arize-ai/phoenix/commit/49ac09c6ded95cbac80cd0603862f19b173a6476))
+
+
+### Bug Fixes
+
+* **agents:** stop logging PXI messages ([#14388](https://github.com/Arize-ai/phoenix/issues/14388)) ([dcf466c](https://github.com/Arize-ai/phoenix/commit/dcf466c95a60931424227915dafe34dcbf1b5571))
+* **api:** bound the /v1/users/api_keys page size at 1000 ([ea38b1b](https://github.com/Arize-ai/phoenix/commit/ea38b1bf68f794c35203b72e49448f8d3abd45ed))
+* **auth:** correct cookie names in auth.md discovery doc ([cb37e9c](https://github.com/Arize-ai/phoenix/commit/cb37e9c5b2452d2f5e7d6127d3c9d3dd20823a8a))
+* **cost:** update built-in model token prices ([#14397](https://github.com/Arize-ai/phoenix/issues/14397)) ([047694f](https://github.com/Arize-ai/phoenix/commit/047694f72024b0938309c14dca42c158d15219b1))
+* **deps:** update arize-phoenix-evals to 3.1.1 ([510c1e9](https://github.com/Arize-ai/phoenix/commit/510c1e9b3ffd00dac124673364d83596a55c3fdc))
+* **evals:** skip LiteLLM on Python 3.14 ([#14407](https://github.com/Arize-ai/phoenix/issues/14407)) ([bc9b533](https://github.com/Arize-ai/phoenix/commit/bc9b533e5b4526478a8d3ca59dce284e8a0acef3))
+* overflow bars on tiledpanel extra actions ([#14430](https://github.com/Arize-ai/phoenix/issues/14430)) ([1c764c9](https://github.com/Arize-ai/phoenix/commit/1c764c95ed3e3e6ffc8dc05e0f6929db7e3ccdc3))
+* **playground:** keep template format selected ([#14431](https://github.com/Arize-ai/phoenix/issues/14431)) ([d736071](https://github.com/Arize-ai/phoenix/commit/d736071650eded3607947e07710a84331d989ae1))
+* table row hover and cursor styles ([#14428](https://github.com/Arize-ai/phoenix/issues/14428)) ([3fddd0a](https://github.com/Arize-ai/phoenix/commit/3fddd0a1bfb2b77100de66b67c400e75391b0485))
+* **ui:** align credential tab checkmark and explain env-var-only server credentials ([ad6ece6](https://github.com/Arize-ai/phoenix/commit/ad6ece64c0f5e954788caa8c68ff89a820c4f929))
+* **ui:** cap IO tooltip height and add scroll fades ([38e037a](https://github.com/Arize-ai/phoenix/commit/38e037ac6aa9ef3fd3f61a66cdb74f324d34884c))
+* **ui:** increase IO tooltip open delay to 700ms ([46ef55f](https://github.com/Arize-ai/phoenix/commit/46ef55fa614f20e21d3d8e89f816aefc55e999bd))
+* **ui:** prevent trace note overflow ([#14376](https://github.com/Arize-ai/phoenix/issues/14376)) ([1d5b1a6](https://github.com/Arize-ai/phoenix/commit/1d5b1a6c31a05ef66fdae0400c824a9d2a0da014))
+
+
+### Documentation
+
+* add Phoenix release notes ([ddd049d](https://github.com/Arize-ai/phoenix/commit/ddd049d14d778a9521c7dc53a90fbde7dc33e09c))
+* move one-click deploys to per-provider deployment pages ([7a2d9bd](https://github.com/Arize-ai/phoenix/commit/7a2d9bd3b0ffb56357bb029fcfe70c3adf6edcbf))
+* **skills:** weekly audit — 2026-07-15 ([e193176](https://github.com/Arize-ai/phoenix/commit/e1931769843778bf7f2838fb3cc1a25dda345afd))
+
 ## [18.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.30.0...arize-phoenix-v18.0.0) (2026-07-14)
 
 

@@ -20,11 +20,11 @@ export function ChartTooltip(props: ChartTooltipProps) {
       css={css`
         background-color: var(--global-color-gray-200);
         border: 1px solid var(--global-color-gray-300);
-        padding: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-size-100);
         border-radius: var(--global-rounding-medium);
         display: flex;
         flex-direction: column;
-        gap: var(--global-dimension-static-size-50);
+        gap: var(--global-dimension-size-50);
         min-width: 200px;
         box-shadow: 0 8px 8px rgba(0, 0, 0, 0.1);
       `}
@@ -66,7 +66,7 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
         css={css`
           display: flex;
           flex-direction: row;
-          gap: var(--global-dimension-static-size-100);
+          gap: var(--global-dimension-size-100);
           align-items: center;
         `}
       >

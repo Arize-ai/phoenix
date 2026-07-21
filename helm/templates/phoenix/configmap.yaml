@@ -26,6 +26,16 @@ data:
   {{- if .Values.auth.admins }}
   PHOENIX_ADMINS: {{ .Values.auth.admins | quote }}
   {{- end }}
+
+  # OAuth2 Authorization Server Configuration
+  PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER: {{ .Values.auth.oauth2AuthorizationServer.enabled | quote }}
+  PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS: {{ .Values.auth.oauth2AuthorizationServer.grantExpiryDays | quote }}
+  PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK: {{ .Values.auth.oauth2AuthorizationServer.consentOriginCheck | quote }}
+  PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION: {{ .Values.auth.oauth2AuthorizationServer.dynamicClientRegistration | quote }}
+  {{- if .Values.auth.oauth2AuthorizationServer.allowedRedirectHosts }}
+  PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS: {{ join "," .Values.auth.oauth2AuthorizationServer.allowedRedirectHosts | quote }}
+  {{- end }}
+  PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR: {{ .Values.auth.oauth2AuthorizationServer.dcrRateLimitPerHour | quote }}
   
   # OAuth2/OIDC Identity Provider Configuration
   {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
@@ -129,6 +139,8 @@ data:
   {{- if .Values.server.allowedProviders }}
   PHOENIX_ALLOWED_PROVIDERS: {{ .Values.server.allowedProviders | quote }}
   {{- end }}
+  PHOENIX_ENABLE_MCP_SERVER: {{ .Values.server.enableMcpServer | quote }}
+  PHOENIX_ENABLE_MCP_CODE_MODE: {{ .Values.server.enableMcpCodeMode | quote }}
 
   # Database configuration
   {{- if .Values.database.url }}

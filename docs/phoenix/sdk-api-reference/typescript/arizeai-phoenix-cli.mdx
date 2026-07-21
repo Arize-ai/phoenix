@@ -197,6 +197,7 @@ Re-run individual steps later with the subcommands:
 ```bash
 px setup instrument --agent codex   # Instrument and verify again
 px setup skills                     # Install coding-agent skills only
+px setup mcp --agent claude         # Register the Phoenix MCP server with an agent
 ```
 
 | Option | Description | Default |
@@ -210,6 +211,35 @@ px setup skills                     # Install coding-agent skills only
 | `--skills` / `--no-skills` | Whether to install Phoenix coding-agent skills | Prompted |
 | `--docs-mcp` / `--no-docs-mcp` | Connect the Phoenix docs MCP server to the agent instead of downloading docs | Prompted |
 | `--yolo` | Let the agent run without per-step confirmation | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+### `px setup mcp`
+
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
+
+```bash
+px setup mcp                        # Pick scope + agent interactively
+px setup mcp --agent codex          # Configure one agent
+px setup mcp --agent claude --local # Write this repo's config (.mcp.json)
+```
+
+Where an agent ships an `mcp add` (Claude, Codex, Gemini, VS Code global) the CLI drives it; the rest get a merge into their config file (`~/.cursor/mcp.json`, `~/.config/opencode/opencode.json`, `.vscode/mcp.json`).
+
+Auth defaults to **OAuth** — the config is URL-only and the agent opens Phoenix's browser login on first use. For headless clients, pass an API-key bearer header with `--header`:
+
+```bash
+px setup mcp --agent codex --no-input --format raw
+px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--agent <agent>` | Agent to configure: `claude`, `codex`, `gemini`, `cursor`, `opencode`, `vscode` | Prompted |
+| `--global` / `--local` | User-wide config, or this repo's (Codex is global-only) | `--global` |
+| `--endpoint <url>` | Phoenix base URL (skips inference) | Inferred |
+| `--profile <name>` | Profile to infer the endpoint from | Active profile |
+| `--header <header>` | `Name: value` header for the API-key fallback (repeatable) | OAuth (none) |
+| `--no-input` | Headless mode; requires `--agent` and defaults scope to global | — |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 
 ### `px project list`

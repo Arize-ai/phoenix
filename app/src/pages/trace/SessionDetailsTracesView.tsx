@@ -680,7 +680,7 @@ const traceRowHeaderCSS = css`
   flex-direction: row;
   align-items: flex-start;
   gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-200);
   background: transparent;
   border: none;
   /* Reserve space for the selected-state indicator so rows do not shift when selected. */

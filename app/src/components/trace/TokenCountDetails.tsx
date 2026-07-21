@@ -6,7 +6,7 @@ import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 const tokenCountDetailsCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
 `;
 
 const tokenCountRowCSS = css`
@@ -14,19 +14,19 @@ const tokenCountRowCSS = css`
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
 `;
 
 const tokenCountValueCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-25);
+  gap: var(--global-dimension-size-25);
 `;
 
 const sectionHeaderCSS = css`
-  margin-top: var(--global-dimension-static-size-100);
-  margin-bottom: var(--global-dimension-static-size-25);
+  margin-top: var(--global-dimension-size-100);
+  margin-bottom: var(--global-dimension-size-25);
 `;
 
 interface TokenCountRowProps {

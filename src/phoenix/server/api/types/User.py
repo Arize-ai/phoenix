@@ -2,15 +2,18 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
 from phoenix.config import get_env_admins
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers.api_key_policy import get_user_role_and_api_keys
 from phoenix.server.api.types.AuthMethod import AuthMethod
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant, can_manage_grant
 from phoenix.server.api.types.UserApiKey import UserApiKey
 
 from .UserRole import UserRole, to_gql_user_role
@@ -118,11 +121,42 @@ class User(Node):
 
     @strawberry.field
     async def api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
+        self._ensure_can_access_credentials(info)
         async with info.context.db.read() as session:
             user_role, api_keys = await get_user_role_and_api_keys(session, self.id)
         if user_role == "SYSTEM":
             return []
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
+
+    @strawberry.field
+    async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
+        self._ensure_can_access_credentials(info)
+        async with info.context.db.read() as session:
+            grants = await session.scalars(
+                select(models.OAuth2Grant)
+                .where(models.OAuth2Grant.user_id == self.id)
+                .where(models.OAuth2Grant.revoked_at.is_(None))
+                .options(joinedload(models.OAuth2Grant.client))
+                .order_by(models.OAuth2Grant.last_used_at.desc().nullslast())
+            )
+        return [OAuth2Grant(id=grant.id, db_record=grant) for grant in grants]
+
+    @strawberry.field
+    async def api_key_count(self, info: Info[Context, None]) -> int:
+        self._ensure_can_access_credentials(info)
+        counts = await info.context.data_loaders.user_credential_counts.load(self.id)
+        return counts.api_key_count
+
+    @strawberry.field
+    async def oauth2_grant_count(self, info: Info[Context, None]) -> int:
+        self._ensure_can_access_credentials(info)
+        counts = await info.context.data_loaders.user_credential_counts.load(self.id)
+        return counts.oauth2_grant_count
+
+    def _ensure_can_access_credentials(self, info: Info[Context, None]) -> None:
+        if can_manage_grant(info, self.id):
+            return
+        raise Unauthorized("User not authorized to access credentials")
 
     @strawberry.field
     async def is_management_user(self, info: Info[Context, None]) -> bool:

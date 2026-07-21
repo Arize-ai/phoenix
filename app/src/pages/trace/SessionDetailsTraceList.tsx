@@ -34,7 +34,6 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -332,14 +331,7 @@ function SessionTurnDivider({
       >
         Trace
       </LinkButton>
-      <IDBadge id={traceId} />
-      <CopyToClipboardButton
-        text={traceId}
-        size="S"
-        variant="quiet"
-        tooltipText="Copy trace ID"
-        aria-label="Copy trace ID"
-      />
+      <IDBadge id={traceId} tooltipText="Copy Trace ID" />
     </Flex>
   );
 }
@@ -428,8 +420,7 @@ const turnListCSS = css`
 
   .react-aria-ListBoxItem {
     margin: 0;
-    padding: var(--global-dimension-static-size-150)
-      var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
     border-radius: 0;
     border-left: 4px solid transparent;
     border-bottom: 1px solid var(--global-border-color-default);

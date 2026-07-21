@@ -1,5 +1,6 @@
 import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
+import { createOAuthFetch, hasOAuthCredentials } from "./authFetch";
 import type { PhoenixConfig } from "./config";
 
 export interface CreatePhoenixClientOptions {
@@ -32,13 +33,15 @@ export function createPhoenixClient({
 
   if (config.apiKey) {
     headers["Authorization"] = `Bearer ${config.apiKey}`;
+  } else if (config.oauthTokens) {
+    headers["Authorization"] = `Bearer ${config.oauthTokens.accessToken}`;
   }
 
   return createClient({
     options: {
       baseUrl,
       headers,
-      fetch,
+      fetch: hasOAuthCredentials(config) ? createOAuthFetch({ config }) : fetch,
     },
   });
 }

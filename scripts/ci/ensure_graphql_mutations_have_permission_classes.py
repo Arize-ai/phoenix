@@ -38,11 +38,13 @@ ISSUE_DESCRIPTIONS: dict[IssueType, str] = {
 # Mutations and subscriptions that are allowed to skip IsNotViewer check
 # patch_viewer allows viewers to update their own profile
 # create_user_api_key and delete_user_api_key allow viewers to manage their own API keys
+# revoke_oauth2_grant allows users to revoke their own OAuth2 authorized-application sessions
 SKIP_IS_NOT_VIEWER_CHECK = frozenset(
     {
         "patch_viewer",
         "create_user_api_key",
         "delete_user_api_key",
+        "revoke_oauth2_grant",
     }
 )
 

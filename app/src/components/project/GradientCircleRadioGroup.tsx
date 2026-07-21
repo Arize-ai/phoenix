@@ -15,7 +15,7 @@ const gradientCircleRadioGroupCSS = css`
   align-items: center;
   width: fit-content;
   gap: var(--global-dimension-size-100);
-  font-size: var(--global-dimension-static-font-size-100);
+  font-size: var(--global-dimension-font-size-100);
 
   &[data-direction="row"] {
     flex-direction: row;

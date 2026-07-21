@@ -24,7 +24,7 @@ const flexRowCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
 `;
 
 const slotCSS = css`

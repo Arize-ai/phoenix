@@ -67,7 +67,51 @@ describe("loadSettings / saveSettings", () => {
     expect(loadSettings({ settingsPath })).toEqual(data);
   });
 
+  it("parses old profile entries without oauthTokens", () => {
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        activeProfile: "prod",
+        profiles: {
+          prod: { endpoint: "https://prod.example.com" },
+        },
+      }),
+      "utf-8"
+    );
+    expect(
+      loadSettings({ settingsPath }).profiles.prod.oauthTokens
+    ).toBeUndefined();
+  });
+
+  it("round-trips OAuth tokens on a profile", () => {
+    const data: SettingsFile = {
+      activeProfile: "prod",
+      profiles: {
+        prod: {
+          endpoint: "https://prod.example.com",
+          oauthTokens: {
+            accessToken: "access",
+            refreshToken: "refresh",
+            expiresAt: "2026-01-01T00:00:00.000Z",
+            scope: "",
+          },
+        },
+      },
+    };
+    saveSettings(data, { settingsPath });
+    expect(loadSettings({ settingsPath })).toEqual(data);
+  });
+
   it("writes the settings file with mode 0o600 (owner read/write only)", () => {
+    saveSettings({ activeProfile: null, profiles: {} }, { settingsPath });
+    const stat = fs.statSync(settingsPath);
+    expect(stat.mode & 0o777).toBe(0o600);
+  });
+
+  it("tightens the mode of a pre-existing permissive settings file", () => {
+    fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+    fs.writeFileSync(settingsPath, "{}", { mode: 0o644 });
+    fs.chmodSync(settingsPath, 0o644);
     saveSettings({ activeProfile: null, profiles: {} }, { settingsPath });
     const stat = fs.statSync(settingsPath);
     expect(stat.mode & 0o777).toBe(0o600);
