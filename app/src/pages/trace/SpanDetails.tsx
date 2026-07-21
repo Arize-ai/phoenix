@@ -282,69 +282,58 @@ export function SpanDetails({
         >
           <View
             paddingTop="size-100"
-            paddingBottom="size-50"
+            paddingBottom="size-100"
             paddingStart="size-150"
             paddingEnd="size-200"
             flex="none"
+            data-testid="span-header-row"
           >
-            <Flex
-              direction="row"
-              alignItems="center"
-              data-testid="span-header-row"
-            >
-              <SpanHeader span={span} />
-              <Flex
-                flex="none"
-                direction="row"
-                alignItems="center"
-                gap="size-100"
-              >
-                <LinkButton
-                  variant={span.spanKind !== "llm" ? "default" : "primary"}
-                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                  isDisabled={span.spanKind !== "llm"}
-                  to={`/playground/spans/${span.id}`}
-                  size="S"
-                  aria-label="Prompt Playground"
-                >
-                  {isCondensedView ? null : "Playground"}
-                </LinkButton>
-                <AddSpanToDatasetButton
-                  span={span}
-                  buttonText={isCondensedView ? null : "Add to Dataset"}
-                />
-                <ToggleButton
-                  size="S"
-                  isSelected={isAnnotatingSpans}
-                  onPress={() => {
-                    const next = !isAnnotatingSpans;
-                    setIsAnnotatingSpans(next);
-                    const asidePanel = asidePanelRef.current;
-                    if (asidePanel) {
-                      if (next) {
-                        asidePanel.expand();
-                      } else {
-                        asidePanel.collapse();
+            <SpanHeader
+              span={span}
+              actions={
+                <>
+                  <LinkButton
+                    variant={span.spanKind !== "llm" ? "default" : "primary"}
+                    leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                    isDisabled={span.spanKind !== "llm"}
+                    to={`/playground/spans/${span.id}`}
+                    size="S"
+                    aria-label="Prompt Playground"
+                  >
+                    {isCondensedView ? null : "Playground"}
+                  </LinkButton>
+                  <AddSpanToDatasetButton
+                    span={span}
+                    buttonText={isCondensedView ? null : "Add to Dataset"}
+                  />
+                  <ToggleButton
+                    size="S"
+                    isSelected={isAnnotatingSpans}
+                    onPress={() => {
+                      const next = !isAnnotatingSpans;
+                      setIsAnnotatingSpans(next);
+                      const asidePanel = asidePanelRef.current;
+                      if (asidePanel) {
+                        if (next) {
+                          asidePanel.expand();
+                        } else {
+                          asidePanel.collapse();
+                        }
                       }
+                    }}
+                    leadingVisual={<Icon svg={<Icons.Edit2 />} />}
+                    trailingVisual={
+                      !isCondensedView &&
+                      !isAnnotatingSpans && (
+                        <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
+                      )
                     }
-                  }}
-                  leadingVisual={<Icon svg={<Icons.Edit2 />} />}
-                  trailingVisual={
-                    !isCondensedView &&
-                    !isAnnotatingSpans && (
-                      <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
-                    )
-                  }
-                >
-                  {isCondensedView ? null : "Annotate"}
-                </ToggleButton>
-                <CopyToClipboardButton
-                  size="S"
-                  text={span.spanId}
-                  tooltipText="Copy Span ID"
-                />
-              </Flex>
-            </Flex>
+                  >
+                    {isCondensedView ? null : "Annotate"}
+                  </ToggleButton>
+                </>
+              }
+            />
           </View>
           <Tabs>
             <TabList>
