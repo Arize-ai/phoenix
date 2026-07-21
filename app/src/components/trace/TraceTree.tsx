@@ -249,7 +249,12 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           {showMetricsInTraceTree ? (
             <div css={spanTimingCSS} className="span-tree-timing">
               {latencyMs != null ? (
-                <LatencyText latencyMs={latencyMs} showIcon={false} size="XS" />
+                <LatencyText
+                  latencyMs={latencyMs}
+                  showIcon={false}
+                  size="XS"
+                  color="text-500"
+                />
               ) : null}
               <SpanTimelineBar
                 spanKind={node.span.spanKind}
