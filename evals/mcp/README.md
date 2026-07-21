@@ -57,9 +57,11 @@ complete artifact and experiment.
 - `conftest.py` / `pytest.ini` / `tests/` — the pytest harness. Session-scoped
   fixtures own the arm, ground truth, catalog probe, and no-tools baseline.
 - `questions.py` — the question set, grouped by structural shape.
+- `seed.py` — creates and asserts the hermetic benchmark environment.
 - `harness/` — the machinery: `arms.py` (the three surfaces), `runner.py`
   (per-run measurement), `ground_truth.py` (deterministic references over
   `/v1`), `judge.py` (LLM grading), `environment.py` (env resolution),
+  `fixture.py` (the deterministic synthetic environment and its invariants),
   `sessions.py` (artifact format).
 - `report.py` / `analyze.py` / `rejudge.py` — offline tools over saved
   artifacts.
@@ -110,6 +112,27 @@ publishing.
 
 ## Setup
 
+### One command (recommended, and what CI should use)
+
+```bash
+make mcp-benchmark-env        # or: uv run python -m evals.mcp.bootstrap
+```
+
+This starts a throwaway Phoenix (temp working dir, auth off, non-default
+ports so a real local Phoenix is untouched), seeds the benchmark fixture,
+and starts the second code-mode-off instance the `tool_groups` arm needs —
+then serves until Ctrl-C, printing the `PHOENIX_*` exports to run sessions
+against it. For CI, pass the session as a trailing command and the whole
+environment is torn down after, propagating the exit code:
+
+```bash
+uv run python -m evals.mcp.bootstrap -- \
+    env MCP_BENCHMARK_ARM=code_mode uv run pytest evals/mcp -c evals/mcp/pytest.ini
+```
+
+The manual steps below set up the same thing piece by piece, for running
+against a Phoenix you manage yourself.
+
 ### 1. Phoenix with code mode (the default)
 
 Any running Phoenix works; code mode is on by default.
@@ -118,7 +141,37 @@ Any running Phoenix works; code mode is on by default.
 uv run python -m phoenix.server.main serve
 ```
 
-### 2. A second Phoenix with code mode off (only for the `tool_groups` arm)
+### 2. Seed the benchmark environment
+
+The questions are about specific projects with specific properties, so the
+environment is seeded rather than assumed. The seed is **deterministic** —
+fixed RNG seeds, fixed timestamps — so any two people seeding any two empty
+instances get identical traces, and identical ground truth:
+
+```bash
+# Create whatever is missing, then assert every invariant the rubrics need
+uv run python -m evals.mcp.seed
+
+# Assert only / tear down and rebuild
+uv run python -m evals.mcp.seed --check
+uv run python -m evals.mcp.seed --recreate   # delete endpoints are admin-only:
+                                             # needs a system or admin API key
+```
+
+The fixture is four projects of synthetic OpenInference traces (a support
+agent with the only failures, a chat demo, a llama_index RAG pipeline, an
+agno agent) plus two datasets, one with experiments — everything the question
+set touches. Seeding is resumable: complete resources are left untouched and
+partially seeded ones (from an interrupted run) are completed. If an instance
+has non-fixture data under the benchmark project names, `--check` reports
+exactly which rubric invariant is violated and `--recreate` replaces the
+projects with the canonical fixture.
+
+Every pytest session re-asserts the environment before running and fails with
+the seed command if it doesn't hold (`MCP_BENCHMARK_SKIP_ENV_CHECK=1` skips
+this, for pointing the benchmark at a hand-curated instance).
+
+### 3. A second Phoenix with code mode off (only for the `tool_groups` arm)
 
 The toggle is process-level, so the `tool_groups` arm needs its own instance
 pointed at the same data:
@@ -130,9 +183,12 @@ PHOENIX_ENABLE_MCP_CODE_MODE=false PHOENIX_PORT=6007 \
 
 Both processes read the same SQLite file. The benchmark is read-only, so this
 is safe, but do not run a write-heavy workload against either at the same time.
-Sessions for the other two arms never touch this instance.
+Sessions for the other two arms never touch this instance. A `tool_groups`
+session verifies at startup that this instance serves the same benchmark data
+as the primary — pointing it at a different database fails fast instead of
+grading the arm against references it never saw.
 
-### 3. An API key
+### 4. An API key
 
 All three arms authenticate as the same Phoenix user. Export it or put it in a
 `.env` at the repo root:
@@ -141,7 +197,7 @@ All three arms authenticate as the same Phoenix user. Export it or put it in a
 export PHOENIX_API_KEY=<system or user key from Settings > API Keys>
 ```
 
-### 4. Node
+### 5. Node
 
 The `phoenix_mcp` arm runs the published server via `npx`, which downloads it
 on first use.
@@ -251,8 +307,10 @@ Ground truth is recomputed at the start of each session, so within a session
 grading is self-consistent even on a moving instance. But the *comparison*
 assumes every arm answered about the same data: if traces are still arriving,
 arm B's session sees a different "most recent 100 spans" window than arm A's
-did, and the cross-arm tables quietly compare different questions. Point the
-benchmark at projects that are not being written to, or verify first:
+did, and the cross-arm tables quietly compare different questions. The seeded
+fixture projects satisfy this by construction — nothing writes spans to them
+after seeding — so this needs care mainly if you skip the seed and point the
+benchmark at live projects. Verify first:
 
 ```bash
 # newest span should be identical across the two probes
@@ -260,10 +318,15 @@ curl -s -H "Authorization: Bearer $PHOENIX_API_KEY" \
   "$PHOENIX_BASE_URL/v1/projects/support-agent/spans/otlpv1?limit=1" | head -c 200
 ```
 
-(The benchmark's own experiment recording does not violate this: it writes
-annotations and dataset rows, not spans to the benchmark projects. The one
-reference it moves is `datasets_with_experiments`, which is why ground truth is
-recomputed per session after the plugin bootstraps.)
+(The benchmark's own bookkeeping still moves two *instance-level* references
+between sessions, which is why ground truth is recomputed per session after
+the plugin bootstraps: the plugin adds an experiment to the benchmark dataset
+every session, moving `datasets_with_experiments`, and `MCP_BENCHMARK_TRACE`
+creates the trace project mid-session, moving `project_count` for the *next*
+session. The seeded fixture cannot pin these — they count everything on the
+instance — so avoid `MCP_BENCHMARK_TRACE` during graded cross-arm
+comparisons, and read the per-shape tables knowing those two references can
+differ by the number of intervening sessions.)
 
 **The gap is not the wire format.** The npm server returns flattened spans;
 `spanSearch` returns raw OTLP with typed attribute envelopes. For the same 100
@@ -275,8 +338,10 @@ about how many times a payload crosses the context window, not how big it is.
 
 - **One model.** Results are Claude Sonnet 5's tool-calling behaviour by
   default. `MCP_BENCHMARK_MODEL` changes it; conclusions may not transfer.
-- **One dataset.** Numbers depend on the traces in your Phoenix. The absolute
-  values are not portable; the ratios between arms are the point.
+- **One dataset.** Numbers depend on the traces the benchmark reads — by
+  default the seeded fixture, which makes them recreatable but still one
+  particular workload shape. The absolute values are not the point; the ratios
+  between arms are.
 - **Variance is real, and it is asymmetric.** Measured across 16 repeated cells,
   `code_mode`'s total tokens vary by a median of 22% run to run (worst 122%);
   `phoenix_mcp` varies by 2% (worst 19%). Code mode's cost depends on whether its

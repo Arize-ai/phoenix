@@ -29,6 +29,17 @@ BENCHMARK_PROJECTS = ("support-agent", "live-view-demo", "llama_index_rag", "ros
 #: this bound, so an arm that pages differently is still measured fairly.
 SPAN_SAMPLE_LIMIT = 100
 
+#: Judge tolerance for the slowest-span latency. Interpolated into the rubric
+#: below and enforced by the environment check (the seeded slowest span must
+#: beat the runner-up by more than this, or the question has two answers).
+SLOWEST_LATENCY_TOLERANCE = 0.05
+
+#: LLM-span count under which a per-model trend is "inconclusive". Interpolated
+#: into the prompt and rubric below; the environment check requires the recent
+#: window to have at least one model on each side of this threshold so both
+#: branches of the rubric are exercised.
+MODEL_CONCLUSIVE_SPAN_COUNT = 10
+
 
 @dataclass(frozen=True)
 class Question:
@@ -132,7 +143,8 @@ QUESTIONS: tuple[Question, ...] = (
         ),
         rubric=(
             "Identifies the slowest span by name, with its kind and latency in ms. "
-            "Name and kind must match the reference exactly; latency within 5%."
+            "Name and kind must match the reference exactly; latency within "
+            f"{SLOWEST_LATENCY_TOLERANCE:.0%}."
         ),
         reference="slowest_span",
     ),
@@ -157,14 +169,15 @@ QUESTIONS: tuple[Question, ...] = (
             f"{SPAN_SAMPLE_LIMIT} spans of *any* kind — do not filter to LLM spans "
             "when fetching — then, among only those spans, break LLM span latency "
             "down by model name. Report p50, p95, and the sample count per model. "
-            "Label any model with fewer than 10 spans as inconclusive rather than "
-            "reporting a trend."
+            f"Label any model with fewer than {MODEL_CONCLUSIVE_SPAN_COUNT} spans "
+            "as inconclusive rather than reporting a trend."
         ),
         rubric=(
             "Groups LLM spans by model name with p50, p95, and counts per model. "
             "Model names and counts must match the reference exactly, and any model "
-            "under 10 spans must be labelled inconclusive.\n"
-            "Check percentiles within 15% ONLY for models at or above 10 spans. Do "
+            f"under {MODEL_CONCLUSIVE_SPAN_COUNT} spans must be labelled inconclusive.\n"
+            "Check percentiles within 15% ONLY for models at or above "
+            f"{MODEL_CONCLUSIVE_SPAN_COUNT} spans. Do "
             "not grade percentile accuracy for a group the answer correctly called "
             "inconclusive — on a handful of samples the choice between nearest-rank "
             "and interpolated percentiles moves the number more than the tolerance "

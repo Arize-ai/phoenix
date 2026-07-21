@@ -21,6 +21,7 @@ baseline — and mirror themselves into the session artifact's meta block at
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +32,7 @@ import pytest_asyncio
 
 from evals.mcp.harness.arms import Arm, build_arms
 from evals.mcp.harness.environment import BenchmarkConfig, BenchmarkEnvError
+from evals.mcp.harness.fixture import verify_environment, verify_mirror
 from evals.mcp.harness.ground_truth import compute_ground_truth
 from evals.mcp.harness.runner import (
     CatalogProbe,
@@ -49,6 +51,17 @@ RECORD_PROPERTY_KEY = "mcp_run"
 # evals/pxi). ``_meta`` is populated by the session fixtures as they resolve.
 _runs: list[dict[str, Any]] = []
 _meta: dict[str, Any] = {}
+
+
+def _session_runs_benchmark(request: Any) -> bool:
+    """Whether any collected test actually benchmarks an agent.
+
+    The benchmark tests carry ``@pytest.mark.phoenix``; the plain unit tests
+    (fixture generator, gate logic) do not. The autouse session fixtures below
+    check this before touching the environment, so the unit tests run with no
+    Phoenix, no API key, and no ``MCP_BENCHMARK_ARM`` — hermetically, in CI.
+    """
+    return any(item.get_closest_marker("phoenix") is not None for item in request.session.items)
 
 
 @pytest.fixture(scope="session")
@@ -81,6 +94,41 @@ def arm(benchmark_config: BenchmarkConfig) -> Arm:
     return selected
 
 
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _hermetic_environment(request: Any) -> None:
+    """Fail fast unless the instance satisfies the question set's invariants.
+
+    The rubrics encode facts about the benchmark projects (which project has
+    errors, how many models appear, whether the slowest span is unambiguous).
+    Running against an instance where those don't hold produces a session that
+    grades wrong answers as wrong questions. ``evals/mcp/seed.py`` recreates
+    the canonical environment on any Phoenix; set
+    ``MCP_BENCHMARK_SKIP_ENV_CHECK=1`` to run against a hand-curated instance
+    at your own risk.
+
+    For the ``tool_groups`` arm the agent reads a second, code-mode-off
+    instance, so that endpoint is additionally checked to serve the same data
+    as the primary — otherwise the arm would be graded against references it
+    never saw.
+    """
+    if not _session_runs_benchmark(request):
+        return
+    if os.getenv("MCP_BENCHMARK_SKIP_ENV_CHECK", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return
+    config: BenchmarkConfig = request.getfixturevalue("benchmark_config")
+    problems = await verify_environment(config.base_url, config.api_key)
+    if not problems and config.arm_name == "tool_groups":
+        problems = await verify_mirror(config.base_url, config.tool_groups_url, config.api_key)
+    if problems:
+        raise pytest.UsageError(
+            "benchmark environment is not set up:\n- "
+            + "\n- ".join(problems)
+            + "\nSeed it with: uv run python -m evals.mcp.seed"
+            + "\n(or set MCP_BENCHMARK_SKIP_ENV_CHECK=1 to run against a "
+            "hand-curated instance at your own risk)"
+        )
+
+
 @pytest_asyncio.fixture(scope="session")
 async def ground_truth(benchmark_config: BenchmarkConfig) -> dict[str, Any]:
     """Reference answers, computed once per session from the REST API.
@@ -97,8 +145,16 @@ async def ground_truth(benchmark_config: BenchmarkConfig) -> dict[str, Any]:
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def catalog_probe(arm: Arm) -> CatalogProbe:
-    """What the arm advertises on connect. Autouse: measured even for -k subsets."""
+async def catalog_probe(request: Any, _hermetic_environment: None) -> Optional[CatalogProbe]:
+    """What the arm advertises on connect. Autouse: measured even for -k subsets.
+
+    Depends on ``_hermetic_environment`` so an unseeded instance fails with the
+    seed instruction rather than an arm connection error. Skipped (None) when
+    the session runs no benchmark tests.
+    """
+    if not _session_runs_benchmark(request):
+        return None
+    arm: Arm = request.getfixturevalue("arm")
     probe = await probe_catalog(arm)
     _meta["catalog"] = asdict(probe)
     return probe
@@ -113,13 +169,17 @@ async def no_tools_baseline(benchmark_config: BenchmarkConfig) -> int:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _agent_tracing(benchmark_config: BenchmarkConfig) -> Iterator[None]:
+def _agent_tracing(request: Any) -> Iterator[None]:
     """Send agent traces to Phoenix via OpenInference when MCP_BENCHMARK_TRACE is set.
 
     ``OpenInferenceSpanProcessor`` translates pydantic-ai's GenAI spans into
     OpenInference attributes, so it has to sit ahead of the exporter on the
     same provider.
     """
+    if not _session_runs_benchmark(request):
+        yield
+        return
+    benchmark_config: BenchmarkConfig = request.getfixturevalue("benchmark_config")
     if not benchmark_config.trace:
         yield
         return

@@ -265,6 +265,9 @@ test-ts: ## Run TypeScript package tests (js/)
 test: test-python test-frontend test-ts ## Run all tests (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ All tests complete$(NC)"
 
+mcp-benchmark-env: ## Throwaway seeded Phoenix pair for the MCP surface benchmark (Ctrl-C to stop)
+	@$(UV) run python -m evals.mcp.bootstrap
+
 typecheck-python: ## Type check Python code
 	@echo -e "$(CYAN)Type checking Python...$(NC)"
 	@$(UV) run mypy
