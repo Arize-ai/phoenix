@@ -1,0 +1,21 @@
+import LaunchPhoenixTerminal from "./launch-phoenix-terminal.mdx";
+import LaunchPhoenixDocker from "./launch-phoenix-docker.mdx";
+import LaunchPhoenixSelfHost from "./launch-phoenix-self-host.mdx";
+
+<Card>
+  <Tabs>
+    <Tab title="Command Line">
+      <LaunchPhoenixTerminal />
+    </Tab>
+
+    <Tab title="Docker">
+      <LaunchPhoenixDocker />
+    </Tab>
+
+    <Tab title="Self-Host">
+      <LaunchPhoenixSelfHost />
+    </Tab>
+  </Tabs>
+
+  Phoenix serves its UI and OTLP HTTP on port **6006**, and OTLP gRPC on port **4317**. For a local instance that's [http://localhost:6006](http://localhost:6006) — leave it running while you work.
+</Card>

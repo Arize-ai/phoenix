@@ -2,6 +2,10 @@
 title: "Quickstart: Datasets & experiments"
 ---
 
+import StartPhoenix from "../../snippets/start-phoenix.mdx";
+import ConnectToPhoenixPython from "../../snippets/connect-to-phoenix-python.mdx";
+import ConnectToPhoenixEnv from "../../snippets/connect-to-phoenix-env.mdx";
+
 <a href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb">
     <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9dc2f403-image.svg" />
 </a>
@@ -14,32 +18,19 @@ Phoenix helps you run experiments over your AI and LLM applications to evaluate 
 
 ## Launch Phoenix
 
-Run Phoenix using your terminal, Docker, Kubernetes, etc. For more information, [see self-hosting](/docs/phoenix/self-hosting). The quickest local option is `uvx arize-phoenix serve`.
+<StartPhoenix />
 
 Then point your code at it:
 
-### Python
+<Tabs>
+  <Tab title="Python" icon="python">
+    <ConnectToPhoenixPython />
+  </Tab>
 
-```python
-import os
-
-# Update this if Phoenix is running elsewhere
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-
-# (optional) If authentication is enabled, add your Phoenix API key
-# os.environ["PHOENIX_API_KEY"] = "ADD YOUR API KEY"
-```
-
-### TypeScript
-
-```bash
-# .env, or shell environment
-
-# Update this if Phoenix is running elsewhere
-PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
-# (optional) If authentication is enabled, add your Phoenix API key
-PHOENIX_API_KEY="ADD YOUR API KEY"
-```
+  <Tab title="TypeScript" icon="js">
+    <ConnectToPhoenixEnv />
+  </Tab>
+</Tabs>
 
 <Info>
 Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)

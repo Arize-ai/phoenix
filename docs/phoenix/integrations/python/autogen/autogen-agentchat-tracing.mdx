@@ -3,14 +3,15 @@ title: "AutoGen AgentChat Tracing"
 description: Auto-instrument your AgentChat application for seamless observability
 ---
 
-import LaunchPhoenixTabs from "../../../../snippets/launch-phoenix-tabs.mdx";
-import SetPhoenixEndpointPython from "../../../../snippets/set-phoenix-endpoint-python.mdx";
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
 
 [AutoGen AgentChat](https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/index.html) is the framework within Microsoft's AutoGen that enables robust multi-agent application.
 
 ## Launch Phoenix
 
-<LaunchPhoenixTabs />
+<StartPhoenix />
 
 **Install packages:**
 
@@ -18,7 +19,7 @@ import SetPhoenixEndpointPython from "../../../../snippets/set-phoenix-endpoint-
 pip install arize-phoenix-otel
 ```
 
-<SetPhoenixEndpointPython />
+<ConnectToPhoenixPython />
 
 ## Install
 
@@ -28,17 +29,7 @@ pip install openinference-instrumentation-autogen-agentchat autogen-agentchat au
 
 ## Setup
 
-Connect to your Phoenix instance using the register function.
-
-```python
-from phoenix.otel import register
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="agentchat-agent", # Default is 'default'
-  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
-)
-```
+<RegisterTracerPython projectName="agentchat-agent" />
 
 ## Run AutoGen AgentChat
 

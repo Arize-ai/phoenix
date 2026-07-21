@@ -121,113 +121,115 @@ To systematically evaluate and improve the agent, we'll set up experiments using
 The file for setting up the experiment is `src/experiments/configure-experiments.ts`
 </Info>
 
-### Step 1: Define the Task
+<Steps>
+  <Step title={<span className="step-title">Define the Task</span>}>
+    The task function takes a dataset example and returns the agent's output:
 
-The task function takes a dataset example and returns the agent's output:
+    ```typescript
+    import { movieAgent } from "../mastra/agents/movie-agent";
+    import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
-```typescript
-import { movieAgent } from "../mastra/agents/movie-agent";
-import type { Example } from "@arizeai/phoenix-client/types/datasets";
+    // Step 1: define the task to run (we call the agent with the question)
+    export async function task(example: Example): Promise<string> {
+        const question = example.input.question as string;
 
-// Step 1: define the task to run (we call the agent with the question)
-export async function task(example: Example): Promise<string> {
-    const question = example.input.question as string;
+        // Call the movie agent with the question
+        const result = await movieAgent.generate(question);
 
-    // Call the movie agent with the question
-    const result = await movieAgent.generate(question);
+        // Extract the text response from the result
+        return result.text || "";
+    }
+    ```
+  </Step>
 
-    // Extract the text response from the result
-    return result.text || "";
-}
-```
+  <Step title={<span className="step-title">Create the Dataset</span>}>
+    In order to experiment with our agent, we first need to define a dataset for it to run on. This provides a standardized way to evaluate the agent's behavior across consistent inputs.
 
-### Step 2: Create the Dataset
+    We will use a small dataset for demo purposes:
 
-In order to experiment with our agent, we first need to define a dataset for it to run on. This provides a standardized way to evaluate the agent's behavior across consistent inputs.
+    ```typescript
+    import { createDataset } from "@arizeai/phoenix-client/datasets";
 
-We will use a small dataset for demo purposes:
+    // Step 2: define the dataset of questions to ask the agent
+    const DATASET = [
+        "Which horror movie should I watch next?",
+        "Give me a good comedy movie to watch tonight.",
+        "Recommend a comedy that is also a musical",
+        "Show me a popular movie that didn't do well at the box office",
+        "What horror movies are not too violent",
+        "Name a feel-good holiday movie",
+        "Recommend a musical with great songs",
+        "Give me a classic drama from the 90s",
+        "Name a movie that is a classic action movie",
+        "Which Batman movie should I watch?"
+    ]
 
-```typescript
-import { createDataset } from "@arizeai/phoenix-client/datasets";
+    export const dataset = await createDataset({
+        name: "movie-rec-questions",
+        description: "Questions to ask a movie recommendation agent",
+        examples: DATASET.map(question => ({
+          input: {
+            question: question,
+          },
+        })),
+    });
+    ```
 
-// Step 2: define the dataset of questions to ask the agent
-const DATASET = [
-    "Which horror movie should I watch next?",
-    "Give me a good comedy movie to watch tonight.",
-    "Recommend a comedy that is also a musical",
-    "Show me a popular movie that didn't do well at the box office",
-    "What horror movies are not too violent",
-    "Name a feel-good holiday movie",
-    "Recommend a musical with great songs",
-    "Give me a classic drama from the 90s",
-    "Name a movie that is a classic action movie",
-    "Which Batman movie should I watch?"
-]
+    The `createDataset` function upserts by name: re-uploading a dataset with the same name updates it in place, and an unchanged upload is a no-op. This makes it safe to re-run the setup code.
 
-export const dataset = await createDataset({
-    name: "movie-rec-questions",
-    description: "Questions to ask a movie recommendation agent",
-    examples: DATASET.map(question => ({
-      input: {
-        question: question,
-      },
-    })),
-});
-```
+    <Frame>
+      <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/ts-tutorial-upload-dataset.png" alt="Upload dataset in Phoenix" />
+    </Frame>
+  </Step>
 
-The `createDataset` function upserts by name: re-uploading a dataset with the same name updates it in place, and an unchanged upload is a no-op. This makes it safe to re-run the setup code.
+  <Step title={<span className="step-title">Define Evaluators</span>}>
+    Next, we need a way to assess the agent's outputs. This is where Evals come in. Evals provide a structured method for measuring whether an agent's responses meet the requirements defined in a dataset—such as accuracy, relevance, consistency, or safety.
 
-<Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/ts-tutorial-upload-dataset.png" alt="Upload dataset in Phoenix" />
-</Frame>
+    In this tutorial, we will be using LLM-as-a-Judge Evals, which rely on another LLM acting as the evaluator. We define a prompt describing the exact criteria we want to evaluate, and then pass the input and the agent-generated output from each dataset example into that evaluator prompt. The evaluator LLM then returns a score along with a natural-language explanation justifying why the score was assigned.
 
-### Step 3: Define Evaluators
+    This allows us to automatically grade the agent's performance across many examples, giving us quantitative metrics as well as qualitative insight into failure cases.
 
-Next, we need a way to assess the agent's outputs. This is where Evals come in. Evals provide a structured method for measuring whether an agent's responses meet the requirements defined in a dataset—such as accuracy, relevance, consistency, or safety.
+    ```typescript
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
 
-In this tutorial, we will be using LLM-as-a-Judge Evals, which rely on another LLM acting as the evaluator. We define a prompt describing the exact criteria we want to evaluate, and then pass the input and the agent-generated output from each dataset example into that evaluator prompt. The evaluator LLM then returns a score along with a natural-language explanation justifying why the score was assigned.
+    // Step 3: Define the evaluators
+    const RECOMMENDATION_RELEVANCE = `
+      You are evaluating the relevance of movie recommendations provided by an LLM application.
 
-This allows us to automatically grade the agent's performance across many examples, giving us quantitative metrics as well as qualitative insight into failure cases.
+      You will be given:
+      1. The user input that initiated the trace
+      2. The list of movie recommendations output by the system
 
-```typescript
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-import { openai } from "@ai-sdk/openai";
+      ##
+      User Input:
+      {{input.question}}
 
-// Step 3: Define the evaluators
-const RECOMMENDATION_RELEVANCE = `
-  You are evaluating the relevance of movie recommendations provided by an LLM application.
+      Recommendations:
+      {{output}}
+      ##
 
-  You will be given:
-  1. The user input that initiated the trace
-  2. The list of movie recommendations output by the system
+      Respond with exactly one word: \`correct\` or \`incorrect\`.
+      1. \`correct\` →
+      - All recommended movies match the requested genre or criteria in the user input.
+      - The recommendations should be relevant to the user's request and shouldn't be repetitive.
+      2. \`incorrect\` → one or more recommendations do not match the requested genre or criteria.
+      `;
 
-  ##
-  User Input:
-  {{input.question}}
+    export const recommendationRelevanceEvaluator = createClassificationEvaluator({
+        name: "Relevance",
+        model: openai("gpt-4o"),
+        promptTemplate: RECOMMENDATION_RELEVANCE,
+        choices: {
+          correct: 1,
+          incorrect: 0,
+        },
+    });
+    ```
 
-  Recommendations:
-  {{output}}
-  ##
-
-  Respond with exactly one word: \`correct\` or \`incorrect\`.
-  1. \`correct\` →
-  - All recommended movies match the requested genre or criteria in the user input.
-  - The recommendations should be relevant to the user's request and shouldn't be repetitive.
-  2. \`incorrect\` → one or more recommendations do not match the requested genre or criteria.
-  `;
-
-export const recommendationRelevanceEvaluator = createClassificationEvaluator({
-    name: "Relevance",
-    model: openai("gpt-4o"),
-    promptTemplate: RECOMMENDATION_RELEVANCE,
-    choices: {
-      correct: 1,
-      incorrect: 0,
-    },
-});
-```
-
-The evaluator uses double curly braces `{{variable}}` for template variables, which Phoenix will automatically populate with the input and output from each experiment run.
+    The evaluator uses double curly braces `{{variable}}` for template variables, which Phoenix will automatically populate with the input and output from each experiment run.
+  </Step>
+</Steps>
 
 ## Running the Experiment
 
@@ -273,8 +275,6 @@ Once the experiment completes, open Phoenix to explore the results. You'll be ab
 <Frame>
   <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/ts-tutorial-first-experiment-run.mp4" controls />
 </Frame>
-
-
 
 ## Iterating on the Agent
 

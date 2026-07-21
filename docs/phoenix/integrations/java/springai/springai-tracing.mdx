@@ -3,8 +3,7 @@ title: "Spring AI Tracing"
 description: "How to use OpenInference instrumentation with Spring AI and export traces to Arize Phoenix."
 ---
 
-import LaunchPhoenixTerminal from "../../../../snippets/launch-phoenix-terminal.mdx";
-import LaunchPhoenixDocker from "../../../../snippets/launch-phoenix-docker.mdx";
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
 
 ## Prerequisites
 
@@ -35,15 +34,7 @@ dependencies {
 
 ## **Setup Phoenix**
 
-<Tabs>
-  <Tab title="Command Line">
-    <LaunchPhoenixTerminal />
-  </Tab>
-
-  <Tab title="Docker">
-    <LaunchPhoenixDocker />
-  </Tab>
-</Tabs>
+<StartPhoenix />
 
 <Warning>
 If your Phoenix instance isn't running on localhost, adjust the endpoint in the code below as needed. If it has authentication enabled, also set `PHOENIX_API_KEY` to an API key from its **Settings** page.

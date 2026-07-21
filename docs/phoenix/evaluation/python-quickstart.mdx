@@ -3,8 +3,8 @@ title: "Get Started: Evaluations"
 sidebarTitle: "Python Quickstart"
 ---
 
-import StartPhoenixLocal from "../../snippets/start-phoenix-local.mdx";
-import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
+import StartPhoenix from "../../snippets/start-phoenix.mdx";
+import ConnectToPhoenixPython from "../../snippets/connect-to-phoenix-python.mdx";
 
 Now that you have Phoenix up and running, and sent traces to your first project, the next step you can take is running **evaluations** of your Python application. Evaluations let you measure and monitor the quality of your application by scoring traces against metrics like accuracy, relevance, or custom checks.
 
@@ -12,17 +12,11 @@ Now that you have Phoenix up and running, and sent traces to your first project,
   <Step title={<span className="step-title">Launch Phoenix</span>}>
     Before running evals, make sure Phoenix is running & you have sent traces in your project. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started) & [Get Started with Tracing guide](/docs/phoenix/get-started/get-started-tracing).
 
-    <StartPhoenixLocal />
+    <StartPhoenix />
 
     Next, tell the Phoenix client where that instance lives. Run this alongside the rest of the code in this guide (in your notebook or script):
 
-    ```python
-    import os
-
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-    ```
-
-    <PhoenixAuthNote />
+    <ConnectToPhoenixPython />
   </Step>
 
   <Step title={<span className="step-title">Install Phoenix Evals</span>}>

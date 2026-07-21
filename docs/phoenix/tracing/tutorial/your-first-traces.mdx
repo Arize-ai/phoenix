@@ -3,7 +3,7 @@ title: "Your First Traces"
 description: "Build a support agent and trace every LLM call, tool execution, and RAG retrieval"
 ---
 
-import StartPhoenixLocal from "../../../snippets/start-phoenix-local.mdx";
+import StartPhoenix from "../../../snippets/start-phoenix.mdx";
 import PhoenixAuthNote from "../../../snippets/phoenix-auth-note.mdx";
 
 When building agents and LLM applications, it's hard to see what's actually going on under the hood. Even if you set up a comprehensive agent architecture with multiple prompts, descriptive tools, and data retrievals, you're left answering questions like:
@@ -74,7 +74,7 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
 
 In order to send traces to Phoenix, you need a Phoenix instance running.
 
-<StartPhoenixLocal />
+<StartPhoenix />
 
 Now point your application at it:
 

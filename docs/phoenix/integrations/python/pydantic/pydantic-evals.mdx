@@ -3,14 +3,14 @@ title: "Pydantic Evals"
 description: How to use Pydantic Evals with Phoenix to evaluate AI applications using structured evaluation frameworks
 ---
 
-import LaunchPhoenixTabs from "../../../../snippets/launch-phoenix-tabs.mdx";
-import SetPhoenixEndpointPython from "../../../../snippets/set-phoenix-endpoint-python.mdx";
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
 
 [Pydantic Evals](https://github.com/pydantic/pydantic-evals) is an evaluation library that provides preset direct evaluations and LLM Judge evaluations. It can be used to run evaluations over dataframes of cases defined with Pydantic models. This guide shows you how to use Pydantic Evals alongside Arize Phoenix to run evaluations on traces captured from your running application.
 
 ## Launch Phoenix
 
-<LaunchPhoenixTabs />
+<StartPhoenix />
 
 **Install packages:**
 
@@ -18,7 +18,7 @@ import SetPhoenixEndpointPython from "../../../../snippets/set-phoenix-endpoint-
 pip install arize-phoenix-otel
 ```
 
-<SetPhoenixEndpointPython />
+<ConnectToPhoenixPython />
 
 ## Install
 

@@ -3,6 +3,8 @@ title: "BeeAI Tracing (Python)"
 description: Instrument and observe BeeAI agents
 ---
 
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
 Phoenix provides seamless observability and tracing for BeeAI agents through the [Python OpenInference instrumentation package](https://pypi.org/project/openinference-instrumentation-beeai/).
 
 ## Install
@@ -13,17 +15,7 @@ pip install openinference-instrumentation-beeai beeai-framework
 
 ## Setup
 
-Connect to your Phoenix instance using the register function.
-
-```python
-from phoenix.otel import register
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="beeai-agent", # Default is 'default'
-  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
-)
-```
+<RegisterTracerPython projectName="beeai-agent" />
 
 ## Run BeeAI
 

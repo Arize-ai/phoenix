@@ -3,6 +3,8 @@ title: "Portkey Tracing"
 description: How to trace Portkey AI Gateway requests with Phoenix for comprehensive LLM observability
 ---
 
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
 Phoenix provides seamless integration with [Portkey](https://portkey.ai/), the AI Gateway and observability platform that routes to 200+ LLMs with enterprise-grade features including guardrails, caching, and load balancing.
 
 ## Install
@@ -13,17 +15,7 @@ pip install openinference-instrumentation-portkey portkey-ai
 
 ## Setup
 
-Use the register function to connect your application to Phoenix:
-
-```python
-from phoenix.otel import register
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="my-portkey-app", # Default is 'default'
-  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
-)
-```
+<RegisterTracerPython projectName="my-portkey-app" />
 
 ## Run Portkey
 
