@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { Heading } from "@phoenix/components/core/content";
-import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { Flex } from "@phoenix/components/core/layout";
 
 import { IDBadge } from "./IDBadge";
@@ -22,7 +21,6 @@ export const TitleWithID = ({ title, id }: TitleWithIDProps) => {
     <Flex direction="row" gap="size-100" alignItems="center">
       <Heading>{title}</Heading>
       <IDBadge size="S" id={id} />
-      <CopyToClipboardButton variant="quiet" size="S" text={id} />
     </Flex>
   );
 };
