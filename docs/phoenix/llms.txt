@@ -699,10 +699,6 @@
 
 
 - [Network Security](https://arize.com/docs/phoenix/self-hosting/security/network-security): Understanding outbound network requests and how to secure your self-hosted Phoenix deployment
-## Phoenix Cloud
-
-- [Phoenix Cloud](https://arize.com/docs/phoenix/phoenix-cloud): Managed service overview
-
 ## Cookbooks
 
 - [Cookbook Index](https://arize.com/docs/phoenix/cookbook): All examples — agents, evaluation, tracing, prompt engineering, datasets

@@ -9,7 +9,7 @@ This guide walks through a complete workflow for understanding and improving an 
 
 A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows. 
 
-In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent, and then send a single trace so we can see everything end to end.
+In this guide, we’ll get tracing set up and walk through how to instrument an application. We’ll start by running a local Phoenix instance, create a simple agent, and then send a single trace so we can see everything end to end.
 
 We’ll use the Mastra framework in TypeScript, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page](https://arize.com/docs/phoenix/integrations).
 
@@ -24,28 +24,21 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
   **Follow along with code**: This guide has a companion codebase with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/mastra-quickstart).
 </Info>
 ---
-## **Step 1: Set Up Phoenix Cloud**
+## **Step 1: Start Phoenix**
 
 Before we can send traces anywhere, we need Phoenix running.
 
-In this step, we’ll create a Phoenix Cloud account and configure it for our application. If you’d rather run Phoenix locally, you can follow the [local setup guide](https://arize.com/docs/phoenix/self-hosting) instead.
+The fastest way to get an instance is to run it locally from your terminal:
 
-### **Create a Phoenix Cloud Account**
+```bash
+uvx arize-phoenix serve
+```
 
-1. Make a free [Phoenix Cloud](https://app.arize.com/auth/phoenix/login?redirect_uri=%2Foauth2%2Fauthorize%3Fclient_id%3Dphoenix-cloud%26redirect_uri%3Dhttps%253A%252F%252Fapp.phoenix.arize.com%252Fcallback%26response_type%3Dcode%26scope%3Dopenid%2Bprofile%2Bemail%26state%3DeyJub25jZSI6IjBFLVNDUktieEtjPSIsIm5leHQiOiIifQ%253D%253D) account.
-2. From the dashboard, click **Create a Space** in the upper-right corner.
-3. Enter a name for your new space.
-4. Once the space is created, launch your Phoenix instance directly from the dashboard.
-5. Create and save an API key by navigating to **Settings** in the sidebar. We’ll use this in the next step.
-6. In settings, note your **Hostname** in the **General** tab. This is the endpoint we’ll configure in code shortly.
+This starts Phoenix at [http://localhost:6006](http://localhost:6006) — open that URL in your browser to see the UI. Leave it running in its own terminal tab for the rest of this guide.
 
-<Frame caption="How to Create a Phoenix Cloud account & a space">
-  <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4" />
-</Frame>
-
-<Frame caption="How to Make an API Key">
-  <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4" />
-</Frame>
+<Info>
+  Phoenix ships as a Python package, so `uvx` (or `pip install arize-phoenix` followed by `phoenix serve`) is the quickest local option even for a TypeScript app. If you'd rather not install Python, `docker run -p 6006:6006 arizephoenix/phoenix:latest` works too. For a persistent deployment, see the [self-hosting guide](/docs/phoenix/self-hosting).
+</Info>
 
 ## **Step 2: Configure your Environment**
 
@@ -70,11 +63,14 @@ npm install @mastra/arize @ai-sdk/openai @arizeai/phoenix-evals @arizeai/phoenix
 ```
 OPENAI_API_KEY= <ENTER YOUR OPENAI API KEY>
 
-PHOENIX_COLLECTOR_ENDPOINT= <YOUR PHOENIX ENDPOINT>/v1/traces
-PHOENIX_API_KEY= <ENTER YOUR PHOENIX API KEY>
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
 ```
 Note that `v1/traces` needs to be appended to the endpoint in your `.env` file when working with Mastra.
+
+<Note>
+  If you're pointing at a remote deployment, set `PHOENIX_COLLECTOR_ENDPOINT` to that hostname with `/v1/traces` still appended (e.g. `https://phoenix.example.com/v1/traces`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
+</Note>
 
 ### **Connect Your Project in Phoenix** 
 

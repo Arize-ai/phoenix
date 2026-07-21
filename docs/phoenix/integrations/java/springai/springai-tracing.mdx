@@ -55,48 +55,24 @@ This command:
 For more info on using Phoenix with Docker, see [Docker](/docs/phoenix/self-hosting/deployment-options/docker).
 </Tab>
 
-<Tab title="Phoenix Cloud">
+<Tab title="Command Line">
 
-**Sign up for Phoenix:**
+**Launch a local Phoenix instance:**
 
-<Steps>
-  <Step>
-   Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-  </Step>
-  <Step>
-    Click `Create Space`, then follow the prompts to create and launch your space.
-  </Step>
-</Steps>
-
-**Set your Phoenix endpoint and API Key:**
-
-From your new Phoenix Space
-
-<Steps>
-  <Step>
-   Create your API key from the Settings page
-  </Step>
-  <Step>
-    Copy your `Hostname` from the Settings page
-  </Step>
-  <Step>
-    Set your endpoint and API key:
 ```bash
-export PHOENIX_API_KEY = "your-phoenix-api-key"
-export PHOENIX_COLLECTOR_ENDPOINT = "your-phoenix-endpoint"
+uvx arize-phoenix serve
 ```
-  </Step>
-</Steps>
 
+If you don't have [uv](https://docs.astral.sh/uv/) installed, use `pip install arize-phoenix && phoenix serve` instead.
 
-<Info>
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
-</Info>
+This serves the web UI on port 6006 and the OTLP gRPC endpoint on port 4317.
+
+For other deployment options, see [Self-Hosting](/docs/phoenix/self-hosting).
 </Tab>
 </Tabs>
 
 <Warning>
-If you are using Phoenix Cloud, adjust the endpoint in the code below as needed.
+If your Phoenix instance isn't running on localhost, adjust the endpoint in the code below as needed. If it has authentication enabled, also set `PHOENIX_API_KEY` to an API key from its **Settings** page.
 </Warning>
 
 ## **Configuration for Phoenix Tracing**
@@ -112,7 +88,7 @@ private static void initializeOpenTelemetry() {
 
         String apiKey = System.getenv("PHOENIX_API_KEY");
         OtlpGrpcSpanExporterBuilder otlpExporterBuilder = OtlpGrpcSpanExporter.builder()
-                .setEndpoint("http://localhost:4317") # adjust as needed
+                .setEndpoint("http://localhost:4317") // adjust as needed
                 .setTimeout(Duration.ofSeconds(2));
         OtlpGrpcSpanExporter otlpExporter = null;
         if (apiKey != null && !apiKey.isEmpty()) {

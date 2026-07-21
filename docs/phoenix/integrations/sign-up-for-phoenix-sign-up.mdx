@@ -3,49 +3,14 @@ title: "Launch Phoenix instructions"
 ---
 
 <Tabs>
-<Tab title="Phoenix Cloud">
-**Sign up for Phoenix:**
-
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Click `Create Space`, then follow the prompts to create and launch your space.
-
-**Install packages:**
-
-```bash
-pip install arize-phoenix-otel
-```
-
-**Set your Phoenix endpoint and API Key:**
-
-From your new Phoenix Space
-
-1. Create your API key from the Settings page
-2. Copy your `Hostname` from the Settings page
-3. In your code, set your endpoint and API key:
-
-```python
-import os
-
-os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX HOSTNAME"
-
-# If you created your Phoenix Cloud instance before June 24th, 2025,
-# you also need to set the API key as a header:
-# os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
-```
-
-<Note>
-Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
-</Note>
-</Tab>
-
 <Tab title="Command Line">
 **Launch your local Phoenix instance:**
 
 ```bash
-pip install arize-phoenix
-phoenix serve
+uvx arize-phoenix serve
 ```
+
+If you don't have [uv](https://docs.astral.sh/uv/) installed, use `pip install arize-phoenix && phoenix serve` instead.
 
 For details on customizing a local terminal deployment, see [Terminal Setup](/docs/phoenix/environments#terminal).
 

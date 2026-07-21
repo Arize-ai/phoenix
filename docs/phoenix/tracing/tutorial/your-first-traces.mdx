@@ -67,19 +67,26 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
   </Tab>
 </Tabs>
 
-## Set up Phoenix Cloud
+## Start Phoenix
 
-In order to send traces to Phoenix, you must sign up for a free space and account. Follow these [instructions](https://arize.com/docs/phoenix/get-started#setup-and-run-phoenix-cloud) to configure Phoenix Cloud, if you haven't already.
+In order to send traces to Phoenix, you need a Phoenix instance running. Start one locally in its own terminal tab:
 
-Once you have Phoenix Cloud configured, set your keys:
+```bash
+uvx arize-phoenix serve
+```
+
+If you don't have [uv](https://docs.astral.sh/uv/) installed, use `pip install arize-phoenix && phoenix serve` instead.
+
+Phoenix will be available at [http://localhost:6006](http://localhost:6006). If you'd rather run it as a persistent deployment, see the [self-hosting guide](/docs/phoenix/self-hosting).
+
+Now point your application at it:
 
 <Tabs>
   <Tab title="TypeScript" icon="js">
     Create a `.env` file in your project root:
 
     ```bash
-    PHOENIX_API_KEY=<ENTER YOUR PHOENIX API KEY>
-    PHOENIX_COLLECTOR_ENDPOINT=<ENTER YOUR PHOENIX ENDPOINT>
+    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
     OPENAI_API_KEY=<ENTER YOUR OPENAI API KEY>
     ```
   </Tab>
@@ -88,12 +95,15 @@ Once you have Phoenix Cloud configured, set your keys:
     ```python
     import os
 
-    os.environ["PHOENIX_API_KEY"] = "<ENTER YOUR PHOENIX API KEY>"
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<ENTER YOUR PHOENIX ENDPOINT>"
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
     os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
     ```
   </Tab>
 </Tabs>
+
+<Note>
+If your Phoenix deployment has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also set `PHOENIX_API_KEY` to an API key from its **Settings** page. A local `phoenix serve` doesn't need one.
+</Note>
 
 
 
@@ -465,7 +475,7 @@ The code may prompt for feedback on each response - you can skip this for now (p
 
 # Viewing Your Traces
 
-Open your Phoenix Cloud space. You'll see 7 `support-agent` traces - one for each query.
+Open Phoenix at [http://localhost:6006](http://localhost:6006). You'll see 7 `support-agent` traces - one for each query.
 
 <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/final-first.mp4" />
 

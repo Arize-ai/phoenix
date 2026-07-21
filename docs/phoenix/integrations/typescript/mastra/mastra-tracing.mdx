@@ -13,30 +13,15 @@ npm install @mastra/arize @mastra/observability
 
 ## Configure Environment
 
-Create a `.env` file that points Mastra to your Phoenix instance:
+Start Phoenix — `uvx arize-phoenix serve` runs it locally (or `pip install arize-phoenix && phoenix serve` if you don't have [uv](https://docs.astral.sh/uv/)). See [self-hosting](/docs/phoenix/self-hosting) for Docker, Kubernetes, and other deployment options.
 
-<Tabs>
-  <Tab title="Phoenix Cloud">
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
-3. Find your hostname under **Settings > Hostname**.
-
-```bash
-PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
-PHOENIX_API_KEY=your-api-key
-PHOENIX_PROJECT_NAME=mastra-service # Optional
-```
-</Tab>
-<Tab title="Self-hosted Phoenix">
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](/docs/phoenix/self-hosting).
+Then create a `.env` file that points Mastra at it:
 
 ```bash
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
 PHOENIX_PROJECT_NAME=mastra-service # Optional
 ```
-</Tab>
-</Tabs>
 
 ## Setup
 

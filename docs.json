@@ -1216,16 +1216,6 @@
         ]
       },
       {
-        "tab": "Phoenix Cloud",
-        "icon": "cloud",
-        "groups": [
-          {
-            "group": "Phoenix Cloud",
-            "pages": ["docs/phoenix/phoenix-cloud"]
-          }
-        ]
-      },
-      {
         "tab": "Cookbooks",
         "icon": "user-chef",
         "groups": [
@@ -1650,12 +1640,7 @@
         "title": "GitHub",
         "icon": "github"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Phoenix Cloud",
-      "href": "https://app.phoenix.arize.com/login"
-    }
+    ]
   },
   "footer": {
     "links": [
@@ -1679,6 +1664,10 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/phoenix-cloud",
+      "destination": "/docs/phoenix/self-hosting"
+    },
     {
       "source": "/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
       "destination": "/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
