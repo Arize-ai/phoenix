@@ -7,7 +7,7 @@ import { getExitCodeForError } from "../exitCodes";
 import { writeError } from "../io";
 import { PxiApp } from "./App";
 import { parsePxiRuntimeOptions } from "./options";
-import { runPxiModelPreflight } from "./preflight";
+import { resolvePxiTransportMode, runPxiModelPreflight } from "./preflight";
 
 /**
  * Entry point for the `pxi` command.
@@ -23,8 +23,16 @@ export async function main({
 }: {
   argv?: string[];
 } = {}): Promise<void> {
-  const options = await parsePxiRuntimeOptions({ argv });
-  await runPxiModelPreflight({ options });
+  const parsedOptions = await parsePxiRuntimeOptions({ argv });
+  await runPxiModelPreflight({ options: parsedOptions });
+  // Older Phoenix servers predate agent-session persistence; downgrade to the
+  // stateless full-transcript route they still expose.
+  const options = {
+    ...parsedOptions,
+    transportMode: await resolvePxiTransportMode({
+      config: parsedOptions.config,
+    }),
+  };
   // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to
   // stdout from its constructor, before it switches the terminal into raw mode.
   // On a TTY still in canonical mode the terminal echoes its reply (`ESC[?0u`)

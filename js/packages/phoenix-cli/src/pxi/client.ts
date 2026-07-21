@@ -1,3 +1,4 @@
+import type { pathsV1 } from "@arizeai/phoenix-client";
 import {
   DefaultChatTransport,
   readUIMessageStream,
@@ -5,25 +6,41 @@ import {
 } from "ai";
 
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
+import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
   PxiChatClient,
   PxiChatRequest,
   PxiContext,
+  PxiLegacyChatRequest,
   PxiMessage,
   PxiRuntimeOptions,
   PxiTransport,
 } from "./types";
 
 /**
- * Chat client for the Phoenix server-agent endpoint.
+ * Chat client for the Phoenix agent chat endpoints.
  *
  * This wires the Vercel AI SDK's {@link DefaultChatTransport} to Phoenix's
- * `/agents/server/sessions/{id}/chat` route: it builds the request URL, auth
- * headers, and request body, then streams the assistant reply back as a series
- * of {@link PxiMessage} snapshots.
+ * agent-session chat route: a temporary `AgentSession` is created via GraphQL
+ * on the first send, and each turn POSTs only its trailing message to
+ * `/agents/assistant/sessions/{id}/chat`. Older Phoenix servers without
+ * agent-session persistence fall back to the stateless
+ * `/agents/server/sessions/{id}/chat` route, which takes the full
+ * client-owned transcript. Either way the assistant reply streams back as a
+ * series of {@link PxiMessage} snapshots.
  */
+
+// Pinning the templates against the generated OpenAPI `paths` makes a future
+// server-side route removal a typecheck failure here instead of a runtime 404.
+const AGENT_SESSION_CHAT_PATH =
+  "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
+const LEGACY_SERVER_AGENT_CHAT_PATH =
+  "/agents/server/sessions/{session_id}/chat" satisfies keyof pathsV1;
+
+/** The one pre-configured agent the session chat route serves. */
+const ASSISTANT_AGENT_ID = "assistant";
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -53,8 +70,28 @@ function toLocalISOWithOffset(date: Date): string {
 }
 
 /**
- * Build the chat URL for a session, tolerating a trailing slash on the
- * configured endpoint and URL-encoding the session id.
+ * Build the agent-session chat URL for a server-created `AgentSession`,
+ * tolerating a trailing slash on the configured endpoint and URL-encoding the
+ * session's GlobalID.
+ */
+export function buildAgentSessionChatUrl({
+  endpoint,
+  agentSessionId,
+}: {
+  endpoint: string;
+  agentSessionId: string;
+}): string {
+  const path = AGENT_SESSION_CHAT_PATH.replace(
+    "{agent_id}",
+    ASSISTANT_AGENT_ID
+  ).replace("{session_id}", encodeURIComponent(agentSessionId));
+  return `${trimTrailingSlash(endpoint)}${path}`;
+}
+
+/**
+ * Build the deprecated stateless server-agent chat URL for a client-minted
+ * session id, tolerating a trailing slash on the configured endpoint and
+ * URL-encoding the session id.
  */
 export function buildServerAgentChatUrl({
   endpoint,
@@ -63,9 +100,89 @@ export function buildServerAgentChatUrl({
   endpoint: string;
   sessionId: string;
 }): string {
-  return `${trimTrailingSlash(endpoint)}/agents/server/sessions/${encodeURIComponent(
-    sessionId
-  )}/chat`;
+  const path = LEGACY_SERVER_AGENT_CHAT_PATH.replace(
+    "{session_id}",
+    encodeURIComponent(sessionId)
+  );
+  return `${trimTrailingSlash(endpoint)}${path}`;
+}
+
+/**
+ * GraphQL mutation creating the server-side session a PXI chat runs in.
+ * `temporary: true` fits the CLI's ephemeral UX: the session expires after a
+ * period of inactivity (its TTL refreshes every turn) and stays hidden from
+ * the web app's session lists.
+ */
+export const PXI_CREATE_AGENT_SESSION_MUTATION = /* GraphQL */ `
+  mutation PxiCreateAgentSessionMutation {
+    createAgentSession(input: { title: "", temporary: true }) {
+      agentSession {
+        id
+      }
+    }
+  }
+`;
+
+type CreateAgentSessionData = {
+  createAgentSession?: {
+    agentSession?: {
+      id?: string;
+    };
+  };
+};
+
+type GraphqlResponse<Data> = {
+  data?: Data;
+  errors?: Array<{ message?: string }>;
+};
+
+/**
+ * Create a temporary `AgentSession` on the Phoenix server and return its
+ * GlobalID — the session id the agent-session chat route expects. Throws a
+ * descriptive error when the endpoint is missing, the request fails, or the
+ * server returns GraphQL errors. `fetchImpl` is injectable for testing.
+ */
+export async function createTemporaryAgentSession({
+  config,
+  fetchImpl = globalThis.fetch,
+}: {
+  config: PhoenixConfig;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<string> {
+  if (!config.endpoint) {
+    throw new Error("Phoenix endpoint not configured.");
+  }
+  const request = buildGraphqlRequest({
+    query: PXI_CREATE_AGENT_SESSION_MUTATION,
+    config,
+  });
+  const response = await fetchImpl(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: request.body,
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Could not create a PXI chat session: HTTP ${response.status} ${response.statusText} from ${request.url}.`
+    );
+  }
+  const payload =
+    (await response.json()) as GraphqlResponse<CreateAgentSessionData>;
+  const errors = payload.errors
+    ?.map((error) => error.message)
+    .filter((message): message is string => Boolean(message));
+  if (errors && errors.length > 0) {
+    throw new Error(
+      `Could not create a PXI chat session because Phoenix returned GraphQL errors: ${errors.join("; ")}.`
+    );
+  }
+  const agentSessionId = payload.data?.createAgentSession?.agentSession?.id;
+  if (!agentSessionId) {
+    throw new Error(
+      "Could not create a PXI chat session because Phoenix returned no session id."
+    );
+  }
+  return agentSessionId;
 }
 
 /**
@@ -129,21 +246,13 @@ export function buildPxiContexts({
 }
 
 /**
- * Assemble the full chat request body from the conversation so far and the
- * resolved runtime options — session id, trace settings, edit permission,
- * capability contexts, and model selection.
+ * Shared request fields derived from the resolved runtime options — trace
+ * settings, edit permission, capability contexts, and model selection.
  */
-export function buildPxiChatRequest({
-  messages,
-  options,
-}: {
-  messages: PxiMessage[];
-  options: PxiRuntimeOptions;
-}): PxiChatRequest {
+function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
   return {
     id: options.sessionId,
-    messages,
-    trigger: "submit-message",
+    trigger: "submit-message" as const,
     ingestTraces: options.ingestTraces,
     exportRemoteTraces: options.exportRemoteTraces,
     attachUserId: options.attachUserId,
@@ -158,10 +267,57 @@ export function buildPxiChatRequest({
 }
 
 /**
- * Create the AI SDK transport pointed at the configured Phoenix server-agent
- * endpoint. Each outgoing turn is rebuilt through {@link buildPxiChatRequest},
- * so per-request context (like the current time) stays fresh. Throws if no
- * endpoint is configured. `fetch` is injectable for testing.
+ * Assemble an agent-session chat request from the conversation so far. The
+ * server owns the session transcript, so only the trailing message — the
+ * turn's new user message — is sent.
+ */
+export function buildPxiChatRequest({
+  messages,
+  options,
+}: {
+  messages: PxiMessage[];
+  options: PxiRuntimeOptions;
+}): PxiChatRequest {
+  const message = messages.at(-1);
+  if (!message) {
+    throw new Error("A chat submit request requires a message to send");
+  }
+  return {
+    ...buildPxiRequestBase({ options }),
+    message,
+  };
+}
+
+/**
+ * Assemble a legacy server-agent chat request carrying the full client-owned
+ * transcript, for Phoenix servers without agent-session persistence.
+ */
+export function buildPxiLegacyChatRequest({
+  messages,
+  options,
+}: {
+  messages: PxiMessage[];
+  options: PxiRuntimeOptions;
+}): PxiLegacyChatRequest {
+  return {
+    ...buildPxiRequestBase({ options }),
+    messages,
+  };
+}
+
+/**
+ * Create the AI SDK transport pointed at the configured Phoenix endpoint.
+ *
+ * In `"agent-session"` mode (current servers), a temporary `AgentSession` is
+ * created via GraphQL on the first send — its GlobalID becomes the chat URL's
+ * session id — and each turn POSTs only its trailing message. In
+ * `"legacy-server-agent"` mode (servers older than the agent-session
+ * persistence release), turns POST the full transcript to the stateless
+ * server-agent route under the client-minted session id.
+ *
+ * Each outgoing turn is rebuilt through the request builders, so per-request
+ * context (like the current time) stays fresh. Throws if no endpoint is
+ * configured. `fetch` is injectable for testing.
  */
 export function createServerAgentTransport({
   options,
@@ -170,7 +326,8 @@ export function createServerAgentTransport({
   options: PxiRuntimeOptions;
   fetch?: typeof globalThis.fetch;
 }): PxiTransport {
-  if (!options.config.endpoint) {
+  const endpoint = options.config.endpoint;
+  if (!endpoint) {
     throw new Error("Phoenix endpoint not configured.");
   }
 
@@ -180,14 +337,49 @@ export function createServerAgentTransport({
       ? createOAuthFetch({ config: options.config })
       : undefined);
 
+  if (options.transportMode === "legacy-server-agent") {
+    return new DefaultChatTransport<PxiMessage>({
+      api: buildServerAgentChatUrl({
+        endpoint,
+        sessionId: options.sessionId,
+      }),
+      headers: buildPxiHeaders({ config: options.config }),
+      fetch: transportFetch,
+      prepareSendMessagesRequest: ({ messages }) => ({
+        body: buildPxiLegacyChatRequest({ messages, options }),
+      }),
+    });
+  }
+
+  // The server session is created lazily on the first send and reused for the
+  // rest of the chat. A failed creation clears the cached promise so the next
+  // send can retry instead of being stuck on the rejection.
+  let agentSessionIdPromise: Promise<string> | null = null;
+  const getAgentSessionId = (): Promise<string> => {
+    agentSessionIdPromise ??= createTemporaryAgentSession({
+      config: options.config,
+      fetchImpl: transportFetch,
+    }).catch((error: unknown) => {
+      agentSessionIdPromise = null;
+      throw error;
+    });
+    return agentSessionIdPromise;
+  };
+
   return new DefaultChatTransport<PxiMessage>({
-    api: buildServerAgentChatUrl({
-      endpoint: options.config.endpoint,
-      sessionId: options.sessionId,
+    api: buildAgentSessionChatUrl({
+      endpoint,
+      // Placeholder only: prepareSendMessagesRequest overrides the URL with
+      // the server-created session id on every send.
+      agentSessionId: options.sessionId,
     }),
     headers: buildPxiHeaders({ config: options.config }),
     fetch: transportFetch,
-    prepareSendMessagesRequest: ({ messages }) => ({
+    prepareSendMessagesRequest: async ({ messages }) => ({
+      api: buildAgentSessionChatUrl({
+        endpoint,
+        agentSessionId: await getAgentSessionId(),
+      }),
       body: buildPxiChatRequest({ messages, options }),
     }),
   });

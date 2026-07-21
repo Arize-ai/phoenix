@@ -1,7 +1,17 @@
+import {
+  AGENT_ASSISTANT_SESSION_CHAT,
+  satisfiesMinVersion,
+} from "@arizeai/phoenix-client";
+
+import { createPhoenixClient } from "../client";
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
-import type { ModelSelection, PxiRuntimeOptions } from "./types";
+import type {
+  ModelSelection,
+  PxiRuntimeOptions,
+  PxiTransportMode,
+} from "./types";
 
 /**
  * Pre-launch validation of the selected model.
@@ -390,6 +400,38 @@ export async function runPxiModelPreflight({
     data,
     modelSelection: options.modelSelection,
   });
+}
+
+/**
+ * Decide which chat wire contract to use for this session by checking the
+ * connected server's version against the agent-session chat requirement.
+ *
+ * Servers at or above the requirement get `"agent-session"` (server-side
+ * sessions, single-message turns). Older servers — including ones whose
+ * version cannot be determined at all — get `"legacy-server-agent"`, the
+ * stateless full-transcript route they still expose, so a new CLI keeps
+ * working against old self-hosted deployments. `fetchImpl` is injectable for
+ * testing.
+ */
+export async function resolvePxiTransportMode({
+  config,
+  fetchImpl,
+}: {
+  config: PhoenixConfig;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<PxiTransportMode> {
+  const client = createPhoenixClient({ config, fetch: fetchImpl });
+  try {
+    const version = await client.getServerVersion();
+    return satisfiesMinVersion({
+      version,
+      minVersion: AGENT_ASSISTANT_SESSION_CHAT.minServerVersion,
+    })
+      ? "agent-session"
+      : "legacy-server-agent";
+  } catch {
+    return "legacy-server-agent";
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import type {
   ModelSelection,
   PxiEditPermission,
   PxiRuntimeOptions,
+  PxiTransportMode,
 } from "./types";
 
 export const DEFAULT_PXI_PROVIDER: BuiltInProvider = "ANTHROPIC";
@@ -147,6 +148,13 @@ export type ResolvePxiRuntimeOptionsInput = {
    * @example "3f9a1c7e-0000-4000-8000-000000000000"
    */
   sessionId?: string;
+  /**
+   * Chat wire contract to use. Defaults to the current agent-session
+   * contract; the entry point downgrades it to `"legacy-server-agent"` when
+   * the connected server predates agent-session persistence (see
+   * `resolvePxiTransportMode`).
+   */
+  transportMode?: PxiTransportMode;
 };
 
 function getExpectedProviderMessage(): string {
@@ -223,6 +231,7 @@ export function resolveModelSelection({
 export function resolvePxiRuntimeOptions({
   cliOptions,
   sessionId = crypto.randomUUID(),
+  transportMode = "agent-session",
 }: ResolvePxiRuntimeOptionsInput): PxiRuntimeOptions {
   const config = resolveConfig({
     cliOptions: {
@@ -244,6 +253,7 @@ export function resolvePxiRuntimeOptions({
     sessionId,
     config,
     modelSelection,
+    transportMode,
     skipModelPreflight: Boolean(cliOptions.skipModelPreflight),
     enableWebAccess: Boolean(cliOptions.enableWebAccess),
     enableSubagents: Boolean(cliOptions.enableSubagents),

@@ -2,8 +2,10 @@ import type { UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAgentSessionChatUrl,
   buildPxiChatRequest,
   buildPxiHeaders,
+  buildPxiLegacyChatRequest,
   buildServerAgentChatUrl,
   createPxiChatClient,
 } from "../src/pxi/client";
@@ -84,6 +86,41 @@ describe("PXI client", () => {
     );
   });
 
+  it("sends only the trailing message on the agent-session contract", () => {
+    const options = createRuntimeOptions();
+    const trailingMessage = userMessage("second question");
+
+    const request = buildPxiChatRequest({
+      messages: [userMessage("first question"), trailingMessage],
+      options,
+    });
+
+    expect(request.message).toEqual(trailingMessage);
+    expect(request).not.toHaveProperty("messages");
+  });
+
+  it("rejects an agent-session request without a message", () => {
+    const options = createRuntimeOptions();
+
+    expect(() => buildPxiChatRequest({ messages: [], options })).toThrow(
+      "A chat submit request requires a message to send"
+    );
+  });
+
+  it("sends the full transcript on the legacy server-agent contract", () => {
+    const options = createRuntimeOptions();
+    const messages = [userMessage("first question"), userMessage("second")];
+
+    const request = buildPxiLegacyChatRequest({ messages, options });
+
+    expect(request.messages).toEqual(messages);
+    expect(request).not.toHaveProperty("message");
+    expect(request).toMatchObject({
+      id: "session-1",
+      trigger: "submit-message",
+    });
+  });
+
   it("builds a custom provider model request", () => {
     const options = createRuntimeOptions({
       customProviderId: "provider-1",
@@ -133,7 +170,18 @@ describe("PXI client", () => {
     expect(headers.Authorization).toBe("Bearer oauth-access");
   });
 
-  it("builds the server-agent chat URL", () => {
+  it("builds the agent-session chat URL", () => {
+    expect(
+      buildAgentSessionChatUrl({
+        endpoint: "http://localhost:6006/",
+        agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
+      })
+    ).toBe(
+      "http://localhost:6006/agents/assistant/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
+    );
+  });
+
+  it("builds the legacy server-agent chat URL", () => {
     expect(
       buildServerAgentChatUrl({
         endpoint: "http://localhost:6006/",

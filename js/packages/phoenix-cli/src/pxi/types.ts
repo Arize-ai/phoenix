@@ -102,8 +102,30 @@ export type PxiContext =
  */
 export type PxiEditPermission = "manual" | "bypass";
 
-/** The request body POSTed to the Phoenix server-agent chat endpoint. */
+/**
+ * The request body POSTed to the agent-session chat endpoint
+ * (`/agents/assistant/sessions/{session_id}/chat`). The server owns the
+ * session transcript, so each turn carries only its trailing message.
+ */
 export type PxiChatRequest = {
+  id: string;
+  message: PxiMessage;
+  trigger: "submit-message";
+  ingestTraces: boolean;
+  exportRemoteTraces: boolean;
+  attachUserId: boolean;
+  editPermission: PxiEditPermission;
+  contexts: PxiContext[];
+  model: ModelSelection;
+};
+
+/**
+ * The request body POSTed to the deprecated stateless server-agent endpoint
+ * (`/agents/server/sessions/{session_id}/chat`) on Phoenix servers that
+ * predate agent-session persistence. The client owns the transcript and
+ * resends the full `messages` history each turn.
+ */
+export type PxiLegacyChatRequest = {
   id: string;
   messages: PxiMessage[];
   trigger: "submit-message";
@@ -116,6 +138,15 @@ export type PxiChatRequest = {
 };
 
 /**
+ * Which chat wire contract the session uses. `"agent-session"` is the current
+ * contract: a server-side `AgentSession` is created up front and each turn
+ * sends only its trailing message. `"legacy-server-agent"` is the fallback for
+ * older Phoenix servers without agent-session persistence: the client mints
+ * its own session id and resends the full transcript each turn.
+ */
+export type PxiTransportMode = "agent-session" | "legacy-server-agent";
+
+/**
  * The fully-resolved configuration for a single PXI session, produced by
  * merging CLI flags, the active profile, and defaults. Everything the UI and
  * client need to run is captured here, so the rest of the code can treat it as
@@ -125,6 +156,7 @@ export type PxiRuntimeOptions = {
   sessionId: string;
   config: PhoenixConfig;
   modelSelection: ModelSelection;
+  transportMode: PxiTransportMode;
   skipModelPreflight: boolean;
   enableWebAccess: boolean;
   enableSubagents: boolean;
