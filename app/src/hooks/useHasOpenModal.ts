@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   DRAWER_CLASS_NAME,
@@ -160,6 +160,39 @@ export function useHasOpenDrawer() {
  */
 export function useActiveDrawerElement() {
   return useSyncExternalStore(subscribe, getActiveDrawerElement, () => null);
+}
+
+type DrawerWidthMeasurement = {
+  drawer: HTMLElement;
+  width: number;
+};
+
+/**
+ * Returns the active drawer's rendered width, updating as it is resized.
+ * Returns zero when no drawer is mounted.
+ */
+export function useActiveDrawerWidth() {
+  const drawer = useActiveDrawerElement();
+  const [measurement, setMeasurement] = useState<DrawerWidthMeasurement | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!drawer) {
+      return;
+    }
+
+    const measureDrawer = () => {
+      setMeasurement({ drawer, width: drawer.offsetWidth });
+    };
+    const resizeObserver = new ResizeObserver(measureDrawer);
+    resizeObserver.observe(drawer);
+    measureDrawer();
+
+    return () => resizeObserver.disconnect();
+  }, [drawer]);
+
+  return measurement?.drawer === drawer ? measurement.width : 0;
 }
 
 /**
