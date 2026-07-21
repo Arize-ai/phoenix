@@ -17,6 +17,7 @@ evaluationTarget
 enabled
 inputMapping { literalMapping pathMapping }
 evaluator {
+  id
   kind
   name
   ... on CodeEvaluator { currentVersion { sourceCode } }
@@ -27,6 +28,14 @@ evaluator {
 _CREATE_CODE = f"""
 mutation($input: CreateProjectCodeEvaluatorInput!) {{
   createProjectCodeEvaluator(input: $input) {{
+    evaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
+  }}
+}}
+"""
+
+_ADD_CODE = f"""
+mutation($input: AddProjectCodeEvaluatorInput!) {{
+  addProjectCodeEvaluator(input: $input) {{
     evaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
   }}
 }}
@@ -110,6 +119,24 @@ def _code_create_input(
         "inputMapping": None,
         "filterCondition": filter_condition,
         "enabled": True,
+    }
+
+
+def _code_add_input(
+    project: models.Project,
+    evaluator_id: str,
+    *,
+    name: str = "attached-code",
+) -> dict[str, Any]:
+    return {
+        "projectId": str(GlobalID("Project", str(project.id))),
+        "evaluatorId": evaluator_id,
+        "name": name,
+        "samplingRate": 0.25,
+        "evaluationTarget": "SESSION",
+        "inputMapping": _mapping(context="override"),
+        "filterCondition": "span_kind == 'LLM'",
+        "enabled": False,
     }
 
 
@@ -282,6 +309,149 @@ async def test_project_code_evaluator_crud_and_connection(
     assert delete_result.data["deleteProjectEvaluators"]["projectEvaluatorIds"] == [created["id"]]
     async with db() as session:
         assert await session.get(models.Project, project.id) is not None
+
+
+async def test_add_project_code_evaluator_binds_existing_core(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    source_project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(source_project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    core_id = created["evaluator"]["id"]
+
+    async with db() as session:
+        evaluator_count_before = await session.scalar(
+            select(func.count()).select_from(models.Evaluator)
+        )
+        version_count_before = await session.scalar(
+            select(func.count()).select_from(models.CodeEvaluatorVersion)
+        )
+
+    add_result = await gql_client.execute(
+        _ADD_CODE,
+        {"input": _code_add_input(source_project, core_id)},
+    )
+    assert add_result.data and not add_result.errors
+    attached = add_result.data["addProjectCodeEvaluator"]["evaluator"]
+    assert attached["evaluator"]["id"] == core_id
+    assert attached["name"] == "attached-code"
+    assert attached["samplingRate"] == 0.25
+    assert attached["evaluationTarget"] == "SESSION"
+    assert attached["inputMapping"] == _mapping(context="override")
+    assert attached["filterCondition"] == "span_kind == 'LLM'"
+    assert attached["enabled"] is False
+
+    project_result = await gql_client.execute(
+        _PROJECT_EVALUATORS,
+        {"id": str(GlobalID("Project", str(source_project.id)))},
+    )
+    assert project_result.data and not project_result.errors
+    nodes = [edge["node"] for edge in project_result.data["node"]["evaluators"]["edges"]]
+    assert {node["id"] for node in nodes} == {created["id"], attached["id"]}
+
+    async with db() as session:
+        criteria_id = int(GlobalID.from_id(attached["id"]).node_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        assert criteria.evaluator_id == int(GlobalID.from_id(core_id).node_id)
+        assert await session.scalar(select(func.count()).select_from(models.Evaluator)) == (
+            evaluator_count_before
+        )
+        assert (
+            await session.scalar(select(func.count()).select_from(models.CodeEvaluatorVersion))
+            == version_count_before
+        )
+
+
+async def test_add_project_code_evaluator_rejects_non_code_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    source_project = await _add_project(db)
+    target_project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(source_project, name="shared-llm", text="Evaluate {{input}}")},
+    )
+    assert create_result.data and not create_result.errors
+    evaluator_id = create_result.data["createProjectLlmEvaluator"]["evaluator"]["evaluator"]["id"]
+    criteria_count_before = await _project_evaluator_criteria_count(db)
+
+    result = await gql_client.execute(
+        _ADD_CODE,
+        {"input": _code_add_input(target_project, evaluator_id)},
+    )
+
+    assert result.errors
+    assert result.errors[0].message == "Evaluator must be a CODE evaluator"
+    assert await _project_evaluator_criteria_count(db) == criteria_count_before
+
+
+async def test_add_project_code_evaluator_rejects_missing_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    criteria_count_before = await _project_evaluator_criteria_count(db)
+
+    result = await gql_client.execute(
+        _ADD_CODE,
+        {
+            "input": _code_add_input(
+                project,
+                str(GlobalID("CodeEvaluator", "999999999")),
+            )
+        },
+    )
+
+    assert result.errors
+    assert result.errors[0].message == "CODE evaluator not found"
+    assert await _project_evaluator_criteria_count(db) == criteria_count_before
+
+
+async def test_delete_project_binding_preserves_core_attached_to_another_project(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    source_project = await _add_project(db)
+    target_project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(source_project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    core_id = created["evaluator"]["id"]
+
+    add_result = await gql_client.execute(
+        _ADD_CODE,
+        {"input": _code_add_input(target_project, core_id)},
+    )
+    assert add_result.data and not add_result.errors
+    attached = add_result.data["addProjectCodeEvaluator"]["evaluator"]
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [created["id"]]}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        core_rowid = int(GlobalID.from_id(core_id).node_id)
+        created_criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+        attached_criteria_id = int(GlobalID.from_id(attached["id"]).node_id)
+        assert await session.get(models.ProjectEvaluatorCriteria, created_criteria_id) is None
+        attached_criteria = await session.get(models.ProjectEvaluatorCriteria, attached_criteria_id)
+        assert attached_criteria is not None
+        assert attached_criteria.evaluator_id == core_rowid
+        assert await session.get(models.CodeEvaluator, core_rowid) is not None
 
 
 async def test_project_llm_evaluator_create_update_delete(
@@ -559,3 +729,11 @@ async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
             or 0
             for model_type in model_types
         }
+
+
+async def _project_evaluator_criteria_count(db: DbSessionFactory) -> int:
+    async with db() as session:
+        return (
+            await session.scalar(select(func.count()).select_from(models.ProjectEvaluatorCriteria))
+            or 0
+        )
