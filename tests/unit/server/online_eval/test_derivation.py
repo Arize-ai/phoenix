@@ -164,7 +164,7 @@ class TestConfigFingerprint:
                     ],
                 }
             ],
-            input_mapping={"input": "attributes.llm.input_messages"},
+            input_mapping={"input": "metadata.attributes.llm.input_messages"},
             evaluation_target="SPAN",
             sandbox_config_id=None,
             filter_condition="span_kind == 'LLM'",
@@ -172,7 +172,7 @@ class TestConfigFingerprint:
         )
         assert (
             config_fingerprint(resolved)
-            == "e6ca2ff2b09c452f4f1c9c6e846223e71a3955796ec86ce636c19d5215527f94"
+            == "a947137da632fef78f34554fcd4280c6a1207f96746f8667c9b578ea17ed3871"
         )
 
 
