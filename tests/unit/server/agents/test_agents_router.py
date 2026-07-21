@@ -622,6 +622,13 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert agent_session_rowid is not None
         stored_messages = await _load_session_messages(session, agent_session_rowid)
+        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
+        if snapshot is None:
+            snapshot = models.AgentSessionSnapshot(agent_session_id=agent_session_rowid)
+            session.add(snapshot)
+        snapshot.compaction_summary = '{"objectives":["list datasets"]}'
+        snapshot.compacted_through_position = 1
+        snapshot.compaction_event_position = 1
     assert len(stored_messages) == 2
     resolved_assistant_message = stored_messages[-1]
     assert resolved_assistant_message["id"] == assistant_message_id
@@ -652,6 +659,7 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
                 .order_by(models.AgentSessionMessage.position)
             )
         ).all()
+        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
     assert len(stored_rows) == 2
     persisted_assistant = stored_rows[-1]
     assert persisted_assistant.message_id == assistant_message_id
@@ -667,6 +675,10 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         isinstance(part, TextUIPart) and part.text == "done"
         for part in persisted_assistant.message.parts
     )
+    assert snapshot is not None
+    assert snapshot.compaction_summary is None
+    assert snapshot.compacted_through_position is None
+    assert snapshot.compaction_event_position is None
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
