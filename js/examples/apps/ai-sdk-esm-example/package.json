@@ -1,0 +1,21 @@
+{
+  "name": "ai-sdk-esm-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ESM AI SDK v7 agent that consumes the published @arizeai/phoenix-otel tarball to validate its ESM and CJS entry points",
+  "type": "module",
+  "scripts": {
+    "start": "node agent.js",
+    "check:cjs": "node check-cjs.cjs"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.0",
+    "@ai-sdk/otel": "^1.0.0",
+    "@arizeai/phoenix-otel": "https://pkg.pr.new/@arizeai/phoenix-otel@14563",
+    "ai": "^7.0.0",
+    "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

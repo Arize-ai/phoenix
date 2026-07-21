@@ -1,6 +1,10 @@
 packages:
   - packages/*
   - examples/apps/*
+  # Installs @arizeai/phoenix-otel from a published tarball to validate the
+  # package as an external consumer — must stay out of the workspace so the
+  # tarball install is real (see its README).
+  - "!examples/apps/ai-sdk-esm-example"
   - benchmarks/*
 
 managePackageManagerVersions: true
