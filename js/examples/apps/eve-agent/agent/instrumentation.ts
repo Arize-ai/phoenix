@@ -14,11 +14,14 @@
  */
 
 import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+import {
   isOpenInferenceSpan,
   OpenInferenceSimpleSpanProcessor,
-} from "@arizeai/openinference-vercel";
-import { ensureCollectorEndpoint, register } from "@arizeai/phoenix-otel";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+} from "@arizeai/phoenix-otel/vercel";
 import { defineInstrumentation } from "eve/instrumentation";
 
 export default defineInstrumentation({

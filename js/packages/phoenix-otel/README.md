@@ -123,6 +123,41 @@ The `register` function accepts the following parameters:
 | `global`           | `boolean`                | `true`                    | Register the tracer provider globally                  |
 | `diagLogLevel`     | `DiagLogLevel`           | `undefined`               | Diagnostic logging level for debugging                 |
 
+### Custom Span Processors
+
+`register()` also accepts `spanProcessors`, which replaces the default Phoenix
+exporter setup. For these setups the package root re-exports
+`OTLPTraceExporter`, and the ESM-only `@arizeai/phoenix-otel/vercel` subpath
+re-exports `@arizeai/openinference-vercel` (`OpenInferenceSimpleSpanProcessor`,
+`OpenInferenceBatchSpanProcessor`, `isOpenInferenceSpan`, and types) — no need
+to install the underlying packages:
+
+```typescript
+import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+import {
+  isOpenInferenceSpan,
+  OpenInferenceSimpleSpanProcessor,
+} from "@arizeai/phoenix-otel/vercel";
+
+register({
+  projectName: "my-agent",
+  spanProcessors: [
+    new OpenInferenceSimpleSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: ensureCollectorEndpoint("http://localhost:6006"),
+      }),
+      // Export only AI spans, re-rooting any left orphaned by the filter
+      spanFilter: isOpenInferenceSpan,
+      reparentOrphanedSpans: true,
+    }),
+  ],
+});
+```
+
 ## Usage Examples
 
 ### With the Vercel AI SDK (v7+)
