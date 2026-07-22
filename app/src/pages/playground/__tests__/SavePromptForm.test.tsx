@@ -19,20 +19,30 @@ vi.mock("@phoenix/components/code", () => ({
 
 vi.mock("@phoenix/pages/playground/PromptComboBox", () => ({
   PromptComboBox: ({
+    errorMessage,
     inputValue,
     onBlur,
+    onFocus,
     onInputChange,
   }: {
+    errorMessage?: string;
     inputValue?: string;
     onBlur?: () => void;
+    onFocus?: () => void;
     onInputChange?: (value: string) => void;
   }) => (
-    <input
-      data-testid="prompt-picker"
-      value={inputValue}
-      onBlur={onBlur}
-      onChange={(event) => onInputChange?.(event.target.value)}
-    />
+    <>
+      <input
+        data-testid="prompt-picker"
+        value={inputValue}
+        onBlur={onBlur}
+        onFocus={onFocus}
+        onChange={(event) => onInputChange?.(event.target.value)}
+      />
+      {errorMessage ? (
+        <span data-testid="prompt-error">{errorMessage}</span>
+      ) : null}
+    </>
   ),
 }));
 
@@ -129,6 +139,64 @@ describe("SavePromptForm", () => {
       name: "new-promptv2",
       description: undefined,
     });
+  });
+
+  it("ignores leading spaces and defers trailing-dash errors until blur", async () => {
+    await act(async () => {
+      root.render(
+        <RelayEnvironmentProvider environment={createTestEnvironment({})}>
+          <Suspense fallback={null}>
+            <SavePromptForm
+              onCreate={vi.fn()}
+              onUpdate={vi.fn()}
+              onClose={vi.fn()}
+            />
+          </Suspense>
+        </RelayEnvironmentProvider>
+      );
+    });
+
+    const promptInput = container.querySelector<HTMLInputElement>(
+      '[data-testid="prompt-picker"]'
+    );
+    expect(promptInput).not.toBeNull();
+
+    await act(async () => {
+      promptInput?.focus();
+      setInputValue(promptInput as HTMLInputElement, " ");
+    });
+    expect(promptInput?.value).toBe("");
+    expect(container.querySelector('[data-testid="prompt-error"]')).toBeNull();
+
+    await act(async () => {
+      setInputValue(promptInput as HTMLInputElement, "A ");
+    });
+    expect(promptInput?.value).toBe("a-");
+    expect(container.querySelector('[data-testid="prompt-error"]')).toBeNull();
+
+    await act(async () => {
+      promptInput?.blur();
+    });
+    expect(
+      container.querySelector('[data-testid="prompt-error"]')?.textContent
+    ).toBe("Must start and end with lowercase alphanumeric characters");
+
+    await act(async () => {
+      promptInput?.focus();
+      setInputValue(promptInput as HTMLInputElement, "B ");
+    });
+    expect(container.querySelector('[data-testid="prompt-error"]')).toBeNull();
+
+    await act(async () => {
+      container
+        .querySelector("form")
+        ?.dispatchEvent(
+          new SubmitEvent("submit", { bubbles: true, cancelable: true })
+        );
+    });
+    expect(
+      container.querySelector('[data-testid="prompt-error"]')?.textContent
+    ).toBe("Must start and end with lowercase alphanumeric characters");
   });
 
   it("updates a prompt without a change description", async () => {

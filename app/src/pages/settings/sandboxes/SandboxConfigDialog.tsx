@@ -199,6 +199,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
   const defaultProvider = mode === "create" ? props.defaultProvider : undefined;
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
+  const [isNameFocused, setIsNameFocused] = useState(false);
 
   const existingBackend = mode === "edit" ? props.backend : undefined;
   const existingConfig = mode === "edit" ? props.config : undefined;
@@ -545,24 +546,38 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   required: "Name is required",
                   validate: validateIdentifier,
                 }}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    {...field}
-                    onChange={(value) =>
-                      field.onChange(transformIdentifierInput(value))
-                    }
-                    isInvalid={fieldState.invalid}
-                  >
-                    <Label>Name</Label>
-                    <Input />
-                    <Text slot="description" size="S" color="text-700">
-                      {IDENTIFIER_DESCRIPTION}
-                    </Text>
-                    {fieldState.error ? (
-                      <FieldError>{fieldState.error.message}</FieldError>
-                    ) : null}
-                  </TextField>
-                )}
+                render={({ field, fieldState }) => {
+                  const shouldShowError =
+                    (fieldState.isTouched && !isNameFocused) ||
+                    form.formState.isSubmitted;
+                  const displayedError = shouldShowError
+                    ? fieldState.error
+                    : undefined;
+                  return (
+                    <TextField
+                      {...field}
+                      onChange={(value) =>
+                        field.onChange(transformIdentifierInput(value))
+                      }
+                      onFocus={() => setIsNameFocused(true)}
+                      onBlur={() => {
+                        setIsNameFocused(false);
+                        field.onBlur();
+                        void form.trigger("name");
+                      }}
+                      isInvalid={!!displayedError}
+                    >
+                      <Label>Name</Label>
+                      <Input />
+                      <Text slot="description" size="S" color="text-700">
+                        {IDENTIFIER_DESCRIPTION}
+                      </Text>
+                      {displayedError ? (
+                        <FieldError>{displayedError.message}</FieldError>
+                      ) : null}
+                    </TextField>
+                  );
+                }}
               />
             )}
             <Controller

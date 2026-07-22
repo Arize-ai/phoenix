@@ -87,6 +87,7 @@ export function SavePromptForm({
   const [promptInputValue, setPromptInputValue] = useState<string>(
     selectedPrompt?.prompt?.name ?? ""
   );
+  const [isPromptInputFocused, setIsPromptInputFocused] = useState(false);
 
   const mode: "create" | "update" = selectedPrompt ? "update" : "create";
   const submitButtonText =
@@ -110,7 +111,7 @@ export function SavePromptForm({
     handleSubmit,
     setValue,
     getValues,
-    formState: { isDirty, isValid },
+    formState: { isDirty, isSubmitted },
   } = useForm<SavePromptFormValues>({
     values: {
       promptId: selectedPromptId ?? undefined,
@@ -155,30 +156,40 @@ export function SavePromptForm({
           rules={{
             validate: validateIdentifier,
           }}
-          render={({ field: { onBlur, onChange }, fieldState }) => (
-            <PromptComboBox
-              label="Prompt"
-              description={`Select a prompt, or enter a new name. ${IDENTIFIER_DESCRIPTION}`}
-              placeholder="Select or enter new prompt name"
-              isRequired
-              onBlur={onBlur}
-              inputValue={promptInputValue}
-              onInputChange={(value) => {
-                const transformedValue = transformIdentifierInput(value);
-                setPromptInputValue(transformedValue);
-                onChange(transformedValue);
-              }}
-              errorMessage={fieldState.error?.message}
-              allowsCustomValue
-              onChange={(promptId) => {
-                onChange(promptId);
-                setSelectedPromptId(
-                  typeof promptId === "string" ? promptId : null
-                );
-              }}
-              promptId={selectedPromptId}
-            />
-          )}
+          render={({ field: { onBlur, onChange }, fieldState }) => {
+            const shouldShowError =
+              (fieldState.isTouched && !isPromptInputFocused) || isSubmitted;
+            return (
+              <PromptComboBox
+                label="Prompt"
+                description={`Select a prompt, or enter a new name. ${IDENTIFIER_DESCRIPTION}`}
+                placeholder="Select or enter new prompt name"
+                isRequired
+                onFocus={() => setIsPromptInputFocused(true)}
+                onBlur={() => {
+                  setIsPromptInputFocused(false);
+                  onBlur();
+                }}
+                inputValue={promptInputValue}
+                onInputChange={(value) => {
+                  const transformedValue = transformIdentifierInput(value);
+                  setPromptInputValue(transformedValue);
+                  onChange(transformedValue);
+                }}
+                errorMessage={
+                  shouldShowError ? fieldState.error?.message : undefined
+                }
+                allowsCustomValue
+                onChange={(promptId) => {
+                  onChange(promptId);
+                  setSelectedPromptId(
+                    typeof promptId === "string" ? promptId : null
+                  );
+                }}
+                promptId={selectedPromptId}
+              />
+            );
+          }}
         />
       </View>
       <Form onSubmit={handleSubmit(onSubmit)}>
@@ -310,7 +321,7 @@ export function SavePromptForm({
             <Button
               variant={isDirty ? "primary" : "default"}
               size="S"
-              isDisabled={isSubmitting || !isValid}
+              isDisabled={isSubmitting}
               type="submit"
             >
               {submitButtonText}
@@ -330,6 +341,7 @@ function NewTagInlineForm({
   onAdd: (tagName: string) => void;
 }) {
   const [inputValue, setInputValue] = useState("");
+  const [hasStoppedEditing, setHasStoppedEditing] = useState(false);
 
   const error = useMemo(() => {
     const trimmed = inputValue.trim();
@@ -342,10 +354,16 @@ function NewTagInlineForm({
 
   const handleAdd = useCallback(() => {
     const trimmed = inputValue.trim();
-    if (!trimmed || error) return;
+    if (!trimmed || error) {
+      setHasStoppedEditing(true);
+      return;
+    }
     onAdd(trimmed);
     setInputValue("");
+    setHasStoppedEditing(false);
   }, [inputValue, error, onAdd]);
+
+  const displayedError = hasStoppedEditing ? error : null;
 
   return (
     <Flex direction="row" gap="size-100" alignItems="start">
@@ -354,7 +372,9 @@ function NewTagInlineForm({
         aria-label="New tag name"
         value={inputValue}
         onChange={(value) => setInputValue(transformIdentifierInput(value))}
-        isInvalid={!!error}
+        onFocus={() => setHasStoppedEditing(false)}
+        onBlur={() => setHasStoppedEditing(true)}
+        isInvalid={!!displayedError}
         css={css`
           flex: 1 1 auto;
         `}
@@ -366,8 +386,8 @@ function NewTagInlineForm({
         }}
       >
         <Input placeholder="New tag name" />
-        {error ? (
-          <FieldError>{error}</FieldError>
+        {displayedError ? (
+          <FieldError>{displayedError}</FieldError>
         ) : (
           <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
         )}
@@ -376,7 +396,7 @@ function NewTagInlineForm({
         size="S"
         leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={handleAdd}
-        isDisabled={!inputValue.trim() || !!error}
+        isDisabled={!inputValue.trim()}
       >
         Add
       </Button>

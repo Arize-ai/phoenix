@@ -11,8 +11,13 @@ describe("transformIdentifierInput", () => {
     expect(transformIdentifierInput("My  New.Prompt!")).toBe("my-newprompt");
   });
 
-  it("preserves leading and trailing separators while typing", () => {
-    expect(transformIdentifierInput("_My Prompt ")).toBe("_my-prompt-");
+  it("discards leading separators and preserves trailing separators", () => {
+    expect(transformIdentifierInput("_My Prompt ")).toBe("my-prompt-");
+  });
+
+  it("ignores whitespace on a blank field and inserts a dash after text", () => {
+    expect(transformIdentifierInput(" ")).toBe("");
+    expect(transformIdentifierInput("A ")).toBe("a-");
   });
 });
 

@@ -3,10 +3,7 @@ import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
 import { FieldError, Input, Label, Text } from "@phoenix/components";
 import { TextField, type TextFieldProps } from "@phoenix/components/core/field";
-import {
-  IDENTIFIER_DESCRIPTION,
-  IDENTIFIER_ERROR_MESSAGES,
-} from "@phoenix/constants";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -114,11 +111,8 @@ export const EvaluatorNameInput = ({
       control={control}
       rules={{ validate }}
       render={({ field, fieldState: { error } }) => {
-        // Only show blur-specific errors after the field has been blurred
-        const shouldShowError =
-          error?.message &&
-          (hasBlurredRef.current ||
-            error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
+        // Identifier errors are deferred until blur or parent-form submission.
+        const shouldShowError = error?.message && hasBlurredRef.current;
         const displayedError = shouldShowError ? error.message : undefined;
 
         const handleChange = (value: string) => {

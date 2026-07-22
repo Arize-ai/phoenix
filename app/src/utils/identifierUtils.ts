@@ -57,10 +57,11 @@ export function validateIdentifier(value: string): ValidateResult {
 
 /**
  * Lowercases `value`, collapses whitespace runs into single dashes, and drops
- * any character outside the allowed identifier set. Leading and trailing
- * separators are preserved so the caller can keep typing (e.g. typing
- * "foo " should yield "foo-" without the dash being stripped mid-edit and
- * jumping the cursor).
+ * any character outside the allowed identifier set. Leading separators are
+ * discarded because they can never form a valid identifier. Trailing
+ * separators are preserved so the caller can keep typing (e.g. typing "foo "
+ * should yield "foo-" without the dash being stripped mid-edit and jumping
+ * the cursor).
  *
  * Use this as a controlled-input transformer; for one-shot conversion of an
  * arbitrary string into a final identifier, use {@link getIdentifier}.
@@ -69,7 +70,8 @@ export function transformIdentifierInput(value: string): string {
   return value
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^_a-z0-9-]/g, "");
+    .replace(/[^_a-z0-9-]/g, "")
+    .replace(/^[_-]+/, "");
 }
 
 /**

@@ -47,10 +47,11 @@ export function NewPromptVersionDialog({
   onNewTagCreated: (tag: PromptVersionTagFormParams) => void;
   onDismiss: () => void;
 }) {
+  const [isNameFocused, setIsNameFocused] = useState(false);
   const {
     control,
     handleSubmit,
-    formState: { isDirty },
+    formState: { isDirty, isSubmitted },
   } = useForm<PromptVersionTagFormParams>({
     defaultValues: {
       name: "",
@@ -120,26 +121,38 @@ export function NewPromptVersionDialog({
                   }}
                   render={({
                     field: { name, onChange, onBlur, value },
-                    fieldState: { invalid, error },
-                  }) => (
-                    <TextField
-                      isInvalid={invalid}
-                      onChange={(value) =>
-                        onChange(transformIdentifierInput(value))
-                      }
-                      onBlur={onBlur}
-                      name={name}
-                      value={value}
-                    >
-                      <Label>Tag Name</Label>
-                      <Input placeholder="e.x. prod" />
-                      {error?.message ? (
-                        <FieldError>{error.message}</FieldError>
-                      ) : (
-                        <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
-                      )}
-                    </TextField>
-                  )}
+                    fieldState: { error, isTouched },
+                  }) => {
+                    const displayedError =
+                      (isTouched && !isNameFocused) || isSubmitted
+                        ? error
+                        : undefined;
+                    return (
+                      <TextField
+                        isInvalid={!!displayedError}
+                        onChange={(value) =>
+                          onChange(transformIdentifierInput(value))
+                        }
+                        onFocus={() => setIsNameFocused(true)}
+                        onBlur={() => {
+                          setIsNameFocused(false);
+                          onBlur();
+                        }}
+                        name={name}
+                        value={value}
+                      >
+                        <Label>Tag Name</Label>
+                        <Input placeholder="e.x. prod" />
+                        {displayedError?.message ? (
+                          <FieldError>{displayedError.message}</FieldError>
+                        ) : (
+                          <Text slot="description">
+                            {IDENTIFIER_DESCRIPTION}
+                          </Text>
+                        )}
+                      </TextField>
+                    );
+                  }}
                 />
                 <Controller
                   name="description"
