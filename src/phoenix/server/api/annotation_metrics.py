@@ -10,11 +10,10 @@ def build_entity_weighted_annotation_metrics_stmt(
 ) -> Select[Any]:
     """Aggregate time-series rows using the existing entity-weighted convention."""
     rows = annotation_rows.subquery()
-    # Keep the same weighting order as `dataloaders/annotation_summaries.py`:
-    # first calculate each entity's distribution and score, then average those
-    # entity-level values so repeated annotations do not give an entity more weight.
-    # All result-bearing entities stay in the denominator, so the unreturned
-    # share represents entities without labels and can be shown as `other`.
+    # Match `api/dataloaders/annotation_summaries.py`: normalize repeated labels
+    # within each entity, then average across all result-bearing entities. This
+    # keeps repeated annotations from changing entity weight and leaves the
+    # score-only share available to the UI as `other`.
     entity_counts = (
         select(
             rows.c.bucket,
@@ -55,8 +54,9 @@ def build_entity_weighted_annotation_metrics_stmt(
         .group_by(entity_scores.c.bucket, entity_scores.c.name)
         .subquery()
     )
-    # Counts and the evaluation-wide mean live on one synthetic row so
-    # AnnotationSummary does not double-count them across selected labels.
+    # Match `api/types/AnnotationSummary.py`, which sums these columns across its DataFrame,
+    # so put counts and the evaluation-wide mean on one synthetic row rather
+    # than repeating them once per label.
     coverage_rows = select(
         coverage.c.bucket,
         coverage.c.name,

@@ -2,6 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 
+from aioitertools.itertools import groupby
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.sql.elements import ColumnElement
 from strawberry.dataloader import AbstractCache, DataLoader
@@ -42,13 +43,15 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         requested_keys = set(keys)
         summaries: defaultdict[Key, Result] = defaultdict(list)
-        label_counts_by_summary: defaultdict[tuple[ExperimentID, str], list[tuple[str, int]]] = (
-            defaultdict(list)
+        label_fraction_sums_by_summary: defaultdict[
+            tuple[ExperimentID, str], defaultdict[str, float]
+        ] = defaultdict(lambda: defaultdict(float))
+        result_entity_counts_by_summary: defaultdict[tuple[ExperimentID, str], int] = defaultdict(
+            int
         )
-        result_counts_by_summary: defaultdict[tuple[ExperimentID, str], int] = defaultdict(int)
 
-        # A batch can mix legacy callers requesting every summary with chart
-        # callers requesting one exact name, so build one predicate for both.
+        # GraphQL can request filtered and unfiltered aliases in one operation,
+        # so a single DataLoader batch may contain both key shapes.
         unfiltered_experiment_ids = [
             experiment_id for experiment_id, annotation_name in keys if annotation_name is None
         ]
@@ -154,9 +157,10 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         label_counts_query = (
             select(
                 models.ExperimentRun.experiment_id.label("experiment_id"),
+                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
                 models.ExperimentRunAnnotation.name.label("annotation_name"),
                 models.ExperimentRunAnnotation.label.label("label"),
-                func.count().label("count"),
+                func.count().label("label_count"),
             )
             .select_from(models.ExperimentRunAnnotation)
             .join(
@@ -173,31 +177,50 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .group_by(
                 models.ExperimentRun.experiment_id,
+                models.ExperimentRun.dataset_example_id,
                 models.ExperimentRunAnnotation.name,
                 models.ExperimentRunAnnotation.label,
             )
             .order_by(
                 models.ExperimentRun.experiment_id,
                 models.ExperimentRunAnnotation.name,
+                models.ExperimentRun.dataset_example_id,
                 models.ExperimentRunAnnotation.label,
             )
         )
         async with self._db.read() as session:
-            async for label_count_row in await session.stream(label_counts_query):
+            label_count_rows = await session.stream(label_counts_query)
+            # Match `api/dataloaders/annotation_summaries.py`: normalize repeated
+            # labels within each dataset example, then average across all
+            # result-bearing examples, including those that only have a score.
+            async for entity_key, entity_rows in groupby(
+                label_count_rows,
+                lambda row: (
+                    row.experiment_id,
+                    row.annotation_name,
+                    row.dataset_example_id,
+                ),
+            ):
                 summary_key = (
-                    label_count_row.experiment_id,
-                    label_count_row.annotation_name,
+                    entity_key[0],
+                    entity_key[1],
                 )
-                count = int(label_count_row[3])
-                result_counts_by_summary[summary_key] += count
-                if label_count_row.label is not None:
-                    label_counts_by_summary[summary_key].append((label_count_row.label, count))
+                result_entity_counts_by_summary[summary_key] += 1
+                label_counts = {
+                    row.label: int(row.label_count) for row in entity_rows if row.label is not None
+                }
+                total_label_count = sum(label_counts.values())
+                if total_label_count:
+                    for label, count in label_counts.items():
+                        label_fraction_sums_by_summary[summary_key][label] += (
+                            count / total_label_count
+                        )
             async for scores_tuple in await session.stream(run_scores_query):
                 summary_key = (
                     scores_tuple.experiment_id,
                     scores_tuple.annotation_name,
                 )
-                result_count = result_counts_by_summary[summary_key]
+                result_entity_count = result_entity_counts_by_summary[summary_key]
                 summary = ExperimentAnnotationSummary(
                     annotation_name=scores_tuple.annotation_name,
                     min_score=scores_tuple.min_score,
@@ -208,10 +231,12 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                     score_count=scores_tuple.score_count,
                     label_count=scores_tuple.label_count,
                     label_fractions=[
-                        (label, count / result_count)
-                        for label, count in label_counts_by_summary[summary_key]
+                        (label, fraction_sum / result_entity_count)
+                        for label, fraction_sum in sorted(
+                            label_fraction_sums_by_summary[summary_key].items()
+                        )
                     ]
-                    if result_count
+                    if result_entity_count
                     else [],
                 )
                 unfiltered_key = (scores_tuple.experiment_id, None)

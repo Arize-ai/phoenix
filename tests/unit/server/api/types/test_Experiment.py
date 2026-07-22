@@ -3,6 +3,7 @@ from statistics import mean
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -762,8 +763,8 @@ class TestExperimentAnnotationSummaries:
                                         "count": 4,
                                         "errorCount": 1,
                                         "labelFractions": [
-                                            {"label": "label-0", "fraction": 1 / 3},
-                                            {"label": "label-1", "fraction": 1 / 3},
+                                            {"label": "label-0", "fraction": 1 / 4},
+                                            {"label": "label-1", "fraction": 1 / 4},
                                         ],
                                     },
                                 ],
@@ -820,8 +821,8 @@ class TestExperimentAnnotationSummaries:
                                         "annotationName": "annotation-name-2",
                                         "meanScore": 3 / 4,
                                         "labelFractions": [
-                                            {"label": "label-0", "fraction": 1 / 3},
-                                            {"label": "label-1", "fraction": 1 / 3},
+                                            {"label": "label-0", "fraction": 1 / 4},
+                                            {"label": "label-1", "fraction": 1 / 4},
                                         ],
                                     }
                                 ]
@@ -829,6 +830,58 @@ class TestExperimentAnnotationSummaries:
                         },
                     ]
                 }
+            }
+        }
+
+    async def test_label_fractions_weight_dataset_examples_instead_of_repetitions(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        async with db() as session:
+            annotations = (
+                await session.scalars(
+                    select(models.ExperimentRunAnnotation)
+                    .join(models.ExperimentRun)
+                    .where(models.ExperimentRun.experiment_id == 1)
+                    .where(models.ExperimentRun.dataset_example_id == 2)
+                    .where(models.ExperimentRunAnnotation.name == "annotation-name-1")
+                    .order_by(models.ExperimentRunAnnotation.id)
+                )
+            ).all()
+            for annotation in annotations[1:]:
+                await session.delete(annotation)
+
+        query = """
+          query ($experimentId: ID!) {
+            experiment: node(id: $experimentId) {
+              ... on Experiment {
+                annotationSummaries(annotationName: "annotation-name-1") {
+                  labelFractions { label fraction }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id="1")),
+            },
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "experiment": {
+                "annotationSummaries": [
+                    {
+                        "labelFractions": [
+                            {"label": "label-0", "fraction": 2 / 3},
+                            {"label": "label-1", "fraction": 1 / 3},
+                        ]
+                    }
+                ]
             }
         }
 

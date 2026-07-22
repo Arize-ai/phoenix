@@ -1937,6 +1937,8 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        # Match `session_annotation_score_time_series` in this file: assign each
+        # session to its start-time bucket instead of using interval overlap.
         bucket = date_trunc(
             info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
         )
@@ -2324,6 +2326,8 @@ async def _annotation_metrics_time_series(
             AnnotationSummary(name=name, df=DataFrame(rows))
         )
 
+    # Mirror `_annotation_score_time_series` in this file by emitting empty bins
+    # throughout the requested range, keeping all Project metrics time axes aligned.
     min_time = min([*summaries_by_timestamp, time_range.start])
     max_time = max(
         [
