@@ -64,7 +64,9 @@ export function EditProjectEvaluatorSlideover({
   evaluatorKind: "LLM" | "CODE";
 } & ModalOverlayProps) {
   return (
-    <ModalOverlay {...props}>
+    // Disable backdrop-click dismissal so an accidental outside click cannot
+    // discard edits; Cancel, the close button, and Esc still close it.
+    <ModalOverlay {...props} isDismissable={false}>
       <Modal variant="slideover" size="fullscreen">
         <Dialog aria-label="Edit project evaluator">
           {({ close }) => (
