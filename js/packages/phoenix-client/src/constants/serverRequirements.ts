@@ -130,22 +130,11 @@ export const ADD_SESSION_NOTE_IDENTIFIER: ParameterRequirement = {
   minServerVersion: [15, 5, 0],
 };
 
-/**
- * The agent-session chat contract: sessions are created ahead of time via the
- * `createAgentSession` GraphQL mutation and each turn POSTs only its trailing
- * message. Older servers only accept the stateless full-transcript contract
- * on `POST /agents/server/sessions/{session_id}/chat`; servers at or above
- * this version serve the persisted-session contract on that same URL,
- * discriminating the two by body shape.
- *
- * The pinned version must match the Phoenix release that ships the
- * agent-session persistence refactor — confirm it at release time.
- */
 export const AGENT_SESSION_CHAT: RouteRequirement = {
   kind: "route",
   method: "POST",
   path: "/agents/{agent_id}/sessions/{session_id}/chat",
-  minServerVersion: [19, 3, 0],
+  minServerVersion: [20, 0, 0],
 };
 
 /**

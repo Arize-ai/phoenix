@@ -225,9 +225,11 @@ describe("PXI transport (legacy server-agent fallback)", () => {
   });
 });
 
-describe("resolvePxiTransportMode", () => {
+// TODO(https://github.com/Arize-ai/phoenix/issues/14623): un-skip when the
+// version check in resolvePxiTransportMode is re-enabled, and update the
+// version fixtures to match the confirmed AGENT_SESSION_CHAT pin.
+describe.skip("resolvePxiTransportMode", () => {
   it.each([
-    { version: "19.3.0", expected: "agent-session" as const },
     { version: "20.0.0", expected: "agent-session" as const },
     { version: "19.2.0", expected: "legacy-server-agent" as const },
   ])(
@@ -253,5 +255,19 @@ describe("resolvePxiTransportMode", () => {
         config: { endpoint: ENDPOINT },
       })
     ).resolves.toBe("legacy-server-agent");
+  });
+});
+
+// TODO(https://github.com/Arize-ai/phoenix/issues/14623): delete once the
+// version check is re-enabled and the describe above is un-skipped.
+describe("resolvePxiTransportMode (version check temporarily disabled)", () => {
+  it("always picks the agent-session contract without consulting the server", async () => {
+    mock.server.use(mswHttp.get(VERSION_URL, () => HttpResponse.error()));
+
+    await expect(
+      resolvePxiTransportMode({
+        config: { endpoint: ENDPOINT },
+      })
+    ).resolves.toBe("agent-session");
   });
 });
