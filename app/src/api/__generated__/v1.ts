@@ -1584,6 +1584,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/{agent_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Session
+         * @description Create a persisted agent session owned by the requesting user.
+         */
+        post: operations["create_session_agents__agent_id__sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1659,6 +1679,14 @@ export interface components {
         /** AddDatasetLabelToDatasetResponseBody */
         AddDatasetLabelToDatasetResponseBody: {
             data: components["schemas"]["DatasetLabel"];
+        };
+        /** AgentSession */
+        AgentSession: {
+            /**
+             * Id
+             * @description The session's GlobalID — the ``session_id`` the chat route expects.
+             */
+            id: string;
         };
         /**
          * AgentSpanContext
@@ -2024,6 +2052,28 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+        };
+        /**
+         * CreateAgentSessionRequestBody
+         * @description Request body for creating a persisted agent session.
+         */
+        CreateAgentSessionRequestBody: {
+            /**
+             * Title
+             * @description Optional initial title.
+             * @default
+             */
+            title?: string;
+            /**
+             * Temporary
+             * @description Whether the session should expire after a period of inactivity.
+             * @default false
+             */
+            temporary?: boolean;
+        };
+        /** CreateAgentSessionResponseBody */
+        CreateAgentSessionResponseBody: {
+            data: components["schemas"]["AgentSession"];
         };
         /** CreateAnnotationConfigData */
         CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
@@ -10977,6 +11027,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_session_agents__agent_id__sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentSessionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateAgentSessionResponseBody"];
                 };
             };
             /** @description Validation Error */

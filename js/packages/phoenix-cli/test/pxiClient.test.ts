@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAgentSessionChatUrl,
+  buildAgentSessionsUrl,
   buildPxiChatRequest,
   buildPxiHeaders,
   createPxiChatClient,
@@ -162,6 +163,12 @@ describe("PXI client", () => {
       })
     ).toBe(
       "http://localhost:6006/agents/server/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
+    );
+  });
+
+  it("builds the create-session URL", () => {
+    expect(buildAgentSessionsUrl({ endpoint: "http://localhost:6006/" })).toBe(
+      "http://localhost:6006/agents/server/sessions"
     );
   });
 

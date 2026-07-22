@@ -68,6 +68,7 @@ from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
     TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS,
+    get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
@@ -130,10 +131,16 @@ from phoenix.server.api.helpers.playground_registry import (
     PROVIDER_DEFAULT,
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
+from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.utils import ResponseBody
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatus,
     get_sandbox_backend_info,
+)
+from phoenix.server.authorization import (
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
@@ -291,6 +298,26 @@ class ChatSubmitMessage(_ChatRequestMixin):
 
 class ChatRequest(ChatSubmitMessage):
     """Assistant chat submit request payload."""
+
+
+class CreateAgentSessionRequestBody(V1RoutesBaseModel):
+    """Request body for creating a persisted agent session."""
+
+    title: str = Field(default="", description="Optional initial title.")
+    temporary: bool = Field(
+        default=False,
+        description="Whether the session should expire after a period of inactivity.",
+    )
+
+
+class AgentSession(V1RoutesBaseModel):
+    id: str = Field(
+        description="The session's GlobalID — the ``session_id`` the chat route expects."
+    )
+
+
+class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
+    pass
 
 
 _PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
@@ -1457,6 +1484,50 @@ def create_agents_router(
 ) -> tuple[APIRouter, Callable[[str, str, Request, ChatRequest], Awaitable[Response]]]:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
+
+    @router.post(
+        "/agents/{agent_id}/sessions",
+        status_code=201,
+        dependencies=[
+            Depends(prevent_access_in_read_only_mode),
+            Depends(restrict_access_by_viewers),
+        ],
+    )
+    async def create_session(
+        agent_id: str,
+        request: Request,
+        request_body: CreateAgentSessionRequestBody,
+    ) -> CreateAgentSessionResponseBody:
+        """Create a persisted agent session owned by the requesting user."""
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
+            raise HTTPException(status_code=403, detail="Agents are disabled")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        async with request.app.state.db() as session:
+            agent_session = models.AgentSession(
+                project_session_id=str(uuid4()),
+                user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
+                title=request_body.title.strip(),
+                project_name=get_env_phoenix_agents_assistant_project_name(),
+                expires_at=(
+                    datetime.now(timezone.utc)
+                    + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
+                    if request_body.temporary
+                    else None
+                ),
+            )
+            session.add(agent_session)
+            await session.flush()
+            agent_session_rowid = agent_session.id
+        return CreateAgentSessionResponseBody(
+            data=AgentSession(
+                id=str(GlobalID(models.AgentSession.__name__, str(agent_session_rowid)))
+            )
+        )
 
     @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
     async def chat(

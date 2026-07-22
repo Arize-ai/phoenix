@@ -1,4 +1,4 @@
-import type { pathsV1 } from "@arizeai/phoenix-client";
+import { formatApiError, type pathsV1 } from "@arizeai/phoenix-client";
 import {
   DefaultChatTransport,
   readUIMessageStream,
@@ -6,7 +6,6 @@ import {
 } from "ai";
 
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
-import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
@@ -18,27 +17,9 @@ import type {
   PxiTransport,
 } from "./types";
 
-/**
- * Chat client for the Phoenix agent chat endpoint.
- *
- * This wires the Vercel AI SDK's {@link DefaultChatTransport} to Phoenix's
- * agent-session chat route: a temporary `AgentSession` is created via GraphQL
- * on the first send, and each turn POSTs only its trailing message to
- * `/agents/server/sessions/{id}/chat` — the server agent pxi has always used,
- * now running through the server-owned session pipeline. The assistant reply
- * streams back as a series of {@link PxiMessage} snapshots.
- */
-
-// Pinning the template against the generated OpenAPI `paths` makes a future
-// server-side route removal a typecheck failure here instead of a runtime 404.
 const AGENT_SESSION_CHAT_PATH =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
-
-/**
- * The agent the CLI runs against: the fully server-side agent (bash + GraphQL
- * toolsets), not the web app's `assistant` agent, whose toolset includes
- * client-executed tools a terminal cannot run.
- */
+const AGENT_SESSIONS_PATH = "/agents/{agent_id}/sessions" satisfies keyof pathsV1;
 const SERVER_AGENT_ID = "server";
 
 function trimTrailingSlash(value: string): string {
@@ -69,9 +50,7 @@ function toLocalISOWithOffset(date: Date): string {
 }
 
 /**
- * Build the agent-session chat URL for a server-created `AgentSession`,
- * tolerating a trailing slash on the configured endpoint and URL-encoding the
- * session's GlobalID.
+ * Build the agent-session chat URL.
  */
 export function buildAgentSessionChatUrl({
   endpoint,
@@ -88,39 +67,35 @@ export function buildAgentSessionChatUrl({
 }
 
 /**
- * GraphQL mutation creating the server-side session a PXI chat runs in.
- * `temporary: true` fits the CLI's ephemeral UX: the session expires after a
- * period of inactivity (its TTL refreshes every turn) and stays hidden from
- * the web app's session lists.
+ * Build the server agent's sessions collection URL, used to create a session.
  */
-export const PXI_CREATE_AGENT_SESSION_MUTATION = /* GraphQL */ `
-  mutation PxiCreateAgentSessionMutation {
-    createAgentSession(input: { title: "", temporary: true }) {
-      agentSession {
-        id
-      }
-    }
+export function buildAgentSessionsUrl({
+  endpoint,
+}: {
+  endpoint: string;
+}): string {
+  const path = AGENT_SESSIONS_PATH.replace("{agent_id}", SERVER_AGENT_ID);
+  return `${trimTrailingSlash(endpoint)}${path}`;
+}
+
+/** Pull a printable error message out of an error response body, if any. */
+async function readErrorDetail({
+  response,
+}: {
+  response: Response;
+}): Promise<string | null> {
+  try {
+    return formatApiError(await response.json());
+  } catch {
+    return null;
   }
-`;
-
-type CreateAgentSessionData = {
-  createAgentSession?: {
-    agentSession?: {
-      id?: string;
-    };
-  };
-};
-
-type GraphqlResponse<Data> = {
-  data?: Data;
-  errors?: Array<{ message?: string }>;
-};
+}
 
 /**
  * Create a temporary `AgentSession` on the Phoenix server and return its
  * GlobalID — the session id the agent-session chat route expects. Throws a
- * descriptive error when the endpoint is missing, the request fails, or the
- * server returns GraphQL errors. `fetchImpl` is injectable for testing.
+ * descriptive error when the endpoint is missing or the request fails.
+ * `fetchImpl` is injectable for testing.
  */
 export async function createTemporaryAgentSession({
   config,
@@ -129,34 +104,27 @@ export async function createTemporaryAgentSession({
   config: PhoenixConfig;
   fetchImpl?: typeof globalThis.fetch;
 }): Promise<string> {
-  if (!config.endpoint) {
+  const endpoint = config.endpoint;
+  if (!endpoint) {
     throw new Error("Phoenix endpoint not configured.");
   }
-  const request = buildGraphqlRequest({
-    query: PXI_CREATE_AGENT_SESSION_MUTATION,
-    config,
-  });
-  const response = await fetchImpl(request.url, {
-    method: request.method,
-    headers: request.headers,
-    body: request.body,
+  const url = buildAgentSessionsUrl({ endpoint });
+  const response = await fetchImpl(url, {
+    method: "POST",
+    headers: {
+      ...buildPxiHeaders({ config }),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title: "", temporary: true }),
   });
   if (!response.ok) {
+    const detail = await readErrorDetail({ response });
     throw new Error(
-      `Could not create a PXI chat session: HTTP ${response.status} ${response.statusText} from ${request.url}.`
+      `Could not create a PXI chat session: HTTP ${response.status} ${response.statusText} from ${url}.${detail ? ` ${detail}` : ""}`
     );
   }
-  const payload =
-    (await response.json()) as GraphqlResponse<CreateAgentSessionData>;
-  const errors = payload.errors
-    ?.map((error) => error.message)
-    .filter((message): message is string => Boolean(message));
-  if (errors && errors.length > 0) {
-    throw new Error(
-      `Could not create a PXI chat session because Phoenix returned GraphQL errors: ${errors.join("; ")}.`
-    );
-  }
-  const agentSessionId = payload.data?.createAgentSession?.agentSession?.id;
+  const payload = (await response.json()) as { data?: { id?: string } };
+  const agentSessionId = payload.data?.id;
   if (!agentSessionId) {
     throw new Error(
       "Could not create a PXI chat session because Phoenix returned no session id."

@@ -130,6 +130,13 @@ export const ADD_SESSION_NOTE_IDENTIFIER: ParameterRequirement = {
   minServerVersion: [15, 5, 0],
 };
 
+export const AGENT_SESSION_CREATE: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/agents/{agent_id}/sessions",
+  minServerVersion: [20, 0, 0],
+};
+
 export const AGENT_SESSION_CHAT: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -159,5 +166,6 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
+  AGENT_SESSION_CREATE,
   AGENT_SESSION_CHAT,
 ] as const;

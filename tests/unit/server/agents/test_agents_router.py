@@ -63,7 +63,10 @@ from phoenix.server.api.routers.agents import (
     _synthesize_client_tool_spans,
     _turn_parent_context,
 )
-from phoenix.server.settings.registry import AgentTraceRecordingSetting
+from phoenix.server.settings.registry import (
+    AgentAssistantEnabledSetting,
+    AgentTraceRecordingSetting,
+)
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, extract_otel_context
 
@@ -1413,6 +1416,106 @@ async def test_server_agent_chat_is_forbidden_when_bash_is_disabled(
         json=_chat_body(session_id, _user_message("hello")),
     )
     assert assistant_response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Session creation route
+# ---------------------------------------------------------------------------
+
+
+async def test_create_session_route_creates_a_temporary_session(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "/agents/server/sessions",
+        json={"title": " CLI session ", "temporary": True},
+    )
+    assert response.status_code == 201
+
+    global_id = GlobalID.from_id(response.json()["data"]["id"])
+    assert global_id.type_name == models.AgentSession.__name__
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.title == "CLI session"
+        assert agent_session.user_id is None
+        assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
+        assert agent_session.expires_at is not None
+        assert agent_session.expires_at > datetime.now(timezone.utc)
+
+
+async def test_create_session_route_defaults_to_a_persistent_untitled_session(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post("/agents/assistant/sessions", json={})
+    assert response.status_code == 201
+
+    global_id = GlobalID.from_id(response.json()["data"]["id"])
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.title == ""
+        assert agent_session.expires_at is None
+
+
+async def test_create_session_route_yields_a_chattable_session(
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The returned id is directly usable as the chat route's session id."""
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+    created = await httpx_client.post(
+        "/agents/server/sessions",
+        json={"temporary": True},
+    )
+    assert created.status_code == 201
+
+    response = await httpx_client.post(
+        _server_agent_chat_url(created.json()["data"]["id"]),
+        json=_chat_body("11111111-1111-4111-8111-111111111111", _user_message("hello")),
+    )
+    assert response.status_code == 200
+
+
+async def test_create_session_route_rejects_unknown_agents(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post("/agents/unknown/sessions", json={})
+    assert response.status_code == 404
+
+
+async def test_create_session_route_is_forbidden_when_agents_are_disabled(
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    await app.state.system_settings.update_agent_assistant_enabled(
+        AgentAssistantEnabledSetting(enabled=False)
+    )
+
+    response = await httpx_client.post("/agents/server/sessions", json={})
+    assert response.status_code == 403
+    assert "Agents are disabled" in response.text
+
+
+async def test_create_session_route_forbids_the_server_agent_when_bash_is_disabled(
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
+
+    server_response = await httpx_client.post("/agents/server/sessions", json={})
+    assert server_response.status_code == 403
+    assert "Server agent is disabled" in server_response.text
+
+    assistant_response = await httpx_client.post("/agents/assistant/sessions", json={})
+    assert assistant_response.status_code == 201
 
 
 # ---------------------------------------------------------------------------

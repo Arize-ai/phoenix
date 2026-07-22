@@ -8014,6 +8014,59 @@
         }
       }
     },
+    "/agents/{agent_id}/sessions": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Create Session",
+        "description": "Create a persisted agent session owned by the requesting user.",
+        "operationId": "create_session_agents__agent_id__sessions_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentSessionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentSessionResponseBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -8135,6 +8188,20 @@
           "data"
         ],
         "title": "AddDatasetLabelToDatasetResponseBody"
+      },
+      "AgentSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The session's GlobalID \u2014 the ``session_id`` the chat route expects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "AgentSession"
       },
       "AgentSpanContext": {
         "properties": {
@@ -9126,6 +9193,37 @@
           "optimization_direction"
         ],
         "title": "ContinuousAnnotationConfigData"
+      },
+      "CreateAgentSessionRequestBody": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Optional initial title.",
+            "default": ""
+          },
+          "temporary": {
+            "type": "boolean",
+            "title": "Temporary",
+            "description": "Whether the session should expire after a period of inactivity.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CreateAgentSessionRequestBody",
+        "description": "Request body for creating a persisted agent session."
+      },
+      "CreateAgentSessionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentSession"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateAgentSessionResponseBody"
       },
       "CreateAnnotationConfigData": {
         "oneOf": [

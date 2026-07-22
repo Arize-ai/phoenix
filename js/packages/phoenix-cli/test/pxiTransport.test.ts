@@ -4,13 +4,12 @@ import { describe, expect, it } from "vitest";
 import {
   createPxiChatClient,
   createServerAgentTransport,
-  PXI_CREATE_AGENT_SESSION_MUTATION,
 } from "../src/pxi/client";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
 import { setupMockPhoenixServer } from "./mockServer";
 
 const ENDPOINT = "http://localhost:6006";
-const GRAPHQL_URL = `${ENDPOINT}/graphql`;
+const CREATE_SESSION_URL = `${ENDPOINT}/agents/server/sessions`;
 const AGENT_SESSION_ID = "QWdlbnRTZXNzaW9uOjE=";
 const SERVER_AGENT_CHAT_URL = `${ENDPOINT}/agents/server/sessions/:sessionId/chat`;
 
@@ -44,17 +43,13 @@ function assistantSseResponse(text: string): HttpResponse {
 
 describe("PXI transport (agent-session contract)", () => {
   it("creates a temporary session once and posts single-message turns to it", async () => {
-    const graphqlBodies: unknown[] = [];
+    const createSessionBodies: unknown[] = [];
     const chatRequests: Array<{ url: string; body: Record<string, unknown> }> =
       [];
     mock.server.use(
-      mswHttp.post(GRAPHQL_URL, async ({ request }) => {
-        graphqlBodies.push(await request.json());
-        return HttpResponse.json({
-          data: {
-            createAgentSession: { agentSession: { id: AGENT_SESSION_ID } },
-          },
-        });
+      mswHttp.post(CREATE_SESSION_URL, async ({ request }) => {
+        createSessionBodies.push(await request.json());
+        return HttpResponse.json({ data: { id: AGENT_SESSION_ID } }, { status: 201 });
       }),
       mswHttp.post(SERVER_AGENT_CHAT_URL, async ({ request }) => {
         chatRequests.push({
@@ -83,9 +78,7 @@ describe("PXI transport (agent-session contract)", () => {
     expect(reply?.parts).toContainEqual(
       expect.objectContaining({ type: "text", text: "Hello from the session" })
     );
-    expect(graphqlBodies).toEqual([
-      { query: PXI_CREATE_AGENT_SESSION_MUTATION },
-    ]);
+    expect(createSessionBodies).toEqual([{ title: "", temporary: true }]);
     expect(chatRequests).toHaveLength(1);
     expect(chatRequests[0].url).toBe(
       `${ENDPOINT}/agents/server/sessions/${encodeURIComponent(AGENT_SESSION_ID)}/chat`
@@ -113,26 +106,23 @@ describe("PXI transport (agent-session contract)", () => {
       messages: [firstUserMessage, secondUserMessage],
       onAssistantMessage: () => undefined,
     });
-    expect(graphqlBodies).toHaveLength(1);
+    expect(createSessionBodies).toHaveLength(1);
     expect(chatRequests).toHaveLength(2);
     expect(chatRequests[1].body.message).toMatchObject({ id: "user-2" });
   });
 
   it("surfaces a session-creation failure and retries it on the next send", async () => {
-    let graphqlCalls = 0;
+    let createSessionCalls = 0;
     mock.server.use(
-      mswHttp.post(GRAPHQL_URL, () => {
-        graphqlCalls += 1;
-        if (graphqlCalls === 1) {
-          return HttpResponse.json({
-            errors: [{ message: "agents are disabled" }],
-          });
+      mswHttp.post(CREATE_SESSION_URL, () => {
+        createSessionCalls += 1;
+        if (createSessionCalls === 1) {
+          return HttpResponse.json(
+            { detail: "Agents are disabled" },
+            { status: 403 }
+          );
         }
-        return HttpResponse.json({
-          data: {
-            createAgentSession: { agentSession: { id: AGENT_SESSION_ID } },
-          },
-        });
+        return HttpResponse.json({ data: { id: AGENT_SESSION_ID } }, { status: 201 });
       }),
       mswHttp.post(SERVER_AGENT_CHAT_URL, () =>
         assistantSseResponse("recovered")
@@ -154,7 +144,7 @@ describe("PXI transport (agent-session contract)", () => {
         messages: [message],
         onAssistantMessage: () => undefined,
       })
-    ).rejects.toThrow("agents are disabled");
+    ).rejects.toThrow("Agents are disabled");
 
     const reply = await client.sendMessage({
       messages: [message],
@@ -163,6 +153,6 @@ describe("PXI transport (agent-session contract)", () => {
     expect(reply?.parts).toContainEqual(
       expect.objectContaining({ type: "text", text: "recovered" })
     );
-    expect(graphqlCalls).toBe(2);
+    expect(createSessionCalls).toBe(2);
   });
 });
