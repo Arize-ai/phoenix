@@ -167,9 +167,14 @@ export type DatasetEvaluatorMappingSource = {
   metadata: Record<string, unknown>;
 };
 
+/**
+ * The span evaluation context as produced by the server. `input` and `output`
+ * are raw attribute values (commonly a string or null, occasionally an object),
+ * while `metadata` is always an object rooted at `metadata.attributes`.
+ */
 export type SpanEvaluatorMappingSource = {
-  input: Record<string, unknown>;
-  output: Record<string, unknown>;
+  input: unknown;
+  output: unknown;
   metadata: Record<string, unknown>;
 };
 

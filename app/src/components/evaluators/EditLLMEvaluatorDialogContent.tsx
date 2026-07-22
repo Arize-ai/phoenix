@@ -22,6 +22,7 @@ import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 export const EditLLMEvaluatorDialogContent = ({
   onSubmit,
   isSubmitting,
+  isSubmitDisabled = false,
   mode,
   error,
   evaluatorNodeId,
@@ -33,6 +34,8 @@ export const EditLLMEvaluatorDialogContent = ({
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
+  /** Disables submit while some external form state (e.g. a filter) is invalid. */
+  isSubmitDisabled?: boolean;
   mode: "create" | "update";
   error?: string;
   evaluatorNodeId?: string | null;
@@ -97,7 +100,7 @@ export const EditLLMEvaluatorDialogContent = ({
             data-testid="llm-evaluator-form-submit-button"
             data-mode={mode}
             variant="primary"
-            isDisabled={isSubmitting}
+            isDisabled={isSubmitting || isSubmitDisabled}
             isPending={isSubmitting}
             onPress={handleSubmit}
           >

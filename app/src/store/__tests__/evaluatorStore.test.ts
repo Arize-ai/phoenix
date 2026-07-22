@@ -52,6 +52,23 @@ describe("evaluatorStore mapping source grain", () => {
       pathMapping: {},
     });
   });
+
+  it("preserves raw string and null span input/output verbatim", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSourceGrain: "span",
+      evaluatorMappingSource: {
+        input: "What is Phoenix?",
+        output: null,
+        metadata: { attributes: { "openinference.span.kind": "LLM" } },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      input: "What is Phoenix?",
+      output: null,
+      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+    });
+  });
 });
 
 describe("evaluatorStore bounds handlers", () => {

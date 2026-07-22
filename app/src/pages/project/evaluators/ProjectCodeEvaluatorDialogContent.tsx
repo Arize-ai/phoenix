@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { useState } from "react";
 import type { Key } from "react-aria-components";
 
 import { Alert, Button } from "@phoenix/components";
@@ -10,7 +11,6 @@ import {
 } from "@phoenix/components/core/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
-import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorTestPanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestPanel";
 import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
@@ -19,6 +19,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
   projectId,
   evaluatorId,
   evaluatorName,
+  variables,
   scope,
   onScopeChange,
   expandedKeys,
@@ -31,6 +32,8 @@ export const ProjectCodeEvaluatorDialogContent = ({
   projectId: string;
   evaluatorId: string;
   evaluatorName: string;
+  /** The evaluator's declared parameters, extracted from its source code. */
+  variables: string[];
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   expandedKeys: Set<Key>;
@@ -40,15 +43,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
   error?: string;
   mode?: "create" | "update";
 }) => {
-  const inputMapping = useEvaluatorStore(
-    (state) => state.evaluator.inputMapping
-  );
-  const variables = Array.from(
-    new Set([
-      ...Object.keys(inputMapping.pathMapping),
-      ...Object.keys(inputMapping.literalMapping),
-    ])
-  );
+  const [isFilterValid, setIsFilterValid] = useState(true);
   return (
     <DialogContent>
       <DialogHeader>
@@ -64,7 +59,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
           <Button
             variant="primary"
             isPending={isSubmitting}
-            isDisabled={isSubmitting}
+            isDisabled={isSubmitting || !isFilterValid}
             onPress={onSubmit}
           >
             {mode === "create" ? "Attach evaluator" : "Save changes"}
@@ -92,12 +87,14 @@ export const ProjectCodeEvaluatorDialogContent = ({
           <EvaluatorForm
             left={
               <ProjectEvaluatorFormSections
+                projectId={projectId}
                 scope={scope}
                 onScopeChange={onScopeChange}
                 expandedKeys={expandedKeys}
                 onExpandedChange={onExpandedChange}
                 definitionKind="code"
                 codeEvaluatorName={evaluatorName}
+                onFilterValidityChange={setIsFilterValid}
               />
             }
             right={

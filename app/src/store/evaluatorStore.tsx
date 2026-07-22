@@ -218,7 +218,7 @@ function normalizeEvaluatorMappingSource({
     output,
     reference: "reference" in source ? source.reference : {},
     metadata,
-  };
+  } as EvaluatorMappingSource<"dataset">;
 }
 
 /**

@@ -280,7 +280,12 @@ class Span(Node):
             )
         return SpanContext(trace_id=ID(trace_id), span_id=ID(span_id))
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "The canonical input, output, and metadata context that online "
+            "evaluators bind against when they run on this span."
+        ),
+    )  # type: ignore
     async def evaluation_context(
         self,
         info: Info[Context, None],
