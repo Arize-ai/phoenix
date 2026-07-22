@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useCallback, useRef, useState } from "react";
 import type { Key } from "react-aria-components";
 
@@ -126,6 +127,9 @@ export const ProjectEvaluatorFormSections = ({
               ) : null}
             </Flex>
             <Slider
+              css={css`
+                max-width: 340px;
+              `}
               label="Sampling rate"
               minValue={0}
               maxValue={100}
