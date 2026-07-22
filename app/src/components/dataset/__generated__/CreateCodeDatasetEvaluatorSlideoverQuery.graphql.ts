@@ -1,6 +1,7 @@
 /**
- * @generated SignedSource<<5bcde803d573c23e37d770ade0fbfae7>>
+ * @generated SignedSource<<dd03062a3c5ea7f59ab58680d4dc3dac>>
  * @lightSyntaxTransform
+ * @nogrep
  */
 
 /* tslint:disable */
@@ -12,7 +13,7 @@ export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 export type CreateCodeDatasetEvaluatorSlideoverQuery$variables = Record<PropertyKey, never>;
 export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
@@ -96,8 +97,8 @@ v5 = {
   "name": "configs",
   "plural": true,
   "selections": [
-    (v3/*:: as any*/),
-    (v4/*:: as any*/),
+    (v3/*: any*/),
+    (v4/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -135,7 +136,7 @@ v5 = {
           "name": "envVars",
           "plural": true,
           "selections": [
-            (v4/*:: as any*/),
+            (v4/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -196,7 +197,7 @@ v6 = {
   "name": "sandboxBackends",
   "plural": true,
   "selections": [
-    (v0/*:: as any*/),
+    (v0/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -243,14 +244,14 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v0/*:: as any*/),
-          (v1/*:: as any*/),
-          (v2/*:: as any*/),
-          (v5/*:: as any*/)
+          (v0/*: any*/),
+          (v1/*: any*/),
+          (v2/*: any*/),
+          (v5/*: any*/)
         ],
         "storageKey": null
       },
-      (v6/*:: as any*/)
+      (v6/*: any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -269,15 +270,15 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v0/*:: as any*/),
-          (v1/*:: as any*/),
-          (v2/*:: as any*/),
-          (v5/*:: as any*/),
-          (v3/*:: as any*/)
+          (v0/*: any*/),
+          (v1/*: any*/),
+          (v2/*: any*/),
+          (v5/*: any*/),
+          (v3/*: any*/)
         ],
         "storageKey": null
       },
-      (v6/*:: as any*/)
+      (v6/*: any*/)
     ]
   },
   "params": {

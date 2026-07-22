@@ -1,6 +1,7 @@
 /**
- * @generated SignedSource<<d00e8172d5b7c8f1822d6f0c5562128c>>
+ * @generated SignedSource<<76aade4644b89fc9a6510a185588d087>>
  * @lightSyntaxTransform
+ * @nogrep
  */
 
 /* tslint:disable */
@@ -12,7 +13,7 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type InternetAccessChoice = "ALLOW" | "DENY";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
@@ -113,8 +114,8 @@ v3 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v1/*:: as any*/),
-        (v2/*:: as any*/),
+        (v1/*: any*/),
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -147,8 +148,8 @@ v3 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v1/*:: as any*/),
-        (v2/*:: as any*/),
+        (v1/*: any*/),
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -170,8 +171,8 @@ v3 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v1/*:: as any*/),
-        (v2/*:: as any*/),
+        (v1/*: any*/),
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -199,7 +200,7 @@ return {
   "metadata": null,
   "name": "CodeDatasetEvaluatorDetails_datasetEvaluator",
   "selections": [
-    (v0/*:: as any*/),
+    (v0/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -225,7 +226,7 @@ return {
       ],
       "storageKey": null
     },
-    (v3/*:: as any*/),
+    (v3/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -244,9 +245,9 @@ return {
         {
           "kind": "InlineFragment",
           "selections": [
-            (v0/*:: as any*/),
-            (v1/*:: as any*/),
-            (v4/*:: as any*/),
+            (v0/*: any*/),
+            (v1/*: any*/),
+            (v4/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -254,7 +255,7 @@ return {
               "name": "language",
               "storageKey": null
             },
-            (v3/*:: as any*/),
+            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -263,9 +264,9 @@ return {
               "name": "sandboxConfig",
               "plural": false,
               "selections": [
-                (v0/*:: as any*/),
-                (v1/*:: as any*/),
-                (v4/*:: as any*/),
+                (v0/*: any*/),
+                (v1/*: any*/),
+                (v4/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -289,7 +290,7 @@ return {
                       "name": "envVars",
                       "plural": true,
                       "selections": [
-                        (v1/*:: as any*/),
+                        (v1/*: any*/),
                         {
                           "alias": null,
                           "args": null,

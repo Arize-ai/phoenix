@@ -21,11 +21,13 @@ _SANDBOX_BACKENDS_QUERY = """
       supportsEnvVars
       internetAccess
       supportsDependencies
+      languageDialect
+      runtimeNotes
     }
   }
 """
 
-_LOCAL_KINDS = {"WASM", "DENO"}
+_LOCAL_KINDS = {"WASM", "DENO", "MONTY"}
 
 _CREATE = """
 mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
@@ -59,6 +61,8 @@ async def test_sandbox_backends_full_ui_query_shape(
         assert "supportsEnvVars" in backend, kind
         assert "internetAccess" in backend, kind
         assert "supportsDependencies" in backend, kind
+        assert "languageDialect" in backend, kind
+        assert "runtimeNotes" in backend, kind
         expected_hosting = "LOCAL" if kind in _LOCAL_KINDS else "HOSTED"
         assert backend["hostingType"] == expected_hosting, kind
 
@@ -81,6 +85,21 @@ async def test_sandbox_backends_capability_flags_per_adapter(
     assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
     assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
     assert backend["supportsDependencies"] is meta.supports_dependencies, backend_type
+    assert backend["languageDialect"] == meta.language_dialect.upper(), backend_type
+    assert backend["runtimeNotes"] == meta.runtime_notes, backend_type
+
+
+async def test_monty_advertises_restricted_python(
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
+    assert response.data and not response.errors
+    monty = next(
+        backend for backend in response.data["sandboxBackends"] if backend["backendType"] == "MONTY"
+    )
+    assert monty["languageDialect"] == "RESTRICTED"
+    assert monty["runtimeNotes"]
 
 
 async def test_sandbox_config_secret_ref_env_var_round_trips(

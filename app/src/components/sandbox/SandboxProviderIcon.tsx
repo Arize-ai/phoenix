@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import { useId } from "react";
 
+import { PythonSVG } from "@phoenix/components/core/icon/Icons";
+
 const iconWrapCSS = css`
   display: inline-flex;
   flex-shrink: 0;
@@ -9,6 +11,12 @@ const iconWrapCSS = css`
 import type { SandboxBackendType } from "@phoenix/types";
 
 type IconProps = { height: number };
+
+const MontySVG = ({ height }: IconProps) => (
+  <span style={{ display: "inline-flex", height }}>
+    <PythonSVG />
+  </span>
+);
 
 const DaytonaSVG = ({ height }: IconProps) => (
   <svg
@@ -190,6 +198,7 @@ const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   VERCEL: VercelSVG,
   DENO: DenoSVG,
   MODAL: ModalSVG,
+  MONTY: MontySVG,
 };
 
 export type SandboxProviderIconProps = {

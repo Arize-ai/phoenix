@@ -24,6 +24,7 @@ from phoenix.server.api.evaluators import (
     CodeEvaluatorRunner,
 )
 from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
+from phoenix.server.sandbox.monty_backend import MontySandboxBackend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import BaseNoSessionBackend, ExecutionResult
 
@@ -270,6 +271,32 @@ class TestInputSchemaInference:
 
 
 class TestEvaluateSuccessPath:
+    async def test_monty_returns_existing_evaluator_result_shape(self) -> None:
+        runner = CodeEvaluatorRunner(
+            name="monty-runner",
+            description=None,
+            source_code=(
+                "def evaluate(output):\n    return {'label': 'pass', 'score': output['score']}"
+            ),
+            stored_output_configs=[_categorical_config()],
+            sandbox_backend=MontySandboxBackend(),
+            language="PYTHON",
+            sandbox_session_manager=SandboxSessionManager(),
+            session_key="evaluator:monty-runner",
+            timeout=1,
+        )
+
+        results = await runner.evaluate(
+            context={"output": {"score": 1.0}},
+            input_mapping=_EMPTY_MAPPING,
+            name="monty",
+            output_configs=[_categorical_config()],
+        )
+
+        assert results[0]["label"] == "pass"
+        assert results[0]["score"] == 1.0
+        assert results[0]["error"] is None
+
     async def test_returns_label_from_stdout(self) -> None:
         runner, _ = _make_runner(backend_stdout='"pass"')
         results = await runner.evaluate(

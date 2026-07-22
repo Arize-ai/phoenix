@@ -1,6 +1,7 @@
 /**
- * @generated SignedSource<<7ca89c737309e936429dabb9bffc9600>>
+ * @generated SignedSource<<ee52f372a8f800bbd176e84eb2ea9fb7>>
  * @lightSyntaxTransform
+ * @nogrep
  */
 
 /* tslint:disable */
@@ -98,8 +99,8 @@ return {
         "name": "sandboxBackends",
         "plural": true,
         "selections": [
-          (v0/*:: as any*/),
-          (v1/*:: as any*/),
+          (v0/*: any*/),
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -114,7 +115,7 @@ return {
             "name": "dependencyHints",
             "storageKey": null
           },
-          (v2/*:: as any*/),
+          (v2/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -153,6 +154,20 @@ return {
           {
             "alias": null,
             "args": null,
+            "kind": "ScalarField",
+            "name": "languageDialect",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "runtimeNotes",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
             "concreteType": "SandboxProviderCredentialSpec",
             "kind": "LinkedField",
             "name": "credentialSpecs",
@@ -165,8 +180,8 @@ return {
                 "name": "key",
                 "storageKey": null
               },
-              (v1/*:: as any*/),
-              (v3/*:: as any*/),
+              (v1/*: any*/),
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -188,10 +203,10 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v4/*:: as any*/),
-          (v0/*:: as any*/),
-          (v2/*:: as any*/),
-          (v5/*:: as any*/),
+          (v4/*: any*/),
+          (v0/*: any*/),
+          (v2/*: any*/),
+          (v5/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -200,9 +215,9 @@ return {
             "name": "configs",
             "plural": true,
             "selections": [
-              (v4/*:: as any*/),
-              (v6/*:: as any*/),
-              (v3/*:: as any*/),
+              (v4/*: any*/),
+              (v6/*: any*/),
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -217,7 +232,7 @@ return {
                 "name": "timeout",
                 "storageKey": null
               },
-              (v5/*:: as any*/),
+              (v5/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -234,7 +249,7 @@ return {
                     "name": "envVars",
                     "plural": true,
                     "selections": [
-                      (v6/*:: as any*/),
+                      (v6/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -300,16 +315,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c929032ba1d1e35a0d096c0d3b017bb9",
+    "cacheID": "c21a8fb4b0a645e2503f460b51841607",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxesPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    languageDialect\n    runtimeNotes\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3d2272767b923b1414b367e3c3cba621";
+(node as any).hash = "6b60bb29bd41b3b70a9cf4caae0724ba";
 
 export default node;

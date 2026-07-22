@@ -187,6 +187,7 @@ const BACKEND_TYPE_LABELS: Record<SandboxBackendType, string> = {
   VERCEL: "Vercel",
   DENO: "Deno",
   MODAL: "Modal",
+  MONTY: "Monty",
 };
 
 const backendTypeLabel = (backendType: SandboxBackendType): string =>

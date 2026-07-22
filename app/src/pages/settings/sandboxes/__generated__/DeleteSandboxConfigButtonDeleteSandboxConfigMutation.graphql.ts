@@ -1,6 +1,7 @@
 /**
- * @generated SignedSource<<80f0da3667d77485b15b634946f12ffc>>
+ * @generated SignedSource<<a5e3d19ef96ae0e21d8f958643d0e5e4>>
  * @lightSyntaxTransform
+ * @nogrep
  */
 
 /* tslint:disable */
@@ -101,20 +102,20 @@ v9 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DeleteSandboxConfigButtonDeleteSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v1/*: any*/),
         "concreteType": "DeleteSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "deleteSandboxConfig",
         "plural": false,
         "selections": [
-          (v2/*:: as any*/),
+          (v2/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -140,19 +141,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "DeleteSandboxConfigButtonDeleteSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v1/*: any*/),
         "concreteType": "DeleteSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "deleteSandboxConfig",
         "plural": false,
         "selections": [
-          (v2/*:: as any*/),
+          (v2/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -169,8 +170,8 @@ return {
                 "name": "sandboxBackends",
                 "plural": true,
                 "selections": [
-                  (v3/*:: as any*/),
-                  (v4/*:: as any*/),
+                  (v3/*: any*/),
+                  (v4/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -185,7 +186,7 @@ return {
                     "name": "dependencyHints",
                     "storageKey": null
                   },
-                  (v5/*:: as any*/),
+                  (v5/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -224,6 +225,20 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "languageDialect",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "runtimeNotes",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "SandboxProviderCredentialSpec",
                     "kind": "LinkedField",
                     "name": "credentialSpecs",
@@ -236,8 +251,8 @@ return {
                         "name": "key",
                         "storageKey": null
                       },
-                      (v4/*:: as any*/),
-                      (v6/*:: as any*/),
+                      (v4/*: any*/),
+                      (v6/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -259,10 +274,10 @@ return {
                 "name": "sandboxProviders",
                 "plural": true,
                 "selections": [
-                  (v7/*:: as any*/),
-                  (v3/*:: as any*/),
-                  (v5/*:: as any*/),
-                  (v8/*:: as any*/),
+                  (v7/*: any*/),
+                  (v3/*: any*/),
+                  (v5/*: any*/),
+                  (v8/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -271,9 +286,9 @@ return {
                     "name": "configs",
                     "plural": true,
                     "selections": [
-                      (v7/*:: as any*/),
-                      (v9/*:: as any*/),
-                      (v6/*:: as any*/),
+                      (v7/*: any*/),
+                      (v9/*: any*/),
+                      (v6/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -288,7 +303,7 @@ return {
                         "name": "timeout",
                         "storageKey": null
                       },
-                      (v8/*:: as any*/),
+                      (v8/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -305,7 +320,7 @@ return {
                             "name": "envVars",
                             "plural": true,
                             "selections": [
-                              (v9/*:: as any*/),
+                              (v9/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -377,12 +392,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "807801e95fa9a85d0094cc51ad47cbc3",
+    "cacheID": "f71a5c2d7ccff1a7a944fc4a97a6219a",
     "id": null,
     "metadata": {},
     "name": "DeleteSandboxConfigButtonDeleteSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation(\n  $input: DeleteSandboxConfigInput!\n) {\n  deleteSandboxConfig(input: $input) {\n    deletedId\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation(\n  $input: DeleteSandboxConfigInput!\n) {\n  deleteSandboxConfig(input: $input) {\n    deletedId\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    languageDialect\n    runtimeNotes\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

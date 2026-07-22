@@ -233,6 +233,11 @@ class WASMConfig(_Config):
     language: Literal["PYTHON"] = "PYTHON"
 
 
+class MontyConfig(_Config):
+    backend_type: Literal["MONTY"] = "MONTY"
+    language: Literal["PYTHON"] = "PYTHON"
+
+
 class ModalConfig(
     _Config,
     SupportsEnvVars,
@@ -251,6 +256,7 @@ SandboxConfigModel: TypeAlias = Annotated[
         DenoConfig,
         VercelConfig,
         WASMConfig,
+        MontyConfig,
         ModalConfig,
     ],
     Field(discriminator="backend_type"),
@@ -377,6 +383,12 @@ class DenoDeployment(NoDeployment):
     backend_type: Literal["DENO"] = "DENO"
 
 
+class MontyDeployment(NoDeployment):
+    """Monty runs in-process; no deployment routing applies."""
+
+    backend_type: Literal["MONTY"] = "MONTY"
+
+
 SandboxDeploymentModel: TypeAlias = Annotated[
     Union[
         DaytonaDeployment,
@@ -385,6 +397,7 @@ SandboxDeploymentModel: TypeAlias = Annotated[
         ModalDeployment,
         WASMDeployment,
         DenoDeployment,
+        MontyDeployment,
     ],
     Field(discriminator="backend_type"),
 ]
@@ -658,6 +671,8 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
     display_name: ClassVar[str]
     hosting_type: ClassVar[Literal["local", "hosted"]]
     dependency_hints: ClassVar[Sequence[str]] = ()
+    language_dialect: ClassVar[Literal["full", "restricted"]] = "full"
+    runtime_notes: ClassVar[str] = "Full language runtime."
     credentials_model: ClassVar[Type[BaseModel]] = NoCredentials
     deployment_config_model: ClassVar[Type[BaseModel]] = NoDeployment
 
@@ -669,6 +684,10 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
     @classmethod
     def credential_specs(cls) -> list[ProviderCredentialSpec]:
         return credential_specs_from(cls.credentials_model)
+
+    def validate_code(self, config: ConfigT, code: str) -> Optional[str]:
+        """Return an authoring-time validation error for code, if any."""
+        return None
 
     # ClassVar[Type[ConfigT]] would conflict with TypeVar; use instance attr hint.
     config_model: Type[ConfigT]

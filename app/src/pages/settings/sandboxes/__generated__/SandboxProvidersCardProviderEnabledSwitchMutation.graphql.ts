@@ -1,6 +1,7 @@
 /**
- * @generated SignedSource<<598d1608deeb299619d90658f179cfe1>>
+ * @generated SignedSource<<3602eb17d28d4d33828b8c139cdafac1>>
  * @lightSyntaxTransform
+ * @nogrep
  */
 
 /* tslint:disable */
@@ -15,11 +16,8 @@ export type UpdateSandboxProviderInput = {
   id: string;
 };
 export type SandboxDeploymentVariantInput = {
-  daytona: DaytonaDeploymentInput;
-  e2b?: never;
-} | {
-  daytona?: never;
-  e2b: E2BDeploymentInput;
+  daytona?: DaytonaDeploymentInput | null;
+  e2b?: E2BDeploymentInput | null;
 };
 export type DaytonaDeploymentInput = {
   apiUrl?: string | null;
@@ -110,14 +108,14 @@ v8 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SandboxProvidersCardProviderEnabledSwitchMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v1/*: any*/),
         "concreteType": "UpdateSandboxProviderPayload",
         "kind": "LinkedField",
         "name": "updateSandboxProvider",
@@ -148,13 +146,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "SandboxProvidersCardProviderEnabledSwitchMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v1/*: any*/),
         "concreteType": "UpdateSandboxProviderPayload",
         "kind": "LinkedField",
         "name": "updateSandboxProvider",
@@ -176,8 +174,8 @@ return {
                 "name": "sandboxBackends",
                 "plural": true,
                 "selections": [
-                  (v2/*:: as any*/),
-                  (v3/*:: as any*/),
+                  (v2/*: any*/),
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -192,7 +190,7 @@ return {
                     "name": "dependencyHints",
                     "storageKey": null
                   },
-                  (v4/*:: as any*/),
+                  (v4/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -231,6 +229,20 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "languageDialect",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "runtimeNotes",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "SandboxProviderCredentialSpec",
                     "kind": "LinkedField",
                     "name": "credentialSpecs",
@@ -243,8 +255,8 @@ return {
                         "name": "key",
                         "storageKey": null
                       },
-                      (v3/*:: as any*/),
-                      (v5/*:: as any*/),
+                      (v3/*: any*/),
+                      (v5/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -266,10 +278,10 @@ return {
                 "name": "sandboxProviders",
                 "plural": true,
                 "selections": [
-                  (v6/*:: as any*/),
-                  (v2/*:: as any*/),
-                  (v4/*:: as any*/),
-                  (v7/*:: as any*/),
+                  (v6/*: any*/),
+                  (v2/*: any*/),
+                  (v4/*: any*/),
+                  (v7/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -278,9 +290,9 @@ return {
                     "name": "configs",
                     "plural": true,
                     "selections": [
-                      (v6/*:: as any*/),
-                      (v8/*:: as any*/),
-                      (v5/*:: as any*/),
+                      (v6/*: any*/),
+                      (v8/*: any*/),
+                      (v5/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -295,7 +307,7 @@ return {
                         "name": "timeout",
                         "storageKey": null
                       },
-                      (v7/*:: as any*/),
+                      (v7/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -312,7 +324,7 @@ return {
                             "name": "envVars",
                             "plural": true,
                             "selections": [
-                              (v8/*:: as any*/),
+                              (v8/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -384,12 +396,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a897ef17cdb95c65c3ea038509221f4d",
+    "cacheID": "b3bc1cc8878579d08c47afab4a9c47f5",
     "id": null,
     "metadata": {},
     "name": "SandboxProvidersCardProviderEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxProvidersCardProviderEnabledSwitchMutation(\n  $input: UpdateSandboxProviderInput!\n) {\n  updateSandboxProvider(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxProvidersCardProviderEnabledSwitchMutation(\n  $input: UpdateSandboxProviderInput!\n) {\n  updateSandboxProvider(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    languageDialect\n    runtimeNotes\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

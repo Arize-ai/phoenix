@@ -64,6 +64,7 @@ class SandboxBackendType(Enum):
     VERCEL = "VERCEL"
     DENO = "DENO"
     MODAL = "MODAL"
+    MONTY = "MONTY"
 
 
 @strawberry.enum
@@ -169,6 +170,12 @@ class SandboxHostingType(Enum):
     """Execution delegated to an external provider (e.g. E2B, Daytona, Vercel, Modal)."""
 
 
+@strawberry.enum
+class SandboxLanguageDialect(Enum):
+    FULL = "full"
+    RESTRICTED = "restricted"
+
+
 @strawberry.type
 class SandboxBackendInfo:
     backend_type: SandboxBackendType
@@ -181,6 +188,8 @@ class SandboxBackendInfo:
     supports_env_vars: bool
     internet_access: InternetAccessMode
     supports_dependencies: bool
+    language_dialect: SandboxLanguageDialect
+    runtime_notes: str
     credential_specs: list[SandboxProviderCredentialSpec]
 
 
@@ -471,6 +480,8 @@ async def get_sandbox_backend_info(
                 supports_env_vars=meta.supports_env_vars,
                 internet_access=InternetAccessMode(meta.internet_access_capability),
                 supports_dependencies=meta.supports_dependencies,
+                language_dialect=SandboxLanguageDialect(meta.language_dialect),
+                runtime_notes=meta.runtime_notes,
                 credential_specs=credential_specs,
             )
         )

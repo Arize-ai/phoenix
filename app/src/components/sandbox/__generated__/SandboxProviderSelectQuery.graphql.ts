@@ -1,6 +1,7 @@
 /**
- * @generated SignedSource<<99de645242c4ab6d9a4fbf35ce1ffebc>>
+ * @generated SignedSource<<a6b5e4cc3300e61a2ff70f7549ed9568>>
  * @lightSyntaxTransform
+ * @nogrep
  */
 
 /* tslint:disable */
@@ -10,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 export type SandboxHostingType = "HOSTED" | "LOCAL";
 export type SandboxProviderSelectQuery$variables = Record<PropertyKey, never>;
 export type SandboxProviderSelectQuery$data = {
@@ -49,7 +50,7 @@ v1 = [
     "name": "sandboxBackends",
     "plural": true,
     "selections": [
-      (v0/*:: as any*/),
+      (v0/*: any*/),
       {
         "alias": null,
         "args": null,
@@ -89,7 +90,7 @@ v1 = [
         "name": "id",
         "storageKey": null
       },
-      (v0/*:: as any*/),
+      (v0/*: any*/),
       {
         "alias": null,
         "args": null,
@@ -114,7 +115,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "SandboxProviderSelectQuery",
-    "selections": (v1/*:: as any*/),
+    "selections": (v1/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -123,7 +124,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "SandboxProviderSelectQuery",
-    "selections": (v1/*:: as any*/)
+    "selections": (v1/*: any*/)
   },
   "params": {
     "cacheID": "42d29259e4b238dcb302735225ba153d",

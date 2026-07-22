@@ -30,6 +30,7 @@ from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
 from phoenix.server.sandbox.deno_backend import DenoAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.modal_backend import ModalAdapter
+from phoenix.server.sandbox.monty_backend import MontyAdapter
 from phoenix.server.sandbox.types import (
     EnvVarValue,
     SandboxAdapter,
@@ -62,6 +63,8 @@ class AdapterMetadata:
     hosting_type: Literal["local", "hosted"] = "hosted"
     supports_env_vars: bool = False
     internet_access_capability: Literal["none", "boolean"] = "none"
+    language_dialect: Literal["full", "restricted"] = "full"
+    runtime_notes: str = "Full language runtime."
     auto_seedable: bool = False
 
     @classmethod
@@ -91,6 +94,8 @@ class AdapterMetadata:
             hosting_type=adapter_cls.hosting_type,
             supports_env_vars=supports_env_vars,
             internet_access_capability=internet_access_capability,
+            language_dialect=adapter_cls.language_dialect,
+            runtime_notes=adapter_cls.runtime_notes,
             auto_seedable=auto_seedable,
         )
 
@@ -105,6 +110,7 @@ def _build_sandbox_adapter_metadata() -> Mapping[SandboxBackendType, AdapterMeta
             VercelAdapter,
             DenoAdapter,
             ModalAdapter,
+            MontyAdapter,
         )
     }
 
@@ -375,3 +381,4 @@ _try_register_adapter(DaytonaAdapter)
 _try_register_adapter(VercelAdapter)
 _try_register_adapter(DenoAdapter)
 _try_register_adapter(ModalAdapter)
+_try_register_adapter(MontyAdapter)
