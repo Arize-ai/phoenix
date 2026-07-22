@@ -5,8 +5,6 @@ import {
   buildAgentSessionChatUrl,
   buildPxiChatRequest,
   buildPxiHeaders,
-  buildPxiLegacyChatRequest,
-  buildServerAgentChatUrl,
   createPxiChatClient,
 } from "../src/pxi/client";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
@@ -107,20 +105,6 @@ describe("PXI client", () => {
     );
   });
 
-  it("sends the full transcript on the legacy server-agent contract", () => {
-    const options = createRuntimeOptions();
-    const messages = [userMessage("first question"), userMessage("second")];
-
-    const request = buildPxiLegacyChatRequest({ messages, options });
-
-    expect(request.messages).toEqual(messages);
-    expect(request).not.toHaveProperty("message");
-    expect(request).toMatchObject({
-      id: "session-1",
-      trigger: "submit-message",
-    });
-  });
-
   it("builds a custom provider model request", () => {
     const options = createRuntimeOptions({
       customProviderId: "provider-1",
@@ -178,17 +162,6 @@ describe("PXI client", () => {
       })
     ).toBe(
       "http://localhost:6006/agents/server/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
-    );
-  });
-
-  it("builds the legacy server-agent chat URL", () => {
-    expect(
-      buildServerAgentChatUrl({
-        endpoint: "http://localhost:6006/",
-        sessionId: "session with spaces",
-      })
-    ).toBe(
-      "http://localhost:6006/agents/server/sessions/session%20with%20spaces/chat"
     );
   });
 

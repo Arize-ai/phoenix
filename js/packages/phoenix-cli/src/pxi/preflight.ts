@@ -1,18 +1,7 @@
-// TODO(https://github.com/Arize-ai/phoenix/issues/14623): restore these
-// imports when the version check in `resolvePxiTransportMode` is re-enabled.
-// import {
-//   AGENT_SESSION_CHAT,
-//   satisfiesMinVersion,
-// } from "@arizeai/phoenix-client";
-// import { createPhoenixClient } from "../client";
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
-import type {
-  ModelSelection,
-  PxiRuntimeOptions,
-  PxiTransportMode,
-} from "./types";
+import type { ModelSelection, PxiRuntimeOptions } from "./types";
 
 /**
  * Pre-launch validation of the selected model.
@@ -401,43 +390,6 @@ export async function runPxiModelPreflight({
     data,
     modelSelection: options.modelSelection,
   });
-}
-
-/**
- * Decide which chat wire contract to use for this session by checking the
- * connected server's version against the agent-session chat requirement.
- *
- * Servers at or above the requirement get `"agent-session"` (server-side
- * sessions, single-message turns). Older servers — including ones whose
- * version cannot be determined at all — get `"legacy-server-agent"`, the
- * stateless full-transcript route they still expose, so a new CLI keeps
- * working against old self-hosted deployments. `fetchImpl` is injectable for
- * testing.
- */
-export async function resolvePxiTransportMode(_options: {
-  config: PhoenixConfig;
-  fetchImpl?: typeof globalThis.fetch;
-}): Promise<PxiTransportMode> {
-  // TODO(https://github.com/Arize-ai/phoenix/issues/14623): re-enable the
-  // version check once the release that ships the persisted-session chat
-  // contract is published and AGENT_SESSION_CHAT.minServerVersion is
-  // confirmed against it. Until then, a source-built server still reports the
-  // previous release's version, so the guard would wrongly route every dev
-  // session onto the legacy transport.
-  // const { config, fetchImpl } = _options;
-  // const client = createPhoenixClient({ config, fetch: fetchImpl });
-  // try {
-  //   const version = await client.getServerVersion();
-  //   return satisfiesMinVersion({
-  //     version,
-  //     minVersion: AGENT_SESSION_CHAT.minServerVersion,
-  //   })
-  //     ? "agent-session"
-  //     : "legacy-server-agent";
-  // } catch {
-  //   return "legacy-server-agent";
-  // }
-  return "agent-session";
 }
 
 /**

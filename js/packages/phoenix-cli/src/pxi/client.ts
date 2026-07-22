@@ -13,33 +13,26 @@ import type {
   PxiChatClient,
   PxiChatRequest,
   PxiContext,
-  PxiLegacyChatRequest,
   PxiMessage,
   PxiRuntimeOptions,
   PxiTransport,
 } from "./types";
 
 /**
- * Chat client for the Phoenix agent chat endpoints.
+ * Chat client for the Phoenix agent chat endpoint.
  *
  * This wires the Vercel AI SDK's {@link DefaultChatTransport} to Phoenix's
  * agent-session chat route: a temporary `AgentSession` is created via GraphQL
  * on the first send, and each turn POSTs only its trailing message to
  * `/agents/server/sessions/{id}/chat` — the server agent pxi has always used,
- * now running through the server-owned session pipeline. Older Phoenix
- * servers without agent-session persistence fall back to the stateless
- * contract on the same route, which takes the full client-owned transcript
- * under a client-minted session id (the server discriminates the two
- * contracts by body shape). Either way the assistant reply streams back as a
- * series of {@link PxiMessage} snapshots.
+ * now running through the server-owned session pipeline. The assistant reply
+ * streams back as a series of {@link PxiMessage} snapshots.
  */
 
-// Pinning the templates against the generated OpenAPI `paths` makes a future
+// Pinning the template against the generated OpenAPI `paths` makes a future
 // server-side route removal a typecheck failure here instead of a runtime 404.
 const AGENT_SESSION_CHAT_PATH =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
-const LEGACY_SERVER_AGENT_CHAT_PATH =
-  "/agents/server/sessions/{session_id}/chat" satisfies keyof pathsV1;
 
 /**
  * The agent the CLI runs against: the fully server-side agent (bash + GraphQL
@@ -91,25 +84,6 @@ export function buildAgentSessionChatUrl({
     "{agent_id}",
     SERVER_AGENT_ID
   ).replace("{session_id}", encodeURIComponent(agentSessionId));
-  return `${trimTrailingSlash(endpoint)}${path}`;
-}
-
-/**
- * Build the deprecated stateless server-agent chat URL for a client-minted
- * session id, tolerating a trailing slash on the configured endpoint and
- * URL-encoding the session id.
- */
-export function buildServerAgentChatUrl({
-  endpoint,
-  sessionId,
-}: {
-  endpoint: string;
-  sessionId: string;
-}): string {
-  const path = LEGACY_SERVER_AGENT_CHAT_PATH.replace(
-    "{session_id}",
-    encodeURIComponent(sessionId)
-  );
   return `${trimTrailingSlash(endpoint)}${path}`;
 }
 
@@ -295,31 +269,11 @@ export function buildPxiChatRequest({
 }
 
 /**
- * Assemble a legacy server-agent chat request carrying the full client-owned
- * transcript, for Phoenix servers without agent-session persistence.
- */
-export function buildPxiLegacyChatRequest({
-  messages,
-  options,
-}: {
-  messages: PxiMessage[];
-  options: PxiRuntimeOptions;
-}): PxiLegacyChatRequest {
-  return {
-    ...buildPxiRequestBase({ options }),
-    messages,
-  };
-}
-
-/**
  * Create the AI SDK transport pointed at the configured Phoenix endpoint.
  *
- * In `"agent-session"` mode (current servers), a temporary `AgentSession` is
- * created via GraphQL on the first send — its GlobalID becomes the chat URL's
- * session id — and each turn POSTs only its trailing message. In
- * `"legacy-server-agent"` mode (servers older than the agent-session
- * persistence release), turns POST the full transcript to the stateless
- * server-agent route under the client-minted session id.
+ * A temporary `AgentSession` is created via GraphQL on the first send — its
+ * GlobalID becomes the chat URL's session id — and each turn POSTs only its
+ * trailing message.
  *
  * Each outgoing turn is rebuilt through the request builders, so per-request
  * context (like the current time) stays fresh. Throws if no endpoint is
@@ -342,20 +296,6 @@ export function createServerAgentTransport({
     (hasOAuthCredentials(options.config)
       ? createOAuthFetch({ config: options.config })
       : undefined);
-
-  if (options.transportMode === "legacy-server-agent") {
-    return new DefaultChatTransport<PxiMessage>({
-      api: buildServerAgentChatUrl({
-        endpoint,
-        sessionId: options.sessionId,
-      }),
-      headers: buildPxiHeaders({ config: options.config }),
-      fetch: transportFetch,
-      prepareSendMessagesRequest: ({ messages }) => ({
-        body: buildPxiLegacyChatRequest({ messages, options }),
-      }),
-    });
-  }
 
   // The server session is created lazily on the first send and reused for the
   // rest of the chat. A failed creation clears the cached promise so the next

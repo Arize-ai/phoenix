@@ -7,29 +7,19 @@ import {
   PXI_CREATE_AGENT_SESSION_MUTATION,
 } from "../src/pxi/client";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
-import { resolvePxiTransportMode } from "../src/pxi/preflight";
-import type { PxiTransportMode } from "../src/pxi/types";
 import { setupMockPhoenixServer } from "./mockServer";
 
 const ENDPOINT = "http://localhost:6006";
 const GRAPHQL_URL = `${ENDPOINT}/graphql`;
-const VERSION_URL = `${ENDPOINT}/arize_phoenix_version`;
 const AGENT_SESSION_ID = "QWdlbnRTZXNzaW9uOjE=";
-// Both wire contracts share the server agent's URL; the server tells them
-// apart by body shape (single `message` vs. full `messages` transcript).
 const SERVER_AGENT_CHAT_URL = `${ENDPOINT}/agents/server/sessions/:sessionId/chat`;
 
 const mock = setupMockPhoenixServer();
 
-function createRuntimeOptions({
-  transportMode,
-}: {
-  transportMode: PxiTransportMode;
-}) {
+function createRuntimeOptions() {
   return resolvePxiRuntimeOptions({
     cliOptions: { endpoint: ENDPOINT },
     sessionId: "3f9a1c7e-0000-4000-8000-000000000000",
-    transportMode,
   });
 }
 
@@ -74,7 +64,7 @@ describe("PXI transport (agent-session contract)", () => {
         return assistantSseResponse("Hello from the session");
       })
     );
-    const options = createRuntimeOptions({ transportMode: "agent-session" });
+    const options = createRuntimeOptions();
     const client = createPxiChatClient({
       options,
       transport: createServerAgentTransport({ options }),
@@ -148,7 +138,7 @@ describe("PXI transport (agent-session contract)", () => {
         assistantSseResponse("recovered")
       )
     );
-    const options = createRuntimeOptions({ transportMode: "agent-session" });
+    const options = createRuntimeOptions();
     const client = createPxiChatClient({
       options,
       transport: createServerAgentTransport({ options }),
@@ -174,100 +164,5 @@ describe("PXI transport (agent-session contract)", () => {
       expect.objectContaining({ type: "text", text: "recovered" })
     );
     expect(graphqlCalls).toBe(2);
-  });
-});
-
-describe("PXI transport (legacy server-agent fallback)", () => {
-  it("posts the full transcript to the legacy route under the client-minted id", async () => {
-    const chatRequests: Array<{ url: string; body: Record<string, unknown> }> =
-      [];
-    mock.server.use(
-      mswHttp.post(SERVER_AGENT_CHAT_URL, async ({ request }) => {
-        chatRequests.push({
-          url: request.url,
-          body: (await request.json()) as Record<string, unknown>,
-        });
-        return assistantSseResponse("Hello from the legacy route");
-      })
-    );
-    const options = createRuntimeOptions({
-      transportMode: "legacy-server-agent",
-    });
-    const client = createPxiChatClient({
-      options,
-      transport: createServerAgentTransport({ options }),
-    });
-
-    const reply = await client.sendMessage({
-      messages: [
-        {
-          id: "user-1",
-          role: "user" as const,
-          parts: [{ type: "text" as const, text: "hello" }],
-        },
-      ],
-      onAssistantMessage: () => undefined,
-    });
-
-    expect(reply?.parts).toContainEqual(
-      expect.objectContaining({
-        type: "text",
-        text: "Hello from the legacy route",
-      })
-    );
-    expect(chatRequests).toHaveLength(1);
-    expect(chatRequests[0].url).toBe(
-      `${ENDPOINT}/agents/server/sessions/${options.sessionId}/chat`
-    );
-    const messages = chatRequests[0].body.messages as Array<{ id: string }>;
-    expect(messages.map((message) => message.id)).toEqual(["user-1"]);
-    expect(chatRequests[0].body).not.toHaveProperty("message");
-  });
-});
-
-// TODO(https://github.com/Arize-ai/phoenix/issues/14623): un-skip when the
-// version check in resolvePxiTransportMode is re-enabled, and update the
-// version fixtures to match the confirmed AGENT_SESSION_CHAT pin.
-describe.skip("resolvePxiTransportMode", () => {
-  it.each([
-    { version: "20.0.0", expected: "agent-session" as const },
-    { version: "19.2.0", expected: "legacy-server-agent" as const },
-  ])(
-    "picks $expected for server version $version",
-    async ({ version, expected }) => {
-      mock.server.use(
-        mswHttp.get(VERSION_URL, () => HttpResponse.text(version))
-      );
-
-      await expect(
-        resolvePxiTransportMode({
-          config: { endpoint: ENDPOINT },
-        })
-      ).resolves.toBe(expected);
-    }
-  );
-
-  it("falls back to the legacy transport when the version is undetectable", async () => {
-    mock.server.use(mswHttp.get(VERSION_URL, () => HttpResponse.error()));
-
-    await expect(
-      resolvePxiTransportMode({
-        config: { endpoint: ENDPOINT },
-      })
-    ).resolves.toBe("legacy-server-agent");
-  });
-});
-
-// TODO(https://github.com/Arize-ai/phoenix/issues/14623): delete once the
-// version check is re-enabled and the describe above is un-skipped.
-describe("resolvePxiTransportMode (version check temporarily disabled)", () => {
-  it("always picks the agent-session contract without consulting the server", async () => {
-    mock.server.use(mswHttp.get(VERSION_URL, () => HttpResponse.error()));
-
-    await expect(
-      resolvePxiTransportMode({
-        config: { endpoint: ENDPOINT },
-      })
-    ).resolves.toBe("agent-session");
   });
 });

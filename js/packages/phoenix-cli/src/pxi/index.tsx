@@ -7,7 +7,7 @@ import { getExitCodeForError } from "../exitCodes";
 import { writeError } from "../io";
 import { PxiApp } from "./App";
 import { parsePxiRuntimeOptions } from "./options";
-import { resolvePxiTransportMode, runPxiModelPreflight } from "./preflight";
+import { runPxiModelPreflight } from "./preflight";
 
 /**
  * Entry point for the `pxi` command.
@@ -23,16 +23,13 @@ export async function main({
 }: {
   argv?: string[];
 } = {}): Promise<void> {
-  const parsedOptions = await parsePxiRuntimeOptions({ argv });
-  await runPxiModelPreflight({ options: parsedOptions });
-  // Older Phoenix servers predate agent-session persistence; downgrade to the
-  // stateless full-transcript route they still expose.
-  const options = {
-    ...parsedOptions,
-    transportMode: await resolvePxiTransportMode({
-      config: parsedOptions.config,
-    }),
-  };
+  const options = await parsePxiRuntimeOptions({ argv });
+  await runPxiModelPreflight({ options });
+  // TODO(https://github.com/Arize-ai/phoenix/issues/14623): once the release
+  // that ships the agent-session chat contract is published and
+  // AGENT_SESSION_CHAT's version pin is confirmed against it, fail fast here
+  // with a clear error when the connected server is older — the CLI no longer
+  // falls back to the legacy full-transcript contract.
   // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to
   // stdout from its constructor, before it switches the terminal into raw mode.
   // On a TTY still in canonical mode the terminal echoes its reply (`ESC[?0u`)
