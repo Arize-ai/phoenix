@@ -192,6 +192,51 @@ async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
     assert "data-transcript-persisted" in response.text
 
 
+async def test_new_contract_body_on_the_server_agent_url_delegates_to_the_session_handler(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    # The delegated turn runs in the session handler, so its model seam —
+    # not the legacy route's — is the one in play.
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "13131313-1313-4313-8313-131313131313"
+    async with db() as session:
+        agent_session = models.AgentSession(
+            project_session_id=session_id,
+            user_id=None,
+            title="Already titled",
+            project_name=get_env_phoenix_agents_assistant_project_name(),
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    response = await httpx_client.post(
+        f"/agents/server/sessions/{agent_session_id}/chat",
+        json={
+            "trigger": "submit-message",
+            "id": session_id,
+            "message": _user_message("hello"),
+            "model": {
+                "providerType": "builtin",
+                "provider": "OPENAI",
+                "modelName": "gpt-test",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert "deprecation" not in response.headers
+    assert "data-transcript-persisted" in response.text
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSessionMessage))).all()
+
+
 async def test_unknown_agent_id_still_returns_not_found(
     httpx_client: httpx.AsyncClient,
 ) -> None:
