@@ -27,6 +27,7 @@ import type {
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
+import { registerAiSdkTelemetry } from "./aiSdkTelemetry";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
@@ -197,7 +198,7 @@ async function handleEvaluationFetchError(
 /**
  * Sets up OpenTelemetry tracer for evaluation tracing
  */
-function setupEvaluationTracer({
+async function setupEvaluationTracer({
   projectName,
   baseUrl,
   headers,
@@ -211,15 +212,18 @@ function setupEvaluationTracer({
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
   setGlobalTracerProvider: boolean;
-}): {
+}): Promise<{
   provider: NodeTracerProvider;
   tracer: Tracer;
   globalRegistration: GlobalTracerProviderRegistration | null;
-} | null {
+} | null> {
   if (!projectName) {
     return null;
   }
 
+  if (setGlobalTracerProvider) {
+    await registerAiSdkTelemetry();
+  }
   const provider = register({
     projectName,
     url: baseUrl,
@@ -328,7 +332,7 @@ export async function resumeEvaluation({
     "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
   );
 
-  const tracerSetup = setupEvaluationTracer({
+  const tracerSetup = await setupEvaluationTracer({
     projectName: experiment.projectName,
     baseUrl,
     headers: client.config.headers
