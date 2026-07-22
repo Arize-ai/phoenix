@@ -19,7 +19,6 @@ export function SessionSearchField({
       aria-label="Search sessions"
       value={filterIoSubstringOrSessionId}
       onChange={setFilterIoSubstringOrSessionId}
-      size="S"
     >
       <SearchIcon />
       <Input placeholder={placeholder} />
