@@ -21,7 +21,10 @@ import {
   MenuTrigger,
 } from "@phoenix/components/core/menu";
 import { View } from "@phoenix/components/core/view";
-import { CREATE_LLM_EVALUATOR_PARAM } from "@phoenix/constants/searchParams";
+import {
+  CREATE_CODE_EVALUATOR_PARAM,
+  CREATE_LLM_EVALUATOR_PARAM,
+} from "@phoenix/constants/searchParams";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import {
   CreateLLMProjectEvaluatorSlideover,
@@ -48,17 +51,25 @@ export const AddProjectEvaluatorMenu = ({
   const [searchParams, setSearchParams] = useSearchParams();
   const shouldOpenScratchFromUrl =
     searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
-  // The URL param opens the scratch-create flow; an explicit menu selection
-  // (copy/attach/scratch) is React-state only and takes precedence.
+  const shouldOpenNewCodeFromUrl =
+    searchParams.get(CREATE_CODE_EVALUATOR_PARAM) === "true";
+  // The URL params open the scratch-LLM or new-code create flow; an explicit
+  // menu selection is React-state only and takes precedence.
   const activeCreationMode: ProjectEvaluatorCreationMode | null =
-    creationMode ?? (shouldOpenScratchFromUrl ? { kind: "scratch" } : null);
+    creationMode ??
+    (shouldOpenScratchFromUrl
+      ? { kind: "scratch" }
+      : shouldOpenNewCodeFromUrl
+        ? { kind: "newCode" }
+        : null);
   const clearCreationMode = () => {
     setCreationMode(null);
-    if (shouldOpenScratchFromUrl) {
+    if (shouldOpenScratchFromUrl || shouldOpenNewCodeFromUrl) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete(CREATE_LLM_EVALUATOR_PARAM);
+          next.delete(CREATE_CODE_EVALUATOR_PARAM);
           return next;
         },
         { replace: true }
