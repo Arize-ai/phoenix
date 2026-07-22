@@ -20,8 +20,11 @@ def get_openapi_schema() -> dict[str, Any]:
     router.include_router(create_v1_router(authentication_enabled=False))
     router.include_router(create_auth_router(ldap_enabled=True))
     router.include_router(oauth2_router)
-    router.include_router(create_legacy_agents_router(authentication_enabled=False))
-    router.include_router(create_agents_router(authentication_enabled=False))
+    agents_router, session_chat = create_agents_router(authentication_enabled=False)
+    router.include_router(
+        create_legacy_agents_router(authentication_enabled=False, session_chat=session_chat)
+    )
+    router.include_router(agents_router)
     router.include_router(app_root_router)
     schema = get_openapi(
         title="Arize-Phoenix REST API",

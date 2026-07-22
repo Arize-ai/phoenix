@@ -69,6 +69,8 @@ def build_server_agent(
     is_viewer: bool = False,
     tracer_provider: TracerProvider | None = None,
     enable_subagents: bool = False,
+    initial_bash_snapshot: bytes | None = None,
+    on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> AbstractAgent[None, str]:
     """Construct server agent."""
     resolved_prompts = prompts or ServerAgentPrompts()
@@ -83,6 +85,8 @@ def build_server_agent(
             build_graphql_context=build_graphql_context,
             instructions=resolved_prompts.bash_tool.render(),
             allow_mutations=allow_mutations,
+            initial_snapshot=initial_bash_snapshot,
+            on_snapshot=on_bash_snapshot,
         ),
         WriteSpanNoteCapability(
             db=db,

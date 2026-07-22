@@ -1,23 +1,13 @@
 """Deprecated ``/agents/server/sessions/{session_id}/chat`` route.
-
-Preserves the pre-session-persistence chat contract for published CLI clients
-(``@arizeai/phoenix-cli`` <= 1.10.x): the client mints its own session id and
-POSTs the full Vercel-AI ``messages`` transcript each turn. The handler is
-fully stateless — nothing is persisted, old clients own their transcripts.
-
-New clients should create an ``AgentSession`` via the ``createAgentSession``
-GraphQL mutation and POST single-message turns to
-``/agents/assistant/sessions/{session_id}/chat`` instead.
-
-This module (and its route) is scheduled for removal once the deprecation
-window closes; see the ``Deprecation`` response header.
+Preserved for compatibility between old clients and new servers.
+To be removed.
 """
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import aclosing
 from datetime import datetime, timezone
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, TypeAlias
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_session
@@ -49,6 +39,8 @@ from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.api.routers.agents import (
+    _SERVER_AGENT_ID,
+    ChatRequest,
     _AgentSpanContextRecorder,
     _build_message_metadata_chunk,
     _ensure_project_exists,
@@ -142,7 +134,16 @@ def _log_run_complete(result: AgentRunResult[Any]) -> None:
         logger.info("%s", message)
 
 
-def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
+SessionChatHandler: TypeAlias = Callable[[str, str, Request, ChatRequest], Awaitable[Response]]
+"""Calling contract of the session chat endpoint, injected by the app so this
+route can delegate requests that carry the new single-``message`` body shape."""
+
+
+def create_legacy_agents_router(
+    authentication_enabled: bool,
+    *,
+    session_chat: SessionChatHandler,
+) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
@@ -153,7 +154,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
     async def run_server_agent(
         session_id: str,
         request: Request,
-        request_body: LegacyChatRequest,
+        request_body: LegacyChatRequest | ChatRequest,
     ) -> Response:
         """Stream a chat turn from the GraphQL server agent (deprecated).
 
@@ -162,9 +163,9 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         full ``messages`` transcript and a self-minted session id, and the
         server builds a fresh agent per request without persisting anything.
 
-        New clients should create an ``AgentSession`` via the
-        ``createAgentSession`` GraphQL mutation and POST single-message turns
-        to ``/agents/assistant/sessions/{session_id}/chat`` instead.
+        Requests carrying the new single-``message`` body shape are instead
+        served by the persisted-session chat handler, without the
+        ``Deprecation`` header.
 
         The request contexts gate capabilities — GraphQL mutations, web access,
         and subagents — and mutations are refused for viewer users. When trace
@@ -175,6 +176,8 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         Returns ``403`` if agents or the server agent are disabled, or if a
         viewer requests mutations.
         """
+        if isinstance(request_body, ChatRequest):
+            return await session_chat(_SERVER_AGENT_ID, session_id, request, request_body)
         logger.warning(
             "Deprecated route POST /agents/server/sessions/%s/chat was called; "
             "clients should migrate to POST /agents/assistant/sessions/{session_id}/chat "
