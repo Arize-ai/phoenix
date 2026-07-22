@@ -42,7 +42,9 @@ import {
   SandboxProviderSelect,
   SandboxProviderSelectFallback,
 } from "@phoenix/components/sandbox/SandboxProviderSelect";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { transformEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
   getIdentifier,
@@ -554,8 +556,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     <Label>Name</Label>
                     <Input />
                     <Text slot="description" size="S" color="text-700">
-                      Lowercase letters, digits, dashes, and underscores. Must
-                      start and end with a letter or digit.
+                      {IDENTIFIER_DESCRIPTION}
                     </Text>
                     {fieldState.error ? (
                       <FieldError>{fieldState.error.message}</FieldError>
@@ -768,12 +769,22 @@ function EnvVarRow({
         control={form.control}
         rules={{ required: "Name is required" }}
         render={({ field, fieldState }) => (
-          <TextField {...field} isInvalid={fieldState.invalid}>
+          <TextField
+            {...field}
+            onChange={(value) =>
+              field.onChange(transformEnvironmentVariableInput(value))
+            }
+            isInvalid={fieldState.invalid}
+          >
             <Label>Variable Name</Label>
             <Input placeholder="MY_VAR" />
             {fieldState.error ? (
               <FieldError>{fieldState.error.message}</FieldError>
-            ) : null}
+            ) : (
+              <Text slot="description">
+                Uppercase letters, digits, and underscores
+              </Text>
+            )}
           </TextField>
         )}
       />

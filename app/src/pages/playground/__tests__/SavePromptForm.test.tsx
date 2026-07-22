@@ -19,17 +19,17 @@ vi.mock("@phoenix/components/code", () => ({
 
 vi.mock("@phoenix/pages/playground/PromptComboBox", () => ({
   PromptComboBox: ({
-    defaultInputValue,
+    inputValue,
     onBlur,
     onInputChange,
   }: {
-    defaultInputValue?: string;
+    inputValue?: string;
     onBlur?: () => void;
     onInputChange?: (value: string) => void;
   }) => (
     <input
       data-testid="prompt-picker"
-      defaultValue={defaultInputValue}
+      value={inputValue}
       onBlur={onBlur}
       onChange={(event) => onInputChange?.(event.target.value)}
     />
@@ -111,8 +111,10 @@ describe("SavePromptForm", () => {
     expect(promptInput).not.toBeNull();
 
     await act(async () => {
-      setInputValue(promptInput as HTMLInputElement, "new-prompt");
+      setInputValue(promptInput as HTMLInputElement, "New Prompt.v2!");
     });
+
+    expect(promptInput?.value).toBe("new-promptv2");
 
     const form = container.querySelector("form");
     expect(form).not.toBeNull();
@@ -124,7 +126,7 @@ describe("SavePromptForm", () => {
 
     expect(onCreate).toHaveBeenCalledOnce();
     expect(onCreate.mock.calls[0]?.[0]).toMatchObject({
-      name: "new-prompt",
+      name: "new-promptv2",
       description: undefined,
     });
   });

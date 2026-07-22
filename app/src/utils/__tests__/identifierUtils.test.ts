@@ -1,6 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { validateIdentifier } from "../identifierUtils";
+import {
+  getIdentifier,
+  transformIdentifierInput,
+  validateIdentifier,
+} from "../identifierUtils";
+
+describe("transformIdentifierInput", () => {
+  it("normalizes case, whitespace, and unsupported characters", () => {
+    expect(transformIdentifierInput("My  New.Prompt!")).toBe("my-newprompt");
+  });
+
+  it("preserves leading and trailing separators while typing", () => {
+    expect(transformIdentifierInput("_My Prompt ")).toBe("_my-prompt-");
+  });
+});
+
+describe("getIdentifier", () => {
+  it("trims leading and trailing separators from a final slug", () => {
+    expect(getIdentifier(" _My Prompt_ ")).toBe("my-prompt");
+  });
+});
 
 describe("validateIdentifier", () => {
   describe("valid identifiers", () => {

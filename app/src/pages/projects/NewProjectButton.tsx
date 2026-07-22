@@ -39,6 +39,7 @@ import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { URI_SAFE_PATTERN } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { transformURISafeInput } from "@phoenix/utils/uriUtils";
 
 import type { NewProjectButtonCreateProjectMutation } from "./__generated__/NewProjectButtonCreateProjectMutation.graphql";
 import { GRADIENT_PRESETS } from "./ProjectForm";
@@ -190,7 +191,9 @@ function NewProjectDialog({
                     }) => (
                       <TextField
                         isInvalid={invalid}
-                        onChange={onChange}
+                        onChange={(value) =>
+                          onChange(transformURISafeInput(value))
+                        }
                         onBlur={onBlur}
                         value={value}
                         autoFocus

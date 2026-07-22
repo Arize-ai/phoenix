@@ -14,12 +14,9 @@ import {
   View,
 } from "@phoenix/components";
 import { SECRET_KEY_PATTERN } from "@phoenix/constants";
+import { transformEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
 
 import type { SecretFormParams } from "./types";
-
-function normalizeSecretKey(value: string) {
-  return value.toUpperCase().replace(/\s+/g, "_");
-}
 
 export function SecretMutationForm({
   title,
@@ -85,12 +82,12 @@ export function SecretMutationForm({
                   const selectionStart = input?.selectionStart ?? value.length;
 
                   // Normalize live input to env-var style as the user types.
-                  const transformed = normalizeSecretKey(value);
+                  const transformed = transformEnvironmentVariableInput(value);
 
                   // Preserve the cursor after the transformed value is committed.
                   const beforeCursor = value.slice(0, selectionStart);
                   const newCursorPosition =
-                    normalizeSecretKey(beforeCursor).length;
+                    transformEnvironmentVariableInput(beforeCursor).length;
 
                   onChange(transformed);
 

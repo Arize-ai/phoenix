@@ -19,10 +19,16 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
-import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
+import {
+  DEFAULT_PROMPT_VERSION_TAGS,
+  IDENTIFIER_DESCRIPTION,
+} from "@phoenix/constants";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
+import {
+  transformIdentifierInput,
+  validateIdentifier,
+} from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type SavePromptSubmitHandler = (
@@ -152,14 +158,15 @@ export function SavePromptForm({
           render={({ field: { onBlur, onChange }, fieldState }) => (
             <PromptComboBox
               label="Prompt"
-              description="The prompt to update, or prompt name to create"
+              description={`Select a prompt, or enter a new name. ${IDENTIFIER_DESCRIPTION}`}
               placeholder="Select or enter new prompt name"
               isRequired
               onBlur={onBlur}
-              defaultInputValue={promptInputValue}
+              inputValue={promptInputValue}
               onInputChange={(value) => {
-                setPromptInputValue(value);
-                onChange(value);
+                const transformedValue = transformIdentifierInput(value);
+                setPromptInputValue(transformedValue);
+                onChange(transformedValue);
               }}
               errorMessage={fieldState.error?.message}
               allowsCustomValue
@@ -346,7 +353,7 @@ function NewTagInlineForm({
         size="S"
         aria-label="New tag name"
         value={inputValue}
-        onChange={setInputValue}
+        onChange={(value) => setInputValue(transformIdentifierInput(value))}
         isInvalid={!!error}
         css={css`
           flex: 1 1 auto;
@@ -359,7 +366,11 @@ function NewTagInlineForm({
         }}
       >
         <Input placeholder="New tag name" />
-        {error ? <FieldError>{error}</FieldError> : null}
+        {error ? (
+          <FieldError>{error}</FieldError>
+        ) : (
+          <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
+        )}
       </TextField>
       <Button
         size="S"

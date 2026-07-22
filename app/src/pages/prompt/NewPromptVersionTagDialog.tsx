@@ -23,8 +23,12 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 
-import { validateIdentifier } from "../../utils/identifierUtils";
+import {
+  transformIdentifierInput,
+  validateIdentifier,
+} from "../../utils/identifierUtils";
 
 type PromptVersionTagFormParams = {
   name: string;
@@ -120,7 +124,9 @@ export function NewPromptVersionDialog({
                   }) => (
                     <TextField
                       isInvalid={invalid}
-                      onChange={onChange}
+                      onChange={(value) =>
+                        onChange(transformIdentifierInput(value))
+                      }
                       onBlur={onBlur}
                       name={name}
                       value={value}
@@ -130,9 +136,7 @@ export function NewPromptVersionDialog({
                       {error?.message ? (
                         <FieldError>{error.message}</FieldError>
                       ) : (
-                        <Text slot="description">
-                          The identifier of the tag
-                        </Text>
+                        <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
                       )}
                     </TextField>
                   )}

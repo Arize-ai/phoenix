@@ -19,6 +19,7 @@ import {
   GradientCircleRadioGroup,
 } from "@phoenix/components/project";
 import { URI_SAFE_PATTERN } from "@phoenix/constants";
+import { transformURISafeInput } from "@phoenix/utils/uriUtils";
 
 export type ProjectFormParams = {
   name: string;
@@ -227,7 +228,7 @@ export function ProjectForm({
             }) => (
               <TextField
                 isInvalid={invalid}
-                onChange={onChange}
+                onChange={(value) => onChange(transformURISafeInput(value))}
                 onBlur={onBlur}
                 value={value.toString()}
               >
