@@ -81,7 +81,7 @@ async function readErrorDetail({
   }
 }
 
-/** Create a temporary `AgentSession`; its GlobalID is the chat session id. */
+/** Create a temporary `AgentSession`. */
 export async function createTemporaryAgentSession({
   config,
   fetchImpl,
@@ -192,7 +192,7 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
   };
 }
 
-/** Assemble the chat request; the server owns the transcript, so only the trailing message is sent. */
+/** Assemble the chat request. */
 export function buildPxiChatRequest({
   messages,
   options,
