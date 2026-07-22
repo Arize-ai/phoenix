@@ -1269,6 +1269,38 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/claude-code</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/codex</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/copilot</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/cursor</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/gemini</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/kiro</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/oh-my-pi</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/opencode</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2051,6 +2083,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server</loc>
