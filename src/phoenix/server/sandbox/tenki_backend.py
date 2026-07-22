@@ -48,8 +48,11 @@ _LIFETIME_HEADROOM_SECONDS = 300
 _DEFAULT_MAX_DURATION_SECONDS = 600
 
 # Prefix for the per-execution sandbox tag used to reap a VM that ``create()``
-# created remotely but never returned a handle for (see ``_reap``).
-_SESSION_TAG_PREFIX = "phoenix-exec:"
+# created remotely but never returned a handle for (see ``_reap``). Tenki caps
+# tags at 32 characters, so the prefix is short and the uuid is truncated:
+# len("phx-") + 24 hex chars = 28.
+_SESSION_TAG_PREFIX = "phx-"
+_SESSION_TAG_UUID_LEN = 24
 
 # Global cap on concurrent Tenki microVMs across all TenkiSandboxBackend
 # instances. Tenki VMs are billable and, as a stateless backend, Tenki bypasses
@@ -209,8 +212,8 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
         del session_key
         # Unique marker so a VM that create() spun up remotely but never
         # returned a handle for (failure/cancellation) can still be found and
-        # terminated in _reap.
-        tag = f"{_SESSION_TAG_PREFIX}{uuid.uuid4().hex}"
+        # terminated in _reap. Kept <= 32 chars to satisfy Tenki's tag limit.
+        tag = f"{_SESSION_TAG_PREFIX}{uuid.uuid4().hex[:_SESSION_TAG_UUID_LEN]}"
         try:
             # Self-limit concurrent billable VMs (no per-provider cap applies to
             # stateless backends).

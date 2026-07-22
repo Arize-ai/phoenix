@@ -255,9 +255,21 @@ async def test_execute_reaps_orphan_when_create_fails() -> None:
         result = await backend.execute("noop", session_key="s1")
     assert result.error is not None
     # reap listed by the per-execution tag and terminated the orphan
-    assert client.list.await_args.kwargs["tags"][0].startswith("phoenix-exec:")
+    assert client.list.await_args.kwargs["tags"][0].startswith("phx-")
     orphan.close_if_open.assert_awaited_once()
     client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_execute_tag_within_tenki_length_limit() -> None:
+    """Regression guard: Tenki rejects tags over 32 chars. The per-execution
+    reap tag passed to create() must stay within that limit."""
+    client = _make_mock_client()
+    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    with patch.object(backend, "_get_client", return_value=client):
+        await backend.execute("noop", session_key="s1")
+    tag = client.create.await_args.kwargs["tags"][0]
+    assert len(tag) <= 32, f"tag {tag!r} is {len(tag)} chars (Tenki max 32)"
 
 
 @pytest.mark.asyncio
