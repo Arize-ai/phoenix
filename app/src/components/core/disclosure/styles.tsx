@@ -103,4 +103,26 @@ export const disclosureCSS = css`
       }
     }
   }
+
+  // Smoothly animate expand/collapse. react-aria drives the pixel height
+  // through --disclosure-panel-height and switches it back to auto once the
+  // transition settles, so we only need to transition against that variable.
+  // Motion is opt-in: reduced-motion users keep the instant show/hide the
+  // panel has by default (no transition, natural height, visible overflow).
+  @media (prefers-reduced-motion: no-preference) {
+    .disclosure__panel {
+      height: var(--disclosure-panel-height, auto);
+      overflow: hidden;
+      transition: height 200ms ease-in-out;
+    }
+    // Restore visible overflow once fully expanded so content that escapes the
+    // panel box (focus rings, shadows) is not clipped at rest; the panel stays
+    // clipped while collapsing so content is revealed/hidden, not spilled.
+    .disclosure__panel[data-panel-open] {
+      overflow: visible;
+    }
+    &:not([data-expanded]) .disclosure__panel {
+      overflow: hidden;
+    }
+  }
 `;
