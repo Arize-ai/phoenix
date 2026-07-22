@@ -66,13 +66,13 @@ The curl and local installers write credentials to `~/.arize/harness/config.json
   "env": {
     "PHOENIX_ENDPOINT": "http://localhost:6006",
     "PHOENIX_API_KEY": "<your-api-key>",
-    "ARIZE_PROJECT_NAME": "claude-code",
+    "PHOENIX_PROJECT": "claude-code",
     "ARIZE_TRACE_ENABLED": "true"
   }
 }
 ```
 
-`PHOENIX_API_KEY` is optional — omit it when your Phoenix instance has no auth. `ARIZE_PROJECT_NAME` and `ARIZE_TRACE_ENABLED` are backend-agnostic harness settings and keep the `ARIZE_` prefix regardless of destination.
+`PHOENIX_API_KEY` is optional — omit it when your Phoenix instance has no auth. On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is Arize-only and ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
 
 ### Redaction controls
 
@@ -150,7 +150,7 @@ The SDK spawns a Claude Code subprocess that does not inherit your shell environ
     "ARIZE_TRACE_ENABLED": "true",
     "PHOENIX_ENDPOINT": "http://localhost:6006",
     "PHOENIX_API_KEY": "<your-api-key>",
-    "ARIZE_PROJECT_NAME": "claude-code"
+    "PHOENIX_PROJECT": "claude-code"
   }
 }
 ```

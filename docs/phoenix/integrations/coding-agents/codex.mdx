@@ -51,11 +51,11 @@ Credentials live in `~/.arize/harness/config.json`. To override per category, se
 ```bash
 export PHOENIX_ENDPOINT="http://localhost:6006"
 export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
-export ARIZE_PROJECT_NAME="codex"
+export PHOENIX_PROJECT="codex"
 export ARIZE_TRACE_ENABLED="true"
 ```
 
-`ARIZE_PROJECT_NAME` and `ARIZE_TRACE_ENABLED` are backend-agnostic harness settings and keep the `ARIZE_` prefix regardless of destination.
+On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is Arize-only and ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
 
 ### Redaction controls
 

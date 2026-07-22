@@ -53,7 +53,7 @@ Credentials live in `~/.arize/harness/config.json`. Environment variables overri
 ```bash
 export PHOENIX_ENDPOINT="http://localhost:6006"
 export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
-export ARIZE_PROJECT_NAME="omp"
+export PHOENIX_PROJECT="omp"
 export ARIZE_TRACE_ENABLED="true"
 ```
 
@@ -62,7 +62,7 @@ export ARIZE_TRACE_ENABLED="true"
 | `PHOENIX_ENDPOINT` | Destination Phoenix endpoint (defaults to `http://localhost:6006`) |
 | `PHOENIX_API_KEY` | Phoenix API key (only if auth is enabled) |
 | `ARIZE_TRACE_ENABLED` | Toggle tracing on or off |
-| `ARIZE_PROJECT_NAME` | Destination project name (defaults to `omp`) |
+| `PHOENIX_PROJECT` | Destination project name on the Phoenix backend (defaults to `omp`); `ARIZE_PROJECT_NAME` is Arize-only |
 | `ARIZE_DRY_RUN` | Run the hook without sending spans, for validation |
 | `ARIZE_USER_ID` | Attribute traces to a specific user |
 | `ARIZE_VERBOSE` | Log routine handler activity (event dispatch, span emits, state transitions) |

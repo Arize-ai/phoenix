@@ -51,11 +51,11 @@ Credentials live in `~/.arize/harness/config.json`. Environment variables overri
 ```bash
 export PHOENIX_ENDPOINT="http://localhost:6006"
 export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
-export ARIZE_PROJECT_NAME="cursor"
+export PHOENIX_PROJECT="cursor"
 export ARIZE_TRACE_ENABLED="true"
 ```
 
-`ARIZE_PROJECT_NAME` and `ARIZE_TRACE_ENABLED` are backend-agnostic harness settings and keep the `ARIZE_` prefix regardless of destination.
+On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is Arize-only and ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
 
 ### Redaction controls
 
@@ -86,7 +86,7 @@ Once tracing is enabled, Cursor activity is streamed to Phoenix. You'll see:
 - **MCP spans** named `MCP: {tool}` with tool input and result
 - **File read and edit spans** for file operations, including tab reads and edits
 
-The default project name is `cursor` unless you set `ARIZE_PROJECT_NAME`.
+The default project name is `cursor` unless you set `PHOENIX_PROJECT`.
 
 <Frame caption="Cursor conversation grouped together in a single session view">
   <img
