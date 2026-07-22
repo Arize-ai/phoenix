@@ -163,7 +163,7 @@ export function ExperimentCompareDetails({
                 }
               }
             }
-            experimentAnnotationSummaries {
+            experimentAnnotationSummaries(includeEphemeral: true) {
               annotationName
               minScore
               maxScore

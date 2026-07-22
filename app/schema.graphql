@@ -999,7 +999,7 @@ type Dataset implements Node {
   """The experiment tagged as this dataset's baseline, if one is set."""
   baselineExperiment: Experiment
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
-  experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
+  experimentAnnotationSummaries(includeEphemeral: Boolean = false): [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
 
   """Number of evaluators associated with this dataset."""

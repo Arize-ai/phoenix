@@ -168,7 +168,7 @@ export function ExperimentCompareListPage({
           dataset: node(id: $datasetId) {
             ... on Dataset {
               id
-              experimentAnnotationSummaries {
+              experimentAnnotationSummaries(includeEphemeral: true) {
                 annotationName
                 minScore
                 maxScore

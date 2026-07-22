@@ -503,7 +503,9 @@ class Dataset(Node):
 
     @strawberry.field
     async def experiment_annotation_summaries(
-        self, info: Info[Context, None]
+        self,
+        info: Info[Context, None],
+        include_ephemeral: Optional[bool] = False,
     ) -> list[DatasetExperimentAnnotationSummary]:
         dataset_id = self.id
         query = (
@@ -525,6 +527,8 @@ class Dataset(Node):
             .group_by(models.ExperimentRunAnnotation.name)
             .order_by(models.ExperimentRunAnnotation.name)
         )
+        if not include_ephemeral:
+            query = query.where(models.Experiment.is_ephemeral.is_(False))
         async with info.context.db.read() as session:
             return [
                 DatasetExperimentAnnotationSummary(

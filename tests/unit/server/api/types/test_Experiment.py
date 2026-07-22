@@ -888,13 +888,26 @@ class TestExperimentAnnotationSummaries:
     async def test_dataset_resolver_returns_expected_values(
         self,
         gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
         experiments_with_runs_and_annotations: Any,
     ) -> None:
+        async with db() as session:
+            experiment = await session.get(models.Experiment, 2)
+            assert experiment is not None
+            experiment.is_ephemeral = True
+
         query = """
           query ($datasetId: ID!) {
             dataset: node(id: $datasetId) {
               ... on Dataset {
                 experimentAnnotationSummaries {
+                  annotationName
+                  minScore
+                  maxScore
+                }
+                allExperimentAnnotationSummaries: experimentAnnotationSummaries(
+                  includeEphemeral: true
+                ) {
                   annotationName
                   minScore
                   maxScore
@@ -913,6 +926,18 @@ class TestExperimentAnnotationSummaries:
         assert response.data == {
             "dataset": {
                 "experimentAnnotationSummaries": [
+                    {
+                        "annotationName": "annotation-name-1",
+                        "minScore": 0.0,
+                        "maxScore": 1.0,
+                    },
+                    {
+                        "annotationName": "annotation-name-2",
+                        "minScore": 0.0,
+                        "maxScore": 1.0,
+                    },
+                ],
+                "allExperimentAnnotationSummaries": [
                     {
                         "annotationName": "annotation-name-1",
                         "minScore": 0.0,
