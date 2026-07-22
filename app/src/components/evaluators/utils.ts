@@ -245,7 +245,7 @@ export const datasetExampleToEvaluatorInput = ({
 }: {
   exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
   taskOutput?: Record<string, unknown>;
-}): EvaluatorMappingSource => {
+}): EvaluatorMappingSource<"dataset"> => {
   const example = readInlineData(
     graphql`
       fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision

@@ -593,12 +593,12 @@ export const EditCodeEvaluatorDialogContent = ({
                   isLanguageEditable={mode === "create"}
                   isSandboxRequired={mode === "create"}
                 />
-                <CodeEditor
+                <CodeEvaluatorSourceEditor
                   language={language}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
                 />
-                <EvaluatorAnnotationSection />
+                <CodeEvaluatorAnnotationSection />
                 <InputMappingSection />
               </div>
             </Panel>
@@ -813,9 +813,10 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
 
 /**
  * Editable source-code editor with a read-only auto-generated type footer.
- * Ships its own description line and Reset-to-default button.
+ * Ships its own description line and Reset-to-default button. Shared by the
+ * dataset and project code-evaluator authoring flows.
  */
-const CodeEditor = ({
+export const CodeEvaluatorSourceEditor = ({
   language,
   sourceCode,
   onChange,
@@ -999,9 +1000,10 @@ const CodeEditor = ({
 };
 
 /**
- * Heading + bordered card for the evaluator's output annotation config.
+ * Heading + bordered card for the evaluator's output annotation config. Shared
+ * by the dataset and project code-evaluator authoring flows.
  */
-const EvaluatorAnnotationSection = () => {
+export const CodeEvaluatorAnnotationSection = () => {
   return (
     <View flex="none">
       <Flex direction="column" gap="size-100">

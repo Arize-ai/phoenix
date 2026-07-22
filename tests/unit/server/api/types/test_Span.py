@@ -17,6 +17,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.online_eval.executor import span_eval_context
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
@@ -164,6 +165,7 @@ async def test_span_fields(
           spanId
           traceId
         }
+        evaluationContext
         trace {
           id
           numSpans
@@ -250,6 +252,7 @@ async def test_span_fields(
         assert span["spanKind"] == db_span.span_kind.lower()
         assert span["context"]["spanId"] == db_span.span_id
         assert span["context"]["traceId"] == db_traces[db_span.trace_rowid].trace_id
+        assert span["evaluationContext"] == span_eval_context(db_span)
         assert isinstance(span["attributes"], str) and span["attributes"]
         assert json.loads(span["attributes"]) == db_span.attributes
         assert span["tokenCountPrompt"] == db_span.llm_token_count_prompt

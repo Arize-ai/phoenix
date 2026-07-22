@@ -11,6 +11,8 @@ import type {
   EvaluatorInputMapping,
   EvaluatorKind,
   EvaluatorMappingSource,
+  EvaluatorMappingSourceField,
+  EvaluatorMappingSourceGrain,
   EvaluatorOptimizationDirection,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
@@ -52,6 +54,7 @@ export type EvaluatorStoreProps = {
     selectedExampleId: string | null;
     selectedSplitIds: string[];
   };
+  evaluatorMappingSourceGrain: EvaluatorMappingSourceGrain;
   evaluatorMappingSource: EvaluatorMappingSource;
   showPromptPreview: boolean;
 };
@@ -85,7 +88,7 @@ export type EvaluatorStoreActions = {
   ) => void;
   /** Sets a single field of the evaluator mapping source. */
   setEvaluatorMappingSourceField: (
-    field: keyof EvaluatorMappingSource,
+    field: EvaluatorMappingSourceField,
     value: Record<string, unknown>
   ) => void;
   /** Sets the currently selected example ID within the dataset. */
@@ -148,46 +151,75 @@ export type EvaluatorStore = EvaluatorStoreProps & EvaluatorStoreActions;
 /**
  * Default value for the evaluator mapping source.
  */
-export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
-  input: {},
-  output: {
-    messages: [
-      {
-        role: "assistant",
-        content: "[SAMPLE] Replace this with your actual task output format",
-        tool_calls: [
-          {
-            function: {
-              name: "example_function",
-              arguments: '{"param": "example_value"}',
-            },
-          },
-        ],
-      },
-    ],
-    available_tools: [
-      {
-        type: "function",
-        function: {
-          name: "example_function",
-          description: "[SAMPLE] Example tool definition",
-          parameters: {
-            type: "object",
-            properties: {
-              param: {
-                type: "string",
-                description: "Example parameter",
+export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"dataset"> =
+  {
+    input: {},
+    output: {
+      messages: [
+        {
+          role: "assistant",
+          content: "[SAMPLE] Replace this with your actual task output format",
+          tool_calls: [
+            {
+              function: {
+                name: "example_function",
+                arguments: '{"param": "example_value"}',
               },
             },
-            required: ["param"],
+          ],
+        },
+      ],
+      available_tools: [
+        {
+          type: "function",
+          function: {
+            name: "example_function",
+            description: "[SAMPLE] Example tool definition",
+            parameters: {
+              type: "object",
+              properties: {
+                param: {
+                  type: "string",
+                  description: "Example parameter",
+                },
+              },
+              required: ["param"],
+            },
           },
         },
-      },
-    ],
-  },
-  reference: {},
-  metadata: {},
-};
+      ],
+    },
+    reference: {},
+    metadata: {},
+  };
+
+export const SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"span"> =
+  {
+    input: {},
+    output: {},
+    metadata: {
+      attributes: {},
+    },
+  };
+
+function normalizeEvaluatorMappingSource({
+  grain,
+  source,
+}: {
+  grain: EvaluatorMappingSourceGrain;
+  source: EvaluatorMappingSource;
+}): EvaluatorMappingSource {
+  const { input, output, metadata } = source;
+  if (grain === "span") {
+    return { input, output, metadata };
+  }
+  return {
+    input,
+    output,
+    reference: "reference" in source ? source.reference : {},
+    metadata,
+  } as EvaluatorMappingSource<"dataset">;
+}
 
 /**
  * Default value for the evaluator mapping source as a string.
@@ -212,6 +244,7 @@ export const DEFAULT_STORE_VALUES = {
     },
     includeExplanation: true,
   },
+  evaluatorMappingSourceGrain: "dataset",
   evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   showPromptPreview: false,
   outputConfigs: [] as AnnotationConfig[],
@@ -264,7 +297,7 @@ export const createEvaluatorStore = (
   return createStore<EvaluatorStore>()(
     devtools(
       (set, get) => {
-        const properties = mergeWith(
+        const mergedProperties = mergeWith(
           {},
           DEFAULT_STORE_VALUES,
           props.evaluator.kind === "LLM"
@@ -274,9 +307,20 @@ export const createEvaluatorStore = (
             ? DEFAULT_CODE_EVALUATOR_STORE_VALUES
             : {},
           props,
-          (_objValue: unknown, srcValue: unknown) =>
-            Array.isArray(srcValue) ? srcValue : undefined
+          (_objValue: unknown, srcValue: unknown, key: string) => {
+            if (key === "evaluatorMappingSource") {
+              return srcValue;
+            }
+            return Array.isArray(srcValue) ? srcValue : undefined;
+          }
         ) satisfies EvaluatorStoreProps;
+        const properties = {
+          ...mergedProperties,
+          evaluatorMappingSource: normalizeEvaluatorMappingSource({
+            grain: mergedProperties.evaluatorMappingSourceGrain,
+            source: mergedProperties.evaluatorMappingSource,
+          }),
+        } satisfies EvaluatorStoreProps;
         const actions = {
           setEvaluatorGlobalName(globalName) {
             set(
@@ -421,19 +465,26 @@ export const createEvaluatorStore = (
           },
           setEvaluatorMappingSource(evaluatorMappingSource) {
             set(
-              { evaluatorMappingSource },
+              {
+                evaluatorMappingSource: normalizeEvaluatorMappingSource({
+                  grain: get().evaluatorMappingSourceGrain,
+                  source: evaluatorMappingSource,
+                }),
+              },
               undefined,
               "setEvaluatorMappingSource"
             );
           },
           setEvaluatorMappingSourceField(field, value) {
-            set(
-              {
-                evaluatorMappingSource: {
-                  ...get().evaluatorMappingSource,
-                  [field]: value,
-                },
+            const evaluatorMappingSource = normalizeEvaluatorMappingSource({
+              grain: get().evaluatorMappingSourceGrain,
+              source: {
+                ...get().evaluatorMappingSource,
+                [field]: value,
               },
+            });
+            set(
+              { evaluatorMappingSource },
               undefined,
               "setEvaluatorMappingSourceField"
             );

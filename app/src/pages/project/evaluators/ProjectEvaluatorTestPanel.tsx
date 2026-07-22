@@ -1,0 +1,379 @@
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useState,
+} from "react";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import invariant from "tiny-invariant";
+
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Flex,
+  Heading,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
+import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  buildOutputConfigsInput,
+  createLLMEvaluatorPayload,
+} from "@phoenix/components/evaluators/utils";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
+import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
+import type {
+  ProjectEvaluatorTestPanelMutation,
+  InlineCodeEvaluatorInput,
+  InlineLLMEvaluatorInput,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestPanelMutation.graphql";
+import type { ProjectEvaluatorTestPanelQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestPanelQuery.graphql";
+import { getProjectEvaluatorMappingDiagnostics } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorMappingSource,
+} from "@phoenix/types";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+
+/**
+ * The unsaved source code being authored, used to preview a not-yet-created
+ * code evaluator via the inline-code preview path.
+ */
+export type ProjectEvaluatorInlineCode = {
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  sandboxConfigId: string | null;
+};
+
+export const ProjectEvaluatorTestPanel = ({
+  projectId,
+  filterCondition,
+  codeEvaluatorId,
+  inlineCode,
+}: {
+  projectId: string;
+  filterCondition: string;
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+}) => (
+  <Suspense fallback={<Loading />}>
+    <ProjectEvaluatorTestPanelContent
+      projectId={projectId}
+      filterCondition={filterCondition}
+      codeEvaluatorId={codeEvaluatorId}
+      inlineCode={inlineCode}
+    />
+  </Suspense>
+);
+
+function ProjectEvaluatorTestPanelContent({
+  projectId,
+  filterCondition,
+  codeEvaluatorId,
+  inlineCode,
+}: {
+  projectId: string;
+  filterCondition: string;
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+}) {
+  // Match the preview to the page's selected time range so it never surfaces
+  // spans the adjacent tabs would hide.
+  const { timeRange } = useTimeRange();
+  const data = useLazyLoadQuery<ProjectEvaluatorTestPanelQuery>(
+    graphql`
+      query ProjectEvaluatorTestPanelQuery(
+        $projectId: ID!
+        $filterCondition: String
+        $timeRange: TimeRange
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            spans(
+              first: 5
+              sort: { col: startTime, dir: desc }
+              filterCondition: $filterCondition
+              timeRange: $timeRange
+            ) {
+              edges {
+                span: node {
+                  id
+                  name
+                  evaluationContext
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      filterCondition: filterCondition.trim() || null,
+      timeRange: {
+        start: timeRange?.start?.toISOString(),
+        end: timeRange?.end?.toISOString(),
+      },
+    },
+    { fetchPolicy: "store-and-network" }
+  );
+  const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
+  const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
+  const selectedSpan =
+    spans.find(({ id }) => id === selectedSpanId) ?? spans[0] ?? null;
+  const evaluatorStore = useEvaluatorStoreInstance();
+  const pathMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping.pathMapping
+  );
+  // `selectedSpan` is a fresh object every render (rebuilt from the query's
+  // edges), so keying this sync on its identity would rewrite the store each
+  // render. Key on the resolved span id (a primitive) and read the context
+  // through an effect event so the mapping source is pushed only when the
+  // selected span actually changes.
+  const resolvedSpanId = selectedSpan?.id ?? null;
+  const syncMappingSource = useEffectEvent(() => {
+    if (
+      selectedSpan &&
+      isSpanEvaluatorMappingSource(selectedSpan.evaluationContext)
+    ) {
+      evaluatorStore
+        .getState()
+        .setEvaluatorMappingSource(selectedSpan.evaluationContext);
+    }
+  });
+  useEffect(() => {
+    syncMappingSource();
+  }, [resolvedSpanId]);
+
+  const diagnostics = useMemo(
+    () =>
+      getProjectEvaluatorMappingDiagnostics({
+        context: selectedSpan?.evaluationContext,
+        pathMapping,
+      }),
+    [pathMapping, selectedSpan?.evaluationContext]
+  );
+
+  return (
+    <View paddingX="size-200">
+      <Flex direction="column" gap="size-200">
+        <Flex direction="column" gap="size-50">
+          <Heading level={2}>Matched spans</Heading>
+          <Text color="text-500">
+            Select a recent matching span to inspect bindings and test the
+            evaluator.
+          </Text>
+        </Flex>
+        {spans.length ? (
+          <Flex direction="column" gap="size-100">
+            {spans.map((span) => (
+              <Button
+                key={span.id}
+                variant={span.id === selectedSpan?.id ? "primary" : "default"}
+                onPress={() => setSelectedSpanId(span.id)}
+              >
+                {span.name}
+              </Button>
+            ))}
+          </Flex>
+        ) : (
+          <Empty message="No recent spans match this scope" />
+        )}
+        {selectedSpan ? (
+          <>
+            <Card title="Span evaluation context">
+              <JSONBlock
+                value={JSON.stringify(selectedSpan.evaluationContext, null, 2)}
+                basicSetup={{ lineNumbers: false }}
+              />
+            </Card>
+            {diagnostics.map(({ variable, path, status }) =>
+              status === "missing" ? (
+                <Alert
+                  key={variable}
+                  variant="danger"
+                  title={`${variable} does not resolve`}
+                >
+                  The path {path} would fail for this span.
+                </Alert>
+              ) : status === "unverified" ? (
+                <Alert
+                  key={variable}
+                  variant="warning"
+                  title={`${variable} is unverified`}
+                >
+                  The path {path} uses an expression that is verified by the
+                  server when the evaluator runs.
+                </Alert>
+              ) : null
+            )}
+            <ProjectEvaluatorPreviewButton
+              codeEvaluatorId={codeEvaluatorId}
+              inlineCode={inlineCode}
+              spanContext={selectedSpan.evaluationContext}
+            />
+          </>
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
+
+function isSpanEvaluatorMappingSource(
+  value: unknown
+): value is EvaluatorMappingSource<"span"> {
+  // `input`/`output` are raw attribute values (string, null, object, ...);
+  // only `metadata` is guaranteed to be an object by the server context shape.
+  return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
+}
+
+function ProjectEvaluatorPreviewButton({
+  codeEvaluatorId,
+  inlineCode,
+  spanContext,
+}: {
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+  spanContext: unknown;
+}) {
+  const evaluatorStore = useEvaluatorStoreInstance();
+  const playgroundStore = usePlaygroundStore();
+  const credentials = useCredentialsContext((state) => state);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<unknown>(null);
+  const [previewEvaluator, isPending] =
+    useMutation<ProjectEvaluatorTestPanelMutation>(graphql`
+      mutation ProjectEvaluatorTestPanelMutation(
+        $input: EvaluatorPreviewsInput!
+      ) {
+        evaluatorPreviews(input: $input) {
+          results {
+            evaluatorName
+            annotation {
+              name
+              label
+              score
+              explanation
+            }
+            error
+          }
+        }
+      }
+    `);
+
+  const onTest = useCallback(() => {
+    setError(null);
+    setResult(null);
+    const state = evaluatorStore.getState();
+    const { instances } = playgroundStore.getState();
+    const instance = instances[0];
+    invariant(instance != null, "a playground instance is required");
+    const instanceId = instance.id;
+    invariant(instanceId != null, "instanceId is required");
+    let evaluator:
+      | { codeEvaluatorId: string }
+      | { inlineCodeEvaluator: InlineCodeEvaluatorInput }
+      | { inlineLlmEvaluator: InlineLLMEvaluatorInput };
+    if (codeEvaluatorId) {
+      evaluator = { codeEvaluatorId };
+    } else if (inlineCode) {
+      evaluator = {
+        inlineCodeEvaluator: {
+          name: state.evaluator.globalName,
+          language: inlineCode.language,
+          sourceCode: inlineCode.sourceCode,
+          outputConfigs: buildOutputConfigsInput(state.outputConfigs),
+          sandboxConfigId: inlineCode.sandboxConfigId,
+          description: state.evaluator.description || null,
+        },
+      };
+    } else {
+      const payload = createLLMEvaluatorPayload({
+        playgroundStore,
+        instanceId,
+        name: state.evaluator.globalName,
+        description: state.evaluator.description,
+        outputConfigs: state.outputConfigs,
+        inputMapping: state.evaluator.inputMapping,
+        includeExplanation: state.evaluator.includeExplanation,
+        datasetId: "",
+      });
+      evaluator = {
+        inlineLlmEvaluator: {
+          name: payload.name,
+          description: payload.description,
+          outputConfigs: payload.outputConfigs,
+          promptVersion: payload.promptVersion,
+        },
+      };
+    }
+    previewEvaluator({
+      variables: {
+        input: {
+          previews: [
+            {
+              context: spanContext,
+              evaluator,
+              inputMapping: state.evaluator.inputMapping,
+            },
+          ],
+          credentials: toGqlCredentials(credentials),
+        },
+      },
+      onCompleted(response, errors) {
+        if (errors?.length) {
+          setError(errors.map(({ message }) => message).join("\n"));
+          return;
+        }
+        setResult(response.evaluatorPreviews.results);
+      },
+      onError(mutationError) {
+        setError(
+          getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
+            mutationError.message
+        );
+      },
+    });
+  }, [
+    codeEvaluatorId,
+    inlineCode,
+    credentials,
+    evaluatorStore,
+    playgroundStore,
+    previewEvaluator,
+    spanContext,
+  ]);
+
+  return (
+    <Flex direction="column" gap="size-100">
+      <Button variant="primary" isPending={isPending} onPress={onTest}>
+        Test evaluator
+      </Button>
+      {error ? (
+        <Alert variant="danger" title="Test failed">
+          {error}
+        </Alert>
+      ) : null}
+      {result ? (
+        <Card title="Evaluator result">
+          <JSONBlock
+            value={JSON.stringify(result, null, 2)}
+            basicSetup={{ lineNumbers: false }}
+          />
+        </Card>
+      ) : null}
+    </Flex>
+  );
+}

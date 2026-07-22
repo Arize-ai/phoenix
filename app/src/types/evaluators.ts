@@ -160,9 +160,33 @@ export type SandboxBackendType =
  * This object contains all of the context that input mappings are applied against
  * to extract values for an evaluator.
  */
-export type EvaluatorMappingSource = {
+export type DatasetEvaluatorMappingSource = {
   input: Record<string, unknown>;
   output: Record<string, unknown>;
   reference: Record<string, unknown>;
   metadata: Record<string, unknown>;
 };
+
+/**
+ * The span evaluation context as produced by the server. `input` and `output`
+ * are raw attribute values (commonly a string or null, occasionally an object),
+ * while `metadata` is always an object rooted at `metadata.attributes`.
+ */
+export type SpanEvaluatorMappingSource = {
+  input: unknown;
+  output: unknown;
+  metadata: Record<string, unknown>;
+};
+
+export type EvaluatorMappingSourceGrain = "dataset" | "span";
+
+export type EvaluatorMappingSourceByGrain = {
+  dataset: DatasetEvaluatorMappingSource;
+  span: SpanEvaluatorMappingSource;
+};
+
+export type EvaluatorMappingSource<
+  TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain,
+> = EvaluatorMappingSourceByGrain[TGrain];
+
+export type EvaluatorMappingSourceField = keyof DatasetEvaluatorMappingSource;
