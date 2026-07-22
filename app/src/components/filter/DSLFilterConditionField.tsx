@@ -215,6 +215,7 @@ export function DSLFilterConditionField<
     className,
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const hasValidated = useRef<boolean>(false);
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -352,7 +353,12 @@ export function DSLFilterConditionField<
     onValidationStateChange?.(false);
 
     // Debounce so intermediate keystrokes neither hit the server nor flash
-    // the field red while a valid expression is being typed
+    // the field red while a valid expression is being typed. The first value
+    // was not typed -- it arrives from a URL or a caller's default -- so it is
+    // validated at once, which is also what any consumer waiting on the result
+    // to render is waiting for.
+    const delay = hasValidated.current ? 250 : 0;
+    hasValidated.current = true;
     const timeout = setTimeout(() => {
       validateCondition(value)
         .then((result) => {
@@ -381,7 +387,7 @@ export function DSLFilterConditionField<
           setErrorMessage("The condition could not be validated");
           onValidationStateChange?.(false);
         });
-    }, 250);
+    }, delay);
 
     return () => {
       isCancelled = true;
