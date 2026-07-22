@@ -5,6 +5,7 @@ import type {
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
+import { useSearchParams } from "react-router";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { Button } from "@phoenix/components/core/button";
@@ -20,6 +21,7 @@ import {
   MenuTrigger,
 } from "@phoenix/components/core/menu";
 import { View } from "@phoenix/components/core/view";
+import { CREATE_LLM_EVALUATOR_PARAM } from "@phoenix/constants/searchParams";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import {
   CreateLLMProjectEvaluatorSlideover,
@@ -43,6 +45,26 @@ export const AddProjectEvaluatorMenu = ({
 } & Omit<MenuTriggerProps, "children">) => {
   const [creationMode, setCreationMode] =
     useState<ProjectEvaluatorCreationMode | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const shouldOpenScratchFromUrl =
+    searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
+  // The URL param opens the scratch-create flow; an explicit menu selection
+  // (copy/attach/scratch) is React-state only and takes precedence.
+  const activeCreationMode: ProjectEvaluatorCreationMode | null =
+    creationMode ?? (shouldOpenScratchFromUrl ? { kind: "scratch" } : null);
+  const clearCreationMode = () => {
+    setCreationMode(null);
+    if (shouldOpenScratchFromUrl) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(CREATE_LLM_EVALUATOR_PARAM);
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  };
   return (
     <>
       <MenuTrigger {...props}>
@@ -63,14 +85,14 @@ export const AddProjectEvaluatorMenu = ({
           </Suspense>
         </MenuContainer>
       </MenuTrigger>
-      {creationMode ? (
+      {activeCreationMode ? (
         <CreateLLMProjectEvaluatorSlideover
           isOpen
           onOpenChange={(isOpen) => {
-            if (!isOpen) setCreationMode(null);
+            if (!isOpen) clearCreationMode();
           }}
           projectId={projectId}
-          creationMode={creationMode}
+          creationMode={activeCreationMode}
           updateConnectionIds={updateConnectionIds}
         />
       ) : null}
