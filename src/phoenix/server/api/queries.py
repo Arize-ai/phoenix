@@ -1692,6 +1692,7 @@ class Query:
     def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
         agent_assistant_enabled = info.context.settings.agent_assistant_enabled
         trace_recording = info.context.settings.agent_trace_recording
+        session_retention = info.context.settings.agent_session_retention
         force_tracing = get_env_phoenix_agents_force_tracing()
         return AgentsConfig(
             collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
@@ -1701,6 +1702,8 @@ class Query:
             assistant_enabled=agent_assistant_enabled.enabled,
             allow_local_traces=force_tracing or trace_recording.allow_local_traces,
             allow_remote_export=force_tracing or trace_recording.allow_remote_export,
+            session_retention_max_idle_days=session_retention.max_idle_days or None,
+            session_retention_max_count_per_user=session_retention.max_count_per_user or None,
         )
 
     @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore

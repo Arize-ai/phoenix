@@ -66,6 +66,8 @@ describe("AgentChatTopNavButton", () => {
               assistantEnabled: true,
               allowLocalTraces: true,
               allowRemoteExport: false,
+              sessionRetentionMaxIdleDays: 30,
+              sessionRetentionMaxCountPerUser: null,
             }}
           >
             <AgentStoreCapture />
