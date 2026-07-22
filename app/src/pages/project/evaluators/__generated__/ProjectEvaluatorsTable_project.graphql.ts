@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<35f0223db375ae6dd955e8b46be63be4>>
+ * @generated SignedSource<<b7a274c58f4ac0f0a03cdac78c7a6308>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,28 +9,13 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_project$data = {
   readonly evaluators: {
     readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly enabled: boolean;
-        readonly evaluationTarget: EvaluationTarget;
-        readonly evaluator: {
-          readonly description: string | null;
-          readonly inputMapping?: {
-            readonly literalMapping: any;
-            readonly pathMapping: any;
-          };
-          readonly kind: EvaluatorKind;
-        };
-        readonly filterCondition: string;
-        readonly id: string;
-        readonly name: string;
-        readonly samplingRate: number;
+        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_row">;
       };
     }>;
   };
@@ -123,98 +108,106 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
                 {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "evaluationTarget",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "filterCondition",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "samplingRate",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "enabled",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": null,
-                  "kind": "LinkedField",
-                  "name": "evaluator",
-                  "plural": false,
+                  "kind": "InlineDataFragmentSpread",
+                  "name": "ProjectEvaluatorsTable_row",
                   "selections": [
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "kind",
+                      "name": "name",
                       "storageKey": null
                     },
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "description",
+                      "name": "evaluationTarget",
                       "storageKey": null
                     },
                     {
-                      "kind": "InlineFragment",
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "filterCondition",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "samplingRate",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "enabled",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "evaluator",
+                      "plural": false,
                       "selections": [
                         {
                           "alias": null,
                           "args": null,
-                          "concreteType": "EvaluatorInputMapping",
-                          "kind": "LinkedField",
-                          "name": "inputMapping",
-                          "plural": false,
+                          "kind": "ScalarField",
+                          "name": "kind",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "description",
+                          "storageKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
                           "selections": [
                             {
                               "alias": null,
                               "args": null,
-                              "kind": "ScalarField",
-                              "name": "pathMapping",
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "literalMapping",
+                              "concreteType": "EvaluatorInputMapping",
+                              "kind": "LinkedField",
+                              "name": "inputMapping",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "pathMapping",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "literalMapping",
+                                  "storageKey": null
+                                }
+                              ],
                               "storageKey": null
                             }
                           ],
-                          "storageKey": null
+                          "type": "CodeEvaluator",
+                          "abstractKey": null
                         }
                       ],
-                      "type": "CodeEvaluator",
-                      "abstractKey": null
+                      "storageKey": null
                     }
                   ],
-                  "storageKey": null
+                  "args": null,
+                  "argumentDefinitions": []
                 },
                 {
                   "alias": null,
@@ -283,6 +276,6 @@ return {
 };
 })();
 
-(node as any).hash = "0a95022b3e83ae220bc6fe5ae5b9de8f";
+(node as any).hash = "4b0944cb803dcaf75ca4f51ca964e4e7";
 
 export default node;
