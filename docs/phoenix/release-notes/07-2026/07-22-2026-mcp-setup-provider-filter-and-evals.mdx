@@ -39,6 +39,8 @@ provides copy-paste connection instructions for each client. As of arize-phoenix
 client list also includes **Antigravity** and **OpenCode** alongside Claude Code, Claude Desktop,
 Codex, Cursor, and VS Code.
 
+![The Settings MCP tab showing the server URL, enablement status, the px setup mcp quick-start command, and per-client connection instructions](https://storage.googleapis.com/arize-phoenix-assets/pull-requests/14619-mcp-settings-tab.png)
+
 <CardGroup cols={2}>
   <Card title="Remote MCP Server" icon="plug" href="/docs/phoenix/integrations/remote-mcp">
     Connect Claude Code, Cursor, and other MCP clients to your Phoenix instance
@@ -57,6 +59,10 @@ credential store — so you no longer scroll past providers you can't invoke. Cu
 have added appear automatically. If no provider has been provisioned yet, the picker falls back to
 the flagship providers (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, and Google) so it is never
 empty.
+
+Two Playground defaults also changed in this window: new sessions now default to OpenAI's
+`gpt-5.6-sol`, and OpenAI models default to the **Responses API** (assumed whenever a prompt does
+not specify otherwise).
 
 # User Friction Evaluator
 
