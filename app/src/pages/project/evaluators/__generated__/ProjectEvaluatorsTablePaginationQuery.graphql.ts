@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<12b9caa5fe06a2b0a80ca12ef664380e>>
+ * @generated SignedSource<<f08f1135001b76c6f55b6aa1907b1934>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -198,6 +198,45 @@ return {
                                 "name": "kind",
                                 "storageKey": null
                               },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "description",
+                                "storageKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "EvaluatorInputMapping",
+                                    "kind": "LinkedField",
+                                    "name": "inputMapping",
+                                    "plural": false,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "pathMapping",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "literalMapping",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "CodeEvaluator",
+                                "abstractKey": null
+                              },
                               (v4/*: any*/)
                             ],
                             "storageKey": null
@@ -275,16 +314,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "581a83a5bc4a93e7dd6fa5081067dde8",
+    "cacheID": "51c6985e20bf038fa4b58a319359436f",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_2HEEH6\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_2HEEH6 on Project {\n  evaluators(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        evaluationTarget\n        filterCondition\n        samplingRate\n        enabled\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_2HEEH6\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_2HEEH6 on Project {\n  evaluators(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        evaluationTarget\n        filterCondition\n        samplingRate\n        enabled\n        evaluator {\n          __typename\n          kind\n          description\n          ... on CodeEvaluator {\n            inputMapping {\n              pathMapping\n              literalMapping\n            }\n          }\n          id\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d3ceaaf22b0b6205ae3c711c0dc5529c";
+(node as any).hash = "0a95022b3e83ae220bc6fe5ae5b9de8f";
 
 export default node;
