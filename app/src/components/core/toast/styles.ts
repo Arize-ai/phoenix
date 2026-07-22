@@ -189,31 +189,4 @@ export const toastCSS = css`
       color: var(--toast-color);
     }
   }
-
-  .react-aria-Button[slot="close"] {
-    flex: 0 0 auto;
-    background: none;
-    border: none;
-    appearance: none;
-    border-radius: 50%;
-    height: 18px;
-    width: 18px;
-    border: none;
-    color: var(--toast-color);
-    padding: 0;
-    outline: none;
-
-    &[data-focus-visible] {
-      border: 1px solid var(--global-input-field-border-color-active);
-      background: var(--toast-background-color);
-    }
-
-    &[data-hovered] {
-      background: var(--toast-background-color);
-    }
-
-    &[data-pressed] {
-      background: var(--toast-background-color);
-    }
-  }
 `;
