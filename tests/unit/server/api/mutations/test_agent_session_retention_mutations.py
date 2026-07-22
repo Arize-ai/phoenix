@@ -33,20 +33,20 @@ async def test_mutation_persists_and_query_reflects_write(
 ) -> None:
     """Full GraphQL round-trip: mutation -> _set UPSERT -> cache -> query."""
     variables: dict[str, Any] = {
-        "input": {"maxIdleDays": 7.5, "maxCountPerUser": 200},
+        "input": {"maxIdleDays": 7, "maxCountPerUser": 200},
     }
     result = await gql_client.execute(_SET_RETENTION_MUTATION, variables)
     assert not result.errors
     assert result.data is not None
     out = result.data["setAgentSessionRetention"]
-    assert out["maxIdleDays"] == 7.5
+    assert out["maxIdleDays"] == 7
     assert out["maxCountPerUser"] == 200
 
     q = await gql_client.execute(_RETENTION_QUERY, {})
     assert not q.errors
     assert q.data is not None
     config = q.data["agentsConfig"]
-    assert config["sessionRetentionMaxIdleDays"] == 7.5
+    assert config["sessionRetentionMaxIdleDays"] == 7
     assert config["sessionRetentionMaxCountPerUser"] == 200
 
 
@@ -68,7 +68,7 @@ async def test_mutation_disables_omitted_retention_dimensions(
 ) -> None:
     initial = await gql_client.execute(
         _SET_RETENTION_MUTATION,
-        {"input": {"maxIdleDays": 7.5, "maxCountPerUser": 200}},
+        {"input": {"maxIdleDays": 7, "maxCountPerUser": 200}},
     )
     assert not initial.errors
 

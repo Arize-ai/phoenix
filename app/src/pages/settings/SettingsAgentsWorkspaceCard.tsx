@@ -2,8 +2,10 @@ import { css } from "@emotion/react";
 import { graphql, useMutation } from "react-relay";
 
 import { Flex, Input, NumberField, Switch, Text } from "@phoenix/components";
+import { useNotifyError } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation } from "./__generated__/SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation.graphql";
 import type { SettingsAgentsWorkspaceCardSetSessionRetentionMutation } from "./__generated__/SettingsAgentsWorkspaceCardSetSessionRetentionMutation.graphql";
@@ -12,7 +14,7 @@ import type { SettingsAgentsWorkspaceCardSetTraceRecordingMutation } from "./__g
 /**
  * Values restored when an admin re-enables a retention rule that was off
  */
-const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 30;
+const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 7;
 const DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER = 30;
 
 const settingsListCSS = css`
@@ -92,6 +94,7 @@ export function SettingsAgentsAdminSettingsSection() {
     (state) => state.agentsConfig.sessionRetentionMaxCountPerUser
   );
   const store = useAgentStore();
+  const notifyError = useNotifyError();
 
   const [setAgentAssistantEnabled, isUpdatingEnabled] =
     useMutation<SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation>(graphql`
@@ -139,6 +142,13 @@ export function SettingsAgentsAdminSettingsSection() {
           assistantEnabled: response.setAgentAssistantEnabled.enabled,
         });
       },
+      onError: (error) => {
+        const messages = getErrorMessagesFromRelayMutationError(error);
+        notifyError({
+          title: "Failed to update assistant access",
+          message: messages?.[0] ?? error.message,
+        });
+      },
     });
   };
 
@@ -154,6 +164,13 @@ export function SettingsAgentsAdminSettingsSection() {
       patch.maxCountPerUser !== undefined
         ? patch.maxCountPerUser
         : sessionRetentionMaxCountPerUser;
+    // Apply optimistically: the controlled switch and number input would
+    // otherwise display the old values until the mutation round-trip
+    // completes. Reverted in onError.
+    store.getState().setAgentsConfig({
+      sessionRetentionMaxIdleDays: maxIdleDays,
+      sessionRetentionMaxCountPerUser: maxCountPerUser,
+    });
     setSessionRetention({
       variables: {
         input: {
@@ -167,6 +184,17 @@ export function SettingsAgentsAdminSettingsSection() {
             response.setAgentSessionRetention.maxIdleDays,
           sessionRetentionMaxCountPerUser:
             response.setAgentSessionRetention.maxCountPerUser,
+        });
+      },
+      onError: (error) => {
+        store.getState().setAgentsConfig({
+          sessionRetentionMaxIdleDays,
+          sessionRetentionMaxCountPerUser,
+        });
+        const messages = getErrorMessagesFromRelayMutationError(error);
+        notifyError({
+          title: "Failed to update chat retention",
+          message: messages?.[0] ?? error.message,
         });
       },
     });
@@ -189,6 +217,13 @@ export function SettingsAgentsAdminSettingsSection() {
         store.getState().setAgentsConfig({
           allowLocalTraces: response.setAgentTraceRecording.allowLocalTraces,
           allowRemoteExport: response.setAgentTraceRecording.allowRemoteExport,
+        });
+      },
+      onError: (error) => {
+        const messages = getErrorMessagesFromRelayMutationError(error);
+        notifyError({
+          title: "Failed to update trace recording",
+          message: messages?.[0] ?? error.message,
         });
       },
     });
@@ -242,7 +277,7 @@ export function SettingsAgentsAdminSettingsSection() {
         <li css={settingRowCSS}>
           <AdminRetentionSetting
             label="Delete idle chats"
-            description="Deletes each user's saved chats after this many days without activity. Temporary chats are unaffected."
+            description="Deletes each user's saved chats after the specified number of days without activity."
             valueLabel="Days of inactivity before deletion"
             unit="days"
             value={sessionRetentionMaxIdleDays}
@@ -256,7 +291,7 @@ export function SettingsAgentsAdminSettingsSection() {
         <li css={settingRowCSS}>
           <AdminRetentionSetting
             label="Limit saved chats per user"
-            description="Keeps only each user's most recent saved chats; older chats beyond the limit are deleted."
+            description="Keeps each user's saved chats under the specified limit; the least recently used chats are deleted on an hourly cadence."
             valueLabel="Maximum saved chats per user"
             unit="chats"
             value={sessionRetentionMaxCountPerUser}
@@ -316,6 +351,7 @@ function AdminRetentionSetting({
             aria-label={valueLabel}
             value={value}
             minValue={1}
+            formatOptions={{ maximumFractionDigits: 0 }}
             onChange={(nextValue) => {
               if (Number.isFinite(nextValue) && nextValue > 0) {
                 onChange(nextValue);

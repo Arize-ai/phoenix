@@ -63,16 +63,16 @@ async def test_update_agent_session_retention_persists_and_updates_cache(
     await settings.bootstrap()
 
     await settings.update_agent_session_retention(
-        AgentSessionRetentionSetting(max_idle_days=7.5, max_count_per_user=200),
+        AgentSessionRetentionSetting(max_idle_days=7, max_count_per_user=200),
         user_id=None,
     )
-    assert settings.agent_session_retention.max_idle_days == 7.5
+    assert settings.agent_session_retention.max_idle_days == 7
     assert settings.agent_session_retention.max_count_per_user == 200
 
     async with db() as session:
         row = await session.get(models.SystemSetting, "agent.assistant.session_retention")
         assert row is not None
-        assert row.value == {"max_idle_days": 7.5, "max_count_per_user": 200}
+        assert row.value == {"max_idle_days": 7, "max_count_per_user": 200}
 
 
 def test_agent_session_retention_setting_rejects_negative_values() -> None:

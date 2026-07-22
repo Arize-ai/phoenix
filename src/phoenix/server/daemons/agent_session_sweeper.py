@@ -53,7 +53,7 @@ class AgentSessionSweeper(DaemonTask):
         if num_deleted:
             logger.info("Deleted %d expired agent session(s).", num_deleted)
 
-    async def _delete_idle_persisted_sessions(self, max_idle_days: float) -> None:
+    async def _delete_idle_persisted_sessions(self, max_idle_days: int) -> None:
         cutoff = datetime.now(timezone.utc) - timedelta(days=max_idle_days)
         stmt = (
             sa.delete(models.AgentSession)

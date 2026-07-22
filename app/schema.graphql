@@ -116,7 +116,7 @@ type AgentSessionEdge {
 }
 
 type AgentSessionRetention {
-  maxIdleDays: Float
+  maxIdleDays: Int
   maxCountPerUser: Int
 }
 
@@ -177,7 +177,7 @@ type AgentsConfig {
   """
   Number of idle days after which agent sessions are deleted. Null means idle sessions are never deleted.
   """
-  sessionRetentionMaxIdleDays: Float
+  sessionRetentionMaxIdleDays: Int
 
   """
   Maximum number of agent sessions kept per user; the most recently active sessions are retained. Null means no cap.
@@ -3920,7 +3920,7 @@ input SetAgentSessionRetentionInput {
   """
   Delete persisted sessions idle longer than this many days. Omit to disable idle-based deletion.
   """
-  maxIdleDays: Float
+  maxIdleDays: Int
 
   """
   Keep only the newest N persisted sessions per user. Omit to disable the per-user count limit.

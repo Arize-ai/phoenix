@@ -32,7 +32,7 @@ class AgentAssistantEnabled:
 
 @strawberry.type
 class AgentSessionRetention:
-    max_idle_days: float | None
+    max_idle_days: int | None
     max_count_per_user: int | None
 
 
@@ -49,7 +49,7 @@ class SetAgentTraceRecordingInput:
 
 @strawberry.input
 class SetAgentSessionRetentionInput:
-    max_idle_days: float | None = strawberry.field(
+    max_idle_days: int | None = strawberry.field(
         default=strawberry.UNSET,
         description=(
             "Delete persisted sessions idle longer than this many days. "
