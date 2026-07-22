@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a5e3d19ef96ae0e21d8f958643d0e5e4>>
+ * @generated SignedSource<<3bb6a38ef6123d1b72033da7179e308b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -102,20 +101,20 @@ v9 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DeleteSandboxConfigButtonDeleteSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DeleteSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "deleteSandboxConfig",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -141,19 +140,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DeleteSandboxConfigButtonDeleteSandboxConfigMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "DeleteSandboxConfigPayload",
         "kind": "LinkedField",
         "name": "deleteSandboxConfig",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -170,8 +169,8 @@ return {
                 "name": "sandboxBackends",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -186,7 +185,7 @@ return {
                     "name": "dependencyHints",
                     "storageKey": null
                   },
-                  (v5/*: any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -251,8 +250,8 @@ return {
                         "name": "key",
                         "storageKey": null
                       },
-                      (v4/*: any*/),
-                      (v6/*: any*/),
+                      (v4/*:: as any*/),
+                      (v6/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -274,10 +273,10 @@ return {
                 "name": "sandboxProviders",
                 "plural": true,
                 "selections": [
-                  (v7/*: any*/),
-                  (v3/*: any*/),
-                  (v5/*: any*/),
-                  (v8/*: any*/),
+                  (v7/*:: as any*/),
+                  (v3/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v8/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -286,9 +285,9 @@ return {
                     "name": "configs",
                     "plural": true,
                     "selections": [
-                      (v7/*: any*/),
-                      (v9/*: any*/),
-                      (v6/*: any*/),
+                      (v7/*:: as any*/),
+                      (v9/*:: as any*/),
+                      (v6/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -303,7 +302,7 @@ return {
                         "name": "timeout",
                         "storageKey": null
                       },
-                      (v8/*: any*/),
+                      (v8/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -320,7 +319,7 @@ return {
                             "name": "envVars",
                             "plural": true,
                             "selections": [
-                              (v9/*: any*/),
+                              (v9/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,

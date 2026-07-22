@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2695f31fa5df595fa565a28ba81d799c>>
+ * @generated SignedSource<<626a1ace34bd0224c6ed233b8eb8586b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -99,8 +98,8 @@ return {
         "name": "sandboxBackends",
         "plural": true,
         "selections": [
-          (v0/*: any*/),
-          (v1/*: any*/),
+          (v0/*:: as any*/),
+          (v1/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -115,7 +114,7 @@ return {
             "name": "dependencyHints",
             "storageKey": null
           },
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -180,8 +179,8 @@ return {
                 "name": "key",
                 "storageKey": null
               },
-              (v1/*: any*/),
-              (v3/*: any*/),
+              (v1/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -203,10 +202,10 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v4/*: any*/),
-          (v0/*: any*/),
-          (v2/*: any*/),
-          (v5/*: any*/),
+          (v4/*:: as any*/),
+          (v0/*:: as any*/),
+          (v2/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -215,9 +214,9 @@ return {
             "name": "configs",
             "plural": true,
             "selections": [
-              (v4/*: any*/),
-              (v6/*: any*/),
-              (v3/*: any*/),
+              (v4/*:: as any*/),
+              (v6/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -232,7 +231,7 @@ return {
                 "name": "timeout",
                 "storageKey": null
               },
-              (v5/*: any*/),
+              (v5/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -249,7 +248,7 @@ return {
                     "name": "envVars",
                     "plural": true,
                     "selections": [
-                      (v6/*: any*/),
+                      (v6/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,

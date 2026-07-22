@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e148f79395b7c41e25553f584258ae44>>
+ * @generated SignedSource<<a31b03d280e811591757ee848e2608c6>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -225,8 +224,8 @@ v8 = {
 v9 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*: any*/),
-    (v8/*: any*/),
+    (v4/*:: as any*/),
+    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -273,10 +272,10 @@ v11 = {
 v12 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*: any*/),
-    (v8/*: any*/),
-    (v10/*: any*/),
-    (v11/*: any*/)
+    (v4/*:: as any*/),
+    (v8/*:: as any*/),
+    (v10/*:: as any*/),
+    (v11/*:: as any*/)
   ],
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
@@ -284,8 +283,8 @@ v12 = {
 v13 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*: any*/),
-    (v8/*: any*/),
+    (v4/*:: as any*/),
+    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -293,8 +292,8 @@ v13 = {
       "name": "threshold",
       "storageKey": null
     },
-    (v10/*: any*/),
-    (v11/*: any*/)
+    (v10/*:: as any*/),
+    (v11/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
@@ -307,10 +306,10 @@ v14 = {
   "name": "outputConfigs",
   "plural": true,
   "selections": [
-    (v7/*: any*/),
-    (v9/*: any*/),
-    (v12/*: any*/),
-    (v13/*: any*/)
+    (v7/*:: as any*/),
+    (v9/*:: as any*/),
+    (v12/*:: as any*/),
+    (v13/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -329,7 +328,7 @@ v16 = {
   "storageKey": null
 },
 v17 = [
-  (v2/*: any*/)
+  (v2/*:: as any*/)
 ],
 v18 = {
   "alias": null,
@@ -338,7 +337,7 @@ v18 = {
   "kind": "LinkedField",
   "name": "sandboxConfig",
   "plural": false,
-  "selections": (v17/*: any*/),
+  "selections": (v17/*:: as any*/),
   "storageKey": null
 },
 v19 = {
@@ -377,10 +376,10 @@ v23 = {
   "name": "configs",
   "plural": true,
   "selections": [
-    (v2/*: any*/),
-    (v4/*: any*/),
-    (v5/*: any*/),
-    (v16/*: any*/),
+    (v2/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v16/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -404,7 +403,7 @@ v23 = {
           "name": "envVars",
           "plural": true,
           "selections": [
-            (v4/*: any*/),
+            (v4/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -465,7 +464,7 @@ v24 = {
   "name": "sandboxBackends",
   "plural": true,
   "selections": [
-    (v20/*: any*/),
+    (v20/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -505,13 +504,13 @@ v25 = {
   "name": "outputConfigs",
   "plural": true,
   "selections": [
-    (v7/*: any*/),
-    (v9/*: any*/),
-    (v12/*: any*/),
-    (v13/*: any*/),
+    (v7/*:: as any*/),
+    (v9/*:: as any*/),
+    (v12/*:: as any*/),
+    (v13/*:: as any*/),
     {
       "kind": "InlineFragment",
-      "selections": (v17/*: any*/),
+      "selections": (v17/*:: as any*/),
       "type": "Node",
       "abstractKey": "__isNode"
     }
@@ -520,36 +519,36 @@ v25 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "DatasetEvaluator",
                 "kind": "LinkedField",
                 "name": "datasetEvaluator",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
-                  (v14/*: any*/),
+                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v14/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -558,16 +557,16 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
-                      (v15/*: any*/),
+                      (v2/*:: as any*/),
+                      (v15/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v4/*: any*/),
-                          (v5/*: any*/),
-                          (v16/*: any*/),
-                          (v18/*: any*/),
-                          (v14/*: any*/),
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v18/*:: as any*/),
+                          (v14/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -576,7 +575,7 @@ return {
                             "name": "currentVersion",
                             "plural": false,
                             "selections": [
-                              (v19/*: any*/)
+                              (v19/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -605,50 +604,50 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v20/*: any*/),
-          (v21/*: any*/),
-          (v22/*: any*/),
-          (v23/*: any*/)
+          (v20/*:: as any*/),
+          (v21/*:: as any*/),
+          (v22/*:: as any*/),
+          (v23/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v24/*: any*/)
+      (v24/*:: as any*/)
     ],
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*: any*/),
-          (v2/*: any*/),
+          (v7/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "DatasetEvaluator",
                 "kind": "LinkedField",
                 "name": "datasetEvaluator",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
-                  (v25/*: any*/),
+                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v25/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -657,17 +656,17 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v7/*: any*/),
-                      (v2/*: any*/),
-                      (v15/*: any*/),
+                      (v7/*:: as any*/),
+                      (v2/*:: as any*/),
+                      (v15/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v4/*: any*/),
-                          (v5/*: any*/),
-                          (v16/*: any*/),
-                          (v18/*: any*/),
-                          (v25/*: any*/),
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v18/*:: as any*/),
+                          (v25/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -676,8 +675,8 @@ return {
                             "name": "currentVersion",
                             "plural": false,
                             "selections": [
-                              (v19/*: any*/),
-                              (v2/*: any*/)
+                              (v19/*:: as any*/),
+                              (v2/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -706,15 +705,15 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v20/*: any*/),
-          (v21/*: any*/),
-          (v22/*: any*/),
-          (v23/*: any*/),
-          (v2/*: any*/)
+          (v20/*:: as any*/),
+          (v21/*:: as any*/),
+          (v22/*:: as any*/),
+          (v23/*:: as any*/),
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v24/*: any*/)
+      (v24/*:: as any*/)
     ]
   },
   "params": {

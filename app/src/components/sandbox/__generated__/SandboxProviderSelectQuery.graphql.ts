@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a6b5e4cc3300e61a2ff70f7549ed9568>>
+ * @generated SignedSource<<060a3d494c8abbb272371f92949988e6>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -50,7 +49,7 @@ v1 = [
     "name": "sandboxBackends",
     "plural": true,
     "selections": [
-      (v0/*: any*/),
+      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -90,7 +89,7 @@ v1 = [
         "name": "id",
         "storageKey": null
       },
-      (v0/*: any*/),
+      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -115,7 +114,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "SandboxProviderSelectQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -124,7 +123,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "SandboxProviderSelectQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "42d29259e4b238dcb302735225ba153d",

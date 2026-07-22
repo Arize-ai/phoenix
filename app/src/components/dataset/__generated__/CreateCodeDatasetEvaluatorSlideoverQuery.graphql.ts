@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<dd03062a3c5ea7f59ab58680d4dc3dac>>
+ * @generated SignedSource<<9fb57100629c78ea18b273f7c6659b8f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -97,8 +96,8 @@ v5 = {
   "name": "configs",
   "plural": true,
   "selections": [
-    (v3/*: any*/),
-    (v4/*: any*/),
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -136,7 +135,7 @@ v5 = {
           "name": "envVars",
           "plural": true,
           "selections": [
-            (v4/*: any*/),
+            (v4/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -197,7 +196,7 @@ v6 = {
   "name": "sandboxBackends",
   "plural": true,
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -244,14 +243,14 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v0/*: any*/),
-          (v1/*: any*/),
-          (v2/*: any*/),
-          (v5/*: any*/)
+          (v0/*:: as any*/),
+          (v1/*:: as any*/),
+          (v2/*:: as any*/),
+          (v5/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v6/*: any*/)
+      (v6/*:: as any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -270,15 +269,15 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v0/*: any*/),
-          (v1/*: any*/),
-          (v2/*: any*/),
-          (v5/*: any*/),
-          (v3/*: any*/)
+          (v0/*:: as any*/),
+          (v1/*:: as any*/),
+          (v2/*:: as any*/),
+          (v5/*:: as any*/),
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       },
-      (v6/*: any*/)
+      (v6/*:: as any*/)
     ]
   },
   "params": {
