@@ -156,28 +156,27 @@ export function SettingsAgentsAdminSettingsSection() {
     maxIdleDays?: number | null;
     maxCountPerUser?: number | null;
   }) => {
-    const maxIdleDays =
-      patch.maxIdleDays !== undefined
-        ? patch.maxIdleDays
-        : sessionRetentionMaxIdleDays;
-    const maxCountPerUser =
-      patch.maxCountPerUser !== undefined
-        ? patch.maxCountPerUser
-        : sessionRetentionMaxCountPerUser;
+    const input = {
+      ...(patch.maxIdleDays !== undefined && {
+        maxIdleDays: patch.maxIdleDays,
+      }),
+      ...(patch.maxCountPerUser !== undefined && {
+        maxCountPerUser: patch.maxCountPerUser,
+      }),
+    };
     // Apply optimistically: the controlled switch and number input would
     // otherwise display the old values until the mutation round-trip
     // completes. Reverted in onError.
     store.getState().setAgentsConfig({
-      sessionRetentionMaxIdleDays: maxIdleDays,
-      sessionRetentionMaxCountPerUser: maxCountPerUser,
+      ...(patch.maxIdleDays !== undefined && {
+        sessionRetentionMaxIdleDays: patch.maxIdleDays,
+      }),
+      ...(patch.maxCountPerUser !== undefined && {
+        sessionRetentionMaxCountPerUser: patch.maxCountPerUser,
+      }),
     });
     setSessionRetention({
-      variables: {
-        input: {
-          maxIdleDays,
-          maxCountPerUser,
-        },
-      },
+      variables: { input },
       onCompleted: (response) => {
         store.getState().setAgentsConfig({
           sessionRetentionMaxIdleDays:
@@ -188,8 +187,12 @@ export function SettingsAgentsAdminSettingsSection() {
       },
       onError: (error) => {
         store.getState().setAgentsConfig({
-          sessionRetentionMaxIdleDays,
-          sessionRetentionMaxCountPerUser,
+          ...(patch.maxIdleDays !== undefined && {
+            sessionRetentionMaxIdleDays,
+          }),
+          ...(patch.maxCountPerUser !== undefined && {
+            sessionRetentionMaxCountPerUser,
+          }),
         });
         const messages = getErrorMessagesFromRelayMutationError(error);
         notifyError({

@@ -1198,7 +1198,7 @@ async def _refresh_and_load_agent_session(
     agent_session_id: str,
     user_id: int | None,
 ) -> models.AgentSession:
-    """Load an owner-qualified session for a chat turn, refreshing its expiry."""
+    """Load an owner-qualified session for a chat turn, marking it active."""
     try:
         agent_session_rowid = from_global_id_with_expected_type(
             GlobalID.from_id(agent_session_id),
@@ -1225,7 +1225,18 @@ async def _refresh_and_load_agent_session(
     if loaded_agent_session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     if loaded_agent_session.expires_at is None:
-        return loaded_agent_session
+        refreshed_agent_session = await session.scalar(
+            update(models.AgentSession)
+            .where(
+                models.AgentSession.id == agent_session_rowid,
+                models.AgentSession.expires_at.is_(None),
+            )
+            .values(updated_at=func.now())
+            .returning(models.AgentSession)
+        )
+        if refreshed_agent_session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return refreshed_agent_session
     refreshed_expiry = now + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
     refreshed_agent_session = await session.scalar(
         update(models.AgentSession)
@@ -1358,6 +1369,11 @@ async def _persist_agent_session_turn(
             title=title or "",
         )
         if updated_agent_session_rowid is None:
+            logger.error(
+                "Agent session %r no longer exists; discarding %d generated message(s). ",
+                str(GlobalID("AgentSession", str(agent_session_rowid))),
+                len(new_messages),
+            )
             return
         next_position = await session.scalar(
             select(func.coalesce(func.max(models.AgentSessionMessage.position), -1) + 1).where(

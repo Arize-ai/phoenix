@@ -53,14 +53,14 @@ class SetAgentSessionRetentionInput:
         default=strawberry.UNSET,
         description=(
             "Delete persisted sessions idle longer than this many days. "
-            "Omit to disable idle-based deletion."
+            "Omit to leave unchanged; set null to disable idle-based deletion."
         ),
     )
     max_count_per_user: int | None = strawberry.field(
         default=strawberry.UNSET,
         description=(
             "Keep only the newest N persisted sessions per user. "
-            "Omit to disable the per-user count limit."
+            "Omit to leave unchanged; set null to disable the per-user count limit."
         ),
     )
 
@@ -111,14 +111,20 @@ class SystemSettingsMutationMixin:
         info: Info[Context, None],
         input: SetAgentSessionRetentionInput,
     ) -> AgentSessionRetention:
+        current = info.context.settings.agent_session_retention
+
         max_idle_days = input.max_idle_days
-        if max_idle_days is strawberry.UNSET or max_idle_days is None:
+        if max_idle_days is strawberry.UNSET:
+            max_idle_days = current.max_idle_days
+        elif max_idle_days is None:
             max_idle_days = 0
         elif max_idle_days <= 0:
             raise BadRequest("maxIdleDays must be greater than 0 when set")
 
         max_count_per_user = input.max_count_per_user
-        if max_count_per_user is strawberry.UNSET or max_count_per_user is None:
+        if max_count_per_user is strawberry.UNSET:
+            max_count_per_user = current.max_count_per_user
+        elif max_count_per_user is None:
             max_count_per_user = 0
         elif max_count_per_user <= 0:
             raise BadRequest("maxCountPerUser must be greater than 0 when set")

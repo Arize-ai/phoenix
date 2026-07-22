@@ -144,10 +144,11 @@ class TestAgentSessionPersistence:
             assert persisted_expiry is not None
             assert persisted_expiry > before_refresh + timedelta(hours=23)
 
-    async def test_does_not_refresh_a_persistent_session(
+    async def test_marks_a_persistent_session_active_without_granting_expiry(
         self,
         db: DbSessionFactory,
     ) -> None:
+        stale = datetime.now(timezone.utc) - timedelta(days=30)
         async with db() as session:
             persistent = models.AgentSession(
                 project_session_id="44444444-4444-4444-8444-444444444444",
@@ -155,6 +156,8 @@ class TestAgentSessionPersistence:
                 title="",
                 project_name="assistant_agent",
             )
+            persistent.created_at = stale
+            persistent.updated_at = stale
             session.add(persistent)
             await session.flush()
             persistent_rowid = persistent.id
@@ -167,6 +170,18 @@ class TestAgentSessionPersistence:
             )
             assert loaded.id == persistent_rowid
             assert loaded.expires_at is None
+            # The turn-start updated_at bump keeps the retention sweeper from
+            # treating an in-flight turn as idle.
+            assert loaded.updated_at > stale
+
+        async with db() as session:
+            persisted_updated_at = await session.scalar(
+                select(models.AgentSession.updated_at).where(
+                    models.AgentSession.id == persistent_rowid
+                )
+            )
+            assert persisted_updated_at is not None
+            assert persisted_updated_at > stale
 
     async def test_rejects_an_expired_temporary_session(
         self,
