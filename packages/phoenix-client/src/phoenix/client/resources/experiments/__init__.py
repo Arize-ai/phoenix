@@ -40,8 +40,8 @@ from opentelemetry.trace import (
     StatusCode,
     Tracer,
 )
-from opentelemetry.util._decorator import (  # pyright: ignore[reportPrivateUsage]
-    _agnosticcontextmanager,
+from opentelemetry.util._decorator import (
+    _agnosticcontextmanager,  # pyright: ignore[reportPrivateUsage]
 )
 
 from phoenix.client.__generated__ import v1
@@ -168,7 +168,7 @@ _evaluator_provider_mount_count = 0
 
 class _EvaluatorRoutingProvider(trace_api.TracerProvider):
     def __init__(self, evaluator_provider: Any) -> None:
-        self._evaluator_provider = evaluator_provider
+        self.evaluator_provider = evaluator_provider
 
     def get_tracer(
         self,
@@ -199,7 +199,7 @@ class _RoutingTracer(Tracer):
 
     def _delegate(self) -> Tracer:
         if _evaluator_provider_mount_count:
-            provider = self._routing_provider._evaluator_provider
+            provider = self._routing_provider.evaluator_provider
         else:
             provider = trace_api._TRACER_PROVIDER  # pyright: ignore[reportPrivateUsage]
             if provider is None or provider is self._routing_provider:

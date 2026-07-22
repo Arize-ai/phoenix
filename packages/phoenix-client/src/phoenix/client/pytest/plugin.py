@@ -179,18 +179,23 @@ def pytest_collection_modifyitems(
         external_id = stable_external_id(item)
         marker = item.get_closest_marker(MARKER_NAME)
         reps = resolve_repetitions(marker, env_default=cfg.repetitions)
-        marker_kwargs = marker.kwargs if marker is not None else {}
-        experiment_metadata = marker_kwargs.get("experiment_metadata")
-        if experiment_metadata is not None and not isinstance(experiment_metadata, Mapping):
+        marker_kwargs: Mapping[str, Any] = marker.kwargs if marker is not None else {}
+        dataset_description: Optional[str] = marker_kwargs.get("dataset_description")
+        experiment_description: Optional[str] = marker_kwargs.get("experiment_description")
+        experiment_metadata_value = marker_kwargs.get("experiment_metadata")
+        if experiment_metadata_value is not None and not isinstance(
+            experiment_metadata_value, Mapping
+        ):
             raise pytest.UsageError("phoenix marker experiment_metadata must be a mapping")
+        experiment_metadata: Optional[Mapping[str, Any]] = experiment_metadata_value
         try:
             state.register_item(
                 item,
                 dataset_name=dataset_name,
                 external_id=external_id,
                 repetitions=reps,
-                dataset_description=marker_kwargs.get("dataset_description"),
-                experiment_description=marker_kwargs.get("experiment_description"),
+                dataset_description=dataset_description,
+                experiment_description=experiment_description,
                 experiment_metadata=(
                     dict(experiment_metadata) if experiment_metadata is not None else None
                 ),
