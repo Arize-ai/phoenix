@@ -237,10 +237,8 @@ export function SpansTable(props: SpansTableProps) {
     (condition: string, selectsRootSpansOnly: boolean | null) => {
       setFilterCondition(condition);
       writeFilterConditionParam(condition);
-      // Arrives on the same response as the validation that applied this
-      // condition, so the column choice costs no request of its own. `null`
-      // means the server did not answer, in which case the previous answer is
-      // kept rather than flipping the columns on a hiccup.
+      // `null` means the server did not answer, in which case the previous
+      // answer is kept rather than flipping the columns on a hiccup.
       if (selectsRootSpansOnly !== null) {
         setRootSpansOnly(selectsRootSpansOnly);
       }

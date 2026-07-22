@@ -261,11 +261,8 @@ type SpanFilterConditionFieldProps = {
    * Callback when the condition is valid.
    *
    * `selectsRootSpansOnly` reports whether the condition restricts the result
-   * set to root spans, which the spans table needs in order to choose between
-   * cumulative and per-span metric columns. It rides along here because it
-   * comes back on the same response as the validation that produced this
-   * callback, so a caller wanting it does not pay for a second round trip.
-   * `null` when the server did not answer.
+   * set to root spans, which decides between cumulative and per-span metric
+   * columns. `null` when the server did not answer.
    */
   onValidCondition: (
     condition: string,

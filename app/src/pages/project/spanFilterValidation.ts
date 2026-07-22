@@ -18,15 +18,9 @@ export type SpanFilterConditionValidation = {
 
 /**
  * Async server-side validation of a span filter condition expression, together
- * with the structural facts a caller needs about that same condition.
- *
- * The two travel together because they are asked at the same moment about the
- * same string. Root-span scoping cannot be read off the condition here — it is
- * a property of the parsed expression, so answering it client-side would mean a
- * second parser for the DSL — but it does not deserve a request of its own
- * either, since validation is already going to the server and does strictly
- * more work on arrival. They stay separate *fields* so either can be asked for
- * alone; selecting both in one document is what keeps it to one round trip.
+ * with the structural facts a caller needs about that same condition. Both are
+ * questions about the parsed expression, so neither can be answered here
+ * without a second parser for the DSL.
  *
  * Lives in its own file (rather than co-located with `SpanFilterConditionField`)
  * so both the field's deferred-validation effect and the
@@ -69,8 +63,7 @@ export async function validateSpanFilterCondition(
     throw new Error("Filter condition validation is null");
   }
   // Both fields are optional on the inline fragment, since `node` need not be a
-  // Project. A missing validation reads as invalid, which is how callers already
-  // treated it before it was given a stricter type.
+  // Project. A missing validation reads as invalid.
   const { project } = validationResult;
   return {
     isValid: project.validateSpanFilterCondition?.isValid ?? false,
