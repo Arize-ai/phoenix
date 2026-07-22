@@ -280,6 +280,20 @@ class Span(Node):
             )
         return SpanContext(trace_id=ID(trace_id), span_id=ID(span_id))
 
+    @strawberry.field
+    async def evaluation_context(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        from phoenix.server.online_eval.executor import span_eval_context
+
+        span = (
+            self.db_record
+            if self.db_record
+            else await info.context.data_loaders.span_by_id.load(self.id)
+        )
+        return JSON(span_eval_context(span))
+
     @strawberry.field(
         description="Span attributes as a JSON string",
     )  # type: ignore

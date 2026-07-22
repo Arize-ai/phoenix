@@ -14,7 +14,10 @@ import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import type { EvaluatorMappingSource } from "@phoenix/types";
+import type {
+  EvaluatorMappingSource,
+  EvaluatorMappingSourceGrain,
+} from "@phoenix/types";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
 /**
@@ -107,7 +110,13 @@ const EvaluatorInputMappingControls = () => {
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+  const evaluatorMappingSourceGrain = useEvaluatorStore(
+    (state) => state.evaluatorMappingSourceGrain
+  );
+  const allExampleKeys = useFlattenedEvaluatorInputKeys({
+    evaluatorMappingSource,
+    evaluatorMappingSourceGrain,
+  });
   // iterate over all keys in the control
   // each row should have a variable, an arrow pointing to the example field, and a select field
   // the variable should be the key, the select field should have all flattened example keys as options
@@ -140,18 +149,28 @@ const EvaluatorInputMappingControls = () => {
   );
 };
 
-export const useFlattenedEvaluatorInputKeys = (
-  evaluatorMappingSource: EvaluatorMappingSource
-) => {
-  return useMemo(() => {
-    const flat = flattenObject({
-      obj: evaluatorMappingSource,
-      keepNonTerminalValues: true,
-      formatIndices: true,
-    });
-    return Object.keys(flat).map((key) => ({
-      id: key,
-      label: key,
-    }));
-  }, [evaluatorMappingSource]);
+export const useFlattenedEvaluatorInputKeys = ({
+  evaluatorMappingSource,
+  evaluatorMappingSourceGrain,
+}: {
+  evaluatorMappingSource: EvaluatorMappingSource;
+  evaluatorMappingSourceGrain: EvaluatorMappingSourceGrain;
+}) => {
+  const mappingSource =
+    evaluatorMappingSourceGrain === "span"
+      ? {
+          input: evaluatorMappingSource.input,
+          output: evaluatorMappingSource.output,
+          metadata: evaluatorMappingSource.metadata,
+        }
+      : evaluatorMappingSource;
+  const flat = flattenObject({
+    obj: mappingSource,
+    keepNonTerminalValues: true,
+    formatIndices: true,
+  });
+  return Object.keys(flat).map((key) => ({
+    id: key,
+    label: key,
+  }));
 };

@@ -18,11 +18,6 @@ const TARGET_LABELS: Record<ProjectEvaluatorTarget, string> = {
   session: "Session",
 };
 
-/**
- * Picks the artifact type a project evaluator runs against. This section is
- * where project-evaluator settings such as sampling rate, filters, and
- * completion behavior will be added later.
- */
 export const ProjectEvaluatorTargetField = ({
   value,
   onChange,
@@ -49,8 +44,9 @@ export const ProjectEvaluatorTargetField = ({
           }}
         >
           {PROJECT_EVALUATOR_TARGETS.map((target) => (
-            <Radio key={target} value={target}>
+            <Radio key={target} value={target} isDisabled={target !== "span"}>
               {TARGET_LABELS[target]}
+              {target !== "span" ? " (coming soon)" : ""}
             </Radio>
           ))}
         </RadioGroup>

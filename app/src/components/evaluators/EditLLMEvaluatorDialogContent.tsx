@@ -25,7 +25,9 @@ export const EditLLMEvaluatorDialogContent = ({
   mode,
   error,
   evaluatorNodeId,
+  title,
   formLeftPanelExtra,
+  formLeftPanel,
   formRightPanel,
 }: {
   onClose: () => void;
@@ -34,10 +36,13 @@ export const EditLLMEvaluatorDialogContent = ({
   mode: "create" | "update";
   error?: string;
   evaluatorNodeId?: string | null;
+  title?: string;
   /**
    * Optional section rendered in the form's left panel below name/description.
    */
   formLeftPanelExtra?: ReactNode;
+  /** Replaces the form's left configuration panel. */
+  formLeftPanel?: ReactNode;
   /**
    * Replaces the form's right (test) panel.
    */
@@ -81,7 +86,8 @@ export const EditLLMEvaluatorDialogContent = ({
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator"}
+          {title ??
+            (mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator")}
         </DialogTitle>
         <DialogTitleExtra>
           <Button slot="close" isDisabled={isSubmitting}>
@@ -132,11 +138,13 @@ export const EditLLMEvaluatorDialogContent = ({
         <LLMEvaluatorInputVariablesProvider>
           <EvaluatorForm
             left={
-              <>
-                <EvaluatorNameAndDescriptionFields />
-                {formLeftPanelExtra}
-                <LLMEvaluatorForm />
-              </>
+              formLeftPanel ?? (
+                <>
+                  <EvaluatorNameAndDescriptionFields />
+                  {formLeftPanelExtra}
+                  <LLMEvaluatorForm />
+                </>
+              )
             }
             right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
           />

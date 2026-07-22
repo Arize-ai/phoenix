@@ -44,12 +44,17 @@ export const ContainsEvaluatorForm = () => {
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
-  const { evaluatorMappingSource } = useEvaluatorStore(
-    useShallow((state) => ({
-      evaluatorMappingSource: state.evaluatorMappingSource,
-    }))
-  );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+  const { evaluatorMappingSource, evaluatorMappingSourceGrain } =
+    useEvaluatorStore(
+      useShallow((state) => ({
+        evaluatorMappingSource: state.evaluatorMappingSource,
+        evaluatorMappingSourceGrain: state.evaluatorMappingSourceGrain,
+      }))
+    );
+  const allExampleKeys = useFlattenedEvaluatorInputKeys({
+    evaluatorMappingSource,
+    evaluatorMappingSourceGrain,
+  });
 
   // Register validator for required SwitchableEvaluatorInput fields.
   // Triggering both path and literal names is safe because only the
