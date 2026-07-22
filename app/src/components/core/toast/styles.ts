@@ -148,6 +148,12 @@ export const toastCSS = css`
     outline-offset: 2px;
   }
 
+  [slot="close"][data-hovered],
+  [slot="close"][data-pressed] {
+    background-color: transparent;
+    color: inherit;
+  }
+
   .toast-action-container {
     display: flex;
     align-items: center;
