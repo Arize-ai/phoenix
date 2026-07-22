@@ -110,7 +110,7 @@ from phoenix.server.agents.data_stream_protocol import (
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.prompts import AgentPrompts
+from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
@@ -322,6 +322,7 @@ def _to_pydantic_ai_request_data(
 logger = logging.getLogger(__name__)
 
 _ASSISTANT_AGENT_ID = "assistant"
+_SERVER_AGENT_ID = "server"
 
 
 _AsyncGeneratorType = TypeVar("_AsyncGeneratorType")
@@ -1451,7 +1452,9 @@ async def _build_generated_assistant_message(
         return None
 
 
-def create_agents_router(authentication_enabled: bool) -> APIRouter:
+def create_agents_router(
+    authentication_enabled: bool,
+) -> tuple[APIRouter, Callable[[str, str, Request, ChatRequest], Awaitable[Response]]]:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
@@ -1462,10 +1465,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         request_body: ChatRequest,
     ) -> Response:
-        if agent_id != _ASSISTANT_AGENT_ID:
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
         body = request_body
         request_received_at = datetime.now(timezone.utc)
         attach_user_id = _resolve_attach_user_id(body.attach_user_id)
@@ -1526,18 +1531,20 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     tracer_provider=tracer_provider,
                 )
                 sandbox_availability = SandboxAvailability()
-                if _contexts_need_sandbox_availability(resolved_contexts):
-                    available_backend_types = await _load_available_sandbox_backend_types(
-                        session=session,
-                        decrypt=request.app.state.decrypt,
-                    )
-                    sandbox_availability = await _load_sandbox_availability(
-                        session,
-                        available_backend_types=available_backend_types,
-                    )
                 model_provider_availability = ModelProviderAvailability()
-                if _contexts_need_model_provider_availability(resolved_contexts):
-                    model_provider_availability = _load_model_provider_availability()
+                agent_supports_availability_gate = agent_id == _ASSISTANT_AGENT_ID
+                if agent_supports_availability_gate:
+                    if _contexts_need_sandbox_availability(resolved_contexts):
+                        available_backend_types = await _load_available_sandbox_backend_types(
+                            session=session,
+                            decrypt=request.app.state.decrypt,
+                        )
+                        sandbox_availability = await _load_sandbox_availability(
+                            session,
+                            available_backend_types=available_backend_types,
+                        )
+                    if _contexts_need_model_provider_availability(resolved_contexts):
+                        model_provider_availability = _load_model_provider_availability()
                 phoenix_user_email = await _load_phoenix_user_email(
                     session=session,
                     phoenix_user=phoenix_user,
@@ -1567,13 +1574,35 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
-        server_agent = (
-            build_server_agent(
+        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
+            asyncio.Queue()
+        )
+        final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
+
+        bash_enabled = not get_env_phoenix_agents_disable_bash()
+        bash_snapshot_to_persist: bytes | None = None
+
+        def _capture_bash_snapshot(snapshot: bytes) -> None:
+            nonlocal bash_snapshot_to_persist
+            bash_snapshot_to_persist = snapshot
+
+        agent_prompts = AgentPrompts()
+        forced_skills: list[Skill] = []
+        server_message_id = body.message.id if body.message.role == "assistant" else str(uuid4())
+
+        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] | VercelAIAdapter[None, str]
+        run_agent_stream: Callable[
+            [Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]]],
+            AsyncIterator[BaseChunk],
+        ]
+        if agent_id == _SERVER_AGENT_ID:
+            server_agent = build_server_agent(
                 model=model,
                 schema=request.app.state.graphql_schema,
                 build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
                 db=request.app.state.db,
                 event_queue=request.state.event_queue,
+                prompts=ServerAgentPrompts(base=agent_prompts.base),
                 docs_mcp_server=request.app.state.docs_mcp_server,
                 enable_web_access=web_access_enabled,
                 allow_mutations=graphql_mutations_enabled,
@@ -1582,102 +1611,129 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 user_id=request_user_id,
                 is_viewer=is_viewer,
                 tracer_provider=tracer_provider,
-                enable_subagents=False,
+                enable_subagents=subagents_enabled,
+                initial_bash_snapshot=initial_bash_snapshot,
+                on_bash_snapshot=_capture_bash_snapshot,
             )
-            if subagents_enabled
-            else None
-        )
-        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
-            asyncio.Queue()
-        )
-        final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
-        publish_subagent_message_chunk: (
-            Callable[[ToolOutputAvailableChunk], Awaitable[None]] | None
-        ) = None
-        set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None
+            server_agent_adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
+                agent=server_agent,
+                run_input=_to_pydantic_ai_request_data(body, messages=transcript_messages),
+                accept=request.headers.get("accept"),
+                server_message_id=server_message_id,
+            )
 
-        if server_agent is not None:
+            def _run_server_agent_stream(
+                on_complete: Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]],
+            ) -> AsyncIterator[BaseChunk]:
+                return server_agent_adapter.run_stream(deps=None, on_complete=on_complete)
 
-            async def _publish_subagent_message_chunk(
-                subagent_message_chunk: ToolOutputAvailableChunk,
-            ) -> None:
-                await subagent_message_chunks.put(subagent_message_chunk)
-
-            def _set_subagent_final_tool_output(
-                final_tool_output: ToolOutputAvailableChunk,
-            ) -> None:
-                final_tool_outputs_by_tool_call_id[final_tool_output.tool_call_id] = (
-                    final_tool_output
+            adapter = server_agent_adapter
+            run_agent_stream = _run_server_agent_stream
+        else:
+            subagent = (
+                build_server_agent(
+                    model=model,
+                    schema=request.app.state.graphql_schema,
+                    build_graphql_context=lambda: request.app.state.build_graphql_context(
+                        phoenix_user
+                    ),
+                    db=request.app.state.db,
+                    event_queue=request.state.event_queue,
+                    docs_mcp_server=request.app.state.docs_mcp_server,
+                    enable_web_access=web_access_enabled,
+                    allow_mutations=graphql_mutations_enabled,
+                    read_only=request.app.state.read_only,
+                    auth_enabled=request.app.state.authentication_enabled,
+                    user_id=request_user_id,
+                    is_viewer=is_viewer,
+                    tracer_provider=tracer_provider,
+                    enable_subagents=False,
                 )
-
-            publish_subagent_message_chunk = _publish_subagent_message_chunk
-            set_subagent_final_tool_output = _set_subagent_final_tool_output
-
-        bash_enabled = not get_env_phoenix_agents_disable_bash()
-        captured_bash_snapshot: bytes | None = None
-
-        def _capture_bash_snapshot(snapshot: bytes) -> None:
-            # Held until turn end, then persisted alongside the transcript
-            # in the session's agent_session_snapshots row.
-            nonlocal captured_bash_snapshot
-            captured_bash_snapshot = snapshot
-
-        agent = build_agent(
-            model=model,
-            docs_mcp_server=request.app.state.docs_mcp_server,
-            enable_web_access=web_access_enabled,
-            tracer_provider=tracer_provider,
-            server_agent=server_agent,
-            publish_subagent_message_chunk=publish_subagent_message_chunk,
-            set_subagent_final_tool_output=set_subagent_final_tool_output,
-            db=request.app.state.db,
-            event_queue=request.state.event_queue,
-            read_only=request.app.state.read_only,
-            auth_enabled=request.app.state.authentication_enabled,
-            user_id=request_user_id,
-            is_viewer=is_viewer,
-            schema=request.app.state.graphql_schema if bash_enabled else None,
-            build_graphql_context=(
-                (lambda: request.app.state.build_graphql_context(phoenix_user))
-                if bash_enabled
+                if subagents_enabled
                 else None
-            ),
-            allow_mutations=graphql_mutations_enabled,
-            initial_bash_snapshot=initial_bash_snapshot,
-            on_bash_snapshot=_capture_bash_snapshot,
-        )
-        agent_prompts = AgentPrompts()
-        forced_skills: list[Skill] = []
-        if body.requested_skills:
-            available_skills = get_skills_for_contexts(resolved_contexts)
-            forced_skills = resolve_requested_skills(
-                messages=transcript_messages,
-                requested_skill_names=body.requested_skills,
-                available_skills=available_skills,
             )
-            if forced_skills:
-                transcript_messages = inject_requested_skills(
+            publish_subagent_message_chunk: (
+                Callable[[ToolOutputAvailableChunk], Awaitable[None]] | None
+            ) = None
+            set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None
+
+            if subagent is not None:
+
+                async def _publish_subagent_message_chunk(
+                    subagent_message_chunk: ToolOutputAvailableChunk,
+                ) -> None:
+                    await subagent_message_chunks.put(subagent_message_chunk)
+
+                def _set_subagent_final_tool_output(
+                    final_tool_output: ToolOutputAvailableChunk,
+                ) -> None:
+                    final_tool_outputs_by_tool_call_id[final_tool_output.tool_call_id] = (
+                        final_tool_output
+                    )
+
+                publish_subagent_message_chunk = _publish_subagent_message_chunk
+                set_subagent_final_tool_output = _set_subagent_final_tool_output
+
+            agent = build_agent(
+                model=model,
+                docs_mcp_server=request.app.state.docs_mcp_server,
+                enable_web_access=web_access_enabled,
+                tracer_provider=tracer_provider,
+                server_agent=subagent,
+                publish_subagent_message_chunk=publish_subagent_message_chunk,
+                set_subagent_final_tool_output=set_subagent_final_tool_output,
+                db=request.app.state.db,
+                event_queue=request.state.event_queue,
+                read_only=request.app.state.read_only,
+                auth_enabled=request.app.state.authentication_enabled,
+                user_id=request_user_id,
+                is_viewer=is_viewer,
+                schema=request.app.state.graphql_schema if bash_enabled else None,
+                build_graphql_context=(
+                    (lambda: request.app.state.build_graphql_context(phoenix_user))
+                    if bash_enabled
+                    else None
+                ),
+                allow_mutations=graphql_mutations_enabled,
+                initial_bash_snapshot=initial_bash_snapshot,
+                on_bash_snapshot=_capture_bash_snapshot,
+            )
+            if body.requested_skills:
+                available_skills = get_skills_for_contexts(resolved_contexts)
+                forced_skills = resolve_requested_skills(
                     messages=transcript_messages,
                     requested_skill_names=body.requested_skills,
                     available_skills=available_skills,
-                    load_skill_template=agent_prompts.load_skill,
-                    message_factory=PhoenixUIMessage,
                 )
-        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
-            agent=agent,
-            run_input=_to_pydantic_ai_request_data(body, messages=transcript_messages),
-            accept=request.headers.get("accept"),
-            server_message_id=(
-                body.message.id if body.message.role == "assistant" else str(uuid4())
-            ),
-        )
-        deps = AgentDependencies(
-            contexts=resolved_contexts,
-            edit_permission=body.edit_permission,
-            is_viewer=is_viewer,
-            sandbox_availability=sandbox_availability,
-            model_provider_availability=model_provider_availability,
-        )
+                if forced_skills:
+                    transcript_messages = inject_requested_skills(
+                        messages=transcript_messages,
+                        requested_skill_names=body.requested_skills,
+                        available_skills=available_skills,
+                        load_skill_template=agent_prompts.load_skill,
+                        message_factory=PhoenixUIMessage,
+                    )
+            assistant_adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
+                agent=agent,
+                run_input=_to_pydantic_ai_request_data(body, messages=transcript_messages),
+                accept=request.headers.get("accept"),
+                server_message_id=server_message_id,
+            )
+            deps = AgentDependencies(
+                contexts=resolved_contexts,
+                edit_permission=body.edit_permission,
+                is_viewer=is_viewer,
+                sandbox_availability=sandbox_availability,
+                model_provider_availability=model_provider_availability,
+            )
+
+            def _run_assistant_agent_stream(
+                on_complete: Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]],
+            ) -> AsyncIterator[BaseChunk]:
+                return assistant_adapter.run_stream(deps=deps, on_complete=on_complete)
+
+            adapter = assistant_adapter
+            run_agent_stream = _run_assistant_agent_stream
 
         turn_ids = _resolve_turn_trace_ids(body.turn_trace_context, now=request_received_at)
         parent_context = _turn_parent_context(turn_ids)
@@ -1769,7 +1825,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     agent_session_rowid=agent_session_rowid,
                     user_id=request_user_id,
                     new_messages=turn_messages,
-                    bashkit_snapshot=captured_bash_snapshot,
+                    bashkit_snapshot=bash_snapshot_to_persist,
                     title=session_title,
                 )
                 return TranscriptPersistedChunk(
@@ -1792,7 +1848,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     using_session(session_id=otel_session_id),
                     _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
-                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                    raw_stream = run_agent_stream(_on_complete)
                     assert _is_async_generator(raw_stream)
 
                     async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
@@ -1893,4 +1949,4 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         return adapter.streaming_response(_stream_with_session())
 
-    return router
+    return router, chat

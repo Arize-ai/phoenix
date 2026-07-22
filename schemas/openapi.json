@@ -7960,7 +7960,7 @@
           "chat"
         ],
         "summary": "Run Server Agent",
-        "description": "Stream a chat turn from the GraphQL server agent (deprecated).\n\nDeprecated transcript-in/stream-out contract kept for published CLI\nclients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the\nfull ``messages`` transcript and a self-minted session id, and the\nserver builds a fresh agent per request without persisting anything.\n\nNew clients should create an ``AgentSession`` via the\n``createAgentSession`` GraphQL mutation and POST single-message turns\nto ``/agents/assistant/sessions/{session_id}/chat`` instead.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
+        "description": "Stream a chat turn from the GraphQL server agent (deprecated).\n\nDeprecated transcript-in/stream-out contract kept for published CLI\nclients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the\nfull ``messages`` transcript and a self-minted session id, and the\nserver builds a fresh agent per request without persisting anything.\n\nRequests carrying the new single-``message`` body shape are instead\nserved by the persisted-session chat handler, without the\n``Deprecation`` header.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
         "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
         "deprecated": true,
         "parameters": [
@@ -7979,7 +7979,15 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LegacyChatRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/LegacyChatRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChatRequest"
+                  }
+                ],
+                "title": "Request Body"
               }
             }
           }

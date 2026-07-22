@@ -82,6 +82,10 @@ def _chat_url(agent_session_id: str) -> str:
     return f"/agents/assistant/sessions/{agent_session_id}/chat"
 
 
+def _server_agent_chat_url(agent_session_id: str) -> str:
+    return f"/agents/server/sessions/{agent_session_id}/chat"
+
+
 def _chat_body(
     session_id: str,
     message: dict[str, Any] | None,
@@ -1282,6 +1286,133 @@ async def test_bash_shell_state_persists_across_chat_turns(
         # row in place rather than accumulating rows.
         snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
         assert len(snapshots) == 1
+
+
+async def test_server_agent_chat_turn_persists_session_transcript(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "56565656-5656-4656-8656-565656565656"
+    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+
+    response = await httpx_client.post(
+        _server_agent_chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("What datasets exist?")),
+    )
+    assert response.status_code == 200
+    # The persisted-session contract is not the deprecated one, even though
+    # the URL is shared with the legacy stateless route.
+    assert "deprecation" not in response.headers
+    chunks = _stream_chunks(response.text)
+    chunk_types = {chunk["type"] for chunk in chunks}
+    assert "start" in chunk_types
+    assert "text-delta" in chunk_types
+    assert "data-transcript-persisted" in chunk_types
+
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        agent_session_rowid = agent_session.id
+        messages = await _load_session_messages(session, agent_session_rowid)
+    assert [message["role"] for message in messages] == ["user", "assistant"]
+    assert messages[-1] == await _accumulate_streamed_assistant_message(chunks)
+
+    second_response = await httpx_client.post(
+        _server_agent_chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("And experiments?", message_id="msg-user-2"),
+        ),
+    )
+    assert second_response.status_code == 200
+    async with db() as session:
+        second_turn_messages = await _load_session_messages(session, agent_session_rowid)
+    user_message_ids = [
+        message["id"] for message in second_turn_messages if message["role"] == "user"
+    ]
+    assert user_message_ids == ["msg-user-1", "msg-user-2"]
+    assert len(second_turn_messages) > len(messages)
+
+
+async def test_server_agent_bash_shell_state_persists_across_chat_turns(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mirror of ``test_bash_shell_state_persists_across_chat_turns`` for
+    ``agent_id="server"``: pins the snapshot wiring ``build_server_agent``
+    gained for the session route."""
+    session_id = "57575757-5757-4757-8757-575757575757"
+    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    note_path = "/home/user/workspace/note.txt"
+    _mock_turn_models(
+        monkeypatch,
+        _scripted_model(bash_command=f"echo hello > {note_path}"),
+        _scripted_model(bash_command=f"cat {note_path}"),
+    )
+
+    first_response = await httpx_client.post(
+        _server_agent_chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("write a note")),
+    )
+    assert first_response.status_code == 200
+    async with db() as session:
+        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        assert len(snapshots) == 1
+        assert snapshots[0].bashkit_snapshot
+
+    second_response = await httpx_client.post(
+        _server_agent_chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("read it back", message_id="msg-user-2"),
+        ),
+    )
+    assert second_response.status_code == 200
+    # The second turn's shell was restored from the persisted snapshot, so the
+    # file written in the first turn is still there.
+    bash_outputs = [
+        chunk["output"]
+        for chunk in _stream_chunks(second_response.text)
+        if chunk.get("type") == "tool-output-available" and "output" in chunk
+    ]
+    assert any(output.get("stdout") == "hello\n" for output in bash_outputs)
+
+
+async def test_server_agent_chat_is_forbidden_when_bash_is_disabled(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``PHOENIX_AGENTS_DISABLE_BASH`` turns off the server agent on the
+    session chat route while leaving the assistant agent available."""
+    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "58585858-5858-4858-8858-585858585858"
+    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+
+    server_response = await httpx_client.post(
+        _server_agent_chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("hello")),
+    )
+    assert server_response.status_code == 403
+    assert "Server agent is disabled" in server_response.text
+
+    assistant_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("hello")),
+    )
+    assert assistant_response.status_code == 200
 
 
 # ---------------------------------------------------------------------------
