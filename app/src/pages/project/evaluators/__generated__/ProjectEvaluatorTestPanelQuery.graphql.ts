@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec37656a39e3ae7fac522d7f338c5c66>>
+ * @generated SignedSource<<6f197551b34b4f32b8138fc8ae4a6135>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,9 +9,14 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type TimeRange = {
+  end?: string | null;
+  start?: string | null;
+};
 export type ProjectEvaluatorTestPanelQuery$variables = {
   filterCondition?: string | null;
   projectId: string;
+  timeRange?: TimeRange | null;
 };
 export type ProjectEvaluatorTestPanelQuery$data = {
   readonly project: {
@@ -42,21 +47,26 @@ v1 = {
   "kind": "LocalArgument",
   "name": "projectId"
 },
-v2 = [
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timeRange"
+},
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -79,6 +89,11 @@ v4 = {
             "col": "startTime",
             "dir": "desc"
           }
+        },
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
         }
       ],
       "concreteType": "SpanConnection",
@@ -102,7 +117,7 @@ v4 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v3/*: any*/),
+                (v4/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -134,7 +149,8 @@ return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*: any*/),
-      (v1/*: any*/)
+      (v1/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -142,13 +158,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v2/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -160,14 +176,15 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v1/*: any*/),
-      (v0/*: any*/)
+      (v0/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Operation",
     "name": "ProjectEvaluatorTestPanelQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v2/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -180,24 +197,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
-          (v3/*: any*/)
+          (v5/*: any*/),
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "4055caddb74bea6733bfca0ff5be1291",
+    "cacheID": "f0d1935cebb0410b4fd4cadeb8e65644",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorTestPanelQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorTestPanelQuery(\n  $projectId: ID!\n  $filterCondition: String\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: 5, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition) {\n        edges {\n          span: node {\n            id\n            name\n            evaluationContext\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorTestPanelQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: 5, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            evaluationContext\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "be63f7489de245f4cb30b4feac9bfd4a";
+(node as any).hash = "779b160b1475937321476df34671303e";
 
 export default node;
