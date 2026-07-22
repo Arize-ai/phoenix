@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b2e38581465cad167917586f88e198b1>>
+ * @generated SignedSource<<b9dfc6bc644ad3f0d55a2a21fa980ae2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,61 +9,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type UpdateProjectCodeEvaluatorInput = {
-  description?: string | null;
+export type SetProjectEvaluatorEnabledInput = {
   enabled: boolean;
-  evaluationTarget: EvaluationTarget;
-  evaluatorInputMapping: EvaluatorInputMappingInput;
-  filterCondition: string;
-  inputMapping?: EvaluatorInputMappingInput | null;
-  name: string;
-  outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
   projectEvaluatorId: string;
-  samplingRate: number;
-  sandboxConfigId?: string | null;
-  sourceCode?: string | null;
-};
-export type EvaluatorInputMappingInput = {
-  literalMapping: any;
-  pathMapping: any;
-};
-export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
-};
-export type CategoricalAnnotationConfigInput = {
-  description?: string | null;
-  name: string;
-  optimizationDirection: OptimizationDirection;
-  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
-};
-export type CategoricalAnnotationConfigValueInput = {
-  label: string;
-  score?: number | null;
-};
-export type ContinuousAnnotationConfigInput = {
-  description?: string | null;
-  lowerBound?: number | null;
-  name: string;
-  optimizationDirection: OptimizationDirection;
-  upperBound?: number | null;
-};
-export type FreeformAnnotationConfigInput = {
-  description?: string | null;
-  lowerBound?: number | null;
-  name: string;
-  optimizationDirection?: OptimizationDirection | null;
-  threshold?: number | null;
-  upperBound?: number | null;
 };
 export type ProjectEvaluatorEnabledSwitchMutation$variables = {
-  input: UpdateProjectCodeEvaluatorInput;
+  input: SetProjectEvaluatorEnabledInput;
 };
 export type ProjectEvaluatorEnabledSwitchMutation$data = {
-  readonly updateProjectCodeEvaluator: {
+  readonly setProjectEvaluatorEnabled: {
     readonly evaluator: {
       readonly enabled: boolean;
       readonly id: string;
@@ -95,7 +49,7 @@ v1 = [
     ],
     "concreteType": "ProjectEvaluatorMutationPayload",
     "kind": "LinkedField",
-    "name": "updateProjectCodeEvaluator",
+    "name": "setProjectEvaluatorEnabled",
     "plural": false,
     "selections": [
       {
@@ -145,16 +99,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "a1f76cf7bf7bc73a036b375b209772fb",
+    "cacheID": "eda7eb3c87442902fbec6b033ad5f131",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectEvaluatorEnabledSwitchMutation(\n  $input: UpdateProjectCodeEvaluatorInput!\n) {\n  updateProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      enabled\n    }\n  }\n}\n"
+    "text": "mutation ProjectEvaluatorEnabledSwitchMutation(\n  $input: SetProjectEvaluatorEnabledInput!\n) {\n  setProjectEvaluatorEnabled(input: $input) {\n    evaluator {\n      id\n      enabled\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "65548b983eb17a37d714f5543b1fa729";
+(node as any).hash = "73ce82e589024920957e8533f692f30a";
 
 export default node;

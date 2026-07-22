@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b7a274c58f4ac0f0a03cdac78c7a6308>>
+ * @generated SignedSource<<41526dc293b2b16a61e644b76c74213c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -162,45 +162,6 @@ return {
                           "kind": "ScalarField",
                           "name": "kind",
                           "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "description",
-                          "storageKey": null
-                        },
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "EvaluatorInputMapping",
-                              "kind": "LinkedField",
-                              "name": "inputMapping",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "pathMapping",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "literalMapping",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "CodeEvaluator",
-                          "abstractKey": null
                         }
                       ],
                       "storageKey": null
