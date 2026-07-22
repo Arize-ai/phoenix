@@ -1,9 +1,11 @@
+// resolution-mode lets this CJS-resolved module type-import the ESM-only AI
+// SDK packages; the values are only ever loaded via dynamic import() below.
 import type {
   OpenTelemetry as OpenTelemetryIntegration,
   OpenTelemetryOptions,
-} from "@ai-sdk/otel";
+} from "@ai-sdk/otel" with { "resolution-mode": "import" };
 import { trace, type Tracer } from "@arizeai/phoenix-otel";
-import type { Telemetry } from "ai";
+import type { Telemetry } from "ai" with { "resolution-mode": "import" };
 
 const AI_SDK_TRACER_NAME = "@arizeai/phoenix-client/ai-sdk";
 
