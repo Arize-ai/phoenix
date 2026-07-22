@@ -1316,6 +1316,7 @@
               {
                 "group": "07.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals",
                   "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
                   "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
                   "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
