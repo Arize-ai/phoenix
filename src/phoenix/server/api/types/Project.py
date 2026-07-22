@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
 import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
+from sqlalchemy import Select, and_, case, desc, distinct, exists, false, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
@@ -139,6 +139,58 @@ async def _annotation_name_counts(
     async with info.context.db.read() as session:
         result = (await session.execute(stmt)).all()
     return [AnnotationNameCount(name=name, count=count) for name, count in result]
+
+
+def _apply_project_session_filters(
+    stmt: Select[Any],
+    project_rowid: int,
+    time_range: Optional[TimeRange],
+    filter_io_substring: Optional[str],
+    session_id: Optional[str] = None,
+) -> Select[Any]:
+    """Restrict a ``ProjectSession`` aggregation to the project, time range, and
+    input/output substring filter used by the sessions table.
+
+    The time range uses interval-overlap semantics: a session is included iff
+    [start_time, end_time] intersects [time_range.start, time_range.end), i.e.
+    the session had activity inside the window.
+
+    When ``session_id`` is provided, mirror the ``sessions`` resolver's search
+    semantics: an exact session-ID match wins (ignoring the time range and
+    substring filter); otherwise fall back to the substring/time-range filters,
+    or to no sessions at all when there is no substring to fall back to.
+    """
+    table = models.ProjectSession
+    stmt = stmt.where(table.project_id == project_rowid)
+    conditions = []
+    if time_range:
+        if time_range.start:
+            conditions.append(time_range.start <= table.end_time)
+        if time_range.end:
+            conditions.append(table.start_time < time_range.end)
+    if filter_io_substring:
+        filtered_session_rowids = get_filtered_session_rowids_subquery(
+            session_filter_condition=filter_io_substring,
+            project_rowids=[project_rowid],
+            start_time=time_range.start if time_range else None,
+            end_time=time_range.end if time_range else None,
+        )
+        conditions.append(table.id.in_(filtered_session_rowids))
+    if not session_id:
+        return stmt.where(*conditions)
+    exact_match = exists(
+        select(1).where(
+            table.project_id == project_rowid,
+            table.session_id == session_id,
+        )
+    )
+    fallback = and_(*conditions) if filter_io_substring else false()
+    return stmt.where(
+        or_(
+            and_(exact_match, table.session_id == session_id),
+            and_(~exact_match, fallback),
+        )
+    )
 
 
 @strawberry.type
@@ -526,7 +578,12 @@ class Project(Node):
             has_next_page=has_next_page,
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Sessions in the project. The time range filter uses interval-overlap "
+        "semantics: a session is included iff [startTime, endTime] intersects "
+        "[timeRange.start, timeRange.end), i.e. the session had activity inside the "
+        "window. Long-running sessions therefore appear in every window they overlap."
+    )  # type: ignore
     async def sessions(
         self,
         info: Info[Context, None],
@@ -556,20 +613,12 @@ class Project(Node):
                     data=[],
                     args=ConnectionArgs(),
                 )
-        stmt = select(table).filter_by(project_id=self.id)
-        if time_range:
-            if time_range.start:
-                stmt = stmt.where(time_range.start <= table.start_time)
-            if time_range.end:
-                stmt = stmt.where(table.start_time < time_range.end)
-        if filter_io_substring:
-            filtered_session_rowids = get_filtered_session_rowids_subquery(
-                session_filter_condition=filter_io_substring,
-                project_rowids=[self.id],
-                start_time=time_range.start if time_range else None,
-                end_time=time_range.end if time_range else None,
-            )
-            stmt = stmt.where(table.id.in_(filtered_session_rowids))
+        stmt = _apply_project_session_filters(
+            select(table),
+            project_rowid=self.id,
+            time_range=time_range or None,
+            filter_io_substring=filter_io_substring or None,
+        )
         sort_config: Optional[ProjectSessionSortConfig] = None
         cursor_rowid_column: Any = table.id
         if sort:
@@ -624,6 +673,146 @@ class Project(Node):
             has_previous_page=False,
             has_next_page=has_next_page,
         )
+
+    @strawberry.field(
+        description="Number of sessions in the project, optionally filtered by "
+        "a time range and a substring of the session input/output. An exact "
+        "session-ID match takes precedence over the other filters, mirroring "
+        "the sessions table search."
+    )  # type: ignore
+    async def session_count(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_io_substring: Optional[str] = UNSET,
+        session_id: Optional[str] = UNSET,
+    ) -> int:
+        # When there is no substring / session-ID filter, the count depends only on
+        # the project and time range, so it can be batched across projects through
+        # the record_counts dataloader (this is the projects-list / project-card
+        # path, which would otherwise issue one query per project).
+        if not filter_io_substring and not session_id:
+            return await info.context.data_loaders.record_counts.load(
+                (
+                    "session",
+                    self.id,
+                    time_range or None,
+                    None,
+                    None,
+                ),
+            )
+        stmt = _apply_project_session_filters(
+            select(func.count(models.ProjectSession.id)),
+            project_rowid=self.id,
+            time_range=time_range or None,
+            filter_io_substring=filter_io_substring or None,
+            session_id=session_id or None,
+        )
+        async with info.context.db.read() as session:
+            return await session.scalar(stmt) or 0
+
+    @strawberry.field(
+        description="Average session duration in milliseconds, i.e. the mean of "
+        "end time minus start time across sessions, optionally filtered by a "
+        "time range and a substring of the session input/output. An exact "
+        "session-ID match takes precedence over the other filters, mirroring "
+        "the sessions table search."
+    )  # type: ignore
+    async def average_session_duration_ms(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_io_substring: Optional[str] = UNSET,
+        session_id: Optional[str] = UNSET,
+    ) -> Optional[float]:
+        stmt = _apply_project_session_filters(
+            select(
+                func.avg(
+                    models.LatencyMs(
+                        models.ProjectSession.start_time,
+                        models.ProjectSession.end_time,
+                    )
+                )
+            ),
+            project_rowid=self.id,
+            time_range=time_range or None,
+            filter_io_substring=filter_io_substring or None,
+            session_id=session_id or None,
+        )
+        async with info.context.db.read() as session:
+            average_duration_ms = await session.scalar(stmt)
+        return None if average_duration_ms is None else float(average_duration_ms)
+
+    @strawberry.field(
+        description="Average number of traces (e.g. conversation turns) per "
+        "session, optionally filtered by a time range and a substring of the "
+        "session input/output. An exact session-ID match takes precedence "
+        "over the other filters, mirroring the sessions table search."
+    )  # type: ignore
+    async def average_traces_per_session(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_io_substring: Optional[str] = UNSET,
+        session_id: Optional[str] = UNSET,
+    ) -> Optional[float]:
+        traces_per_session = _apply_project_session_filters(
+            select(func.count(models.Trace.id).label("num_traces"))
+            .select_from(models.ProjectSession)
+            .outerjoin(
+                models.Trace,
+                models.Trace.project_session_rowid == models.ProjectSession.id,
+            )
+            .group_by(models.ProjectSession.id),
+            project_rowid=self.id,
+            time_range=time_range or None,
+            filter_io_substring=filter_io_substring or None,
+            session_id=session_id or None,
+        ).subquery()
+        stmt = select(func.avg(traces_per_session.c.num_traces))
+        async with info.context.db.read() as session:
+            average_num_traces = await session.scalar(stmt)
+        return None if average_num_traces is None else float(average_num_traces)
+
+    @strawberry.field(
+        description="Quantile (e.g. p50, p99) of session duration in "
+        "milliseconds, i.e. end time minus start time, optionally filtered by "
+        "a time range and a substring of the session input/output. An exact "
+        "session-ID match takes precedence over the other filters, mirroring "
+        "the sessions table search."
+    )  # type: ignore
+    async def session_duration_ms_quantile(
+        self,
+        info: Info[Context, None],
+        probability: float,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_io_substring: Optional[str] = UNSET,
+        session_id: Optional[str] = UNSET,
+    ) -> Optional[float]:
+        if not 0 <= probability <= 1:
+            raise BadRequest("Probability must be between 0 and 1 (inclusive)")
+        duration_ms = models.LatencyMs(
+            models.ProjectSession.start_time,
+            models.ProjectSession.end_time,
+        )
+        dialect = info.context.db.dialect
+        quantile: Any
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            quantile = percentile_cont(probability).within_group(duration_ms)
+        elif dialect is SupportedSQLDialect.SQLITE:
+            quantile = func.percentile(duration_ms, probability * 100)
+        else:
+            assert_never(dialect)
+        stmt = _apply_project_session_filters(
+            select(quantile),
+            project_rowid=self.id,
+            time_range=time_range or None,
+            filter_io_substring=filter_io_substring or None,
+            session_id=session_id or None,
+        )
+        async with info.context.db.read() as session:
+            quantile_value = await session.scalar(stmt)
+        return None if quantile_value is None else float(quantile_value)
 
     @strawberry.field(
         description="Names of all available annotations for traces. "
@@ -773,6 +962,7 @@ class Project(Node):
                 time_range or None,
                 filter_condition or None,
                 session_filter_condition or None,
+                None,
                 annotation_name,
             ),
         )
@@ -798,6 +988,50 @@ class Project(Node):
                 time_range or None,
                 filter_condition or None,
                 session_filter_condition or None,
+                None,
+                annotation_name,
+            ),
+        )
+
+    @strawberry.field(
+        description="Summary (score and label fractions) of a session "
+        "annotation across the project's sessions, optionally filtered by a "
+        "time range and a substring of the session input/output. An exact "
+        "session-ID match takes precedence over the other filters, mirroring "
+        "the sessions table search."
+    )  # type: ignore
+    async def session_annotation_summary(
+        self,
+        info: Info[Context, None],
+        annotation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_io_substring: Optional[str] = UNSET,
+        session_id: Optional[str] = UNSET,
+    ) -> Optional[AnnotationSummary]:
+        if session_id:
+            async with info.context.db.read() as session:
+                session_rowid = await session.scalar(
+                    select(models.ProjectSession.id).where(
+                        models.ProjectSession.project_id == self.id,
+                        models.ProjectSession.session_id == session_id,
+                    )
+                )
+            if session_rowid is not None:
+                # Mirror the sessions table: the exact match wins and ignores
+                # the time range and substring filter.
+                return await info.context.data_loaders.annotation_summaries.load(
+                    ("session", self.id, None, None, None, session_rowid, annotation_name),
+                )
+            if not filter_io_substring:
+                return None
+        return await info.context.data_loaders.annotation_summaries.load(
+            (
+                "session",
+                self.id,
+                time_range or None,
+                None,
+                filter_io_substring or None,
+                None,
                 annotation_name,
             ),
         )
@@ -1575,6 +1809,9 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        # Buckets by start_time (a session belongs to exactly one bucket), so unlike the
+        # sessions connection's interval-overlap filter, a long-running session appears
+        # only in the bucket where it started — the two surfaces intentionally differ.
         bucket = date_trunc(
             info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
         )

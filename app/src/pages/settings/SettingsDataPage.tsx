@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
   Modal,
@@ -19,6 +20,7 @@ import {
 } from "@phoenix/components";
 import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
+import type { settingsDataPageLoaderQuery } from "./__generated__/settingsDataPageLoaderQuery.graphql";
 import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
 import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
 import type { SettingsDataLoaderType } from "./settingsDataPageLoader";
@@ -27,14 +29,27 @@ import { settingsDataPageLoaderGql } from "./settingsDataPageLoader";
 export function SettingsDataPage() {
   const loaderData = useLoaderData<SettingsDataLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsDataPageLoaderGql, loaderData);
+  const data = usePreloadedQuery<settingsDataPageLoaderQuery>(
+    settingsDataPageLoaderGql,
+    loaderData
+  );
   return (
     <Card
       title="Retention Policies"
+      titleExtra={
+        <DocumentationHelp topic="dataRetention">
+          Automatically purge project traces by age or trace count on a
+          configurable schedule.
+        </DocumentationHelp>
+      }
       extra={
         <CanManageRetentionPolicy>
           <DialogTrigger>
-            <Button size="S" leadingVisual={<Icon svg={<Icons.Plus />} />}>
+            <Button
+              size="S"
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
+            >
               New Policy
             </Button>
             <ModalOverlay>

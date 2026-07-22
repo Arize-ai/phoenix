@@ -21,7 +21,6 @@
 - [TS: Playground Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-prompt-playground): Test prompt variations in TypeScript
 - [TS: Experiments Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-datasets-and-experiments): Create datasets and run experiments in TypeScript
 - [Get Started Overview](https://arize.com/docs/phoenix/get-started): How tracing, evals, prompts, and experiments fit into one iterative workflow
-- [Quickstarts](https://arize.com/docs/phoenix/quickstart): Jump into tracing, playground, datasets, or evaluation quickstart guides
 
 ## Tracing
 
@@ -87,7 +86,7 @@
 ### Overview
 
 - [LLM Evals](https://arize.com/docs/phoenix/evaluation/llm-evals): LLM-as-judge evaluation with pre-built and custom evaluators
-- [Evals Quickstart](https://arize.com/docs/phoenix/evaluation/evals): Evaluate a dataframe with FaithfulnessEvaluator and CorrectnessEvaluator using arize-phoenix-evals 
+- [Evals Quickstart](https://arize.com/docs/phoenix/evaluation/evals): Evaluate data from your LLM application with arize-phoenix-evals
 
 ### How-to
 
@@ -99,8 +98,8 @@
 - [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): All accepted return shapes, multi-output routing, and explanation field semantics
 - [Batch Evaluations](https://arize.com/docs/phoenix/evaluation/how-to-evals/batch-evaluations): Run evaluations at scale with automatic concurrency
 - [Using Evals with Phoenix](https://arize.com/docs/phoenix/evaluation/how-to-evals/using-evals-with-phoenix): Run evals on traces, datasets, or custom data sources
-- [Executors](https://arize.com/docs/phoenix/evaluation/llm-evals/executors): Speed up evaluation runs with concurrent async executors
-- [Evaluator Traces](https://arize.com/docs/phoenix/evaluation/llm-evals/evaluator-traces): Inspect how each evaluator reached its decision via automatic eval tracing
+- [Executors](https://arize.com/docs/phoenix/evaluation/llm-evals/executors): Speed up large eval runs with concurrent executors in arize-phoenix-evals
+- [Evaluator Traces](https://arize.com/docs/phoenix/evaluation/llm-evals/evaluator-traces): Trace every evaluator run to inspect LLM reasoning and align evals with human judgment
 
 ### Running Evals as Tests
 
@@ -124,7 +123,7 @@
 - [Code Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators): Write custom Python or TypeScript evaluators that Phoenix runs in a managed sandbox
 - [Server Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to server-side evaluator input variables
 - [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool
-- [Server Built-in Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/builtin-evaluators): Label and score experiment outputs with server-side code evaluators — no LLM or API keys required
+- [Server Built-in Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/builtin-evaluators): Label and score experiment outputs server-side with code evaluators — no LLM or API keys required
 
 
 ### Pre-Built Metrics — Individual Pages
@@ -146,6 +145,7 @@
 - [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate whether AI agents correctly process tool results, including error handling, data extraction, and
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks
 - [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Legacy evaluator — detect toxic, harmful, or offensive content in LLM responses
+- [User Friction](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/user-friction): Detect when a user expresses friction or frustration with an assistant's preceding response
 
 - [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check whether a text contains one or more specified words
 - [Correctness](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness): Evaluate whether LLM responses are generally correct and complete using a Phoenix-managed judge model
@@ -168,6 +168,7 @@
 
 ## Datasets & Experiments
 
+- [Datasets & Experiments Quickstart](https://arize.com/docs/phoenix/datasets-and-experiments/quickstart-datasets): Create a dataset and run your first experiment to evaluate and iteratively improve performance
 
 ### Tutorial
 
@@ -178,7 +179,6 @@
 
 ### Datasets
 
-- [Datasets & Experiments Quickstart](https://arize.com/docs/phoenix/datasets-and-experiments/quickstart-datasets): Create a dataset, run a task, and evaluate results end-to-end in Python
 - [Datasets Overview](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets): Understand datasets as versioned collections of examples with inputs and expected outputs
 - [Creating Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets): Build from traces, code, CSV, or curated examples
 - [Updating Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/updating-datasets): Diff and update existing dataset examples using stable IDs with example_id_key
@@ -234,7 +234,21 @@
 ### Developer Tools
 
 - [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Claude Code, Cursor, and AI coding assistant integration
-- [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants to Phoenix via Model Context Protocol
+- [MCP Overview](https://arize.com/docs/phoenix/integrations/mcp): Compare the Phoenix MCP servers and pick one for your data or docs
+- [Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp): Connect MCP clients to the /mcp endpoint built into the Phoenix server (beta, recommended)
+- [Phoenix Docs MCP](https://arize.com/docs/phoenix/integrations/docs-mcp): Let AI assistants search and retrieve the Phoenix documentation in real time
+- [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants to Phoenix via the @arizeai/phoenix-mcp npm package (maintenance mode)
+
+### Coding Agents
+
+- [Claude Code](https://arize.com/docs/phoenix/integrations/coding-agents/claude-code): Trace Claude Code CLI and Agent SDK sessions, tool usage, and token costs in Phoenix
+- [Codex](https://arize.com/docs/phoenix/integrations/coding-agents/codex): Trace OpenAI Codex CLI agent turns, tool calls, and API requests in Phoenix
+- [GitHub Copilot](https://arize.com/docs/phoenix/integrations/coding-agents/copilot): Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix
+- [Cursor](https://arize.com/docs/phoenix/integrations/coding-agents/cursor): Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix
+- [Gemini CLI](https://arize.com/docs/phoenix/integrations/coding-agents/gemini): Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix
+- [Kiro](https://arize.com/docs/phoenix/integrations/coding-agents/kiro): Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix
+- [Oh My Pi](https://arize.com/docs/phoenix/integrations/coding-agents/oh-my-pi): Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs in Phoenix
+- [OpenCode](https://arize.com/docs/phoenix/integrations/coding-agents/opencode): Trace OpenCode terminal coding sessions, model calls, and tool usage in Phoenix
 
 ### LLM Providers
 
@@ -255,6 +269,7 @@
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
+- [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
 
 ### Python Frameworks
@@ -295,6 +310,7 @@
 - [OpenAI Agents SDK (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/openai-agents): Trace @openai/agents runs, handoffs, and guardrails with @arizeai/openinference-instrumentation-openai-agents
 - [TanStack AI Tracing](https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing): Auto-instrument TanStack AI chat, tool calls, and agent loops
 - [Vercel AI SDK Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js): Auto-instrument Vercel AI SDK
+- [Vercel Eve Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/eve-tracing): Trace Vercel Eve filesystem-first agents by registering the @arizeai/openinference-vercel span processor
 
 ### Java Frameworks
 
@@ -358,7 +374,7 @@
 - [CrewAI](https://arize.com/docs/phoenix/integrations/python/crewai): CrewAI is an open-source Python framework for orchestrating role-playing, autonomous AI agents into
 - [DSPy](https://arize.com/docs/phoenix/integrations/python/dspy): DSPy is an open-source Python framework for declaratively programming modular LLM pipelines and automatically
 - [Google ADK](https://arize.com/docs/phoenix/integrations/python/google-adk): Google ADK is a Python SDK for building AI applications with Google's Gemini models and agent framework
-- [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite): >-
+- [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite): Stream traces from Graphite's visual multi-agent LLM workflows into Phoenix
 - [Guardrails AI](https://arize.com/docs/phoenix/integrations/python/guardrails-ai): Guardrails is an open-source Python framework for adding programmable input/output validators to LLM
 - [Haystack](https://arize.com/docs/phoenix/integrations/python/haystack): Haystack is an open-source framework for building scalable semantic search and QA pipelines with document
 - [Hugging Face Smolagents](https://arize.com/docs/phoenix/integrations/python/hugging-face-smolagents): Hugging Face smolagents is a minimalist Python library for building powerful AI agents with simple
@@ -382,6 +398,7 @@
 - [MistralAI](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai): Mistral AI develops open-weight large language models, focusing on efficiency, customization, and
 - [OpenAI](https://arize.com/docs/phoenix/integrations/llm-providers/openai): OpenAI provides state-of-the-art LLMs for natural language understanding and generation
 - [OpenRouter](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): OpenRouter is a platform that connects developers to multiple AI models through a unified API, making it
+- [OrcaRouter](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): OrcaRouter is an OpenAI-compatible AI gateway that routes requests across 200+ models
 - [VertexAI](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai): Vertex AI is a fully managed platform by Google Cloud for building, deploying, and scaling machine learning
 ## Settings
 
@@ -437,11 +454,11 @@
 ### Evaluation
 
 - [LLM as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge): LLM-based evaluation best practices
-- [Evaluators](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluators): Understand the Evaluator abstraction and the Score objects it returns
-- [Eval Data Types](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluation-types): Categorize evaluations by output type — categorical, numeric, and continuous scores
-- [Custom Task Evaluation](https://arize.com/docs/phoenix/evaluation/concepts-evals/building-your-own-evals): Design and customize your own evaluator templates for task-specific quality checks
-- [Evaluating Multi-Agent Systems](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems): Evaluate multi-agent architectures with strategies for routing, coordination, and per-agent scoring
-- [Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Map and transform nested input data into the shape an evaluator's schema expects
+- [Evaluators](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluators): Understand the evaluator abstraction, evaluator types, and the Score object
+- [Eval Data Types](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluation-types): Understand evaluation output types — categorical labels, continuous scores, and more
+- [Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Map and transform nested input data into the shape an evaluator's schema expects
+- [Custom Task Evaluation](https://arize.com/docs/phoenix/evaluation/concepts-evals/building-your-own-evals): Build custom LLM-as-judge eval templates for any task with arize-phoenix-evals
+- [Evaluating Multi-Agent Systems](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems): Evaluate multi-agent architectures with strategies for routing, coordination, and handoffs
 
 ## Resources
 
@@ -500,6 +517,7 @@
 - [Phoenix Evals (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals): Run LLM and code evaluators via @arizeai/phoenix-evals
 - [Phoenix Evals Overview (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview): Install and configure @arizeai/phoenix-evals for TypeScript evaluation workflows
 - [Phoenix Evals Classification (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification): Run classification evaluations with @arizeai/phoenix-evals
+- [Phoenix Evals Classification Metrics (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification-metrics): Compute precision, recall, and F-beta with deterministic code evaluators in @arizeai/phoenix-evals
 - [Phoenix Evals Create Evaluator (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator): Build custom evaluators with @arizeai/phoenix-evals
 - [Phoenix Evals LLM Evaluators (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators): Use LLM-backed evaluators in @arizeai/phoenix-evals
 - [Phoenix Evals Phoenix Integration (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration): Connect @arizeai/phoenix-evals to Phoenix experiments for end-to-end evaluation
@@ -532,6 +550,10 @@
 - [Get An Annotation Configuration By ID Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name): GET /v1/annotation_configs/{config_identifier} — fetch a single annotation config
 - [Update An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration): PUT /v1/annotation_configs/{config_id} — modify an existing config's options or rubric
 - [Delete An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration): DELETE /v1/annotation_configs/{config_id} — remove an annotation config
+- [List Annotation Configs Assigned To A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations-assigned-to-a-project): GET /v1/projects/{project_identifier}/annotation_configs — list configs assigned to a project
+- [Assign An Annotation Config To A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/assign-an-annotation-configuration-to-a-project): PUT /v1/projects/{project_identifier}/annotation_configs/{config_identifier} — assign a single config to a project
+- [Unassign An Annotation Config From A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/unassign-an-annotation-configuration-from-a-project): DELETE /v1/projects/{project_identifier}/annotation_configs/{config_identifier} — remove a config from a project
+- [Replace Project Annotation Configs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/replace-the-set-of-annotation-configurations-assigned-to-a-project): PUT /v1/projects/{project_identifier}/annotation_configs — replace the full set of configs assigned to a project
 
 ### REST API — Annotations
 
@@ -554,6 +576,18 @@
 - [Download Dataset Examples As JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file): GET /v1/datasets/{id}/jsonl — stream dataset examples as a JSONL file
 - [Download Dataset Examples As OpenAI Fine-Tuning JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file): GET /v1/datasets/{id}/jsonl/openai_ft — export examples in OpenAI fine-tuning format
 - [Download Dataset Examples As OpenAI Evals JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file): GET /v1/datasets/{id}/jsonl/openai_evals — export examples in OpenAI evals format
+
+### REST API — Dataset Labels
+
+- [List Dataset Labels](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-dataset-labels): GET /v1/dataset_labels — paginate all dataset labels in the system
+- [Create A Dataset Label](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/create-a-dataset-label): POST /v1/dataset_labels — create a reusable dataset label with a name and hex color
+- [Get A Dataset Label By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/get-a-dataset-label-by-id): GET /v1/dataset_labels/{label_id} — fetch a single dataset label
+- [Update A Dataset Label By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/update-a-dataset-label-by-id): PATCH /v1/dataset_labels/{label_id} — modify a dataset label's name or color
+- [Delete A Dataset Label By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/delete-a-dataset-label-by-id): DELETE /v1/dataset_labels/{label_id} — remove a dataset label
+- [List The Labels Applied To A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-the-labels-applied-to-a-dataset): GET /v1/datasets/{dataset_identifier}/labels — list the labels applied to a dataset
+- [Replace The Set Of Labels Applied To A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/replace-the-set-of-labels-applied-to-a-dataset): PUT /v1/datasets/{dataset_identifier}/labels — replace the whole set of labels on a dataset
+- [Apply A Label To A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/apply-a-label-to-a-dataset): PUT /v1/datasets/{dataset_identifier}/labels/{label_id} — apply a single label to a dataset (idempotent)
+- [Remove A Label From A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/remove-a-label-from-a-dataset): DELETE /v1/datasets/{dataset_identifier}/labels/{label_id} — remove a single label from a dataset (idempotent)
 
 ### REST API — Experiments
 
@@ -644,7 +678,10 @@
 - [Kubernetes](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes): Deploy on Kubernetes
 - [Helm](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes-helm): Deploy with Helm charts
 - [AWS CloudFormation](https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation): Deploy on AWS
-- [Railway](https://arize.com/docs/phoenix/self-hosting/deployment-options/railway): Deploy on Railway
+- [Railway](https://arize.com/docs/phoenix/self-hosting/deployment-options/railway): Deploy on Railway via one-click template
+- [Render](https://arize.com/docs/phoenix/self-hosting/deployment-options/render): Deploy on Render via one-click blueprint with managed PostgreSQL
+- [Google Cloud Run](https://arize.com/docs/phoenix/self-hosting/deployment-options/google-cloud-run): Deploy on Google Cloud Run with a one-click button
+- [Azure](https://arize.com/docs/phoenix/self-hosting/deployment-options/azure): Deploy on Azure Container Instances via one-click ARM template
 
 ### Features
 
@@ -690,7 +727,7 @@
 - [Prompt Template Iteration for a Summarization Service](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/summarization): Imagine you're deploying a service for your media company's summarization model that condenses daily news
 - [Text2SQL Experiments](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/text2sql): Building effective text-to-SQL systems requires rigorous evaluation and systematic experimentation. In this
 - [Why Public Benchmarks Lie: Building Your Own Eval Harness](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness): A model that wins on MMLU can lose on your task. Build a domain-specific harness and compare models fairly on your own data and metric.
-- [Code Readability Evaluation](https://arize.com/docs/phoenix/cookbook/evaluation/code-readability-evaluation): >-
+- [Code Readability Evaluation](https://arize.com/docs/phoenix/cookbook/evaluation/code-readability-evaluation): Classify code as readable or unreadable using benchmark datasets with ground-truth labels
 - [More Cookbooks](https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks): Use Phoenix Evals to evaluate your application for faithfulness, toxicity, relevance of retrieved documents
 - [Creating a Custom LLM Evaluator with a Benchmark Dataset](https://arize.com/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset): Learn how to build a custom LLM-as-a-Judge evaluator by creating a benchmark dataset tailored to your use
 - [Evaluate a Talk-to-Your-Data Agent](https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent): Evaluate a Talk-to-Your-Data Agent
@@ -712,6 +749,7 @@
 - [Prompt Optimization Techniques](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-optimization): This tutorial will use Phoenix to compare the performance of different prompt optimization techniques
 - [ReAct Prompting](https://arize.com/docs/phoenix/cookbook/prompt-engineering/react-prompting): **ReAct (Reasoning + Acting)** is a prompting technique that enables LLMs to think step-by-step before taking
 - [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): Build and trace an agentic RAG system using LlamaIndex's ReAct agent with vector and SQL query tools
+- [Identifying High-Signal Traces](https://arize.com/docs/phoenix/cookbook/tracing/identify-high-signal-traces): Surface anomalies, latency outliers, and failure clusters worth investigating across millions of production traces
 - [OpenInference Best Practices](https://arize.com/docs/phoenix/cookbook/tracing/openinference-best-practices): Enrich auto-instrumented traces with LLM, tool, agent, chain, and session attributes using OpenInference span kinds
 - [More Cookbooks](https://arize.com/docs/phoenix/cookbook/tracing/cookbooks): Trace through the execution of your LLM application to understand its internal structure and to troubleshoot
 - [Generating Synthetic Datasets for LLM Evaluators & Agents](https://arize.com/docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents): Learn different strategies for dataset generation and show how they can be used to run experiments and test
@@ -777,6 +815,10 @@
 - [06.16.2026 Time Range, Metrics, and Sharing Upgrades](https://arize.com/docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing): Pick ranges from a pan/zoom calendar, share trace URLs, and view annotation metrics in arize-phoenix 17.5.0+
 - [06.24.2026 Annotations, Labels, and PXI Server Tools](https://arize.com/docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools): Trace-level annotations in the trace header, label management from prompts and datasets lists, and a server-side bash tool for PXI subagents
 - [06.26.2026 Evals as Tests — pytest and Vitest/Jest](https://arize.com/docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest): Write LLM evaluations as pytest, Vitest, or Jest tests that record every run to Phoenix and gate CI
+- [06.30.2026 PXI Terminal Client and Annotation Summary](https://arize.com/docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary): Run PXI as an interactive terminal chat from the CLI; review and bulk-delete annotations from project settings
+- [07.07.2026: Metric Charts, Trace Search, and REST API Expansion](https://arize.com/docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api): Pin metric charts above data tables, search the trace tree, manage labels and annotation configs over REST, and use Claude Sonnet 5 in the Playground
+- [07.14.2026: Command Palette, Session Tools, and Table Customization](https://arize.com/docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables): Jump anywhere with the ⌘K command palette, reorder table columns, inspect session stats, and use the GPT 5.6 family in the Playground
+- [07.17.2026: OAuth2 Authorization Server & Remote MCP](https://arize.com/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server): Phoenix 19 becomes its own OAuth2 server with browser-based px CLI login, a built-in Remote MCP server, and REST API-key management
 
 ### 2025
 

@@ -14,6 +14,9 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
 
+_LONG_FIRST_INPUT = "i" * 110
+_LONG_LAST_OUTPUT = "o" * 110
+
 
 class _Data(NamedTuple):
     spans: list[models.Span]
@@ -68,7 +71,10 @@ class TestProjectSession:
                 await _add_span(
                     session,
                     traces[-1],
-                    attributes={"input": {"value": "123"}, "output": {"value": "321"}},
+                    attributes={
+                        "input": {"value": _LONG_FIRST_INPUT},
+                        "output": {"value": "321"},
+                    },
                     cumulative_llm_token_count_prompt=1,
                     cumulative_llm_token_count_completion=2,
                     llm_token_count_prompt=1,
@@ -88,7 +94,10 @@ class TestProjectSession:
                 await _add_span(
                     session,
                     traces[-1],
-                    attributes={"input": {"value": "1234"}, "output": {"value": "4321"}},
+                    attributes={
+                        "input": {"value": "1234"},
+                        "output": {"value": _LONG_LAST_OUTPUT},
+                    },
                     cumulative_llm_token_count_prompt=3,
                     cumulative_llm_token_count_completion=4,
                     llm_token_count_prompt=3,
@@ -173,9 +182,10 @@ class TestProjectSession:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "firstInput{value mimeType}"
+        field = "firstInput{value truncatedValue mimeType}"
         assert await self._node(field, project_session, httpx_client) == {
-            "value": "123",
+            "value": _LONG_FIRST_INPUT,
+            "truncatedValue": f"{'i' * 97}...",
             "mimeType": "text",
         }
 
@@ -185,9 +195,10 @@ class TestProjectSession:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "lastOutput{value mimeType}"
+        field = "lastOutput{value truncatedValue mimeType}"
         assert await self._node(field, project_session, httpx_client) == {
-            "value": "4321",
+            "value": _LONG_LAST_OUTPUT,
+            "truncatedValue": f"{'o' * 97}...",
             "mimeType": "text",
         }
 
@@ -203,6 +214,55 @@ class TestProjectSession:
         assert {(edge["node"]["id"], edge["node"]["traceId"]) for edge in traces["edges"]} == {
             (str(GlobalID(Trace.__name__, str(trace.id))), trace.trace_id) for trace in _data.traces
         }
+
+    async def test_user_id(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            start_time = datetime.now(timezone.utc)
+            session_with_user = await _add_project_session(
+                session,
+                project,
+                start_time=start_time,
+            )
+            trace_without_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time,
+            )
+            await _add_span(session, trace_without_user_id)
+            first_trace_with_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time + timedelta(seconds=1),
+            )
+            await _add_span(
+                session,
+                first_trace_with_user_id,
+                attributes={"user": {"id": "user-1"}},
+            )
+            second_trace_with_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time + timedelta(seconds=2),
+            )
+            await _add_span(
+                session,
+                second_trace_with_user_id,
+                attributes={"user": {"id": "user-2"}},
+            )
+            session_without_user = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, session_without_user)
+            await _add_span(session, trace)
+        field = "userId"
+        assert await self._node(field, session_with_user, httpx_client) == "user-1"
+        assert await self._node(field, session_without_user, httpx_client) is None
 
     async def test_token_usage(
         self,
@@ -248,7 +308,8 @@ class TestProjectSession:
     ) -> None:
         project_session = _data.project_sessions[0]
         field = (
-            "sessionAnnotations{id name label score explanation annotatorKind source identifier}"
+            "sessionAnnotations{id name label score explanation annotatorKind source identifier "
+            "createdAt updatedAt}"
         )
         result = await self._node(field, project_session, httpx_client)
 
@@ -274,6 +335,8 @@ class TestProjectSession:
             assert annotation["explanation"] is not None
             assert annotation["source"] in ["APP", "API"]
             assert annotation["identifier"] is not None
+            assert annotation["createdAt"] is not None
+            assert annotation["updatedAt"] is not None
 
     async def test_session_annotation_summaries(
         self,

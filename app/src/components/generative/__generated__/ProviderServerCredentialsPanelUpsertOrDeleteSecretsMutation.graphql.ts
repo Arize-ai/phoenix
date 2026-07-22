@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d53585e4c1eccb66c7467e3977c943c9>>
+ * @generated SignedSource<<db3de505b4eaa60331c61ef514f01eac>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -65,20 +64,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "2dcd2226f5f3b64c1a02030b8dd7816d",

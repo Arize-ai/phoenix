@@ -12,7 +12,7 @@ describe("agent curated models", () => {
     expect(
       isAgentCuratedModelSelection({
         provider: "OPENAI",
-        modelName: "gpt-5.4",
+        modelName: "gpt-5.6-sol",
       })
     ).toBe(true);
   });
@@ -42,13 +42,13 @@ describe("agent curated models", () => {
   it("filters curated models against registered playground models", () => {
     expect(
       getCuratedBuiltInModels([
-        { providerKey: "OPENAI", name: "gpt-5.4" },
+        { providerKey: "OPENAI", name: "gpt-5.6-sol" },
         { providerKey: "OPENAI", name: "gpt-4o" },
         { providerKey: "ANTHROPIC", name: "claude-sonnet-4-6" },
       ])
     ).toEqual([
       { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
-      { provider: "OPENAI", modelName: "gpt-5.4" },
+      { provider: "OPENAI", modelName: "gpt-5.6-sol" },
     ]);
   });
 });

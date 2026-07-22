@@ -105,14 +105,14 @@ const idToCanonical = (id: string): CanonicalToolChoice => {
 };
 
 /**
- * Renders a labelled option row with a provider-specific API token badge.
+ * Renders a labelled option row with a descriptive token.
  */
 const OptionLabel = ({
   label,
-  apiToken,
+  tokenText,
 }: {
   label: string;
-  apiToken: string;
+  tokenText: string;
 }) => (
   <Flex
     gap="size-100"
@@ -122,7 +122,7 @@ const OptionLabel = ({
   >
     <span>{label}</span>
     <Token color="var(--global-color-gray-900)" size="S">
-      {apiToken}
+      {tokenText}
     </Token>
   </Flex>
 );
@@ -164,16 +164,16 @@ export function ToolChoiceSelector({
       <Popover>
         <ListBox>
           <SelectItem id="ZERO_OR_MORE" textValue="auto">
-            <OptionLabel label="Tools auto-selected by LLM" apiToken="auto" />
+            <OptionLabel label="Tools auto-selected by LLM" tokenText="auto" />
           </SelectItem>
           <SelectItem id="ONE_OR_MORE" textValue={config.oneOrMoreToken}>
             <OptionLabel
               label="Use at least one tool"
-              apiToken={config.oneOrMoreToken}
+              tokenText={config.oneOrMoreToken}
             />
           </SelectItem>
           <SelectItem id="NONE" textValue="none">
-            <OptionLabel label="Don't use any tools" apiToken="none" />
+            <OptionLabel label="Don't use any tools" tokenText="none" />
           </SelectItem>
           {toolNames.map((toolName) => (
             <SelectItem
@@ -181,7 +181,7 @@ export function ToolChoiceSelector({
               id={`${SPECIFIC_FUNCTION_PREFIX}${toolName}`}
               textValue={toolName}
             >
-              {toolName}
+              <OptionLabel label={`Use ${toolName}`} tokenText="always" />
             </SelectItem>
           ))}
         </ListBox>

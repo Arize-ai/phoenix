@@ -6,6 +6,7 @@ import {
 } from "@phoenix/agent/extensions/capabilities";
 import { Flex, Switch, Text } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
@@ -88,6 +89,7 @@ export function AgentWebAccessSettings() {
   const isWebAccessEnabled = useAgentContext(
     (state) => state.agentsConfig.webAccessEnabled
   );
+  const isAdmin = useIsAdminOrAuthDisabled();
   const definition = getAgentCapabilityDefinition("web.access");
 
   return (
@@ -109,7 +111,19 @@ export function AgentWebAccessSettings() {
             <Text color="text-500">{definition.description}</Text>
           </span>
         </Switch>
-        {!isWebAccessEnabled ? <SystemSettingsWarning /> : null}
+        {/* Web access is env-only — the system settings section cannot enable it. */}
+        {!isWebAccessEnabled ? (
+          <SystemSettingsWarning
+            isAdmin={isAdmin}
+            adminMessage={
+              <>
+                Disabled by server configuration (
+                <code>PHOENIX_ALLOW_EXTERNAL_RESOURCES</code> /{" "}
+                <code>PHOENIX_AGENTS_DISABLE_WEB_ACCESS</code>).
+              </>
+            }
+          />
+        ) : null}
       </li>
     </ul>
   );

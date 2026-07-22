@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<4fc419b22275badacf3b26e21c4279af>>
+ * @generated SignedSource<<eff0078b84f91b817ce63296b06fbb4e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -40,9 +39,17 @@ export type PromptMessageInput = {
   role: PromptMessageRole;
 };
 export type ContentPartInput = {
-  text?: TextContentValueInput | null;
-  toolCall?: ToolCallContentValueInput | null;
-  toolResult?: ToolResultContentValueInput | null;
+  text: TextContentValueInput;
+  toolCall?: never;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall: ToolCallContentValueInput;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall?: never;
+  toolResult: ToolResultContentValueInput;
 };
 export type TextContentValueInput = {
   text: string;
@@ -61,10 +68,25 @@ export type ToolResultContentValueInput = {
   toolCallId: string;
 };
 export type PromptInvocationParametersInput = {
-  anthropic?: PromptAnthropicInvocationParametersInput | null;
-  aws?: PromptAwsInvocationParametersInput | null;
-  google?: PromptGoogleInvocationParametersInput | null;
-  openai?: PromptOpenAIInvocationParametersInput | null;
+  anthropic?: never;
+  aws?: never;
+  google?: never;
+  openai: PromptOpenAIInvocationParametersInput;
+} | {
+  anthropic: PromptAnthropicInvocationParametersInput;
+  aws?: never;
+  google?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  aws?: never;
+  google: PromptGoogleInvocationParametersInput;
+  openai?: never;
+} | {
+  anthropic?: never;
+  aws: PromptAwsInvocationParametersInput;
+  google?: never;
+  openai?: never;
 };
 export type PromptOpenAIInvocationParametersInput = {
   extraBody?: any | null;
@@ -91,9 +113,17 @@ export type PromptAnthropicOutputConfigInput = {
   effort?: AnthropicOutputConfigEffort | null;
 };
 export type PromptAnthropicThinkingConfigInput = {
-  adaptive?: AnthropicThinkingAdaptiveInput | null;
-  disabled?: AnthropicThinkingDisabledMarkerInput | null;
-  enabled?: AnthropicThinkingEnabledInput | null;
+  adaptive?: never;
+  disabled: AnthropicThinkingDisabledMarkerInput;
+  enabled?: never;
+} | {
+  adaptive?: never;
+  disabled?: never;
+  enabled: AnthropicThinkingEnabledInput;
+} | {
+  adaptive: AnthropicThinkingAdaptiveInput;
+  disabled?: never;
+  enabled?: never;
 };
 export type AnthropicThinkingDisabledMarkerInput = {
   disabled?: boolean;
@@ -132,8 +162,11 @@ export type PromptToolsInput = {
   tools: ReadonlyArray<PromptToolInput>;
 };
 export type PromptToolInput = {
-  function?: PromptToolFunctionDefinitionInput | null;
-  raw?: any | null;
+  function: PromptToolFunctionDefinitionInput;
+  raw?: never;
+} | {
+  function?: never;
+  raw: any;
 };
 export type PromptToolFunctionDefinitionInput = {
   description?: string | null;
@@ -142,10 +175,25 @@ export type PromptToolFunctionDefinitionInput = {
   strict?: boolean | null;
 };
 export type PromptToolChoiceInput = {
-  functionName?: string | null;
-  none?: boolean | null;
-  oneOrMore?: boolean | null;
-  zeroOrMore?: boolean | null;
+  functionName?: never;
+  none: boolean;
+  oneOrMore?: never;
+  zeroOrMore?: never;
+} | {
+  functionName?: never;
+  none?: never;
+  oneOrMore?: never;
+  zeroOrMore: boolean;
+} | {
+  functionName?: never;
+  none?: never;
+  oneOrMore: boolean;
+  zeroOrMore?: never;
+} | {
+  functionName: string;
+  none?: never;
+  oneOrMore?: never;
+  zeroOrMore?: never;
 };
 export type PromptResponseFormatJSONSchemaInput = {
   jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput;
@@ -208,7 +256,7 @@ v2 = [
     "name": "createChatPromptVersion",
     "plural": false,
     "selections": [
-      (v1/*: any*/),
+      (v1/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -224,7 +272,7 @@ v2 = [
         "name": "version",
         "plural": false,
         "selections": [
-          (v1/*: any*/)
+          (v1/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -234,20 +282,20 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "savePlaygroundPromptCreateVersionMutation",
-    "selections": (v2/*: any*/),
+    "selections": (v2/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "savePlaygroundPromptCreateVersionMutation",
-    "selections": (v2/*: any*/)
+    "selections": (v2/*:: as any*/)
   },
   "params": {
     "cacheID": "8ba05b5c6835e217d666c1e49ca3b238",

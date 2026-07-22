@@ -3,9 +3,13 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
+from openinference.instrumentation import OITracer, TraceConfig
+from opentelemetry.sdk.trace import TracerProvider
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
@@ -21,6 +25,7 @@ from pydantic_ai.models import Model as PydanticAIModel
 
 from phoenix.config import (
     get_env_allow_external_resources,
+    get_env_collector_endpoint,
     get_env_disable_agent_assistant,
 )
 from phoenix.server.agents.agent_factory import build_agent
@@ -37,7 +42,22 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
+from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.dml_event import DmlEvent
+from phoenix.server.types import CanPutItem, DbSessionFactory
+
+
+@asynccontextmanager
+async def _unavailable_db_session(_: Any) -> AsyncIterator[Any]:
+    raise RuntimeError("PXI eval harness does not provide a Phoenix database.")
+    yield
+
+
+class _NoOpEventQueue:
+    def put(self, item: DmlEvent) -> None:
+        return None
+
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -46,6 +66,56 @@ ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
 _MAX_ERROR_MESSAGE_LEN = 200
+_OFFLINE_DB = DbSessionFactory(db=_unavailable_db_session, dialect="sqlite")
+_OFFLINE_EVENT_QUEUE: CanPutItem[DmlEvent] = _NoOpEventQueue()
+
+# Fallback only: the pytest plugin's capture_spans relabels in-test spans to
+# the experiment's project.
+_STRAY_SPAN_PROJECT = "pxi-evals"
+
+_tracer_provider: TracerProvider | None = None
+_tracer_provider_built = False
+
+
+def _get_tracer_provider() -> TracerProvider | None:
+    """Process-local provider (built once per worker) exporting agent spans
+    to the same Phoenix collector the pytest plugin uses. ``None`` when no
+    collector is configured or setup fails, in which case the agent runs
+    untraced."""
+    global _tracer_provider, _tracer_provider_built
+    if _tracer_provider_built:
+        return _tracer_provider
+    _tracer_provider_built = True
+    if not get_env_collector_endpoint():
+        return None
+    try:
+        from phoenix.otel import register
+
+        _tracer_provider = register(
+            project_name=_STRAY_SPAN_PROJECT,
+            batch=True,
+            set_global_tracer_provider=False,
+            verbose=False,
+            # Required: a bare collector endpoint is otherwise rewritten to gRPC :4317.
+            protocol="http/protobuf",
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(
+            f"warning: PXI eval agent tracing disabled ({type(exc).__name__}: {exc})",
+            file=sys.stderr,
+        )
+    return _tracer_provider
+
+
+def flush_agent_telemetry(timeout_millis: int = 30_000) -> None:
+    """Flush buffered agent spans; conftest calls this at session finish on
+    every process."""
+    if _tracer_provider is None:
+        return
+    try:
+        _tracer_provider.force_flush(timeout_millis)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
@@ -78,7 +148,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=base_url,
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -101,7 +171,7 @@ async def _build_model() -> PydanticAIModel:
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
                 base_url=azure_endpoint_to_base_url(endpoint),
-                max_retries=0,
+                max_retries=3,
             )
         )
         return build_openai_model(
@@ -121,7 +191,7 @@ async def _build_model() -> PydanticAIModel:
         return AnthropicModel(
             model_name,
             provider=AnthropicProvider(
-                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=0)
+                anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=3)
             ),
         )
 
@@ -499,7 +569,24 @@ async def run_pxi_example(
     try:
         user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
-        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        tracer_provider = _get_tracer_provider()
+        if tracer_provider is not None:
+            # Mirrors model_factory.build_model: LLM spans come from the model wrapper.
+            model = OpenInferenceModelWrapper(
+                model,
+                tracer=OITracer(
+                    tracer_provider.get_tracer("phoenix.server.agents"),
+                    config=TraceConfig(),
+                ),
+            )
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=docs_mcp_server,
+            tracer_provider=tracer_provider,
+            db=_OFFLINE_DB,
+            event_queue=_OFFLINE_EVENT_QUEUE,
+            read_only=True,
+        )
         result = await agent.run(
             user_prompt,
             deps=_build_dependencies(input),

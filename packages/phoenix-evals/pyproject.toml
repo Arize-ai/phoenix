@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
   "pandas",
   "tqdm",
@@ -38,7 +38,7 @@ dependencies = [
 dev = [
   "anthropic>0.18.0",
   "boto3",
-  "litellm>=1.83.14",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise. Minor cap dropped: dev/test-only dep guarded by exclude-newer (fresh-release supply-chain) + override-dependencies (transitive pins)
+  "litellm>=1.83.14; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
   "openai>=1.0.0",
   # TODO: un-comment this when mistralai is un-quarantined on PyPI
   # "mistralai>=1.0.0",
@@ -50,7 +50,7 @@ test = [
   "typing-extensions>=4.5, <5",
   "anthropic>=0.18.0",
   "boto3",
-  "litellm>=1.83.14",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise. Minor cap dropped: dev/test-only dep guarded by exclude-newer (fresh-release supply-chain) + override-dependencies (transitive pins)
+  "litellm>=1.83.14; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
   "openai>=1.0.0",
   # TODO: un-comment this when mistralai is un-quarantined on PyPI
   # "mistralai>=1.0.0",

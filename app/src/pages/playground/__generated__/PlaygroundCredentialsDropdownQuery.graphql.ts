@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2d836016ffa83bee15e67bb27b95bdef>>
+ * @generated SignedSource<<fc9997751b59d6144a190fab4331d960>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -85,7 +84,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundCredentialsDropdownQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -94,7 +93,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "PlaygroundCredentialsDropdownQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "b2f9b2067f4b46cd6a570aca5156ba48",

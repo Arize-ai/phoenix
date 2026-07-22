@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<1260618dd7aa71036687ecefa30c1432>>
+ * @generated SignedSource<<0e776f99ecb53dc70dfa480b2f27a36b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -65,8 +64,8 @@ v3 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -74,7 +73,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
         "name": "addAnnotationConfigToProject",
@@ -106,15 +105,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "AddAnnotationConfigToProjectPayload",
         "kind": "LinkedField",
         "name": "addAnnotationConfigToProject",
@@ -176,7 +175,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v3/*: any*/)
+                              (v3/*:: as any*/)
                             ],
                             "type": "Node",
                             "abstractKey": "__isNode"
@@ -190,7 +189,7 @@ return {
                 ],
                 "storageKey": null
               },
-              (v3/*: any*/)
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           }

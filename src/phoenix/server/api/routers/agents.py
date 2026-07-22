@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import json
 import logging
 from collections.abc import (
     AsyncGenerator,
@@ -6,25 +8,53 @@ from collections.abc import (
     Awaitable,
     Callable,
     Iterable,
+    Sequence,
 )
 from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_metadata, using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry import trace as trace_api
 from opentelemetry.context import Context
+from opentelemetry.sdk.trace import Event, SpanProcessor
 from opentelemetry.sdk.trace import Span as SDKSpan
-from opentelemetry.sdk.trace import SpanProcessor
-from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
-from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
+from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
+from opentelemetry.sdk.util.instrumentation import InstrumentationScope
+from opentelemetry.semconv.attributes.exception_attributes import EXCEPTION_MESSAGE
+from opentelemetry.trace import (
+    NonRecordingSpan,
+    SpanContext,
+    Status,
+    StatusCode,
+    TraceFlags,
+    format_span_id,
+    format_trace_id,
+    get_current_span,
+)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    StringConstraints,
+    field_validator,
+)
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
+    DynamicToolOutputAvailablePart,
+    DynamicToolOutputErrorPart,
     RegenerateMessage,
     SubmitMessage,
+    TextUIPart,
+    ToolOutputAvailablePart,
+    ToolOutputErrorPart,
     UIMessage,
 )
 from pydantic_ai.ui.vercel_ai.response_types import (
@@ -48,6 +78,7 @@ from typing_extensions import TypeIs, assert_never
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
+    get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
@@ -57,6 +88,7 @@ from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
+    AppContext,
     ChatContext,
     ResolvedContexts,
     resolve_contexts,
@@ -93,9 +125,17 @@ from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
-from phoenix.tracers import Tracer, detached_otel_context
+from phoenix.tracers import (
+    Tracer,
+    build_synthetic_readable_span,
+    detached_otel_context,
+    extract_otel_context,
+    get_cumulative_counts,
+)
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+
+_PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
 ToolExecutionEnvironment = Literal["client", "server"]
 
@@ -112,11 +152,28 @@ class ToolCallProviderMetadata(BaseModel):
     """Whether the tool is executed on the client (external toolset) or on the
     Phoenix server (everything else, e.g. MCP tools and function tools)."""
 
+    tool_input_emitted_at: str | None = None
+    """RFC3339 server timestamp for a client tool-call chunk."""
+
+
+@register_openapi_schema
+class ToolCallCallbackProviderMetadata(ToolCallProviderMetadata):
+    """Shape of the ``phoenix`` namespace the browser returns in
+    ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
+    plus browser-recorded execution timings."""
+
+    client_started_at: str | None = None
+    """RFC3339 browser timestamp taken when client tool execution started."""
+
+    client_ended_at: str | None = None
+    """RFC3339 browser timestamp taken when client tool execution ended."""
+
 
 def _get_updated_provider_metadata(
     *,
     provider_metadata: ProviderMetadata,
     tool_name: str,
+    emitted_at: datetime,
 ) -> ProviderMetadata:
     """Adds Phoenix-specific fields under the ``"phoenix"`` namespace of Vercel AI
     ``providerMetadata``, the escape hatch the AI SDK reserves for provider-specific
@@ -131,12 +188,15 @@ def _get_updated_provider_metadata(
         "client" if get_external_tool_definition(tool_name) is not None else "server"
     )
     new_tool_call_metadata = ToolCallProviderMetadata(
-        tool_execution_environment=tool_execution_environment
+        tool_execution_environment=tool_execution_environment,
+        tool_input_emitted_at=(
+            emitted_at.isoformat() if tool_execution_environment == "client" else None
+        ),
     )
     existing_tool_call_metadata: dict[str, Any] = result.get(_PHOENIX_PROVIDER_METADATA_KEY, {})
     result[_PHOENIX_PROVIDER_METADATA_KEY] = {
         **existing_tool_call_metadata,
-        **new_tool_call_metadata.model_dump(),
+        **new_tool_call_metadata.model_dump(exclude_none=True),
     }
     return result
 
@@ -166,20 +226,54 @@ class AssistantMessageMetadataTraceIds(_CamelModel):
     root_span_id: str
 
 
+class TurnTraceContext(_CamelModel):
+    trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
+    started_at: datetime
+
+
 class AssistantMessageMetadata(_CamelModel):
     """Wire schema for the chat stream's `message_metadata` payload."""
 
+    type: Literal["assistant"] = "assistant"
     session_id: str
     trace: AssistantMessageMetadataTraceIds | None = None
+    turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
 
 
-class AssistantMetadataUIMessage(UIMessage):
-    """`UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`."""
+class UserMessageMetadata(_CamelModel):
+    """Wire schema for metadata the browser attaches to outgoing user messages."""
 
-    metadata: AssistantMessageMetadata | None = (
-        None  # custom metadata type (provides stronger type in the OpenAPI schema)
-    )
+    type: Literal["user"] = "user"
+    current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
+    time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
+
+
+MessageMetadata = Annotated[
+    AssistantMessageMetadata | UserMessageMetadata,
+    Field(discriminator="type"),
+]
+
+
+class PhoenixUIMessage(UIMessage):
+    """`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."""
+
+    metadata: MessageMetadata | None = None
+
+
+def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext | None:
+    """Return the newest user-message browser-clock stamp, if any."""
+    for message in reversed(messages):
+        if message.role != "user":
+            continue
+        if isinstance(message.metadata, UserMessageMetadata):
+            return AppContext(
+                type="app",
+                current_date_time=message.metadata.current_date_time,
+                time_zone=message.metadata.time_zone,
+            )
+    return None
 
 
 class _ObservabilityMixin(BaseModel):
@@ -222,8 +316,9 @@ class _ChatMessageMixin(_ObservabilityMixin):
             "Unknown or context-unavailable names are ignored."
         ),
     )
-    messages: list[AssistantMetadataUIMessage]
+    messages: list[PhoenixUIMessage]
     model: AgentModelSelection
+    turn_trace_context: TurnTraceContext | None = Field(default=None, alias="turnTraceContext")
 
 
 class ChatSubmitMessage(_ChatMessageMixin, SubmitMessage):
@@ -289,14 +384,6 @@ logger = logging.getLogger(__name__)
 _ASSISTANT_AGENT_ID = "assistant"
 
 
-def _log_run_complete(result: AgentRunResult[Any]) -> None:
-    """Log the full message history after an agent run completes."""
-    messages = result.all_messages()
-    logger.info("agent run complete: %d messages", len(messages))
-    for message in messages:
-        logger.info("%s", message)
-
-
 _AsyncGeneratorType = TypeVar("_AsyncGeneratorType")
 
 
@@ -335,25 +422,78 @@ class _AgentSpanContextRecorder(SpanProcessor):
         return True
 
 
+@dataclass
+class _TurnTraceIds:
+    trace_id: int
+    root_span_id: int
+    started_at: datetime
+
+
+def _resolve_turn_trace_ids(
+    turn_trace_context: TurnTraceContext | None,
+    *,
+    now: datetime,
+) -> _TurnTraceIds:
+    """Adopt a valid echoed turn trace context or mint a new turn identity."""
+    if turn_trace_context is not None:
+        trace_id = int(turn_trace_context.trace_id, 16)
+        root_span_id = int(turn_trace_context.root_span_id, 16)
+        if trace_id and root_span_id:
+            echoed_started_at = turn_trace_context.started_at
+            if echoed_started_at.tzinfo is None:
+                echoed_started_at = echoed_started_at.replace(tzinfo=timezone.utc)
+            started_at = min(max(echoed_started_at, now - timedelta(hours=24)), now)
+            return _TurnTraceIds(
+                trace_id=trace_id,
+                root_span_id=root_span_id,
+                started_at=started_at,
+            )
+    id_generator = RandomIdGenerator()
+    return _TurnTraceIds(
+        trace_id=id_generator.generate_trace_id(),
+        root_span_id=id_generator.generate_span_id(),
+        started_at=now,
+    )
+
+
+def _turn_parent_context(ids: _TurnTraceIds) -> Context:
+    span_context = SpanContext(
+        trace_id=ids.trace_id,
+        span_id=ids.root_span_id,
+        is_remote=True,
+        trace_flags=TraceFlags(TraceFlags.SAMPLED),
+    )
+    return trace_api.set_span_in_context(NonRecordingSpan(span_context), Context())
+
+
 def _build_message_metadata_chunk(
     *,
     span_context: SpanContext | None,
+    turn_trace_context: TurnTraceContext | None,
     session_id: str,
     usage: RunUsage,
 ) -> MessageMetadataChunk:
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     trace_ids = (
         AssistantMessageMetadataTraceIds(
-            trace_id=format_trace_id(span_context.trace_id),
-            root_span_id=format_span_id(span_context.span_id),
+            trace_id=turn_trace_context.trace_id,
+            root_span_id=turn_trace_context.root_span_id,
         )
-        if span_context is not None
-        else None
+        if turn_trace_context is not None
+        else (
+            AssistantMessageMetadataTraceIds(
+                trace_id=format_trace_id(span_context.trace_id),
+                root_span_id=format_span_id(span_context.span_id),
+            )
+            if span_context is not None
+            else None
+        )
     )
     return MessageMetadataChunk(
         message_metadata=AssistantMessageMetadata(
             session_id=session_id,
             trace=trace_ids,
+            turn_trace_context=turn_trace_context,
             usage=_build_usage_payload(usage),
         )
     )
@@ -377,26 +517,297 @@ def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
     return usage_payload
 
 
+def _get_span_context(context: Context | None) -> SpanContext | None:
+    if context is None:
+        return None
+    span_context = get_current_span(context).get_span_context()
+    return span_context if span_context.is_valid else None
+
+
+def _parse_rfc3339(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+
+
+def _clamp_datetime(value: datetime, lower: datetime, upper: datetime) -> datetime:
+    return min(max(value, lower), upper)
+
+
+def _get_last_user_text(messages: Iterable[UIMessage]) -> str | None:
+    for message in reversed(list(messages)):
+        if message.role != "user":
+            continue
+        for part in reversed(message.parts):
+            if isinstance(part, TextUIPart):
+                text = part.text.strip()
+                return text or None
+        return None
+    return None
+
+
+def _build_exception_event(*, message: str, timestamp: datetime) -> Event:
+    """OTel semconv ``exception`` event for a synthetic error span. Client
+    failures surface as bare messages, so no type or stacktrace is recorded."""
+    return Event(
+        name="exception",
+        attributes={EXCEPTION_MESSAGE: message},
+        timestamp=int(timestamp.timestamp() * 1e9),
+    )
+
+
+def _emit_turn_root_span(
+    *,
+    tracer: Tracer,
+    turn_ids: _TurnTraceIds,
+    session_id: str,
+    input_text: str | None,
+    output_text: str | None,
+    error_message: str | None,
+    end_time: datetime,
+    user_email: str | None,
+) -> None:
+    attributes: dict[str, str] = {
+        SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.AGENT.value,
+        SpanAttributes.SESSION_ID: session_id,
+    }
+    if input_text is not None:
+        attributes[SpanAttributes.INPUT_VALUE] = input_text
+        attributes[SpanAttributes.INPUT_MIME_TYPE] = "text/plain"
+    if output_text is not None:
+        attributes[SpanAttributes.OUTPUT_VALUE] = output_text
+        attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "text/plain"
+    if user_email is not None:
+        attributes[SpanAttributes.USER_ID] = user_email
+    status = (
+        Status(StatusCode.ERROR, error_message)
+        if error_message is not None
+        else Status(StatusCode.OK)
+    )
+    span_end_time = max(end_time, turn_ids.started_at)
+    events = (
+        (_build_exception_event(message=error_message, timestamp=span_end_time),)
+        if error_message is not None
+        else ()
+    )
+    tracer.record_readable_span(
+        build_synthetic_readable_span(
+            name="pxi.turn",
+            trace_id=turn_ids.trace_id,
+            span_id=turn_ids.root_span_id,
+            parent_span_id=None,
+            start_time=turn_ids.started_at,
+            end_time=span_end_time,
+            attributes=attributes,
+            status=status,
+            events=events,
+            resource=tracer.resource,
+            instrumentation_scope=_PXI_INSTRUMENTATION_SCOPE,
+        )
+    )
+
+
+@dataclass
+class _ClientToolTimings:
+    """Usable timestamps recovered from an echoed ``phoenix`` tool-call
+    namespace (wire contract: ``ToolCallCallbackProviderMetadata``)."""
+
+    emitted_at: datetime
+    client_started_at: datetime | None
+    client_ended_at: datetime | None
+
+
+def _extract_client_tool_timings(provider_metadata: object) -> _ClientToolTimings | None:
+    """Leniently pull client-tool execution timings out of returned
+    ``callProviderMetadata``."""
+    if not isinstance(provider_metadata, dict):
+        return None
+    phoenix_metadata = provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY)
+    if not isinstance(phoenix_metadata, dict):
+        return None
+    if phoenix_metadata.get("tool_execution_environment") != "client":
+        return None
+    emitted_at = _parse_rfc3339(phoenix_metadata.get("tool_input_emitted_at"))
+    if emitted_at is None:
+        return None
+    return _ClientToolTimings(
+        emitted_at=emitted_at,
+        client_started_at=_parse_rfc3339(phoenix_metadata.get("client_started_at")),
+        client_ended_at=_parse_rfc3339(phoenix_metadata.get("client_ended_at")),
+    )
+
+
+def _synthesize_client_tool_spans(
+    *,
+    tracer: Tracer,
+    turn_ids: _TurnTraceIds,
+    messages: Iterable[UIMessage],
+    received_at: datetime,
+    session_id: str,
+) -> None:
+    message_list = list(messages)
+    last_user_index = max(
+        (index for index, message in enumerate(message_list) if message.role == "user"),
+        default=-1,
+    )
+    resolved_tool_types = (
+        ToolOutputAvailablePart,
+        ToolOutputErrorPart,
+        DynamicToolOutputAvailablePart,
+        DynamicToolOutputErrorPart,
+    )
+    for message in message_list[last_user_index + 1 :]:
+        for part in message.parts:
+            if not isinstance(part, resolved_tool_types):
+                continue
+            timings = _extract_client_tool_timings(part.call_provider_metadata)
+            if timings is None:
+                continue
+            earliest_start_time = _clamp_datetime(
+                timings.emitted_at,
+                turn_ids.started_at,
+                received_at,
+            )
+            start_time = (
+                _clamp_datetime(timings.client_started_at, earliest_start_time, received_at)
+                if timings.client_started_at is not None
+                else earliest_start_time
+            )
+            end_time = (
+                _clamp_datetime(timings.client_ended_at, start_time, received_at)
+                if timings.client_ended_at is not None
+                else received_at
+            )
+            tool_name = (
+                part.tool_name
+                if isinstance(
+                    part,
+                    (DynamicToolOutputAvailablePart, DynamicToolOutputErrorPart),
+                )
+                else part.type.removeprefix("tool-")
+            )
+            # Later requests may repeat earlier tool parts; deterministic
+            # span IDs make persistence and remote ingestion idempotent.
+            span_id = (
+                int.from_bytes(
+                    hashlib.sha256(
+                        f"{turn_ids.trace_id:032x}/{part.tool_call_id}".encode()
+                    ).digest()[:8],
+                    "big",
+                )
+                or 1
+            )
+            attributes = {
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.TOOL.value,
+                SpanAttributes.TOOL_NAME: tool_name,
+                SpanAttributes.TOOL_ID: part.tool_call_id,
+                SpanAttributes.INPUT_VALUE: json.dumps(part.input),
+                SpanAttributes.INPUT_MIME_TYPE: "application/json",
+                SpanAttributes.SESSION_ID: session_id,
+            }
+            events: tuple[Event, ...] = ()
+            if isinstance(part, (ToolOutputErrorPart, DynamicToolOutputErrorPart)):
+                attributes[SpanAttributes.OUTPUT_VALUE] = part.error_text
+                attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "text/plain"
+                status = Status(StatusCode.ERROR, part.error_text)
+                events = (_build_exception_event(message=part.error_text, timestamp=end_time),)
+            else:
+                attributes[SpanAttributes.OUTPUT_VALUE] = json.dumps(part.output)
+                attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "application/json"
+                status = Status(StatusCode.OK)
+            tracer.record_readable_span(
+                build_synthetic_readable_span(
+                    name=tool_name,
+                    trace_id=turn_ids.trace_id,
+                    span_id=span_id,
+                    parent_span_id=turn_ids.root_span_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                    attributes=attributes,
+                    status=status,
+                    events=events,
+                    resource=tracer.resource,
+                    instrumentation_scope=_PXI_INSTRUMENTATION_SCOPE,
+                )
+            )
+
+
 async def _persist_db_traces(
     *,
     session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> tuple[int, ...]:
     project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
+    trace_ids = {db_trace.trace_id for db_trace in db_traces}
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
     persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
+
+    existing_traces_by_trace_id = {
+        trace.trace_id: trace
+        for trace in await session.scalars(
+            select(models.Trace).where(
+                models.Trace.trace_id.in_({db_trace.trace_id for db_trace in db_traces})
+            )
+        )
+    }
+    span_ids = {db_span.span_id for db_trace in db_traces for db_span in db_trace.spans}
+    existing_span_ids = (
+        set(
+            await session.scalars(
+                select(models.Span.span_id).where(models.Span.span_id.in_(span_ids))
+            )
+        )
+        if span_ids
+        else set()
+    )
+    traces_to_insert: list[models.Trace] = []
+    spans_to_insert: list[models.Span] = []
     for db_trace in db_traces:
-        project_session = db_trace.project_session
-        if project_session is None:
+        # Only inserted traces should point at the persistent ProjectSession;
+        # associating skipped transient traces causes autoflush warnings.
+        persistent_project_session = (
+            persistent_by_session_id[db_trace.project_session.session_id]
+            if db_trace.project_session is not None
+            else None
+        )
+        db_trace.spans = [
+            db_span for db_span in db_trace.spans if db_span.span_id not in existing_span_ids
+        ]
+        existing_trace = existing_traces_by_trace_id.get(db_trace.trace_id)
+        if existing_trace is None:
+            if db_trace.spans:
+                if persistent_project_session is not None:
+                    db_trace.project_session = persistent_project_session
+                traces_to_insert.append(db_trace)
             continue
-        # Replace the transient ProjectSession (built by Tracer) with the
-        # persistent one loaded from the upsert, so SQLAlchemy resolves the FK
-        # from the relationship and doesn't try to cascade-insert a duplicate.
-        db_trace.project_session = persistent_by_session_id[project_session.session_id]
-    session.add_all(db_traces)
+        if db_trace.start_time < existing_trace.start_time:
+            existing_trace.start_time = db_trace.start_time
+        if existing_trace.end_time < db_trace.end_time:
+            existing_trace.end_time = db_trace.end_time
+        if existing_trace.project_session_rowid is None and persistent_project_session is not None:
+            existing_trace.project_session = persistent_project_session
+        if existing_trace.project_session is not None:
+            if db_trace.start_time < existing_trace.project_session.start_time:
+                existing_trace.project_session.start_time = db_trace.start_time
+            if existing_trace.project_session.end_time < db_trace.end_time:
+                existing_trace.project_session.end_time = db_trace.end_time
+        # Copy before iterating: assigning `db_span.trace` back-populates
+        # `Trace.spans`, removing the span from `db_trace.spans` mid-iteration
+        # and silently skipping every other span in the batch.
+        for db_span in list(db_trace.spans):
+            db_span.trace = existing_trace
+            if db_span.span_cost is not None:
+                db_span.span_cost.trace = existing_trace
+            spans_to_insert.append(db_span)
+    session.add_all([*traces_to_insert, *spans_to_insert])
     await session.flush()
+    await _refresh_cumulative_span_counts(session=session, trace_ids=trace_ids)
     return project_ids
 
 
@@ -412,6 +823,25 @@ async def _persist_db_traces_and_emit_event(
         project_ids = await _persist_db_traces(session=session, db_traces=db_traces)
     if project_ids:
         event_queue.put(SpanInsertEvent(project_ids))
+
+
+async def _refresh_cumulative_span_counts(
+    *,
+    session: AsyncSession,
+    trace_ids: set[str],
+) -> None:
+    if not trace_ids:
+        return
+    spans = list(
+        await session.scalars(
+            select(models.Span).join(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
+        )
+    )
+    counts = get_cumulative_counts(spans)
+    for span, count in zip(spans, counts):
+        span.cumulative_error_count = count.errors
+        span.cumulative_llm_token_count_prompt = count.prompt_tokens
+        span.cumulative_llm_token_count_completion = count.completion_tokens
 
 
 async def _load_available_sandbox_backend_types(
@@ -498,6 +928,25 @@ def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bo
     # ``open_llm_evaluator_form`` gates on model-provider availability with no
     # ``llm_evaluator`` context, so a dataset-backed playground must also trigger the load.
     return contexts.dataset is not None or contexts.llm_evaluator is not None
+
+
+def _resolve_trace_recording(
+    *,
+    ingest_traces: bool,
+    export_remote_traces: bool,
+    allow_local_traces: bool,
+    allow_remote_export: bool,
+) -> tuple[bool, bool]:
+    if get_env_phoenix_agents_force_tracing():
+        return True, True
+    return (
+        ingest_traces and allow_local_traces,
+        export_remote_traces and allow_remote_export,
+    )
+
+
+def _resolve_attach_user_id(attach_user_id: bool) -> bool:
+    return get_env_phoenix_agents_force_tracing() or attach_user_id
 
 
 class _SubagentMessageChunksClosed:
@@ -724,6 +1173,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         resolved_contexts = resolve_contexts(body.contexts)
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
+        user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
@@ -732,8 +1182,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
 
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        ingest_traces, export_remote_traces = _resolve_trace_recording(
+            ingest_traces=body.ingest_traces,
+            export_remote_traces=body.export_remote_traces,
+            allow_local_traces=recording.allow_local_traces,
+            allow_remote_export=recording.allow_remote_export,
+        )
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
@@ -771,10 +1225,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model=model,
             schema=request.app.state.graphql_schema,
             build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            db=request.app.state.db,
+            event_queue=request.state.event_queue,
             prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             allow_mutations=graphql_mutations_enabled,
+            read_only=request.app.state.read_only,
+            auth_enabled=request.app.state.authentication_enabled,
+            user_id=user_id,
+            is_viewer=is_viewer,
             tracer_provider=tracer_provider,
             enable_subagents=subagents_enabled,
         )
@@ -787,10 +1247,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             yield _build_message_metadata_chunk(
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
+                turn_trace_context=None,
                 session_id=session_id,
                 usage=result.usage,
             )
-            _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
@@ -803,6 +1263,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 chunk.provider_metadata = _get_updated_provider_metadata(
                                     provider_metadata=chunk.provider_metadata or {},
                                     tool_name=chunk.tool_name,
+                                    emitted_at=datetime.now(timezone.utc),
                                 )
                             yield chunk
             finally:
@@ -834,9 +1295,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
         body = request_body.root
+        request_received_at = datetime.now(timezone.utc)
+        attach_user_id = _resolve_attach_user_id(body.attach_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        ingest_traces, export_remote_traces = _resolve_trace_recording(
+            ingest_traces=body.ingest_traces,
+            export_remote_traces=body.export_remote_traces,
+            allow_local_traces=recording.allow_local_traces,
+            allow_remote_export=recording.allow_remote_export,
+        )
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
@@ -854,6 +1321,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             tracer.tracer_provider.add_span_processor(agent_span_recorder)
 
         resolved_contexts = resolve_contexts(body.contexts)
+        if (browser_clock := _resolve_browser_clock(body.messages)) is not None:
+            resolved_contexts.app = browser_clock
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         phoenix_user_email: str | None = None
@@ -897,19 +1366,27 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
+        user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         subagents_enabled = _subagents_enabled(resolved_contexts)
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
+
         server_agent = (
             build_server_agent(
                 model=model,
                 schema=request.app.state.graphql_schema,
                 build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+                db=request.app.state.db,
+                event_queue=request.state.event_queue,
                 docs_mcp_server=request.app.state.docs_mcp_server,
                 enable_web_access=web_access_enabled,
                 allow_mutations=graphql_mutations_enabled,
+                read_only=request.app.state.read_only,
+                auth_enabled=request.app.state.authentication_enabled,
+                user_id=user_id,
+                is_viewer=is_viewer,
                 tracer_provider=tracer_provider,
                 enable_subagents=False,
             )
@@ -950,6 +1427,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             server_agent=server_agent,
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,
+            db=request.app.state.db,
+            event_queue=request.state.event_queue,
+            read_only=request.app.state.read_only,
+            auth_enabled=request.app.state.authentication_enabled,
+            user_id=user_id,
+            is_viewer=is_viewer,
         )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
@@ -966,7 +1449,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     requested_skill_names=body.requested_skills,
                     available_skills=available_skills,
                     load_skill_template=agent_prompts.load_skill,
-                    message_factory=AssistantMetadataUIMessage,
+                    message_factory=PhoenixUIMessage,
                 )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
@@ -981,20 +1464,58 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model_provider_availability=model_provider_availability,
         )
 
+        turn_ids = _resolve_turn_trace_ids(body.turn_trace_context, now=request_received_at)
+        parent_context = _turn_parent_context(turn_ids)
+        request_parent_span_context = _get_span_context(parent_context)
+
+        turn_final_output_text: str | None = None
+        turn_is_terminal = False
+
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
+            nonlocal turn_final_output_text, turn_is_terminal
+            if isinstance(result.output, str):
+                turn_is_terminal = True
+                turn_final_output_text = result.output.strip() or None
+            # Only advertise a trace when the tracer is actually recording
+            span_context = (
+                (
+                    agent_span_recorder.span_context
+                    if agent_span_recorder and agent_span_recorder.span_context is not None
+                    else request_parent_span_context
+                )
+                if tracer is not None
+                else None
+            )
             yield _build_message_metadata_chunk(
-                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
+                span_context=span_context,
+                turn_trace_context=(
+                    TurnTraceContext(
+                        trace_id=format_trace_id(turn_ids.trace_id),
+                        root_span_id=format_span_id(turn_ids.root_span_id),
+                        started_at=turn_ids.started_at,
+                    )
+                    if tracer is not None
+                    else None
+                ),
                 session_id=session_id,
                 usage=result.usage,
             )
-            _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            stream_error: BaseException | None = None
             try:
+                if tracer is not None and body.turn_trace_context is not None:
+                    _synthesize_client_tool_spans(
+                        tracer=tracer,
+                        turn_ids=turn_ids,
+                        messages=body.messages,
+                        received_at=request_received_at,
+                        session_id=session_id,
+                    )
                 with (
-                    detached_otel_context(),
+                    detached_otel_context(parent_context),
                     using_session(session_id=session_id),
-                    _maybe_using_user(body.attach_user_id, phoenix_user_email),
+                    _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
                     raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
@@ -1013,6 +1534,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                             provider_metadata=agent_message_chunk.provider_metadata
                                             or {},
                                             tool_name=agent_message_chunk.tool_name,
+                                            emitted_at=datetime.now(timezone.utc),
                                         )
                                     )
                                 yield agent_message_chunk
@@ -1034,6 +1556,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                                 provider_metadata=forced_skill_message_chunk.provider_metadata
                                                 or {},
                                                 tool_name=forced_skill_message_chunk.tool_name,
+                                                emitted_at=datetime.now(timezone.utc),
                                             )
                                             forced_skill_message_chunk.provider_metadata = (
                                                 provider_metadata
@@ -1047,8 +1570,26 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
                     ):
                         yield message_chunk
+            except BaseException as exc:
+                stream_error = exc
+                raise
             finally:
                 if tracer is not None:
+                    if turn_is_terminal or stream_error is not None:
+                        _emit_turn_root_span(
+                            tracer=tracer,
+                            turn_ids=turn_ids,
+                            session_id=session_id,
+                            input_text=_get_last_user_text(body.messages),
+                            output_text=turn_final_output_text,
+                            error_message=(
+                                None
+                                if stream_error is None
+                                else (str(stream_error) or type(stream_error).__name__)
+                            ),
+                            end_time=datetime.now(timezone.utc),
+                            user_email=phoenix_user_email if attach_user_id else None,
+                        )
                     tracer.tracer_provider.force_flush()
                     if ingest_traces:
                         project_id = await _ensure_project_exists(
@@ -1078,9 +1619,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
+        attach_user_id = _resolve_attach_user_id(body.attach_user_id)
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        ingest_traces, export_remote_traces = _resolve_trace_recording(
+            ingest_traces=body.ingest_traces,
+            export_remote_traces=body.export_remote_traces,
+            allow_local_traces=recording.allow_local_traces,
+            allow_remote_export=recording.allow_remote_export,
+        )
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
@@ -1111,11 +1657,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         history = VercelAIAdapter.load_messages(body.messages)
+        parent_context = extract_otel_context(dict(request.headers))
         try:
             with (
-                detached_otel_context(),
+                detached_otel_context(parent_context),
                 using_metadata({"session_id": session_id}),
-                _maybe_using_user(body.attach_user_id, phoenix_user_email),
+                _maybe_using_user(attach_user_id, phoenix_user_email),
             ):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:

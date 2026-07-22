@@ -15,23 +15,30 @@ import {
   ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  compactChartMargin,
+  compactLegendProps,
+  compactTimeXAxisProps,
+  compactYAxisProps,
+  defaultCartesianGridProps,
+  defaultTooltipProps,
   InteractiveLegend,
   TimeRangeChartBrush,
-  useInteractiveLegend,
   useBinTimeTickFormatter,
+  useInteractiveLegend,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
-import {
-  defaultCartesianGridProps,
-  defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
-} from "@phoenix/components/chart/defaults";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { formatFloat, intFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  PROJECT_METRICS_CHART_SYNC_ID,
+  useMetricQueryFetchOptions,
+} from "@phoenix/pages/project/metrics/types";
+import {
+  formatFloat,
+  latencyMsFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 
 import type { TraceLatencyPercentilesTimeSeriesQuery } from "./__generated__/TraceLatencyPercentilesTimeSeriesQuery.graphql";
 
@@ -46,11 +53,11 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
           )}`}</Text>
         )}
         {payload.map((entry, index) => {
-          if (!entry.value) return null;
+          if (entry.value == null) return null;
           return (
             <ChartTooltipItem
               key={index}
-              color={entry.color || "#ffffff"}
+              color={entry.color}
               shape="line"
               name={String(entry.dataKey || "unknown")}
               value={`${formatFloat(Number(entry.value))} s`}
@@ -110,7 +117,8 @@ export function TraceLatencyPercentilesTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    useMetricQueryFetchOptions()
   );
 
   const chartData = (
@@ -139,33 +147,24 @@ export function TraceLatencyPercentilesTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="line"
         >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-              syncId={"projectMetrics"}
+              margin={compactChartMargin}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
-              <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                width={70}
-                tickFormatter={(x) => intFormatter(x)}
-                label={{
-                  value: "Latency (s)",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                {...defaultYAxisProps}
+                {...compactYAxisProps}
+                tickFormatter={(seconds) => latencyMsFormatter(seconds * 1000)}
               />
               <Line
                 type="monotone"
@@ -238,16 +237,13 @@ export function TraceLatencyPercentilesTimeSeries({
                 hide={isDataKeyHidden("max")}
               />
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="line"
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
               />
-              <Tooltip
-                content={TooltipContent}
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-              />
+              <Tooltip content={TooltipContent} {...defaultTooltipProps} />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartEmptyStateOverlay>

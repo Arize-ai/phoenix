@@ -5,6 +5,7 @@ import { graphql, useFragment } from "react-relay";
 import { Flex } from "@phoenix/components";
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
+import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
 import {
   Summary,
@@ -192,7 +193,8 @@ export const SessionAnnotationSummaryGroupTokens = ({
 export const SessionAnnotationSummaryGroupStacks = ({
   session,
   renderEmptyState,
-}: SessionAnnotationSummaryGroupProps) => {
+  leadingDivider = false,
+}: SessionAnnotationSummaryGroupProps & { leadingDivider?: boolean }) => {
   const {
     sortedSummariesByName,
     annotationsByName,
@@ -203,7 +205,7 @@ export const SessionAnnotationSummaryGroupStacks = ({
     return renderEmptyState();
   }
   return (
-    <Flex direction="row" gap="size-400">
+    <AnnotationSummaryGroupStacksRow leadingDivider={leadingDivider}>
       {sortedSummariesByName.map((summary) => {
         const latestAnnotation = annotationsByName[summary.name]?.[0];
         if (!latestAnnotation) {
@@ -225,6 +227,6 @@ export const SessionAnnotationSummaryGroupStacks = ({
           </Summary>
         );
       })}
-    </Flex>
+    </AnnotationSummaryGroupStacksRow>
   );
 };

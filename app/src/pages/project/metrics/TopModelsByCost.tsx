@@ -17,8 +17,10 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
+  compactChartMargin,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  defaultTooltipProps,
+  compactLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   truncateModelName,
@@ -26,6 +28,7 @@ import {
   useInteractiveLegend,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByCostQuery } from "./__generated__/TopModelsByCostQuery.graphql";
@@ -92,7 +95,8 @@ export function TopModelsByCost({
         start: timeRange.start?.toISOString(),
         end: timeRange.end?.toISOString(),
       },
-    }
+    },
+    useMetricQueryFetchOptions()
   );
 
   const chartData = useMemo(() => {
@@ -113,19 +117,17 @@ export function TopModelsByCost({
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
       message="No data in this time range"
+      chartType="barHorizontal"
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+          margin={compactChartMargin}
           layout="vertical"
           barSize={10}
         >
-          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-          <Tooltip
-            content={TooltipContent}
-            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-          />
+          <CartesianGrid {...defaultCartesianGridProps} />
+          <Tooltip content={TooltipContent} {...defaultTooltipProps} />
           <XAxis
             {...defaultXAxisProps}
             type="number"
@@ -137,6 +139,9 @@ export function TopModelsByCost({
             dataKey="model"
             type="category"
             width={120}
+            axisLine={false}
+            tickLine={false}
+            tickMargin={4}
             tickFormatter={truncateModelName}
           />
           <Bar
@@ -156,7 +161,7 @@ export function TopModelsByCost({
             radius={[0, 2, 2, 0]}
           />
           <InteractiveLegend
-            {...defaultLegendProps}
+            {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconType="circle"
             iconSize={8}

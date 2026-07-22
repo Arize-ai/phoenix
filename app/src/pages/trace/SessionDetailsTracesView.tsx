@@ -24,10 +24,9 @@ import {
 import { useSearchParams } from "react-router";
 
 import {
+  DisclosureArrow,
   Empty,
   Flex,
-  Icon,
-  Icons,
   Loading,
   Text,
   Truncate,
@@ -59,8 +58,6 @@ import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__g
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
-import { SessionViewTabs } from "./SessionViewTabs";
-import type { SessionView } from "./SessionViewTabs";
 import { SpanDetails } from "./SpanDetails";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
@@ -101,14 +98,8 @@ type TraceSelectHandler = ({
 
 export function SessionDetailsTracesView({
   queryRef,
-  sessionView,
-  onSessionViewChange,
-  traceCount,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
-  sessionView: SessionView;
-  onSessionViewChange: (view: SessionView) => void;
-  traceCount: number;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
     sessionDetailsTracesViewQuery,
@@ -281,26 +272,20 @@ export function SessionDetailsTracesView({
     >
       <Panel id="session-traces-list" defaultSize="50%" minSize="20%">
         <div css={tracesListPanelCSS}>
-          <SessionViewTabs
-            sessionView={sessionView}
-            onSessionViewChange={onSessionViewChange}
-            traceCount={traceCount}
-          >
-            <TraceRowList
-              traces={traces}
-              expandedIds={expandedIds}
-              selectedTraceId={selectedTraceId}
-              selectedSpanNodeId={selectedSpanNodeId}
-              onToggleExpanded={toggleExpanded}
-              onTraceSelect={handleTraceSelect}
-              onSpanClick={handleSpanClick}
-              rowRefs={rowRefs}
-              isLoadingNext={isLoadingNext}
-              onScroll={(e) =>
-                throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
-            />
-          </SessionViewTabs>
+          <TraceRowList
+            traces={traces}
+            expandedIds={expandedIds}
+            selectedTraceId={selectedTraceId}
+            selectedSpanNodeId={selectedSpanNodeId}
+            onToggleExpanded={toggleExpanded}
+            onTraceSelect={handleTraceSelect}
+            onSpanClick={handleSpanClick}
+            rowRefs={rowRefs}
+            isLoadingNext={isLoadingNext}
+            onScroll={(e) =>
+              throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
+            }
+          />
         </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
@@ -493,7 +478,7 @@ function TraceRowChevron({ isExpanded }: { isExpanded: boolean }) {
       data-expanded={isExpanded}
       data-testid="session-trace-row-chevron"
     >
-      <Icon svg={<Icons.ChevronRightSmall />} />
+      <DisclosureArrow isExpanded={isExpanded} />
     </span>
   );
 }
@@ -693,9 +678,9 @@ const traceRowCSS = css`
 const traceRowHeaderCSS = css`
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-200);
   background: transparent;
   border: none;
   /* Reserve space for the selected-state indicator so rows do not shift when selected. */
@@ -714,19 +699,26 @@ const traceRowHeaderCSS = css`
 
 const chevronCSS = css`
   flex: none;
-  transition: transform 120ms ease;
   display: inline-flex;
-
-  &[data-expanded="true"] {
-    transform: rotate(90deg);
-  }
+  align-items: center;
+  /* Center the arrow on the title line rather than floating between the
+   * title and metrics lines. */
+  height: var(--global-line-height-s);
 `;
 
 const traceTreeContainerCSS = css`
   max-height: 500px;
   overflow: auto;
   border-top: 1px solid var(--global-border-color-default);
-  background: var(--ac-global-color-grey-75);
+  background: var(--global-color-gray-75);
+
+  /* The tree renders inside a trace row that is itself selected, so tone the
+   * span selection down a step — the strong list-item selection color stays
+   * on the trace row. */
+  & .span-node-wrap.is-selected {
+    background-color: var(--global-color-gray-100);
+    border-color: var(--global-color-gray-200);
+  }
 `;
 
 const spanDetailsContainerCSS = css`

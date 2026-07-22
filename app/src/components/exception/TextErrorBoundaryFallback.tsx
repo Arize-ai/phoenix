@@ -51,7 +51,7 @@ export function TextErrorBoundaryFallback({
               white-space: pre-wrap;
               overflow-wrap: break-word;
               margin: 0;
-              font-size: var(--ac-global-font-size-xs, 12px);
+              font-size: var(--global-font-size-xs, 12px);
             `}
           >
             {error}

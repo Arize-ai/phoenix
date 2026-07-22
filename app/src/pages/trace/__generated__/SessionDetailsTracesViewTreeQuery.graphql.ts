@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<7314e382ec5226941ce6e3940062aba2>>
+ * @generated SignedSource<<3172016b7631e9936f37a033b27917f9>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -82,8 +81,8 @@ v7 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -91,7 +90,7 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -102,7 +101,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "Trace",
                 "kind": "LinkedField",
                 "name": "trace",
@@ -130,27 +129,27 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionDetailsTracesViewTreeQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v4/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v3/*:: as any*/),
                 "concreteType": "Trace",
                 "kind": "LinkedField",
                 "name": "trace",
@@ -165,7 +164,7 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v5/*: any*/),
+                    "args": (v5/*:: as any*/),
                     "concreteType": "SpanConnection",
                     "kind": "LinkedField",
                     "name": "spans",
@@ -187,7 +186,7 @@ return {
                             "name": "node",
                             "plural": false,
                             "selections": [
-                              (v6/*: any*/),
+                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -195,7 +194,7 @@ return {
                                 "name": "spanId",
                                 "storageKey": null
                               },
-                              (v7/*: any*/),
+                              (v7/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -299,7 +298,7 @@ return {
                                     ],
                                     "storageKey": null
                                   },
-                                  (v7/*: any*/),
+                                  (v7/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -335,8 +334,8 @@ return {
                             "name": "node",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/),
-                              (v6/*: any*/)
+                              (v4/*:: as any*/),
+                              (v6/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -373,14 +372,14 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v5/*: any*/),
+                    "args": (v5/*:: as any*/),
                     "filters": null,
                     "handle": "connection",
                     "key": "ConnectedTraceTree_spans",
                     "kind": "LinkedHandle",
                     "name": "spans"
                   },
-                  (v6/*: any*/)
+                  (v6/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -388,7 +387,7 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v6/*: any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }

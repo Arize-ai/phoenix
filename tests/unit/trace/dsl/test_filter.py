@@ -196,6 +196,22 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
             "'cha' in span_kind",
             "TextContains(span_kind, 'CHA')",
         ),
+        (
+            "status_code == 'error'",
+            "status_code == 'ERROR'",
+        ),
+        (
+            "'Error' == status_code",
+            "'ERROR' == status_code",
+        ),
+        (
+            "status_code in ('ok', 'Error')",
+            "status_code.in_(('OK', 'ERROR'))",
+        ),
+        (
+            "'err' in status_code",
+            "TextContains(status_code, 'ERR')",
+        ),
     ],
 )
 async def test_filter_translated(

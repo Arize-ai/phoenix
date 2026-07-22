@@ -28,7 +28,7 @@ import type {
   SpanFeedback_annotations$data,
   SpanFeedback_annotations$key,
 } from "./__generated__/SpanFeedback_annotations.graphql";
-import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
+import { AnnotationsEmpty } from "./AnnotationsEmpty";
 
 type TableRow = SpanFeedback_annotations$data["spanAnnotations"][number] & {
   spanNodeId: string;
@@ -288,6 +288,6 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
   return hasAnnotations ? (
     <SpanAnnotationsTable annotations={annotations} spanNodeId={data.id} />
   ) : (
-    <SpanAnnotationsEmpty />
+    <AnnotationsEmpty />
   );
 }

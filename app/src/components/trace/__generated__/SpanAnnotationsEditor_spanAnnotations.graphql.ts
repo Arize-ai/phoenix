@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f045f87ec8fe9921e3f7bad568cb0ad2>>
+ * @generated SignedSource<<56291b9df767773ae0d3c124bf438373>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -49,7 +48,7 @@ return {
   "metadata": null,
   "name": "SpanAnnotationsEditor_spanAnnotations",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": "filteredSpanAnnotations",
       "args": [
@@ -85,7 +84,7 @@ return {
       "name": "spanAnnotations",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,

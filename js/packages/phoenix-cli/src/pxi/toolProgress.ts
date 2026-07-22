@@ -1,5 +1,6 @@
 import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 
+import { getToolPresentation, type ToolPresentation } from "./toolPresentation";
 import type { PxiMessage } from "./types";
 
 /**
@@ -27,7 +28,7 @@ export type ToolProgress = {
   state: ToolProgressState;
   statusText: string;
   errorText?: string;
-};
+} & ToolPresentation;
 
 type PxiToolPart = UIMessagePart<UIDataTypes, UITools> & {
   toolCallId: string;
@@ -109,12 +110,20 @@ export function getToolProgressFromPart({
   }
   const toolName = getToolName(part);
   const state = part.state;
+  const errorText = "errorText" in part ? part.errorText : undefined;
   return {
     toolCallId: part.toolCallId,
     toolName,
     state,
     statusText: getStatusText(state),
-    errorText: "errorText" in part ? part.errorText : undefined,
+    errorText,
+    ...getToolPresentation({
+      toolName,
+      state,
+      input: part.input,
+      output: part.output,
+      errorText,
+    }),
   };
 }
 

@@ -13,7 +13,7 @@
         ],
         "summary": "List annotation configurations",
         "description": "Retrieve a paginated list of all annotation configurations in the system.",
-        "operationId": "list_annotation_configs_v1_annotation_configs_get",
+        "operationId": "listAnnotationConfigs",
         "parameters": [
           {
             "name": "cursor",
@@ -85,7 +85,7 @@
           "annotation_configs"
         ],
         "summary": "Create an annotation configuration",
-        "operationId": "create_annotation_config_v1_annotation_configs_post",
+        "operationId": "createAnnotationConfig",
         "requestBody": {
           "required": true,
           "content": {
@@ -136,7 +136,7 @@
           "annotation_configs"
         ],
         "summary": "Get an annotation configuration by ID or name",
-        "operationId": "get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get",
+        "operationId": "getAnnotationConfig",
         "parameters": [
           {
             "name": "config_identifier",
@@ -190,7 +190,7 @@
           "annotation_configs"
         ],
         "summary": "Update an annotation configuration",
-        "operationId": "update_annotation_config_v1_annotation_configs__config_id__put",
+        "operationId": "updateAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -252,7 +252,7 @@
           "annotation_configs"
         ],
         "summary": "Delete an annotation configuration",
-        "operationId": "delete_annotation_config_v1_annotation_configs__config_id__delete",
+        "operationId": "deleteAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -6798,7 +6798,7 @@
         "tags": [
           "spans"
         ],
-        "summary": "Annotate Span Documents",
+        "summary": "Create span document annotations",
         "operationId": "annotateSpanDocuments",
         "parameters": [
           {
@@ -7164,6 +7164,452 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/user/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List the authenticated user's API keys",
+        "description": "Retrieve the API keys belonging to the currently authenticated user. The keys themselves are not recoverable and are never included in the response.",
+        "operationId": "getUserApiKeys",
+        "responses": {
+          "200": {
+            "description": "The authenticated user's API keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Create an API key for the authenticated user",
+        "description": "Create a personal API key for the currently authenticated user. The key inherits the user's role, so it grants no more access than the user already has. Creation requires an access-token session; API keys cannot mint replacement keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
+        "operationId": "createUserApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created API key, including the key itself.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/users/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List all user API keys",
+        "description": "Retrieve API keys belonging to human users across the organization. System API keys are excluded. Restricted to admins.",
+        "operationId": "getAllUserApiKeys",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a UserApiKey GlobalID).",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a UserApiKey GlobalID)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The maximum number of API keys to return (at most 1000).",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The maximum number of API keys to return (at most 1000)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A paginated list of user API keys and their owners.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllUserApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/user/api_keys/{api_key_id}": {
+      "delete": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Delete a user API key",
+        "description": "Permanently revoke a user API key. Users can revoke their own keys, and admins can revoke keys belonging to other users. The key stops working immediately.",
+        "operationId": "deleteUserApiKey",
+        "parameters": [
+          {
+            "name": "api_key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the API key.",
+              "title": "Api Key Id"
+            },
+            "description": "The GlobalID of the API key."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "API key not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/system/api_keys": {
+      "get": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "List system API keys",
+        "description": "Retrieve all system API keys. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.",
+        "operationId": "getSystemApiKeys",
+        "responses": {
+          "200": {
+            "description": "The system API keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeysResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Create a system API key",
+        "description": "Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. Creation requires an admin access-token session or the configured admin secret; API keys cannot mint keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.",
+        "operationId": "createSystemApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The newly created system API key, including the key itself.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/system/api_keys/{api_key_id}": {
+      "delete": {
+        "tags": [
+          "api_keys"
+        ],
+        "summary": "Delete a system API key",
+        "description": "Permanently revoke a system API key. The key stops working immediately. Restricted to admins.",
+        "operationId": "deleteSystemApiKey",
+        "parameters": [
+          {
+            "name": "api_key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the system API key.",
+              "title": "Api Key Id"
+            },
+            "description": "The GlobalID of the system API key."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "System API key not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -7975,6 +8421,122 @@
         ],
         "title": "AnonymousUser"
       },
+      "ApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "ApiKey"
+      },
+      "ApiKeyData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "A human-readable name for the API key."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of what the API key is for."
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "When the API key expires. The key never expires when omitted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ApiKeyData"
+      },
+      "ApiKeyUser": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "title": "ApiKeyUser"
+      },
       "AppContext": {
         "properties": {
           "type": {
@@ -8033,6 +8595,12 @@
       },
       "AssistantMessageMetadata": {
         "properties": {
+          "type": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Type",
+            "default": "assistant"
+          },
           "sessionId": {
             "type": "string",
             "title": "Sessionid"
@@ -8041,6 +8609,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/AssistantMessageMetadataTraceIds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
               },
               {
                 "type": "null"
@@ -8145,113 +8723,6 @@
           "total"
         ],
         "title": "AssistantMessageMetadataUsageTokens"
-      },
-      "AssistantMetadataUIMessage": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "system",
-              "user",
-              "assistant"
-            ],
-            "title": "Role"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssistantMessageMetadata"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "parts": {
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/TextUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceUrlUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceDocumentUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/FileUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DataUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/StepStartUIPart"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Parts"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "role",
-          "parts"
-        ],
-        "title": "AssistantMetadataUIMessage",
-        "description": "`UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`."
       },
       "BuiltInProviderModelSelection": {
         "properties": {
@@ -8479,7 +8950,7 @@
           },
           "messages": {
             "items": {
-              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+              "$ref": "#/components/schemas/PhoenixUIMessage"
             },
             "type": "array",
             "title": "Messages"
@@ -8552,6 +9023,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -8598,7 +9079,7 @@
           },
           "messages": {
             "items": {
-              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+              "$ref": "#/components/schemas/PhoenixUIMessage"
             },
             "type": "array",
             "title": "Messages"
@@ -8660,6 +9141,16 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "turnTraceContext": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnTraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -8867,6 +9358,30 @@
           "data"
         ],
         "title": "CreateAnnotationConfigResponseBody"
+      },
+      "CreateApiKeyRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ApiKeyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateApiKeyRequestBody"
+      },
+      "CreateApiKeyResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatedApiKey"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateApiKeyResponseBody"
       },
       "CreateDatasetLabelRequestBody": {
         "properties": {
@@ -9332,6 +9847,59 @@
           "data"
         ],
         "title": "CreateUserResponseBody"
+      },
+      "CreatedApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "key"
+        ],
+        "title": "CreatedApiKey"
       },
       "CustomProviderModelSelection": {
         "properties": {
@@ -10753,6 +11321,34 @@
         ],
         "title": "FreeformAnnotationConfigData"
       },
+      "GetAllUserApiKeysResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/UserApiKey"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetAllUserApiKeysResponseBody"
+      },
       "GetAnnotationConfigResponseBody": {
         "properties": {
           "data": {
@@ -10829,6 +11425,22 @@
           "next_cursor"
         ],
         "title": "GetAnnotationConfigsResponseBody"
+      },
+      "GetApiKeysResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ApiKey"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetApiKeysResponseBody"
       },
       "GetDatasetLabelResponseBody": {
         "properties": {
@@ -12460,6 +13072,128 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OtlpStatus"
+      },
+      "PhoenixUIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/AssistantMessageMetadata"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UserMessageMetadata"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "assistant": "#/components/schemas/AssistantMessageMetadata",
+                    "user": "#/components/schemas/UserMessageMetadata"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "PhoenixUIMessage",
+        "description": "`UIMessage` with `metadata` narrowed to the Phoenix wire shapes."
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
@@ -17150,6 +17884,32 @@
         ],
         "title": "TraceSpanData"
       },
+      "TurnTraceContext": {
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Traceid"
+          },
+          "rootSpanId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$",
+            "title": "Rootspanid"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Startedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "traceId",
+          "rootSpanId",
+          "startedAt"
+        ],
+        "title": "TurnTraceContext"
+      },
       "UIMessage": {
         "properties": {
           "id": {
@@ -17636,6 +18396,84 @@
         "title": "UpsertOrDeleteSecretsResult",
         "description": "Result payload listing which keys were upserted and which were deleted."
       },
+      "UserApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ApiKeyUser"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "user"
+        ],
+        "title": "UserApiKey"
+      },
+      "UserMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "user",
+            "title": "Type",
+            "default": "user"
+          },
+          "currentDateTime": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Currentdatetime"
+          },
+          "timeZone": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currentDateTime",
+          "timeZone"
+        ],
+        "title": "UserMessageMetadata",
+        "description": "Wire schema for metadata the browser attaches to outgoing user messages."
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -17761,6 +18599,61 @@
         ],
         "title": "_SummarizeResponse"
       },
+      "ToolCallCallbackProviderMetadata": {
+        "additionalProperties": false,
+        "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
+        "properties": {
+          "tool_execution_environment": {
+            "enum": [
+              "client",
+              "server"
+            ],
+            "title": "Tool Execution Environment",
+            "type": "string"
+          },
+          "tool_input_emitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Input Emitted At"
+          },
+          "client_started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Started At"
+          },
+          "client_ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Ended At"
+          }
+        },
+        "required": [
+          "tool_execution_environment"
+        ],
+        "title": "ToolCallCallbackProviderMetadata",
+        "type": "object"
+      },
       "ToolCallProviderMetadata": {
         "additionalProperties": false,
         "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
@@ -17772,6 +18665,18 @@
             ],
             "title": "Tool Execution Environment",
             "type": "string"
+          },
+          "tool_input_emitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tool Input Emitted At"
           }
         },
         "required": [

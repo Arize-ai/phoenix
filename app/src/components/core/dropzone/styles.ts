@@ -222,10 +222,10 @@ export const fileInputCSS = css`
 
   [slot="description"] {
     font-size: var(--global-font-size-xs);
-    padding-top: var(--global-dimension-static-size-50);
+    padding-top: var(--global-dimension-size-50);
     color: var(--global-text-color-500);
-    line-height: var(--global-dimension-static-font-size-200);
-    min-height: var(--global-dimension-static-font-size-200);
+    line-height: var(--global-dimension-font-size-200);
+    min-height: var(--global-dimension-font-size-200);
     display: inline-block;
   }
 `;

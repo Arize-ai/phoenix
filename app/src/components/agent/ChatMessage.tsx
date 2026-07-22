@@ -1,7 +1,10 @@
 import { css } from "@emotion/react";
 import { isTextUIPart } from "ai";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getAssistantMessageMetadata,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import {
   Message,
   MessageActions,
@@ -22,7 +25,7 @@ import { partitionMessageParts } from "./partitionMessageParts";
 import { ToolPart } from "./ToolPart";
 
 /**
- * Reports a rewind/fork request from a message's controls up to the chat view,
+ * Reports a rewind/branch request from a message's controls up to the chat view,
  * which owns the single confirmation dialog. Optional so messages can render
  * without the controls (e.g. while streaming) by omitting the prop entirely.
  */
@@ -45,7 +48,7 @@ const assistantMessageCSS = css`
 /**
  * Renders a user message bubble (right-aligned, primary colour) with a toolbar
  * for copying the message and, when `onRewindRequest` is provided, rewinding or
- * forking the conversation from it.
+ * branching the conversation from it.
  */
 export function UserMessage({
   message,
@@ -96,7 +99,7 @@ export function UserMessage({
  *
  * `allowRewind` gates the rewind control. Callers set it to `false` for the
  * last assistant turn, where rewinding to that response is a no-op (see
- * {@link MessageRewindActions}); fork stays available there.
+ * {@link MessageRewindActions}); branch stays available there.
  */
 export function AssistantMessage({
   message,
@@ -155,7 +158,7 @@ export function AssistantMessage({
               role="assistant"
               onRequest={onRewindRequest}
               showRewind={allowRewind}
-              traceId={message.metadata?.trace?.traceId}
+              traceId={getAssistantMessageMetadata(message)?.trace?.traceId}
             />
           ) : null}
         </AssistantMessageActions>

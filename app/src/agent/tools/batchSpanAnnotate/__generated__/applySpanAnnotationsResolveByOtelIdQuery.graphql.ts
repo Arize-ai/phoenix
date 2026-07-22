@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<991b5fba9025df6a29e20b26fce690e2>>
+ * @generated SignedSource<<3d0a94139e3a474bfff58f98819c5252>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -50,7 +49,7 @@ v2 = [
     "kind": "LinkedField",
     "name": "viewer",
     "plural": false,
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "storageKey": null
   },
   {
@@ -66,26 +65,26 @@ v2 = [
     "kind": "LinkedField",
     "name": "getSpanByOtelId",
     "plural": false,
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "storageKey": null
   }
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "applySpanAnnotationsResolveByOtelIdQuery",
-    "selections": (v2/*: any*/),
+    "selections": (v2/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "applySpanAnnotationsResolveByOtelIdQuery",
-    "selections": (v2/*: any*/)
+    "selections": (v2/*:: as any*/)
   },
   "params": {
     "cacheID": "9ec206854dbab5e4f5bf84330d287d32",

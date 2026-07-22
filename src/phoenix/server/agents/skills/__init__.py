@@ -9,6 +9,7 @@ from phoenix.server.agents.skills.evaluators import EVALUATORS_SKILL
 from phoenix.server.agents.skills.experiments import EXPERIMENTS_SKILL
 from phoenix.server.agents.skills.phoenix_graphql import PHOENIX_GRAPHQL_SKILL
 from phoenix.server.agents.skills.playground import PLAYGROUND_SKILL
+from phoenix.server.agents.skills.span_coding import SPAN_CODING_SKILL
 
 
 def build_skills(
@@ -19,7 +20,12 @@ def build_skills(
     include_evaluators: bool = False,
 ) -> list[Skill]:
     """Return the skills bundled with the assistant agent."""
-    skills = [DEBUG_TRACE_SKILL, ANNOTATE_SPANS_SKILL, PHOENIX_GRAPHQL_SKILL]
+    skills = [
+        DEBUG_TRACE_SKILL,
+        ANNOTATE_SPANS_SKILL,
+        SPAN_CODING_SKILL,
+        PHOENIX_GRAPHQL_SKILL,
+    ]
     if include_playground:
         skills.append(PLAYGROUND_SKILL)
     if include_datasets:

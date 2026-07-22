@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import {
   Card,
+  DocumentationHelp,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -21,7 +22,7 @@ import {
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
 
@@ -75,13 +76,8 @@ const settingSwitchCSS = css`
   }
 `;
 
-function useIsAdmin() {
-  const { viewer } = useViewer();
-  // Match IsAdminIfAuthEnabled server-side: no viewer => auth disabled => treat as admin
-  return !viewer || viewer.role?.name === "ADMIN";
-}
-
 function AssistantAgentEnabledSetting() {
+  const isAdmin = useIsAdminOrAuthDisabled();
   const adminAssistantEnabled = useAgentContext(
     (state) => state.agentsConfig.assistantEnabled
   );
@@ -92,24 +88,65 @@ function AssistantAgentEnabledSetting() {
     (state) => state.setIsAssistantAgentEnabled
   );
   return (
+    <li css={settingRowCSS}>
+      <Switch
+        labelPlacement="start"
+        isSelected={adminAssistantEnabled && isAssistantAgentEnabled}
+        isDisabled={!adminAssistantEnabled}
+        onChange={setIsAssistantAgentEnabled}
+        css={settingSwitchCSS}
+      >
+        <span className="assistant-personal-settings__label">
+          <Text weight="heavy">Use assistant</Text>
+          <Text color="text-500" size="S">
+            Shows the assistant in this browser.
+          </Text>
+        </span>
+      </Switch>
+      {!adminAssistantEnabled ? (
+        <SystemSettingsWarning isAdmin={isAdmin} isOnSettingsPage />
+      ) : null}
+    </li>
+  );
+}
+
+function AssistantFabModeSetting() {
+  const adminAssistantEnabled = useAgentContext(
+    (state) => state.agentsConfig.assistantEnabled
+  );
+  const isAssistantAgentEnabled = usePreferencesContext(
+    (state) => state.isAssistantAgentEnabled
+  );
+  const fabMode = useAgentContext((state) => state.fabMode);
+  const setFabMode = useAgentContext((state) => state.setFabMode);
+  return (
+    <li css={settingRowCSS}>
+      <Switch
+        labelPlacement="start"
+        isSelected={fabMode === "floating"}
+        isDisabled={!adminAssistantEnabled || !isAssistantAgentEnabled}
+        onChange={(isFloating) =>
+          setFabMode(isFloating ? "floating" : "pinned")
+        }
+        css={settingSwitchCSS}
+      >
+        <span className="assistant-personal-settings__label">
+          <Text weight="heavy">Floating assistant button</Text>
+          <Text color="text-500" size="S">
+            Shows the assistant as a draggable floating button instead of
+            pinning it to the top navigation bar.
+          </Text>
+        </span>
+      </Switch>
+    </li>
+  );
+}
+
+function AssistantDisplaySettings() {
+  return (
     <ul css={settingsListCSS}>
-      <li css={settingRowCSS}>
-        <Switch
-          labelPlacement="start"
-          isSelected={adminAssistantEnabled && isAssistantAgentEnabled}
-          isDisabled={!adminAssistantEnabled}
-          onChange={setIsAssistantAgentEnabled}
-          css={settingSwitchCSS}
-        >
-          <span className="assistant-personal-settings__label">
-            <Text weight="heavy">Use assistant</Text>
-            <Text color="text-500" size="S">
-              Shows the assistant in this browser.
-            </Text>
-          </span>
-        </Switch>
-        {!adminAssistantEnabled ? <SystemSettingsWarning /> : null}
-      </li>
+      <AssistantAgentEnabledSetting />
+      <AssistantFabModeSetting />
     </ul>
   );
 }
@@ -140,26 +177,33 @@ function PersonalSettingsSection() {
         These settings apply only to this browser. System settings control which
         options are available.
       </Text>
-      <AssistantAgentEnabledSetting />
+      <AssistantDisplaySettings />
       <AgentSettingsForm>
         <AgentWebAccessSettings />
         {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
           <AgentSubagentsSettings />
         ) : null}
-        <AgentObservabilitySettings />
+        <AgentObservabilitySettings isOnSettingsPage />
       </AgentSettingsForm>
     </Flex>
   );
 }
 
 export function SettingsAgentsPage() {
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAdminOrAuthDisabled();
   const isExperimentalSettingsEnabled = useFeatureFlag(
     "agent-experimental-settings"
   );
   return (
     <Flex direction="column" gap="size-200">
-      <Card title="Assistant settings - PXI">
+      <Card
+        title="Assistant settings - PXI"
+        titleExtra={
+          <DocumentationHelp topic="pxi">
+            Configure Phoenix Intelligence and personal assistant preferences.
+          </DocumentationHelp>
+        }
+      >
         <DisclosureGroup defaultExpandedKeys={[PERSONAL_SECTION_ID]}>
           {isAdmin ? (
             <Disclosure id={ADMIN_SECTION_ID}>

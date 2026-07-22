@@ -12,6 +12,7 @@ import {
   defaultGetEnvironmentOptions,
   makeDefaultClientOptions,
 } from "./config";
+import { HttpError } from "./errors";
 import type { SemanticVersion } from "./types/semver";
 import { parseSemanticVersion } from "./utils/semverUtils";
 
@@ -66,10 +67,7 @@ export const getMergedOptions = ({
 const middleware: Middleware = {
   onResponse({ response }) {
     if (!response.ok) {
-      // Will produce error messages like "https://example.org/api/v1/example: 404 Not Found".
-      throw new Error(
-        `${response.url}: ${response.status} ${response.statusText}`
-      );
+      throw new HttpError(response);
     }
   },
 };

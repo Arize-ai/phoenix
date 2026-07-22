@@ -172,6 +172,76 @@ px profile delete staging --yes  # skip confirmation
 
 ## Commands
 
+### `px setup`
+
+Wire your app up to Phoenix. Run it from your app's root directory. Setup establishes the connection (endpoint, project, auth) and saves it to a gitignored `.env.phoenix` file, then optionally hands a coding agent (Claude Code, Codex, Cursor, OpenCode) an instrumentation task and waits until a real trace arrives. After that it can point `px` at the new project and install Phoenix skills so the agent can query what you captured.
+
+```bash
+px setup                                          # Interactive
+px setup --endpoint https://phoenix.example.com   # Skip the endpoint prompt
+npx -y @arizeai/phoenix-cli setup                 # Run without installing
+```
+
+For CI or non-interactive agents, pass flags instead of answering prompts:
+
+```bash
+# Connection only — write .env.phoenix, no source changes
+px setup --no-input --endpoint http://localhost:6006 --project my-app
+
+# Instrument too — requires --agent when there's no TTY to choose one
+px setup --no-input --instrument --agent claude --yolo --language python --format raw
+```
+
+Re-run individual steps later with the subcommands:
+
+```bash
+px setup instrument --agent codex   # Instrument and verify again
+px setup skills                     # Install coding-agent skills only
+px setup mcp --agent claude         # Register the Phoenix MCP server with an agent
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name to target | From env |
+| `--no-input` | Never prompt; fail instead of asking (for CI/agents) | — |
+| `--instrument` / `--no-instrument` | Whether to hand instrumentation to a coding agent | Prompted |
+| `--agent <agent>` | Coding agent to hand off to: `claude`, `codex`, `cursor`, `opencode` | Prompted |
+| `--language <lang...>` | Language(s) to instrument (repeatable) | Detected |
+| `--skills` / `--no-skills` | Whether to install Phoenix coding-agent skills | Prompted |
+| `--docs-mcp` / `--no-docs-mcp` | Connect the Phoenix docs MCP server to the agent instead of downloading docs | Prompted |
+| `--yolo` | Let the agent run without per-step confirmation | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+### `px setup mcp`
+
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
+
+```bash
+px setup mcp                        # Pick scope + agent interactively
+px setup mcp --agent codex          # Configure one agent
+px setup mcp --agent claude --local # Write this repo's config (.mcp.json)
+```
+
+Where an agent ships an `mcp add` (Claude, Codex, Gemini, VS Code global) the CLI drives it; the rest get a merge into their config file (`~/.cursor/mcp.json`, `~/.config/opencode/opencode.json`, `.vscode/mcp.json`).
+
+Auth defaults to **OAuth** — the config is URL-only and the agent opens Phoenix's browser login on first use. For headless clients, pass an API-key bearer header with `--header`:
+
+```bash
+px setup mcp --agent codex --no-input --format raw
+px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--agent <agent>` | Agent to configure: `claude`, `codex`, `gemini`, `cursor`, `opencode`, `vscode` | Prompted |
+| `--global` / `--local` | User-wide config, or this repo's (Codex is global-only) | `--global` |
+| `--endpoint <url>` | Phoenix base URL (skips inference) | Inferred |
+| `--profile <name>` | Profile to infer the endpoint from | Active profile |
+| `--header <header>` | `Name: value` header for the API-key fallback (repeatable) | OAuth (none) |
+| `--no-input` | Headless mode; requires `--agent` and defaults scope to global | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
 ### `px project list`
 
 List all available projects.
@@ -188,6 +258,24 @@ px project list --format raw  # JSON output for piping
 | `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
 | `--limit <number>` | Maximum projects to fetch per page | 100 |
+
+### `px project get <name>`
+
+Fetch a single project by exact name. Output is a single record (not an array). On a name miss, the command exits with a failure code and writes a structured error to stderr in `--format json`/`raw`.
+
+```bash
+px project get my-project
+px project get my-project --format raw --no-progress | jq -r '.id'  # Resolve name to ID
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<name>` | Exact project name | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--limit <number>` | Page size for the underlying lookup | 100 |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
 
 ### `px trace list [directory]`
 
@@ -212,6 +300,8 @@ px trace list --format raw --no-progress | jq     # Pipe to jq
 | `--api-key <key>` | Phoenix API key | From env |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress output | — |
+| `--include-annotations` | Include trace and span annotations | — |
+| `--include-notes` | Include trace and span notes | — |
 | `--max-concurrent <number>` | Maximum concurrent fetches | 10 |
 
 ### `px trace get <trace-id>`
@@ -220,18 +310,90 @@ Fetch a specific trace by ID.
 
 ```bash
 px trace get abc123def456
-px trace get abc123def456 --file trace.json      # Save to file
-px trace get abc123def456 --format raw | jq      # Pipe to jq
+px trace get abc123def456 --file trace.json                # Save to file
+px trace get abc123def456 --include-notes --format raw | jq # Include notes
+px trace get abc123def456 --format raw | jq                # Pipe to jq
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--file <path>` | Save to file instead of stdout | stdout |
+| `--include-annotations` | Include trace and span annotations | — |
+| `--include-notes` | Include trace and span notes | — |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--project <name>` | Project name or ID | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
+
+### `px trace annotate <trace-id>`
+
+Create or update a trace annotation by OpenTelemetry trace ID. Passing `--identifier` upserts a specific annotation instance, so repeated calls with the same identifier overwrite rather than append — the key primitive for reversible, script-driven coding sessions.
+
+```bash
+px trace annotate abc123def456 --name reviewer --label pass
+px trace annotate abc123def456 --name reviewer --score 0.9 --format raw --no-progress
+px trace annotate abc123def456 --name evaluator --label pass --annotator-kind LLM
+px trace annotate abc123def456 --name reviewer --explanation "needs follow-up"
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<trace-id>` | OpenTelemetry trace ID | — |
+| `--name <name>` | Annotation name (what is being measured) | Required |
+| `--label <label>` | Categorical result (e.g. `pass`, `fail`) | — |
+| `--score <number>` | Numeric score | — |
+| `--explanation <text>` | Free-text justification | — |
+| `--annotator-kind <kind>` | `HUMAN`, `LLM`, or `CODE` | `HUMAN` |
+| `--identifier <id>` | Annotation identifier; repeated calls with the same value upsert in place | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+At least one of `--label`, `--score`, or `--explanation` is required.
+
+### `px trace add-note <trace-id>`
+
+Add a free-text note to a trace by OpenTelemetry trace ID. Notes are a reserved annotation type: a trace can carry multiple notes, and passing `--identifier` upserts a specific note instead of appending.
+
+```bash
+px trace add-note abc123def456 --text "needs follow-up"
+px trace add-note abc123def456 --text "agent triage complete" --format raw --no-progress
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<trace-id>` | OpenTelemetry trace ID | — |
+| `--text <text>` | Note text to attach to the trace | Required |
+| `--identifier <id>` | Note identifier; repeated calls with the same value upsert in place | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px trace-annotations delete`
+
+Bulk-delete trace annotations for the configured project. Requires `--all` (delete every matching row) **or** both `--start-time` and `--end-time` to bound the delete to a `[start_time, end_time)` window — `--name`, `--identifier`, and `--annotator-kind` are narrowing filters and never authorize the request on their own. Deletes are disabled by default; set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first.
+
+```bash
+px trace-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
+px trace-annotations delete --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z -y
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--all` | Delete every matching row (authorizes the request) | — |
+| `--start-time <timestamp>` | Start of the delete window (with `--end-time`, authorizes the request) | — |
+| `--end-time <timestamp>` | End of the delete window (exclusive) | — |
+| `--name <name>` | Narrow to annotations with this name | — |
+| `--identifier <id>` | Narrow to annotations with this identifier | — |
+| `--annotator-kind <kind>` | Narrow to `HUMAN`, `LLM`, or `CODE` | — |
+| `-y, --yes` | Skip the confirmation prompt | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` to enable this command.
 
 ### `px span list [file]`
 
@@ -265,15 +427,43 @@ px span list --format raw --no-progress | jq               # Pipe to jq
 | `--parent-id <id>` | Filter by parent span ID (use `"null"` for root spans) | — |
 | `--attribute <filters...>` | Filter by attribute key-value pairs. Format: `key:value`. Repeat to AND multiple filters. Values containing colons are supported (split on first `:` only). To match a string attribute that looks like a number or boolean, JSON-quote the value (e.g., `'user.id:"12345"'`). Requires Phoenix server ≥ 14.9.0. | — |
 | `--include-annotations` | Include span annotations in output | Off |
+| `--include-notes` | Include span notes in output | Off |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--project <name>` | Project name or ID | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px span annotate <span-id>`
+
+Create or update a span annotation by OpenTelemetry span ID. As with `px trace annotate`, passing `--identifier` upserts a specific annotation instance so repeated calls overwrite rather than append.
+
+```bash
+px span annotate 7e2f08cb43bbf521 --name reviewer --label pass
+px span annotate 7e2f08cb43bbf521 --name reviewer --score 0.9 --format raw --no-progress
+px span annotate 7e2f08cb43bbf521 --name checker --score 1 --annotator-kind CODE
+px span annotate 7e2f08cb43bbf521 --name reviewer --explanation "looks good"
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<span-id>` | OpenTelemetry span ID | — |
+| `--name <name>` | Annotation name (what is being measured) | Required |
+| `--label <label>` | Categorical result (e.g. `pass`, `fail`) | — |
+| `--score <number>` | Numeric score | — |
+| `--explanation <text>` | Free-text justification | — |
+| `--annotator-kind <kind>` | `HUMAN`, `LLM`, or `CODE` | `HUMAN` |
+| `--identifier <id>` | Annotation identifier; repeated calls with the same value upsert in place | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+At least one of `--label`, `--score`, or `--explanation` is required.
+
 ### `px span add-note <span-id>`
 
-Notes are a reserved annotation type. Unlike other annotations, notes are open-ended and multiple notes can be attached to the same span.
+Notes are a reserved annotation type. Unlike other annotations, notes are open-ended and multiple notes can be attached to the same span. Passing `--identifier` upserts a specific note instead of appending.
 
 ```bash
 px span add-note abc123def456 --text "Escalated: retrieval returned empty results"
@@ -284,10 +474,21 @@ px span add-note abc123def456 --text "Reviewed by on-call" --format json
 |--------|-------------|---------|
 | `<span-id>` | OpenTelemetry span ID | — |
 | `--text <text>` | Note text to attach to the span | **Required** |
+| `--identifier <id>` | Note identifier; repeated calls with the same value upsert in place | — |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
+
+### `px span-annotations delete`
+
+Bulk-delete span annotations for the configured project. Same authorization gate as `px trace-annotations delete` — requires `--all` or both `--start-time` and `--end-time`, with `--name`/`--identifier`/`--annotator-kind` as narrowing filters. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` to enable it.
+
+```bash
+px span-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
+```
+
+Accepts the same options as `px trace-annotations delete`.
 
 ### `px session list`
 
@@ -355,6 +556,7 @@ px session annotate my-session-id --name correctness --explanation "needs follow
 | `--score <number>` | Numeric score | — |
 | `--explanation <text>` | Free-text justification | — |
 | `--annotator-kind <kind>` | `HUMAN`, `LLM`, or `CODE` | `HUMAN` |
+| `--identifier <id>` | Annotation identifier; repeated calls with the same value upsert in place | — |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
@@ -364,7 +566,7 @@ At least one of `--label`, `--score`, or `--explanation` is required.
 
 ### `px session add-note <session-id>`
 
-Add a free-text note to a session. Address the session by GlobalID or by user-provided `session_id`. A session can carry multiple notes; each receives a unique identifier. Requires Phoenix server `>= 14.17.0`.
+Add a free-text note to a session. Address the session by GlobalID or by user-provided `session_id`. A session can carry multiple notes; passing `--identifier` upserts a specific note instead of appending. Requires Phoenix server `>= 14.17.0`.
 
 ```bash
 px session add-note my-session-id --text "needs follow-up"
@@ -374,10 +576,21 @@ px session add-note my-session-id --text "agent triage complete" --format raw --
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--text <text>` | Note text to add | Required |
+| `--identifier <id>` | Note identifier; repeated calls with the same value upsert in place | — |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
+
+### `px session-annotations delete`
+
+Bulk-delete session annotations for the configured project. Same authorization gate as the trace and span equivalents — requires `--all` or both `--start-time` and `--end-time`. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` to enable it.
+
+```bash
+px session-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
+```
+
+Accepts the same options as `px trace-annotations delete`.
 
 ### `px dataset list`
 
@@ -504,6 +717,126 @@ The `text` format outputs prompt content with XML-style role tags, ideal for pip
 <system>You are a helpful assistant specialized in...</system>
 <user>{{user_input}}</user>
 ```
+
+### `px annotation-config list`
+
+List annotation configurations defined in your Phoenix instance.
+
+```bash
+px annotation-config list                                            # Table view
+px annotation-config list --limit 10                                 # At most 10 configs
+px annotation-config list --format raw --no-progress | jq -r '.[].name'  # Names as JSON
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of configs | — |
+
+### `px annotation-config get <config-identifier>`
+
+Fetch a single annotation configuration by name or ID.
+
+```bash
+px annotation-config get response-quality                                    # Look up by name
+px annotation-config get response-quality --format raw --no-progress | jq -r '.id'  # Resolve name to ID
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px annotation-config create`
+
+Create a new annotation configuration via `POST /v1/annotation_configs`. Configs come in three types: `CATEGORICAL` (a fixed set of labels, each with an optional numeric score), `CONTINUOUS` (a numeric range), and `FREEFORM` (free text).
+
+```bash
+# Categorical config with scored labels
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --value good=1 --value bad=0 --optimization-direction MAXIMIZE
+
+# Continuous config bounded between 0 and 1
+px annotation-config create --type CONTINUOUS --name confidence --lower-bound 0 --upper-bound 1
+
+# Free-text config
+px annotation-config create --type FREEFORM --name reviewer-notes --description 'Free-form reviewer feedback'
+
+# Categorical labels as a JSON payload (bulk/agent alternative to --value)
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --values '[{"label":"good","score":1},{"label":"bad","score":0}]'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--type <type>` | `CATEGORICAL`, `CONTINUOUS`, or `FREEFORM` (required) | — |
+| `--name <name>` | Annotation config name (required) | — |
+| `--description <description>` | Description | — |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE` | `NONE` |
+| `--value <label[=score]>` | Categorical label (repeatable; CATEGORICAL configs) | — |
+| `--values <json>` | Categorical values as JSON (CATEGORICAL configs) | — |
+| `--lower-bound <number>` | Lower bound (CONTINUOUS/FREEFORM configs) | — |
+| `--upper-bound <number>` | Upper bound (CONTINUOUS/FREEFORM configs) | — |
+| `--threshold <number>` | Threshold (FREEFORM configs) | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+`--value` and `--values` are mutually exclusive. `--type` and `--optimization-direction` are case-insensitive. Invalid input — including flags that don't apply to the chosen type — exits with `INVALID_ARGUMENT`.
+
+### `px annotation-config update <config-identifier>`
+
+Update an annotation configuration by name or ID. Only the fields you pass are changed — the command fetches the existing config, merges your flags, and writes the result back via `PUT /v1/annotation_configs/{id}`. The config `type` is immutable; to change it, delete and recreate the config.
+
+```bash
+# Change only the description
+px annotation-config update response-quality --description 'Pass/fail rating from human review'
+
+# Rename and set optimization direction
+px annotation-config update response-quality --name answer-quality --optimization-direction MAXIMIZE
+
+# Replace the label set of a categorical config
+px annotation-config update response-quality --value good=1 --value acceptable=0.5 --value bad=0
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <name>` | New name | — |
+| `--description <description>` | New description | — |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE` | — |
+| `--value <label[=score]>` | Categorical label (repeatable; CATEGORICAL configs) | — |
+| `--values <json>` | Categorical values as JSON (CATEGORICAL configs) | — |
+| `--lower-bound <number>` | Lower bound (CONTINUOUS/FREEFORM configs) | — |
+| `--upper-bound <number>` | Upper bound (CONTINUOUS/FREEFORM configs) | — |
+| `--threshold <number>` | Threshold (FREEFORM configs) | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+At least one field flag is required. Invalid input — including flags that don't apply to the config's type — exits with `INVALID_ARGUMENT`.
+
+### `px annotation-config delete <config-id>`
+
+Delete an annotation configuration by ID. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed.
+
+```bash
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM=          # Interactive confirmation
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes    # Skip the prompt (scripts/agents)
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
 
 ### `px api graphql <query>`
 

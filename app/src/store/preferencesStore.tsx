@@ -315,7 +315,7 @@ export const createPreferencesStore = (
         type: "setPlaygroundStreamingEnabled",
       });
     },
-    isAnnotatingSpans: true,
+    isAnnotatingSpans: false,
     setIsAnnotatingSpans: (isAnnotatingSpans) => {
       set({ isAnnotatingSpans }, false, { type: "setIsAnnotatingSpans" });
     },

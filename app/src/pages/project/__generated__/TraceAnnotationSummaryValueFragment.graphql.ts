@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<40c4f752cbb07f0da34e7a92d06516d2>>
+ * @generated SignedSource<<4b9298aa18789240fdebfe969f6920f9>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -138,7 +137,7 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/)
+                    (v0/*:: as any*/)
                   ],
                   "type": "AnnotationConfigBase",
                   "abstractKey": "__isAnnotationConfigBase"
@@ -146,8 +145,8 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/),
-                    (v1/*: any*/),
+                    (v0/*:: as any*/),
+                    (v1/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -155,7 +154,7 @@ return {
                       "name": "optimizationDirection",
                       "storageKey": null
                     },
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -164,7 +163,7 @@ return {
                       "name": "values",
                       "plural": true,
                       "selections": [
-                        (v3/*: any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -212,7 +211,7 @@ return {
       "name": "traceAnnotationSummary",
       "plural": false,
       "selections": [
-        (v2/*: any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -242,7 +241,7 @@ return {
           "name": "labelFractions",
           "plural": true,
           "selections": [
-            (v3/*: any*/),
+            (v3/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -263,7 +262,7 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*: any*/)
+    (v1/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null

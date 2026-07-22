@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<3731f63019173746e49573b3da013113>>
+ * @generated SignedSource<<f080fcc1d819160375e1c5ccfd4c5c64>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -92,12 +91,12 @@ v6 = {
   "name": "apiKey",
   "plural": false,
   "selections": [
-    (v5/*: any*/)
+    (v5/*:: as any*/)
   ],
   "storageKey": null
 },
 v7 = [
-  (v5/*: any*/),
+  (v5/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -130,9 +129,9 @@ v7 = [
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -140,13 +139,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": "CreateSystemApiKeyMutationPayload",
         "kind": "LinkedField",
         "name": "createSystemApiKey",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -163,7 +162,7 @@ return {
             ],
             "storageKey": null
           },
-          (v6/*: any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -174,22 +173,22 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*: any*/),
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v2/*:: as any*/),
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "APIKeysCardCreateSystemAPIKeyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": "CreateSystemApiKeyMutationPayload",
         "kind": "LinkedField",
         "name": "createSystemApiKey",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -205,7 +204,7 @@ return {
                 "kind": "LinkedField",
                 "name": "systemApiKeys",
                 "plural": true,
-                "selections": (v7/*: any*/),
+                "selections": (v7/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -223,29 +222,29 @@ return {
                     "kind": "LinkedField",
                     "name": "apiKeys",
                     "plural": true,
-                    "selections": (v7/*: any*/),
+                    "selections": (v7/*:: as any*/),
                     "storageKey": null
                   },
-                  (v5/*: any*/)
+                  (v5/*:: as any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           },
-          (v6/*: any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "8c8ce75c9f917911796042954e2dbd3b",
+    "cacheID": "51d5dd7dd04cfe9b6924f37a883115c0",
     "id": null,
     "metadata": {},
     "name": "APIKeysCardCreateSystemAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation APIKeysCardCreateSystemAPIKeyMutation(\n  $name: String!\n  $description: String = null\n  $expiresAt: DateTime = null\n) {\n  createSystemApiKey(input: {name: $name, description: $description, expiresAt: $expiresAt}) {\n    jwt\n    query {\n      ...SystemAPIKeysTableFragment\n    }\n    apiKey {\n      id\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  viewer {\n    ...APIKeysTableFragment\n    id\n  }\n}\n"
+    "text": "mutation APIKeysCardCreateSystemAPIKeyMutation(\n  $name: String!\n  $description: String = null\n  $expiresAt: DateTime = null\n) {\n  createSystemApiKey(input: {name: $name, description: $description, expiresAt: $expiresAt}) {\n    jwt\n    query {\n      ...SystemAPIKeysTableFragment\n    }\n    apiKey {\n      id\n    }\n  }\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  viewer {\n    ...ViewerAPIKeysListFragment\n    id\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();

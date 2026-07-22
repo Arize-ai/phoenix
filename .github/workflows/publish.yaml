@@ -110,7 +110,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.10"
-          version: "0.11.8"
+          version: "0.11.12"
       - name: Build distribution
         run: rm -rf dist && uv build
       - name: Verify bundled UI assets in wheel
@@ -219,7 +219,7 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.10"
-          version: "0.11.8"
+          version: "0.11.12"
       - run: uv build
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
@@ -441,7 +441,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.10"
-          version: "0.11.8"
+          version: "0.11.12"
           enable-cache: false
       - name: Stamp dev version
         env:
@@ -513,7 +513,7 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.10"
-          version: "0.11.8"
+          version: "0.11.12"
           enable-cache: false
       - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'

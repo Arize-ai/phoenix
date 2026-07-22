@@ -79,7 +79,8 @@ Create `js/packages/phoenix-evals/src/llm/create{Name}Evaluator.ts`.
 Then:
 
 1. **Add the export** to `js/packages/phoenix-evals/src/llm/index.ts`
-2. **Add a vitest test** — read `createFaithfulnessEvaluator.test.ts` for the test pattern
+2. **Add a vitest test** under `js/packages/phoenix-evals/test/llm/` — read
+   `createFaithfulnessEvaluator.test.ts` there for the test pattern
 
 ## Step 5: Build JS
 
@@ -91,11 +92,12 @@ Fix any TypeScript errors before proceeding.
 
 ## Step 6: Write the Benchmark
 
-Create `js/benchmarks/evals-benchmarks/src/{name}_benchmark.ts`.
+Create `js/benchmarks/evals-benchmarks/src/{name}.eval.ts`.
 
 Read existing benchmarks in that directory to match the current patterns:
 
-- `tool_invocation_benchmark.ts` — confusion matrix printing, multi-category analysis
+- `tool_invocation.eval.ts` — multi-category analysis and aggregate metrics
+- `aggregateMetrics.ts` — shared macro precision/recall/F1 accumulation
 
 ### Benchmark Requirements
 
@@ -113,12 +115,15 @@ Consider using a **separate agent session** for synthetic dataset generation if 
 ## Step 7: Run the Benchmark
 
 ```bash
-# Terminal 1: Start Phoenix
-PHOENIX_WORKING_DIR=/tmp/phoenix-test phoenix serve
+# Terminal 1: Start Phoenix using the normal configured database. Do not set
+# PHOENIX_WORKING_DIR unless the user explicitly requests an isolated instance.
+phoenix serve
 
 # Terminal 2: Run the benchmark
-cd js/benchmarks/evals-benchmarks
-pnpm tsx src/{name}_benchmark.ts
+cd js
+pnpm --filter evals-benchmarks... build
+pnpm --filter evals-benchmarks exec vitest run \
+  src/{name}.eval.ts --config phoenix.vitest.config.ts
 ```
 
 Target **>80% accuracy**. If accuracy is low, look at the failed examples output to decide whether to adjust the prompt (Step 1) or the benchmark examples (Step 6). Iterate until accuracy is acceptable.

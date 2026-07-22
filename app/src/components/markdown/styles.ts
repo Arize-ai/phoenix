@@ -12,7 +12,7 @@ export const markdownCSS = css`
   & > div {
     display: flex;
     flex-direction: column;
-    gap: var(--global-dimension-static-size-200);
+    gap: var(--global-dimension-size-200);
   }
 
   /* -------------------------------------------------------------------
@@ -64,7 +64,7 @@ export const markdownCSS = css`
     border-bottom: 1px solid var(--global-code-block-border-color);
     background: var(--global-code-block-header-background-color);
     color: var(--global-code-block-header-text-color);
-    font-family: var(--ac-global-font-family-code);
+    font-family: var(--global-font-family-mono);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
     letter-spacing: 0.03em;
@@ -145,7 +145,7 @@ export const markdownCSS = css`
     margin: 0;
     padding: var(--global-dimension-size-150);
     background: transparent;
-    font-family: var(--ac-global-font-family-code);
+    font-family: var(--global-font-family-mono);
     font-size: var(--global-font-size-sm);
     line-height: var(--global-line-height-s);
     white-space: pre;
@@ -153,7 +153,7 @@ export const markdownCSS = css`
   }
 
   [data-streamdown="code-block-body"] code {
-    font-family: var(--ac-global-font-family-code);
+    font-family: var(--global-font-family-mono);
     white-space: pre;
   }
 

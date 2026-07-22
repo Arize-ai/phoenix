@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0cc9974bc4d1b6fdc41bc24ae709e833>>
+ * @generated SignedSource<<ff61233fa8c0d40c2cbf1fe498d38e19>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -93,7 +92,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "AgentModelCredentialFormQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -102,7 +101,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "AgentModelCredentialFormQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "a6916c8120d35f25c7f0b7f43da14a0e",

@@ -205,6 +205,51 @@ const processWithMetadata = withSpan(
 );
 ```
 
+## Logging pre-built spans via the client (no OpenTelemetry)
+
+When you already have span data — e.g. reconstructing a trace from logs, or copying
+spans from one project to another — you can POST them directly with `logSpans` from
+`@arizeai/phoenix-client/spans` instead of running the OTel SDK. Spans use Phoenix's
+simplified structure, the same shape `getSpans` returns, so spans read from one
+project can be logged straight into another.
+
+```typescript
+import { logSpans, SpanCreationError } from "@arizeai/phoenix-client/spans";
+import type { Span } from "@arizeai/phoenix-client/spans";
+
+const spans: Span[] = [
+  {
+    name: "answer_question",
+    span_kind: "AGENT",
+    context: { trace_id: "abc123", span_id: "root01" },
+    start_time: "2024-01-01T00:00:00Z",
+    end_time: "2024-01-01T00:00:01Z",
+    status_code: "OK",
+    attributes: { "input.value": "What is Phoenix?" },
+  },
+];
+
+try {
+  const result = await logSpans({
+    project: { projectName: "my-app" }, // or { projectId } or a plain project name string
+    spans,
+  });
+  console.log(`Queued ${result.totalQueued} of ${result.totalReceived} spans`);
+} catch (error) {
+  if (error instanceof SpanCreationError) {
+    // All-or-nothing: if any span is invalid or a duplicate, NONE are queued.
+    console.error(error.invalidSpans, error.duplicateSpans);
+  }
+}
+```
+
+`logSpans({ project, spans })` returns `{ totalReceived, totalQueued }` (equal on
+success). If any span is invalid or duplicates an existing span, no spans are queued
+and a `SpanCreationError` is thrown carrying `invalidSpans` (each `{ spanId, traceId,
+error }`), `duplicateSpans` (each `{ spanId, traceId }`), and `totalInvalid` /
+`totalDuplicates` counts. This function is marked `@experimental` and mirrors the
+Python client's `Client.spans.log_spans` (see `instrumentation-manual-python.md`).
+
 ## See Also
 
 - **Span attributes:** `span-chain.md`, `span-retriever.md`, `span-tool.md`, etc.

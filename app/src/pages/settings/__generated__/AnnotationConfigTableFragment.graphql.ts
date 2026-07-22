@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<82738c59b62e4193fb0021a1d00f2269>>
+ * @generated SignedSource<<a412cc16ccc05bdf4aae31925c5802c7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -107,11 +106,11 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/),
-                    (v1/*: any*/),
-                    (v2/*: any*/),
-                    (v3/*: any*/),
-                    (v4/*: any*/),
+                    (v0/*:: as any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
+                    (v3/*:: as any*/),
+                    (v4/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -144,11 +143,11 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/),
-                    (v1/*: any*/),
-                    (v2/*: any*/),
-                    (v3/*: any*/),
-                    (v4/*: any*/),
+                    (v0/*:: as any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
+                    (v3/*:: as any*/),
+                    (v4/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -170,11 +169,11 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/),
-                    (v1/*: any*/),
-                    (v2/*: any*/),
-                    (v3/*: any*/),
-                    (v4/*: any*/),
+                    (v0/*:: as any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
+                    (v3/*:: as any*/),
+                    (v4/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,

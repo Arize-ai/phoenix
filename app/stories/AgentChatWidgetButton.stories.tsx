@@ -47,17 +47,6 @@ const interactiveCanvasCSS = css`
   height: 240px;
   border: 1px solid var(--global-border-color-default);
   border-radius: 18px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(125, 176, 255, 0.14),
-      transparent 36%
-    ),
-    linear-gradient(
-      180deg,
-      var(--ac-global-background-color-dark-300),
-      var(--ac-global-background-color-dark-200)
-    );
   overflow: hidden;
 `;
 

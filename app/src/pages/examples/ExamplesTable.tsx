@@ -6,7 +6,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
-  type MouseEvent,
   startTransition,
   useCallback,
   useEffect,
@@ -24,14 +23,18 @@ import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import {
   CellWithControlsWrap,
   CompactJSONCell,
+  createRowSelectionColumn,
 } from "@phoenix/components/table";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/constants";
 import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
@@ -67,7 +70,6 @@ export function ExamplesTable({
   const { exampleId: selectedExampleId } = useParams();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const lastSelectedRowIndexRef = useRef<number | null>(null);
   const [columnSizing, setColumnSizing] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
@@ -188,81 +190,18 @@ export function ExamplesTable({
     [data]
   );
   type TableRow = (typeof tableData)[number];
-
-  // Reset the shift-click anchor when table data changes
-  // to prevent stale index references after refetch
-  useEffect(() => {
-    lastSelectedRowIndexRef.current = null;
-  }, [tableData]);
-
-  /**
-   * Shared row selection handler that handles both normal clicks and shift-clicks.
-   * - Always updates lastSelectedRowIndexRef to the current row index
-   * - If shift+click with a previous anchor, calls addRangeToSelection for range selection
-   * - Otherwise toggles the single row's selection
-   */
-  const handleRowSelection = useCallback(
-    (
-      event: MouseEvent,
-      rowIndex: number,
-      toggleSelected: (value?: boolean) => void
-    ) => {
-      if (event.shiftKey && lastSelectedRowIndexRef.current !== null) {
-        // Shift-click: select range from anchor to current row
-        setRowSelection((prev) =>
-          addRangeToSelection(
-            tableData,
-            lastSelectedRowIndexRef.current!,
-            rowIndex,
-            prev
-          )
-        );
-      } else {
-        // Normal click: toggle single row
-        toggleSelected();
-      }
-      // Always update the anchor point
-      lastSelectedRowIndexRef.current = rowIndex;
-    },
-    [setRowSelection, tableData]
-  );
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
 
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
-      {
-        id: "select",
-        enableResizing: false,
+      createRowSelectionColumn<TableRow>({
+        selectRow,
         size: 30,
         minSize: 30,
         maxSize: 30,
-        header: ({ table }) => (
-          <IndeterminateCheckboxCell
-            {...{
-              isSelected: table.getIsAllRowsSelected(),
-              isIndeterminate: table.getIsSomeRowsSelected(),
-              onChange: table.toggleAllRowsSelected,
-            }}
-          />
-        ),
-        cell: ({ row, table }) => {
-          const rowIndex = table
-            .getRowModel()
-            .rows.findIndex((r) => r.id === row.id);
-          return (
-            <IndeterminateCheckboxCell
-              {...{
-                isSelected: row.getIsSelected(),
-                isDisabled: !row.getCanSelect(),
-                isIndeterminate: row.getIsSomeSelected(),
-                onChange: row.toggleSelected,
-                onCellClick: (event: React.MouseEvent) => {
-                  handleRowSelection(event, rowIndex, row.toggleSelected);
-                },
-              }}
-            />
-          );
-        },
-      },
+      }),
       {
         header: "id",
         accessorKey: "id",
@@ -316,7 +255,7 @@ export function ExamplesTable({
       cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
     });
     return cols;
-  }, [handleRowSelection]);
+  }, [selectRow]);
 
   const table = useReactTable<TableRow>({
     columns,
@@ -324,9 +263,7 @@ export function ExamplesTable({
     state: {
       rowSelection,
       columnSizing,
-      columnPinning: {
-        left: ["select"],
-      },
+      columnPinning: CHECKBOX_COLUMN_PINNING,
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
@@ -459,13 +396,9 @@ export function ExamplesTable({
                         key={cell.id}
                         onClick={(e) => {
                           // prevent the row click event from firing on the select cell
-                          if (cell.column.columnDef.id === "select") {
+                          if (cell.column.id === CHECKBOX_COLUMN_ID) {
                             e.stopPropagation();
-                            handleRowSelection(
-                              e,
-                              row.index,
-                              row.toggleSelected
-                            );
+                            selectRow({ event: e, row, table });
                           }
                         }}
                         style={{
@@ -475,7 +408,7 @@ export function ExamplesTable({
                           overflowWrap: "anywhere",
                           // prevent text selection on the select cell
                           userSelect:
-                            cell.column.columnDef.id === "select"
+                            cell.column.id === CHECKBOX_COLUMN_ID
                               ? "none"
                               : undefined,
                         }}

@@ -6,3 +6,4 @@ export * from "./feedbackConstants";
 export * from "./uriConstants";
 export * from "./secretsConstants";
 export * from "./annotationConstants";
+export * from "./docsConstants";

@@ -1,10 +1,14 @@
 import { useCallback, useRef } from "react";
 
+import { toServerSafeUIMessages } from "@phoenix/agent/chat/serverSafeMessages";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { components, paths } from "@phoenix/api/__generated__/v1";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
-import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
+import {
+  getEffectiveAttachUserId,
+  getEffectiveTraceRecordingSettings,
+} from "@phoenix/store/agentStore";
 
 const SUMMARIZE_PATH =
   "/agents/{agent_id}/sessions/{session_id}/summary" as const satisfies keyof paths;
@@ -34,7 +38,7 @@ async function fetchSummary({
       path: { agent_id: ASSISTANT_AGENT_ID, session_id: sessionId },
     },
     body: {
-      messages,
+      messages: toServerSafeUIMessages(messages),
       ingestTraces,
       exportRemoteTraces,
       attachUserId,
@@ -89,7 +93,10 @@ export function useGenerateSessionSummary() {
         messages: session.messages,
         ingestTraces: traceRecording.ingestTraces,
         exportRemoteTraces: traceRecording.exportRemoteTraces,
-        attachUserId: state.observability.attachUserId,
+        attachUserId: getEffectiveAttachUserId({
+          agentsConfig: state.agentsConfig,
+          observability: state.observability,
+        }),
       })
         .then((summary) => {
           if (summary) {

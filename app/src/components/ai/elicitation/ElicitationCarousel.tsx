@@ -98,7 +98,7 @@ export function ElicitationCarousel({
   const goTo = (idx: number) => {
     setDirection(idx > currentIndex ? 1 : -1);
     setCurrentIndex(idx);
-    emitProgressState({ answers, freeformTexts, currentIndex: idx });
+    onProgressStateChange?.({ answers, freeformTexts, currentIndex: idx });
   };
 
   const toggleOption = (
@@ -126,7 +126,7 @@ export function ElicitationCarousel({
   };
 
   const handleSubmit = () => {
-    emitProgressState({ answers, freeformTexts, currentIndex });
+    onProgressStateChange?.({ answers, freeformTexts, currentIndex });
     onSubmit({ answers, freeformTexts });
   };
 

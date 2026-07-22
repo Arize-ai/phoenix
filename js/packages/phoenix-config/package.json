@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-config",
-  "version": "0.1.4",
+  "version": "0.4.0",
   "description": "central configuration for Phoenix",
   "keywords": [
     "arize",
@@ -23,24 +23,27 @@
   ],
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
+  "browser": "./dist/browser/index.js",
   "types": "dist/src/index.d.ts",
   "exports": {
     ".": {
+      "browser": "./dist/browser/index.js",
       "import": "./dist/esm/index.js",
       "require": "./dist/src/index.js"
     }
   },
   "scripts": {
-    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "build": "tsc --build tsconfig.json tsconfig.esm.json tsconfig.browser.json && tsc-alias -p tsconfig.browser.json && tsc-alias -p tsconfig.esm.json && tsc-alias -p tsconfig.json",
     "clean": "rimraf dist",
-    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
-    "test": "vitest run",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json && echo '{\"type\": \"module\"}' > ./dist/browser/package.json",
+    "test": "pnpm run build && vitest run && pnpm run test:browser-build",
+    "test:browser-build": "vite build --config vite.browser.config.ts",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
   },
   "devDependencies": {
-    "@types/node": "^25.9.4",
-    "vitest": "^4.1.9"
+    "@types/node": "^26.1.1",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=18"

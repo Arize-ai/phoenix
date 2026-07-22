@@ -7,7 +7,7 @@ ARG NODE_VERSION=22
 FROM node:${NODE_VERSION}-slim AS frontend-builder
 WORKDIR /phoenix/app
 # Copy only package files first for better dependency caching
-COPY ./app/package*.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./
+COPY ./app/package*.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./app/.pnpmfile.cjs ./
 # Install dependencies
 RUN npm i -g corepack && \
     corepack enable && \
@@ -23,7 +23,7 @@ FROM python:${PYTHON_VERSION}-slim-bullseye AS backend-builder
 WORKDIR /phoenix
 
 # Install uv - pin version to match pyproject.toml [tool.uv] required-version
-RUN pip install uv==0.11.8
+RUN pip install uv==0.11.12
 
 # Copy dependency files first for better layer caching
 COPY ./pyproject.toml ./uv.lock ./LICENSE ./IP_NOTICE ./README.md ./

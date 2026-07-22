@@ -310,6 +310,24 @@ class Span(Node):
             )
         return _convert_metadata_to_string(value)
 
+    @strawberry.field(
+        description='The "user.id" attribute of the span, identifying the end user '
+        "of the traced application.",
+    )  # type: ignore
+    async def user_id(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        if self.db_record:
+            value = self.db_record.user_id
+        else:
+            value = await info.context.data_loaders.span_fields.load(
+                (self.id, models.Span.user_id),
+            )
+        if value is None or isinstance(value, str):
+            return value
+        return json.dumps(value)
+
     @strawberry.field
     async def num_documents(
         self,

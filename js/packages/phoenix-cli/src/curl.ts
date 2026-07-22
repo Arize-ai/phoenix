@@ -1,10 +1,27 @@
 import { obscureApiKey } from "./commands/auth";
 
 export interface RenderCurlCommandOptions {
+  /** HTTP method for the request; upper-cased in the rendered `-X` flag. */
   method: string;
+  /** Request URL, shell-escaped into the final line of the command. */
   url: string;
+  /**
+   * Request headers, rendered as one `-H` flag per entry. Duplicate header
+   * names (case-insensitive, e.g. `authorization` and `Authorization`) are
+   * combined the same way the platform `Headers` implementation combines
+   * them, so the rendered command matches what `fetch` would actually send.
+   */
   headers: Record<string, string>;
+  /**
+   * Request body, rendered as a single `--data-raw` flag. Omitted from the
+   * output entirely when `undefined` (e.g. a bodyless GET).
+   */
   body?: string;
+  /**
+   * When true, masks the value of the `Authorization` header with
+   * `obscureApiKey` so the rendered command is safe to paste into logs, a
+   * bug report, or chat. When false, the raw token is printed in the clear.
+   */
   maskTokens: boolean;
 }
 

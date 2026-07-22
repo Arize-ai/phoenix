@@ -131,6 +131,32 @@ const provider = register({
 
 ## Instrumentation
 
+### Vercel AI SDK (v7+)
+
+AI SDK v7 telemetry registration is process-global, so configure it explicitly in your application. Install `ai` and `@ai-sdk/otel`; the bundled `@arizeai/openinference-vercel` span processors then translate the emitted spans to OpenInference before export.
+
+```ts
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { registerTelemetry } from "ai";
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({ projectName: "my-ai-app" });
+
+registerTelemetry(
+  new OpenTelemetry({
+    tracer: provider.getTracer("@arizeai/phoenix-otel/ai-sdk"),
+    // Headers can contain authorization tokens and cookies.
+    headers: false,
+  })
+);
+```
+
+- call `registerTelemetry()` only once during application startup
+- compose this integration with any logging, metrics, or custom integrations your application already registers
+- AI SDK v6 and older emit a different span shape; use `@arizeai/phoenix-otel` 1.x for AI SDK v6
+
+### OpenTelemetry Instrumentations
+
 Pass OpenTelemetry instrumentations to `register()` to capture framework and library activity automatically.
 
 ```ts

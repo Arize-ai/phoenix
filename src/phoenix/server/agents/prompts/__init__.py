@@ -10,8 +10,12 @@ _BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
 _BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
 _DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
 _BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
+_WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS = get_template("tools/WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS.xml.j2")
 _ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2")
 _SET_TIME_RANGE_TOOL_INSTRUCTIONS = get_template("tools/SET_TIME_RANGE_TOOL_INSTRUCTIONS.xml.j2")
+_GET_CURRENT_DATETIME_TOOL_INSTRUCTIONS = get_template(
+    "tools/GET_CURRENT_DATETIME_TOOL_INSTRUCTIONS.xml.j2"
+)
 _GET_ROUTE_INFO_TOOL_INSTRUCTIONS = get_template("tools/GET_ROUTE_INFO_TOOL_INSTRUCTIONS.xml.j2")
 _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS = get_template(
     "tools/RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS.xml.j2"
@@ -133,6 +137,12 @@ _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS = get_template(
 _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS = get_template(
     "tools/BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS.xml.j2"
 )
+_CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS = get_template(
+    "tools/CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS.xml.j2"
+)
+_UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS = get_template(
+    "tools/UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS.xml.j2"
+)
 _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
     "tools/READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -198,8 +208,10 @@ class AgentPrompts:
     base: Template = _BASE_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
     bash_tool: Template = _BASH_TOOL_INSTRUCTIONS
+    write_span_note_tool: Template = _WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS
     ask_user_tool: Template = _ASK_USER_TOOL_INSTRUCTIONS
     set_time_range_tool: Template = _SET_TIME_RANGE_TOOL_INSTRUCTIONS
+    get_current_datetime_tool: Template = _GET_CURRENT_DATETIME_TOOL_INSTRUCTIONS
     get_route_info_tool: Template = _GET_ROUTE_INFO_TOOL_INSTRUCTIONS
     render_generative_ui_tool: Template = _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS
     set_spans_filter_tool: Template = _SET_SPANS_FILTER_TOOL_INSTRUCTIONS
@@ -255,6 +267,8 @@ class AgentPrompts:
     create_dataset_tool: Template = _CREATE_DATASET_TOOL_INSTRUCTIONS
     patch_experiment_tool: Template = _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
+    create_annotation_config_tool: Template = _CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS
+    update_annotation_config_tool: Template = _UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS
     read_code_evaluator_draft_tool: Template = _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     edit_code_evaluator_draft_tool: Template = _EDIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     test_code_evaluator_draft_tool: Template = _TEST_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
@@ -290,6 +304,7 @@ class ServerAgentPrompts:
 
     base: Template = _BASE_SUBAGENT_INSTRUCTIONS
     bash_tool: Template = _SERVER_BASH_TOOL_INSTRUCTIONS
+    write_span_note_tool: Template = _WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE

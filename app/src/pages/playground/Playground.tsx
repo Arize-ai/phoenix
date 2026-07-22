@@ -9,12 +9,8 @@ import {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  Group,
-  Panel,
-  Separator,
-  useDefaultLayout,
-} from "react-resizable-panels";
+import type { PanelImperativeHandle } from "react-resizable-panels";
+import { Group, useDefaultLayout } from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
@@ -95,10 +91,6 @@ import {
 } from "@phoenix/agent/tools/playgroundVariableValues";
 import {
   Button,
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
   Flex,
   Icon,
   Icons,
@@ -108,8 +100,7 @@ import {
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
@@ -143,7 +134,10 @@ import {
 } from "./playgroundAgentContextUtils";
 import { PlaygroundConfigButton } from "./PlaygroundConfigButton";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
-import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
+import {
+  IO_PANEL_PROPS,
+  PlaygroundDatasetSection,
+} from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
@@ -255,39 +249,6 @@ function AddPromptButton() {
   );
 }
 
-const playgroundPromptPanelContentCSS = css`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  & > .disclosure-group {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-    flex: 1 1 auto;
-    & > .disclosure {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
-      overflow-y: hidden;
-      flex: 1 1 auto;
-      // prevent the accordion item header from growing to fill the accordion item
-      // using two selectors as fallback just incase the component lib changes subtly
-      & > [role="button"],
-      & > #prompts-heading {
-        flex: 0 0 auto;
-      }
-      .disclosure__panel {
-        height: 100%;
-        overflow: hidden;
-        flex: 1 1 auto;
-      }
-    }
-  }
-`;
-
 const promptsWrapCSS = css`
   padding: var(--global-dimension-size-200);
   scrollbar-gutter: stable;
@@ -297,19 +258,11 @@ const promptsWrapCSS = css`
   box-sizing: border-box;
 `;
 
-const playgroundInputOutputPanelContentCSS = css`
-  height: 100%;
-  overflow: auto;
-`;
-
 /**
  * This width accomodates the model config button min-width, as well as chat message accordion
  * header contents such as the chat message mode radio group for AI messages
  */
 const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 632;
-
-const DEFAULT_EXPANDED_PROMPTS = ["prompts"];
-const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 
 function PlaygroundContent() {
   const agentStore = useAgentStore();
@@ -781,10 +734,46 @@ function PlaygroundContent() {
     }
   }, [isRunning]);
 
+  // The mounted panel set varies by mode; passing panelIds keys each mode's
+  // saved layout separately so switching modes doesn't clobber the other's
+  const panelIds = useMemo(
+    () =>
+      isDatasetMode
+        ? ["prompts", "io"]
+        : templateFormat !== TemplateFormats.NONE
+          ? ["prompts", "input", "output"]
+          : ["prompts", "output"],
+    [isDatasetMode, templateFormat]
+  );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "playground-panels",
+    id: "playground-panels-v2",
+    panelIds,
     storage: localStorage,
   });
+
+  const promptsPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const inputsPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const ioPanelRef = useRef<PanelImperativeHandle | null>(null);
+
+  // Never leave every section collapsed — expand the opposite section so the
+  // page always has a focused area
+  const handleSectionCollapse = (
+    collapsed: boolean,
+    section: "prompts" | "inputs" | "io"
+  ) => {
+    if (!collapsed) {
+      return;
+    }
+    const panels = [promptsPanelRef, inputsPanelRef, ioPanelRef]
+      .map((panelRef) => panelRef.current)
+      .filter((panel) => panel != null);
+    if (!panels.every((panel) => panel.isCollapsed())) {
+      return;
+    }
+    const fallbackPanelRef =
+      section === "prompts" ? ioPanelRef : promptsPanelRef;
+    fallbackPanelRef.current?.expand();
+  };
 
   return (
     <Fragment key="playground-content">
@@ -793,109 +782,116 @@ function PlaygroundContent() {
         defaultLayout={defaultLayout}
         onLayoutChanged={onLayoutChanged}
       >
-        <Panel id="prompts">
-          <div css={playgroundPromptPanelContentCSS}>
-            <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PROMPTS}>
-              <Disclosure id="prompts" size="L">
-                <DisclosureTrigger
-                  arrowPosition="start"
-                  justifyContent="space-between"
+        <TitledPanel
+          ref={promptsPanelRef}
+          headingLevel={2}
+          title="Prompts"
+          extra={
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <TemplateFormatRadioGroup size="S" />
+              <AddPromptButton />
+            </Flex>
+          }
+          panelProps={{ id: "prompts", minSize: "15%" }}
+          onCollapseChange={(collapsed) =>
+            handleSectionCollapse(collapsed, "prompts")
+          }
+        >
+          <div css={promptsWrapCSS}>
+            <Flex direction="row" gap="size-200" maxWidth="100%">
+              {instanceIds.map((instanceId) => (
+                <View
+                  flex="1 1 0px"
+                  key={`${instanceId}-prompt`}
+                  minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                 >
-                  Prompts
-                  <StopPropagation>
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <TemplateFormatRadioGroup size="S" />
-                      <AddPromptButton />
-                    </Flex>
-                  </StopPropagation>
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <div css={promptsWrapCSS}>
-                    <Flex direction="row" gap="size-200" maxWidth="100%">
-                      {instanceIds.map((instanceId) => (
-                        <View
-                          flex="1 1 0px"
-                          key={`${instanceId}-prompt`}
-                          minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
-                        >
-                          <PlaygroundTemplate
-                            playgroundInstanceId={instanceId}
-                            appendedMessagesPath={appendedMessagesPath}
-                            availablePaths={availablePaths}
-                          />
-                        </View>
-                      ))}
-                    </Flex>
-                  </div>
-                </DisclosurePanel>
-              </Disclosure>
-            </DisclosureGroup>
+                  <PlaygroundTemplate
+                    playgroundInstanceId={instanceId}
+                    appendedMessagesPath={appendedMessagesPath}
+                    availablePaths={availablePaths}
+                  />
+                </View>
+              ))}
+            </Flex>
           </div>
-        </Panel>
-        <Separator css={compactResizeHandleCSS} />
-        <Panel id="io">
-          {isDatasetMode ? (
-            <Suspense fallback={<Loading />}>
-              <PlaygroundDatasetSection
-                key={datasetId} // reset evaluator selection when dataset changes
-                datasetId={datasetId}
-                splitIds={splitIds}
-                isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
-                onCodeEvaluatorFormOpenChange={(isOpen) =>
-                  setCodeEvaluatorFormDatasetId(isOpen ? datasetId : null)
+        </TitledPanel>
+        {isDatasetMode ? (
+          <Suspense
+            fallback={
+              // Render the same TitledPanel the resolved section renders, so the
+              // layout doesn't jump and — critically — the io panel is registered
+              // as `collapsible`. A plain Panel would make a persisted collapsed
+              // (0%) layout illegal, clamping it to minSize and re-persisting it.
+              <TitledPanel
+                disabled
+                resizable
+                headingLevel={2}
+                title="Experiment"
+                panelProps={IO_PANEL_PROPS}
+              >
+                <Loading />
+              </TitledPanel>
+            }
+          >
+            <PlaygroundDatasetSection
+              key={datasetId} // reset evaluator selection when dataset changes
+              datasetId={datasetId}
+              splitIds={splitIds}
+              panelRef={ioPanelRef}
+              onPanelCollapseChange={(collapsed) =>
+                handleSectionCollapse(collapsed, "io")
+              }
+              isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+              onCodeEvaluatorFormOpenChange={(isOpen) =>
+                setCodeEvaluatorFormDatasetId(isOpen ? datasetId : null)
+              }
+              isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+              onLlmEvaluatorFormOpenChange={(isOpen) =>
+                setLlmEvaluatorFormDatasetId(isOpen ? datasetId : null)
+              }
+            />
+          </Suspense>
+        ) : (
+          <>
+            {templateFormat !== TemplateFormats.NONE ? (
+              <TitledPanel
+                ref={inputsPanelRef}
+                headingLevel={2}
+                resizable
+                title="Inputs"
+                extra={<PlaygroundDatasetSelect />}
+                panelProps={{ id: "input", minSize: "10%" }}
+                onCollapseChange={(collapsed) =>
+                  handleSectionCollapse(collapsed, "inputs")
                 }
-                isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
-                onLlmEvaluatorFormOpenChange={(isOpen) =>
-                  setLlmEvaluatorFormDatasetId(isOpen ? datasetId : null)
-                }
-              />
-            </Suspense>
-          ) : (
-            <div css={playgroundInputOutputPanelContentCSS}>
-              <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PARAMS}>
-                {templateFormat !== TemplateFormats.NONE ? (
-                  <Disclosure id="input" size="L">
-                    <DisclosureTrigger arrowPosition="start">
-                      <Flex
-                        direction="row"
-                        gap="size-100"
-                        alignItems="center"
-                        justifyContent="space-between"
-                        width="100%"
-                      >
-                        Inputs
-                        <PlaygroundDatasetSelect />
-                      </Flex>
-                    </DisclosureTrigger>
-                    <DisclosurePanel>
-                      <View padding="size-200" height={"100%"}>
-                        <PlaygroundInput />
-                      </View>
-                    </DisclosurePanel>
-                  </Disclosure>
-                ) : null}
-                <Disclosure id="output" size="L">
-                  <DisclosureTrigger arrowPosition="start">
-                    Output
-                  </DisclosureTrigger>
-                  <DisclosurePanel>
-                    <View padding="size-200" height="100%">
-                      <Flex direction="row" gap="size-200">
-                        {instanceIds.map((instanceId) => (
-                          <View key={`${instanceId}-output`} flex="1 1 0px">
-                            <PlaygroundOutput
-                              playgroundInstanceId={instanceId}
-                            />
-                          </View>
-                        ))}
-                      </Flex>
+              >
+                <View padding="size-200" height="100%" overflow="auto">
+                  <PlaygroundInput />
+                </View>
+              </TitledPanel>
+            ) : null}
+            <TitledPanel
+              ref={ioPanelRef}
+              headingLevel={2}
+              resizable
+              title="Output"
+              panelProps={{ id: "output", minSize: "15%" }}
+              onCollapseChange={(collapsed) =>
+                handleSectionCollapse(collapsed, "io")
+              }
+            >
+              <View padding="size-200" height="100%" overflow="auto">
+                <Flex direction="row" gap="size-200">
+                  {instanceIds.map((instanceId) => (
+                    <View key={`${instanceId}-output`} flex="1 1 0px">
+                      <PlaygroundOutput playgroundInstanceId={instanceId} />
                     </View>
-                  </DisclosurePanel>
-                </Disclosure>
-              </DisclosureGroup>
-            </div>
-          )}
-        </Panel>
+                  ))}
+                </Flex>
+              </View>
+            </TitledPanel>
+          </>
+        )}
       </Group>
       {runningExperiment ? (
         <ConfirmExperimentNavigationDialog

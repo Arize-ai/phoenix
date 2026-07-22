@@ -73,6 +73,17 @@ async function writeInput({
   });
 }
 
+/**
+ * ink v7 buffers a lone Esc and unrecognized escape-sequence prefixes for
+ * 20ms before flushing them as literal input; wait past that window so the
+ * input reaches the app's handlers before asserting.
+ */
+async function flushPendingEscapeInput() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  });
+}
+
 async function writeInputRepeatedly({
   stdin,
   input,
@@ -328,6 +339,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "abXcd" });
     await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 2 });
     await writeInput({ stdin, input: deleteInput });
+    await flushPendingEscapeInput();
     await writeInput({ stdin, input: "\r" });
 
     expect(submittedText).toBe("abcd");
@@ -390,6 +402,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "abXcd" });
     await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 3 });
     await writeInput({ stdin, input: deleteInput });
+    await flushPendingEscapeInput();
     await writeInput({ stdin, input: "\r" });
 
     expect(submittedText).toBe("abcd");
@@ -755,6 +768,7 @@ describe("PXI app", () => {
     await act(async () => {
       stdin.write(ESCAPE_CHARACTER);
     });
+    await flushPendingEscapeInput();
 
     expect(abortSignals[0]?.aborted).toBe(true);
     expect(lastFrame()).toContain("Interrupted by user before completion.");
@@ -803,19 +817,104 @@ describe("PXI app", () => {
       <PxiApp options={createOptions()} initialMessages={[assistantMessage]} />
     );
 
-    const frame = lastFrame() ?? "";
+    const frame = stripAnsi(lastFrame() ?? "");
     expect(frame).toContain("I checked the project.");
-    expect(frame).toContain("[tool] phoenix_graphql Complete");
-    expect(lastFrame()).not.toContain("result object (2 keys: data, errors)");
+    expect(frame).toContain("✓ ◆ phoenix_graphql · { projects { id } }");
+    expect(frame).not.toContain("result object (2 keys: data, errors)");
     expect(frame).toContain("Then I summarized it.");
     expect(frame.indexOf("I checked the project.")).toBeLessThan(
-      frame.indexOf("[tool] phoenix_graphql Complete")
+      frame.indexOf("phoenix_graphql")
     );
-    expect(frame.indexOf("[tool] phoenix_graphql Complete")).toBeLessThan(
+    expect(frame.indexOf("phoenix_graphql")).toBeLessThan(
       frame.indexOf("Then I summarized it.")
     );
-    expect(lastFrame()).not.toContain('{"data"');
-    expect(lastFrame()).not.toContain("╭");
+    expect(frame).not.toContain('{"data"');
+    expect(frame).not.toContain("╭");
+    unmount();
+  });
+
+  it("shows a bash summary and a spinner while its input streams in", () => {
+    const assistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolCallId: "tool-1",
+          toolName: "bash",
+          state: "input-streaming",
+          input: { summary: "Run the unit test suite" },
+        },
+      ],
+    };
+    const { lastFrame, unmount } = render(
+      <PxiApp options={createOptions()} initialMessages={[assistantMessage]} />
+    );
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("$ bash · Run the unit test suite");
+    expect(frame).toContain("⠋");
+    expect(frame).not.toContain("✓");
+    unmount();
+  });
+
+  it("renders bash command lines and failure output after completion", () => {
+    const assistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolCallId: "tool-1",
+          toolName: "bash",
+          state: "output-available",
+          input: {
+            summary: "Install a dependency",
+            command: "pnpm add left-pad\necho done",
+          },
+          output: {
+            stdout: "",
+            stderr: "ERR_PNPM_ADDING_TO_ROOT",
+            exit_code: 1,
+          },
+        },
+      ],
+    };
+    const { lastFrame, unmount } = render(
+      <PxiApp options={createOptions()} initialMessages={[assistantMessage]} />
+    );
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("✗ $ bash · Install a dependency (exit 1)");
+    expect(frame).toContain("pnpm add left-pad");
+    expect(frame).toContain("echo done");
+    expect(frame).toContain("ERR_PNPM_ADDING_TO_ROOT");
+    unmount();
+  });
+
+  it("collapses a completed load_skill call to a quiet line", () => {
+    const assistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolCallId: "tool-1",
+          toolName: "load_skill",
+          state: "output-available",
+          input: { skill_name: "datasets" },
+          output: { content: "skill body" },
+        },
+      ],
+    };
+    const { lastFrame, unmount } = render(
+      <PxiApp options={createOptions()} initialMessages={[assistantMessage]} />
+    );
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("✓ Loaded skill datasets");
+    expect(frame).not.toContain("load_skill");
+    expect(frame).not.toContain("skill body");
     unmount();
   });
 

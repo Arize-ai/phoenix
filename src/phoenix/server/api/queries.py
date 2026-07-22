@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -16,12 +17,11 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_collector_endpoint,
+    get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
-    getenv,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -29,6 +29,7 @@ from phoenix.db.helpers import (
     SupportedSQLDialect,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
+    pg_table_sizes_stmt,
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
@@ -101,6 +102,7 @@ from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
 )
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -134,6 +136,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider,
     get_sandbox_backend_info,
 )
+from phoenix.server.api.types.SearchResult import SearchResult
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -148,6 +151,8 @@ from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
+
+logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
@@ -421,6 +426,17 @@ class Query:
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
+        async with info.context.db.read() as session:
+            grants = await session.scalars(
+                select(models.OAuth2Grant)
+                .where(models.OAuth2Grant.revoked_at.is_(None))
+                .options(joinedload(models.OAuth2Grant.client))
+                .order_by(models.OAuth2Grant.last_used_at.desc().nullslast())
+            )
+        return [OAuth2Grant(id=grant.id, db_record=grant) for grant in grants]
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
         stmt = (
             select(models.ApiKey)
@@ -461,7 +477,10 @@ class Query:
                 .scalar_subquery()
             )
             projects_query = projects_query.order_by(
-                end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
+                end_time_subq.desc().nullslast()
+                if sort.dir is SortDir.desc
+                else end_time_subq.asc().nullslast(),
+                models.Project.id.desc(),
             )
         elif sort:
             sort_col = getattr(models.Project, sort.col.value)
@@ -1055,6 +1074,8 @@ class Query:
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
             return ProjectSession(id=node_id)
+        elif type_name == OAuth2Grant.__name__:
+            return OAuth2Grant(id=node_id)
         elif type_name == Prompt.__name__:
             return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
@@ -1148,6 +1169,108 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Search top-level resources (projects, datasets, experiments, and prompts) "
+            "by name or description."
+        )
+    )
+    async def search_resources(
+        self,
+        info: Info[Context, None],
+        query: str,
+        limit_per_type: int = 5,
+    ) -> list[SearchResult]:
+        search_term = query.strip()
+        if not search_term:
+            return []
+        if limit_per_type < 1:
+            raise BadRequest("limitPerType must be a positive integer")
+        limit_per_type = min(limit_per_type, 25)
+
+        # icontains(autoescape=True) matches a case-insensitive substring while
+        # escaping LIKE metacharacters (% and _) so they match literally rather
+        # than acting as wildcards.
+        projects_stmt = (
+            exclude_dataset_evaluator_projects(
+                exclude_experiment_projects(
+                    select(models.Project).where(
+                        or_(
+                            models.Project.name.icontains(search_term, autoescape=True),
+                            models.Project.description.icontains(search_term, autoescape=True),
+                        )
+                    )
+                )
+            )
+            .order_by(
+                case((models.Project.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Project.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        datasets_stmt = (
+            select(models.Dataset)
+            .where(
+                or_(
+                    models.Dataset.name.icontains(search_term, autoescape=True),
+                    models.Dataset.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((models.Dataset.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Dataset.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        experiments_stmt = (
+            select(models.Experiment)
+            .where(models.Experiment.is_ephemeral.is_(False))
+            .where(
+                or_(
+                    models.Experiment.name.icontains(search_term, autoescape=True),
+                    models.Experiment.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case(
+                    (models.Experiment.name.icontains(search_term, autoescape=True), 0),
+                    else_=1,
+                ),
+                models.Experiment.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        # Prompt.name is an Identifier column and must be cast to String for matching
+        prompt_name = cast(models.Prompt.name, String)
+        prompts_stmt = (
+            select(models.Prompt)
+            .where(
+                or_(
+                    prompt_name.icontains(search_term, autoescape=True),
+                    models.Prompt.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((prompt_name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Prompt.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+
+        results: list[SearchResult] = []
+        async with info.context.db.read() as session:
+            projects = await session.scalars(projects_stmt)
+            results.extend(Project(id=project.id, db_record=project) for project in projects)
+            datasets = await session.scalars(datasets_stmt)
+            results.extend(Dataset(id=dataset.id, db_record=dataset) for dataset in datasets)
+            experiments = await session.scalars(experiments_stmt)
+            results.extend(
+                Experiment(id=experiment.id, db_record=experiment) for experiment in experiments
+            )
+            prompts = await session.scalars(prompts_stmt)
+            results.extend(Prompt(id=prompt.id, db_record=prompt) for prompt in prompts)
+        return results
 
     @strawberry.field
     async def prompt_labels(
@@ -1483,19 +1606,15 @@ class Query:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
-            stmt = text("""\
-                SELECT c.relname, pg_total_relation_size(c.oid)
-                FROM pg_class as c
-                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
-                WHERE c.relkind = 'r'
-                AND n.nspname = :nspname;
-            """).bindparams(nspname=nspname)
             try:
                 async with info.context.db.read() as session:
-                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                    stats = type_cast(
+                        Iterable[tuple[str, int]],
+                        await session.execute(pg_table_sizes_stmt()),
+                    )
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
+                logger.exception("Failed to query PostgreSQL table sizes for db table stats")
                 return []
         else:
             assert_never(info.context.db.dialect)
@@ -1517,13 +1636,15 @@ class Query:
     def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
         agent_assistant_enabled = info.context.settings.agent_assistant_enabled
         trace_recording = info.context.settings.agent_trace_recording
+        force_tracing = get_env_phoenix_agents_force_tracing()
         return AgentsConfig(
             collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
             assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
+            force_tracing=force_tracing,
             web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
             assistant_enabled=agent_assistant_enabled.enabled,
-            allow_local_traces=trace_recording.allow_local_traces,
-            allow_remote_export=trace_recording.allow_remote_export,
+            allow_local_traces=force_tracing or trace_recording.allow_local_traces,
+            allow_remote_export=force_tracing or trace_recording.allow_remote_export,
         )
 
     @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore

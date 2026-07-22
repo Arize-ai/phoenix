@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2c15465690ec3fd22b19760debf7585f>>
+ * @generated SignedSource<<8548c04c7eba64a80a0fceb3cfc5351e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -118,6 +117,7 @@ export type TracesTable_spans$data = {
             readonly name: string;
           }>;
           readonly traceId: string;
+          readonly userId: string | null;
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
         };
         readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
@@ -210,7 +210,7 @@ v10 = {
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v9/*: any*/),
+  "selections": (v9/*:: as any*/),
   "storageKey": null
 },
 v11 = {
@@ -220,7 +220,7 @@ v11 = {
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v9/*: any*/),
+  "selections": (v9/*:: as any*/),
   "storageKey": null
 },
 v12 = {
@@ -260,7 +260,7 @@ v15 = [
         "name": "fraction",
         "storageKey": null
       },
-      (v14/*: any*/)
+      (v14/*:: as any*/)
     ],
     "storageKey": null
   },
@@ -271,7 +271,7 @@ v15 = [
     "name": "meanScore",
     "storageKey": null
   },
-  (v1/*: any*/)
+  (v1/*:: as any*/)
 ],
 v16 = {
   "alias": null,
@@ -281,9 +281,9 @@ v16 = {
   "name": "spanAnnotations",
   "plural": true,
   "selections": [
-    (v2/*: any*/),
-    (v1/*: any*/),
-    (v14/*: any*/),
+    (v2/*:: as any*/),
+    (v1/*:: as any*/),
+    (v14/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -394,7 +394,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -404,7 +404,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -418,7 +418,7 @@ return {
   },
   "name": "TracesTable_spans",
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -474,9 +474,9 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
-                (v3/*: any*/),
-                (v1/*: any*/),
+                (v2/*:: as any*/),
+                (v3/*:: as any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -491,10 +491,10 @@ return {
                   "name": "statusCode",
                   "storageKey": null
                 },
-                (v4/*: any*/),
-                (v5/*: any*/),
-                (v6/*: any*/),
-                (v7/*: any*/),
+                (v4/*:: as any*/),
+                (v5/*:: as any*/),
+                (v6/*:: as any*/),
+                (v7/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -502,10 +502,10 @@ return {
                   "name": "cumulativeTokenCountTotal",
                   "storageKey": null
                 },
-                (v8/*: any*/),
-                (v10/*: any*/),
-                (v11/*: any*/),
-                (v12/*: any*/),
+                (v8/*:: as any*/),
+                (v10/*:: as any*/),
+                (v11/*:: as any*/),
+                (v12/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -514,8 +514,15 @@ return {
                   "name": "trace",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/),
-                    (v13/*: any*/),
+                    (v2/*:: as any*/),
+                    (v13/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "userId",
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -559,7 +566,7 @@ return {
                       "kind": "LinkedField",
                       "name": "traceAnnotationSummaries",
                       "plural": true,
-                      "selections": (v15/*: any*/),
+                      "selections": (v15/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -570,7 +577,7 @@ return {
                   ],
                   "storageKey": null
                 },
-                (v16/*: any*/),
+                (v16/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -578,11 +585,11 @@ return {
                   "kind": "LinkedField",
                   "name": "spanAnnotationSummaries",
                   "plural": true,
-                  "selections": (v15/*: any*/),
+                  "selections": (v15/*:: as any*/),
                   "storageKey": null
                 },
-                (v17/*: any*/),
-                (v18/*: any*/),
+                (v17/*:: as any*/),
+                (v18/*:: as any*/),
                 {
                   "alias": null,
                   "args": [
@@ -613,9 +620,9 @@ return {
                           "name": "node",
                           "plural": false,
                           "selections": [
-                            (v2/*: any*/),
-                            (v3/*: any*/),
-                            (v1/*: any*/),
+                            (v2/*:: as any*/),
+                            (v3/*:: as any*/),
+                            (v1/*:: as any*/),
                             {
                               "alias": "statusCode",
                               "args": null,
@@ -623,11 +630,11 @@ return {
                               "name": "propagatedStatusCode",
                               "storageKey": null
                             },
-                            (v4/*: any*/),
-                            (v5/*: any*/),
-                            (v6/*: any*/),
-                            (v7/*: any*/),
-                            (v8/*: any*/),
+                            (v4/*:: as any*/),
+                            (v5/*:: as any*/),
+                            (v6/*:: as any*/),
+                            (v7/*:: as any*/),
+                            (v8/*:: as any*/),
                             {
                               "alias": "cumulativeTokenCountTotal",
                               "args": null,
@@ -635,9 +642,9 @@ return {
                               "name": "tokenCountTotal",
                               "storageKey": null
                             },
-                            (v10/*: any*/),
-                            (v11/*: any*/),
-                            (v12/*: any*/),
+                            (v10/*:: as any*/),
+                            (v11/*:: as any*/),
+                            (v12/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -646,14 +653,14 @@ return {
                               "name": "trace",
                               "plural": false,
                               "selections": [
-                                (v2/*: any*/),
-                                (v13/*: any*/)
+                                (v2/*:: as any*/),
+                                (v13/*:: as any*/)
                               ],
                               "storageKey": null
                             },
-                            (v16/*: any*/),
-                            (v17/*: any*/),
-                            (v18/*: any*/),
+                            (v16/*:: as any*/),
+                            (v17/*:: as any*/),
+                            (v18/*:: as any*/),
                             {
                               "args": null,
                               "kind": "FragmentSpread",
@@ -727,13 +734,13 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "8c0afd6979eb32c22bc13b4db769bedc";
+(node as any).hash = "64a27f91355ebb9c4e53b47d7799d824";
 
 export default node;

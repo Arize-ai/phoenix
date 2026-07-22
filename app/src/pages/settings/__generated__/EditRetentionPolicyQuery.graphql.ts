@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d6ecf29c8afd168a0030b468ffcdfd1e>>
+ * @generated SignedSource<<838e6b69917d6b059ab6427c57dfbf1a>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -74,7 +73,7 @@ v5 = {
 v6 = {
   "kind": "InlineFragment",
   "selections": [
-    (v5/*: any*/)
+    (v5/*:: as any*/)
   ],
   "type": "TraceRetentionRuleMaxCount",
   "abstractKey": null
@@ -89,7 +88,7 @@ v7 = {
 v8 = {
   "kind": "InlineFragment",
   "selections": [
-    (v7/*: any*/)
+    (v7/*:: as any*/)
   ],
   "type": "TraceRetentionRuleMaxDays",
   "abstractKey": null
@@ -97,8 +96,8 @@ v8 = {
 v9 = {
   "kind": "InlineFragment",
   "selections": [
-    (v7/*: any*/),
-    (v5/*: any*/)
+    (v7/*:: as any*/),
+    (v5/*:: as any*/)
   ],
   "type": "TraceRetentionRuleMaxDaysOrCount",
   "abstractKey": null
@@ -112,14 +111,14 @@ v10 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "EditRetentionPolicyQuery",
     "selections": [
       {
         "alias": "retentionPolicy",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -128,9 +127,9 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v2/*: any*/),
-              (v3/*: any*/),
-              (v4/*: any*/),
+              (v2/*:: as any*/),
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -139,9 +138,9 @@ return {
                 "name": "rule",
                 "plural": false,
                 "selections": [
-                  (v6/*: any*/),
-                  (v8/*: any*/),
-                  (v9/*: any*/)
+                  (v6/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -158,25 +157,25 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "EditRetentionPolicyQuery",
     "selections": [
       {
         "alias": "retentionPolicy",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
-          (v2/*: any*/),
+          (v10/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -185,10 +184,10 @@ return {
                 "name": "rule",
                 "plural": false,
                 "selections": [
-                  (v10/*: any*/),
-                  (v6/*: any*/),
-                  (v8/*: any*/),
-                  (v9/*: any*/)
+                  (v10/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }

@@ -1,6 +1,7 @@
 import pytest
 
 from phoenix.client import AsyncClient, Client
+from phoenix.client.client import _update_headers  # pyright: ignore[reportPrivateUsage]
 
 
 @pytest.mark.parametrize(
@@ -30,3 +31,13 @@ async def test_async_client_uses_sync_client_default_timeout_policy() -> None:
         assert async_client._client.timeout == client._client.timeout  # pyright: ignore[reportPrivateUsage]
     finally:
         await async_client._client.aclose()  # pyright: ignore[reportPrivateUsage]
+
+
+def test_explicit_authorization_suppresses_differently_cased_environment_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_CLIENT_HEADERS", "authorization=Bearer%20environment")
+
+    headers = _update_headers({"Authorization": "Bearer explicit"}, None)
+
+    assert headers == {"Authorization": "Bearer explicit"}

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<455f0f270c663909edaacac4548c59b9>>
+ * @generated SignedSource<<24a87bd760178c079d917074062e3dd4>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -59,7 +58,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "PromptConnection",
         "kind": "LinkedField",
         "name": "prompts",
@@ -81,8 +80,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
-                  (v2/*: any*/),
+                  (v1/*:: as any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -91,7 +90,7 @@ return {
                     "name": "versionTags",
                     "plural": true,
                     "selections": [
-                      (v2/*: any*/)
+                      (v2/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -116,7 +115,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "PromptConnection",
         "kind": "LinkedField",
         "name": "prompts",
@@ -138,8 +137,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
-                  (v2/*: any*/),
+                  (v1/*:: as any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -148,8 +147,8 @@ return {
                     "name": "versionTags",
                     "plural": true,
                     "selections": [
-                      (v2/*: any*/),
-                      (v1/*: any*/)
+                      (v2/*:: as any*/),
+                      (v1/*:: as any*/)
                     ],
                     "storageKey": null
                   }

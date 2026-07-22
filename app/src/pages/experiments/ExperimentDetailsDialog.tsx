@@ -101,7 +101,7 @@ const detailRowCSS = css`
   flex-direction: row;
   justify-content: space-between;
   align-items: baseline;
-  padding: var(--ac-global-dimension-size-50) 0;
+  padding: var(--global-dimension-size-50) 0;
 `;
 
 function DetailRow({

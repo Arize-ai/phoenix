@@ -16,6 +16,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
@@ -38,6 +39,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 if TYPE_CHECKING:
     from .ExperimentJob import ExperimentJob
+    from .User import User
 
 
 @strawberry.type
@@ -100,6 +102,35 @@ class Dataset(Node):
                 (self.id, models.Dataset.created_at),
             )
         return val
+
+    @strawberry.field(description="The user that created the dataset.")  # type: ignore
+    async def created_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.user_id),
+            )
+        if user_id is None:
+            return None
+        from .User import to_gql_user
+
+        return to_gql_user(await info.context.data_loaders.users.load(user_id))
+
+    @strawberry.field(
+        description="The user that last updated the dataset, i.e. the author of its latest version."
+    )  # type: ignore
+    async def updated_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        authors = await info.context.data_loaders.dataset_authors.load(self.id)
+        from .User import to_gql_user
+
+        return to_gql_user(authors.updated_by)
 
     @strawberry.field
     async def updated_at(
@@ -416,6 +447,31 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field(
+        description="The experiment tagged as this dataset's baseline, if one is set."
+    )  # type: ignore
+    async def baseline_experiment(self, info: Info[Context, None]) -> Optional[Experiment]:
+        row_number = func.row_number().over(order_by=models.Experiment.id).label("row_number")
+        numbered = (
+            select(models.Experiment.id.label("experiment_id"), row_number)
+            .where(models.Experiment.dataset_id == self.id)
+            .where(models.Experiment.is_ephemeral.is_(False))
+            .subquery()
+        )
+        query = (
+            select(models.Experiment, numbered.c.row_number)
+            .join(numbered, numbered.c.experiment_id == models.Experiment.id)
+            .join(models.ExperimentTag, models.ExperimentTag.experiment_id == models.Experiment.id)
+            .where(models.ExperimentTag.dataset_id == self.id)
+            .where(models.ExperimentTag.name == BASELINE_EXPERIMENT_TAG_NAME)
+        )
+        async with info.context.db.read() as session:
+            result = (await session.execute(query)).first()
+        if result is None:
+            return None
+        experiment, sequence_number = result
+        return to_gql_experiment(experiment, sequence_number, is_baseline=True)
 
     @strawberry.field
     async def experiment_jobs(

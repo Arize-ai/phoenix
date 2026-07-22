@@ -4,6 +4,7 @@ from typing import Any, Optional, cast
 import jmespath
 import pytest
 from sqlalchemy import insert, select
+from starlette.requests import Request
 from starlette.types import ASGIApp
 
 from phoenix.config import AssignableUserRoleName
@@ -14,6 +15,7 @@ from phoenix.server.api.routers.oauth2 import (
     SignInNotAllowed,
     UserInfo,
     _create_or_update_user,
+    _login_origin_url,
     _parse_user_info,
     _process_oauth2_user,
     _sign_in_existing_oauth2_user,
@@ -806,3 +808,47 @@ class TestParseUserInfo:
         result = _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
 
         assert result.email == "user@example.com"
+
+
+class TestLoginOriginUrl:
+    """The origin the IdP callback is built on must not be attacker-influenced
+    when the operator has declared the canonical public origin: the Referer is
+    whatever page sent the user to /oauth2/{idp}/login — during an
+    /oauth2/authorize login redirect it is the OAuth client's own UI — and
+    building the callback on it would make the IdP deliver the authorization
+    code to a foreign origin."""
+
+    @staticmethod
+    def _request(headers: Optional[dict[str, str]] = None) -> Request:
+        return Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/oauth2/dev/login",
+                "root_path": "",
+                "scheme": "http",
+                "server": ("phoenix.internal", 6006),
+                "query_string": b"",
+                "headers": [
+                    (key.lower().encode(), value.encode()) for key, value in (headers or {}).items()
+                ],
+            }
+        )
+
+    def test_declared_root_url_wins_over_referer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ROOT_URL", "http://localhost:18273/phoenix")
+        monkeypatch.setenv("PHOENIX_HOST_ROOT_PATH", "/phoenix")
+        request = self._request({"referer": "http://localhost:6274/"})
+        assert _login_origin_url(request) == "http://localhost:18273/phoenix"
+
+    def test_referer_is_used_when_no_root_url_is_declared(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+        request = self._request({"referer": "http://example.com:1234/some/page"})
+        assert _login_origin_url(request) == "http://example.com:1234"
+
+    def test_base_url_is_the_last_resort(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+        request = self._request()
+        assert _login_origin_url(request) == "http://phoenix.internal:6006/"

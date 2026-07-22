@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Any, Generator, Optional
 from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import urlparse
@@ -17,9 +19,11 @@ from phoenix.otel.otel import (
     OTLPTransportProtocol,
     SimpleSpanProcessor,
     TracerProvider,
+    _construct_http_endpoint,
     _construct_phoenix_cloud_endpoint,
     register,
 )
+from phoenix.otel.settings import clear_env_file_cache
 
 
 def _get_exporter_from_processor(span_processor: Any) -> Optional[SpanExporter]:
@@ -482,6 +486,24 @@ class TestSpanExporters:
             headers_dict = {h[0].lower(): h[1] for h in exporter._headers}
             assert headers_dict.get("custom-header") == "custom-value"
 
+    def test_explicit_headers_with_file_endpoint_warns_and_continues(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\n")
+        env_file.chmod(0o600)
+        clear_env_file_cache()
+
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                exporter = HTTPSpanExporter(headers={"Authorization": "Bearer explicit-token"})
+
+        assert exporter._endpoint == "http://file-host:6006/v1/traces"
+        assert [record.message for record in caplog.records if record.levelname == "WARNING"] == [
+            "Credentials from explicit arguments will be sent to "
+            f"PHOENIX_COLLECTOR_ENDPOINT set by {env_file}."
+        ]
+
 
 class TestEndpointNormalization:
     def test_normalized_endpoint_http_explicit(self) -> None:
@@ -527,6 +549,41 @@ class TestEndpointNormalization:
                 parsed, endpoint = _normalized_endpoint(None, use_http=False)
                 assert parsed.scheme == "http"
                 assert parsed.netloc == "localhost:4317"
+
+    def test_construct_http_endpoint_preserves_path_prefix(self) -> None:
+        parsed = urlparse("http://example.com/phoenix")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+    def test_construct_http_endpoint_preserves_path_prefix_with_trailing_slash(self) -> None:
+        parsed = urlparse("http://example.com/phoenix/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+    def test_construct_http_endpoint_keeps_existing_traces_path(self) -> None:
+        parsed = urlparse("http://example.com/v1/traces")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/v1/traces"
+
+    def test_construct_http_endpoint_normalizes_traces_path_with_trailing_slash(self) -> None:
+        parsed = urlparse("http://example.com/v1/traces/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/v1/traces"
+
+    def test_construct_http_endpoint_keeps_prefixed_traces_path(self) -> None:
+        parsed = urlparse("http://example.com/phoenix/v1/traces/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
 
 
 class TestPhoenixCloudEndpoint:

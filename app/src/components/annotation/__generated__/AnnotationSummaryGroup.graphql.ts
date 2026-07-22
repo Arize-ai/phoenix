@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<90805a74818450d3b92a916f5fcf7269>>
+ * @generated SignedSource<<a6515f7eddabccde944f04a29e545c37>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -104,7 +103,7 @@ return {
       "name": "project",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -146,8 +145,8 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v0/*: any*/),
-                        (v1/*: any*/),
+                        (v0/*:: as any*/),
+                        (v1/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -163,8 +162,8 @@ return {
                           "name": "values",
                           "plural": true,
                           "selections": [
-                            (v2/*: any*/),
-                            (v3/*: any*/)
+                            (v2/*:: as any*/),
+                            (v3/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -192,10 +191,10 @@ return {
       "name": "spanAnnotations",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/),
-        (v2/*: any*/),
-        (v3/*: any*/),
+        (v0/*:: as any*/),
+        (v1/*:: as any*/),
+        (v2/*:: as any*/),
+        (v3/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -282,7 +281,7 @@ return {
               "name": "fraction",
               "storageKey": null
             },
-            (v2/*: any*/)
+            (v2/*:: as any*/)
           ],
           "storageKey": null
         },
@@ -293,7 +292,7 @@ return {
           "name": "meanScore",
           "storageKey": null
         },
-        (v1/*: any*/)
+        (v1/*:: as any*/)
       ],
       "storageKey": null
     }

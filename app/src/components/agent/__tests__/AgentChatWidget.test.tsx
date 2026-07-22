@@ -7,13 +7,25 @@ import {
   MODAL_OVERLAY_CLASS_NAME,
   MODAL_PORTAL_CONTAINER_ATTR,
 } from "@phoenix/components/core/overlay/constants";
-import { AgentProvider, useAgentContext } from "@phoenix/contexts/AgentContext";
+import {
+  AgentProvider,
+  useAgentContext,
+  useAgentStore,
+} from "@phoenix/contexts/AgentContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { AgentChatWidget } from "../AgentChatWidget";
 
 installTestStorage();
+
+let agentStore: AgentStore | null = null;
+
+function AgentStoreCapture() {
+  agentStore = useAgentStore();
+  return null;
+}
 
 function AgentOpenState() {
   const isOpen = useAgentContext((state) => state.isOpen);
@@ -33,6 +45,20 @@ function AgentWidgetWithBoundary() {
 function dispatchCommandI() {
   act(() => {
     document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        code: "KeyI",
+        key: "i",
+        metaKey: true,
+      })
+    );
+  });
+}
+
+function dispatchCommandIFromElement(target: Element) {
+  act(() => {
+    target.dispatchEvent(
       new KeyboardEvent("keydown", {
         bubbles: true,
         cancelable: true,
@@ -102,6 +128,7 @@ describe("AgentChatWidget", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    agentStore = null;
   });
 
   afterEach(() => {
@@ -109,6 +136,7 @@ describe("AgentChatWidget", () => {
       root.unmount();
     });
     container.remove();
+    agentStore = null;
     document
       .querySelectorAll(`.${MODAL_OVERLAY_CLASS_NAME}`)
       .forEach((element) => element.remove());
@@ -132,12 +160,14 @@ describe("AgentChatWidget", () => {
               agentsConfig={{
                 collectorEndpoint: null,
                 assistantProjectName: "assistant_agent",
+                forceTracing: false,
                 webAccessEnabled: false,
                 assistantEnabled: true,
                 allowLocalTraces: true,
                 allowRemoteExport: false,
               }}
             >
+              <AgentStoreCapture />
               <AgentChatWidget />
               <AgentOpenState />
             </AgentProvider>
@@ -165,6 +195,30 @@ describe("AgentChatWidget", () => {
     expect(
       container.querySelector('[data-testid="agent-open"]')?.textContent
     ).toBe("false");
+  });
+
+  it("toggles PXI closed with Command+I while a form field is focused", () => {
+    renderWidget();
+
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    textarea.focus();
+
+    dispatchCommandIFromElement(textarea);
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("true");
+
+    // With the popover open, focus lives inside the chat's textarea. The
+    // shortcut must still fire from a form field so it can toggle closed.
+    dispatchCommandIFromElement(textarea);
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("false");
+
+    textarea.remove();
   });
 
   it("hides the mounted FAB while PXI is open", () => {
@@ -369,6 +423,43 @@ describe("AgentChatWidget", () => {
     ).not.toBeNull();
   });
 
+  it("keeps the thinking treatment until the active response settles", () => {
+    renderWidget();
+
+    act(() => {
+      const sessionId = agentStore?.getState().createSession();
+      if (sessionId) {
+        agentStore?.getState().setSessionResponsePending(sessionId, true);
+      }
+    });
+
+    expect(
+      document.body.querySelector(".agent-chat-widget__shimmer")
+    ).not.toBeNull();
+
+    act(() => {
+      const sessionId = agentStore?.getState().activeSessionId;
+      if (sessionId) {
+        agentStore?.getState().setSessionChatStatus(sessionId, "ready");
+      }
+    });
+
+    expect(
+      document.body.querySelector(".agent-chat-widget__shimmer")
+    ).not.toBeNull();
+
+    act(() => {
+      const sessionId = agentStore?.getState().activeSessionId;
+      if (sessionId) {
+        agentStore?.getState().setSessionResponsePending(sessionId, false);
+      }
+    });
+
+    expect(
+      document.body.querySelector(".agent-chat-widget__shimmer")
+    ).toBeNull();
+  });
+
   it("marks the FAB ready on first render when constrained to a boundary", async () => {
     const getBoundingClientRect = vi
       .spyOn(HTMLElement.prototype, "getBoundingClientRect")
@@ -392,6 +483,7 @@ describe("AgentChatWidget", () => {
               agentsConfig={{
                 collectorEndpoint: null,
                 assistantProjectName: "assistant_agent",
+                forceTracing: false,
                 webAccessEnabled: false,
                 assistantEnabled: true,
                 allowLocalTraces: true,

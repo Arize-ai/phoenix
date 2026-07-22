@@ -56,15 +56,15 @@ const credentialFieldFooterCSS = css`
 
 const credentialDescriptionCSS = css`
   flex: 1 1 auto;
-  color: var(--ac-global-text-color-700);
-  font-size: var(--ac-global-font-size-xs);
+  color: var(--global-text-color-700);
+  font-size: var(--global-font-size-xs);
 `;
 
 const credentialEnvVarCSS = css`
   flex: 0 0 auto;
-  font-family: "Geist Mono", monospace;
-  font-size: var(--ac-global-font-size-xs);
-  color: var(--ac-global-text-color-500);
+  font-family: var(--global-font-family-mono);
+  font-size: var(--global-font-size-xs);
+  color: var(--global-text-color-500);
   white-space: nowrap;
 `;
 

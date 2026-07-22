@@ -5,9 +5,6 @@ export const cardCSS = (style?: CSSProperties) => css`
   ${style?.borderColor
     ? `--global-card-border-color: ${style.borderColor};`
     : ""}
-  --collapsible-card-animation-duration: 200ms;
-  --collapsible-card-icon-size: var(--global-dimension-size-300);
-
   display: flex;
   flex-direction: column;
   color: var(--global-text-color-900);
@@ -23,23 +20,12 @@ export const cardCSS = (style?: CSSProperties) => css`
     flex: none;
     justify-content: space-between;
     align-items: center;
-    padding: 0 var(--global-dimension-static-size-200);
+    padding: 0 var(--global-dimension-size-200);
     height: var(--global-card-header-height);
     transition: background-color 0.2s ease-in-out;
 
     & .card__collapse-toggle-icon {
-      width: var(--collapsible-card-icon-size);
-      height: var(--collapsible-card-icon-size);
-      font-size: 1.3em;
-      color: inherit;
-      display: flex;
-      margin-right: var(--global-dimension-static-size-100);
-      transition: transform ease var(--collapsible-card-animation-duration);
-
-      & svg {
-        height: var(--collapsible-card-icon-size);
-        width: var(--collapsible-card-icon-size);
-      }
+      margin-right: var(--global-dimension-size-100);
     }
 
     & .card__title {
@@ -47,11 +33,25 @@ export const cardCSS = (style?: CSSProperties) => css`
       line-height: var(--global-line-height-m);
       display: flex;
       align-items: center;
-      gap: var(--global-dimension-static-size-100);
+      gap: var(--global-dimension-size-100);
     }
 
     & .card__sub-title {
       color: var(--global-text-color-700);
+    }
+
+    /* Header layout when the title holds interactive controls */
+    & .card__collapsible-header {
+      display: flex;
+      flex: 1;
+      flex-direction: row;
+      align-items: center;
+      height: 100%;
+
+      & .card__collapsible-button {
+        flex: none;
+        width: auto;
+      }
     }
 
     /* Collapsible button styles */
@@ -87,9 +87,11 @@ export const cardCSS = (style?: CSSProperties) => css`
     line-height: var(--global-line-height-m);
   }
 
-  /* Collapsible behavior */
+  /* Collapsible behavior: highlight the header only when the collapse
+     trigger itself is hovered, so the affordance matches the click target
+     (with interactiveTitle only the arrow button toggles) */
   &[data-collapsible="true"] {
-    & > header:hover {
+    & > header:has(.card__collapsible-button:hover) {
       background-color: var(--global-card-header-background-color-hover);
     }
   }
@@ -97,9 +99,6 @@ export const cardCSS = (style?: CSSProperties) => css`
   &[data-collapsed="true"] {
     & .card__body {
       display: none !important;
-    }
-    & .card__collapse-toggle-icon {
-      transform: rotate(-90deg);
     }
   }
 `;

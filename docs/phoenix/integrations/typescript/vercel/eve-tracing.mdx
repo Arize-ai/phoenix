@@ -1,0 +1,143 @@
+---
+title: "Vercel Eve"
+description: "Trace Vercel Eve agents with OpenInference and send AI SDK spans to Phoenix for LLM and agent observability."
+keywords: ['vercel', 'eve', 'agents', 'ai-sdk', 'opentelemetry', 'openinference', 'typescript', 'tracing', 'observability', 'phoenix']
+---
+
+[Eve](https://eve.dev/) is Vercel's filesystem-first TypeScript framework for durable backend AI agents. You define an agent as files under an `agent/` directory and Eve compiles it into an app that runs on Vercel Functions. Eve emits [Vercel AI SDK](https://github.com/vercel/ai) OpenTelemetry spans for every turn, model call, and tool execution. Phoenix captures them with a single [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) `register()` call in Eve's `agent/instrumentation.ts`.
+
+## Prerequisites
+
+- Node.js 24+ (Eve's CLI requires it)
+- An [Eve agent](https://eve.dev/docs/getting-started) project (`npx eve@latest init my-agent`)
+- A [self-hosted Phoenix instance](/docs/phoenix/self-hosting)
+
+## Install
+
+In your Eve project, install `@arizeai/phoenix-otel` and the OpenInference span processor for the AI SDK:
+
+```bash
+npm install @arizeai/phoenix-otel @arizeai/openinference-vercel
+```
+
+## Connect to Phoenix
+
+Run a [self-hosted Phoenix instance](/docs/phoenix/self-hosting). A local Phoenix at `http://localhost:6006` needs no configuration; otherwise set:
+
+```bash .local.env
+PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+
+# optional; defaults to the agent name
+PHOENIX_PROJECT_NAME="weather-agent"
+
+# only if your Phoenix has auth enabled
+# PHOENIX_API_KEY="<your-phoenix-api-key>"
+```
+
+## Setup tracing
+
+Eve auto-discovers `agent/instrumentation.ts` and runs it once at server startup. Call `register()` in the `setup` callback:
+
+```typescript agent/instrumentation.ts
+import {
+  isOpenInferenceSpan,
+  OpenInferenceSimpleSpanProcessor,
+} from "@arizeai/openinference-vercel";
+import { OTLPTraceExporter, register } from "@arizeai/phoenix-otel";
+import { defineInstrumentation } from "eve/instrumentation";
+
+export default defineInstrumentation({
+  setup: ({ agentName }) => {
+    register({
+      projectName: process.env.PHOENIX_PROJECT_NAME ?? agentName,
+      spanProcessors: [
+        // The simple (non-batched) processor delivers each span as it ends,
+        // which is safe on the short-lived serverless functions Eve deploys to.
+        // Swap in OpenInferenceBatchSpanProcessor if you prefer batching.
+        new OpenInferenceSimpleSpanProcessor({
+          exporter: new OTLPTraceExporter({
+            url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
+            // Only needed when Phoenix has auth enabled.
+            headers: process.env.PHOENIX_API_KEY
+              ? { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` }
+              : undefined,
+          }),
+          spanFilter: isOpenInferenceSpan,
+          reparentOrphanedSpans: true,
+        }),
+      ],
+    });
+  },
+});
+```
+
+<Accordion title="What the spanFilter and reparentOrphanedSpans options do">
+- **`spanFilter: isOpenInferenceSpan`** keeps only the AI spans, dropping the raw HTTP/fetch spans and Eve's workflow-engine spans.
+- **`reparentOrphanedSpans: true`** re-roots the AI spans left orphaned by the filter and promotes Eve's `ai.eve.turn` wrapper to an **agent** root, so each turn is one clean trace.
+</Accordion>
+
+<Note>
+This setup is runnable end to end as the [eve-agent example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/eve-agent) in the Phoenix repo.
+</Note>
+
+## Run Eve
+
+Start the Eve dev server:
+
+```bash
+npm run dev
+```
+
+The dev server listens on `http://127.0.0.1:2000` by default (pass `--port` to change it). Open a session against the built-in HTTP channel:
+
+```bash
+curl -X POST http://127.0.0.1:2000/eve/v1/session \
+  -H 'content-type: application/json' \
+  -d '{"message":"What is the weather in Brooklyn?"}'
+```
+
+The response returns a `continuationToken` in the body and an `x-eve-session-id` header. Stream the session's lifecycle events to watch the turn complete:
+
+```bash
+curl http://127.0.0.1:2000/eve/v1/session/<sessionId>/stream
+```
+
+### Expected output
+
+```text wrap
+{"type":"session.started","data":{"runtime":{"agentName":"weather-agent"}}}
+{"type":"actions.requested","data":{"actions":[{"kind":"tool-call","toolName":"get_weather","input":{"city":"Brooklyn"}}]}}
+{"type":"message.completed","data":{"message":"The weather in Brooklyn is **sunny** and **72°F**.","finishReason":"stop"}}
+```
+
+## Observe in Phoenix
+
+1. **Open your project.** Go to [localhost:6006](http://localhost:6006/) and click the project named `weather-agent` (or whatever you set in `PHOENIX_PROJECT_NAME`). New spans show up within ~30 seconds of a turn.
+1. **Open a trace.** Navigate to the "Traces" tab — each row is one full agent turn, from the incoming message to the final reply. Click a row to open the span tree; each **span** is one unit of work (a model call, a tool run), nested to show what ran inside what.
+1. **Read a span by its name and its _kind_.** Eve registers the AI SDK's [`@ai-sdk/otel`](https://ai-sdk.dev/docs/ai-sdk-core/telemetry) telemetry adapter, which names spans per OpenTelemetry's GenAI conventions — `invoke_agent gpt-4o-mini`, `step 1`, `chat gpt-4o-mini`, `execute_tool get_weather` — and the OpenInference span processor translates their attributes to OpenInference on export. Alongside the name, each span carries a **span kind**, a colored label Phoenix adds to denote what it is:
+    - **agent** a step of the agent's turn (its reasoning and orchestration).
+    - **llm** a model request (the `chat` span). Open it to see the prompt, the response, and token usage.
+    - **tool** a tool execution (the `execute_tool` span), carrying a `tool.name` attribute such as `get_weather`.
+1. **Find the session context.** Click any span and open its **Attributes** panel. Eve attaches session identifiers under the `ai.settings.context.eve.*` prefix — `ai.settings.context.eve.session.id`, `ai.settings.context.eve.turn.id`, `ai.settings.context.eve.step.index`, and `ai.settings.context.eve.channel.kind` — so you can trace any span back to the session and turn it came from.
+1. **Read the tree top-down.** At the top sits Eve's `ai.eve.turn` span, an **agent** root, one per turn. Beneath it sits one `invoke_agent` span (kind **agent**) per step Eve took, each wrapping a `step 1` span (kind **chain**) that holds the model request — a `chat` span of kind **llm**. If the step ran a tool, an `execute_tool` span of kind **tool** carries `tool.name`.
+1. If no traces appear at all, see [Troubleshooting](#troubleshooting).
+
+<Frame caption="A Vercel Eve turn trace in Phoenix: the ai.eve.turn agent root over the per-step agent, llm, and tool spans.">
+![Phoenix trace view of a Vercel Eve agent turn, showing the ai.eve.turn agent root span with nested agent, llm, and tool spans for each step](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/screen_phoenix-eve.jpg)
+</Frame>
+
+## Troubleshooting
+
+- **No traces in Phoenix.** Confirm the file is exactly `agent/instrumentation.ts` (Eve discovers it by path), and that `PHOENIX_COLLECTOR_ENDPOINT` points at your Phoenix (it defaults to `http://localhost:6006` in the snippet above). If your Phoenix has auth enabled, also set `PHOENIX_API_KEY`. Enable OpenTelemetry debug logs with `export OTEL_LOG_LEVEL=debug` and re-run.
+- **Traces land in the wrong project.** Phoenix routes spans to a project by the project-name resource attribute. Set `PHOENIX_PROJECT_NAME` (or rely on the agent-name fallback above); without it, spans land in Phoenix's `default` project.
+- **Model auth errors.** Eve routes models through AI Gateway, so set `AI_GATEWAY_API_KEY`, or run `vercel link` to use a `VERCEL_OIDC_TOKEN`. To skip the gateway, switch the agent to a direct provider model (e.g. `@ai-sdk/openai` with `OPENAI_API_KEY`). A brand-new AI Gateway key also fails until you add a payment method. The turn errors with `GatewayInternalServerError: AI Gateway requires a valid credit card on file to service requests`, even if you only plan to use the free credits. Add a card in your Vercel **AI Gateway** dashboard to unlock them.
+
+## Resources
+
+<CardGroup>
+  <Card icon="signal-stream" href="/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js" title="Vercel AI SDK Tracing (JS)" horizontal />
+  <Card icon="wrench" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel" title="Setup Tracing with phoenix-otel" horizontal />
+  <Card icon="terminal" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/eve-agent" title="Runnable Eve Agent Example" horizontal />
+  <Card icon="book-open" href="https://vercel.com/docs/eve/observability" title="Eve Observability Docs" horizontal />
+  <Card icon="robot" href="https://eve.dev/docs/getting-started" title="Eve Getting Started" horizontal />
+</CardGroup>

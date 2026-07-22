@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e985b9faffa353f97f0077cd3d9a622f>>
+ * @generated SignedSource<<d2e737f139a94548f47a63a76a6bb247>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -74,7 +73,7 @@ v3 = {
       "kind": "LinkedField",
       "name": "spanAnnotationNameCounts",
       "plural": true,
-      "selections": (v2/*: any*/),
+      "selections": (v2/*:: as any*/),
       "storageKey": null
     },
     {
@@ -84,7 +83,7 @@ v3 = {
       "kind": "LinkedField",
       "name": "traceAnnotationNameCounts",
       "plural": true,
-      "selections": (v2/*: any*/),
+      "selections": (v2/*:: as any*/),
       "storageKey": null
     },
     {
@@ -94,7 +93,7 @@ v3 = {
       "kind": "LinkedField",
       "name": "sessionAnnotationNameCounts",
       "plural": true,
-      "selections": (v2/*: any*/),
+      "selections": (v2/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -103,20 +102,20 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectAnnotationCountsCardsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -126,13 +125,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectAnnotationCountsCardsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -145,7 +144,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v3/*: any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,

@@ -31,6 +31,21 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    */
   defaultOpen?: boolean;
   /**
+   * Set when the title contains interactive elements (selects, buttons, etc.).
+   * The collapse toggle then renders as a standalone arrow button beside the
+   * title instead of wrapping it, so interactive controls are not nested
+   * inside a button. Only applicable if `collapsible` is `true`.
+   * @default false
+   */
+  interactiveTitle?: boolean;
+  /**
+   * Accessible name for the collapse toggle. Recommended with `interactiveTitle`,
+   * where the toggle is a bare arrow: naming it from the title subtree would pick
+   * up the accessible name of the title's own control (e.g. a select), which is
+   * both wrong and identical across cards.
+   */
+  collapseButtonLabel?: string;
+  /**
    * Additional content displayed on the right side of the card header.
    */
   extra?: React.ReactNode;

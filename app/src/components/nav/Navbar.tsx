@@ -1,38 +1,51 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren, ReactNode } from "react";
-import { useMemo } from "react";
-import { Button, Pressable } from "react-aria-components";
+import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
+import { Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 
 import {
-  Flex,
   Icon,
   Icons,
-  Menu,
-  MenuItem,
-  MenuTrigger,
-  Popover,
-  PopoverArrow,
   Text,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
-import { isProviderThemeMode, useTheme, useViewer } from "@phoenix/contexts";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
-  padding: var(--global-dimension-static-size-100);
-  padding-right: var(--global-dimension-static-size-200);
+  --top-nav-right-inset: 0px;
+  padding: var(--global-dimension-size-100);
+  padding-right: calc(
+    var(--global-dimension-size-200) + var(--top-nav-right-inset)
+  );
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
+
+  /* Clip the PXI button's decorative glow without creating a scroll
+     container or horizontal scrollbar in the surrounding layout panel. */
+  overflow-x: clip;
+
+  /* The breadcrumb trail (an <ol> from the Breadcrumbs component) is the
+     nav's designated shrinking region: give the whole chain a min-width so
+     crumb links can compress to their ellipsis and right-aligned controls
+     (page actions, the PXI button) stay visible when the nav narrows —
+     e.g. beside a detail drawer or docked assistant panel. */
+  & > ol {
+    flex: 0 1 auto;
+    min-width: 0;
+
+    .breadcrumb,
+    .breadcrumb > div {
+      min-width: 0;
+    }
+  }
 
   .copy-action-menu__button {
     opacity: 0;
@@ -47,8 +60,7 @@ const topNavCSS = css`
 `;
 
 const sideNavCSS = css`
-  padding: var(--global-dimension-static-size-200)
-    var(--global-dimension-static-size-100);
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-100);
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
@@ -67,9 +79,9 @@ const sideNavCSS = css`
   }
 `;
 
-const navLinkCSS = css`
+export const navLinkCSS = css`
   --nav-link-icon-size: calc(
-    var(--nav-collapsed-width) - var(--global-dimension-static-size-200)
+    var(--nav-collapsed-width) - var(--global-dimension-size-200)
   );
 
   width: 100%;
@@ -121,11 +133,11 @@ const brandCSS = css`
   color: var(--global-text-color-900);
   font-size: var(--global-font-size-xl);
   text-decoration: none;
-  margin: 0 0 var(--global-dimension-static-size-200) 0;
+  margin: 0 0 var(--global-dimension-size-200) 0;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-150);
+  gap: var(--global-dimension-size-150);
   overflow: hidden;
   & > * {
     flex: none;
@@ -169,17 +181,6 @@ function ExternalLink(props: {
   );
 }
 
-export function DocsLink({ isExpanded }: { isExpanded: boolean }) {
-  return (
-    <ExternalLink
-      href="https://arize.com/docs/phoenix"
-      leadingVisual={<Icon svg={<Icons.Book />} />}
-      text="Documentation"
-      isExpanded={isExpanded}
-    />
-  );
-}
-
 export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
   return (
     <ExternalLink
@@ -189,97 +190,6 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
       text="Star on GitHub"
       isExpanded={isExpanded}
     />
-  );
-}
-
-export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
-  const { theme, systemTheme, themeMode, setThemeMode } = useTheme();
-  const { themeText, themeIcon } = useMemo(() => {
-    let themeIcon: ReactNode;
-    let themeText: string;
-    switch (themeMode) {
-      case "light":
-        themeIcon = <Icons.Sun />;
-        themeText = "Light";
-        break;
-      case "dark":
-        themeIcon = <Icons.Moon />;
-        themeText = "Dark";
-        break;
-      case "system":
-        themeIcon = <Icons.HalfMoonHalfSun />;
-        themeText = `${theme === "light" ? "Light" : "Dark"} (auto)`;
-        break;
-      default:
-        assertUnreachable(themeMode);
-    }
-    return {
-      themeIcon,
-      themeText,
-    };
-  }, [theme, themeMode]);
-
-  return (
-    <TooltipTrigger delay={0} isDisabled={isExpanded}>
-      <MenuTrigger>
-        <Button css={navLinkCSS} className="button--reset">
-          <Icon svg={themeIcon} />
-          <Text>{themeText}</Text>
-        </Button>
-        <Popover placement="right top">
-          <PopoverArrow />
-          <Menu
-            aria-label="Theme selection"
-            selectedKeys={new Set([themeMode])}
-            selectionMode="single"
-            onSelectionChange={(keys) => {
-              const selectedKey =
-                keys instanceof Set ? Array.from(keys)[0] : null;
-              if (selectedKey && isProviderThemeMode(selectedKey)) {
-                setThemeMode(selectedKey);
-              }
-            }}
-          >
-            <MenuItem id="system">
-              <Flex
-                direction="row"
-                gap="size-100"
-                justifyContent="start"
-                alignItems="center"
-              >
-                <Icon svg={<Icons.HalfMoonHalfSun />} />
-                <Text>{`Auto (${systemTheme})`}</Text>
-              </Flex>
-            </MenuItem>
-            <MenuItem id="dark">
-              <Flex
-                direction="row"
-                gap="size-100"
-                justifyContent="start"
-                alignItems="center"
-              >
-                <Icon svg={<Icons.Moon />} />
-                <Text>Dark</Text>
-              </Flex>
-            </MenuItem>
-            <MenuItem id="light">
-              <Flex
-                direction="row"
-                gap="size-100"
-                justifyContent="start"
-                alignItems="center"
-              >
-                <Icon svg={<Icons.Sun />} />
-                <Text>Light</Text>
-              </Flex>
-            </MenuItem>
-          </Menu>
-        </Popover>
-      </MenuTrigger>
-      <Tooltip placement="right" offset={10}>
-        {themeText}
-      </Tooltip>
-    </TooltipTrigger>
   );
 }
 
@@ -298,8 +208,25 @@ export function Brand() {
   );
 }
 
-export function TopNavbar({ children }: { children: ReactNode }) {
-  return <nav css={topNavCSS}>{children}</nav>;
+type TopNavbarStyle = CSSProperties & {
+  "--top-nav-right-inset": string;
+};
+
+export function TopNavbar({
+  children,
+  rightInset = 0,
+}: {
+  children: ReactNode;
+  rightInset?: number;
+}) {
+  const style: TopNavbarStyle = {
+    "--top-nav-right-inset": `${rightInset}px`,
+  };
+  return (
+    <nav css={topNavCSS} style={style}>
+      {children}
+    </nav>
+  );
 }
 
 export function SideNavbar({
@@ -337,35 +264,3 @@ export function NavLink(props: {
     </TooltipTrigger>
   );
 }
-
-export function NavButton(props: {
-  text: string;
-  leadingVisual: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button className="button--reset" css={navLinkCSS} onClick={props.onClick}>
-      {props.leadingVisual}
-      <Text>{props.text}</Text>
-    </button>
-  );
-}
-
-export const ManagementLink = ({ isExpanded }: { isExpanded: boolean }) => {
-  const { viewer } = useViewer();
-
-  if (viewer?.isManagementUser && window.Config.managementUrl) {
-    return (
-      <li key="management">
-        <ExternalLink
-          href={window.Config.managementUrl}
-          leadingVisual={<Icon svg={<Icons.Server />} />}
-          text="Management Console"
-          replaceTab
-          isExpanded={isExpanded}
-        />
-      </li>
-    );
-  }
-  return null;
-};

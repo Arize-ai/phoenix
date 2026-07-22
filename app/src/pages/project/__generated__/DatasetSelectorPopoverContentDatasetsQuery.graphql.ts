@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<195b37e17d517046389710991345ead5>>
+ * @generated SignedSource<<ee4348bb25e0116417f6779bcff2a7b8>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -31,7 +30,7 @@ var v0 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "DatasetSelectorPopoverContentDatasetsQuery",
@@ -53,7 +52,7 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DatasetSelectorPopoverContentDatasetsQuery",
     "selections": [

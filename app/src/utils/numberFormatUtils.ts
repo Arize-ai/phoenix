@@ -29,6 +29,9 @@ export function formatInt(int: number): string {
  * @returns {string} the string representation of the int
  */
 export function formatIntShort(int: number): string {
+  const absInt = Math.abs(int);
+  // "0.2s" pads small ints with a misleading decimal (3 -> "3.0")
+  if (absInt < 1000) return format(",")(int);
   return format("0.2s")(int).replace("G", "B").replace("k", "K");
 }
 

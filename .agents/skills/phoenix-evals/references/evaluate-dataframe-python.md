@@ -15,7 +15,7 @@ results_df = await async_evaluate_dataframe(
     evaluators=[eval1, eval2], # List of evaluators
     concurrency=5,             # Max concurrent LLM calls (default 3)
     exit_on_error=False,       # Optional: stop on first error (default True)
-    max_retries=3,             # Optional: retry failed LLM calls (default 10)
+    max_retries=3,             # Optional: retry failed or timed-out LLM calls (default 10)
 )
 ```
 
@@ -28,7 +28,7 @@ results_df = evaluate_dataframe(
     dataframe=df,              # pandas DataFrame with columns matching evaluator params
     evaluators=[eval1, eval2], # List of evaluators
     exit_on_error=False,       # Optional: stop on first error (default True)
-    max_retries=3,             # Optional: retry failed LLM calls (default 10)
+    max_retries=3,             # Optional: retry failed or timed-out LLM calls (default 10)
 )
 ```
 

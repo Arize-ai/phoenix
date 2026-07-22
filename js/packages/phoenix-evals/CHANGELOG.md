@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 1.2.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
 ## 1.1.0
 
 ### Minor Changes

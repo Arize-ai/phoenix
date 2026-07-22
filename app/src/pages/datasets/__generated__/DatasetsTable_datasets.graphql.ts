@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6d6e3db0d9ff9319e69e4321501cb708>>
+ * @generated SignedSource<<ba8095a8c2b66a218c20ab5e0a9e3c17>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -15,6 +14,10 @@ export type DatasetsTable_datasets$data = {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly createdAt: string;
+        readonly createdBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
         readonly description: string | null;
         readonly evaluatorCount: number;
         readonly exampleCount: number;
@@ -27,6 +30,11 @@ export type DatasetsTable_datasets$data = {
         }>;
         readonly metadata: any;
         readonly name: string;
+        readonly updatedAt: string;
+        readonly updatedBy: {
+          readonly profilePictureUrl: string | null;
+          readonly username: string;
+        } | null;
       };
     }>;
   };
@@ -56,7 +64,23 @@ v2 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -90,7 +114,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -100,7 +124,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": DatasetsTableDatasetsQuery_graphql
@@ -143,8 +167,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
-                (v2/*: any*/),
+                (v1/*:: as any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -164,6 +188,33 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "createdAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "updatedAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "createdBy",
+                  "plural": false,
+                  "selections": (v3/*:: as any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "updatedBy",
+                  "plural": false,
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -195,8 +246,8 @@ return {
                   "name": "labels",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
-                    (v2/*: any*/),
+                    (v1/*:: as any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -261,6 +312,6 @@ return {
 };
 })();
 
-(node as any).hash = "fc083cc2fa596e206fe47bd613f159aa";
+(node as any).hash = "f6284715bde2acfc500452eafcbda4fa";
 
 export default node;

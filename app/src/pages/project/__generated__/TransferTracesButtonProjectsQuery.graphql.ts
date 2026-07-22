@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<52dfb333fd0b7293b4f04cd5920f1cc7>>
+ * @generated SignedSource<<6e8947dd3757c121611464b540f9e50d>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -31,7 +30,7 @@ var v0 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "TransferTracesButtonProjectsQuery",
@@ -53,7 +52,7 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TransferTracesButtonProjectsQuery",
     "selections": [

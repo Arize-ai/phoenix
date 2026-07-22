@@ -29,25 +29,123 @@ export const BUILT_IN_PROVIDERS = [
   "XAI",
 ] as const satisfies readonly BuiltInProvider[];
 
+/**
+ * The `pxi` flags exactly as Commander parses them, before any resolution.
+ * {@link resolvePxiRuntimeOptions} turns this into {@link PxiRuntimeOptions};
+ * every feature flag below is off unless the flag is passed.
+ */
 type RawPxiOptions = {
+  /**
+   * `--endpoint <url>`: Phoenix endpoint the session connects to. Overrides
+   * the profile and `PHOENIX_HOST`.
+   *
+   * @example "https://app.phoenix.arize.com"
+   */
   endpoint?: string;
+  /**
+   * `--api-key <key>`: Phoenix API key. Overrides the profile and
+   * `PHOENIX_API_KEY`.
+   *
+   * @example "phx-abc123"
+   */
   apiKey?: string;
+  /**
+   * `--profile <name>`: Named CLI profile to resolve the connection from,
+   * overriding the stored active profile.
+   *
+   * @example "staging"
+   */
   profile?: string;
+  /**
+   * `--provider <provider>`: Built-in model provider, one of
+   * {@link BUILT_IN_PROVIDERS}. Case-insensitive; Commander defaults it to
+   * {@link DEFAULT_PXI_PROVIDER}. Ignored when `customProviderId` is set.
+   *
+   * @example "OPENAI"
+   */
   provider?: string;
+  /**
+   * `--model <model>`: Model to drive the session with. Falls back to
+   * {@link DEFAULT_PXI_MODEL} for built-in providers; required when
+   * `customProviderId` is set.
+   *
+   * @example "claude-opus-4-8"
+   */
   model?: string;
+  /**
+   * `--custom-provider-id <id>`: Use a custom provider configured in Phoenix
+   * instead of a built-in one. Requires an explicit `model`.
+   *
+   * @example "my-self-hosted-vllm"
+   */
   customProviderId?: string;
+  /**
+   * `--skip-model-preflight`: Launch without first checking the Phoenix model
+   * catalog and provider credentials. Trades a clear startup error for a
+   * faster launch, so failures surface mid-session instead.
+   *
+   * @example true
+   */
   skipModelPreflight?: boolean;
+  /**
+   * `--enable-web-access`: Give the agent web access tools.
+   *
+   * @example true
+   */
   enableWebAccess?: boolean;
+  /**
+   * `--enable-subagents`: Let the agent spawn subagents.
+   *
+   * @example true
+   */
   enableSubagents?: boolean;
+  /**
+   * `--enable-graphql-mutations`: Allow the server agent's GraphQL *mutation*
+   * tools, not just reads — it can then change Phoenix state.
+   *
+   * @example true
+   */
   enableGraphqlMutations?: boolean;
+  /**
+   * `--bypass-edits`: Apply file edits without asking for approval, mapping to
+   * a `"bypass"` (rather than `"manual"`) {@link PxiEditPermission}.
+   *
+   * @example true
+   */
   bypassEdits?: boolean;
+  /**
+   * `--ingest-traces`: Persist the session's own traces into Phoenix, so PXI
+   * observes itself.
+   *
+   * @example true
+   */
   ingestTraces?: boolean;
+  /**
+   * `--export-remote-traces`: Export the session's traces to the remote
+   * collector.
+   *
+   * @example true
+   */
   exportRemoteTraces?: boolean;
+  /**
+   * `--attach-user-id`: Stamp the authenticated Phoenix user onto the
+   * session's traces, so runs can be attributed to a person.
+   *
+   * @example true
+   */
   attachUserId?: boolean;
 };
 
+/** Input to {@link resolvePxiRuntimeOptions}. */
 export type ResolvePxiRuntimeOptionsInput = {
+  /** The `pxi` flags as Commander parsed them. */
   cliOptions: RawPxiOptions;
+  /**
+   * Session ID to use instead of a freshly generated one. Tests pass a fixed
+   * value for determinism.
+   *
+   * @example "3f9a1c7e-0000-4000-8000-000000000000"
+   */
   sessionId?: string;
 };
 

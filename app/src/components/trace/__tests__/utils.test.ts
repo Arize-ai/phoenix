@@ -1,5 +1,5 @@
 import type { ISpanItem } from "../types";
-import { compareTimestamps, createSpanTree } from "../utils";
+import { compareTimestamps, createSpanTree, filterSpanTree } from "../utils";
 
 describe("compareTimestamps", () => {
   it("correctly orders timestamps with sub-millisecond precision", () => {
@@ -214,5 +214,78 @@ describe("createSpanTree", () => {
         },
       ]
     `);
+  });
+
+  it("filters matching spans while preserving ancestor context", () => {
+    expect(filterSpanTree(createSpanTree(traceSpans), "embed"))
+      .toMatchInlineSnapshot(`
+        [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "span": {
+                      "endTime": "2023-08-16T22:27:15.327439",
+                      "id": "5",
+                      "latencyMs": 118,
+                      "name": "embedding",
+                      "parentId": "de0d1e57-70d4-4b2b-a100-30b706902da3",
+                      "spanId": "86433110-f83a-429e-b6e9-5f23131d14f7",
+                      "spanKind": "embedding",
+                      "startTime": "2023-08-16T22:27:15.327439",
+                      "statusCode": "OK",
+                      "trace": {
+                        "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
+                      },
+                    },
+                  },
+                ],
+                "span": {
+                  "endTime": "2023-08-16T22:27:15.327415",
+                  "id": "4",
+                  "latencyMs": 352,
+                  "name": "retrieve",
+                  "parentId": "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
+                  "spanId": "de0d1e57-70d4-4b2b-a100-30b706902da3",
+                  "spanKind": "retriever",
+                  "startTime": "2023-08-16T22:27:15.327415",
+                  "statusCode": "OK",
+                  "tokenCountTotal": null,
+                  "trace": {
+                    "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
+                  },
+                },
+              },
+            ],
+            "span": {
+              "endTime": "2023-08-16T22:27:15.327378",
+              "id": "1",
+              "latencyMs": 2275,
+              "name": "query",
+              "parentId": null,
+              "spanId": "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
+              "spanKind": "chain",
+              "startTime": "2023-08-16T22:27:15.327378",
+              "statusCode": "OK",
+              "trace": {
+                "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
+              },
+            },
+          },
+        ]
+      `);
+  });
+
+  it("returns the original tree for an empty search query", () => {
+    const spanTree = createSpanTree(traceSpans);
+    expect(filterSpanTree(spanTree, " ")).toBe(spanTree);
+  });
+
+  it("returns no branches when the search has no matches", () => {
+    expect(filterSpanTree(createSpanTree(traceSpans), "not-present")).toEqual(
+      []
+    );
   });
 });

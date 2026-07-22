@@ -113,8 +113,14 @@ class Projects:
 
     def list(
         self,
+        *,
+        name_contains: Optional[str] = None,
     ) -> list[v1.Project]:
         """List all projects.
+
+        Args:
+            name_contains (Optional[str]): If provided, only return projects whose
+                name contains this substring (case-insensitive).
 
         Returns:
             A list of all projects.
@@ -131,12 +137,19 @@ class Projects:
             projects = client.projects.list()
             for project in projects:
                 print(f"Project name: {project['name']}")
+
+            # Filter by a substring of the project name
+            projects = client.projects.list(name_contains="agent")
         """  # noqa: E501
         all_projects: list[v1.Project] = []
         next_cursor: Optional[str] = None
         while True:
             url = "v1/projects"
-            params = {"cursor": next_cursor} if next_cursor else {}
+            params: dict[str, str] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            if name_contains:
+                params["name_contains"] = name_contains
             response = self._client.get(url, params=params)
             response.raise_for_status()
             data = cast(v1.GetProjectsResponseBody, response.json())
@@ -382,8 +395,14 @@ class AsyncProjects:
 
     async def list(
         self,
+        *,
+        name_contains: Optional[str] = None,
     ) -> list[v1.Project]:
         """List all projects.
+
+        Args:
+            name_contains (Optional[str]): If provided, only return projects whose
+                name contains this substring (case-insensitive).
 
         Returns:
             A list of all projects.
@@ -400,12 +419,19 @@ class AsyncProjects:
             projects = await async_client.projects.list()
             for project in projects:
                 print(f"Project name: {project['name']}")
+
+            # Filter by a substring of the project name
+            projects = await async_client.projects.list(name_contains="agent")
         """  # noqa: E501
         all_projects: list[v1.Project] = []
         next_cursor: Optional[str] = None
         while True:
             url = "v1/projects"
-            params = {"cursor": next_cursor} if next_cursor else {}
+            params: dict[str, str] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            if name_contains:
+                params["name_contains"] = name_contains
             response = await self._client.get(url, params=params)
             response.raise_for_status()
             data = cast(v1.GetProjectsResponseBody, response.json())

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<9826cd3e7eb2a30630fb88a248a3508e>>
+ * @generated SignedSource<<c760a44bda5012d2d41ca21417ba6162>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -152,7 +151,7 @@ v5 = {
               "kind": "LinkedField",
               "name": "promptTokenCountDetails",
               "plural": true,
-              "selections": (v4/*: any*/),
+              "selections": (v4/*:: as any*/),
               "storageKey": null
             },
             {
@@ -162,7 +161,7 @@ v5 = {
               "kind": "LinkedField",
               "name": "completionTokenCountDetails",
               "plural": true,
-              "selections": (v4/*: any*/),
+              "selections": (v4/*:: as any*/),
               "storageKey": null
             }
           ],
@@ -178,9 +177,9 @@ v5 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -188,13 +187,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/)
+          (v5/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -205,16 +204,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v2/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v2/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "TraceTokenCountTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -227,7 +226,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*: any*/),
+          (v5/*:: as any*/),
           {
             "alias": null,
             "args": null,

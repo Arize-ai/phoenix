@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<129e3a3551b9801480fbe6eb8eb48182>>
+ * @generated SignedSource<<53ae9031ecace8d3ca2e6d59fca7520c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -19,9 +18,17 @@ export type PromptMessageInput = {
   role: PromptMessageRole;
 };
 export type ContentPartInput = {
-  text?: TextContentValueInput | null;
-  toolCall?: ToolCallContentValueInput | null;
-  toolResult?: ToolResultContentValueInput | null;
+  text: TextContentValueInput;
+  toolCall?: never;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall: ToolCallContentValueInput;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall?: never;
+  toolResult: ToolResultContentValueInput;
 };
 export type TextContentValueInput = {
   text: string;
@@ -183,27 +190,27 @@ v3 = [
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "EvaluatorPromptPreviewQuery",
-    "selections": (v3/*: any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "EvaluatorPromptPreviewQuery",
-    "selections": (v3/*: any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
     "cacheID": "b630d62ab6032a1853f794b1b27a6849",

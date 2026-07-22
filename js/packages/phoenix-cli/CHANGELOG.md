@@ -1,5 +1,78 @@
 # @arizeai/phoenix-cli
 
+## 1.10.3
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.2
+
+## 1.10.2
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.1
+
+## 1.10.1
+
+### Patch Changes
+
+- 1f3c4b6: `px auth login` now probes the server's `.well-known/oauth-authorization-server` discovery document before starting the browser flow, bailing out cleanly with a network error when the server is unreachable and an auth error when the server does not support OAuth login
+
+## 1.10.0
+
+### Minor Changes
+
+- 3abafcf: Add `px setup mcp` to register the Phoenix remote MCP server with a coding agent (Claude Code, Cursor, Codex, and others), with OAuth by default, `--header` for API-key auth, and local/global scopes
+
+## 1.9.1
+
+### Patch Changes
+
+- d6b1cbb: Add a reusable refreshable-credential fetch wrapper to the Phoenix TypeScript
+  client, use it for OAuth-authenticated CLI API and PXI requests, and keep each
+  profile bound to the endpoint that issued its OAuth tokens.
+- Updated dependencies [d6b1cbb]
+  - @arizeai/phoenix-client@6.14.0
+
+## 1.9.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+### Patch Changes
+
+- Updated dependencies [f94067b]
+  - @arizeai/phoenix-client@6.13.0
+  - @arizeai/phoenix-config@0.4.0
+
+## 1.8.1
+
+### Patch Changes
+
+- c0ab6a9: Add `.env.phoenix` file discovery as a fallback source for Phoenix configuration. When a setting is not present in the process environment, `@arizeai/phoenix-config` walks up from the current working directory to the nearest `.env.phoenix` file and reads `PHOENIX_`-prefixed keys from it (dotenv format). Process environment values take precedence, and related settings (credentials, OTel endpoint/port) are resolved as a group from a single source. Files not owned by the current user are ignored, with one-time warnings for skipped files, for files accessible to other users, and for endpoints paired with credentials from a different source. Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery; call `clearEnvFileCache()` to refresh cached results. Browser builds use a Node-free implementation selected through a conditional package export. `@arizeai/phoenix-cli` ranks discovered values below configured profiles; `@arizeai/phoenix-mcp` and `@arizeai/phoenix-otel` read `.env.phoenix` values through the shared resolution.
+- Updated dependencies [c0ab6a9]
+  - @arizeai/phoenix-config@0.3.0
+  - @arizeai/phoenix-client@6.12.2
+
+## 1.8.0
+
+### Minor Changes
+
+- 1e7d9fc: Unify the project-name environment variable across the TypeScript packages: every surface now reads both `PHOENIX_PROJECT` (canonical) and `PHOENIX_PROJECT_NAME` (supported alias), with `PHOENIX_PROJECT` taking precedence and explicit args/flags still winning over both. When both are set to conflicting values, the canonical value is used and a one-time warning naming both values is emitted. `@arizeai/phoenix-config` is the single home for this resolution: it exposes the shared `getProjectFromEnvironment()` resolver and includes the resolved project in `getEnvironmentConfig()`. `@arizeai/phoenix-cli`, `@arizeai/phoenix-mcp`, and `@arizeai/phoenix-otel` all consume it — `@arizeai/phoenix-otel` now depends on `@arizeai/phoenix-config` and its `register()` falls back to these variables (via the shared resolver) when no `projectName` is passed, rather than duplicating the logic.
+
+### Patch Changes
+
+- Updated dependencies [1e7d9fc]
+  - @arizeai/phoenix-config@0.2.0
+  - @arizeai/phoenix-client@6.12.1
+
+## 1.7.0
+
+### Minor Changes
+
+- d4282c5: Improve PXI tool call rendering in the terminal: each tool call now shows a state glyph (spinner while running, then ✓/✗/?/⊘), a per-tool icon, and a one-line summary of what the tool is doing, derived from its input. Bash calls display the model-written summary, an excerpt of the executing command, and on failure the exit code plus a stderr excerpt; `load_skill` and `read_skill_resource` collapse to quiet one-liners once complete.
+
 ## 1.6.2
 
 ### Patch Changes

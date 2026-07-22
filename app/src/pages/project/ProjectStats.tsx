@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { useCategoryChartColors } from "@phoenix/components/chart/colors";
+import { useCategoryChartColors } from "@phoenix/components/chart";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";

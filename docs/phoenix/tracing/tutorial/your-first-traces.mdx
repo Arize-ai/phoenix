@@ -48,11 +48,12 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
 <Tabs>
   <Tab title="TypeScript" icon="js">
     ```bash
-    npm install ai @ai-sdk/openai @arizeai/openinference-vercel \
-      @arizeai/openinference-semantic-conventions @opentelemetry/api \
-      @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto \
-      @opentelemetry/resources @opentelemetry/semantic-conventions zod
+    npm install ai @ai-sdk/openai @ai-sdk/otel @arizeai/phoenix-otel zod
     ```
+
+    <Note>
+    AI SDK v7 requires Node.js 22 or newer. `@arizeai/phoenix-otel` bundles the OpenTelemetry setup and the `@arizeai/openinference-vercel` span processors that translate AI SDK spans for Phoenix; `@ai-sdk/otel` emits those spans.
+    </Note>
   </Tab>
 
   <Tab title="Python" icon="python">
@@ -103,12 +104,21 @@ Once you have Phoenix Cloud configured, set your keys:
     Create an `instrumentation.ts` file:
 
     ```typescript
+    import { OpenTelemetry } from "@ai-sdk/otel";
+    import { registerTelemetry } from "ai";
     import { register } from "@arizeai/phoenix-otel";
 
     // Register with Phoenix - this handles all the OpenTelemetry boilerplate
     export const provider = register({
       projectName: "support-bot",
     });
+
+    registerTelemetry(
+      new OpenTelemetry({
+        tracer: provider.getTracer("@arizeai/phoenix-otel/ai-sdk"),
+        headers: false,
+      })
+    );
     ```
 
     Import this file at the top of your application to enable tracing.
@@ -148,7 +158,7 @@ It will also give us observability into the final generation stage. How was the 
 
 <Tabs>
   <Tab title="TypeScript" icon="js">
-    The key to tracing AI SDK calls is one parameter: `experimental_telemetry: { isEnabled: true }`. Add this to any `generateText` or `embed` call:
+    Once the Phoenix provider and AI SDK integration are registered at startup, AI SDK calls are traced without per-call configuration:
 
     ```typescript
     import { generateText } from "ai";
@@ -156,9 +166,8 @@ It will also give us observability into the final generation stage. How was the 
 
     const result = await generateText({
       model: openai.chat("gpt-4o-mini"),
-      system: "Classify the query as 'order_status' or 'faq'",
+      instructions: "Classify the query as 'order_status' or 'faq'",
       prompt: userQuery,
-      experimental_telemetry: { isEnabled: true },  // This enables tracing
     });
     ```
   </Tab>
@@ -198,9 +207,11 @@ When your LLM calls tools, those executions are automatically traced as child sp
 
 <Tabs>
   <Tab title="TypeScript" icon="js">
-    With the AI SDK, you can simply define your tools using the AI SDK configuration, as the tracing happens automatically when `experimental_telemetry` is enabled:
+    With the AI SDK, you can simply define your tools using the AI SDK configuration — tool executions are traced automatically:
 
     ```typescript
+    import { generateText, isStepCount, tool } from "ai";
+
     const result = await generateText({
       model: openai.chat("gpt-4o-mini"),
       prompt: userQuery,
@@ -216,8 +227,7 @@ When your LLM calls tools, those executions are automatically traced as child sp
           },
         }),
       },
-      maxSteps: 2,
-      experimental_telemetry: { isEnabled: true },  // Tools are traced automatically
+      stopWhen: isStepCount(2),
     });
     ```
   </Tab>
@@ -309,7 +319,6 @@ For RAG, trace both the embedding calls and the generation call. Each `embed` ca
     const { embedding } = await embed({
       model: openai.embedding("text-embedding-ada-002"),
       value: userQuery,
-      experimental_telemetry: { isEnabled: true },
     });
 
     // ... semantic search logic ...
@@ -317,9 +326,8 @@ For RAG, trace both the embedding calls and the generation call. Each `embed` ca
     // Generate with retrieved context - traced automatically
     const { text } = await generateText({
       model: openai.chat("gpt-4o-mini"),
-      system: `Answer using ONLY this context:\n\n${retrievedContext}`,
+      instructions: `Answer using ONLY this context:\n\n${retrievedContext}`,
       prompt: userQuery,
-      experimental_telemetry: { isEnabled: true },
     });
     ```
   </Tab>
@@ -367,7 +375,9 @@ To see all operations for a single request as one trace, wrap them in a parent s
 <Tabs>
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { trace, SpanStatusCode } from "@opentelemetry/api";
+    // trace and SpanStatusCode are re-exported by @arizeai/phoenix-otel, so
+    // no direct dependency on @opentelemetry/api is needed
+    import { trace, SpanStatusCode } from "@arizeai/phoenix-otel";
 
     const tracer = trace.getTracer("support-agent");
 
@@ -534,7 +544,7 @@ Hi there! I checked on your order with the ID ORD-99999, but it seems that I cou
 
 Congratulations! In this tutorial, you learned how to:
 
-- **Trace LLM calls** - Capture inputs, outputs, tokens, and latency with `experimental_telemetry: { isEnabled: true }`
+- **Trace LLM calls** - Capture inputs, outputs, tokens, and latency automatically once tracing is registered
 - **Trace tool calls** - See tool decisions, parameters, and responses as child spans
 - **Trace RAG pipelines** - Monitor embeddings and see retrieved context in generation prompts
 - **Group with parent spans** - Nest all operations for a request into one trace

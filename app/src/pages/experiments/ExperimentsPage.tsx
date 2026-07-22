@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -12,11 +11,10 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { resizeHandleCSS } from "@phoenix/components/resize";
-import { ExperimentsChart } from "@phoenix/pages/experiments/ExperimentsChart";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
+import { ExperimentsMetricsChartsPanelGroup } from "./ExperimentsMetricsCharts";
 import { ExperimentsTable } from "./ExperimentsTable";
 
 export function ExperimentsPage() {
@@ -48,26 +46,13 @@ export function ExperimentsPage() {
 
   return (
     <>
-      <Group orientation="vertical">
-        <Panel minSize="20%" maxSize="30%" defaultSize="25%">
-          <Flex direction="column" height="100%">
-            <View paddingX="size-200" paddingY="size-100">
-              <Heading level={2}>Experiments Analysis</Heading>
-            </View>
-            <View flex="1 1 auto" overflow="hidden">
-              <ExperimentsChart datasetId={datasetId} />
-            </View>
-          </Flex>
-        </Panel>
-        <Separator css={resizeHandleCSS} />
-        <Panel>
-          <View height="100%" overflow="hidden" flex="1 1 auto">
-            <ErrorBoundary fallback={ErrorBoundaryFallback}>
-              <ExperimentsTable dataset={data.dataset} />
-            </ErrorBoundary>
-          </View>
-        </Panel>
-      </Group>
+      <ExperimentsMetricsChartsPanelGroup>
+        <View height="100%" overflow="hidden" flex="1 1 auto">
+          <ErrorBoundary fallback={ErrorBoundaryFallback}>
+            <ExperimentsTable dataset={data.dataset} />
+          </ErrorBoundary>
+        </View>
+      </ExperimentsMetricsChartsPanelGroup>
       <Suspense>
         <Outlet />
       </Suspense>

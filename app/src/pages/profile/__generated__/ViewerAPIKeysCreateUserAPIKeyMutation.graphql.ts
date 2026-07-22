@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a3a67add4969785c6f11680dbba4c644>>
+ * @generated SignedSource<<e052ea5aa74380c0bdbfbd775d664e90>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -23,7 +22,7 @@ export type ViewerAPIKeysCreateUserAPIKeyMutation$data = {
     readonly apiKey: {
       readonly id: string;
       readonly user: {
-        readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
+        readonly " $fragmentSpreads": FragmentRefs<"ViewerAPIKeysListFragment">;
       };
     };
     readonly jwt: string;
@@ -65,20 +64,20 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ViewerAPIKeysCreateUserAPIKeyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "CreateUserApiKeyMutationPayload",
         "kind": "LinkedField",
         "name": "createUserApiKey",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -87,7 +86,7 @@ return {
             "name": "apiKey",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -99,7 +98,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "APIKeysTableFragment"
+                    "name": "ViewerAPIKeysListFragment"
                   }
                 ],
                 "storageKey": null
@@ -116,19 +115,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ViewerAPIKeysCreateUserAPIKeyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "CreateUserApiKeyMutationPayload",
         "kind": "LinkedField",
         "name": "createUserApiKey",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -137,7 +136,7 @@ return {
             "name": "apiKey",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -154,7 +153,7 @@ return {
                     "name": "apiKeys",
                     "plural": true,
                     "selections": [
-                      (v3/*: any*/),
+                      (v3/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -186,7 +185,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -199,16 +198,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "500fa7541c393ca91d6fa184c5626b44",
+    "cacheID": "c64d715d2c9313b9a7686e54abf0ae0b",
     "id": null,
     "metadata": {},
     "name": "ViewerAPIKeysCreateUserAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation ViewerAPIKeysCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...APIKeysTableFragment\n        id\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
+    "text": "mutation ViewerAPIKeysCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...ViewerAPIKeysListFragment\n        id\n      }\n    }\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "28061ae008e197468be6fd5f2775ccb0";
+(node as any).hash = "86436e816be25185a1ee3238e15c80b8";
 
 export default node;

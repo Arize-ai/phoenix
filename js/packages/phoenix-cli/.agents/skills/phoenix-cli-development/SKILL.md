@@ -191,32 +191,46 @@ Agents discover capabilities incrementally: `px` → `px project` → `px projec
 
 ### Options interface
 
-Every handler MUST define a TypeScript interface for its options. Field names MUST be descriptive — abbreviations MUST NOT be used. Common options that appear across many commands:
+Every handler MUST define a TypeScript interface for its options — the typed mirror of the flags its command registers. Field names MUST be descriptive; abbreviations MUST NOT be used.
+
+The shapes that recur across commands live in `src/commands/options.ts` and MUST be reused rather than re-declared:
+
+| Type                            | Fields                                                      | Use for                                           |
+| ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------- |
+| `ConnectionOptions`             | `endpoint`, `apiKey`                                        | Any command that calls the Phoenix API            |
+| `CommonOptions<TFormat>`        | + `format`, `progress`                                      | Any command that prints a resource                |
+| `ProjectScopedOptions<TFormat>` | + `project`                                                 | Commands that register `--project`                |
+| `AnnotationInclusionOptions`    | `includeAnnotations`, `includeNotes`                        | Span/trace/session reads                          |
+| `DeleteOptions`                 | `endpoint`, `apiKey`, `progress`, `yes`                     | Delete verbs (used directly — no local interface) |
+| `AnnotateOptions`               | `name`, `label`, `score`, `explanation`, `annotatorKind`, … | `annotate` verbs                                  |
+| `AddNoteOptions`                | `text`, `identifier`                                        | `add-note` verbs                                  |
+| `AnnotationsDeleteOptions`      | filters + `all`, `yes`                                      | `*-annotations delete` commands                   |
+
+A command whose flags exactly match a shared shape MUST use that type directly instead of declaring an identical local one. Otherwise, extend the matching base and declare only the flags unique to the command:
 
 ```typescript
-interface CommonOptions {
-  endpoint?: string; // --endpoint: Phoenix API endpoint override
-  apiKey?: string; // --api-key: API key override
-  project?: string; // --project: Project name or ID override
-  format?: OutputFormat; // --format: Output format (pretty/json/raw)
-  progress?: boolean; // --no-progress: Suppress progress indicators
+interface SpanListOptions
+  extends ProjectScopedOptions<SpanOutputFormat>, AnnotationInclusionOptions {
+  /**
+   * `--span-kind <kinds...>`: Filter by OpenInference span kind — `LLM`,
+   * `CHAIN`, `TOOL`, …
+   *
+   * @example ["LLM", "TOOL"]
+   */
+  spanKind?: string[];
 }
 ```
 
-Commands that prompt for input or confirmation MUST support non-interactive mode:
+Every field MUST carry a TSDoc block that opens with the literal flag and its argument placeholder, states any default declared in the `.option()` call, and gives an `@example` where a concrete value clarifies usage. Negated flags (`--no-progress`, `--no-input`) MUST document their inverted reading: Commander defaults them to `true` and only sets `false` when the flag is passed.
 
-```typescript
-interface InteractiveCommandOptions extends CommonOptions {
-  noInput?: boolean; // --no-input: Suppress all prompts
-}
-```
+Commands that prompt for input or confirmation MUST support non-interactive mode — `--no-input` for prompts (`px setup`), `--yes` via `ConfirmationOptions` for destructive confirmations.
 
 ### Configuration resolution
 
 The CLI MUST resolve configuration from multiple sources. Use `resolveConfig()` from `src/config.ts` for this merge logic. Priority:
 
 1. **CLI flags** (highest priority) — `--endpoint`, `--api-key`, `--project`
-2. **Environment variables** — `PHOENIX_HOST`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT`
+2. **Environment variables** — `PHOENIX_HOST`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT` (alias: `PHOENIX_PROJECT_NAME`)
 3. **Defaults** — `http://localhost:6006` for endpoint
 
 Command handlers MUST NOT read environment variables directly.
@@ -261,12 +275,20 @@ pnpm test          # run all tests
 pnpm test:watch    # watch mode
 ```
 
+HTTP is mocked with `@arizeai/phoenix-testing` (MSW handlers generated from the OpenAPI definition) — tests MUST NOT stub the global `fetch`. Use the shared harness:
+
+- `test/mockServer.ts` — call `const mock = setupMockPhoenixServer()` at module top level; every documented Phoenix endpoint answers with schema-generated data, and unhandled requests fail the test. Pin exact responses per-test with the typed `http` namespace: `mock.server.use(http.get("/v1/projects", ({ response }) => response(200).json({...})))`. Assert on the request (params, query, body) by capturing values inside the handler.
+- `test/testUtils.ts` — `BASE_ARGS` (endpoint + `--no-progress` args), `mockProcessExit()` (throws `process.exit:<code>` for exit-code assertions), and `captureCliOutput()` (silenced stdout/stderr spies).
+- Raw non-OpenAPI handlers (GraphQL, third-party hosts) use msw re-exported from `@arizeai/phoenix-testing` (`HttpResponse`, `http`); `HttpResponse.error()` simulates network failure.
+- Injected-fetch dependency injection (e.g. `fetchImpl` params in OAuth helpers) is fine as-is and does not need MSW.
+
 When adding a command, tests MUST cover:
 
-- The handler logic (mocking the Phoenix client)
+- The handler logic over HTTP (typed MSW handlers, not client mocks)
 - Formatter output for each format mode
 - Edge cases: missing config, network errors, empty results
 - Exit code correctness for error paths
+- One run against the generated handlers alone (no pinned responses) to prove the command works end-to-end against spec-conformant data
 
 ## Build and Run
 

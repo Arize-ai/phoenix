@@ -2,6 +2,7 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -48,21 +49,56 @@ vi.mock("../ChatLantern", () => ({
   ChatLantern: () => null,
 }));
 
+vi.mock("../useAvailableAgentSkills", () => ({
+  useAvailableAgentSkills: () => [],
+}));
+
 vi.mock("../ChatMessage", () => ({
   AssistantMessage: () => null,
   UserMessage: () => null,
 }));
 
+const messages = [
+  {
+    id: "user-message",
+    role: "user",
+    parts: [{ type: "text", text: "What happened?" }],
+  },
+  {
+    id: "assistant-message",
+    role: "assistant",
+    parts: [{ type: "text", text: "I started checking." }],
+  },
+] as AgentUIMessage[];
+
+const unansweredUserMessages = [messages[0]!] as AgentUIMessage[];
+
 function renderChatView(
   root: Root,
   {
+    sessionId = "session-1",
     autoFocusInput = false,
-    chatKey = "chat",
+    chatKey,
+    chatMessages = [],
+    error,
+    status = "ready",
+    initialDraftInputBySessionId,
     sendMessage = vi.fn<ChatViewSendMessage>(),
+    retryMessage,
+    rewindToMessage,
+    forkFromMessage,
   }: {
+    sessionId?: string;
     autoFocusInput?: boolean;
     chatKey?: string;
+    chatMessages?: AgentUIMessage[];
+    error?: Error;
+    status?: "ready" | "error";
+    initialDraftInputBySessionId?: Record<string, string>;
     sendMessage?: ChatViewSendMessage;
+    retryMessage?: (messageId?: string) => void;
+    rewindToMessage?: (messageId: string) => string | null;
+    forkFromMessage?: (messageId: string) => string | null;
   } = {}
 ) {
   act(() => {
@@ -72,6 +108,7 @@ function renderChatView(
           agentsConfig={{
             collectorEndpoint: null,
             assistantProjectName: "assistant_agent",
+            forceTracing: false,
             webAccessEnabled: false,
             assistantEnabled: true,
             allowLocalTraces: true,
@@ -86,18 +123,31 @@ function renderChatView(
               allowRemoteExport: false,
             },
           }}
+          capabilities={{
+            "bash.retainInactiveSessions": false,
+            "graphql.mutations": false,
+            "session.storeSessions": true,
+            "subagents.enabled": false,
+            "web.access": false,
+          }}
+          {...(initialDraftInputBySessionId
+            ? { draftInputBySessionId: initialDraftInputBySessionId }
+            : {})}
         >
           <ChatView
-            key={chatKey}
-            sessionId="session-1"
-            messages={[]}
+            key={chatKey ?? sessionId ?? "no-session"}
+            sessionId={sessionId}
+            messages={chatMessages}
             sendMessage={sendMessage}
             stop={async () => undefined}
-            status="ready"
-            error={undefined}
+            status={status}
+            error={error}
             pendingElicitation={null}
             handleElicitationSubmit={vi.fn()}
             handleElicitationCancel={vi.fn()}
+            retryMessage={retryMessage}
+            rewindToMessage={rewindToMessage}
+            forkFromMessage={forkFromMessage}
             modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
             onModelChange={vi.fn()}
             autoFocusInput={autoFocusInput}
@@ -209,6 +259,20 @@ describe("ChatView", () => {
     expect(remountedTextarea?.value).toBe("preserve this draft");
   });
 
+  it("restores draft input when switching to a keyed session", () => {
+    renderChatView(root, {
+      sessionId: "session-1",
+      initialDraftInputBySessionId: { "fork-session": "edit me" },
+    });
+    renderChatView(root, { sessionId: "fork-session" });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+
+    expect(textarea?.value).toBe("edit me");
+  });
+
   it("clears the prompt draft after submit", () => {
     const sendMessage = vi.fn<ChatViewSendMessage>();
     renderChatView(root, { sendMessage });
@@ -226,5 +290,191 @@ describe("ChatView", () => {
       undefined
     );
     expect(textarea?.value).toBe("");
+  });
+
+  it("shows retry and technical details for failed turns", () => {
+    const retryMessage = vi.fn();
+    renderChatView(root, {
+      chatMessages: messages,
+      error: new Error("provider unavailable"),
+      status: "error",
+      retryMessage,
+      rewindToMessage: vi.fn(),
+      forkFromMessage: vi.fn(),
+    });
+
+    const retryButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Retry"
+    );
+    expect(retryButton).not.toBeUndefined();
+
+    act(() => {
+      retryButton?.click();
+    });
+
+    expect(retryMessage).toHaveBeenCalledWith("assistant-message");
+    expect(container.textContent).toContain("Show technical details");
+    expect(container.textContent).toContain("provider unavailable");
+  });
+
+  it("shows interrupted recovery when history ends on a user message", () => {
+    renderChatView(root, {
+      chatMessages: unansweredUserMessages,
+      status: "ready",
+      rewindToMessage: vi.fn(),
+      forkFromMessage: vi.fn(),
+    });
+
+    expect(container.textContent).toContain("PXI did not respond.");
+    expect(container.textContent).toContain(
+      "This message was interrupted before PXI could respond."
+    );
+    expect(container.textContent).toContain("Retry");
+    expect(container.textContent).toContain("Edit message");
+    expect(container.textContent).toContain("Branch before message");
+  });
+
+  it("retries an interrupted user message without duplicating it", () => {
+    const sendMessage = vi.fn();
+    const rewindToMessage = vi.fn(() => "What happened?");
+    renderChatView(root, {
+      chatMessages: unansweredUserMessages,
+      status: "ready",
+      sendMessage,
+      rewindToMessage,
+      forkFromMessage: vi.fn(),
+    });
+
+    const retryButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Retry"
+    );
+    expect(retryButton).not.toBeUndefined();
+
+    act(() => {
+      retryButton?.click();
+    });
+
+    expect(rewindToMessage).toHaveBeenCalledWith("user-message");
+    expect(sendMessage).toHaveBeenCalledWith({ text: "What happened?" });
+  });
+
+  it("confirms editing an interrupted user message", () => {
+    const rewindToMessage = vi.fn(() => "What happened?");
+    renderChatView(root, {
+      chatMessages: unansweredUserMessages,
+      status: "ready",
+      rewindToMessage,
+      forkFromMessage: vi.fn(),
+    });
+
+    const editButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Edit message"
+    );
+    expect(editButton).not.toBeUndefined();
+
+    act(() => {
+      editButton?.click();
+    });
+
+    const confirmButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Rewind conversation"
+    );
+    act(() => {
+      confirmButton?.click();
+    });
+
+    expect(rewindToMessage).toHaveBeenCalledWith("user-message");
+  });
+
+  it("confirms branching before an interrupted user message", () => {
+    const forkFromMessage = vi.fn(() => "branch-session");
+    renderChatView(root, {
+      chatMessages: unansweredUserMessages,
+      status: "ready",
+      rewindToMessage: vi.fn(),
+      forkFromMessage,
+    });
+
+    const branchButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Branch before message"
+    );
+    expect(branchButton).not.toBeUndefined();
+
+    act(() => {
+      branchButton?.click();
+    });
+
+    const confirmButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Branch conversation"
+    );
+    act(() => {
+      confirmButton?.click();
+    });
+
+    expect(forkFromMessage).toHaveBeenCalledWith("user-message");
+  });
+
+  it("confirms undoing a failed turn from the latest user message", () => {
+    const rewindToMessage = vi.fn(() => "What happened?");
+    renderChatView(root, {
+      chatMessages: messages,
+      error: new Error("provider unavailable"),
+      status: "error",
+      retryMessage: vi.fn(),
+      rewindToMessage,
+      forkFromMessage: vi.fn(),
+    });
+
+    const undoButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Undo failed turn"
+    );
+    expect(undoButton).not.toBeUndefined();
+
+    act(() => {
+      undoButton?.click();
+    });
+
+    expect(container.textContent).toContain("Rewind conversation");
+
+    const confirmButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Rewind conversation"
+    );
+    act(() => {
+      confirmButton?.click();
+    });
+
+    expect(rewindToMessage).toHaveBeenCalledWith("user-message");
+  });
+
+  it("confirms branching before a failed turn from the latest user message", () => {
+    const forkFromMessage = vi.fn(() => "forked-session");
+    renderChatView(root, {
+      chatMessages: messages,
+      error: new Error("provider unavailable"),
+      status: "error",
+      retryMessage: vi.fn(),
+      rewindToMessage: vi.fn(),
+      forkFromMessage,
+    });
+
+    const forkButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Branch before error"
+    );
+    expect(forkButton).not.toBeUndefined();
+
+    act(() => {
+      forkButton?.click();
+    });
+
+    expect(container.textContent).toContain("Branch conversation");
+
+    const confirmButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Branch conversation"
+    );
+    act(() => {
+      confirmButton?.click();
+    });
+
+    expect(forkFromMessage).toHaveBeenCalledWith("user-message");
   });
 });

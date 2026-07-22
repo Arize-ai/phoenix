@@ -1,3 +1,4 @@
+import type { EventEmitter } from "node:events";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -21,7 +22,11 @@ import {
 } from "./draftEditor";
 import { Markdown } from "./inkMarkdown";
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
-import { getToolProgressFromPart, type ToolProgress } from "./toolProgress";
+import {
+  getToolProgressFromPart,
+  type ToolProgress,
+  type ToolProgressState,
+} from "./toolProgress";
 import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
 /**
@@ -60,6 +65,13 @@ const THINKING_FRAMES = [
   "PXI is thinking.. ",
   "PXI is thinking...",
 ];
+const TOOL_SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+/** Tool states where the call is still in flight and shows a spinner. */
+const RUNNING_TOOL_STATES: ReadonlySet<ToolProgressState> = new Set([
+  "input-streaming",
+  "input-available",
+  "approval-responded",
+]);
 const ESCAPE_INPUT = "\x1B";
 const BACKSPACE_INPUTS = new Set(["\b", "\x7F"]);
 const FORWARD_DELETE_INPUTS = new Set([
@@ -130,24 +142,120 @@ function getModelLabel(options: PxiRuntimeOptions): string {
   return `${options.modelSelection.provider}/${options.modelSelection.modelName}`;
 }
 
-/** Render a single tool call inline in the transcript, coloring errors red. */
-function InlineToolProgress({ tool }: { tool: ToolProgress }) {
-  const statusColor = tool.state === "output-error" ? "red" : "yellow";
+/** Animated braille spinner shown while a tool call is still in flight. */
+function ToolSpinner() {
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrameIndex((value) => (value + 1) % TOOL_SPINNER_FRAMES.length);
+    }, 250);
+    return () => clearInterval(interval);
+  }, []);
+
+  return <Text color="yellow">{TOOL_SPINNER_FRAMES[frameIndex]}</Text>;
+}
+
+/**
+ * The leading state glyph of a tool row: a spinner while the call is in
+ * flight, then a settled glyph — `✓` success, `✗` failure (including a
+ * non-zero exit code surfaced via `statusSuffix`), `?` awaiting approval,
+ * `⊘` denied.
+ */
+function ToolStateIndicator({ tool }: { tool: ToolProgress }) {
+  if (RUNNING_TOOL_STATES.has(tool.state)) {
+    return <ToolSpinner />;
+  }
+  switch (tool.state) {
+    case "output-available":
+      return tool.statusSuffix ? (
+        <Text color="red">✗</Text>
+      ) : (
+        <Text color="green">✓</Text>
+      );
+    case "output-error":
+      return <Text color="red">✗</Text>;
+    case "approval-requested":
+      return <Text color="yellow">?</Text>;
+    case "output-denied":
+      return <Text dimColor>⊘</Text>;
+    default:
+      return <Text color="yellow">•</Text>;
+  }
+}
+
+/**
+ * Render a single tool call inline in the transcript: a state glyph, the
+ * tool's icon and name, a dim one-line preview of what it is doing, then any
+ * detail lines (e.g. the bash command) and error lines (e.g. stderr).
+ * Completed "quiet" tools collapse to a single dim line.
+ */
+function InlineToolProgress({
+  tool,
+  marginTop,
+  marginBottom,
+}: {
+  tool: ToolProgress;
+  marginTop: number;
+  marginBottom: number;
+}) {
+  if (tool.isQuiet && tool.state === "output-available") {
+    return (
+      <Box paddingLeft={2} marginTop={marginTop} marginBottom={marginBottom}>
+        <Text wrap="truncate-end">
+          <Text color="green">✓</Text>{" "}
+          <Text dimColor>{tool.quietLabel ?? tool.toolName}</Text>
+        </Text>
+      </Box>
+    );
+  }
+  const showStatusText =
+    tool.state === "approval-requested" || tool.state === "output-denied";
   return (
-    <Box flexDirection="column" marginY={1} paddingLeft={2}>
-      <Text>
-        <Text dimColor>[tool]</Text>{" "}
-        <Text color={statusColor}>{tool.toolName}</Text>{" "}
-        <Text color={statusColor}>{tool.statusText}</Text>
+    <Box
+      flexDirection="column"
+      paddingLeft={2}
+      marginTop={marginTop}
+      marginBottom={marginBottom}
+    >
+      <Text wrap="truncate-end">
+        <ToolStateIndicator tool={tool} />{" "}
+        <Text color="yellow">
+          {tool.icon} {tool.toolName}
+        </Text>
+        {showStatusText ? <Text color="yellow"> {tool.statusText}</Text> : null}
+        {tool.previewText ? <Text dimColor> · {tool.previewText}</Text> : null}
+        {tool.statusSuffix ? (
+          <Text color="red"> ({tool.statusSuffix})</Text>
+        ) : null}
       </Text>
-      {tool.errorText ? <Text color="red">{tool.errorText}</Text> : null}
+      {tool.detailLines.length > 0 ? (
+        <Box flexDirection="column" paddingLeft={4}>
+          {tool.detailLines.map((line, index) => (
+            <Text key={index} dimColor wrap="truncate-end">
+              {line}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
+      {tool.errorLines.length > 0 ? (
+        <Box flexDirection="column" paddingLeft={4}>
+          {tool.errorLines.map((line, index) => (
+            <Text key={index} color="red" wrap="truncate-end">
+              {line}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
     </Box>
   );
 }
 
 /**
  * Render the ordered parts of one message: text parts as markdown, tool parts
- * as inline progress, skipping anything unrecognized.
+ * as inline progress, skipping anything unrecognized. Consecutive tool calls
+ * stack compactly — the blank line appears only at the boundary between a
+ * tool block and its neighbors.
  */
 function MessageParts({
   message,
@@ -156,6 +264,9 @@ function MessageParts({
   message: PxiMessage;
   phoenixBaseUrl?: string;
 }) {
+  const toolProgressByPart = message.parts.map((part) =>
+    getToolProgressFromPart({ part })
+  );
   return (
     <Box flexDirection="column">
       {message.parts.map((part, index) => {
@@ -169,9 +280,16 @@ function MessageParts({
             </Markdown>
           );
         }
-        const tool = getToolProgressFromPart({ part });
+        const tool = toolProgressByPart[index];
         if (tool) {
-          return <InlineToolProgress key={tool.toolCallId} tool={tool} />;
+          return (
+            <InlineToolProgress
+              key={tool.toolCallId}
+              tool={tool}
+              marginTop={toolProgressByPart[index - 1] ? 0 : 1}
+              marginBottom={toolProgressByPart[index + 1] ? 0 : 1}
+            />
+          );
         }
         return null;
       })}
@@ -506,7 +624,13 @@ export function ThinkingIndicator() {
  */
 export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const { exit } = useApp();
-  const { internal_eventEmitter: inputEventEmitter } = useStdin();
+  // ink v7 narrowed useStdin()'s return type to its public props, but the
+  // context value still carries the internal raw-input emitter this app
+  // relies on for backspace/forward-delete/paste-marker handling that
+  // useInput does not surface.
+  const { internal_eventEmitter: inputEventEmitter } = useStdin() as ReturnType<
+    typeof useStdin
+  > & { internal_eventEmitter: EventEmitter };
   const [messages, setMessages] = useState<PxiMessage[]>(initialMessages);
   const [draft, setDraft] = useState<DraftEditorState>(
     EMPTY_DRAFT_EDITOR_STATE

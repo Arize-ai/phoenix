@@ -14,7 +14,7 @@ from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
-Kind: TypeAlias = Literal["span", "trace"]
+Kind: TypeAlias = Literal["span", "trace", "session"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
@@ -58,7 +58,9 @@ class RecordCountCache(
             # interval endpoints are rounded down to the hour by the UI, so anything
             # older than an hour most likely won't be a cache-hit anyway.
             main_cache=TTLCache(maxsize=64, ttl=3600),
-            sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 2),
+            # sized for 3 kinds (span/trace/session) x 2 (filter_condition set or not)
+            # x 2 (session_filter_condition set or not)
+            sub_cache_factory=lambda: LFUCache(maxsize=3 * 2 * 2),
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
@@ -105,39 +107,48 @@ def _get_stmt(
     *project_rowids: Param,
 ) -> Select[Any]:
     kind, (start_time, end_time), filter_condition, session_filter_condition = segment
-    pid = models.Trace.project_rowid
-    stmt = select(pid)
-    if kind == "span":
-        time_column = models.Span.start_time
-        stmt = stmt.join(models.Span)
-        if filter_condition:
-            sf = SpanFilter(filter_condition)
-            stmt = sf(stmt)
-        stmt = stmt.add_columns(func.count().label("count"))
-    elif kind == "trace":
-        time_column = models.Trace.start_time
-        if filter_condition:
-            stmt = stmt.join(models.Span, models.Trace.id == models.Span.trace_rowid)
-            stmt = stmt.add_columns(func.count(distinct(models.Trace.id)).label("count"))
-            sf = SpanFilter(filter_condition)
-            stmt = sf(stmt)
-        else:
-            stmt = stmt.add_columns(func.count().label("count"))
+    if kind == "session":
+        pid = models.ProjectSession.project_id
+        # Sessions use interval-overlap time-range semantics, matching the
+        # sessions table: a session counts iff [start_time, end_time]
+        # intersects [start, end).
+        lower_bound_column = models.ProjectSession.end_time
+        upper_bound_column = models.ProjectSession.start_time
+        stmt = select(pid).add_columns(func.count().label("count"))
     else:
-        assert_never(kind)
+        pid = models.Trace.project_rowid
+        stmt = select(pid)
+        if kind == "span":
+            time_column = models.Span.start_time
+            stmt = stmt.join(models.Span)
+            if filter_condition:
+                sf = SpanFilter(filter_condition)
+                stmt = sf(stmt)
+            stmt = stmt.add_columns(func.count().label("count"))
+        elif kind == "trace":
+            time_column = models.Trace.start_time
+            if filter_condition:
+                stmt = stmt.join(models.Span, models.Trace.id == models.Span.trace_rowid)
+                stmt = stmt.add_columns(func.count(distinct(models.Trace.id)).label("count"))
+                sf = SpanFilter(filter_condition)
+                stmt = sf(stmt)
+            else:
+                stmt = stmt.add_columns(func.count().label("count"))
+        else:
+            assert_never(kind)
+        lower_bound_column = upper_bound_column = time_column
+        if session_filter_condition:
+            filtered_session_rowids = get_filtered_session_rowids_subquery(
+                session_filter_condition=session_filter_condition,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            )
+            stmt = stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
     stmt = stmt.where(pid.in_(project_rowids))
-
-    if session_filter_condition:
-        filtered_session_rowids = get_filtered_session_rowids_subquery(
-            session_filter_condition=session_filter_condition,
-            project_rowids=project_rowids,
-            start_time=start_time,
-            end_time=end_time,
-        )
-        stmt = stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
     stmt = stmt.group_by(pid)
     if start_time:
-        stmt = stmt.where(start_time <= time_column)
+        stmt = stmt.where(start_time <= lower_bound_column)
     if end_time:
-        stmt = stmt.where(time_column < end_time)
+        stmt = stmt.where(upper_bound_column < end_time)
     return stmt

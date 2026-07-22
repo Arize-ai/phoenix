@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -10,14 +9,7 @@ import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 
 export function DatasetEvaluatorSpans({ projectId }: { projectId: string }) {
-  const { timeRange } = useTimeRange();
-  const timeRangeVariable = useMemo(
-    () => ({
-      start: timeRange?.start?.toISOString(),
-      end: timeRange?.end?.toISOString(),
-    }),
-    [timeRange]
-  );
+  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<DatasetEvaluatorSpansQuery>(
     graphql`
       query DatasetEvaluatorSpansQuery(
@@ -34,12 +26,12 @@ export function DatasetEvaluatorSpans({ projectId }: { projectId: string }) {
     `,
     {
       id: projectId,
-      timeRange: timeRangeVariable,
+      timeRange: timeRangeISOStrings,
       orphanSpanAsRootSpan: true,
     },
     {
       fetchPolicy: "store-and-network",
-      fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
+      fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
     }
   );
   return (

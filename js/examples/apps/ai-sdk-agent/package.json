@@ -1,0 +1,26 @@
+{
+  "name": "ai-sdk-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Vercel AI SDK v7 agent traced with @arizeai/phoenix-otel",
+  "type": "module",
+  "scripts": {
+    "start": "tsx agent.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.0",
+    "@ai-sdk/otel": "^1.0.0",
+    "@arizeai/phoenix-otel": "workspace:*",
+    "ai": "^7.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

@@ -28,7 +28,7 @@ import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -522,7 +522,7 @@ export const EvaluatorsTable = ({
       ref={tableContainerRef}
     >
       <table
-        css={tableCSS}
+        css={selectableTableCSS}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
@@ -594,9 +594,6 @@ export const EvaluatorsTable = ({
               <tr
                 key={row.id}
                 data-depth={row.depth}
-                style={{
-                  cursor: "pointer",
-                }}
                 onClick={() => {
                   if (rowIsExpandable) {
                     row.toggleExpanded();

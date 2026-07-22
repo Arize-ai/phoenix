@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<0fde1c9e696750397964faa277b9cb6a>>
+ * @generated SignedSource<<c3555fad6c4c762e0f136e0d2dd6007f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -94,7 +93,7 @@ v3 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -124,21 +123,21 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "datasetStore_latestVersionQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/)
+          (v2/*:: as any*/),
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -148,13 +147,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "datasetStore_latestVersionQuery",
     "selections": [
       {
         "alias": "dataset",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -167,8 +166,8 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
-          (v3/*: any*/)
+          (v2/*:: as any*/),
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }

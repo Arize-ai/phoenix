@@ -5,6 +5,8 @@ import {
   Button,
   ComboBox,
   ComboBoxItem,
+  CredentialField,
+  CredentialInput,
   DateField,
   DateInput,
   DateSegment,
@@ -160,6 +162,15 @@ const Template: StoryFn = () => {
             <Input type="text" />
             <Text slot="description">some text</Text>
           </TextField>
+          <CredentialField
+            isReadOnly
+            size="M"
+            value="sk-prod-5f8a2c1b0e4d9a7c6b3f"
+          >
+            <Label>Production API Key</Label>
+            <CredentialInput />
+            <Text slot="description">Managed by workspace settings</Text>
+          </CredentialField>
           <Button size="S">Button</Button>
         </Flex>
         <Flex direction="row" gap="size-200" alignItems="center">

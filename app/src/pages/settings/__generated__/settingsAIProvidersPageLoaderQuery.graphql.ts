@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<bda95d746ad215ef779f43af18a96e7c>>
+ * @generated SignedSource<<66ec0d1c96e1f30f4b0897e0f499a651>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -83,7 +82,7 @@ return {
         "name": "modelProviders",
         "plural": true,
         "selections": [
-          (v0/*: any*/),
+          (v0/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -142,7 +141,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "GenerativeModelCustomProviderConnection",
         "kind": "LinkedField",
         "name": "generativeModelCustomProviders",
@@ -164,8 +163,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v0/*: any*/),
+                  (v2/*:: as any*/),
+                  (v0/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -209,7 +208,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -235,7 +234,7 @@ return {
                     "name": "config",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
+                      (v3/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -253,7 +252,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v3/*: any*/)
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -297,7 +296,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "CustomProvidersCard_generativeModelCustomProviders",

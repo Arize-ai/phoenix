@@ -5,7 +5,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ProviderServerCredentialsPanel } from "@phoenix/components/generative";
-import { useViewer } from "@phoenix/contexts";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCredentialFormQuery.graphql";
 
@@ -79,8 +79,7 @@ export function AgentModelCredentialForm({
   onCredentialsUpdated: () => void;
   provider: AgentModelCredentialProvider;
 }) {
-  const { viewer } = useViewer();
-  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
+  const isAdmin = useIsAdminOrAuthDisabled();
 
   return (
     <section
@@ -98,7 +97,7 @@ export function AgentModelCredentialForm({
           <>
             <Text size="XS" color="text-700">
               Add server-side credentials for {modelName} to use this model with
-              the assistant.
+              the assistant, or select a different model below.
             </Text>
             <ProviderServerCredentialsPanel
               provider={provider}
@@ -108,7 +107,8 @@ export function AgentModelCredentialForm({
         ) : (
           <Text size="XS" color="text-700">
             Contact an administrator to configure {provider.name} credentials
-            before using {modelName} with the assistant.
+            before using {modelName} with the assistant, or select a different
+            model below.
           </Text>
         )}
       </Flex>

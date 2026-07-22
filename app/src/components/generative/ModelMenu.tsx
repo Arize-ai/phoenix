@@ -22,10 +22,10 @@ import {
   MenuSectionTitle,
   MenuTrigger,
   SearchField,
-  SelectChevronUpDownIcon,
   Text,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import {
@@ -148,8 +148,8 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   isDisabled?: boolean;
   /**
    * Visual variant of the trigger button.
-   * - `"default"` — standard bordered button with chevron icon.
-   * - `"quiet"` — borderless, no chevron icon.
+   * - `"default"` — standard bordered button.
+   * - `"quiet"` — borderless button.
    * @default "default"
    */
   variant?: "default" | "quiet";
@@ -185,8 +185,25 @@ export function ModelMenu({
     },
     [onChange, awsBedrockModelPrefix]
   );
-  const { customProviders, data, modelsByProvider, providerInfoMap } =
-    useModelMenuData();
+  const {
+    customProviders,
+    modelsByProvider,
+    providerInfoMap,
+    visibleProviders,
+  } = useModelMenuData();
+
+  // Providers whose models are searchable: visible in the menu and with
+  // server dependencies installed, so search never surfaces a model that
+  // cannot run.
+  const searchableProviderKeys = useMemo(
+    () =>
+      new Set<string>(
+        visibleProviders
+          .filter((provider) => provider.dependenciesInstalled)
+          .map((provider) => provider.key)
+      ),
+    [visibleProviders]
+  );
 
   // Filter models when searching (built-in providers)
   const filteredModelsByProvider = useMemo(() => {
@@ -196,9 +213,8 @@ export function ModelMenu({
 
     const filtered = new Map<string, string[]>();
     for (const [providerKey, models] of modelsByProvider) {
-      const providerInfo = providerInfoMap.get(providerKey);
-      // Skip providers without dependencies installed
-      if (!providerInfo?.dependenciesInstalled) {
+      // Skip providers that are hidden from the menu
+      if (!searchableProviderKeys.has(providerKey)) {
         continue;
       }
       const matchingModels = models.filter((model) =>
@@ -209,7 +225,7 @@ export function ModelMenu({
       }
     }
     return filtered;
-  }, [searchValue, modelsByProvider, providerInfoMap, contains]);
+  }, [searchValue, modelsByProvider, searchableProviderKeys, contains]);
 
   // Filter custom providers when searching
   const filteredCustomProviders = useMemo(() => {
@@ -260,7 +276,6 @@ export function ModelMenu({
         ) : (
           <Text color="text-700">Select a model</Text>
         )}
-        {variant !== "quiet" && <SelectChevronUpDownIcon />}
       </Button>
       <MenuContainer placement={placement} shouldFlip={shouldFlip}>
         <Autocomplete filter={isSearching ? searchFilter : undefined}>
@@ -286,7 +301,7 @@ export function ModelMenu({
             />
           ) : (
             <ProviderMenu
-              providers={data.modelProviders}
+              providers={visibleProviders}
               modelsByProvider={modelsByProvider}
               customProviders={customProviders}
               onChange={handleModelChange}
@@ -322,7 +337,7 @@ type ModelsByProviderMenuProps = {
  * Menu showing models grouped by provider sections.
  * Used when searching to display filtered results.
  */
-function ModelsByProviderMenu({
+export function ModelsByProviderMenu({
   modelsByProvider,
   providerInfoMap,
   customProviders,
@@ -353,13 +368,10 @@ function ModelsByProviderMenu({
     }
   };
 
-  const hasBuiltInResults = modelsByProvider.size > 0;
-  const hasCustomResults = customProviders.length > 0;
-  const hasResults = hasBuiltInResults || hasCustomResults;
-
   return (
     <Menu
       css={menuWidthCSS}
+      renderEmptyState={() => <ModelMenuEmptyState />}
       onAction={(key) => {
         const modelInfo = decodeMenuKey(String(key));
         if (!modelInfo) {
@@ -391,87 +403,71 @@ function ModelsByProviderMenu({
         }
       }}
     >
-      {hasResults ? (
-        <>
-          {/* Custom providers */}
-          {customProviders.map((customProvider) => {
-            const providerKey = getProviderKeyForGenerativeModelSDK(
-              customProvider.sdk
-            );
-            return (
-              <MenuSection key={`custom-${customProvider.id}`}>
-                <MenuSectionTitle title={customProvider.name} />
-                {customProvider.modelNames.map((modelName) => {
-                  const itemKey = encodeCustomKey({
-                    customProviderId: customProvider.id,
-                    modelName,
-                  });
-                  return (
-                    <MenuItem
-                      key={itemKey}
-                      id={itemKey}
-                      textValue={displayModelName(providerKey, modelName)}
-                    >
-                      <Flex direction="row" gap="size-100" alignItems="center">
-                        <GenerativeProviderIcon
-                          provider={providerKey}
-                          height={16}
-                        />
-                        <Text>{displayModelName(providerKey, modelName)}</Text>
-                      </Flex>
-                    </MenuItem>
-                  );
-                })}
-              </MenuSection>
-            );
-          })}
-          {/* Built-in providers */}
-          {Array.from(modelsByProvider.entries()).map(
-            ([providerKey, models]) => {
-              const providerInfo = providerInfoMap.get(providerKey);
-              const isValidProvider = isModelProvider(providerKey);
+      {/* Custom providers */}
+      {customProviders.map((customProvider) => {
+        const providerKey = getProviderKeyForGenerativeModelSDK(
+          customProvider.sdk
+        );
+        return (
+          <MenuSection key={`custom-${customProvider.id}`}>
+            <MenuSectionTitle title={customProvider.name} />
+            {customProvider.modelNames.map((modelName) => {
+              const itemKey = encodeCustomKey({
+                customProviderId: customProvider.id,
+                modelName,
+              });
               return (
-                <MenuSection key={providerKey}>
-                  <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
-                  {models.map((modelName) => {
-                    const itemKey = encodeBuiltInKey({
-                      providerKey,
-                      modelName,
-                    });
-                    return (
-                      <MenuItem
-                        key={itemKey}
-                        id={itemKey}
-                        textValue={displayModelName(providerKey, modelName)}
-                      >
-                        <Flex
-                          direction="row"
-                          gap="size-100"
-                          alignItems="center"
-                        >
-                          {isValidProvider && (
-                            <GenerativeProviderIcon
-                              provider={providerKey}
-                              height={16}
-                            />
-                          )}
-                          <Text>
-                            {displayModelName(providerKey, modelName)}
-                          </Text>
-                        </Flex>
-                      </MenuItem>
-                    );
-                  })}
-                </MenuSection>
+                <MenuItem
+                  key={itemKey}
+                  id={itemKey}
+                  textValue={displayModelName(providerKey, modelName)}
+                >
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <GenerativeProviderIcon
+                      provider={providerKey}
+                      height={16}
+                    />
+                    <Text>{displayModelName(providerKey, modelName)}</Text>
+                  </Flex>
+                </MenuItem>
               );
-            }
-          )}
-        </>
-      ) : (
-        <MenuItem id="no-results" textValue="No results" isDisabled>
-          <Text color="text-700">No models found</Text>
-        </MenuItem>
-      )}
+            })}
+          </MenuSection>
+        );
+      })}
+      {/* Built-in providers */}
+      {Array.from(modelsByProvider.entries()).map(([providerKey, models]) => {
+        const providerInfo = providerInfoMap.get(providerKey);
+        const isValidProvider = isModelProvider(providerKey);
+        return (
+          <MenuSection key={providerKey}>
+            <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
+            {models.map((modelName) => {
+              const itemKey = encodeBuiltInKey({
+                providerKey,
+                modelName,
+              });
+              return (
+                <MenuItem
+                  key={itemKey}
+                  id={itemKey}
+                  textValue={displayModelName(providerKey, modelName)}
+                >
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    {isValidProvider && (
+                      <GenerativeProviderIcon
+                        provider={providerKey}
+                        height={16}
+                      />
+                    )}
+                    <Text>{displayModelName(providerKey, modelName)}</Text>
+                  </Flex>
+                </MenuItem>
+              );
+            })}
+          </MenuSection>
+        );
+      })}
     </Menu>
   );
 }
@@ -485,16 +481,18 @@ type ProviderMenuProps = {
 
 /**
  * Menu showing a list of providers with submenus for their models.
+ * Once a provider is provisioned only ready providers are listed; before
+ * that, the flagship providers are shown as a fallback.
  * Used as the default view when not searching.
  */
-function ProviderMenu({
+export function ProviderMenu({
   providers,
   modelsByProvider,
   customProviders,
   onChange,
 }: ProviderMenuProps) {
   return (
-    <Menu css={menuWidthCSS}>
+    <Menu css={menuWidthCSS} renderEmptyState={() => <ModelMenuEmptyState />}>
       <ProviderModelMenuItems
         providers={providers}
         modelsByProvider={modelsByProvider}
@@ -502,6 +500,19 @@ function ProviderMenu({
         onChange={onChange}
       />
     </Menu>
+  );
+}
+
+/**
+ * Empty state for the model picker. Inside the picker's Autocomplete an
+ * active search automatically flips it to the search icon + "No results".
+ */
+function ModelMenuEmptyState() {
+  return (
+    <CompactEmptyState
+      icon={<Icon svg={<Icons.Cube />} />}
+      description="No models available"
+    />
   );
 }
 
@@ -554,11 +565,27 @@ export function ProviderModelMenuItems({
               textValue={provider.name}
               isDisabled={!provider.dependenciesInstalled}
             >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                {isValidProvider && (
-                  <GenerativeProviderIcon provider={providerKey} height={16} />
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+                justifyContent="space-between"
+                width="100%"
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  {isValidProvider && (
+                    <GenerativeProviderIcon
+                      provider={providerKey}
+                      height={16}
+                    />
+                  )}
+                  <Text>{provider.name}</Text>
+                </Flex>
+                {provider.needsCredentials && (
+                  <Text color="text-500" size="XS">
+                    Needs credentials
+                  </Text>
                 )}
-                <Text>{provider.name}</Text>
               </Flex>
             </MenuItem>
             <ProviderModelsSubmenu

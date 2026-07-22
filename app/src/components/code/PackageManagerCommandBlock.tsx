@@ -13,7 +13,11 @@ import { isPackageManager } from "@phoenix/types/code";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { BashBlock } from "./BashBlock";
-import { codeBlockWithCopyCSS } from "./styles";
+import {
+  codeBlockWithCopyCSS,
+  copyableSurfaceCSS,
+  embeddedCopyButtonCSS,
+} from "./styles";
 
 /**
  * Maps each package manager to its install command prefix.
@@ -28,17 +32,28 @@ const installCommandByPackageManager: Record<PackageManager, string> = {
 
 const packageManagerCommandBlockCSS = css`
   border-radius: var(--global-rounding-small);
-  border: 1px solid var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   overflow: hidden;
+  // Painted on the outer block so the header and code area read as one
+  // surface. The copy button lives in the header, so the inner code shell's
+  // own :has() hover never fires.
+  ${copyableSurfaceCSS}
+  ${embeddedCopyButtonCSS}
 
   .package-manager-command__header {
     padding: var(--global-dimension-size-100);
     padding-bottom: 0;
-    background: var(--code-mirror-editor-background-color);
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  // The shell paints its own copy of the surface color; make it transparent so
+  // this block's single surface (and its hover state) shows through.
+  .package-manager-command__code {
+    background-color: transparent;
   }
 
   .package-manager-command__toggle-group {
@@ -50,7 +65,7 @@ const packageManagerCommandBlockCSS = css`
     border-radius: var(--global-rounding-small) !important;
     background: transparent;
     color: var(--global-color-gray-500);
-    height: 26px;
+    height: var(--global-dimension-size-325);
   }
 
   .package-manager-command__toggle[data-selected="true"] {
@@ -128,7 +143,7 @@ export function PackageManagerCommandBlock({
         </ToggleButtonGroup>
         <CopyToClipboardButton text={selectedCommand} />
       </div>
-      <div css={codeBlockWithCopyCSS}>
+      <div className="package-manager-command__code" css={codeBlockWithCopyCSS}>
         <BashBlock value={selectedCommand} />
       </div>
     </div>

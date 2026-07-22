@@ -339,6 +339,29 @@ Phoenix lets you run experiments directly from the UI using a dataset and prompt
 
 Click **Run** in the Playground. Phoenix runs your prompt across every dataset example and records results as an experiment. If your dataset has evaluators attached, Phoenix also scores each run and records the results as annotations.
 
+## Set a Baseline Experiment
+
+You can mark one experiment on a dataset as the **baseline** — a persistent reference point that comparisons are measured against. Unlike selecting a baseline transiently in the compare view, this choice is saved with the dataset and survives navigation until you change or remove it.
+
+To set or remove a baseline from the experiments table:
+
+1. Open a dataset and go to its **Experiments** tab.
+2. Select a single experiment (baseline actions are only available when exactly one experiment is selected).
+3. Open the experiment's action menu (or use the selection toolbar) and choose **Mark as baseline**. To clear it, open the menu again and choose **Remove baseline**.
+
+The current baseline is indicated by a **baseline** badge next to the experiment in the table. Setting a new baseline replaces any existing one — a dataset has at most one baseline at a time.
+
+## View Dataset Metrics
+
+The dataset page has a **Metrics** tab that charts how your experiments trend over time, so you can spot regressions without opening each experiment. Open a dataset and select the **Metrics** tab (next to **Experiments** and **Versions**) to see bar charts across the dataset's most recent experiments for:
+
+- **Run latency** — how long runs take
+- **Error rate** — the share of failed runs
+- **Cost** — token spend per experiment
+- **Token usage** — prompt and completion tokens
+
+Use it to confirm a new prompt or model isn't quietly getting slower, more expensive, or more error-prone than earlier experiments on the same dataset.
+
 ## Review Failure Modes
 
 After the run completes, open the experiment to understand where the prompt or model is underperforming.

@@ -6,6 +6,7 @@ import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { SessionAnnotationScoreTimeSeriesQuery } from "./__generated__/SessionAnnotationScoreTimeSeriesQuery.graphql";
 import { AnnotationScoreTimeSeriesChart } from "./AnnotationScoreTimeSeriesChart";
 import type { ProjectMetricViewProps } from "./types";
+import { useMetricQueryFetchOptions } from "./types";
 
 export function SessionAnnotationScoreTimeSeries({
   projectId,
@@ -51,7 +52,8 @@ export function SessionAnnotationScoreTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    useMetricQueryFetchOptions()
   );
 
   return (

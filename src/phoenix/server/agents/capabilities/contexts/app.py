@@ -1,32 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from jinja2 import Template
-from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
 
 @dataclass
-class AppContextCapability(AbstractDynamicCapability[AgentDependencies]):
+class AppContextCapability(AbstractStaticCapability[AgentDependencies]):
+    """Renders the user's UI permission settings."""
+
     instructions: Template
+    edit_permission: Literal["manual", "bypass"]
 
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str | None:
-            app_context = ctx.deps.contexts.app
-            if app_context is None:
-                return None
-            return instructions.render(
-                app=app_context,
-                edit_permission=ctx.deps.edit_permission,
-            )
-
-        return _instructions
-
-    def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
-        return ctx.deps.contexts.app is not None
+    def get_static_instructions(self) -> str:
+        return self.instructions.render(edit_permission=self.edit_permission)

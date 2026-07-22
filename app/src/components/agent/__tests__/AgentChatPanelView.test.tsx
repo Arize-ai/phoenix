@@ -88,6 +88,11 @@ describe("AgentChatHeader", () => {
     );
 
     expect(toggleButton).not.toBeNull();
+    expect(
+      container
+        .querySelector(".pxi-animated-glyph")
+        ?.getAttribute("data-icon-sized")
+    ).toBe("true");
 
     act(() => {
       toggleButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));

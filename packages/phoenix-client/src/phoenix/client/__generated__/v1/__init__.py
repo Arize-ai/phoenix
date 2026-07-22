@@ -25,6 +25,26 @@ class AnonymousUser(TypedDict):
     auth_method: Literal["ANONYMOUS"]
 
 
+class ApiKey(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
+
+
+class ApiKeyData(TypedDict):
+    name: str
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
+
+
+class ApiKeyUser(TypedDict):
+    id: str
+    username: str
+    email: Optional[str]
+
+
 class AppContext(TypedDict):
     type: Literal["app"]
     currentDateTime: str
@@ -55,6 +75,10 @@ class CategoricalAnnotationValue(TypedDict):
 class CodeEvaluatorContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
+
+
+class CreateApiKeyRequestBody(TypedDict):
+    data: ApiKeyData
 
 
 class CreateDatasetLabelRequestBody(TypedDict):
@@ -94,6 +118,15 @@ class CreateProjectRequestBody(TypedDict):
 class CreateSpansResponseBody(TypedDict):
     total_received: int
     total_queued: int
+
+
+class CreatedApiKey(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    key: str
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
 
 
 class CustomProviderModelSelection(TypedDict):
@@ -202,6 +235,10 @@ class FileUIPart(TypedDict):
     url: str
     filename: NotRequired[str]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class GetApiKeysResponseBody(TypedDict):
+    data: Sequence[ApiKey]
 
 
 class GetDatasetLabelResponseBody(TypedDict):
@@ -943,6 +980,12 @@ class TraceSpanData(TypedDict):
     end_time: str
 
 
+class TurnTraceContext(TypedDict):
+    traceId: str
+    rootSpanId: str
+    startedAt: str
+
+
 class UpdateDatasetLabelRequestBody(TypedDict):
     name: NotRequired[str]
     color: NotRequired[str]
@@ -1008,6 +1051,21 @@ class UpsertOrDeleteSecretsResult(TypedDict):
     deleted_keys: Sequence[str]
 
 
+class UserApiKey(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    user: ApiKeyUser
+    description: NotRequired[str]
+    expires_at: NotRequired[str]
+
+
+class UserMessageMetadata(TypedDict):
+    type: Literal["user"]
+    currentDateTime: str
+    timeZone: str
+
+
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
@@ -1025,8 +1083,16 @@ class FieldSummarizeResponse(TypedDict):
     summary: str
 
 
+class ToolCallCallbackProviderMetadata(TypedDict):
+    tool_execution_environment: Literal["client", "server"]
+    tool_input_emitted_at: NotRequired[str]
+    client_started_at: NotRequired[str]
+    client_ended_at: NotRequired[str]
+
+
 class ToolCallProviderMetadata(TypedDict):
     tool_execution_environment: Literal["client", "server"]
+    tool_input_emitted_at: NotRequired[str]
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
@@ -1126,6 +1192,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class CreateApiKeyResponseBody(TypedDict):
+    data: CreatedApiKey
 
 
 class CreateDatasetLabelResponseBody(TypedDict):
@@ -1283,6 +1353,11 @@ class FreeformAnnotationConfigData(TypedDict):
     threshold: NotRequired[float]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class GetAllUserApiKeysResponseBody(TypedDict):
+    data: Sequence[UserApiKey]
+    next_cursor: Optional[str]
 
 
 class GetAnnotationConfigResponseBody(TypedDict):
@@ -1588,105 +1663,11 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
 
 
 class AssistantMessageMetadata(TypedDict):
+    type: Literal["assistant"]
     sessionId: str
     trace: NotRequired[AssistantMessageMetadataTraceIds]
+    turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
-
-
-class AssistantMetadataUIMessage(TypedDict):
-    id: str
-    role: Literal["system", "user", "assistant"]
-    parts: Sequence[
-        Union[
-            TextUIPart,
-            ReasoningUIPart,
-            ToolInputStreamingPart,
-            ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
-            ToolApprovalRequestedPart,
-            ToolApprovalRespondedPart,
-            ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
-            DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
-            DynamicToolApprovalRequestedPart,
-            DynamicToolApprovalRespondedPart,
-            DynamicToolOutputDeniedPart,
-            SourceUrlUIPart,
-            SourceDocumentUIPart,
-            FileUIPart,
-            DataUIPart,
-            StepStartUIPart,
-        ]
-    ]
-    metadata: NotRequired[AssistantMessageMetadata]
-
-
-class ChatRegenerateMessage(TypedDict):
-    id: str
-    messages: Sequence[AssistantMetadataUIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["regenerate-message"]
-    messageId: NotRequired[str]
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
-    contexts: NotRequired[
-        Sequence[
-            Union[
-                AppContext,
-                ProjectContext,
-                TraceContext,
-                SessionContext,
-                PromptContext,
-                PromptVersionContext,
-                AgentSpanContext,
-                PlaygroundContext,
-                CodeEvaluatorContext,
-                LlmEvaluatorContext,
-                DatasetContext,
-                GraphQLContext,
-                WebAccessContext,
-                SubagentsContext,
-            ]
-        ]
-    ]
-    editPermission: NotRequired[Literal["manual", "bypass"]]
-    requestedSkills: NotRequired[Sequence[str]]
-
-
-class ChatSubmitMessage(TypedDict):
-    id: str
-    messages: Sequence[AssistantMetadataUIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    trigger: Literal["submit-message"]
-    ingestTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    attachUserId: NotRequired[bool]
-    contexts: NotRequired[
-        Sequence[
-            Union[
-                AppContext,
-                ProjectContext,
-                TraceContext,
-                SessionContext,
-                PromptContext,
-                PromptVersionContext,
-                AgentSpanContext,
-                PlaygroundContext,
-                CodeEvaluatorContext,
-                LlmEvaluatorContext,
-                DatasetContext,
-                GraphQLContext,
-                WebAccessContext,
-                SubagentsContext,
-            ]
-        ]
-    ]
-    editPermission: NotRequired[Literal["manual", "bypass"]]
-    requestedSkills: NotRequired[Sequence[str]]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):
@@ -1715,6 +1696,37 @@ class GetTracesResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class PhoenixUIMessage(TypedDict):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: Sequence[
+        Union[
+            TextUIPart,
+            ReasoningUIPart,
+            ToolInputStreamingPart,
+            ToolInputAvailablePart,
+            ToolOutputAvailablePart,
+            ToolOutputErrorPart,
+            ToolApprovalRequestedPart,
+            ToolApprovalRespondedPart,
+            ToolOutputDeniedPart,
+            DynamicToolInputStreamingPart,
+            DynamicToolInputAvailablePart,
+            DynamicToolOutputAvailablePart,
+            DynamicToolOutputErrorPart,
+            DynamicToolApprovalRequestedPart,
+            DynamicToolApprovalRespondedPart,
+            DynamicToolOutputDeniedPart,
+            SourceUrlUIPart,
+            SourceDocumentUIPart,
+            FileUIPart,
+            DataUIPart,
+            StepStartUIPart,
+        ]
+    ]
+    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+
+
 class PromptAnthropicInvocationParameters(TypedDict):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
@@ -1730,6 +1742,73 @@ class PromptMessage(TypedDict):
     content: Union[
         str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
     ]
+
+
+class ChatRegenerateMessage(TypedDict):
+    id: str
+    messages: Sequence[PhoenixUIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    trigger: Literal["regenerate-message"]
+    messageId: NotRequired[str]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
+
+
+class ChatSubmitMessage(TypedDict):
+    id: str
+    messages: Sequence[PhoenixUIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    trigger: Literal["submit-message"]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    turnTraceContext: NotRequired[TurnTraceContext]
 
 
 class PromptChatTemplate(TypedDict):

@@ -1,6 +1,7 @@
 ---
 title: "PXI"
 sidebarTitle: "PXI Agent"
+tag: "BETA"
 description: >-
   PXI (Phoenix Intelligence) is the AI engineering agent built into Phoenix.
   Hand it an investigation instead of digging through traces, prompts,
@@ -357,6 +358,7 @@ present, so it does not offer an action that cannot succeed on your current page
   | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups. |
   | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
   | `PHOENIX_AGENTS_DISABLE_BASH=true` | Disable PXI's **server-side** bash tool by preventing subagents from being attached to the assistant. The subagents toggle is also hidden from **Settings → Assistant**. The browser-side bash sandbox is unaffected; to turn PXI off entirely use `PHOENIX_DISABLE_AGENT_ASSISTANT`. |
+  | `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local PXI tracing, remote trace export, and signed-in user email attribution for every user, regardless of workspace or browser settings. Configure the remote collector variables below before enabling it. |
   | `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
   | `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |
   | `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project name for locally recorded assistant traces (default `assistant_agent`). |

@@ -15,7 +15,7 @@ import {
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -247,7 +247,7 @@ export function ExampleExperimentRunsTable({
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={selectableTableCSS}>
+      <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>

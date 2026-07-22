@@ -117,6 +117,22 @@ describe("PXI client", () => {
     });
   });
 
+  it("uses OAuth access tokens when no API key is configured", () => {
+    const headers = buildPxiHeaders({
+      config: {
+        endpoint: "http://localhost:6006",
+        oauthTokens: {
+          accessToken: "oauth-access",
+          refreshToken: "oauth-refresh",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          scope: "",
+        },
+      },
+    });
+
+    expect(headers.Authorization).toBe("Bearer oauth-access");
+  });
+
   it("builds the server-agent chat URL", () => {
     expect(
       buildServerAgentChatUrl({

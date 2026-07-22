@@ -12,7 +12,8 @@ import {
   Alert,
   Button,
   Card,
-  CopyToClipboardButton,
+  CopyField,
+  CopyInput,
   Flex,
   Icon,
   Icons,
@@ -89,7 +90,10 @@ const ProjectConfigContent = ({
 }: {
   project: PreloadedQuery<ProjectPageProjectConfigQueryType>;
 }) => {
-  const data = usePreloadedQuery(ProjectPageQueriesProjectConfigQuery, project);
+  const data = usePreloadedQuery<ProjectPageProjectConfigQueryType>(
+    ProjectPageQueriesProjectConfigQuery,
+    project
+  );
   return (
     <Flex direction="column" gap="size-200">
       <ProjectConfigCard
@@ -120,13 +124,10 @@ const nameFieldCSS = css`
 `;
 
 const ReadOnlyNameField = ({ name }: { name: string }) => (
-  <Flex direction="row" gap="size-100" alignItems="end" width="100%">
-    <TextField value={name} isReadOnly css={nameFieldCSS}>
-      <Label>Project Name</Label>
-      <Input />
-    </TextField>
-    <CopyToClipboardButton text={name} size="M" />
-  </Flex>
+  <CopyField value={name} css={nameFieldCSS}>
+    <Label>Project Name</Label>
+    <CopyInput />
+  </CopyField>
 );
 
 const ProjectConfigCard = ({

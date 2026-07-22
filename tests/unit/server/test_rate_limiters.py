@@ -7,6 +7,7 @@ from typing import Optional
 from unittest import mock
 
 import pytest
+from fastapi import HTTPException, Request
 
 from phoenix.server.rate_limiters import (
     AdaptiveTokenBucket,
@@ -15,6 +16,7 @@ from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     TokenBucket,
     UnavailableTokensError,
+    fastapi_ip_rate_limiter,
 )
 
 
@@ -526,6 +528,78 @@ def test_rate_limiter_caches_token_buckets() -> None:
         assert token_bucket.available_tokens() == 7.5
         limiter.make_request("test_key")
         assert token_bucket.tokens == 6.5
+
+
+# --- fastapi_ip_rate_limiter tests ---
+
+
+def _build_request(path: str, root_path: str = "") -> Request:
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "root_path": root_path,
+        "query_string": b"",
+        "headers": [],
+        "client": ("192.0.2.1", 50000),
+        "server": ("testserver", 80),
+    }
+    return Request(scope)
+
+
+def _single_token_server_rate_limiter() -> ServerRateLimiter:
+    return ServerRateLimiter(
+        per_second_rate_limit=0.1,
+        enforcement_window_seconds=10,
+        partition_seconds=60,
+        active_partitions=2,
+    )
+
+
+@pytest.mark.parametrize(
+    "path,root_path",
+    [
+        pytest.param("/oauth2/register", "", id="at-domain-root"),
+        # Under PHOENIX_HOST_ROOT_PATH the request path carries the root-path
+        # prefix, which an exact match against the registered pattern would
+        # silently miss, disabling rate limiting.
+        pytest.param("/phoenix/oauth2/register", "/phoenix", id="under-root-path"),
+    ],
+)
+async def test_fastapi_ip_rate_limiter_limits_matching_path(path: str, root_path: str) -> None:
+    with freeze_time():
+        dependency = fastapi_ip_rate_limiter(
+            _single_token_server_rate_limiter(), paths=["/oauth2/register"]
+        )
+        request = _build_request(path, root_path=root_path)
+        await dependency(request)
+        with pytest.raises(HTTPException) as exc_info:
+            await dependency(request)
+        assert exc_info.value.status_code == 429
+
+
+async def test_fastapi_ip_rate_limiter_ignores_non_matching_path() -> None:
+    with freeze_time():
+        dependency = fastapi_ip_rate_limiter(
+            _single_token_server_rate_limiter(), paths=["/oauth2/register"]
+        )
+        request = _build_request("/phoenix/healthz", root_path="/phoenix")
+        for _ in range(5):
+            await dependency(request)
+
+
+async def test_fastapi_ip_rate_limiter_does_not_match_root_path_prefixed_pattern_at_root() -> None:
+    # A deployment at the domain root must not rate-limit a path that merely
+    # looks like a root-path-prefixed variant of a registered pattern.
+    with freeze_time():
+        dependency = fastapi_ip_rate_limiter(
+            _single_token_server_rate_limiter(), paths=["/oauth2/register"]
+        )
+        request = _build_request("/phoenix/oauth2/register")
+        for _ in range(5):
+            await dependency(request)
 
 
 # --- BruteForceLoginRateLimiter tests ---

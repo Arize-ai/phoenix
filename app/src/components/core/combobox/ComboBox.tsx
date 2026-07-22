@@ -50,9 +50,10 @@ export interface ComboBoxProps<T extends object>
 /**
  * Prevents the event from propagating to the parent element.
  */
-const stopPropagationHandler = (e: React.MouseEvent | React.KeyboardEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
+const stopPropagationHandler = (
+  event: React.MouseEvent | React.KeyboardEvent
+) => {
+  event.stopPropagation();
 };
 
 export function ComboBox<T extends object>({

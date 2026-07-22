@@ -3,6 +3,10 @@ import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import {
+  CREATE_ANNOTATION_CONFIG_TOOL_NAME,
+  UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
+} from "@phoenix/agent/tools/annotationConfig";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { CREATE_DATASET_TOOL_NAME } from "@phoenix/agent/tools/createDataset";
@@ -54,6 +58,11 @@ import {
   AddDatasetExamplesToolDetails,
   getAddDatasetExamplesToolPreview,
 } from "./AddDatasetExamplesToolDetails";
+import {
+  AnnotationConfigWriteToolDetails,
+  getCreateAnnotationConfigToolPreview,
+  getUpdateAnnotationConfigToolPreview,
+} from "./AnnotationConfigWriteToolDetails";
 import {
   AskUserToolDetails,
   formatAskUserState,
@@ -113,6 +122,11 @@ import {
   getPatchExperimentToolPreview,
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
+import {
+  getReadSkillResourceToolPreview,
+  READ_SKILL_RESOURCE_TOOL_NAME,
+  ReadSkillResourceToolDetails,
+} from "./ReadSkillResourceToolDetails";
 import {
   formatRemovePromptInstanceState,
   getRemovePromptInstanceStatusVariant,
@@ -194,12 +208,12 @@ export const toolPartCSS = css`
 
   /* Rotate chevron when open */
   &[open] > summary .tool-part__chevron {
-    transform: rotate(0deg);
+    transform: rotate(90deg);
   }
 
   .tool-part__body {
     background: var(--tool-call-body-background-color);
-    font-family: var(--ac-global-font-family-code);
+    font-family: var(--global-font-family-mono);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
     white-space: pre-wrap;
@@ -210,7 +224,7 @@ export const toolPartCSS = css`
   }
 
   .tool-part__subagent-message {
-    font-family: var(--ac-global-font-family-sans);
+    font-family: var(--global-font-family-sans);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
     padding: 0 var(--global-dimension-size-250) var(--global-dimension-size-125);
@@ -291,7 +305,7 @@ export const toolPartCSS = css`
   .tool-part__preview {
     flex: ${TOOL_CALL_SUMMARY_LANE_RULES.middleFlex};
     font-weight: 400;
-    font-family: var(--ac-global-font-family-code);
+    font-family: var(--global-font-family-mono);
     color: var(--tool-call-secondary-color);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -358,8 +372,8 @@ export const toolPartCSS = css`
 
   .tool-part__chevron {
     font-size: 18px;
-    transition: transform 150ms ease;
-    transform: rotate(-90deg);
+    transition: transform 200ms ease-in-out;
+    transform: rotate(0deg);
     opacity: 0;
   }
 
@@ -635,7 +649,7 @@ function ToolInvocationPartDetails({
           <span className="tool-part__title">
             <span className="tool-part__icon-slot">
               <Icon
-                svg={<Icons.ChevronDownSmall />}
+                svg={<Icons.ChevronRightSmall />}
                 className="tool-part__chevron"
               />
               <Icon
@@ -1173,6 +1187,22 @@ function getToolPresentation(
         statusVariant: getPatchExperimentStatusVariant(part) ?? statusVariant,
         details: <PatchExperimentToolDetails part={part} />,
       };
+    case CREATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getCreateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.Edit2 />,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
+      };
+    case UPDATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getUpdateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.Edit2 />,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
+      };
     case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
       return {
         preview: getEditCodeEvaluatorDraftToolPreview(part),
@@ -1199,6 +1229,14 @@ function getToolPresentation(
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
     }
+    case READ_SKILL_RESOURCE_TOOL_NAME:
+      return {
+        preview: getReadSkillResourceToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <ReadSkillResourceToolDetails part={part} />,
+        icon: <Icons.FileText />,
+      };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME:
       return {
@@ -1229,7 +1267,7 @@ function getToolPresentation(
         preview: getSetSpansFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.Funnel />,
+        icon: <Icons.ListFilter />,
         details: <GenericToolDetails part={part} />,
       };
     default: {

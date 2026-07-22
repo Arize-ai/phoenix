@@ -170,7 +170,7 @@ export function ExpandableContent({
           aria-expanded={false}
         >
           <span>Expand</span>
-          <Icon svg={<Icons.ChevronDown />} />
+          <Icon svg={<Icons.ChevronDownSmall />} />
         </button>
       )}
       {canCollapse && (
@@ -182,7 +182,7 @@ export function ExpandableContent({
           aria-expanded={true}
         >
           <span>Collapse</span>
-          <Icon svg={<Icons.ChevronUp />} />
+          <Icon svg={<Icons.ChevronUpSmall />} />
         </button>
       )}
     </div>

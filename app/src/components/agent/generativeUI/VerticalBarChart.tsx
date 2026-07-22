@@ -11,6 +11,7 @@ import {
 
 import {
   ChartEmptyStateOverlay,
+  defaultCartesianGridProps,
   useGrayscaleCategoricalColors,
 } from "@phoenix/components/chart";
 
@@ -67,7 +68,7 @@ function CustomXAxisTick(props: {
       y={y + 10}
       textAnchor={textAnchor}
       fontSize={9}
-      fill="var(--global-text-color-700)"
+      fill="var(--chart-axis-text-color)"
     >
       {payload?.value}
     </text>
@@ -121,16 +122,12 @@ export function VerticalBarChart({
       <ChartEmptyStateOverlay isEmpty={!hasData}>
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <RechartsBarChart data={chartData} margin={CHART_MARGINS}>
-            <CartesianGrid
-              horizontal
-              vertical={false}
-              stroke="var(--global-color-gray-200)"
-            />
+            <CartesianGrid {...defaultCartesianGridProps} />
             <YAxis
               width={yAxisWidth}
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
+              tick={{ fontSize: 9, fill: "var(--chart-axis-text-color)" }}
               tickCount={3}
               domain={[0, "dataMax"]}
             />

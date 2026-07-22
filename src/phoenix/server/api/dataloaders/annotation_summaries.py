@@ -1,11 +1,12 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Literal, Optional, Type, Union, cast
+from typing import Any, Literal, Optional, Type, Union
 
 import pandas as pd
 from aioitertools.itertools import groupby
 from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, and_, case, distinct, func, or_, select
+from sqlalchemy.orm import InstrumentedAttribute
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
@@ -17,11 +18,14 @@ from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
-Kind: TypeAlias = Literal["span", "trace"]
+Kind: TypeAlias = Literal["span", "trace", "session"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 SessionFilterCondition: TypeAlias = Optional[str]
+# Rowid of a single session to scope the summary to, used when the sessions
+# table search resolves to an exact session-ID match.
+SessionRowId: TypeAlias = Optional[int]
 AnnotationName: TypeAlias = str
 
 Segment: TypeAlias = tuple[
@@ -30,6 +34,7 @@ Segment: TypeAlias = tuple[
     TimeInterval,
     FilterCondition,
     SessionFilterCondition,
+    SessionRowId,
 ]
 Param: TypeAlias = AnnotationName
 
@@ -39,6 +44,7 @@ Key: TypeAlias = tuple[
     Optional[TimeRange],
     FilterCondition,
     SessionFilterCondition,
+    SessionRowId,
     AnnotationName,
 ]
 Result: TypeAlias = Optional[AnnotationSummary]
@@ -47,15 +53,30 @@ DEFAULT_VALUE: Result = None
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, session_filter_condition, eval_name = key
+    (
+        kind,
+        project_rowid,
+        time_range,
+        filter_condition,
+        session_filter_condition,
+        session_rowid,
+        eval_name,
+    ) = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, project_rowid, interval, filter_condition, session_filter_condition), eval_name
+    return (
+        kind,
+        project_rowid,
+        interval,
+        filter_condition,
+        session_filter_condition,
+        session_rowid,
+    ), eval_name
 
 
 _Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition, SessionRowId]
 
 
 class AnnotationSummaryCache(
@@ -83,6 +104,7 @@ class AnnotationSummaryCache(
                 interval,
                 filter_condition,
                 session_filter_condition,
+                session_rowid,
             ),
             annotation_name,
         ) = _cache_key_fn(key)
@@ -90,6 +112,7 @@ class AnnotationSummaryCache(
             interval,
             filter_condition,
             session_filter_condition,
+            session_rowid,
         )
 
 
@@ -130,32 +153,73 @@ def _get_stmt(
     segment: Segment,
     *annotation_names: Param,
 ) -> Select[Any]:
-    kind, project_rowid, (start_time, end_time), filter_condition, session_filter_condition = (
-        segment
-    )
+    (
+        kind,
+        project_rowid,
+        (start_time, end_time),
+        filter_condition,
+        session_filter_condition,
+        session_rowid,
+    ) = segment
 
-    annotation_model: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
-    entity_model: Union[Type[models.Span], Type[models.Trace]]
+    annotation_model: Union[
+        Type[models.SpanAnnotation],
+        Type[models.TraceAnnotation],
+        Type[models.ProjectSessionAnnotation],
+    ]
+    entity_model: Union[Type[models.Span], Type[models.Trace], Type[models.ProjectSession]]
     entity_join_model: Optional[Type[models.Base]]
     entity_id_column: Any
+    # The column holding the session rowid, used when a session filter narrows
+    # the summary to sessions whose root span input/output matches a substring.
+    session_rowid_column: Any
+    # The column holding the project rowid, used to scope the (possibly
+    # joined) entity rows to a project.
+    project_rowid_column: InstrumentedAttribute[int]
 
     if kind == "span":
         annotation_model = models.SpanAnnotation
         entity_model = models.Span
         entity_join_model = models.Trace
         entity_id_column = models.Span.id.label("entity_id")
+        session_rowid_column = models.Trace.project_session_rowid
+        project_rowid_column = models.Trace.project_rowid
     elif kind == "trace":
         annotation_model = models.TraceAnnotation
         entity_model = models.Trace
         entity_join_model = None
         entity_id_column = models.Trace.id.label("entity_id")
+        session_rowid_column = models.Trace.project_session_rowid
+        project_rowid_column = models.Trace.project_rowid
+    elif kind == "session":
+        annotation_model = models.ProjectSessionAnnotation
+        entity_model = models.ProjectSession
+        entity_join_model = None
+        entity_id_column = models.ProjectSession.id.label("entity_id")
+        session_rowid_column = models.ProjectSession.id
+        project_rowid_column = models.ProjectSession.project_id
     else:
         assert_never(kind)
 
     name_column = annotation_model.name
     label_column = annotation_model.label
     score_column = annotation_model.score
-    time_column = entity_model.start_time
+
+    # Time-range filters, applied to both queries below. Sessions use
+    # interval-overlap semantics, matching the sessions table: a session is
+    # included iff [start_time, end_time] intersects [start, end).
+    time_range_conditions = []
+    if kind == "session":
+        if start_time:
+            time_range_conditions.append(start_time <= models.ProjectSession.end_time)
+        if end_time:
+            time_range_conditions.append(models.ProjectSession.start_time < end_time)
+    else:
+        time_column = entity_model.start_time
+        if start_time:
+            time_range_conditions.append(start_time <= time_column)
+        if end_time:
+            time_range_conditions.append(time_column < end_time)
 
     # First query: count distinct entities per annotation name
     # This is used later to calculate accurate fractions that account for entities without labels
@@ -163,19 +227,10 @@ def _get_stmt(
         name_column, func.count(distinct(entity_id_column)).label("entity_count")
     )
 
-    if kind == "span":
-        entity_count_query = entity_count_query.join(cast(Type[models.Span], entity_model))
-        entity_count_query = entity_count_query.join_from(
-            cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
-        )
-        entity_count_query = entity_count_query.where(models.Trace.project_rowid == project_rowid)
-    elif kind == "trace":
-        entity_count_query = entity_count_query.join(cast(Type[models.Trace], entity_model))
-        entity_count_query = entity_count_query.where(
-            cast(Type[models.Trace], entity_model).project_rowid == project_rowid
-        )
-    else:
-        assert_never(kind)
+    entity_count_query = entity_count_query.join(entity_model)
+    if entity_join_model is not None:
+        entity_count_query = entity_count_query.join_from(entity_model, entity_join_model)
+    entity_count_query = entity_count_query.where(project_rowid_column == project_rowid)
 
     if session_filter_condition:
         filtered_session_rowids = get_filtered_session_rowids_subquery(
@@ -185,18 +240,16 @@ def _get_stmt(
             end_time=end_time,
         )
         entity_count_query = entity_count_query.where(
-            models.Trace.project_session_rowid.in_(filtered_session_rowids)
+            session_rowid_column.in_(filtered_session_rowids)
         )
+    if session_rowid is not None:
+        entity_count_query = entity_count_query.where(session_rowid_column == session_rowid)
 
     entity_count_query = entity_count_query.where(
         or_(score_column.is_not(None), label_column.is_not(None))
     )
     entity_count_query = entity_count_query.where(name_column.in_(annotation_names))
-
-    if start_time:
-        entity_count_query = entity_count_query.where(start_time <= time_column)
-    if end_time:
-        entity_count_query = entity_count_query.where(time_column < end_time)
+    entity_count_query = entity_count_query.where(*time_range_conditions)
 
     entity_count_query = entity_count_query.group_by(name_column)
     entity_count_subquery = entity_count_query.subquery()
@@ -212,22 +265,13 @@ def _get_stmt(
         func.sum(score_column).label("score_sum"),
     )
 
-    if kind == "span":
-        base_stmt = base_stmt.join(cast(Type[models.Span], entity_model))
-        base_stmt = base_stmt.join_from(
-            cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
-        )
-        base_stmt = base_stmt.where(models.Trace.project_rowid == project_rowid)
-        if filter_condition:
-            sf = SpanFilter(filter_condition)
-            base_stmt = sf(base_stmt)
-    elif kind == "trace":
-        base_stmt = base_stmt.join(cast(Type[models.Trace], entity_model))
-        base_stmt = base_stmt.where(
-            cast(Type[models.Trace], entity_model).project_rowid == project_rowid
-        )
-    else:
-        assert_never(kind)
+    base_stmt = base_stmt.join(entity_model)
+    if entity_join_model is not None:
+        base_stmt = base_stmt.join_from(entity_model, entity_join_model)
+    base_stmt = base_stmt.where(project_rowid_column == project_rowid)
+    if kind == "span" and filter_condition:
+        sf = SpanFilter(filter_condition)
+        base_stmt = sf(base_stmt)
 
     if session_filter_condition:
         filtered_session_rowids = get_filtered_session_rowids_subquery(
@@ -236,15 +280,13 @@ def _get_stmt(
             start_time=start_time,
             end_time=end_time,
         )
-        base_stmt = base_stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
+        base_stmt = base_stmt.where(session_rowid_column.in_(filtered_session_rowids))
+    if session_rowid is not None:
+        base_stmt = base_stmt.where(session_rowid_column == session_rowid)
 
     base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     base_stmt = base_stmt.where(name_column.in_(annotation_names))
-
-    if start_time:
-        base_stmt = base_stmt.where(start_time <= time_column)
-    if end_time:
-        base_stmt = base_stmt.where(time_column < end_time)
+    base_stmt = base_stmt.where(*time_range_conditions)
 
     # Group to get one row per (span/trace)+name+label combination
     base_stmt = base_stmt.group_by(entity_id_column, name_column, label_column)

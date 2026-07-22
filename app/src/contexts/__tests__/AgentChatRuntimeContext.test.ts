@@ -45,6 +45,18 @@ describe("shouldRetainChatRuntime", () => {
     ).toBe(false);
   });
 
+  it("retains inactive ready sessions while tool output is pending", () => {
+    expect(
+      shouldRetainChatRuntime({
+        sessionId: "session-a",
+        activeSessionId: "session-b",
+        liveSessionIds: new Set(["session-a", "session-b"]),
+        status: "ready",
+        hasPendingToolOutput: true,
+      })
+    ).toBe(true);
+  });
+
   it("evicts deleted sessions regardless of status", () => {
     expect(
       shouldRetainChatRuntime({

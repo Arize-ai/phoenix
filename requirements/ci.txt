@@ -1,4 +1,4 @@
-mypy==2.1.0
+mypy==2.3.0
 numpy<2.3; python_version < "3.12"
 pytest
 pytest-xdist

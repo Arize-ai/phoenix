@@ -319,7 +319,7 @@ const ProjectAnnotationCountsCardsContent = (
 };
 
 const totalCountCSS = css`
-  color: var(--ac-global-text-color-700);
+  color: var(--global-text-color-700);
 `;
 
 const countCellCSS = css`

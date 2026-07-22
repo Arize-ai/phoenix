@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<3c330f0c00d01a6bbc8139e223557436>>
+ * @generated SignedSource<<17b9fe7f9d1f67b0164efaf8f41d5c27>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -95,7 +94,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptComboBoxQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -104,7 +103,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "PromptComboBoxQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "8dddcd4c6c884248b53dbaf0a625c335",

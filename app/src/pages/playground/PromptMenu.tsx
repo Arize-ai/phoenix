@@ -442,18 +442,11 @@ export function PromptVersionSelector({
                     textValue={`${id}\n${description ?? ""}\n${createdAt}`}
                   >
                     <Flex direction="column" gap="size-100">
-                      <Truncate
-                        maxLines={2}
-                        title={description ?? "No change description"}
-                      >
-                        {description ? (
+                      {description ? (
+                        <Truncate maxLines={2} title={description}>
                           <Text>{description}</Text>
-                        ) : (
-                          <Text fontStyle="italic" color="text-300">
-                            No change description
-                          </Text>
-                        )}
-                      </Truncate>
+                        </Truncate>
+                      ) : null}
                       <Flex alignItems="center" gap="size-100">
                         <IdTruncate id={id} textProps={{ size: "S" }} />
                         {isLatest && (

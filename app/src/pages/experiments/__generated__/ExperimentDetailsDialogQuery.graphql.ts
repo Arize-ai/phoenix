@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<848b1c514e89bf6ba706fe07919e1ab6>>
+ * @generated SignedSource<<cb320cc1f2cc6831f07c74840e5095cb>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -219,7 +218,7 @@ v16 = {
   "name": "project",
   "plural": false,
   "selections": [
-    (v4/*: any*/)
+    (v4/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -268,7 +267,7 @@ v20 = {
       "kind": "LinkedField",
       "name": "total",
       "plural": false,
-      "selections": (v19/*: any*/),
+      "selections": (v19/*:: as any*/),
       "storageKey": null
     },
     {
@@ -278,7 +277,7 @@ v20 = {
       "kind": "LinkedField",
       "name": "prompt",
       "plural": false,
-      "selections": (v19/*: any*/),
+      "selections": (v19/*:: as any*/),
       "storageKey": null
     },
     {
@@ -288,7 +287,7 @@ v20 = {
       "kind": "LinkedField",
       "name": "completion",
       "plural": false,
-      "selections": (v19/*: any*/),
+      "selections": (v19/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -388,7 +387,7 @@ v33 = {
 v34 = {
   "kind": "InlineFragment",
   "selections": [
-    (v29/*: any*/),
+    (v29/*:: as any*/),
     {
       "alias": "openaiMaxTokens",
       "args": null,
@@ -403,9 +402,9 @@ v34 = {
       "name": "maxCompletionTokens",
       "storageKey": null
     },
-    (v30/*: any*/),
-    (v31/*: any*/),
-    (v32/*: any*/),
+    (v30/*:: as any*/),
+    (v31/*:: as any*/),
+    (v32/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -427,7 +426,7 @@ v34 = {
       "name": "reasoningEffort",
       "storageKey": null
     },
-    (v33/*: any*/)
+    (v33/*:: as any*/)
   ],
   "type": "PromptOpenAIInvocationParameters",
   "abstractKey": null
@@ -449,9 +448,9 @@ v36 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v29/*: any*/),
-    (v32/*: any*/),
-    (v35/*: any*/),
+    (v29/*:: as any*/),
+    (v32/*:: as any*/),
+    (v35/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -478,7 +477,7 @@ v36 = {
       "name": "thinking",
       "plural": false,
       "selections": [
-        (v28/*: any*/),
+        (v28/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -531,7 +530,7 @@ v36 = {
       ],
       "storageKey": null
     },
-    (v33/*: any*/)
+    (v33/*:: as any*/)
   ],
   "type": "PromptAnthropicInvocationParameters",
   "abstractKey": null
@@ -539,7 +538,7 @@ v36 = {
 v37 = {
   "kind": "InlineFragment",
   "selections": [
-    (v29/*: any*/),
+    (v29/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -547,10 +546,10 @@ v37 = {
       "name": "maxOutputTokens",
       "storageKey": null
     },
-    (v35/*: any*/),
-    (v31/*: any*/),
-    (v30/*: any*/),
-    (v32/*: any*/),
+    (v35/*:: as any*/),
+    (v31/*:: as any*/),
+    (v30/*:: as any*/),
+    (v32/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -604,9 +603,9 @@ v38 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v29/*: any*/),
-    (v32/*: any*/),
-    (v35/*: any*/)
+    (v29/*:: as any*/),
+    (v32/*:: as any*/),
+    (v35/*:: as any*/)
   ],
   "type": "PromptAwsInvocationParameters",
   "abstractKey": null
@@ -633,8 +632,8 @@ v41 = {
   "storageKey": null
 },
 v42 = [
-  (v28/*: any*/),
-  (v39/*: any*/)
+  (v28/*:: as any*/),
+  (v39/*:: as any*/)
 ],
 v43 = {
   "alias": null,
@@ -670,7 +669,7 @@ v46 = {
   "name": "workItem",
   "plural": false,
   "selections": [
-    (v28/*: any*/),
+    (v28/*:: as any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -717,14 +716,14 @@ v46 = {
   "storageKey": null
 },
 v47 = [
-  (v39/*: any*/)
+  (v39/*:: as any*/)
 ];
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -732,7 +731,7 @@ return {
     "selections": [
       {
         "alias": "experiment",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -741,19 +740,19 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/),
-              (v10/*: any*/),
-              (v11/*: any*/),
-              (v12/*: any*/),
-              (v13/*: any*/),
-              (v14/*: any*/),
-              (v15/*: any*/),
-              (v16/*: any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
+              (v11/*:: as any*/),
+              (v12/*:: as any*/),
+              (v13/*:: as any*/),
+              (v14/*:: as any*/),
+              (v15/*:: as any*/),
+              (v16/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -762,12 +761,12 @@ return {
                 "name": "user",
                 "plural": false,
                 "selections": [
-                  (v17/*: any*/),
-                  (v18/*: any*/)
+                  (v17/*:: as any*/),
+                  (v18/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v20/*: any*/),
+              (v20/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -776,9 +775,9 @@ return {
                 "name": "job",
                 "plural": false,
                 "selections": [
-                  (v21/*: any*/),
-                  (v8/*: any*/),
-                  (v22/*: any*/),
+                  (v21/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v22/*:: as any*/),
                   {
                     "args": null,
                     "kind": "FragmentSpread",
@@ -792,8 +791,8 @@ return {
                     "name": "taskConfig",
                     "plural": false,
                     "selections": [
-                      (v4/*: any*/),
-                      (v23/*: any*/),
+                      (v4/*:: as any*/),
+                      (v23/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -802,10 +801,10 @@ return {
                         "name": "prompt",
                         "plural": false,
                         "selections": [
-                          (v24/*: any*/),
-                          (v25/*: any*/),
-                          (v26/*: any*/),
-                          (v27/*: any*/),
+                          (v24/*:: as any*/),
+                          (v25/*:: as any*/),
+                          (v26/*:: as any*/),
+                          (v27/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -818,11 +817,11 @@ return {
                                 "kind": "InlineDataFragmentSpread",
                                 "name": "PromptInvocationParametersReadableFragment",
                                 "selections": [
-                                  (v28/*: any*/),
-                                  (v34/*: any*/),
-                                  (v36/*: any*/),
-                                  (v37/*: any*/),
-                                  (v38/*: any*/)
+                                  (v28/*:: as any*/),
+                                  (v34/*:: as any*/),
+                                  (v36/*:: as any*/),
+                                  (v37/*:: as any*/),
+                                  (v38/*:: as any*/)
                                 ],
                                 "args": null,
                                 "argumentDefinitions": []
@@ -844,9 +843,9 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v28/*: any*/),
-                              (v39/*: any*/),
-                              (v40/*: any*/)
+                              (v28/*:: as any*/),
+                              (v39/*:: as any*/),
+                              (v40/*:: as any*/)
                             ],
                             "type": "OpenAIConnectionConfig",
                             "abstractKey": null
@@ -854,32 +853,32 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v28/*: any*/),
-                              (v41/*: any*/),
-                              (v40/*: any*/)
+                              (v28/*:: as any*/),
+                              (v41/*:: as any*/),
+                              (v40/*:: as any*/)
                             ],
                             "type": "AzureOpenAIConnectionConfig",
                             "abstractKey": null
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": (v42/*: any*/),
+                            "selections": (v42/*:: as any*/),
                             "type": "AnthropicConnectionConfig",
                             "abstractKey": null
                           },
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v28/*: any*/),
-                              (v43/*: any*/),
-                              (v44/*: any*/)
+                              (v28/*:: as any*/),
+                              (v43/*:: as any*/),
+                              (v44/*:: as any*/)
                             ],
                             "type": "AWSBedrockConnectionConfig",
                             "abstractKey": null
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": (v42/*: any*/),
+                            "selections": (v42/*:: as any*/),
                             "type": "GoogleGenAIConnectionConfig",
                             "abstractKey": null
                           }
@@ -906,38 +905,38 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*: any*/),
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v2/*:: as any*/),
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "ExperimentDetailsDialogQuery",
     "selections": [
       {
         "alias": "experiment",
-        "args": (v3/*: any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v28/*: any*/),
-          (v4/*: any*/),
+          (v28/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/),
-              (v10/*: any*/),
-              (v11/*: any*/),
-              (v12/*: any*/),
-              (v13/*: any*/),
-              (v14/*: any*/),
-              (v15/*: any*/),
-              (v16/*: any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
+              (v11/*:: as any*/),
+              (v12/*:: as any*/),
+              (v13/*:: as any*/),
+              (v14/*:: as any*/),
+              (v15/*:: as any*/),
+              (v16/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -946,13 +945,13 @@ return {
                 "name": "user",
                 "plural": false,
                 "selections": [
-                  (v17/*: any*/),
-                  (v18/*: any*/),
-                  (v4/*: any*/)
+                  (v17/*:: as any*/),
+                  (v18/*:: as any*/),
+                  (v4/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v20/*: any*/),
+              (v20/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -961,12 +960,12 @@ return {
                 "name": "job",
                 "plural": false,
                 "selections": [
-                  (v21/*: any*/),
-                  (v8/*: any*/),
-                  (v22/*: any*/),
+                  (v21/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v22/*:: as any*/),
                   {
                     "alias": null,
-                    "args": (v45/*: any*/),
+                    "args": (v45/*:: as any*/),
                     "concreteType": "ExperimentLogConnection",
                     "kind": "LinkedField",
                     "name": "errors",
@@ -988,7 +987,7 @@ return {
                             "name": "node",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/),
+                              (v4/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -1018,7 +1017,7 @@ return {
                                 "name": "detail",
                                 "plural": false,
                                 "selections": [
-                                  (v28/*: any*/),
+                                  (v28/*:: as any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
@@ -1029,7 +1028,7 @@ return {
                                         "name": "errorType",
                                         "storageKey": null
                                       },
-                                      (v46/*: any*/)
+                                      (v46/*:: as any*/)
                                     ],
                                     "type": "FailureDetail",
                                     "abstractKey": null
@@ -1051,7 +1050,7 @@ return {
                                         "name": "reason",
                                         "storageKey": null
                                       },
-                                      (v46/*: any*/)
+                                      (v46/*:: as any*/)
                                     ],
                                     "type": "RetriesExhaustedDetail",
                                     "abstractKey": null
@@ -1059,7 +1058,7 @@ return {
                                 ],
                                 "storageKey": null
                               },
-                              (v28/*: any*/)
+                              (v28/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -1103,14 +1102,14 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v45/*: any*/),
+                    "args": (v45/*:: as any*/),
                     "filters": null,
                     "handle": "connection",
                     "key": "ExperimentDetailsDialog_errors",
                     "kind": "LinkedHandle",
                     "name": "errors"
                   },
-                  (v4/*: any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -1119,8 +1118,8 @@ return {
                     "name": "taskConfig",
                     "plural": false,
                     "selections": [
-                      (v4/*: any*/),
-                      (v23/*: any*/),
+                      (v4/*:: as any*/),
+                      (v23/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -1129,10 +1128,10 @@ return {
                         "name": "prompt",
                         "plural": false,
                         "selections": [
-                          (v24/*: any*/),
-                          (v25/*: any*/),
-                          (v26/*: any*/),
-                          (v27/*: any*/),
+                          (v24/*:: as any*/),
+                          (v25/*:: as any*/),
+                          (v26/*:: as any*/),
+                          (v27/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -1141,15 +1140,15 @@ return {
                             "name": "invocationParameters",
                             "plural": false,
                             "selections": [
-                              (v28/*: any*/),
+                              (v28/*:: as any*/),
                               {
                                 "kind": "TypeDiscriminator",
                                 "abstractKey": "__isPromptInvocationParameters"
                               },
-                              (v34/*: any*/),
-                              (v36/*: any*/),
-                              (v37/*: any*/),
-                              (v38/*: any*/)
+                              (v34/*:: as any*/),
+                              (v36/*:: as any*/),
+                              (v37/*:: as any*/),
+                              (v38/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -1164,12 +1163,12 @@ return {
                         "name": "connection",
                         "plural": false,
                         "selections": [
-                          (v28/*: any*/),
+                          (v28/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v39/*: any*/),
-                              (v40/*: any*/)
+                              (v39/*:: as any*/),
+                              (v40/*:: as any*/)
                             ],
                             "type": "OpenAIConnectionConfig",
                             "abstractKey": null
@@ -1177,30 +1176,30 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v41/*: any*/),
-                              (v40/*: any*/)
+                              (v41/*:: as any*/),
+                              (v40/*:: as any*/)
                             ],
                             "type": "AzureOpenAIConnectionConfig",
                             "abstractKey": null
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": (v47/*: any*/),
+                            "selections": (v47/*:: as any*/),
                             "type": "AnthropicConnectionConfig",
                             "abstractKey": null
                           },
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v43/*: any*/),
-                              (v44/*: any*/)
+                              (v43/*:: as any*/),
+                              (v44/*:: as any*/)
                             ],
                             "type": "AWSBedrockConnectionConfig",
                             "abstractKey": null
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": (v47/*: any*/),
+                            "selections": (v47/*:: as any*/),
                             "type": "GoogleGenAIConnectionConfig",
                             "abstractKey": null
                           }

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c19461b28c5af31f19e50efdb7b06314>>
+ * @generated SignedSource<<04ee5474fa839344524b32eda57c2463>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -86,7 +85,7 @@ return {
       "name": "template",
       "plural": false,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -113,7 +112,7 @@ return {
                   "name": "content",
                   "plural": true,
                   "selections": [
-                    (v0/*: any*/),
+                    (v0/*:: as any*/),
                     {
                       "kind": "InlineFragment",
                       "selections": [
@@ -150,7 +149,7 @@ return {
                           "name": "toolCall",
                           "plural": false,
                           "selections": [
-                            (v1/*: any*/),
+                            (v1/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -194,7 +193,7 @@ return {
                           "name": "toolResult",
                           "plural": false,
                           "selections": [
-                            (v1/*: any*/),
+                            (v1/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,

@@ -1,0 +1,144 @@
+---
+title: "07.17.2026: OAuth2 Authorization Server & Remote MCP"
+description: "Phoenix 19 turns Phoenix into its own OAuth2 authorization server: browser-based px CLI login, a built-in Remote MCP server, REST API-key management, and a tightened key-issuance policy."
+---
+
+# OAuth2 Authorization Server
+
+July 17, 2026
+
+**Available in arize-phoenix 19.0.0+**
+
+Phoenix is now its own **OAuth2 authorization server**. When authentication is enabled,
+interactive clients — the Phoenix CLI and MCP clients like Claude Code and Cursor — log in
+through the browser and receive short-lived tokens carrying the approving user's permissions,
+instead of handling long-lived API keys. It is on by default and requires no configuration.
+
+- **Standard authorization-code + PKCE flow** — clients discover endpoints through
+  [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) server metadata at
+  `/.well-known/oauth-authorization-server`, register via
+  [RFC 7591](https://www.rfc-editor.org/rfc/rfc7591) dynamic client registration, and a token is
+  minted only after a logged-in user approves the consent page.
+- **Refresh with rotation and replay detection** — refresh redemption rotates the token pair and
+  revokes its predecessor; a reused refresh token revokes the whole grant.
+- **Audience-bound tokens** — tokens are bound to the resource they were minted for and validated
+  against the deployment's canonical origin.
+- **Redesigned consent screen** — distinguishes first-party clients from dynamically registered
+  ones, so users see exactly which application is asking for access.
+- **Admin grant management** — admins can list and revoke OAuth2 grants across all users; every
+  user can review and revoke their own authorized applications from the profile page.
+
+Don't confuse this with configuring an external identity provider (Google, Okta), where Phoenix
+is the OAuth2 *client*. Here Phoenix is the *server*, issuing its own tokens.
+
+Operators who require API-key-only access can turn the server off:
+
+```bash
+PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER=false
+```
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/docs/phoenix/self-hosting/features/authentication">
+    OAuth2 authorization server configuration and environment variables
+  </Card>
+</CardGroup>
+
+# Browser-Based CLI Login
+
+July 17, 2026
+
+**Available in @arizeai/phoenix-cli**
+
+The Phoenix CLI now logs in through the browser. Run `px auth login` and the CLI opens a browser
+window (with a paste fallback for headless environments), you approve the consent page, and tokens
+are stored per profile and refreshed silently as you work.
+
+```bash
+# Log in through the browser
+px auth login
+
+# Check who you're logged in as
+px auth status
+
+# Revoke the session and clear stored tokens
+px auth logout
+```
+
+- **No API keys to manage** — the CLI obtains and refreshes its own tokens against a Phoenix that
+  has the authorization server enabled.
+- **Graceful fallback** — against a deployment with the authorization server disabled, the CLI
+  reports that OAuth login is unavailable and directs you to use an API key.
+- **`px setup` integration** — the guided setup flow can connect an app to Phoenix over browser
+  login and verify that traces arrive.
+
+# Remote MCP Server (Beta)
+
+July 17, 2026
+
+**Available in arize-phoenix 19.0.0+ (beta)**
+
+Phoenix now mounts a Remote [MCP](https://modelcontextprotocol.io/) server at `/mcp`, built
+directly into the server. Point any MCP-compatible client at your Phoenix instance and it can
+search, query, and operate on your projects, traces, datasets, experiments, prompts, and
+annotations — everything the Phoenix REST API can do, with no local install.
+
+```bash
+claude mcp add --transport http phoenix http://localhost:6006/mcp
+```
+
+- **OAuth login built in** — clients authenticate through the new authorization server with
+  authorization-code + PKCE and dynamic client registration, so there is nothing to pre-configure.
+  Tokens carry your user's permissions.
+- **Reuses Phoenix authentication** — when auth is enabled, `/mcp` accepts the authorization
+  server's access tokens and API keys; when auth is disabled, it is reachable without credentials.
+- **Code-mode tool surface** — by default `/mcp` presents discovery meta-tools (`search`,
+  `get_schema`, `tags`, `list_tools`) and an `execute` tool that runs model-written Python in a
+  sandbox where `call_tool(name, params)` is the only function in scope. `execute` can only invoke
+  tools the caller is already authorized for, and each run is bounded (30s wall clock, 100 MB
+  memory, up to 50 tool calls). Set `PHOENIX_ENABLE_MCP_CODE_MODE=false` to fall back to the
+  group-gated progressive-disclosure tool list instead.
+- **Turn it off per deployment** — set `PHOENIX_ENABLE_MCP_SERVER=false` to remove the `/mcp`
+  mount entirely.
+
+<CardGroup cols={2}>
+  <Card title="Remote MCP Server" icon="plug" href="/docs/phoenix/integrations/remote-mcp">
+    Connect Claude Code, Cursor, and other MCP clients to your Phoenix instance
+  </Card>
+</CardGroup>
+
+# API Key Management
+
+July 17, 2026
+
+**Available in arize-phoenix 19.0.0+**
+
+API keys now have full REST CRUD and a dedicated management surface, with issuance governed by a
+single, non-transitive authority model.
+
+- **REST CRUD for user and system keys** — create, list, and revoke keys over REST under a unified
+  authority model. Issuing a key requires a human session (or `PHOENIX_ADMIN_SECRET` for system
+  keys) — an API key cannot mint another key.
+- **Dedicated settings tabs** — users and API keys split into their own settings tabs, with
+  vertical tab navigation on large screens and a virtualized models table.
+- **Scope and audience columns** — API keys carry `scope` and `audience` columns, laying the
+  groundwork for the broader authorization model.
+
+# Breaking Change: GraphQL API-Key Issuance Removed
+
+July 17, 2026
+
+**Breaking change in arize-phoenix 19.0.0**
+
+The GraphQL mutations `createUserApiKey` and `createSystemApiKey` no longer accept
+API-key-authenticated callers. They now converge on the same non-transitive policy the REST
+API-key endpoints have always enforced: an API key can no longer mint a replacement key, so
+revoking a compromised key contains it.
+
+- **User API keys** are created from an authenticated human session.
+- **System API keys** are created from a human `ADMIN` session or with `PHOENIX_ADMIN_SECRET`.
+- **Listing and revocation are unchanged**, including with API-key authentication where previously
+  permitted. The GraphQL schema itself is unchanged.
+
+**Migration:** If you have automation that mints keys through GraphQL with an existing API key,
+switch it to a session-authenticated context, or use `PHOENIX_ADMIN_SECRET` for system keys. Keys
+can also be created interactively under **Settings → API Keys**.

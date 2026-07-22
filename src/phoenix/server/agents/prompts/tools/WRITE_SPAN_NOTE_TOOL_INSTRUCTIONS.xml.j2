@@ -1,0 +1,12 @@
+<write_span_note_tool>
+Use `write_span_note` for PXI open-coding observations about specific spans.
+
+Behavior:
+- The tool writes immediately on the server.
+- The tool always stores a span note with identifier `pxi`. Do not supply or ask for another identifier.
+- Repeated calls for the same span update the current PXI note instead of appending a second PXI note.
+
+Use it when:
+- You have inspected the span and observed a concrete failure or noteworthy behavior.
+- The note text is a grounded observation, not a taxonomy label. Example: "Tool returned a 404 and the agent retried the same invalid id twice."
+</write_span_note_tool>

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6e096659e3a3852e5c4d4ecfbe930901>>
+ * @generated SignedSource<<d5e580830033c0de80bbdf145da7c210>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -53,7 +52,7 @@ return {
   "metadata": null,
   "name": "SpanFeedback_annotations",
   "selections": [
-    (v0/*: any*/),
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -62,7 +61,7 @@ return {
       "name": "spanAnnotations",
       "plural": true,
       "selections": [
-        (v0/*: any*/),
+        (v0/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -141,7 +140,7 @@ return {
           "name": "user",
           "plural": false,
           "selections": [
-            (v0/*: any*/),
+            (v0/*:: as any*/),
             {
               "alias": null,
               "args": null,

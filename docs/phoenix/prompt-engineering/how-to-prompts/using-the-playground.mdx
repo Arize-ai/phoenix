@@ -33,6 +33,15 @@ Every prompt instance can be configured to use a specific LLM and set of invocat
 For OpenAI and Azure OpenAI models, you can select the **OpenAI API type** in the model configuration panel. Choose **Chat Completions** (`chat.completions.create`) or **Responses** (`responses.create`) depending on the model and feature set you need.
 </Info>
 
+### Reasoning / extended thinking
+
+For models that support reasoning, the model configuration panel exposes controls for how much the model thinks before responding:
+
+- **Anthropic** (Claude 3.7 Sonnet and later) — toggle extended thinking between **disabled**, **adaptive** (the default), and **enabled** with an explicit `budget_tokens` allocation and a visibility toggle. You can also set output **effort** (`high` / `medium` / `low`). Enabling extended thinking automatically raises `max_tokens` to at least `budget_tokens + 1`.
+- **Google** (Gemini 2.5 models) — set a `thinkingBudget` and/or `thinkingLevel` (`low` / `medium` / `high`).
+
+Higher thinking budgets and effort levels can improve quality on hard tasks at the cost of latency and tokens; start with the defaults and raise them only when a task needs more reasoning.
+
 ## Comparing Prompts
 
 The Prompt Playground offers the capability to compare multiple prompt variants directly within the playground. Simply click the **+ Compare** button at the top of the first prompt to create duplicate instances. Each prompt variant manages its own independent template, model, and parameters. This allows you to quickly compare prompts (labeled A, B, C, and D in the UI) and run experiments to determine which prompt and model configuration is optimal for the given task.

@@ -1,5 +1,6 @@
 import type { paths } from "../__generated__/api/v1";
 import { createClient } from "../client";
+import { HttpError } from "../errors";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
@@ -264,6 +265,21 @@ function parseLogSpansError(error: unknown, spans: Span[]): Error {
   return new Error(`Failed to log spans: ${formatApiError(error)}`);
 }
 
+async function parseLogSpansHttpError(
+  error: HttpError,
+  spans: Span[]
+): Promise<Error> {
+  try {
+    const contentType = error.response.headers.get("content-type");
+    const payload: unknown = contentType?.includes("application/json")
+      ? await error.response.json()
+      : await error.response.text();
+    return parseLogSpansError(payload, spans);
+  } catch {
+    return parseLogSpansError(error, spans);
+  }
+}
+
 /**
  * Log spans to a project using Phoenix's simplified span structure.
  *
@@ -303,9 +319,9 @@ export async function logSpans({
   const client = _client ?? createClient();
   const projectIdentifier = resolveProjectIdentifier(project);
 
-  const { data, error } = await client.POST(
-    "/v1/projects/{project_identifier}/spans",
-    {
+  let response: Awaited<ReturnType<typeof client.POST>>;
+  try {
+    response = await client.POST("/v1/projects/{project_identifier}/spans", {
       params: {
         path: {
           project_identifier: projectIdentifier,
@@ -314,8 +330,15 @@ export async function logSpans({
       body: {
         data: spans,
       },
+    });
+  } catch (error) {
+    if (error instanceof HttpError) {
+      throw await parseLogSpansHttpError(error, spans);
     }
-  );
+    throw error;
+  }
+
+  const { data, error } = response;
 
   if (error) {
     throw parseLogSpansError(error, spans);

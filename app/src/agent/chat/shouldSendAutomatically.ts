@@ -20,6 +20,8 @@ import {
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
+import { getUnresolvedToolCalls } from "./interruptToolCalls";
+
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
 export const SYSTEM_INTERRUPT_ERROR =
   "This tool call has been interrupted by unexpected system conditions.";
@@ -42,6 +44,18 @@ export function shouldSendAutomaticallyAfterToolOutput({
     return false;
   }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
+}
+
+export function shouldKeepTurnOpenForPendingToolOutput({
+  messages,
+  shouldSendAutomatically,
+}: {
+  messages: UIMessage[];
+  shouldSendAutomatically: boolean;
+}): boolean {
+  return (
+    !shouldSendAutomatically && getUnresolvedToolCalls(messages).length > 0
+  );
 }
 
 function hasInterruptedToolCall({

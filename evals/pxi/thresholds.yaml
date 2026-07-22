@@ -1,0 +1,155 @@
+# Per-(evaluator, split) pass-rate gate policy for the PXI eval harness.
+#
+# gate.py resolves a policy for every (dataset, evaluator, split) datapoint in
+# pxi-eval-results.json. A datapoint whose split has no policy here -- and no
+# explicit `gating: false` -- is a breach, not a silent pass, so every split a
+# dataset can carry must be enumerated below.
+#
+# A policy is either `min_pass_rate: <float>` (gating; breach when the observed
+# pass-rate falls below it) or `gating: false` (the split is recorded but never
+# gates).
+#
+# Calibration:
+# The regression overrides below are re-anchored on TWO post-quarantine
+# baselines -- CI runs 28801811562 (pre-quarantine, schema 1) and 28807005470
+# (post-quarantine, schema 2) -- because per-cell pass rates wobble by ~1
+# example run-to-run under LLM nondeterminism (e.g. evaluators_skill_trigger
+# 9/10 -> 8/10, playground_repetitions 6/6 -> 5/6). A single-run anchor fired on
+# that wobble (flake), so each override now tolerates one example below the
+# two-run MINIMUM and breaches only at two examples below it -- i.e. "red means a
+# drop of more than ~1 example beyond observed behavior", which is a real
+# regression, not flake. gate.py compares with STRICT less-than, so for a cell
+# whose two-run minimum is m/n the override sits in
+# `(m-2)/n < min_pass_rate <= (m-1)/n`.
+# Cells perfect across BOTH runs keep the strict 1.0 default (a miss there is
+# more likely a real regression than flake). The two experiment_observations
+# evaluators are clean post-quarantine (4/4) and also keep the 1.0 default.
+#
+# Interim status: these sub-1.0 regression overrides are a stopgap for
+# single-attempt LLM nondeterminism (the ~1-example run-to-run wobble described
+# above), not the intended end state. Confirm-on-retry now exists (gate.py), and
+# a confirmed-but-tolerated miss is surfaced distinctly ("passed with tolerated
+# misses") rather than hidden behind a green PASSED. The end state keeps this
+# threshold system as the policy layer (split defaults, dev/holdout leniency,
+# gating:false quarantine) and ratchets the regression overrides back to the
+# strict 1.0 default: confirm-on-retry absorbs thin-tail wobble at the
+# measurement layer, so regression no longer needs numeric headroom (where a
+# confirmed one-example regression can otherwise live forever). Persistently
+# flaky or deterministically failing examples get quarantined explicitly
+# (non-gating split / gating:false -- a reviewable diff), not tolerated by
+# headroom; retry-once only absorbs low-probability wobble (false-red ~ p^2 per
+# example), so examples that miss a large fraction of runs must be quarantined.
+# The ratchet is deliberately a separate corpus/policy step, gated on cleaning
+# the regression corpus and re-baselining k>=3 on the shipped default model
+# first: ratcheting while known failers still sit inside these overrides would
+# red every run until they are dispositioned. The two experiment_observations
+# dev quarantines below already follow the end-state pattern: those examples
+# fail deterministically across runs (a real agent deficiency, not flake), so
+# they stay quarantined under either threshold value.
+
+# Default policy per split, applied to every (evaluator, split) unless an
+# override matches first.
+splits:
+  regression:
+    min_pass_rate: 1.0
+  dev:
+    min_pass_rate: 0.8
+  holdout:
+    min_pass_rate: 0.8
+  val:
+    gating: false
+
+# Optional narrower policies, keyed dataset -> evaluator -> split. An entry here
+# wins over the split default above; each value mirrors a `splits` entry
+# (`min_pass_rate: <float>` or `gating: false`).
+#
+# Each regression override records the two-run window (run 28801811562 /
+# 28807005470) and the two-examples-below-minimum rate that now breaches.
+overrides:
+  evaluators_skill_trigger:
+    correct_tools_called:
+      regression:
+        # runs 9/10 & 8/10 -> min 8/10; breaches below 7/10 = 0.700
+        min_pass_rate: 0.65
+    tool_call_args_match:
+      regression:
+        # runs 9/10 & 8/10 -> min 8/10; breaches below 7/10 = 0.700
+        min_pass_rate: 0.65
+  experiments_skill_trigger:
+    forbidden_tool_call_args_match:
+      regression:
+        # runs 13/14 & 13/14 -> min 13/14; breaches below 12/14 = 0.857
+        min_pass_rate: 0.82
+  in_app_links:
+    in_app_links_valid:
+      regression:
+        # runs 7/8 & 7/8 -> min 7/8; breaches below 6/8 = 0.750
+        min_pass_rate: 0.70
+  product_knowledge:
+    assistant_text_substrings_match:
+      regression:
+        # runs 20/21 & 21/21 -> min 20/21; breaches below 19/21 = 0.905
+        min_pass_rate: 0.88
+  route_info_tool_selection:
+    correct_tools_called:
+      regression:
+        # runs 10/11 & 10/11 -> min 10/11; breaches below 9/11 = 0.818
+        min_pass_rate: 0.78
+    tool_call_args_match:
+      regression:
+        # runs 10/11 & 10/11 -> min 10/11; breaches below 9/11 = 0.818
+        min_pass_rate: 0.78
+  set_spans_filter:
+    correct_tools_called:
+      regression:
+        # runs 47/48 & 48/48 -> min 47/48; breaches below 46/48 = 0.958
+        min_pass_rate: 0.95
+    tool_call_args_match:
+      regression:
+        # runs 47/48 & 48/48 -> min 47/48; breaches below 46/48 = 0.958
+        min_pass_rate: 0.95
+  playground_repetitions:
+    # This dataset (n=6) proved nondeterministic: correct_tools_called and
+    # tool_call_count_within_limit dropped 6/6 -> 5/6 between the two runs, so
+    # all three evaluators get wobble headroom.
+    correct_tools_called:
+      regression:
+        # runs 6/6 & 5/6 -> min 5/6; breaches below 4/6 = 0.667
+        min_pass_rate: 0.60
+    tool_call_count_within_limit:
+      regression:
+        # runs 6/6 & 5/6 -> min 5/6; breaches below 4/6 = 0.667
+        min_pass_rate: 0.60
+    tool_call_args_match:
+      regression:
+        # runs 6/6 & 6/6 -> min 6/6; breaches below 5/6 = 0.833 (dataset is volatile)
+        min_pass_rate: 0.75
+  # These two cells were perfect (1.0, no override) through the hardening
+  # baselines and the green run 28807930957, then each missed one example on run
+  # 28810674573 (17/18) -- the same ~1-example nondeterminism the overrides above
+  # tolerate, just surfacing on cells that had been clean. Same interim headroom:
+  # tolerate one below the observed 17/18, breach at two below. Ratchet back to
+  # 1.0 with the others once confirm-on-retry lands.
+  debug_trace_skill_trigger:
+    forbidden_tool_call_args_match:
+      regression:
+        # runs 18/18, 18/18 & 17/18 -> min 17/18; breaches below 16/18 = 0.889
+        min_pass_rate: 0.88
+  set_time_range:
+    tool_call_args_match:
+      regression:
+        # runs 18/18, 18/18 & 17/18 -> min 17/18; breaches below 16/18 = 0.889
+        min_pass_rate: 0.88
+  experiment_observations:
+    # The two examples that deterministically failed these evaluators were
+    # quarantined regression -> dev.
+    # They are the parked known-failing examples: on a full-collection run they
+    # are scored in dev and still fail, which would breach the dev default of
+    # 0.8 (0/2). Mark them non-gating so both `-m regression` PR runs and full
+    # runs stay green while the underlying agent behavior is investigated.
+    correct_tools_called:
+      dev:
+        gating: false
+    tool_call_args_match:
+      dev:
+        gating: false

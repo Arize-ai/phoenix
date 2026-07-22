@@ -135,6 +135,21 @@ def _scores_by_name(scores: List[Any]) -> Dict[str, float]:
             False,
             id="multiclass-macro-beta2-sklearn-parity",
         ),
+        pytest.param(
+            "0/1 labels with a non-macro average must not auto-detect a positive "
+            "label; average must be honored instead",
+            dict(beta=1.0, average="micro"),
+            [0, 1, 1, 0, 1],
+            [0, 1, 0, 0, 1],
+            ["precision_micro", "recall_micro", "f1_micro"],
+            # label0: TP=2,FP=1,FN=0; label1: TP=2,FP=0,FN=1. Pooled: TP=4,
+            # FP=1,FN=1 -> precision=recall=f1=4/5=0.8. If auto-detection were
+            # not gated on "macro", this would incorrectly use binary
+            # positive_label=1 scoring (precision=1.0, recall=2/3) instead.
+            dict(precision_micro=0.8, recall_micro=0.8, f1_micro=0.8),
+            False,
+            id="binary-labels-non-macro-average-not-auto-detected",
+        ),
     ],
 )
 def test_precision_recall_fscore_success(

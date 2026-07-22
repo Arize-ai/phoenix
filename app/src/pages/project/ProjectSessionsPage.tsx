@@ -21,7 +21,7 @@ function SessionsTabContent({
 }: {
   queryReference: PreloadedQuery<ProjectPageSessionsQueryType>;
 }) {
-  const data = usePreloadedQuery(
+  const data = usePreloadedQuery<ProjectPageSessionsQueryType>(
     ProjectPageQueriesSessionsQuery,
     queryReference
   );

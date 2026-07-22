@@ -30,7 +30,7 @@ const loadDatasetToolDetailsCSS = css`
       var(--global-dimension-size-125);
     display: grid;
     gap: var(--global-dimension-size-75);
-    font-family: var(--ac-global-font-family-sans);
+    font-family: var(--global-font-family-sans);
     white-space: normal;
   }
 

@@ -1,225 +1,111 @@
-import { css } from "@emotion/react";
 import type { Column } from "@tanstack/react-table";
-import type { ChangeEvent } from "react";
-import { useCallback, useMemo } from "react";
 
 import {
-  Button,
-  DialogTrigger,
-  Flex,
-  Icon,
-  Icons,
-  Popover,
-  View,
-} from "@phoenix/components";
+  applySubsetColumnOrder,
+  CHECKBOX_COLUMN_ID,
+  ColumnSelector,
+  mergeColumnOrder,
+} from "@phoenix/components/table";
 
-const UN_HIDABLE_COLUMN_IDS = ["select", "name", "actions"];
+import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 
-const ANNOTATION_COLUMN_PREFIX = "annotation-";
+const UN_HIDABLE_COLUMN_IDS = ["name"];
 
 type ExperimentColumnSelectorProps<T extends object> = {
+  /** All of the columns of the experiments table. */
   columns: Column<T>[];
   columnVisibility: Record<string, boolean>;
   onColumnVisibilityChange: (visibility: Record<string, boolean>) => void;
+  columnOrder: string[];
+  onColumnOrderChange: (columnOrder: string[]) => void;
 };
 
-export function ExperimentColumnSelector<T extends object>(
-  props: ExperimentColumnSelectorProps<T>
-) {
-  return (
-    <DialogTrigger>
-      <Button>
-        <Flex alignItems="center" gap="size-100">
-          <Icon svg={<Icons.Column />} />
-          Columns
-        </Flex>
-      </Button>
-      <Popover>
-        <ColumnSelectorMenu {...props} />
-      </Popover>
-    </DialogTrigger>
-  );
-}
-
-const columnCheckboxItemCSS = css`
-  padding: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100);
-  label {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-static-size-100);
-  }
-`;
-
-function getColumnDisplayName<T extends object>(column: Column<T>): string {
+function getColumnLabel<T extends object>(column: Column<T>): string {
   if (column.id.startsWith(ANNOTATION_COLUMN_PREFIX)) {
     return column.id.slice(ANNOTATION_COLUMN_PREFIX.length);
   }
   const header = column.columnDef.header;
-  if (typeof header === "string") {
-    return header;
-  }
-  return column.id;
+  return typeof header === "string" ? header : column.id;
 }
 
-function ColumnSelectorMenu<T extends object>(
-  props: ExperimentColumnSelectorProps<T>
-) {
-  const {
-    columns: propsColumns,
-    columnVisibility,
-    onColumnVisibilityChange,
-  } = props;
-
-  const columns = useMemo(() => {
-    return propsColumns.filter((column) => {
-      return !UN_HIDABLE_COLUMN_IDS.includes(column.id);
-    });
-  }, [propsColumns]);
-
-  const experimentColumns = useMemo(() => {
-    return columns.filter(
-      (column) => !column.id.startsWith(ANNOTATION_COLUMN_PREFIX)
-    );
-  }, [columns]);
-
-  const annotationColumns = useMemo(() => {
-    return columns.filter((column) =>
-      column.id.startsWith(ANNOTATION_COLUMN_PREFIX)
-    );
-  }, [columns]);
-
-  const allVisible = useMemo(() => {
-    return columns.every((column) => {
-      const stateValue = columnVisibility[column.id];
-      return stateValue == null ? true : stateValue;
-    });
-  }, [columns, columnVisibility]);
-
-  const onCheckboxChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const { name, checked } = event.target;
-      onColumnVisibilityChange({ ...columnVisibility, [name]: checked });
-    },
-    [columnVisibility, onColumnVisibilityChange]
+/** The column selector for the experiments table. */
+export function ExperimentColumnSelector<T extends object>({
+  columns,
+  columnVisibility,
+  onColumnVisibilityChange,
+  columnOrder,
+  onColumnOrderChange,
+}: ExperimentColumnSelectorProps<T>) {
+  // The pinned columns sit at the edges of the table and are neither hidable
+  // nor reorderable, so they are left out of the list entirely
+  const selectableColumns = columns.filter(
+    (column) =>
+      column.id !== CHECKBOX_COLUMN_ID && column.id !== ACTIONS_COLUMN_ID
   );
-
-  const onToggleAll = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const { checked } = event.target;
-      const newVisibilityState = columns.reduce(
-        (acc, column) => {
-          return { ...acc, [column.id]: checked };
-        },
-        {} as Record<string, boolean>
-      );
-      onColumnVisibilityChange(newVisibilityState);
-    },
-    [columns, onColumnVisibilityChange]
+  const columnsById = new Map(
+    selectableColumns.map((column) => [column.id, column])
   );
+  const fullColumnOrder = mergeColumnOrder({
+    columnOrder,
+    columnIds: selectableColumns.map((column) => column.id),
+  });
+
+  const selectorColumns = fullColumnOrder.flatMap((id) => {
+    const column = columnsById.get(id);
+    if (column == null) {
+      return [];
+    }
+    return [
+      {
+        id,
+        label: getColumnLabel(column),
+        isVisibilityToggleDisabled: UN_HIDABLE_COLUMN_IDS.includes(id),
+      },
+    ];
+  });
+
+  // The selector and persisted order use top-level ids so grouped columns move
+  // as a unit. Visibility remains a leaf-level TanStack state, so expose one
+  // aggregate value for each group and fan changes back out to all its leaves.
+  const selectorColumnVisibility = { ...columnVisibility };
+  for (const column of selectableColumns) {
+    if (column.columns.length > 0) {
+      selectorColumnVisibility[column.id] = column
+        .getLeafColumns()
+        .some((leafColumn) => columnVisibility[leafColumn.id] ?? true);
+    }
+  }
+
+  const onSelectorColumnVisibilityChange = (
+    newColumnVisibility: Record<string, boolean>
+  ) => {
+    const nextColumnVisibility = { ...columnVisibility };
+    for (const column of selectableColumns) {
+      const isVisible = newColumnVisibility[column.id] ?? true;
+      if (column.columns.length === 0) {
+        nextColumnVisibility[column.id] = isVisible;
+        continue;
+      }
+      for (const leafColumn of column.getLeafColumns()) {
+        nextColumnVisibility[leafColumn.id] = isVisible;
+      }
+    }
+    onColumnVisibilityChange(nextColumnVisibility);
+  };
 
   return (
-    <div
-      css={css`
-        overflow-y: auto;
-        max-height: calc(100vh - 200px);
-      `}
-    >
-      <View padding="size-50">
-        <View
-          borderBottomColor="default"
-          borderBottomWidth="thin"
-          paddingBottom="size-50"
-        >
-          <div css={columnCheckboxItemCSS}>
-            <label>
-              <input
-                type="checkbox"
-                name="toggle-all"
-                checked={allVisible}
-                onChange={onToggleAll}
-              />
-              all columns
-            </label>
-          </div>
-        </View>
-        <ul>
-          {experimentColumns.map((column) => {
-            const stateValue = columnVisibility[column.id];
-            const isVisible = stateValue == null ? true : stateValue;
-            return (
-              <li key={column.id} css={columnCheckboxItemCSS}>
-                <label>
-                  <input
-                    type="checkbox"
-                    name={column.id}
-                    checked={isVisible}
-                    onChange={onCheckboxChange}
-                  />
-                  {getColumnDisplayName(column)}
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-        {annotationColumns.length > 0 && (
-          <section>
-            <View
-              paddingTop="size-50"
-              paddingBottom="size-50"
-              borderColor="default"
-              borderTopWidth="thin"
-            >
-              <div css={columnCheckboxItemCSS}>
-                <label>
-                  <input
-                    type="checkbox"
-                    name="toggle-annotations"
-                    checked={annotationColumns.every((column) => {
-                      const stateValue = columnVisibility[column.id];
-                      return stateValue == null ? true : stateValue;
-                    })}
-                    onChange={(event) => {
-                      const { checked } = event.target;
-                      const newState = annotationColumns.reduce(
-                        (acc, column) => ({
-                          ...acc,
-                          [column.id]: checked,
-                        }),
-                        {} as Record<string, boolean>
-                      );
-                      onColumnVisibilityChange({
-                        ...columnVisibility,
-                        ...newState,
-                      });
-                    }}
-                  />
-                  annotations
-                </label>
-              </div>
-            </View>
-            <ul>
-              {annotationColumns.map((column) => {
-                const stateValue = columnVisibility[column.id];
-                const isVisible = stateValue == null ? true : stateValue;
-                return (
-                  <li key={column.id} css={columnCheckboxItemCSS}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        name={column.id}
-                        checked={isVisible}
-                        onChange={onCheckboxChange}
-                      />
-                      {getColumnDisplayName(column)}
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-      </View>
-    </div>
+    <ColumnSelector
+      columns={selectorColumns}
+      columnVisibility={selectorColumnVisibility}
+      onColumnVisibilityChange={onSelectorColumnVisibilityChange}
+      onColumnOrderChange={(orderedSubset) =>
+        onColumnOrderChange(
+          applySubsetColumnOrder({
+            columnOrder: fullColumnOrder,
+            orderedSubset,
+          })
+        )
+      }
+    />
   );
 }

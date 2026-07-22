@@ -134,13 +134,13 @@ This table only shows actions that a **Member** or **Viewer** is not permitted t
 
 For programmatic access via REST API endpoints (paths beginning with `/v1/`), permissions are determined by both the user's role and the HTTP method used:
 
-<table><thead><tr><th>Endpoint Category</th><th width="120" align="center">Admin</th><th width="120" align="center">Member</th><th width="120" align="center">Viewer</th></tr></thead><tbody><tr><td><strong>GET requests</strong> (read operations)<br />Projects, datasets, experiments, prompts, spans, traces, annotations, annotation configs</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td><strong>POST/PUT/DELETE requests</strong> (write operations)<br />Creating, updating, or deleting resources</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>User management endpoints</strong><br /><code>GET /v1/users</code><br /><code>POST /v1/users</code><br /><code>DELETE /v1/users/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Project management endpoints</strong><br /><code>PUT /v1/projects/{id}</code><br /><code>DELETE /v1/projects/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Secrets management endpoints</strong><br /><code>PUT /v1/secrets</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr></tbody></table>
+<table><thead><tr><th>Endpoint Category</th><th width="120" align="center">Admin</th><th width="120" align="center">Member</th><th width="120" align="center">Viewer</th></tr></thead><tbody><tr><td><strong>GET requests</strong> (read operations)<br />Projects, datasets, experiments, prompts, spans, traces, annotations, annotation configs</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td><strong>POST/PUT/DELETE requests</strong> (write operations)<br />Creating, updating, or deleting resources</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Personal API-key self-service</strong><br /><code>GET /v1/user/api_keys</code><br /><code>POST /v1/user/api_keys</code><br /><code>DELETE /v1/user/api_keys/{id}</code></td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td><strong>API-key administration</strong><br /><code>GET /v1/users/api_keys</code><br /><code>GET/POST/DELETE /v1/system/api_keys</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>User management endpoints</strong><br /><code>GET /v1/users</code><br /><code>POST /v1/users</code><br /><code>DELETE /v1/users/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Project management endpoints</strong><br /><code>PUT /v1/projects/{id}</code><br /><code>DELETE /v1/projects/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Secrets management endpoints</strong><br /><code>PUT /v1/secrets</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr></tbody></table>
 
 <Warning>
 **Viewer role restrictions for REST API:**
 * Viewers have **read-only access** to v1/ endpoints
 * All GET requests are allowed (viewing projects, datasets, experiments, traces, spans, etc.)
-* All write operations (POST, PUT, DELETE) return **403 Forbidden**
+* Write operations (POST, PUT, DELETE) return **403 Forbidden**, except that viewers may create and revoke their own user API keys
 * User management and project CRUD operations are also blocked
 
 **Examples of blocked operations for Viewers:**
@@ -159,9 +159,13 @@ There are two kinds of API keys in Phoenix: `system` and `user`.
 
 System keys act on behalf of the system as a whole rather than any particular user. They can only be created by admins, are not meaningfully associated with the admin who creates them except for auditing purposes, and do not disappear if that admin is deleted. A system key would be the recommended kind of key to use in programmatic interactions with Phoenix that do not involve a user (e.g., automated flows querying our REST APIs).
 
+Creating a system key requires an admin access-token session or `PHOENIX_ADMIN_SECRET`, on both REST and GraphQL. API keys cannot mint additional keys.
+
 ### User Keys
 
 User API keys are associated with and act on behalf of the user to which they are issued. That user has the ability to view and delete their own user keys, and if the user is deleted, so are all of their associated user keys. A user might create their own user key into order to run an experiment in a notebook, for example.
+
+Creating a user key requires an access-token session, on both REST and GraphQL; an existing API key cannot mint a replacement. Through Phoenix 18, GraphQL allowed API-key-authenticated issuance for backward compatibility; as of Phoenix 19 both surfaces enforce the same non-transitive policy. Workflows that used an API key for unattended key creation must instead provision keys from a logged-in session (for example, the Settings page or a script that authenticates with user credentials).
 
 ### Setting and Using API Keys with Environment Variables
 
@@ -206,6 +210,34 @@ tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
 <Info>
 If setting `authorization` headers explicitly, ensure that the header field is **lowercased** to ensure compatibility with sending traces via gRPC
 </Info>
+
+## Agent Authentication Discovery
+
+Phoenix serves two discovery endpoints so AI agents can learn how to authenticate against a deployed instance. Both are always available and require no configuration:
+
+- `GET /auth.md` — a human- and agent-readable Markdown guide describing this deployment's auth model. When authentication is disabled it states that all endpoints are public; when enabled it directs the caller to create an API key under **Settings → API Keys** and send an `Authorization: Bearer <token>` header. It follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
+- `GET /.well-known/oauth-protected-resource` — [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) Protected Resource Metadata (JSON), advertising the resource, that bearer tokens are sent in the header, and a link to `/auth.md`.
+
+When authentication is enabled, `401 Unauthorized` responses include a `WWW-Authenticate` header pointing at the Protected Resource Metadata endpoint, giving agents a stable entry point for discovering how to authenticate. When the [OAuth2 authorization server](#oauth2-authorization-server) is enabled, the metadata also advertises it, so OAuth-capable clients (such as MCP clients) can log in interactively; other clients are provisioned out of band with [API keys](#api-keys), and access is always governed by the role of the user the credential belongs to.
+
+## OAuth2 Authorization Server
+
+When authentication is enabled, Phoenix also acts as its own **OAuth2 authorization server** so that interactive clients — MCP clients like Claude Code and Cursor connecting to the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp), and the Phoenix CLI — can log in through the browser instead of handling long-lived API keys. The flow is standard authorization code with PKCE: clients register via [RFC 7591](https://www.rfc-editor.org/rfc/rfc7591) dynamic client registration, discover endpoints via [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) server metadata, and a token is minted only after a logged-in user approves the consent page. Tokens are audience-bound to the resource they were minted for and carry the permissions of the approving user.
+
+<Note>
+Don't confuse this with [Configuring OAuth2 Identity Providers](#configuring-oauth2-identity-providers) below, where Phoenix is the *client* logging your users in against Google, Okta, etc. (`PHOENIX_OAUTH2_<IDP>_*` variables). Here Phoenix is the *server*, issuing its own tokens to MCP and CLI clients.
+</Note>
+
+Registration alone grants no authority: an authorization code is delivered only to the exact registered redirect URI, PKCE binds the exchange to the flow's initiator, and nothing is issued without a logged-in user's consent. The defaults are designed to work out of the box with MCP clients in the wild; the variables below let you tighten or disable the surface.
+
+| Variable | Description |
+|---|---|
+| **PHOENIX\_ENABLE\_OAUTH2\_AUTHORIZATION\_SERVER** | Whether Phoenix serves the built-in authorization server. Defaults to `true`. When `false`, the `/oauth2/*` endpoints and the RFC 8414 discovery document respond 404, and the protected-resource metadata stops advertising an authorization server. Previously minted access tokens remain valid until they expire, but grants can no longer be refreshed. API keys and browser login are unaffected. Has no effect unless authentication is enabled. |
+| **PHOENIX\_OAUTH2\_GRANT\_EXPIRY\_DAYS** | How long, in days, an OAuth2 grant lives. Refresh-token rotation never extends a token's life past its grant's expiry, so this is the hard ceiling on how long a consent lasts before the user must log in again. Defaults to `90`. |
+| **PHOENIX\_OAUTH2\_DYNAMIC\_CLIENT\_REGISTRATION** | Which redirect URI mechanisms public clients may register. One of `enabled`, `local_only`, `disabled`. Defaults to `enabled` — MCP clients in the wild (e.g., Cursor) register HTTPS redirect URIs alongside loopback and private-use-scheme ones, and rejecting HTTPS breaks those clients out of the box. Set to `local_only` to accept only loopback and private-use-scheme redirects, or `disabled` to turn off dynamic registration entirely. |
+| **PHOENIX\_OAUTH2\_ALLOWED\_REDIRECT\_HOSTS** | A comma-separated list of hosts allowed as HTTPS redirect targets for dynamic client registration, e.g. `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS=cursor.com,example.com`. When unset, all HTTPS redirect hosts are accepted while dynamic client registration is `enabled`. Use this to keep browser-based clients working while pinning exactly which services may receive authorization codes. |
+| **PHOENIX\_OAUTH2\_CONSENT\_ORIGIN\_CHECK** | Origin-header enforcement on consent-page decisions, a defense against cross-site consent forgery. One of `strict`, `off`. Defaults to `strict`. Only relax this if a reverse proxy strips the `Origin` header and consent approvals fail. |
+| **PHOENIX\_OAUTH2\_DCR\_RATE\_LIMIT\_PER\_HOUR** | Maximum dynamic client registrations accepted per IP address each hour. Defaults to `10`. |
 
 ## Password Recovery
 
@@ -304,6 +336,29 @@ The following optional environment variables provide additional control over OAu
 * Set `ROLE_RESYNC=false` to keep role mapping active for provisioning while letting admins manage individual users' roles from the Phoenix UI without being overwritten on the next login.
 * Groups control **access** (who can sign in), while roles control **permissions** (what users can do).
 </Warning>
+
+### Where Phoenix Reads Group and Role Claims
+
+`GROUPS_ATTRIBUTE_PATH` and `ROLE_ATTRIBUTE_PATH` are evaluated against the claims Phoenix receives at login as an OpenID Connect client: the **verified ID token** and the **UserInfo response**. Phoenix checks the ID token first and, when a configured claim is missing there, fetches the UserInfo endpoint and checks the response.
+
+<Warning>
+**The group/role claim must be present on the ID token or the UserInfo response.** This is an identity-provider setting, not a Phoenix one. If your IdP places authorization data (groups, roles) only on the **OAuth2 access token**, Phoenix will not see it. What happens then depends on your configuration: when group-based access control (`GROUPS_ATTRIBUTE_PATH` + `ALLOWED_GROUPS`) is enabled, a missing group claim **denies sign-in**; for role mapping, a missing role claim falls back to `VIEWER` in non-strict mode (the default) but **denies sign-in** when `ROLE_ATTRIBUTE_STRICT=true`.
+
+Phoenix uses the access token solely as a bearer credential to call the UserInfo endpoint; it does not decode the access token to read claims. Per [RFC 9068 §6](https://datatracker.ietf.org/doc/html/rfc9068#section-6), OAuth2 clients are directed to treat access tokens as opaque, so the supported claim surfaces for a sign-in application are the ID token and UserInfo.
+</Warning>
+
+**Keeping authorization claims off the ID token.** If your security policy is to keep authorization data out of the ID token, the **UserInfo response is a fully supported target**. Configure your IdP to return the group/role claim from UserInfo (rather than embedding it in every ID token), request the appropriate scope, and point `GROUPS_ATTRIBUTE_PATH` / `ROLE_ATTRIBUTE_PATH` at the claim. When a configured claim is absent from the ID token, Phoenix fetches UserInfo with the access token during login, so a claim exposed only through UserInfo is still picked up — with no access-token decoding involved.
+
+**Provider claim configuration.** Exposing the claim is done in your IdP's console. Common starting points (consult each provider's current docs for exact steps):
+
+* **Okta** — request the `groups` scope from Phoenix (`PHOENIX_OAUTH2_OKTA_SCOPES=groups`) and add a `groups` claim. On the **org authorization server**, configure the app's Groups claim and filter; on a **custom authorization server**, add the claim under **Security → API → Authorization Servers → (your server) → Claims**. To return the claim through UserInfo (instead of forcing it into every ID token), choose the **Userinfo/id_token request** option. See Okta's [groups claim guide](https://developer.okta.com/docs/guides/customize-tokens-groups-claim/main/) and [custom claims docs](https://help.okta.com/en-us/Content/Topics/Security/api-config-claims.htm).
+* **Auth0** — add a namespaced custom claim to the ID token from a Post-Login Action with `api.idToken.setCustomClaim(...)`.
+* **Microsoft Entra ID (Azure AD)** — configure the optional `groups` claim (or app-role `roles`) in the app registration's **Token configuration**, with handling for group overage on large group lists.
+* **Keycloak** — add a Group Membership or role mapper to the client or client scope with **Add to ID token** and/or **Add to userinfo** enabled.
+
+<Tip>
+**Troubleshooting: unexpected `VIEWER` role or denied sign-in.** Both symptoms usually mean the configured claim isn't reaching the ID token or UserInfo response — a missing role claim falls back to `VIEWER` in non-strict mode, while a missing group claim denies sign-in when group access control is enabled (as does a missing role claim under `ROLE_ATTRIBUTE_STRICT=true`). Check that (1) Phoenix requests the scope that releases the claim (e.g. `groups` for Okta), (2) the claim is configured for the ID token or UserInfo on the IdP side, and (3) your JMESPath path matches the claim's actual key and shape. A claim that exists only on the access token will not be visible to Phoenix.
+</Tip>
 
 ### Multiple Identity Providers
 

@@ -45,7 +45,7 @@ export function RichTooltipTitle({ children }: { children: ReactNode }) {
     <Heading
       level={4}
       css={css`
-        margin-bottom: var(--global-dimension-static-size-100);
+        margin-bottom: var(--global-dimension-size-100);
       `}
     >
       {children}
@@ -59,7 +59,7 @@ export function RichTooltipDescription({ children }: { children: ReactNode }) {
       size="S"
       color="text-700"
       css={css`
-        margin-bottom: var(--global-dimension-static-size-100);
+        margin-bottom: var(--global-dimension-size-100);
       `}
     >
       {children}

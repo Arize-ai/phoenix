@@ -26,10 +26,9 @@ export const fieldBaseCSS = css`
     flex: 1 1 auto;
     font-size: var(--global-font-size-s);
     min-width: var(--global-input-field-min-width);
-    background-color: var(--global-input-field-background-color);
-    color: var(--global-text-color-900);
-    border: var(--global-border-size-thin) solid
-      var(--global-input-field-border-color);
+    background-color: var(--field-background-color);
+    color: var(--field-text-color);
+    border: var(--global-border-size-thin) solid var(--field-border-color);
     border-radius: var(--global-rounding-small);
     vertical-align: middle;
 
@@ -38,20 +37,51 @@ export const fieldBaseCSS = css`
       outline: none;
     }
     &[data-focused]:not([data-invalid]) {
-      border: 1px solid var(--global-input-field-border-color-active);
+      border: 1px solid var(--field-border-color-active);
     }
     &[data-hovered]:not([data-disabled]):not([data-invalid]) {
-      border: 1px solid var(--global-input-field-border-color-active);
+      border: 1px solid var(--field-border-color-active);
+    }
+    // Readonly reaches the input as the native \`readonly\` attribute (react-aria
+    // does not emit data-readonly on the input), so we can style it directly.
+    &:is([data-readonly], [readonly]) {
+      background-color: var(--field-readonly-background-color);
+      border-color: transparent;
+      color: var(--field-readonly-text-color);
+    }
+    &:is([data-readonly], [readonly])[data-focused]:not([data-invalid]) {
+      border-color: transparent;
+    }
+    &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
+      background-color: var(--field-readonly-background-color-hover);
+      border-color: var(--field-readonly-border-color-focus);
+    }
+    &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
+      [data-focus-visible]
+    ) {
+      background-color: var(--field-readonly-background-color-hover);
+      border-color: transparent;
     }
     &[data-disabled] {
       opacity: var(--global-opacity-disabled);
     }
     &[data-invalid="true"] {
-      border: 1px solid var(--global-color-danger);
+      border: 1px solid var(--field-invalid-border-color);
     }
     &::placeholder {
-      color: var(--text-color-placeholder);
+      color: var(--field-placeholder-color);
       font-style: italic;
+    }
+  }
+  // Give the input a hover affordance when a sibling button (e.g. the copy /
+  // reveal button) is interacted with. This depends on the parent field, so it
+  // cannot be derived from the input's own state.
+  &[data-readonly]:has(button:hover),
+  &[data-readonly]:has(button[data-focus-visible]),
+  &[data-readonly]:has(button:focus-visible) {
+    .react-aria-Input,
+    .react-aria-TextArea {
+      background-color: var(--field-readonly-background-color-hover);
     }
   }
   [slot="description"],
@@ -59,27 +89,27 @@ export const fieldBaseCSS = css`
   .react-aria-FieldError {
     /* The overriding cascade here is non ideal but it lets us have only one notion of text  */
     font-size: var(--global-font-size-xs) !important;
-    padding-top: var(--global-dimension-static-size-50);
+    padding-top: var(--global-dimension-size-50);
     display: inline-block;
-    line-height: var(--global-dimension-static-font-size-200) !important;
+    line-height: var(--global-dimension-font-size-200) !important;
   }
 
   [slot="description"] {
-    color: var(--global-text-color-500);
+    color: var(--field-description-text-color);
   }
 
   .react-aria-FieldError {
-    color: var(--global-color-danger);
+    color: var(--field-error-text-color);
   }
 `;
 
 export const fieldPopoverCSS = css`
   width: var(--trigger-width);
-  background-color: var(--global-menu-background-color);
+  background-color: var(--field-popover-background-color);
   border-radius: var(--global-rounding-small);
-  color: var(--global-text-color-900);
-  box-shadow: 0px 4px 10px var(--global-overlay-shadow-color);
-  border: 1px solid var(--global-menu-border-color);
+  color: var(--field-text-color);
+  box-shadow: 0px 4px 10px var(--field-popover-shadow-color);
+  border: 1px solid var(--field-popover-border-color);
   max-height: inherit;
 `;
 
@@ -129,26 +159,36 @@ export const textFieldCSS = css`
     top: var(--field-icon-vertical-position);
   }
 
+  // Colors, background, border-radius, and the readonly background/border are
+  // inherited from fieldBaseCSS (always composed before this). textFieldCSS only
+  // layers on sizing and swaps the focus ring from a border to an outline.
   .react-aria-Input,
   .react-aria-TextArea,
   input {
     width: 100%;
-    margin: 0;
     border: var(--global-border-size-thin) solid
-      var(--field-border-color-override, var(--global-input-field-border-color));
-    border-radius: var(--global-rounding-small);
-    background-color: var(--global-input-field-background-color);
-    color: var(--global-text-color-900);
+      var(--field-border-color-override, var(--field-border-color));
     padding: var(--textfield-vertical-padding)
       var(--textfield-horizontal-padding);
     box-sizing: border-box;
     outline-offset: -1px;
     outline: var(--global-border-size-thin) solid transparent;
     &[data-focused]:not([data-invalid]) {
-      outline: 1px solid var(--global-input-field-border-color-active);
+      outline: 1px solid var(--field-border-color-active);
     }
     &[data-focused][data-invalid] {
-      outline: 1px solid var(--global-color-danger);
+      outline: 1px solid var(--field-invalid-border-color);
+    }
+    // Suppress the focus outline while readonly (fieldBaseCSS handles the
+    // readonly background/border), then restore it only for keyboard focus.
+    &:is([data-readonly], [readonly]) {
+      outline-color: transparent;
+    }
+    &:is([data-readonly], [readonly])[data-focused]:not([data-invalid]) {
+      outline-color: transparent;
+    }
+    &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
+      outline-color: var(--field-readonly-border-color-focus);
     }
   }
 

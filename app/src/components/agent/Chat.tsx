@@ -41,6 +41,7 @@ import {
   useAgentModelCredentialStatus,
 } from "./AgentModelCredentialForm";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
+import { ChatErrorMessage } from "./ChatErrorMessage";
 import { ChatLantern } from "./ChatLantern";
 import {
   AssistantMessage,
@@ -52,6 +53,7 @@ import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
+import { InterruptedChatMessage } from "./InterruptedChatMessage";
 import {
   MessageRewindConfirmation,
   type MessageRewindMode,
@@ -141,10 +143,11 @@ const chatCSS = css`
   .chat__input-meta {
     box-sizing: border-box;
     width: 100%;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: var(--global-dimension-static-size-100);
+    column-gap: var(--global-dimension-size-100);
+    row-gap: 0;
     /* Match the prompt input footer's horizontal inset so the permission
        selector and token usage line up with the tools/submit row above. */
     padding: var(--global-dimension-size-100) 0;
@@ -158,8 +161,7 @@ const chatCSS = css`
   }
 
   .chat__children {
-    flex: 1 1 auto;
-    min-width: 0;
+    display: contents;
   }
 
   .chat__scroll-frame {
@@ -243,6 +245,16 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  /* Elicitation-style surfaces (consent gate, rewind confirmation, question
+     carousel) can be taller than the panel; let the input region shrink and
+     scroll internally instead of clipping at the panel edge. */
+  .chat__input:has([data-input-mode="elicitation"]) {
+    flex-shrink: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .chat__loading {
     color: var(--global-text-color-300);
   }
@@ -250,13 +262,24 @@ const chatCSS = css`
   .chat__edit-permissions {
     flex: none;
   }
-
-  .chat__error {
-    align-self: flex-start;
-    color: var(--global-color-danger);
-    font-size: var(--global-font-size-s);
-  }
 `;
+
+function getLatestMessageId({
+  messages,
+  role,
+}: {
+  messages: AgentUIMessage[];
+  role: AgentUIMessage["role"];
+}): string | undefined {
+  return messages.findLast((message) => message.role === role)?.id;
+}
+
+function getMessageText(message: AgentUIMessage): string {
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+}
 
 /** Connects the presentational chat view to the agent chat controller hook. */
 export function Chat({
@@ -285,12 +308,14 @@ export function Chat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    retryMessage,
     rewindToMessage,
     forkFromMessage,
   } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
 
   return (
     <ChatView
+      key={sessionId ?? "no-session"}
       sessionId={sessionId}
       messages={messages}
       sendMessage={sendMessage}
@@ -300,6 +325,7 @@ export function Chat({
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
+      retryMessage={retryMessage}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
       modelMenuValue={modelMenuValue}
@@ -326,6 +352,7 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
+  retryMessage,
   rewindToMessage,
   forkFromMessage,
   modelMenuValue,
@@ -347,12 +374,14 @@ export function ChatView({
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
+  /** Retries an assistant response; absent on read-only surfaces. */
+  retryMessage?: (messageId?: string) => void;
   /**
    * Truncates the active session at a message; returns user text to restore.
-   * Absent on read-only surfaces, which hides the rewind/fork controls.
+   * Absent on read-only surfaces, which hides the rewind/branch controls.
    */
   rewindToMessage?: (messageId: string) => string | null;
-  /** Branches a new session from a message; absent hides the fork control. */
+  /** Branches a new session from a message; absent hides the branch control. */
   forkFromMessage?: (messageId: string) => string | null;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
@@ -398,6 +427,9 @@ export function ChatView({
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
   const createSession = useAgentContext((state) => state.createSession);
+  const canForkSessions = useAgentContext(
+    (state) => state.capabilities["session.storeSessions"]
+  );
 
   const setSessionDraftInput = (input: string | null) => {
     if (!sessionId) {
@@ -437,6 +469,9 @@ export function ChatView({
     status,
     messages,
   });
+  const latestMessage = messages.at(-1);
+  const shouldShowInterruptedMessage =
+    status === "ready" && !error && latestMessage?.role === "user";
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -476,7 +511,7 @@ export function ChatView({
     textareaRef.current?.focus();
   };
 
-  // Pending rewind/fork confirmation, shown inline in place of the prompt
+  // Pending rewind/branch confirmation, shown inline in place of the prompt
   // input. Panel-local because the confirmation is an inline surface, not a
   // modal — a modal would flip the global open-modal observer and re-parent
   // this panel between its docked/floating layouts, tearing the surface down.
@@ -486,14 +521,16 @@ export function ChatView({
     role: MessageRewindRole;
   } | null>(null);
 
-  // Rewind/fork mutate or branch finalized history, so they are only offered
+  // Rewind/branch changes finalized history, so these actions are only offered
   // once the chat has settled — never mid-request.
+  const hasChatSettled = status === "ready" || status === "error";
+
   const onRewindRequest = useMemo<MessageRewindRequest | undefined>(() => {
-    if (status !== "ready" || !rewindToMessage) {
+    if (!hasChatSettled || !rewindToMessage) {
       return undefined;
     }
     return (request) => setRewindRequest(request);
-  }, [status, rewindToMessage]);
+  }, [hasChatSettled, rewindToMessage]);
 
   const handleConfirmRewind = () => {
     if (!rewindRequest) {
@@ -512,6 +549,19 @@ export function ChatView({
         textareaRef.current?.focus();
       }
     }
+  };
+
+  const handleRetryInterruptedMessage = () => {
+    if (latestMessage?.role !== "user") {
+      return;
+    }
+    const messageText = getMessageText(latestMessage).trim();
+    if (!messageText) {
+      return;
+    }
+    rewindToMessage?.(latestMessage.id);
+    void scrollToBottom();
+    sendMessage({ text: messageText });
   };
 
   useLayoutEffect(() => {
@@ -561,7 +611,7 @@ export function ChatView({
                     quickActions={quickActions}
                     onQuickAction={handleQuickAction}
                   >
-                    {missingCredentialsProvider ? (
+                    {hasAcknowledgedConsent && missingCredentialsProvider ? (
                       <AgentModelCredentialForm
                         modelName={modelMenuValue.modelName}
                         onCredentialsUpdated={refreshCredentialStatus}
@@ -583,11 +633,11 @@ export function ChatView({
                   // Only the last assistant message can still be streaming — hide
                   // its actions until the chat reports it is settled.
                   const isLast = index === messages.length - 1;
-                  const showActions = !isLast || status === "ready";
+                  const showActions = !isLast || hasChatSettled;
                   // Pin the most recent assistant turn's toolbar so its actions
                   // stay visible; other turns reveal their toolbars on hover to
                   // cut down on stacked-toolbar clutter.
-                  const pinToolbar = isLast && status === "ready";
+                  const pinToolbar = isLast && hasChatSettled;
                   // Rewinding to the last assistant turn is a no-op: nothing
                   // follows it to truncate and, once settled, it has no pending
                   // tool calls to clear. Hide the rewind control there.
@@ -603,7 +653,30 @@ export function ChatView({
                   );
                 })}
                 {showThinkingIndicator && <Loading />}
-                {error && <ErrorMessage error={error} />}
+                {shouldShowInterruptedMessage ? (
+                  <InterruptedChatMessage
+                    latestUserMessageId={latestMessage.id}
+                    canFork={canForkSessions}
+                    onRetry={handleRetryInterruptedMessage}
+                    onRewind={onRewindRequest}
+                  />
+                ) : null}
+                {error && (
+                  <ChatErrorMessage
+                    error={error}
+                    latestAssistantMessageId={getLatestMessageId({
+                      messages,
+                      role: "assistant",
+                    })}
+                    latestUserMessageId={getLatestMessageId({
+                      messages,
+                      role: "user",
+                    })}
+                    canFork={canForkSessions}
+                    onRetry={retryMessage}
+                    onRewind={onRewindRequest}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -726,9 +799,4 @@ function Loading() {
       </Shimmer>
     </div>
   );
-}
-
-/** Inline request error banner for the active chat turn. */
-function ErrorMessage({ error }: { error: Error }) {
-  return <p className="chat__error">{error.message}</p>;
 }

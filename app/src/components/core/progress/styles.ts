@@ -47,10 +47,7 @@ export const progressCircleCSS = css`
     var(--progress-circle-circumference);
   --progress-circle-dashoffset: calc(
     var(--progress-circle-circumference) -
-      (
-        var(--progress-circle-value) / 100 *
-          var(--progress-circle-circumference)
-      )
+      (var(--progress-circle-value) / 100 * var(--progress-circle-circumference))
   );
 
   .progress-circle__svg {

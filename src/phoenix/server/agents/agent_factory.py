@@ -18,6 +18,7 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
+    NativeToolRetryCapability,
     SkillsCapability,
     build_anthropic_prompt_cache_capability,
     get_context_capability_function,
@@ -26,18 +27,21 @@ from phoenix.server.agents.capabilities.skills import SkillsToolset
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
 )
-from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
-from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.pydantic_ai import (
-    OpenInferenceAgentWrapper,
-    OpenInferenceCapabilityWrapper,
+from phoenix.server.agents.capabilities.tools.internal import (
+    CallSubAgentCapability,
+    GetCurrentDatetimeCapability,
+    WriteSpanNoteCapability,
 )
+from phoenix.server.agents.prompts import AgentPrompts
+from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
 from phoenix.server.agents.skills import get_skills_for_contexts
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
     build_web_search_capability,
 )
+from phoenix.server.dml_event import DmlEvent
+from phoenix.server.types import CanPutItem, DbSessionFactory
 
 
 def get_skills_capability_function(
@@ -69,7 +73,13 @@ def build_agent(
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     | None = None,
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
-) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
+    db: DbSessionFactory,
+    event_queue: CanPutItem[DmlEvent],
+    read_only: bool = False,
+    auth_enabled: bool = False,
+    user_id: int | None = None,
+    is_viewer: bool = False,
+) -> AbstractAgent[AgentDependencies, AgentOutput]:
     server_agent_args = (
         server_agent,
         publish_subagent_message_chunk,
@@ -90,6 +100,18 @@ def build_agent(
         config=TraceConfig(),
     )
     capabilities: list[AbstractCapability[AgentDependencies]] = [
+        WriteSpanNoteCapability(
+            db=db,
+            event_queue=event_queue,
+            instructions=resolved_prompts.write_span_note_tool.render(),
+            read_only=read_only,
+            auth_enabled=auth_enabled,
+            user_id=user_id,
+            is_viewer=is_viewer,
+        ),
+        GetCurrentDatetimeCapability(
+            instructions=resolved_prompts.get_current_datetime_tool.render(),
+        ),
         DynamicCapability(
             capability_func=get_external_tool_capability_function(
                 prompts=resolved_prompts,
@@ -129,18 +151,22 @@ def build_agent(
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
         )
-
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
     )
 
+    # The top-level agent is deliberately not wrapped in an
+    # OpenInferenceAgentWrapper: per-request AGENT spans grouped each run into
+    # an iteration, but the PXI turn reads better as a flat list of model and
+    # tool spans parented directly under the browser's `pxi.turn` root (via
+    # the propagated trace context).
     agent: Agent[AgentDependencies, AgentOutput] = Agent(
         model,
         name="PXIAgent",
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_prompts.base.render(),
-        capabilities=[traced_capability],
+        capabilities=[traced_capability, NativeToolRetryCapability()],
     )
-    return OpenInferenceAgentWrapper(agent, tracer=tracer)
+    return agent

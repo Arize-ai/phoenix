@@ -8,11 +8,19 @@ managePackageManagerVersions: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - "@arizeai/openinference-core"
+  # typescript@7.0.2 and its @typescript/typescript-* platform binaries were
+  # published same-day as the TS 7 migration; remove once 3 days have passed.
+  - typescript
+  - "@typescript/*"
 
 allowBuilds:
+  # Only has a "use pnpm" preinstall guard; no build output needed.
+  autoevals: false
   esbuild: true
   msw: false
   protobufjs: true
+  # napi-postinstall binding fixup for jest 30's resolver.
+  unrs-resolver: true
 
 overrides:
   # Pre-existing exact pin: forces peer-dep alignment across @mastra/* packages

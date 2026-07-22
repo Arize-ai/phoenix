@@ -15,8 +15,15 @@ Fast unit coverage for the harness and evaluators lives under
 
 ## Run Locally
 
-The canonical entrypoint is `evals/pxi/harness/run_experiment.py`. Start
-Phoenix, then run:
+There are two ways to run the evals:
+
+- The **pytest suite** (`pytest evals/pxi -c evals/pxi/pytest.ini`) is what CI
+  runs and gates on — see [Pytest Harness and Aggregate Gate](#pytest-harness-and-aggregate-gate).
+- `evals/pxi/harness/run_experiment.py` is the single-dataset runner with the
+  richest local failure output (full per-example report to your terminal). It
+  remains the best way to debug one dataset by hand.
+
+To run a single dataset through `run_experiment.py`, start Phoenix, then:
 
 ```bash
 uv run python evals/pxi/harness/run_experiment.py --dataset set_spans_filter
@@ -59,7 +66,7 @@ expected outputs, the agent's actual tool calls, per-evaluator
 scores/labels/explanations, and a Phoenix trace link -- all in one place in
 your terminal without writing any files.
 
-### `--report-dir DIR` (CI / artifact use)
+### `--report-dir DIR` (artifact use)
 
 Pass `--report-dir` to write two files per dataset run:
 
@@ -78,14 +85,14 @@ Pass `--report-dir` to write two files per dataset run:
   so it can be grepped out of a CI log. Paste this into a coding agent to
   diagnose and fix the failure -- it is self-sufficient context.
 
-In CI the workflow passes `--report-dir` rather than `--print-report` because
-GitHub Actions interprets any log line starting with `::` as a workflow
+These files are the richest local artifact for a single dataset. CI itself no
+longer drives `run_experiment.py`; it runs the pytest suite and gate (see
+[CI](#ci)) and renders its own report. Both paths embed log content the same
+way: GitHub Actions interprets any line starting with `::` as a workflow
 command (e.g. `::endgroup::` closes a log group, `::error::` creates an
-annotation). Model output in the report can contain such lines, so the
-workflow writes to a file first and then `cat`s the file inside a
-`::stop-commands::` block to suspend command processing while the untrusted
-content is being logged. See `.github/workflows/pxi-evals.yml` for the full
-pattern.
+annotation), so the workflow writes the report to a file and `cat`s it inside a
+`::stop-commands::` block to suspend command processing while it logs. See
+`.github/workflows/pxi-evals.yml` for the full pattern.
 
 If a report would exceed GitHub's embedding limits (~1 MiB for step
 summaries, ~64 KiB per log line), the Markdown tier falls back to its digest
@@ -114,6 +121,140 @@ The task output stores the serialized Pydantic AI messages from the PXI agent
 run. Tool evaluators read `tool-call` parts from those messages, so tool
 selection and tool-argument checks cover every tool call emitted during the
 turn.
+
+## Pytest Harness and Aggregate Gate
+
+The whole dataset tree also runs as parametrized pytest tests, each example a
+`@pytest.mark.phoenix` item recorded to a Phoenix experiment. The tests never
+assert: they record one datapoint per `(example, evaluator)` to a
+schema-4 JSON artifact, and a standalone gate decides pass/fail against
+`thresholds.yaml`. Raw rows retain the stable pytest node ID and evaluator
+evidence. Aggregate `scored`/`assessed` counts include only numeric evaluator
+verdicts; provider, setup, and evaluator errors are counted separately as
+`infra`. A task error (the agent run itself never produced output) gets the
+same one retry as a clean miss, since it carries no reliable signal either
+way; if it recurs, it's reported as a recurring task error and still never
+enters the pass-rate denominator. This is what CI runs.
+
+```bash
+# Run the regression split and write pxi-eval-results.json
+uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
+
+# Decide pass/fail (exit nonzero on a breach or an invalid/partial run)
+uv run python -m evals.pxi.gate pxi-eval-results.json --thresholds evals/pxi/thresholds.yaml
+```
+
+CI's two-attempt flow plans exact node IDs, reruns only those into a second
+artifact, then reconciles the same evaluator verdict across both attempts. Run
+it end to end exactly as CI does — the initial artifact is written to its own
+path, node IDs are re-rooted onto pytest's rootdir before the retry, and the
+retry only happens when planning actually emitted node IDs:
+
+```bash
+# 1. Initial run -> its own artifact.
+PXI_EVAL_RESULTS_PATH=pxi-eval-results-initial.json \
+  uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
+
+# 2. Plan: write the node IDs of assessable misses in gating cells (empty file
+#    if there are none, or if the run is unmeasurable).
+uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+  --thresholds evals/pxi/thresholds.yaml \
+  --retry-nodeids-out pxi-eval-retry-nodeids.txt
+
+# 3. Retry only those nodes (if any) into a second artifact, then reconcile.
+#    gate.py emits node IDs relative to evals/pxi (pytest's rootdir under
+#    `-c evals/pxi/pytest.ini`); re-root them onto that path before running
+#    pytest from the repo root, or pytest collects zero items.
+if [[ -s pxi-eval-retry-nodeids.txt ]]; then
+  mapfile -t bare_nodeids < pxi-eval-retry-nodeids.txt
+  retry_nodeids=("${bare_nodeids[@]/#/evals/pxi/}")
+  PXI_EVAL_RESULTS_PATH=pxi-eval-results-retry.json \
+    uv run pytest -c evals/pxi/pytest.ini "${retry_nodeids[@]}"
+  uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+    --thresholds evals/pxi/thresholds.yaml \
+    --retry-artifact pxi-eval-results-retry.json
+else
+  # No retry needed: the initial run already decided pass/fail.
+  uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+    --thresholds evals/pxi/thresholds.yaml
+fi
+```
+
+`--retry-nodeids-out` (planning) and `--retry-artifact` (reconciliation) are the
+two mutually exclusive phases of that flow — passing both is an error, so a
+reproduced miss can never slip through by accidentally re-entering planning
+mode. Pass `--decision-out decision.json` to any invocation to also get the
+structured verdict (`kind`, `label`, `exit_code`, `retry_nodeids`, counts) as
+JSON; CI reads that instead of scraping the Markdown digest.
+
+`pytest.ini` is a complete, self-contained config: `pytest -c <file>` replaces
+the root config rather than inheriting it, so it declares everything the eval
+run needs (async mode, session loop scope, import mode, the split markers) and
+omits the root suite's `--doctest-modules`. Set `PXI_EVAL_RESULTS_PATH` to
+control where the artifact is written (default: `pxi-eval-results.json` in the
+current directory).
+
+### Thresholds
+
+`thresholds.yaml` sets a per-split minimum pass-rate, with optional
+per-dataset/per-evaluator overrides. Every split a dataset can carry
+(`regression`, `dev`, `holdout`, `val`) is enumerated: a `(evaluator, split)`
+datapoint with no matching policy and no explicit `gating: false` is treated as
+a breach, not a silent pass. Regression must hold at 100%; `dev`/`holdout` are
+lenient; `val` is recorded but non-gating. Relaxing a threshold lowers the
+gate's bar, so call it out in the PR description rather than bundling it with
+unrelated edits.
+
+The gate also **fails closed on an unmeasurable run** with exit 2: a missing,
+malformed, partial, or dirty artifact; a targeted retry that omitted or added a
+node ID; a gating cell with zero assessable rows; or a gating cell where a code
+**evaluator itself raised** (an `evaluator_error` — a defect in the scoring
+apparatus, which is never retried and never silently excluded into a green
+pass). These outcomes are labeled unmeasurable, not regression. When
+`PHOENIX_API_KEY` is set (i.e. CI), the gate also fails closed if the plugin
+recorded nothing — bootstrap failure degrades to a warning in the plugin, so
+without this a green gate could mean "recorded nothing to Phoenix". Local runs
+with no key skip this check, since recording is optional there.
+
+Past `--retry-cap` examples needing a retry (default 15), the gate skips
+confirm-on-retry entirely and gates on attempt 1 alone: at that scale the
+failure is structural, and confirming each example individually would just
+delay a result that was never in doubt. A cap tripped by behavioral **misses**
+that breach a threshold is reported as **too many failures to confirm** (exit 1,
+distinct from a per-example confirmed regression). A cap tripped by unresolved
+**task errors** — where most examples never produced an assessable result — is
+**unmeasurable** (exit 2), never a pass: a surviving passing row cannot carry a
+run that mostly never ran.
+
+Two more outcomes keep a reproduced miss from hiding behind a green headline. A
+miss that reproduces on both attempts but stays at or above a sub-1.0 override
+threshold is **passed with tolerated misses** (exit 0) rather than a bare pass,
+so the tolerated miss stays visible. A miss where attempt 1 was a task error and
+only the retry produced a miss is **not** a confirmed regression — that is one
+assessable attempt, not the same miss twice, and the single retry is already
+spent, so it is recorded as unassessable and never reddens the gate. These
+sub-1.0 regression overrides are a deliberate interim stopgap (see
+`thresholds.yaml`); the planned end state ratchets them back to the strict
+`1.0` default once the corpus is re-baselined (k≥3 on the shipped default
+model) and every consistent failure is dispositioned — confirm-on-retry
+absorbs wobble at the measurement layer, and persistent flake is quarantined
+explicitly to a non-gating split rather than tolerated by numeric headroom.
+The threshold system itself stays: it remains the policy layer for split
+defaults, dev/holdout leniency, and `gating: false` quarantine. That ratchet
+is a later corpus/policy step, not part of this measurement-semantics change.
+
+### Regression gate vs. full-collection sync
+
+The marker you pass picks the trade-off:
+
+- **`-m regression`** runs only the regression split. The phoenix-client plugin
+  treats a marker-filtered run as a partial collection and **appends** to the
+  Phoenix dataset without pruning removed examples. This is the cheap PR gate.
+- **No marker** (`pytest evals/pxi -c evals/pxi/pytest.ini`) is a full
+  collection: the plugin update-syncs the dataset and **prunes** examples that
+  no longer exist in the YAML. Run this against `main` after merge to keep the
+  Phoenix dataset authoritative — it runs every split's live-model examples, so
+  it costs more than the regression gate.
 
 ## Model Configuration
 
@@ -340,38 +481,51 @@ Phoenix Cloud. It runs on PRs that change `evals/**` or
 `src/phoenix/server/agents/**`, and maintainers can also run it manually from
 the Actions tab.
 
-The workflow invokes the runner for every YAML file in
-`evals/pxi/datasets/*.yaml` with `--splits regression`,
-`--fail-on-regression`, and `--report-dir`. The runner skips datasets when
-the requested split has no regression examples. Each dataset run is printed
-as its own log group with the dataset file and CI experiment name. The
-workflow keeps going after individual dataset failures, and the final status
-is red if any dataset fails.
+On a PR the job runs `pytest evals/pxi -c evals/pxi/pytest.ini -m regression`
+to record the initial artifact. The gate then emits the exact node IDs for
+assessable misses and task errors in gating cells. Only those nodes run once
+more into a separate retry artifact, and the final gate reconciles both
+artifacts. A retry pass is a green **flaky recovery**. Exit 1 requires the
+same evaluator miss to remain assessable on both attempts and the reconciled
+cell to breach its fixed threshold; a task error that recurs is reported as
+unmeasurable, never as a regression. The gate runs even when pytest exits
+nonzero, so a crashed or partial run exits 2 rather than passing or
+masquerading as agent regression.
+
+A manual `workflow_dispatch` run takes a `mode` input:
+
+- `regression` (default) — the same regression gate the PR job runs.
+- `full` — a full-collection run (no split filter) that prune-syncs the Phoenix
+  dataset, dropping examples no longer in the YAML. Dispatch this against `main`
+  after a dataset change merges; it runs every split's live-model examples, so
+  it costs more than the regression gate.
 
 ### Reading a CI failure
 
 Failure output is published through three channels, ranked by how you (or a
 coding agent) consume it:
 
-1. **Job log (primary, agents).** Each failed dataset's full Markdown report
-   is embedded in the log under a collapsed
-   `PXI EVAL FAILURE REPORT (agent-readable): <dataset>` group, wrapped in
-   `===== BEGIN/END PXI EVAL REPORT: <dataset> =====` sentinels. Retrieval
-   from a red check is two commands:
+1. **Job log (primary, agents).** When the gate fails, the report is embedded
+   in the log under a collapsed `PXI EVAL REPORT (agent-readable)` group and a
+   `::stop-commands::` block. It names every confirmed, flaky, and infrastructure
+   example; includes both attempts' evaluator labels, scores, and explanations;
+   preserves the pytest node ID; and links the initial and retry Phoenix
+   experiments. It also carries the reconciled per-cell denominator and policy.
+   Retrieval from a red check is two commands:
 
    ```bash
    gh pr checks <pr-number>           # find the failing run id from its URL
-   gh run view <run-id> --log-failed  # full agent-readable reports
+   gh run view <run-id> --log-failed  # the agent-readable report
    ```
 
-   Paste the report between the sentinels into a coding agent; the repro
-   footer and experiment URL make it self-sufficient.
-2. **Step summary (humans).** The run's summary page shows the dataset
-   pass/fail table, a digest table per failed dataset (example id,
-   evaluator, score, one-line explanation, experiment link), and the full
-   report inside a `<details>` block for browser copy-paste.
-3. **JSON artifact (programmatic).** Both report files for every dataset are
-   uploaded as the `pxi-eval-reports-<run-id>` artifact on every run:
+   Follow either Phoenix link in the digest for the full input, agent output,
+   tool calls, annotations, and traces. The digest itself is sufficient to hand
+   to a coding agent without reconstructing attempt membership from raw logs.
+2. **Step summary (humans).** The run's summary page shows the gate verdict and
+   the same report inside a `<details>` block for browser copy-paste.
+3. **Artifact (programmatic).** The initial artifact, optional retry artifact,
+   exact retry-node list, and rendered digest are uploaded as the
+   `pxi-eval-reports-<run-id>` artifact on every run:
 
    ```bash
    gh run download <run-id> -n pxi-eval-reports-<run-id>

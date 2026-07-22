@@ -38,7 +38,7 @@ const diffAcceptRejectToolDetailsCSS = css`
   }
 
   .diff-accept-reject__diff {
-    font-family: var(--ac-global-font-family-sans);
+    font-family: var(--global-font-family-sans);
     white-space: normal;
   }
 `;
@@ -158,7 +158,7 @@ function PendingDiff<T, P extends PendingDiffEdit<T>>({
 
             [data-code] {
               padding: 0;
-              padding-bottom: var(--global-dimension-static-size-100)
+              padding-bottom: var(--global-dimension-size-100)
             }
 
             [data-column-number] {

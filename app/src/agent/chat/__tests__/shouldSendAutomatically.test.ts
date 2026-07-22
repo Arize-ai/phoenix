@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 
 import {
+  shouldKeepTurnOpenForPendingToolOutput,
   shouldSendAutomaticallyAfterToolOutput,
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
@@ -160,5 +161,56 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     ];
 
     expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+  });
+});
+
+describe("shouldKeepTurnOpenForPendingToolOutput", () => {
+  it("keeps the turn open while a client-side tool output is pending", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "input-available",
+            input: {},
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      shouldKeepTurnOpenForPendingToolOutput({
+        messages,
+        shouldSendAutomatically: false,
+      })
+    ).toBe(true);
+  });
+
+  it("does not keep the turn open after completed tool output", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: {},
+            output: "done",
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      shouldKeepTurnOpenForPendingToolOutput({
+        messages,
+        shouldSendAutomatically: false,
+      })
+    ).toBe(false);
   });
 });

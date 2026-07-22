@@ -1,7 +1,13 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
+import {
+  getEffectiveAttachUserId,
+  getEffectiveTraceRecordingSettings,
+} from "@phoenix/store/agentStore";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
@@ -67,11 +73,7 @@ const traceDetailsTooltipCSS = css`
   max-width: 320px;
 `;
 
-function TraceExportInfoTip({
-  collectorEndpoint,
-}: {
-  collectorEndpoint: string;
-}) {
+function TraceInfoTip({ children }: { children: ReactNode }) {
   return (
     <span
       className="agent-observability__help"
@@ -87,32 +89,58 @@ function TraceExportInfoTip({
         placement="top"
         css={traceDetailsTooltipCSS}
       >
-        Exported traces are unredacted and include prompts, replies, tool calls,
-        tool results, and any Phoenix data the assistant read. They are sent to{" "}
-        <code css={codeCSS}>{collectorEndpoint}</code>.
+        {children}
       </ContextualHelp>
     </span>
   );
 }
 
-export function AgentObservabilitySettings() {
+export function AgentObservabilitySettings({
+  isOnSettingsPage = false,
+}: {
+  /** See {@link SystemSettingsWarning}. */
+  isOnSettingsPage?: boolean;
+} = {}) {
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const setObservability = useAgentContext((state) => state.setObservability);
+  const isAdmin = useIsAdminOrAuthDisabled();
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
+  const isTracingForced = agentsConfig.forceTracing;
 
-  const localTracesDisabledByAdmin = !agentsConfig.allowLocalTraces;
-  const remoteExportDisabledByAdmin = !agentsConfig.allowRemoteExport;
+  const localTracesOffInSystemSettings = !agentsConfig.allowLocalTraces;
+  const remoteExportOffInSystemSettings = !agentsConfig.allowRemoteExport;
+
+  // Attaching an email only affects traces that are actually recorded, so the
+  // toggle is inert unless saving or exporting is effectively on.
+  const effectiveRecording = getEffectiveTraceRecordingSettings({
+    agentsConfig,
+    observability,
+  });
+  const isTracingEnabled =
+    effectiveRecording.ingestTraces || effectiveRecording.exportRemoteTraces;
+  const effectiveAttachUserId = getEffectiveAttachUserId({
+    agentsConfig,
+    observability,
+  });
 
   return (
     <div css={settingsContainerCSS}>
+      {isTracingForced ? (
+        <Text color="text-500" size="S">
+          Tracing, remote export, and user attribution are enabled for all users
+          by this Phoenix deployment.
+        </Text>
+      ) : !isOnSettingsPage ? (
+        <Text color="text-500" size="S">
+          These settings apply only to this browser.
+        </Text>
+      ) : null}
       <ul css={settingsListCSS}>
         <li css={settingRowCSS}>
           <Switch
-            isSelected={
-              !localTracesDisabledByAdmin && observability.storeLocalTraces
-            }
-            isDisabled={localTracesDisabledByAdmin}
+            isSelected={effectiveRecording.ingestTraces}
+            isDisabled={localTracesOffInSystemSettings || isTracingForced}
             onChange={(storeLocalTraces) => {
               setObservability({ storeLocalTraces });
             }}
@@ -120,29 +148,34 @@ export function AgentObservabilitySettings() {
             css={settingSwitchCSS}
           >
             <span className="agent-observability__label">
-              <Text weight="heavy" size="M">
-                Save assistant session traces in this Phoenix instance
-              </Text>
+              <span className="agent-observability__title">
+                <Text weight="heavy" size="M">
+                  Save assistant session traces in this Phoenix instance
+                </Text>
+                <TraceInfoTip>
+                  Traces are unredacted and include prompts, replies, tool
+                  calls, tool results, and any Phoenix data the assistant read.
+                </TraceInfoTip>
+              </span>
               <Text color="text-500">
-                Stores full, unredacted traces (prompts, replies, tool calls,
-                tool results, and any Phoenix data the assistant read) in the{" "}
+                Stores full, unredacted traces in the{" "}
                 <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
-                project. Anyone with access to that project can view them. This
-                setting applies only to this browser.
+                project, visible to anyone with access to that project.
               </Text>
             </span>
           </Switch>
-          {localTracesDisabledByAdmin ? <SystemSettingsWarning /> : null}
+          {localTracesOffInSystemSettings ? (
+            <SystemSettingsWarning
+              isAdmin={isAdmin}
+              isOnSettingsPage={isOnSettingsPage}
+            />
+          ) : null}
         </li>
         {isRemoteCollectorConfigured ? (
           <li css={settingRowCSS}>
             <Switch
-              isSelected={
-                isRemoteCollectorConfigured &&
-                !remoteExportDisabledByAdmin &&
-                observability.exportRemoteTraces
-              }
-              isDisabled={remoteExportDisabledByAdmin}
+              isSelected={effectiveRecording.exportRemoteTraces}
+              isDisabled={remoteExportOffInSystemSettings || isTracingForced}
               onChange={(exportRemoteTraces) => {
                 setObservability({ exportRemoteTraces });
               }}
@@ -154,23 +187,31 @@ export function AgentObservabilitySettings() {
                   <Text weight="heavy" size="M">
                     Exporting traces
                   </Text>
-                  <TraceExportInfoTip
-                    collectorEndpoint={agentsConfig.collectorEndpoint ?? ""}
-                  />
+                  <TraceInfoTip>
+                    Exported traces are unredacted and include prompts, replies,
+                    tool calls, tool results, and any Phoenix data the assistant
+                    read. They are sent to{" "}
+                    <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
+                  </TraceInfoTip>
                 </span>
                 <Text color="text-500">
-                  Exports assistant session traces to{" "}
-                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
-                  This setting applies only to this browser.
+                  Share session traces with the developers of Phoenix to help
+                  improve the assistant. Sent securely and never shared.
                 </Text>
               </span>
             </Switch>
-            {remoteExportDisabledByAdmin ? <SystemSettingsWarning /> : null}
+            {remoteExportOffInSystemSettings ? (
+              <SystemSettingsWarning
+                isAdmin={isAdmin}
+                isOnSettingsPage={isOnSettingsPage}
+              />
+            ) : null}
           </li>
         ) : null}
         <li css={settingRowCSS}>
           <Switch
-            isSelected={observability.attachUserId}
+            isSelected={effectiveAttachUserId}
+            isDisabled={!isTracingEnabled || isTracingForced}
             onChange={(attachUserId) => {
               setObservability({ attachUserId });
             }}
@@ -182,10 +223,9 @@ export function AgentObservabilitySettings() {
                 Attach your email to session traces
               </Text>
               <Text color="text-500">
-                Tags assistant session traces with your Phoenix account email so
-                sessions can be filtered by user. Only applies when trace saving
-                or export is enabled, and only when you are signed in. This
-                setting applies only to this browser.
+                Tags session traces with your Phoenix account email so sessions
+                can be filtered by user. Applies only when you are signed in and
+                trace saving or export is on.
               </Text>
             </span>
           </Switch>

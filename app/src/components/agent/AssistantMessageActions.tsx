@@ -1,7 +1,10 @@
 import { isTextUIPart } from "ai";
 import { type ReactNode, useState } from "react";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getAssistantMessageMetadata,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
@@ -159,7 +162,7 @@ async function deleteAnnotations(args: {
  * - Trace: opens the associated trace in a new tab. Requires `traceId`.
  *
  * `children` are rendered after the built-in actions in the same toolbar row
- * (e.g. rewind/fork controls), and force the toolbar to render even when the
+ * (e.g. rewind/branch controls), and force the toolbar to render even when the
  * message itself supports no built-in actions.
  *
  * The component silently renders nothing if the message has no text, no
@@ -185,7 +188,7 @@ export function AssistantMessageActions({
 
   const messageText = getAssistantMessageText(message);
   const hasMessageText = messageText.trim().length > 0;
-  const metadata = message.metadata;
+  const metadata = getAssistantMessageMetadata(message);
   const canAnnotate = storeLocalTraces && metadata?.trace != null;
   const canOpenTrace = storeLocalTraces && metadata?.trace != null;
 

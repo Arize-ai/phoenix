@@ -17,7 +17,7 @@
   <dsl_reference>
     - String fields: `span_kind`, `name` (the span name, NOT span_name), `status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. Compare with `==`, `!=`, or membership via `in`.
     - Numeric fields: `latency_ms`, `cumulative_token_count.{prompt,completion,total}`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
-    - Datetime fields: `start_time`, `end_time`.
+    - Datetime fields: `start_time`, `end_time`. Resolve relative phrases like "last week" or "past 5 days" against the value returned by the `get_current_datetime` tool — call it first. Never guess the current date from prior knowledge.
     - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
     - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
     - Substring search: `'needle' in input.value` (works on any string field).

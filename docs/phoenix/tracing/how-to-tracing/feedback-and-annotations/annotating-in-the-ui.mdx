@@ -22,6 +22,10 @@ To annotate data in the UI, you first will want to setup a rubric for how to ann
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/55fe6610-image.jpeg" />
 </Frame>
 
+<Note>
+Every Phoenix instance ships with a built-in `user_feedback` annotation config — a **Categorical** config with `positive` (score `1.0`) and `negative` (score `0.0`) labels. It is seeded automatically on startup and backs the thumbs-up / thumbs-down feedback in the assistant, so it will already appear when you list annotation configs on a fresh deployment.
+</Note>
+
 ## Adding Annotations
 
 <Frame caption="Once annotations are configured, you can add them to your project to build out a custom annotation form">
@@ -29,6 +33,8 @@ To annotate data in the UI, you first will want to setup a rubric for how to ann
 </Frame>
 
 Once you have annotations configured, you can associate annotations to the data that you have traced. Click on the `Annotate` button and fill out the form to rate different steps in your AI application. 
+
+You can annotate at the **span**, **trace**, and **session** level. Spans and traces are annotated from their detail views; to annotate a whole conversation, open a session and use the `Annotate` button in the session details view to add and edit session-level annotations from the `Annotations` tab there.
 
 You can also take notes as you go by either clicking on the `explain` link or by adding your notes to the bottom messages UI. 
 

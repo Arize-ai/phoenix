@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<7c229594bc1ab64fc1359da102053b55>>
+ * @generated SignedSource<<38e1783271fab299899a3660073c1ac0>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -56,8 +55,8 @@ v3 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -65,7 +64,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteDatasetLabelsMutationPayload",
         "kind": "LinkedField",
         "name": "deleteDatasetLabels",
@@ -79,7 +78,7 @@ return {
             "name": "datasetLabels",
             "plural": true,
             "selections": [
-              (v3/*: any*/)
+              (v3/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -93,15 +92,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "DeleteDatasetLabelButtonMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "DeleteDatasetLabelsMutationPayload",
         "kind": "LinkedField",
         "name": "deleteDatasetLabels",
@@ -115,7 +114,7 @@ return {
             "name": "datasetLabels",
             "plural": true,
             "selections": [
-              (v3/*: any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,

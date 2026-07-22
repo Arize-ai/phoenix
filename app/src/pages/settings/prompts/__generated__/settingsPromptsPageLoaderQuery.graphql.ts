@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<78adad7f1ece80c1d46b638f29a27298>>
+ * @generated SignedSource<<09b650a7677aa76dc8eb2bcda09608ec>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -51,7 +50,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "PromptLabelConnection",
         "kind": "LinkedField",
         "name": "promptLabels",
@@ -158,7 +157,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "PromptLabelsTable__promptLabels",

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<23347cf7feae342840985c710c2fa10a>>
+ * @generated SignedSource<<9d135ba93f24b565dd1a057b53177130>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -17,8 +16,11 @@ export type ExperimentRunSort = {
   dir: SortDir;
 };
 export type ExperimentRunColumn = {
-  annotationName?: string | null;
-  metric?: ExperimentRunMetric | null;
+  annotationName?: never;
+  metric: ExperimentRunMetric;
+} | {
+  annotationName: string;
+  metric?: never;
 };
 export type ExperimentCompareListPageQuery$variables = {
   after?: string | null;
@@ -93,9 +95,9 @@ v5 = {
   "storageKey": null
 },
 v6 = [
-  (v1/*: any*/),
-  (v2/*: any*/),
-  (v3/*: any*/)
+  (v1/*:: as any*/),
+  (v2/*:: as any*/),
+  (v3/*:: as any*/)
 ],
 v7 = {
   "alias": null,
@@ -199,7 +201,7 @@ v11 = {
               "name": "label",
               "storageKey": null
             },
-            (v5/*: any*/)
+            (v5/*:: as any*/)
           ],
           "storageKey": null
         }
@@ -218,14 +220,14 @@ v12 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentCompareListPageQuery",
     "selections": [
       {
         "args": [
-          (v1/*: any*/),
+          (v1/*:: as any*/),
           {
             "kind": "Variable",
             "name": "baseExperimentId",
@@ -236,8 +238,8 @@ return {
             "name": "compareExperimentIds",
             "variableName": "compareExperimentIds"
           },
-          (v2/*: any*/),
-          (v3/*: any*/)
+          (v2/*:: as any*/),
+          (v3/*:: as any*/)
         ],
         "kind": "FragmentSpread",
         "name": "ExperimentCompareListPage_comparisons"
@@ -248,7 +250,7 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ExperimentCompareListPageQuery",
     "selections": [
@@ -266,14 +268,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
-          (v5/*: any*/),
+          (v4/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v6/*: any*/),
+                "args": (v6/*:: as any*/),
                 "concreteType": "ExperimentRunConnection",
                 "kind": "LinkedField",
                 "name": "runs",
@@ -295,7 +297,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -303,9 +305,9 @@ return {
                             "name": "repetitionNumber",
                             "storageKey": null
                           },
-                          (v7/*: any*/),
-                          (v8/*: any*/),
-                          (v9/*: any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -328,12 +330,12 @@ return {
                                 "name": "projectId",
                                 "storageKey": null
                               },
-                              (v5/*: any*/)
+                              (v5/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v10/*: any*/),
-                          (v11/*: any*/),
+                          (v10/*:: as any*/),
+                          (v11/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -342,7 +344,7 @@ return {
                             "name": "example",
                             "plural": false,
                             "selections": [
-                              (v5/*: any*/),
+                              (v5/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -382,7 +384,7 @@ return {
                                 "name": "experimentRepeatedRunGroups",
                                 "plural": true,
                                 "selections": [
-                                  (v12/*: any*/),
+                                  (v12/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -391,17 +393,17 @@ return {
                                     "name": "runs",
                                     "plural": true,
                                     "selections": [
-                                      (v5/*: any*/),
-                                      (v12/*: any*/),
-                                      (v7/*: any*/),
-                                      (v8/*: any*/),
-                                      (v9/*: any*/),
-                                      (v10/*: any*/),
-                                      (v11/*: any*/)
+                                      (v5/*:: as any*/),
+                                      (v12/*:: as any*/),
+                                      (v7/*:: as any*/),
+                                      (v8/*:: as any*/),
+                                      (v9/*:: as any*/),
+                                      (v10/*:: as any*/),
+                                      (v11/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
-                                  (v5/*: any*/)
+                                  (v5/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -426,8 +428,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
-                          (v5/*: any*/)
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -464,7 +466,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v6/*: any*/),
+                "args": (v6/*:: as any*/),
                 "filters": [
                   "sort"
                 ],

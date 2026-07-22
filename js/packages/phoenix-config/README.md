@@ -31,16 +31,54 @@ npm install @arizeai/phoenix-config
 
 ## Environment Variables
 
-| Variable                     | Constant                         | Description                                                  |
-| ---------------------------- | -------------------------------- | ------------------------------------------------------------ |
-| `PHOENIX_HOST`               | `ENV_PHOENIX_HOST`               | Phoenix server host URL (e.g. `http://localhost:6006`)       |
-| `PHOENIX_API_KEY`            | `ENV_PHOENIX_API_KEY`            | API key for Phoenix authentication                           |
-| `PHOENIX_CLIENT_HEADERS`     | `ENV_PHOENIX_CLIENT_HEADERS`     | JSON-encoded custom headers for client requests              |
-| `PHOENIX_COLLECTOR_ENDPOINT` | `ENV_PHOENIX_COLLECTOR_ENDPOINT` | OTel collector endpoint URL                                  |
-| `PHOENIX_PORT`               | `ENV_PHOENIX_PORT`               | Phoenix HTTP port (integer)                                  |
-| `PHOENIX_GRPC_PORT`          | `ENV_PHOENIX_GRPC_PORT`          | Phoenix gRPC port for OpenTelemetry (integer)                |
-| `PHOENIX_PROJECT`            | `ENV_PHOENIX_PROJECT`            | Default project name for project-scoped operations           |
-| `PHOENIX_LOG_LEVEL`          | `ENV_PHOENIX_LOG_LEVEL`          | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent` |
+| Variable                     | Constant                         | Description                                                    |
+| ---------------------------- | -------------------------------- | -------------------------------------------------------------- |
+| `PHOENIX_HOST`               | `ENV_PHOENIX_HOST`               | Phoenix server host URL (e.g. `http://localhost:6006`)         |
+| `PHOENIX_API_KEY`            | `ENV_PHOENIX_API_KEY`            | API key for Phoenix authentication                             |
+| `PHOENIX_CLIENT_HEADERS`     | `ENV_PHOENIX_CLIENT_HEADERS`     | JSON-encoded custom headers for client requests                |
+| `PHOENIX_COLLECTOR_ENDPOINT` | `ENV_PHOENIX_COLLECTOR_ENDPOINT` | OTel collector endpoint URL                                    |
+| `PHOENIX_PORT`               | `ENV_PHOENIX_PORT`               | Phoenix HTTP port (integer)                                    |
+| `PHOENIX_GRPC_PORT`          | `ENV_PHOENIX_GRPC_PORT`          | Phoenix gRPC port for OpenTelemetry (integer)                  |
+| `PHOENIX_PROJECT`            | `ENV_PHOENIX_PROJECT`            | Default project name for project-scoped operations (canonical) |
+| `PHOENIX_PROJECT_NAME`       | `ENV_PHOENIX_PROJECT_NAME`       | Supported alias for `PHOENIX_PROJECT`                          |
+| `PHOENIX_LOG_LEVEL`          | `ENV_PHOENIX_LOG_LEVEL`          | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent`   |
+| `PHOENIX_DISCOVER_CONFIG`    | `ENV_PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` file discovery        |
+
+## Credential File Discovery (`.env.phoenix`)
+
+When a Phoenix setting is not set in the process environment, the helpers look
+for a `.env.phoenix` file in the current working directory — walking up toward
+the filesystem root and stopping at the first match — and read
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+Add `.env.phoenix` to your repository's ignore rules before storing credentials
+in this file (the Phoenix repository already ignores it).
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Process environment variables always take precedence — the file never overrides
+anything already set — and keys without a `PHOENIX_` prefix are ignored. Related
+settings are resolved as groups: when any credential (`PHOENIX_API_KEY`,
+`PHOENIX_CLIENT_HEADERS`) is set in the process environment, the file is ignored
+for the whole credential group, so process and file credentials are never mixed.
+Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery entirely.
+
+An endpoint from `.env.phoenix` can still be combined with credentials supplied
+explicitly or by the process environment. Consumers emit a one-time warning in
+that case naming the credential source, endpoint variable, and discovered file;
+credential values are never logged. Source-aware consumers should use
+`getStrFromEnvironmentWithSource()` and
+`getCredentialsFromEnvironmentWithSource()` rather than reconstructing the
+source tier themselves.
+
+Discovery results are cached per working directory for the lifetime of the
+process (including the absence of a file). Long-running processes that create
+the file after the first configuration lookup can call `clearEnvFileCache()` to
+re-discover it.
 
 ## Usage
 
@@ -59,7 +97,22 @@ const config = getEnvironmentConfig();
 //   PHOENIX_PORT: 6006,
 //   PHOENIX_GRPC_PORT: 4317,
 //   PHOENIX_LOG_LEVEL: "info",
+//   PHOENIX_PROJECT: "my-project",
 // }
+```
+
+### Resolving the Project Name
+
+`PHOENIX_PROJECT` is the canonical project-name variable; `PHOENIX_PROJECT_NAME`
+is a supported alias. Use `getProjectFromEnvironment()` to resolve the pair with
+the correct precedence (`PHOENIX_PROJECT` wins; a one-time warning is emitted if
+both are set to conflicting values):
+
+```typescript
+import { getProjectFromEnvironment } from "@arizeai/phoenix-config";
+
+const project = getProjectFromEnvironment();
+// Reads PHOENIX_PROJECT, then PHOENIX_PROJECT_NAME, or undefined if neither is set
 ```
 
 ### Reading Individual Values
@@ -97,6 +150,7 @@ import {
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
   ENV_PHOENIX_PORT,
   ENV_PHOENIX_GRPC_PORT,
+  ENV_PHOENIX_PROJECT_NAME,
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_LOG_LEVEL,
 } from "@arizeai/phoenix-config";

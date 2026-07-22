@@ -41,12 +41,24 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/agent-assisted-setup</loc>
     <lastmod>2026-02-21T00:34:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/mcp</loc>
+    <lastmod>2026-07-18T05:20:08+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/remote-mcp</loc>
+    <lastmod>2026-07-18T05:20:08+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/docs-mcp</loc>
+    <lastmod>2026-07-18T05:20:08+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/end-to-end-features-notebook</loc>
@@ -291,6 +303,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal</loc>
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/user-friction</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match</loc>
@@ -909,6 +925,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter</loc>
+    <lastmod>2026-07-08T22:09:50+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing</loc>
+    <lastmod>2026-07-08T22:09:50+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vertexai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -971,6 +995,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/vercel/eve-tracing</loc>
+    <lastmod>2026-07-06T16:57:24+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/agentspec</loc>
@@ -1493,6 +1521,42 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-dataset-labels</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/create-a-dataset-label</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/get-a-dataset-label-by-id</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/update-a-dataset-label-by-id</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/delete-a-dataset-label-by-id</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-the-labels-applied-to-a-dataset</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/replace-the-set-of-labels-applied-to-a-dataset</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/apply-a-label-to-a-dataset</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/remove-a-label-from-a-dataset</loc>
+    <lastmod>2026-07-12T07:41:54+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1749,6 +1813,18 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/deployment-options/render</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/deployment-options/google-cloud-run</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/deployment-options/azure</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/self-hosting/features/provisioning</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1839,6 +1915,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/identify-high-signal-traces</loc>
+    <lastmod>2026-07-06T16:57:24+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing</loc>
@@ -1971,6 +2051,18 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server</loc>
+    <lastmod>2026-07-18T05:20:08+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables</loc>
+    <lastmod>2026-07-16T00:31:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api</loc>
+    <lastmod>2026-07-09T01:40:54+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary</loc>

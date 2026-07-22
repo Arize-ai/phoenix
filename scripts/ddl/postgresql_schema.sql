@@ -49,6 +49,30 @@ CREATE TABLE public.languages (
 );
 
 
+-- Table: oauth2_clients
+-- ---------------------
+CREATE TABLE public.oauth2_clients (
+    id bigserial NOT NULL,
+    client_id VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    logo_uri VARCHAR,
+    redirect_uris JSONB NOT NULL,
+    grant_types JSONB NOT NULL,
+    token_endpoint_auth_method VARCHAR NOT NULL,
+    is_first_party BOOLEAN NOT NULL DEFAULT false,
+    metadata JSONB,
+    registration_client_ip VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_oauth2_clients PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX ix_oauth2_clients_client_id ON public.oauth2_clients
+    USING btree (client_id);
+CREATE INDEX ix_oauth2_clients_registration_client_ip ON public.oauth2_clients
+    USING btree (registration_client_ip, created_at);
+
+
 -- Table: project_trace_retention_policies
 -- ---------------------------------------
 CREATE TABLE public.project_trace_retention_policies (
@@ -108,8 +132,6 @@ CREATE TABLE public.project_annotation_configs (
 
 CREATE INDEX ix_project_annotation_configs_annotation_config_id ON public.project_annotation_configs
     USING btree (annotation_config_id);
-CREATE INDEX ix_project_annotation_configs_project_id ON public.project_annotation_configs
-    USING btree (project_id);
 
 
 -- Table: project_sessions
@@ -129,8 +151,8 @@ CREATE TABLE public.project_sessions (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_project_sessions_end_time ON public.project_sessions
-    USING btree (end_time);
+CREATE INDEX ix_project_sessions_project_id_end_time ON public.project_sessions
+    USING btree (project_id, end_time DESC);
 CREATE INDEX ix_project_sessions_project_id_start_time ON public.project_sessions
     USING btree (project_id, start_time DESC);
 
@@ -194,8 +216,6 @@ CREATE TABLE public.prompts_prompt_labels (
 
 CREATE INDEX ix_prompts_prompt_labels_prompt_id ON public.prompts_prompt_labels
     USING btree (prompt_id);
-CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_labels
-    USING btree (prompt_label_id);
 
 
 -- Table: token_prices
@@ -215,9 +235,6 @@ CREATE TABLE public.token_prices (
         REFERENCES public.generative_models (id)
         ON DELETE CASCADE
 );
-
-CREATE INDEX ix_token_prices_model_id ON public.token_prices
-    USING btree (model_id);
 
 
 -- Table: traces
@@ -283,12 +300,20 @@ CREATE TABLE public.spans (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
+    USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
+CREATE INDEX ix_latency ON public.spans
+    USING btree (((end_time - start_time)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
+CREATE INDEX ix_spans_session_id ON public.spans
+    USING btree ((((attributes #>> '{session,id}'::text[]))::character varying)) WHERE (((attributes #>> '{session,id}'::text[]))::character varying IS NOT NULL);
 CREATE INDEX ix_spans_start_time ON public.spans
     USING btree (start_time);
 CREATE INDEX ix_spans_trace_rowid ON public.spans
     USING btree (trace_rowid);
+CREATE INDEX ix_spans_user_id ON public.spans
+    USING btree ((((attributes #>> '{user,id}'::text[]))::character varying)) WHERE (((attributes #>> '{user,id}'::text[]))::character varying IS NOT NULL);
 
 
 -- Table: span_costs
@@ -420,6 +445,8 @@ CREATE TABLE public.api_keys (
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE,
+    scopes JSONB,
+    audience JSONB,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users FOREIGN KEY
         (user_id)
@@ -497,6 +524,9 @@ CREATE TABLE public.datasets (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_datasets_user_id ON public.datasets
+    USING btree (user_id);
+
 
 -- Table: dataset_examples
 -- -----------------------
@@ -519,10 +549,6 @@ CREATE TABLE public.dataset_examples (
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_dataset_examples_dataset_id ON public.dataset_examples
-    USING btree (dataset_id);
-CREATE INDEX ix_dataset_examples_external_id ON public.dataset_examples
-    USING btree (external_id);
 CREATE INDEX ix_dataset_examples_span_rowid ON public.dataset_examples
     USING btree (span_rowid);
 
@@ -571,6 +597,8 @@ CREATE TABLE public.dataset_versions (
 
 CREATE INDEX ix_dataset_versions_dataset_id ON public.dataset_versions
     USING btree (dataset_id);
+CREATE INDEX ix_dataset_versions_user_id ON public.dataset_versions
+    USING btree (user_id);
 
 
 -- Table: dataset_example_revisions
@@ -673,6 +701,8 @@ CREATE TABLE public.document_annotations (
 
 CREATE INDEX ix_document_annotations_span_rowid ON public.document_annotations
     USING btree (span_rowid);
+CREATE INDEX ix_document_annotations_user_id ON public.document_annotations
+    USING btree (user_id);
 
 
 -- Table: evaluators
@@ -760,8 +790,6 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
-    USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
@@ -807,6 +835,8 @@ CREATE INDEX ix_experiments_ephemeral_updated_at ON public.experiments
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
 CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
+CREATE INDEX ix_experiments_user_id ON public.experiments
+    USING btree (user_id);
 
 
 -- Table: experiment_jobs
@@ -892,6 +922,8 @@ CREATE TABLE public.experiment_logs (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_experiment_logs_experiment_id ON public.experiment_logs
+    USING btree (experiment_id);
 CREATE INDEX ix_experiment_logs_experiment_id_occurred_at_errors ON public.experiment_logs
     USING btree (experiment_id, occurred_at DESC) WHERE ((level)::text = 'ERROR'::text);
 
@@ -953,6 +985,11 @@ CREATE TABLE public.experiment_eval_logs (
         REFERENCES public.experiment_runs (id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiment_eval_logs_dataset_evaluator_id ON public.experiment_eval_logs
+    USING btree (dataset_evaluator_id);
+CREATE INDEX ix_experiment_eval_logs_experiment_run_id ON public.experiment_eval_logs
+    USING btree (experiment_run_id);
 
 
 -- Table: experiment_run_annotations
@@ -1039,6 +1076,9 @@ CREATE TABLE public.experiment_task_logs (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_experiment_task_logs_dataset_example_id ON public.experiment_task_logs
+    USING btree (dataset_example_id);
+
 
 -- Table: experiments_dataset_examples
 -- -----------------------------------
@@ -1115,6 +1155,69 @@ CREATE TABLE public.generative_model_custom_providers (
 );
 
 
+-- Table: oauth2_authorization_codes
+-- ---------------------------------
+CREATE TABLE public.oauth2_authorization_codes (
+    id bigserial NOT NULL,
+    code_hash VARCHAR NOT NULL,
+    user_id BIGINT NOT NULL,
+    oauth2_client_id BIGINT NOT NULL,
+    redirect_uri VARCHAR NOT NULL,
+    code_challenge VARCHAR NOT NULL,
+    code_challenge_method VARCHAR NOT NULL,
+    scopes JSONB,
+    resource VARCHAR,
+    audience JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT pk_oauth2_authorization_codes PRIMARY KEY (id),
+    CONSTRAINT fk_oauth2_authorization_codes_oauth2_client_id_oauth2_clients
+        FOREIGN KEY
+        (oauth2_client_id)
+        REFERENCES public.oauth2_clients (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_oauth2_authorization_codes_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX ix_oauth2_authorization_codes_code_hash ON public.oauth2_authorization_codes
+    USING btree (code_hash);
+CREATE INDEX ix_oauth2_authorization_codes_expires_at ON public.oauth2_authorization_codes
+    USING btree (expires_at);
+
+
+-- Table: oauth2_grants
+-- --------------------
+CREATE TABLE public.oauth2_grants (
+    id bigserial NOT NULL,
+    user_id BIGINT NOT NULL,
+    oauth2_client_id BIGINT NOT NULL,
+    scopes JSONB,
+    audience JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP WITH TIME ZONE,
+    last_used_at TIMESTAMP WITH TIME ZONE,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT pk_oauth2_grants PRIMARY KEY (id),
+    CONSTRAINT fk_oauth2_grants_oauth2_client_id_oauth2_clients
+        FOREIGN KEY
+        (oauth2_client_id)
+        REFERENCES public.oauth2_clients (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_oauth2_grants_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_oauth2_grants_oauth2_client_id ON public.oauth2_grants
+    USING btree (oauth2_client_id);
+CREATE INDEX ix_oauth2_grants_user_id ON public.oauth2_grants
+    USING btree (user_id);
+
+
 -- Table: password_reset_tokens
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
@@ -1176,6 +1279,8 @@ CREATE TABLE public.project_session_annotations (
 
 CREATE INDEX ix_project_session_annotations_project_session_id ON public.project_session_annotations
     USING btree (project_session_id);
+CREATE INDEX ix_project_session_annotations_user_id ON public.project_session_annotations
+    USING btree (user_id);
 
 
 -- Table: prompt_versions
@@ -1338,10 +1443,18 @@ CREATE INDEX ix_llm_evaluators_prompt_version_tag_id ON public.llm_evaluators
 -- ---------------------
 CREATE TABLE public.refresh_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    oauth2_grant_id BIGINT,
+    scopes JSONB,
+    audience JSONB,
+    consumed_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
+    CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants FOREIGN KEY
+        (oauth2_grant_id)
+        REFERENCES public.oauth2_grants (id)
+        ON DELETE CASCADE,
     CONSTRAINT fk_refresh_tokens_user_id_users FOREIGN KEY
         (user_id)
         REFERENCES public.users (id)
@@ -1350,6 +1463,8 @@ CREATE TABLE public.refresh_tokens (
 
 CREATE INDEX ix_refresh_tokens_expires_at ON public.refresh_tokens
     USING btree (expires_at);
+CREATE INDEX ix_refresh_tokens_oauth2_grant_id ON public.refresh_tokens
+    USING btree (oauth2_grant_id);
 CREATE INDEX ix_refresh_tokens_user_id ON public.refresh_tokens
     USING btree (user_id);
 
@@ -1358,10 +1473,12 @@ CREATE INDEX ix_refresh_tokens_user_id ON public.refresh_tokens
 -- --------------------
 CREATE TABLE public.access_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    refresh_token_id INTEGER,
+    refresh_token_id INTEGER NOT NULL,
+    scopes JSONB,
+    audience JSONB,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
         FOREIGN KEY
@@ -1556,6 +1673,8 @@ CREATE TABLE public.span_annotations (
 
 CREATE INDEX ix_span_annotations_span_rowid ON public.span_annotations
     USING btree (span_rowid);
+CREATE INDEX ix_span_annotations_user_id ON public.span_annotations
+    USING btree (user_id);
 
 
 -- Table: system_settings
@@ -1616,3 +1735,5 @@ CREATE TABLE public.trace_annotations (
 
 CREATE INDEX ix_trace_annotations_trace_rowid ON public.trace_annotations
     USING btree (trace_rowid);
+CREATE INDEX ix_trace_annotations_user_id ON public.trace_annotations
+    USING btree (user_id);

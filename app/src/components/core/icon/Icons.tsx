@@ -397,6 +397,63 @@ export const Calendar = () => (
   </svg>
 );
 
+// @src: lucide chart-bar-decreasing
+export const ChartBarDecreasing = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M3 3v16a2 2 0 0 0 2 2h16" />
+    <path fill="none" d="M7 11h8" />
+    <path fill="none" d="M7 16h3" />
+    <path fill="none" d="M7 6h12" />
+  </svg>
+);
+
+// @src: lucide chart-no-axes-column
+export const ChartNoAxesColumn = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M5 21v-6" />
+    <path fill="none" d="M12 21V3" />
+    <path fill="none" d="M19 21V9" />
+  </svg>
+);
+
+// @src: lucide chart-line
+export const ChartLine = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M3 3v16a2 2 0 0 0 2 2h16" />
+    <path fill="none" d="m19 9-5 5-4-4-3 3" />
+  </svg>
+);
+
 export const ChevronUpDownSmall = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -440,6 +497,25 @@ export const ArrowUpRightCorner = () => (
         <path d="M19.78 10.38l-4-5a1 1 0 0 0-1.56 1.24l2.7 3.38H8a3 3 0 0 0-3 3v5a1 1 0 0 0 2 0v-5a1 1 0 0 1 1-1h8.92l-2.7 3.38a1 1 0 0 0 .16 1.4A1 1 0 0 0 15 17a1 1 0 0 0 .78-.38l4-5a1 1 0 0 0 0-1.24z" />
       </g>
     </g>
+  </svg>
+);
+
+// @src: lucide
+export const CircleUserRound = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M17.925 20.056a6 6 0 0 0-11.851.001" />
+    <circle fill="none" cx="12" cy="11" r="4" />
+    <circle fill="none" cx="12" cy="12" r="10" />
   </svg>
 );
 
@@ -665,6 +741,28 @@ export const CloudUpload = () => (
   </svg>
 );
 
+// @src: lucide box
+export const Cube = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="none"
+      d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+    />
+    <path fill="none" d="m3.3 7 8.7 5 8.7-5" />
+    <path fill="none" d="M12 22V12" />
+  </svg>
+);
+
 //D
 export const Database = () => (
   <svg
@@ -819,6 +917,25 @@ export const Expand = () => (
   </svg>
 );
 
+// @src: lucide link-2
+export const Link2 = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M9 17H7A5 5 0 0 1 7 7h2" />
+    <path fill="none" d="M15 7h2a5 5 0 1 1 0 10h-2" />
+    <line x1="8" x2="16" y1="12" y2="12" />
+  </svg>
+);
+
 export const Eye = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -903,6 +1020,10 @@ export const Folder = () => (
   </svg>
 );
 
+/**
+ * @deprecated Use {@link ListFilter} instead — the funnel glyph has been
+ * replaced by the list-filter glyph for filtering affordances.
+ */
 export const Funnel = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -915,6 +1036,29 @@ export const Funnel = () => (
 );
 
 //G
+
+// @src: lucide
+export const Gift = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M12 7v14" />
+    <path fill="none" d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" />
+    <path
+      fill="none"
+      d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5"
+    />
+    <rect fill="none" x="3" y="7" width="18" height="4" rx="1" />
+  </svg>
+);
 
 export const GitBranch = () => (
   <svg
@@ -1183,6 +1327,24 @@ export const List = () => (
         <rect x="7" y="6" width="14" height="2" rx=".94" ry=".94" />
       </g>
     </g>
+  </svg>
+);
+
+export const ListFilter = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M2 5h20" />
+    <path d="M6 12h12" />
+    <path d="M9 19h6" />
   </svg>
 );
 
@@ -1801,6 +1963,19 @@ export const SlideIn = () => (
   </svg>
 );
 
+export const Sparkle = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    style={{ fill: "none", stroke: "currentColor" }}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
+  </svg>
+);
+
 export const Split = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -1992,24 +2167,20 @@ export const ThumbsDown = () => (
 
 export const Tokens = () => (
   <svg
-    width="16"
-    height="16"
-    viewBox="0 0 16 16"
-    fill="none"
     xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
-    <g>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M7.32264 7.73275L6.26721 6.67733C5.93552 6.34564 5.39776 6.34564 5.06607 6.67733L4.01064 7.73275C3.67895 8.06445 3.67895 8.60221 4.01064 8.9339L5.06607 9.98933C5.39776 10.321 5.93552 10.321 6.26721 9.98933L7.32264 8.9339C7.65433 8.60221 7.65433 8.06445 7.32264 7.73275ZM4.75695 8.33333L5.66664 7.42364L6.57633 8.33333L5.66664 9.24302L4.75695 8.33333Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M5.66672 13.3333C6.43362 13.3333 7.16019 13.1607 7.80972 12.8521C8.4596 13.1608 9.18643 13.3333 9.95243 13.3333C12.7139 13.3333 14.9524 11.0948 14.9524 8.33334C14.9524 5.57192 12.7139 3.33334 9.95243 3.33334C9.18643 3.33334 8.4596 3.50591 7.80969 3.81458C7.16019 3.50601 6.43362 3.33334 5.66672 3.33334C2.90529 3.33334 0.666718 5.57192 0.666718 8.33334C0.666718 11.0948 2.90529 13.3333 5.66672 13.3333ZM5.66672 4.28572C3.43129 4.28572 1.6191 6.09791 1.6191 8.33334C1.6191 10.5688 3.43129 12.381 5.66672 12.381C7.72319 12.381 9.42146 10.8473 9.68019 8.86141C9.70272 8.68858 9.71434 8.51232 9.71434 8.33334C9.71434 8.19363 9.70727 8.05556 9.69343 7.91949C9.48617 5.87846 7.76243 4.28572 5.66672 4.28572ZM9.95243 12.381C9.55679 12.381 9.17481 12.3243 8.81393 12.2188C9.81991 11.4029 10.5028 10.2043 10.6409 8.84456C10.658 8.67649 10.6667 8.50594 10.6667 8.33334C10.6667 8.10822 10.6518 7.88658 10.623 7.66934C10.451 6.37275 9.78208 5.23306 8.81393 4.44791C9.17481 4.34237 9.55679 4.28572 9.95243 4.28572C12.1879 4.28572 14.0001 6.09791 14.0001 8.33334C14.0001 10.5688 12.1879 12.381 9.95243 12.381Z"
-      />
-    </g>
+    <path fill="none" d="M13.744 17.736a6 6 0 1 1-7.48-7.48" />
+    <path fill="none" d="M15 6h1v4" />
+    <path fill="none" d="m6.134 14.768.866-.5 2 3.464" />
+    <circle fill="none" cx="16" cy="8" r="6" />
   </svg>
 );
 

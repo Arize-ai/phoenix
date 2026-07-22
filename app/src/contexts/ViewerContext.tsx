@@ -36,51 +36,56 @@ export function useViewerCanModify() {
 }
 
 /**
+ * Returns true if the viewer is an admin or authentication is disabled.
+ * This matches the server-side IsAdminIfAuthEnabled permission.
+ */
+export function useIsAdminOrAuthDisabled() {
+  const isAuthenticatedAdmin = useIsAuthenticatedAdmin();
+  return !window.Config.authenticationEnabled || isAuthenticatedAdmin;
+}
+
+/**
+ * Returns true only for an authenticated admin.
+ * This matches the server-side IsAdmin permission.
+ */
+export function useIsAuthenticatedAdmin() {
+  const { viewer } = useViewer();
+  return window.Config.authenticationEnabled && viewer?.role?.name === "ADMIN";
+}
+
+/**
  * Returns true if the viewer can manage retention policies
- * Note: when the app is not configured with auth, we assume the user is an admin
  */
 export function useViewerCanManageRetentionPolicy() {
-  const { viewer } = useViewer();
-  if (viewer && viewer?.role?.name !== "ADMIN") {
-    return false;
-  }
-  return true;
+  return useIsAdminOrAuthDisabled();
 }
 
 /**
  * Returns true if the viewer can manage sandboxes
- * Note: when the app is not configured with auth, we assume the user is an admin
  */
 export function useViewerCanManageSandboxes() {
-  const { viewer } = useViewer();
-  if (viewer && viewer?.role?.name !== "ADMIN") {
-    return false;
-  }
-  return true;
+  return useIsAdminOrAuthDisabled();
 }
 
 /**
  * Returns true if the viewer can manage secrets
- * Note: when the app is not configured with auth, we assume the user is an admin
  */
 export function useViewerCanManageSecrets() {
-  const { viewer } = useViewer();
-  if (viewer && viewer?.role?.name !== "ADMIN") {
-    return false;
-  }
-  return true;
+  return useIsAdminOrAuthDisabled();
+}
+
+/**
+ * Returns true if the viewer should be shown platform version update notices
+ */
+export function useViewerCanSeeVersionUpdates() {
+  return useIsAdminOrAuthDisabled();
 }
 
 /**
  * Returns true if the viewer can bulk-delete a project's annotations
- * Note: when the app is not configured with auth, we assume the user is an admin
  */
 export function useViewerCanDeleteProjectAnnotations() {
-  const { viewer } = useViewer();
-  if (viewer && viewer.role?.name !== "ADMIN") {
-    return false;
-  }
-  return true;
+  return useIsAdminOrAuthDisabled();
 }
 
 export function ViewerProvider({
@@ -103,7 +108,8 @@ export function ViewerProvider({
             name
           }
           authMethod
-          ...APIKeysTableFragment
+          ...ViewerAPIKeysListFragment
+          ...AuthorizedApplicationsCardFragment
         }
       }
     `,

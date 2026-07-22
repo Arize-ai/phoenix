@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c2ba5672b83c7878dd6e75d86854d335>>
+ * @generated SignedSource<<737a4f7159a6ab8ed7ea25afe35af12c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -78,7 +77,7 @@ v6 = {
 v7 = {
   "kind": "InlineFragment",
   "selections": [
-    (v6/*: any*/)
+    (v6/*:: as any*/)
   ],
   "type": "TraceRetentionRuleMaxDays",
   "abstractKey": null
@@ -93,7 +92,7 @@ v8 = {
 v9 = {
   "kind": "InlineFragment",
   "selections": [
-    (v8/*: any*/)
+    (v8/*:: as any*/)
   ],
   "type": "TraceRetentionRuleMaxCount",
   "abstractKey": null
@@ -101,28 +100,28 @@ v9 = {
 v10 = {
   "kind": "InlineFragment",
   "selections": [
-    (v6/*: any*/),
-    (v8/*: any*/)
+    (v6/*:: as any*/),
+    (v8/*:: as any*/)
   ],
   "type": "TraceRetentionRuleMaxDaysOrCount",
   "abstractKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectPageQueriesProjectConfigQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "args": null,
             "kind": "FragmentSpread",
@@ -147,24 +146,24 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectPageQueriesProjectConfigQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v2/*: any*/),
+          (v3/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
+              (v4/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -194,9 +193,9 @@ return {
                 "name": "traceRetentionPolicy",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/),
+                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -205,10 +204,10 @@ return {
                     "name": "rule",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
-                      (v7/*: any*/),
-                      (v9/*: any*/),
-                      (v10/*: any*/)
+                      (v3/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v9/*:: as any*/),
+                      (v10/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -246,9 +245,9 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/),
+                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -257,10 +256,10 @@ return {
                     "name": "rule",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
-                      (v9/*: any*/),
-                      (v7/*: any*/),
-                      (v10/*: any*/)
+                      (v3/*:: as any*/),
+                      (v9/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v10/*:: as any*/)
                     ],
                     "storageKey": null
                   }

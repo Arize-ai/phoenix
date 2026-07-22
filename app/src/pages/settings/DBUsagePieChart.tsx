@@ -1,10 +1,14 @@
-import { schemePaired } from "d3-scale-chromatic";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import type { TooltipContentProps } from "recharts";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
-import { ChartTooltip, ChartTooltipItem } from "@phoenix/components/chart";
+import {
+  ChartTooltip,
+  ChartTooltipItem,
+  getCategoryChartColor,
+  useCategoryChartColors,
+} from "@phoenix/components/chart";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
@@ -17,7 +21,7 @@ function TooltipContent({ active, payload }: TooltipContentProps) {
       <ChartTooltip>
         <ChartTooltipItem
           shape="square"
-          color={payload[0].payload.fill || "transparent"}
+          color={payload[0].payload.fill}
           name={String(payload[0].name ?? "--")}
           value={storageSizeFormatter(Number(payload[0].value) || 0)}
         />
@@ -33,6 +37,7 @@ export function DBUsagePieChart({
 }: {
   query: DBUsagePieChart_data$key;
 }) {
+  const categoryColors = useCategoryChartColors();
   const data = useFragment<DBUsagePieChart_data$key>(
     graphql`
       fragment DBUsagePieChart_data on Query {
@@ -85,7 +90,7 @@ export function DBUsagePieChart({
               fill={
                 x.tableName === REMAINING_TEXT
                   ? "var(--global-color-gray-200)"
-                  : `${schemePaired[index % schemePaired.length]}`
+                  : getCategoryChartColor({ index, colors: categoryColors })
               }
             />
           ))}
@@ -95,7 +100,7 @@ export function DBUsagePieChart({
           x="50%"
           y="50%"
           textAnchor="middle"
-          fill="var(--global-text-color-900"
+          fill="var(--global-text-color-900)"
           fontSize="var(--global-font-size-xl)"
         >
           {`${typeof data.dbStorageCapacityBytes === "number" ? percentFormatter((totalUsedBytes / data.dbStorageCapacityBytes) * 100) : storageSizeFormatter(totalUsedBytes)}`}
@@ -105,7 +110,7 @@ export function DBUsagePieChart({
           y="50%"
           dy={25}
           textAnchor="middle"
-          fill="var(--global-text-color-900"
+          fill="var(--global-text-color-900)"
           fontSize="var(--global-font-size-s)"
         >
           {`Used`}

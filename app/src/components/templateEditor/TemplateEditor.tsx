@@ -25,6 +25,10 @@ type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
    * When provided, enables autocomplete for template variables.
    */
   availablePaths?: string[];
+  /**
+   * Accessible name for the editor's textbox
+   */
+  "aria-label"?: string;
 };
 
 const basicSetupOptions: BasicSetupOptions = {
@@ -57,13 +61,18 @@ export const TemplateEditor = ({
   defaultValue,
   readOnly,
   availablePaths,
+  "aria-label": ariaLabel = "Prompt template",
   ...props
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
-    const ext: TemplateEditorProps["extensions"] = [...baseExtensions];
+    const ext: TemplateEditorProps["extensions"] = [
+      ...baseExtensions,
+      // name the textbox for assistive technology
+      EditorView.contentAttributes.of({ "aria-label": ariaLabel }),
+    ];
     switch (templateFormat) {
       case TemplateFormats.FString:
         ext.push(FStringTemplating());
@@ -86,7 +95,7 @@ export const TemplateEditor = ({
       ext.push(createTemplateAutocomplete(availablePaths, templateFormat));
     }
     return ext;
-  }, [templateFormat, availablePaths, readOnly]);
+  }, [templateFormat, availablePaths, readOnly, ariaLabel]);
 
   useEffect(() => {
     if (readOnly) {

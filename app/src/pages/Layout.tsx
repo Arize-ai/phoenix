@@ -1,39 +1,38 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useRef } from "react";
+import { Suspense, useRef } from "react";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   AgentChatPanel,
+  AgentChatTopNavButton,
   AgentChatWidget,
   FloatingAgentChatPanel,
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
 import {
+  AccountMenu,
   Brand,
-  DocsLink,
   GitHubLink,
-  ManagementLink,
   NavBreadcrumb,
-  NavButton,
   NavLink,
   NavTitle,
   SideNavbar,
   SideNavToggleButton,
-  ThemeSelector,
   TopNavActionsProvider,
   TopNavActionsSlot,
   TopNavbar,
+  VersionUpdateNotice,
 } from "@phoenix/components/nav";
+import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
+  useActiveDrawerWidth,
   useHasOpenDrawer,
   useHasOpenModal,
 } from "@phoenix/hooks/useHasOpenModal";
-import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { LayoutLoaderData } from "./layoutLoader";
 
@@ -94,8 +93,12 @@ export function Layout() {
   const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
   const agentPosition = useAgentContext((state) => state.position);
+  const isAgentFabFloating = useAgentContext(
+    (state) => state.fabMode === "floating"
+  );
   const hasOpenModal = useHasOpenModal();
   const hasOpenDrawer = useHasOpenDrawer();
+  const activeDrawerWidth = useActiveDrawerWidth();
   const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
     isAgentAssistantEnabled &&
@@ -128,13 +131,16 @@ export function Layout() {
             onLayoutChanged={onLayoutChanged}
           >
             <Panel id="layout-content" css={layoutContentPanelCSS}>
-              <TopNavbar>
+              <TopNavbar rightInset={activeDrawerWidth}>
                 <SideNavToggleButton />
                 <NavBreadcrumb />
                 <TopNavActionsSlot />
+                {isAgentFabFloating ? null : <AgentChatTopNavButton />}
               </TopNavbar>
               <div data-testid="content" css={contentCSS} ref={contentRef}>
-                <AgentChatWidget boundaryRef={contentRef} />
+                {isAgentFabFloating ? (
+                  <AgentChatWidget boundaryRef={contentRef} />
+                ) : null}
                 {shouldShowFloatingAgentPanel ? (
                   <FloatingAgentChatPanel
                     boundaryRef={contentRef}
@@ -160,15 +166,14 @@ function SideNav() {
     (state) => state.isSideNavExpanded
   );
   const loaderData = useLoaderData<LayoutLoaderData>();
-  const { authenticationEnabled } = useFunctionality();
-  const onLogout = useCallback(() => {
-    window.location.replace(prependBasename("/auth/logout"));
-  }, []);
   return (
     <SideNavbar isExpanded={isSideNavExpanded}>
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
+          <li key="search">
+            <GlobalSearch isExpanded={isSideNavExpanded} />
+          </li>
           <li>
             <NavLink
               to="/projects"
@@ -255,53 +260,21 @@ function SideNav() {
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
+          <VersionUpdateNotice isExpanded={isSideNavExpanded} />
           <li key="github">
             <GitHubLink isExpanded={isSideNavExpanded} />
           </li>
           <li key="settings">
             <NavLink
-              to="/settings/general"
+              to="/settings"
               text="Settings"
-              leadingVisual={<Icon svg={<Icons.Settings />} />}
+              leadingVisual={<Icon svg={<Icons.Options />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>
-          <li key="docs">
-            <DocsLink isExpanded={isSideNavExpanded} />
+          <li key="account">
+            <AccountMenu isExpanded={isSideNavExpanded} />
           </li>
-          <li key="support">
-            <NavLink
-              to="/support"
-              text="Support"
-              leadingVisual={<Icon svg={<Icons.LifeBuoy />} />}
-              isExpanded={isSideNavExpanded}
-            />
-          </li>
-          <li key="theme-toggle">
-            <ThemeSelector isExpanded={isSideNavExpanded} />
-          </li>
-          <li key="profile">
-            <NavLink
-              to="/profile"
-              text="Profile"
-              leadingVisual={<Icon svg={<Icons.Person />} />}
-              isExpanded={isSideNavExpanded}
-            />
-          </li>
-          {authenticationEnabled && (
-            <>
-              <Suspense>
-                <ManagementLink isExpanded={isSideNavExpanded} />
-              </Suspense>
-              <li key="logout">
-                <NavButton
-                  text="Log Out"
-                  leadingVisual={<Icon svg={<Icons.LogOut />} />}
-                  onClick={onLogout}
-                />
-              </li>
-            </>
-          )}
         </ul>
       </Flex>
     </SideNavbar>

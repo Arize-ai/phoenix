@@ -17,6 +17,8 @@ export const tableCSS = css`
     background-color: var(--global-table-header-background-color);
     tr {
       th {
+        box-sizing: border-box;
+        height: var(--global-table-header-height);
         padding: var(--global-table-cell-padding-y)
           var(--global-table-cell-padding-x);
         position: relative;

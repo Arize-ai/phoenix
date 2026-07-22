@@ -105,10 +105,16 @@ When developing, the server requires the following environment variables:
 
 - `PHOENIX_API_KEY`: Your Phoenix API key
 - `PHOENIX_HOST`: The base URL for Phoenix
-- `PHOENIX_PROJECT`: Optional default project for project-scoped tools
+- `PHOENIX_PROJECT`: Optional default project for project-scoped tools (alias: `PHOENIX_PROJECT_NAME`)
 - `PHOENIX_CLIENT_HEADERS`: Optional JSON-encoded request headers
 
 Make sure to set these in a `.env` file. See `.env.example`.
+
+At runtime the server also discovers the nearest `.env.phoenix` file at or
+above the working directory. Process environment variables and command-line
+options take precedence. If a higher-priority API key is paired with
+`PHOENIX_HOST` from the file, the server warns once and continues. Set
+`PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
 ## Tool Coverage
 

@@ -6,6 +6,10 @@ import type { MouseHandlerDataParam } from "recharts";
 import { clampNumber } from "@phoenix/utils/numberUtils";
 
 const timeRangeChartBrushCSS = css`
+  /* Dragging out a selection must not select axis text or the chart svg */
+  user-select: none;
+  -webkit-user-select: none;
+
   .recharts-wrapper,
   .recharts-surface {
     cursor: crosshair !important;
