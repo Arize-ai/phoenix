@@ -726,13 +726,19 @@ def test_offline_builds_no_tracer(
     monkeypatch.setenv("PHOENIX_TEST_TRACKING", "false")
     pytester.makeconftest(
         """
+        import builtins
         import phoenix.client.pytest.plugin as plugin
         import phoenix.client.pytest.tracing as tracing
+        from opentelemetry import trace
 
         def pytest_configure(config):
+            original_provider = trace.NoOpTracerProvider()
+            trace._TRACER_PROVIDER = original_provider
+            builtins._phoenix_original_provider = original_provider
             def _boom(*a, **k):
                 raise AssertionError("no tracer should be built offline")
             tracing.build_suite_tracer = _boom
+            tracing._attach_global_tracer_provider = _boom
             def _no_client():
                 raise AssertionError("no client offline")
             plugin._make_client = _no_client
@@ -740,12 +746,25 @@ def test_offline_builds_no_tracer(
     )
     pytester.makepyfile(
         test_off="""
+        import builtins
         import pytest
         import phoenix.client.pytest as px
+        from opentelemetry import trace
+        from phoenix.client.pytest.context import current_run
+
+        def offline_eval(output, **_):
+            assert trace.get_tracer_provider() is builtins._phoenix_original_provider
+            return {"name": "offline", "score": 1.0}
 
         @pytest.mark.phoenix(dataset="trace-suite")
         def test_one():
             px.log_output("hi")
+            px.evaluate(offline_eval, output="hi")
+            run = current_run()
+            assert run is not None
+            assert run.trace_id is None
+            assert run.evaluations["offline"]["trace_id"] is None
+            assert trace.get_tracer_provider() is builtins._phoenix_original_provider
             assert True
         """
     )
@@ -756,26 +775,73 @@ def test_offline_builds_no_tracer(
 # ``SimpleSpanProcessor`` for the no-op one) so a test can read back the actual exported span
 # status/events. The appended ``pytest_unconfigure`` dumps spans and shadows the trace.json one.
 _SPAN_CAPTURE_HEADER = """
+import builtins
 import phoenix.client.pytest.tracing as _tracing
+from opentelemetry import trace as _trace
 from opentelemetry.sdk import trace as _trace_sdk
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SSP
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter as _IMSE
 from opentelemetry.sdk.resources import Resource as _Resource
 from openinference.instrumentation import OITracer as _OITracer, TraceConfig as _TraceConfig
 from openinference.semconv.resource import ResourceAttributes as _RA
+from phoenix.client.resources.experiments import _TracerBundle
 
-_SPAN_EXPORTER = _IMSE()
+_SPAN_EXPORTERS = []
+_LIFECYCLE = []
+_trace._TRACER_PROVIDER = None
+_ORIGINAL_PROVIDER = _trace.get_tracer_provider()
+builtins._phoenix_original_provider = _ORIGINAL_PROVIDER
+builtins._phoenix_fail_flush = False
 
-def _capturing_get_tracer(project_name=None, base_url=None, headers=None):
+class _RecordingExporter(_IMSE):
+    def __init__(self, project_name):
+        super().__init__()
+        self.project_name = project_name
+
+    def export(self, spans):
+        for span in spans:
+            _LIFECYCLE.append({"event": "export", "project": self.project_name,
+                               "span": span.name})
+        return super().export(spans)
+
+class _RecordingProvider(_trace_sdk.TracerProvider):
+    def __init__(self, *, resource, project_name):
+        super().__init__(resource=resource)
+        self.project_name = project_name
+
+    def force_flush(self, *args, **kwargs):
+        _LIFECYCLE.append({"event": "flush", "project": self.project_name,
+                           "is_global": _trace.get_tracer_provider() is self})
+        if self.project_name == "evaluators" and builtins._phoenix_fail_flush:
+            builtins._phoenix_fail_flush = False
+            raise RuntimeError("flush failed")
+        return super().force_flush(*args, **kwargs)
+
+    def shutdown(self):
+        _LIFECYCLE.append({"event": "shutdown", "project": self.project_name})
+        return super().shutdown()
+
+def _capturing_get_tracer_bundle(project_name=None, base_url=None, headers=None):
     resource = _Resource({_RA.PROJECT_NAME: project_name} if project_name else {})
-    tp = _trace_sdk.TracerProvider(resource=resource)
-    tp.add_span_processor(_SSP(_SPAN_EXPORTER))
-    return _OITracer(tp.get_tracer(__name__), config=_TraceConfig()), resource
+    exporter = _RecordingExporter(project_name)
+    _SPAN_EXPORTERS.append(exporter)
+    tp = _RecordingProvider(resource=resource, project_name=project_name)
+    tp.add_span_processor(_SSP(exporter))
+    if project_name == "evaluators":
+        builtins._phoenix_evaluator_provider = tp
+    return _TracerBundle(
+        tracer=_OITracer(tp.get_tracer(__name__), config=_TraceConfig()),
+        resource=resource,
+        provider=tp,
+    )
 
-_tracing._get_tracer = _capturing_get_tracer
+_tracing._get_tracer_bundle = _capturing_get_tracer_bundle
 """
 
 _SPAN_CAPTURE_FOOTER = """
+import pytest
+
+@pytest.hookimpl(trylast=True)
 def pytest_unconfigure(config):
     import json, os
     from openinference.semconv.trace import SpanAttributes as _SA
@@ -783,20 +849,30 @@ def pytest_unconfigure(config):
         {"name": s.name, "status": s.status.status_code.name,
          "kind": s.attributes.get(_SA.OPENINFERENCE_SPAN_KIND),
          "trace_id": format(s.context.trace_id, "032x"),
+         "project": s.resource.attributes.get(_RA.PROJECT_NAME),
          "events": [e.name for e in s.events]}
-        for s in _SPAN_EXPORTER.get_finished_spans()
+        for exporter in _SPAN_EXPORTERS
+        for s in exporter.get_finished_spans()
     ]
+    client = config._c
     with open(os.path.join(str(config.rootdir), "spans.json"), "w") as f:
-        json.dump(spans, f)
+        json.dump({"spans": spans, "lifecycle": _LIFECYCLE,
+                   "restored": _trace.get_tracer_provider() is _ORIGINAL_PROVIDER,
+                   "runs": client.experiments.runs,
+                   "evals": client.experiments.evals}, f)
 """
 
 _TRACING_CAPTURE_CONFTEST = _SPAN_CAPTURE_HEADER + _TRACING_CONFTEST + _SPAN_CAPTURE_FOOTER
 
 
-def _spans(pytester: pytest.Pytester) -> list[dict[str, Any]]:
+def _span_effects(pytester: pytest.Pytester) -> dict[str, Any]:
     import json
 
-    return cast("list[dict[str, Any]]", json.loads((pytester.path / "spans.json").read_text()))
+    return cast("dict[str, Any]", json.loads((pytester.path / "spans.json").read_text()))
+
+
+def _spans(pytester: pytest.Pytester) -> list[dict[str, Any]]:
+    return cast("list[dict[str, Any]]", _span_effects(pytester)["spans"])
 
 
 def test_failing_test_records_error_chain_span(pytester: pytest.Pytester) -> None:
@@ -841,35 +917,134 @@ def test_passing_test_records_ok_chain_span(pytester: pytest.Pytester) -> None:
     assert "exception" not in chain["events"]
 
 
-def test_every_evaluation_emits_an_evaluator_span(pytester: pytest.Pytester) -> None:
-    """The test body is the lone CHAIN span; every evaluation — the auto pass/fail annotation, a
-    bare px.log_evaluation, and a hoisted marker evaluator — emits its own EVALUATOR span on a
-    trace distinct from the CHAIN trace."""
+def test_task_and_evaluator_spans_use_separate_provider_lifecycles(
+    pytester: pytest.Pytester,
+) -> None:
+    """Task and evaluator spans use distinct projects while evaluator-global tracing is scoped."""
     pytester.makeconftest(_TRACING_CAPTURE_CONFTEST)
     pytester.makepyfile(
         test_kinds="""
+        import builtins
         import pytest
         import phoenix.client.pytest as px
+        from opentelemetry import trace
+        from phoenix.client.pytest.context import current_run
+
+        def _evaluator_child(name):
+            assert trace.get_tracer_provider() is builtins._phoenix_evaluator_provider
+            with trace.get_tracer(__name__).start_as_current_span(name):
+                pass
+
+        def inline(output, **_):
+            _evaluator_child("inline child")
+            return {"name": "inline", "score": 1.0}
+        inline.name = "inline"
+
+        def nested(output, **_):
+            _evaluator_child("nested child")
+            px.evaluate(inline, output=output)
+            assert trace.get_tracer_provider() is builtins._phoenix_evaluator_provider
+            return {"name": "nested", "score": 1.0}
+        nested.name = "nested"
+
+        def broken(output, **_):
+            _evaluator_child("error child")
+            builtins._phoenix_fail_flush = True
+            raise ValueError("expected")
+        broken.name = "broken"
 
         def correctness(output, **_):
+            _evaluator_child("marker child")
             return {"name": "correctness", "score": 1.0}
 
         @pytest.mark.phoenix(dataset="trace-suite", evaluators=[correctness])
         def test_one():
             px.log_output("stable")
+            run = current_run()
+            assert run is not None and run.tracer is not None
+            with run.tracer.tracer.start_as_current_span("task child before"):
+                pass
+            assert trace.get_tracer_provider() is builtins._phoenix_original_provider
+            px.evaluate(nested, output="stable")
+            assert trace.get_tracer_provider() is builtins._phoenix_original_provider
+            with pytest.raises(ValueError, match="expected"):
+                px.evaluate(broken, output="stable")
+            assert trace.get_tracer_provider() is builtins._phoenix_original_provider
             px.log_evaluation(name="manual", score=1.0)
+            with run.tracer.tracer.start_as_current_span("task child after"):
+                pass
             assert True
         """
     )
     pytester.runpytest_subprocess("-p", "phoenix", "--no-header").assert_outcomes(passed=1)
-    spans = _spans(pytester)
+    effects = _span_effects(pytester)
+    spans = effects["spans"]
     by_name = {s["name"]: s for s in spans}
     chain = next(s for s in spans if s["name"].startswith("Test: "))
     assert chain["kind"] == "CHAIN"
-    for ev_name in ("Evaluation: pass", "Evaluation: manual", "Evaluation: correctness"):
+    assert chain["project"] == "proj-1"
+    for task_name in ("task child before", "task child after"):
+        assert by_name[task_name]["project"] == "proj-1"
+    for ev_name in (
+        "Evaluation: inline",
+        "Evaluation: nested",
+        "Evaluation: broken",
+        "Evaluation: manual",
+        "Evaluation: pass",
+        "Evaluation: correctness",
+    ):
         ev = by_name[ev_name]
         assert ev["kind"] == "EVALUATOR", ev_name
+        assert ev["project"] == "evaluators", ev_name
         assert ev["trace_id"] != chain["trace_id"], ev_name
+    for child_name in ("inline child", "nested child", "error child", "marker child"):
+        assert by_name[child_name]["project"] == "evaluators"
+    assert all(
+        not span["name"].startswith("Evaluation:")
+        and span["name"] not in {"inline child", "nested child", "error child", "marker child"}
+        for span in spans
+        if span["project"] == "proj-1"
+    )
+
+    run_trace_id = effects["runs"][0]["trace_id"]
+    for evaluation in effects["evals"]:
+        root = by_name[f"Evaluation: {evaluation['name']}"]
+        assert evaluation["trace_id"] == root["trace_id"]
+        assert evaluation["trace_id"] != run_trace_id
+    assert effects["restored"] is True
+
+    lifecycle = effects["lifecycle"]
+    for ev_name in (
+        "Evaluation: inline",
+        "Evaluation: nested",
+        "Evaluation: broken",
+        "Evaluation: manual",
+        "Evaluation: pass",
+        "Evaluation: correctness",
+    ):
+        exported = next(
+            i
+            for i, event in enumerate(lifecycle)
+            if event["event"] == "export" and event.get("span") == ev_name
+        )
+        flushed = next(
+            event
+            for event in lifecycle[exported + 1 :]
+            if event["event"] == "flush" and event["project"] == "evaluators"
+        )
+        assert flushed["is_global"] is True
+    for project in ("evaluators", "proj-1"):
+        shutdown = next(
+            i
+            for i, event in enumerate(lifecycle)
+            if event["event"] == "shutdown" and event["project"] == project
+        )
+        assert lifecycle[shutdown - 1]["event"] == "flush"
+        assert lifecycle[shutdown - 1]["project"] == project
+        assert (
+            sum(event["event"] == "shutdown" and event["project"] == project for event in lifecycle)
+            == 1
+        )
 
 
 def test_failing_test_output_carries_trace_id(pytester: pytest.Pytester) -> None:

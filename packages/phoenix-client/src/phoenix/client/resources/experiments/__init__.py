@@ -10,15 +10,16 @@ from binascii import hexlify
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from itertools import product
-from threading import Lock
+from threading import Lock, RLock
 from typing import Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
 import opentelemetry.sdk.trace as trace_sdk
+import opentelemetry.trace as trace_api
 from httpx import HTTPStatusError
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
@@ -32,7 +33,13 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, unused-ignore]
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import INVALID_SPAN_ID, Status, StatusCode, Tracer
+from opentelemetry.trace import (
+    INVALID_SPAN_ID,
+    NoOpTracerProvider,
+    Status,
+    StatusCode,
+    Tracer,
+)
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
@@ -145,6 +152,29 @@ class _NoOpProcessor(trace_sdk.SpanProcessor):
         return True
 
 
+@dataclass(frozen=True)
+class _TracerBundle:
+    tracer: Tracer
+    resource: Resource
+    provider: Any
+
+
+_GLOBAL_TRACER_PROVIDER_LOCK = RLock()
+
+
+@contextmanager
+def _attach_global_tracer_provider(provider: Any) -> Iterator[None]:
+    """Temporarily mount a provider while preserving OpenTelemetry's exact prior state."""
+    # OpenTelemetry's public setter is one-shot and has no matching restore operation.
+    with _GLOBAL_TRACER_PROVIDER_LOCK:
+        previous = trace_api._TRACER_PROVIDER  # pyright: ignore[reportPrivateUsage]
+        trace_api._TRACER_PROVIDER = provider  # pyright: ignore[reportPrivateUsage]
+        try:
+            yield
+        finally:
+            trace_api._TRACER_PROVIDER = previous  # pyright: ignore[reportPrivateUsage]
+
+
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
@@ -156,11 +186,11 @@ EVALUATOR = OpenInferenceSpanKindValues.EVALUATOR.value
 JSON = OpenInferenceMimeTypeValues.JSON
 
 
-def _get_tracer(
+def _get_tracer_bundle(
     project_name: Optional[str] = None,
     base_url: Optional[str] = None,
     headers: Optional[dict[str, str]] = None,
-) -> tuple[Tracer, Resource]:
+) -> _TracerBundle:
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
     tracer_provider = trace_sdk.TracerProvider(resource=resource)
 
@@ -176,7 +206,30 @@ def _get_tracer(
         span_processor = _NoOpProcessor()
 
     tracer_provider.add_span_processor(span_processor)
-    return OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig()), resource
+    return _TracerBundle(
+        tracer=OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig()),
+        resource=resource,
+        provider=tracer_provider,
+    )
+
+
+def _get_noop_tracer_bundle() -> _TracerBundle:
+    resource = Resource({})
+    provider = NoOpTracerProvider()
+    return _TracerBundle(
+        tracer=OITracer(provider.get_tracer("no-op"), config=TraceConfig()),
+        resource=resource,
+        provider=provider,
+    )
+
+
+def _get_tracer(
+    project_name: Optional[str] = None,
+    base_url: Optional[str] = None,
+    headers: Optional[dict[str, str]] = None,
+) -> tuple[Tracer, Resource]:
+    bundle = _get_tracer_bundle(project_name, base_url, headers)
+    return bundle.tracer, bundle.resource
 
 
 def get_tqdm_progress_bar_formatter(title: str) -> str:

@@ -469,6 +469,12 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: "Con
         write(state.summary_line())
 
 
+def pytest_unconfigure(config: "Config") -> None:
+    state = _get_state(config)
+    if state is not None:
+        state.close_tracing()
+
+
 def _chain_input(item: "Item") -> dict[str, Any]:
     """The CHAIN span input: the test's parametrized fields, or its nodeid when unparametrized."""
     callspec = getattr(item, "callspec", None)

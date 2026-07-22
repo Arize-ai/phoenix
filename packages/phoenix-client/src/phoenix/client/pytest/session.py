@@ -7,6 +7,10 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from httpx import HTTPStatusError
 
+from phoenix.client.resources.experiments import (
+    _TracerBundle,  # pyright: ignore[reportPrivateUsage]
+)
+
 from .config import PhoenixTestConfig
 from .context import (
     _annotator_kind_for,  # pyright: ignore[reportPrivateUsage]
@@ -16,7 +20,13 @@ from .context import (
     _RunRecord,  # pyright: ignore[reportPrivateUsage]
 )
 from .marker import REPETITION_PARAM, resolve_evaluators
-from .tracing import SpanHandle, SuiteTracer, build_suite_tracer
+from .tracing import (
+    SpanHandle,
+    SuiteTracer,
+    build_evaluator_bundle,
+    build_noop_suite_tracer,
+    build_suite_tracer,
+)
 
 if TYPE_CHECKING:
     from _pytest.nodes import Item
@@ -70,6 +80,10 @@ class SuiteState:
         self._bootstrap_error: Optional[Exception] = None
         self._bootstrapped = False
         self._tracers: dict[str, SuiteTracer] = {}
+        self._offline_tracer = build_noop_suite_tracer() if config.offline else None
+        self._evaluator_bundle: Optional[_TracerBundle] = None
+        self._owned_bundles: list[_TracerBundle] = []
+        self._tracing_closed = False
 
     def register_item(
         self, item: "Item", *, dataset_name: str, external_id: str, repetitions: int = 1
@@ -107,12 +121,25 @@ class SuiteState:
         if self.config.offline:
             return
         base_url, headers = self._tracer_endpoint()
+        if self._evaluator_bundle is None:
+            self._evaluator_bundle = build_evaluator_bundle(base_url=base_url, headers=headers)
+            if self._evaluator_bundle is not None:
+                self._owned_bundles.append(self._evaluator_bundle)
+        evaluator_bundle = self._evaluator_bundle
+        mount_evaluator_provider = evaluator_bundle is not None
+        if evaluator_bundle is None:
+            evaluator_bundle = build_noop_suite_tracer().evaluator_bundle
         for group in self._groups.values():
             tracer = build_suite_tracer(
-                project_name=group.project_name, base_url=base_url, headers=headers
+                project_name=group.project_name,
+                base_url=base_url,
+                headers=headers,
+                evaluator_bundle=evaluator_bundle,
+                mount_evaluator_provider=mount_evaluator_provider,
             )
             if tracer is not None:
                 self._tracers[group.name] = tracer
+                self._owned_bundles.append(tracer.task_bundle)
 
     def _tracer_endpoint(self) -> tuple[Optional[str], Optional[dict[str, str]]]:
         http_client = getattr(self._client, "_client", None)
@@ -121,7 +148,29 @@ class SuiteState:
         return str(http_client.base_url), dict(http_client.headers)
 
     def tracer_for(self, dataset_name: str) -> Optional[SuiteTracer]:
+        if self.config.offline:
+            return self._offline_tracer
         return self._tracers.get(dataset_name)
+
+    def close_tracing(self) -> None:
+        if self._tracing_closed:
+            return
+        self._tracing_closed = True
+        seen: set[int] = set()
+        for bundle in self._owned_bundles:
+            provider = bundle.provider
+            if id(provider) in seen:
+                continue
+            seen.add(id(provider))
+            try:
+                provider.force_flush()
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Phoenix plugin: failed to flush tracing: %s", e)
+            finally:
+                try:
+                    provider.shutdown()
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("Phoenix plugin: failed to shut down tracing: %s", e)
 
     def project_name_for(self, dataset_name: str) -> Optional[str]:
         group = self._groups.get(dataset_name)
