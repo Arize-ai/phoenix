@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 
 import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import type { AgentState } from "@phoenix/store/agentStore";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
 
@@ -26,6 +27,28 @@ export function buildAgentModelSelection({
     modelName: model.modelName,
     ...(isOpenAIProvider && { openaiApiType: "responses" }),
   };
+}
+
+/**
+ * Derives the chat request's model selection from the store's current default
+ * model config. The chat transport reads this at request time so a model
+ * change always applies to the next send, even when the runtime chat was
+ * created by a since-unmounted surface (e.g. the draft that started the
+ * session).
+ */
+export function selectAgentModelSelection(
+  state: Pick<AgentState, "defaultModelConfig">
+): AgentModelSelection {
+  const { defaultModelConfig } = state;
+  return buildAgentModelSelection({
+    model: {
+      provider: defaultModelConfig.provider,
+      modelName: defaultModelConfig.modelName ?? "",
+      ...(defaultModelConfig.customProvider && {
+        customProvider: defaultModelConfig.customProvider,
+      }),
+    },
+  });
 }
 
 /**
@@ -70,11 +93,6 @@ export function useAgentChatPanelState() {
     [defaultModelConfig, setDefaultModelConfig]
   );
 
-  const modelSelection = useMemo<AgentModelSelection>(
-    () => buildAgentModelSelection({ model: menuValue }),
-    [menuValue]
-  );
-
   const closePanel = useCallback(() => {
     setIsOpen(false);
   }, [setIsOpen]);
@@ -82,7 +100,6 @@ export function useAgentChatPanelState() {
   return {
     isOpen,
     position,
-    modelSelection,
     menuValue,
     closePanel,
     setPosition,
