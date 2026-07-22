@@ -361,6 +361,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       selectedExampleId: null,
       selectedSplitIds: [],
     },
+    evaluatorMappingSourceGrain: "dataset",
     evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
     showPromptPreview: false,
   };

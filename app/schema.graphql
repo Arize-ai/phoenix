@@ -3939,6 +3939,7 @@ type Span implements Node {
   spanId: ID!
   trace: Trace!
   context: SpanContext!
+  evaluationContext: JSON!
 
   """Span attributes as a JSON string"""
   attributes: String!

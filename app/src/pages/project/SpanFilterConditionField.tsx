@@ -236,19 +236,39 @@ type SpanFilterConditionFieldProps = {
    * Callback when the condition is valid
    */
   onValidCondition: (condition: string) => void;
+  initialCondition?: string;
   placeholder?: string;
 };
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
+    initialCondition,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [isConditionValidState, setIsConditionValidState] =
     useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const { filterCondition, setFilterCondition, appendFilterCondition } =
-    useSpanFilters();
+  const spanFilters = useSpanFilters();
+  const [localFilterCondition, setLocalFilterCondition] = useState(
+    initialCondition ?? ""
+  );
+  const hasLocalCondition = initialCondition !== undefined;
+  const filterCondition = hasLocalCondition
+    ? localFilterCondition
+    : spanFilters.filterCondition;
+  const setFilterCondition = hasLocalCondition
+    ? setLocalFilterCondition
+    : spanFilters.setFilterCondition;
+  const appendFilterCondition = (condition: string) => {
+    if (!hasLocalCondition) {
+      spanFilters.appendFilterCondition(condition);
+      return;
+    }
+    setLocalFilterCondition((currentCondition) =>
+      currentCondition ? `${currentCondition} and ${condition}` : condition
+    );
+  };
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;

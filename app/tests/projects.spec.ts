@@ -188,6 +188,75 @@ test.describe.serial("Projects", () => {
     );
   });
 
+  test("can create, edit, and delete a span LLM evaluator", async ({
+    page,
+  }) => {
+    const evaluatorProjectName = `evaluator-project-${randomUUID().slice(0, 8)}`;
+    const evaluatorName = `span-evaluator-${randomUUID().slice(0, 8)}`;
+    const updatedEvaluatorName = `${evaluatorName}-updated`;
+    await createProject(
+      page,
+      evaluatorProjectName,
+      "Project evaluator lifecycle test"
+    );
+
+    await page.getByRole("tab", { name: "Evaluators" }).click();
+    await expect(page).toHaveURL(/\/projects\/.+\/evaluators/);
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page.getByRole("menuitem", { name: "Create from scratch" }).click();
+
+    const createDialog = page.getByRole("dialog", {
+      name: "Create project evaluator",
+    });
+    await expect(createDialog).toBeVisible();
+    await createDialog
+      .getByRole("button", { name: "Create an unfiltered evaluator" })
+      .click();
+    await createDialog.getByLabel("Name").fill(evaluatorName);
+    await createDialog.getByRole("button", { name: "Create" }).click();
+    await expect(createDialog).not.toBeVisible();
+
+    const table = page.getByRole("table", { name: "Project evaluators" });
+    const evaluatorRow = table
+      .getByRole("row")
+      .filter({ hasText: evaluatorName });
+    await expect(evaluatorRow).toBeVisible();
+    await expect(
+      evaluatorRow.getByRole("cell", { name: "Span" })
+    ).toBeVisible();
+    await expect(
+      evaluatorRow.getByRole("cell", { name: "100%" })
+    ).toBeVisible();
+
+    await evaluatorRow
+      .getByRole("button", { name: `Edit ${evaluatorName}` })
+      .click();
+    const editDialog = page.getByRole("dialog", {
+      name: "Edit project evaluator",
+    });
+    await expect(editDialog).toBeVisible();
+    await editDialog.getByLabel("Name").fill(updatedEvaluatorName);
+    await editDialog.getByRole("button", { name: "Update" }).click();
+    await expect(editDialog).not.toBeVisible();
+
+    const updatedRow = table
+      .getByRole("row")
+      .filter({ hasText: updatedEvaluatorName });
+    await expect(updatedRow).toBeVisible();
+    await updatedRow
+      .getByRole("button", { name: `Delete ${updatedEvaluatorName}` })
+      .click();
+    const deleteDialog = page.getByRole("dialog").filter({
+      has: page.getByRole("heading", { name: "Delete evaluator" }),
+    });
+    await expect(deleteDialog).toBeVisible();
+    await deleteDialog
+      .getByRole("button", { name: "Delete evaluator" })
+      .click();
+    await expect(deleteDialog).not.toBeVisible();
+    await expect(updatedRow).not.toBeVisible();
+  });
+
   test("project table remains usable after mutation workflows", async ({
     page,
   }) => {

@@ -123,8 +123,13 @@ const EvaluatorInputPreviewContent = () => {
     setEvaluatorInputObject(defaultValue);
   }, [defaultValue]);
 
+  if (!("reference" in evaluatorMappingSource)) {
+    throw new Error("Dataset evaluator mapping source requires reference data");
+  }
+
   return (
     <EvaluatorMappingSourceEditor
+      grain="dataset"
       value={evaluatorMappingSource}
       onFieldChange={setEvaluatorMappingSourceField}
       editorKeyPrefix={`${datasetId}-${exampleId}`}

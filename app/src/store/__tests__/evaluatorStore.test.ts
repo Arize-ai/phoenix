@@ -1,6 +1,14 @@
-import { createEvaluatorStore } from "../evaluatorStore";
+import {
+  createEvaluatorStore,
+  type EvaluatorStoreProps,
+} from "../evaluatorStore";
 
-const createFreeformStore = () =>
+const createFreeformStore = (
+  evaluatorMappingSourceState?: Pick<
+    EvaluatorStoreProps,
+    "evaluatorMappingSource" | "evaluatorMappingSourceGrain"
+  >
+) =>
   createEvaluatorStore({
     evaluator: {
       kind: "CODE",
@@ -20,7 +28,31 @@ const createFreeformStore = () =>
         upperBound: null,
       },
     ],
+    ...evaluatorMappingSourceState,
   });
+
+describe("evaluatorStore mapping source grain", () => {
+  it("keeps span mapping sources limited to runtime context fields", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSourceGrain: "span",
+      evaluatorMappingSource: {
+        input: { question: "What is Phoenix?" },
+        output: { answer: "An AI observability platform" },
+        metadata: { attributes: { "openinference.span.kind": "LLM" } },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      input: { question: "What is Phoenix?" },
+      output: { answer: "An AI observability platform" },
+      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+    });
+    expect(store.getState().evaluator.inputMapping).toEqual({
+      literalMapping: {},
+      pathMapping: {},
+    });
+  });
+});
 
 describe("evaluatorStore bounds handlers", () => {
   it("setOutputConfigLowerBoundAtIndex updates lowerBound on the freeform config", () => {

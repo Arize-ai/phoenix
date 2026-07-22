@@ -1,0 +1,176 @@
+import type { Key } from "react-aria-components";
+
+import {
+  Button,
+  Flex,
+  Heading,
+  Input,
+  Slider,
+  SliderNumberField,
+  Text,
+  View,
+} from "@phoenix/components";
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+} from "@phoenix/components/core/disclosure";
+import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
+import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
+import { ProjectEvaluatorTargetField } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetField";
+import type {
+  ProjectEvaluatorScope,
+  ProjectEvaluatorTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { SpanFilterConditionField } from "@phoenix/pages/project/SpanFilterConditionField";
+
+export const ProjectEvaluatorFormSections = ({
+  scope,
+  onScopeChange,
+  expandedKeys,
+  onExpandedChange,
+  definitionKind,
+  codeEvaluatorName,
+}: {
+  scope: ProjectEvaluatorScope;
+  onScopeChange: (scope: ProjectEvaluatorScope) => void;
+  expandedKeys: Set<Key>;
+  onExpandedChange: (keys: Set<Key>) => void;
+  definitionKind: "llm" | "code";
+  codeEvaluatorName?: string;
+}) => {
+  const setEvaluatorMappingSource = useEvaluatorStore(
+    (state) => state.setEvaluatorMappingSource
+  );
+  const updateTarget = (targetType: ProjectEvaluatorTarget) => {
+    onScopeChange({ ...scope, targetType });
+  };
+  return (
+    <DisclosureGroup
+      expandedKeys={expandedKeys}
+      onExpandedChange={onExpandedChange}
+    >
+      <Disclosure id="scope">
+        <DisclosureTrigger direction="column" alignItems="start">
+          <Heading level={2}>Scope</Heading>
+          <Text color="text-500">
+            Choose which spans run this evaluator and how often.
+          </Text>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <Flex direction="column" gap="size-200">
+            <ProjectEvaluatorTargetField
+              value={scope.targetType}
+              onChange={updateTarget}
+            />
+            <Flex direction="column" gap="size-100">
+              <Heading level={3}>Span filter</Heading>
+              <Text color="text-500">
+                Only spans matching this validated filter are evaluated.
+              </Text>
+              <SpanFilterConditionField
+                initialCondition={scope.filterCondition}
+                onValidCondition={(filterCondition) => {
+                  const hasNewFilter =
+                    filterCondition.trim() !== "" &&
+                    filterCondition !== scope.filterCondition;
+                  onScopeChange({ ...scope, filterCondition });
+                  if (hasNewFilter && !expandedKeys.has("definition")) {
+                    onExpandedChange(new Set([...expandedKeys, "definition"]));
+                  }
+                }}
+                placeholder="span_kind == 'LLM'"
+              />
+              {!scope.filterCondition.trim() ? (
+                <Button
+                  variant="quiet"
+                  onPress={() =>
+                    onExpandedChange(new Set([...expandedKeys, "definition"]))
+                  }
+                >
+                  Create an unfiltered evaluator
+                </Button>
+              ) : null}
+            </Flex>
+            <Slider
+              label="Sampling rate"
+              minValue={0}
+              maxValue={100}
+              step={1}
+              value={scope.samplingRatePercent}
+              onChange={(samplingRatePercent) =>
+                onScopeChange({ ...scope, samplingRatePercent })
+              }
+              thumbLabels={["Sampling rate percentage"]}
+            >
+              <SliderNumberField aria-label="Sampling rate percentage">
+                <Input />
+              </SliderNumberField>
+              <Text>%</Text>
+            </Slider>
+          </Flex>
+        </DisclosurePanel>
+      </Disclosure>
+      <Disclosure id="definition" defaultExpanded={false}>
+        <DisclosureTrigger direction="column" alignItems="start">
+          <Heading level={2}>Evaluator definition</Heading>
+          <Text color="text-500">
+            {definitionKind === "llm"
+              ? "Define the prompt and annotation output."
+              : "Attach the selected code evaluator to this project."}
+          </Text>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          {definitionKind === "llm" ? (
+            <Flex direction="column" gap="size-200">
+              <EvaluatorNameAndDescriptionFields />
+              <LLMEvaluatorForm showInputMapping={false} />
+            </Flex>
+          ) : (
+            <View padding="size-200">
+              <Heading level={3}>{codeEvaluatorName}</Heading>
+            </View>
+          )}
+        </DisclosurePanel>
+      </Disclosure>
+      <Disclosure id="advanced" defaultExpanded={false}>
+        <DisclosureTrigger direction="column" alignItems="start">
+          <Heading level={2}>Advanced mapping</Heading>
+          <Text color="text-500">
+            Same-named input, output, and metadata variables bind automatically.
+          </Text>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <Flex direction="column" gap="size-100">
+            <Text color="text-500">
+              Add only overrides that differ from the top-level span context.
+            </Text>
+            <View
+              borderRadius="medium"
+              borderWidth="thin"
+              borderColor="default"
+              padding="size-200"
+            >
+              <EvaluatorInputMapping />
+            </View>
+            <Button
+              variant="quiet"
+              onPress={() =>
+                setEvaluatorMappingSource({
+                  input: {},
+                  output: {},
+                  metadata: { attributes: {} },
+                })
+              }
+            >
+              Clear selected span context
+            </Button>
+          </Flex>
+        </DisclosurePanel>
+      </Disclosure>
+    </DisclosureGroup>
+  );
+};
