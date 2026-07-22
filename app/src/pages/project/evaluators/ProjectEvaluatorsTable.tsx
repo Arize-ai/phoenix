@@ -3,11 +3,11 @@ import { graphql, usePaginationFragment } from "react-relay";
 
 import { Flex, LoadMoreButton, Text, View } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorsEmptyGallery } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyGallery";
 
 const PAGE_SIZE = 30;
 
@@ -86,7 +86,10 @@ export function ProjectEvaluatorsTable({
             </tr>
           </thead>
           {rows.length === 0 ? (
-            <TableEmpty message="No evaluators are set up for this project" />
+            <ProjectEvaluatorsEmptyGallery
+              projectId={projectId}
+              updateConnectionIds={connectionIds}
+            />
           ) : (
             <tbody>
               {rows.map(({ node }) => (
