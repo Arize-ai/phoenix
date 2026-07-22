@@ -322,6 +322,7 @@
 - [Daytona](https://arize.com/docs/phoenix/integrations/sandboxes/daytona): Run Phoenix code evaluators in Daytona's managed development sandboxes with snapshot-based startup
 - [Vercel Sandbox](https://arize.com/docs/phoenix/integrations/sandboxes/vercel): Run Phoenix code evaluators in ephemeral Vercel compute, scoped to a Vercel team and project
 - [Modal](https://arize.com/docs/phoenix/integrations/sandboxes/modal): Run Phoenix code evaluators in Modal's serverless Python containers with sub-second cold starts
+- [Tenki](https://arize.com/docs/phoenix/integrations/sandboxes/tenki): Run Phoenix code evaluators in Tenki Cloud's fast ephemeral microVM sandboxes
 
 ### Platforms — Additional
 
@@ -394,6 +395,7 @@
 - [Daytona Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/daytona): Configure Daytona credentials and snapshot settings for hosted code evaluation
 - [Vercel Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/vercel): Configure Vercel team and project credentials for hosted code evaluation
 - [Modal Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/modal): Configure Modal token and workspace for hosted Python code evaluation
+- [Tenki Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/tenki): Configure Tenki API key and project for hosted microVM Python code evaluation
 
 ## Concepts
 

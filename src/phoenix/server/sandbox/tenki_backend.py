@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from pydantic import SecretStr
@@ -34,12 +35,41 @@ logger = logging.getLogger(__name__)
 
 ENV_TENKI_API_KEY = "TENKI_API_KEY"
 
-# Total lifetime ceiling (seconds) so orphaned sandboxes get reaped after a
-# hard Phoenix crash rather than lingering until the workspace idle sweep.
-_MAX_DURATION_SECONDS = 600
-
 # Seconds to wait for the sandbox to become exec-ready during create().
 _CREATE_TIMEOUT_SECONDS = 180
+
+# Extra sandbox lifetime, on top of the evaluation timeout, to cover create,
+# package install, and teardown. The sandbox is killed at ``timeout + headroom``
+# so a long evaluation is not truncated by the total-lifetime cap.
+_LIFETIME_HEADROOM_SECONDS = 300
+
+# Fallback total-lifetime cap when no evaluation timeout is supplied, so an
+# orphan is still reaped rather than lingering until the workspace idle sweep.
+_DEFAULT_MAX_DURATION_SECONDS = 600
+
+# Prefix for the per-execution sandbox tag used to reap a VM that ``create()``
+# created remotely but never returned a handle for (see ``_reap``).
+_SESSION_TAG_PREFIX = "phoenix-exec:"
+
+# Global cap on concurrent Tenki microVMs across all TenkiSandboxBackend
+# instances. Tenki VMs are billable and, as a stateless backend, Tenki bypasses
+# SandboxSessionManager's per-provider accounting — so we self-limit here,
+# mirroring the local Deno backend's process-wide semaphore.
+_MAX_CONCURRENT_TENKI_EXECUTIONS = 4
+
+# Rebuilt per running loop because asyncio.Semaphore binds to the loop on first
+# use and tests run on fresh loops (same rationale as deno_backend).
+_execution_slots: "asyncio.Semaphore | None" = None
+_execution_slots_loop: "asyncio.AbstractEventLoop | None" = None
+
+
+def _get_execution_slots() -> asyncio.Semaphore:
+    global _execution_slots, _execution_slots_loop
+    loop = asyncio.get_running_loop()
+    if _execution_slots is None or _execution_slots_loop is not loop:
+        _execution_slots = asyncio.Semaphore(_MAX_CONCURRENT_TENKI_EXECUTIONS)
+        _execution_slots_loop = loop
+    return _execution_slots
 
 
 class TenkiSandboxBackend(BaseNoSessionBackend):
@@ -47,9 +77,9 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
 
     ``provider`` is intentionally left as the inherited ``""``: stateless
     backends bypass ``SandboxSessionManager``'s per-provider tracking, so a
-    provider token would never be read (and would misleadingly imply Tenki is
-    subject to a per-provider concurrency cap, which stateless backends are
-    not).
+    provider token would never be read. Because that also means Tenki gets no
+    per-provider concurrency limit from the manager, this backend self-limits
+    via a process-wide semaphore (``_get_execution_slots``).
     """
 
     def __init__(
@@ -112,21 +142,36 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
                 "provider's deployment config (project_id)."
             )
 
-    def _create_kwargs(self, project_id: str) -> dict[str, Any]:
+    def _max_duration(self, timeout: Optional[int]) -> int:
+        """Total sandbox lifetime cap, derived from the evaluation timeout.
+
+        A hardcoded cap would truncate any evaluation longer than it, so the
+        cap tracks the configured timeout plus headroom for create, package
+        install, and teardown. Falls back to a fixed default when no timeout is
+        supplied so an orphan is still reaped.
+        """
+        if timeout is not None and timeout > 0:
+            return int(timeout) + _LIFETIME_HEADROOM_SECONDS
+        return _DEFAULT_MAX_DURATION_SECONDS
+
+    def _create_kwargs(self, project_id: str, timeout: Optional[int], tag: str) -> dict[str, Any]:
         """Build kwargs for ``AsyncClient.create()``.
 
         Omitting ``image`` selects Tenki's stock guest image, which has
         ``python3`` and ``pip`` on PATH — the runtime our generated ``exec``
         and pip-install argv rely on. ``allow_outbound`` gates egress; we never
         request ``sticky``/``snapshot_id``/``volumes`` so the sandbox stays
-        ephemeral and on stable features only.
+        ephemeral and on stable features only. ``tags`` carries a unique
+        per-execution marker so ``_reap`` can find a VM that ``create()``
+        created remotely but was interrupted before returning a handle.
         """
         return {
             "project_id": project_id,
             "wait": True,
             "timeout": _CREATE_TIMEOUT_SECONDS,
             "allow_outbound": self._allow_internet_access,
-            "max_duration": _MAX_DURATION_SECONDS,
+            "max_duration": self._max_duration(timeout),
+            "tags": [tag],
         }
 
     async def _install_packages(self, sandbox: AsyncSandbox) -> None:
@@ -162,32 +207,81 @@ class TenkiSandboxBackend(BaseNoSessionBackend):
         manager routes every call straight here without tracking.
         """
         del session_key
+        # Unique marker so a VM that create() spun up remotely but never
+        # returned a handle for (failure/cancellation) can still be found and
+        # terminated in _reap.
+        tag = f"{_SESSION_TAG_PREFIX}{uuid.uuid4().hex}"
         try:
-            client = self._get_client()
-            # The sandbox's data plane rides the client's channel, so the client
-            # must outlive the exec; both are torn down in the finally blocks.
-            try:
-                project_id = await self._resolve_project_id(client)
-                sandbox = await client.create(**self._create_kwargs(project_id))
+            # Self-limit concurrent billable VMs (no per-provider cap applies to
+            # stateless backends).
+            async with _get_execution_slots():
+                client = self._get_client()
+                # The sandbox's data plane rides the client's channel, so the
+                # client must outlive the exec; both are torn down in finally.
                 try:
-                    await self._install_packages(sandbox)
-                    # Pass the source via argv (``python3 -c <code>``) rather
-                    # than a shell string so arbitrary code needs no escaping.
-                    # User env is applied per-call, never baked into the image.
-                    result = await sandbox.exec(
-                        "python3",
-                        "-c",
-                        code,
-                        env=self._user_env or None,
-                        timeout=timeout,
-                    )
-                    return _command_result_to_execution_result(result)
+                    project_id = await self._resolve_project_id(client)
+                    sandbox: Optional[AsyncSandbox] = None
+                    try:
+                        sandbox = await client.create(
+                            **self._create_kwargs(project_id, timeout, tag)
+                        )
+                        await self._install_packages(sandbox)
+                        # Pass the source via argv (``python3 -c <code>``) rather
+                        # than a shell string so arbitrary code needs no escaping.
+                        # User env is applied per-call, never baked into the image.
+                        result = await sandbox.exec(
+                            "python3",
+                            "-c",
+                            code,
+                            env=self._user_env or None,
+                            timeout=timeout,
+                        )
+                        return _command_result_to_execution_result(result)
+                    finally:
+                        await self._reap(client, sandbox, tag)
                 finally:
-                    await sandbox.close_if_open()
-            finally:
-                await client.close()
+                    await client.close()
         except Exception as exc:
             return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
+
+    async def _reap(
+        self,
+        client: AsyncClient,
+        sandbox: Optional[AsyncSandbox],
+        tag: str,
+    ) -> None:
+        """Terminate this call's sandbox — even if ``create()`` was interrupted.
+
+        With a handle, close it. Without one (``create()`` failed or was
+        cancelled after the VM came up), the VM may still be RUNNING, so find it
+        by its unique ``tag`` and terminate it. Teardown is shielded so a
+        cancellation of the enclosing evaluation still tears the VM down rather
+        than leaking a billable sandbox.
+        """
+        task = asyncio.ensure_future(self._do_reap(client, sandbox, tag))
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            await task  # let teardown finish despite the cancellation, then re-raise
+            raise
+
+    async def _do_reap(
+        self,
+        client: AsyncClient,
+        sandbox: Optional[AsyncSandbox],
+        tag: str,
+    ) -> None:
+        try:
+            if sandbox is not None:
+                await sandbox.close_if_open()
+                return
+            for orphan in await client.list(tags=[tag]):
+                try:
+                    await orphan.close_if_open()
+                except Exception as exc:
+                    logger.warning("Tenki reap: failed to terminate orphan for %s: %s", tag, exc)
+        except Exception as exc:
+            logger.warning("Tenki reap failed for %s: %s", tag, exc)
 
     @override
     async def close(self) -> None:

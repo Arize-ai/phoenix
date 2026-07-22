@@ -1,0 +1,13 @@
+---
+title: "Tenki"
+description: "Run Phoenix code evaluators in Tenki Cloud microVM sandboxes."
+---
+
+[**Tenki Cloud**](https://tenki.cloud/) runs code in fast, ephemeral microVMs. Phoenix uses Tenki as a hosted backend for Python [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators), creating a fresh microVM per evaluation and tearing it down afterward using only Tenki's stable create/exec/terminate primitives.
+
+## Configure
+
+1. Sign up at [app.tenki.cloud](https://app.tenki.cloud/) and create an API key (`tk_...`) in a workspace that has a project.
+2. Add `TENKI_API_KEY` from **Settings → Sandboxes**.
+
+See [Settings → Sandboxes → Tenki](/docs/phoenix/settings/sandboxes/tenki) for full configuration details and [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for self-hosting setup.

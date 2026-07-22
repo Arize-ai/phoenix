@@ -1,0 +1,22 @@
+---
+title: "Tenki"
+description: "Run code evaluators in Tenki Cloud microVM sandboxes."
+---
+
+[**Tenki Cloud**](https://tenki.cloud/) runs each Python evaluation in a fast, ephemeral microVM on its own cloud. Phoenix uses only its stable primitives (create, exec, terminate), so evaluations run on stock guest images and are torn down after each run.
+
+## Setup
+
+1. **Create a Tenki account** at [app.tenki.cloud](https://app.tenki.cloud/) if you don't already have one, and make sure your workspace has at least one project.
+2. **Create an API key** (`tk_...`) in your workspace settings.
+3. **Add the credential to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Tenki** row, click the gear icon, and paste the value as `TENKI_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
+4. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Tenki**, set the timeout and any environment variables or dependencies, and save.
+
+<Info>
+Phoenix resolves the Tenki project from your API key's identity (the first workspace that has a project). If your key spans more than one project, pin a specific one by setting **project_id** in the provider's deployment configuration.
+</Info>
+
+## Notes
+
+- **Dependencies** are installed inside the sandbox at runtime with `pip install --break-system-packages`, since the stock guest image is a Debian PEP-668 externally-managed environment. This requires **Allow Internet Access** to be enabled on the configuration.
+- **Concurrency** is capped process-wide so a large evaluation batch cannot fan out an unbounded number of billable microVMs.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -72,6 +73,7 @@ def _make_mock_client(
     client = MagicMock()
     client.who_am_i = AsyncMock(return_value=_make_identity(resolved_project_id))
     client.create = AsyncMock(return_value=sandbox)
+    client.list = AsyncMock(return_value=[])  # reap-by-tag finds no orphans by default
     client.close = AsyncMock()
     return client
 
@@ -81,18 +83,34 @@ def _make_mock_client(
 
 def test_create_kwargs_includes_project_id() -> None:
     backend = TenkiSandboxBackend(api_key=_API_KEY)
-    assert backend._create_kwargs("proj_x")["project_id"] == "proj_x"
+    assert backend._create_kwargs("proj_x", None, "tag")["project_id"] == "proj_x"
 
 
 def test_create_kwargs_defaults_to_allow_outbound_true() -> None:
     backend = TenkiSandboxBackend(api_key=_API_KEY)
-    assert backend._create_kwargs("p")["allow_outbound"] is True
+    assert backend._create_kwargs("p", None, "tag")["allow_outbound"] is True
 
 
 @pytest.mark.parametrize("allow", [True, False])
 def test_create_kwargs_forwards_allow_internet_access(allow: bool) -> None:
     backend = TenkiSandboxBackend(api_key=_API_KEY, allow_internet_access=allow)
-    assert backend._create_kwargs("p")["allow_outbound"] is allow
+    assert backend._create_kwargs("p", None, "tag")["allow_outbound"] is allow
+
+
+def test_create_kwargs_tags_the_sandbox() -> None:
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
+    assert backend._create_kwargs("p", None, "phoenix-exec:abc")["tags"] == ["phoenix-exec:abc"]
+
+
+def test_max_duration_derives_from_timeout() -> None:
+    """A configured timeout must not be truncated by a hardcoded lifetime cap:
+    max_duration = timeout + headroom; a fixed default applies when unset."""
+    backend = TenkiSandboxBackend(api_key=_API_KEY)
+    # 900s eval → cap comfortably above it (was hardcoded 600, which truncated).
+    assert backend._create_kwargs("p", 900, "tag")["max_duration"] > 900
+    assert backend._create_kwargs("p", 900, "tag")["max_duration"] == 900 + 300
+    # No timeout → fixed default.
+    assert backend._create_kwargs("p", None, "tag")["max_duration"] == 600
 
 
 def test_create_kwargs_stays_on_stable_features() -> None:
@@ -101,7 +119,7 @@ def test_create_kwargs_stays_on_stable_features() -> None:
     change the guest runtime our ``python3``/pip argv depends on and pull the
     integration off Tenki's stable surface."""
     backend = TenkiSandboxBackend(api_key=_API_KEY)
-    kwargs = backend._create_kwargs("p")
+    kwargs = backend._create_kwargs("p", None, "tag")
     for forbidden in ("image", "snapshot_id", "volumes", "sticky"):
         assert forbidden not in kwargs
 
@@ -219,6 +237,79 @@ async def test_execute_tears_down_sandbox_and_client() -> None:
         await backend.execute("noop", session_key="s1")
     client.create.return_value.close_if_open.assert_awaited_once()
     client.close.assert_awaited_once()
+    # On the happy path we hold a handle, so no reap-by-tag list call is needed.
+    client.list.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_execute_reaps_orphan_when_create_fails() -> None:
+    """If create() fails after the VM came up (no handle returned), the VM is
+    found by its unique tag and terminated — otherwise it leaks, billing."""
+    client = _make_mock_client()
+    client.create = AsyncMock(side_effect=RuntimeError("boom during create"))
+    orphan = MagicMock()
+    orphan.close_if_open = AsyncMock()
+    client.list = AsyncMock(return_value=[orphan])
+    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    with patch.object(backend, "_get_client", return_value=client):
+        result = await backend.execute("noop", session_key="s1")
+    assert result.error is not None
+    # reap listed by the per-execution tag and terminated the orphan
+    assert client.list.await_args.kwargs["tags"][0].startswith("phoenix-exec:")
+    orphan.close_if_open.assert_awaited_once()
+    client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_execute_reaps_orphan_when_create_cancelled() -> None:
+    """Cancellation during create() must still terminate the orphaned VM, and
+    the CancelledError must propagate (not be swallowed as a result)."""
+    client = _make_mock_client()
+    client.create = AsyncMock(side_effect=asyncio.CancelledError())
+    orphan = MagicMock()
+    orphan.close_if_open = AsyncMock()
+    client.list = AsyncMock(return_value=[orphan])
+    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    with patch.object(backend, "_get_client", return_value=client):
+        with pytest.raises(asyncio.CancelledError):
+            await backend.execute("noop", session_key="s1")
+    orphan.close_if_open.assert_awaited_once()
+    client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_execute_caps_concurrency() -> None:
+    """Concurrent executions never exceed the process-wide semaphore cap, so a
+    large eval batch can't fan out unbounded billable VMs."""
+    from phoenix.server.sandbox import tenki_backend as tb
+
+    cap = tb._MAX_CONCURRENT_TENKI_EXECUTIONS
+    in_flight = 0
+    max_in_flight = 0
+
+    sandbox = MagicMock()
+    sandbox.exec = AsyncMock(return_value=_make_command_result())
+    sandbox.close_if_open = AsyncMock()
+
+    async def _tracking_create(**kwargs: Any) -> Any:
+        nonlocal in_flight, max_in_flight
+        in_flight += 1
+        max_in_flight = max(max_in_flight, in_flight)
+        try:
+            await asyncio.sleep(0.02)  # hold the slot so overlap is observable
+            return sandbox
+        finally:
+            in_flight -= 1
+
+    client = _make_mock_client()
+    client.create = AsyncMock(side_effect=_tracking_create)
+
+    backend = TenkiSandboxBackend(api_key=_API_KEY, project_id=_PINNED)
+    with patch.object(backend, "_get_client", return_value=client):
+        await asyncio.gather(*(backend.execute("noop", session_key="s") for _ in range(cap * 3)))
+
+    assert max_in_flight <= cap
+    assert max_in_flight > 1  # sanity: the batch really did overlap
 
 
 @pytest.mark.asyncio
@@ -365,7 +456,7 @@ def test_build_backend_translates_internet_access_to_allow_flag(
         credentials=_CREDS,
         deployment=_DEPLOY,
     )
-    assert backend._create_kwargs("p")["allow_outbound"] is expected
+    assert backend._create_kwargs("p", None, "tag")["allow_outbound"] is expected
 
 
 @pytest.mark.parametrize(
