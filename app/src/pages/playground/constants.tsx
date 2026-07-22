@@ -23,6 +23,8 @@ export const TOOLS_PARSING_ERROR =
   "Unable to parse tools, expected tools to be an array of valid tools.";
 export const PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR =
   "Unable to parse prompt template variables, expected prompt template variables to be a valid JSON object string.";
+export const UNRESOLVED_TOOL_CALLS_PARSING_ERROR =
+  "Some tool calls in this span are not followed by a matching tool result. Providers like Anthropic require every tool call to be paired with a tool result, so re-running this span as-is will fail. Edit or remove the unmatched tool call before running.";
 
 export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   AZURE_OPENAI: [],
