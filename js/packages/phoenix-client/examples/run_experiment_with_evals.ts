@@ -43,22 +43,13 @@ const main = async () => {
     if (typeof example.input.context !== "string") {
       throw new Error("Invalid input: context must be a string");
     }
-    // Your AI system's response to the question
+    // Your AI system's response to the question.
+    // Telemetry is enabled automatically — runExperiment registers an AI SDK
+    // telemetry integration for the task's tracer provider.
     return generateText({
       model,
-      experimental_telemetry: {
-        isEnabled: true,
-      },
-      prompt: [
-        {
-          role: "system",
-          content: `You answer questions based on this context: ${example.input.context}`,
-        },
-        {
-          role: "user",
-          content: example.input.question,
-        },
-      ],
+      instructions: `You answer questions based on this context: ${example.input.context}`,
+      prompt: example.input.question,
     }).then((response) => {
       if (response.text) {
         return response.text;
