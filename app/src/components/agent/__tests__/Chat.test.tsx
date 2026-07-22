@@ -92,7 +92,6 @@ function renderChatView(
     sendMessage = vi.fn<ChatViewSendMessage>(),
     compactSession = vi.fn<ChatViewCompactSession>(),
     isCompacting = false,
-    compaction,
     rewindToMessage,
     forkFromMessage,
   }: {
@@ -107,7 +106,6 @@ function renderChatView(
     sendMessage?: ChatViewSendMessage;
     compactSession?: ChatViewCompactSession;
     isCompacting?: boolean;
-    compaction?: { messageId: string; summary: string };
     rewindToMessage?: (messageId: string) => Promise<string | null>;
     forkFromMessage?: (messageId: string) => void;
   } = {}
@@ -161,7 +159,6 @@ function renderChatView(
             handleElicitationCancel={vi.fn()}
             compactSession={compactSession}
             isCompacting={isCompacting}
-            compaction={compaction}
             rewindToMessage={rewindToMessage}
             forkFromMessage={forkFromMessage}
             modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
@@ -372,21 +369,28 @@ describe("ChatView", () => {
       role: "user",
       parts: [{ type: "text", text: "Continue" }],
     } as AgentUIMessage;
+    const compactionMessage = {
+      id: "compaction-message",
+      role: "user",
+      metadata: { type: "compaction" },
+      parts: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            objectives: ["Investigate the trace"],
+            constraints_and_preferences: [],
+            decisions: [],
+            completed_work: ["Located the slow span"],
+            active_work: [],
+            blockers: [],
+            next_steps: ["Inspect the latest turn"],
+            important_details: ["trace-id-123"],
+          }),
+        },
+      ],
+    } as AgentUIMessage;
     renderChatView(root, {
-      chatMessages: [...messages, nextUserMessage],
-      compaction: {
-        messageId: "assistant-message",
-        summary: JSON.stringify({
-          objectives: ["Investigate the trace"],
-          constraints_and_preferences: [],
-          decisions: [],
-          completed_work: ["Located the slow span"],
-          active_work: [],
-          blockers: [],
-          next_steps: ["Inspect the latest turn"],
-          important_details: ["trace-id-123"],
-        }),
-      },
+      chatMessages: [...messages, compactionMessage, nextUserMessage],
     });
 
     const divider = container.querySelector<HTMLElement>(
@@ -403,6 +407,34 @@ describe("ChatView", () => {
     expect(summary?.nextElementSibling?.getAttribute("data-message-id")).toBe(
       "user-message-2"
     );
+  });
+
+  it("renders every durable compaction message in the transcript", () => {
+    const compactionMessages = ["first summary", "second summary"].map(
+      (summary, index) =>
+        ({
+          id: `compaction-${index}`,
+          role: "user",
+          metadata: { type: "compaction" },
+          parts: [{ type: "text", text: summary }],
+        }) as AgentUIMessage
+    );
+
+    renderChatView(root, {
+      chatMessages: [
+        messages[0]!,
+        compactionMessages[0]!,
+        messages[1]!,
+        compactionMessages[1]!,
+      ],
+    });
+
+    const summaries = container.querySelectorAll(
+      '[aria-label="Compaction summary"]'
+    );
+    expect(summaries).toHaveLength(2);
+    expect(summaries[0]?.textContent).toContain("first summary");
+    expect(summaries[1]?.textContent).toContain("second summary");
   });
 
   it("truncates and resends the last user message when retrying a failed turn", async () => {

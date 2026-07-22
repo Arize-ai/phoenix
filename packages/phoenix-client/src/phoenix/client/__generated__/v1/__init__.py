@@ -81,10 +81,8 @@ class CodeEvaluatorContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
-class CompactAgentSessionResponse(TypedDict):
-    compacted: bool
-    compactionMessageId: NotRequired[str]
-    compactionSummary: NotRequired[str]
+class CompactionMessageMetadata(TypedDict):
+    type: Literal["compaction"]
 
 
 class CreateAgentSessionRequestBody(TypedDict):
@@ -1818,7 +1816,9 @@ class PhoenixUIMessage(TypedDict):
             StepStartUIPart,
         ]
     ]
-    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+    metadata: NotRequired[
+        Union[AssistantMessageMetadata, CompactionMessageMetadata, UserMessageMetadata]
+    ]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):
@@ -1869,6 +1869,11 @@ class ChatRequest(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
     trigger: NotRequired[str]
+
+
+class CompactAgentSessionResponse(TypedDict):
+    compacted: bool
+    compactionMessage: NotRequired[PhoenixUIMessage]
 
 
 class PromptChatTemplate(TypedDict):

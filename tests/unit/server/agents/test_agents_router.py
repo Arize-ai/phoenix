@@ -278,13 +278,15 @@ def _mock_turn_models(monkeypatch: pytest.MonkeyPatch, *turn_models: FunctionMod
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
 
 
-async def test_compact_agent_session_persists_checkpoint_and_projects_model_history(
+async def test_compact_agent_session_persists_durable_points_and_loads_latest_history(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     summary_messages: list[ModelMessage] = []
     chat_messages: list[ModelMessage] = []
+    second_summary_messages: list[ModelMessage] = []
+    second_chat_messages: list[ModelMessage] = []
     checkpoint = {
         "objectives": ["Investigate the trace"],
         "constraints_and_preferences": [],
@@ -311,7 +313,43 @@ async def test_compact_agent_session_persists_checkpoint_and_projects_model_hist
 
     compact_model = FunctionModel(function=compact_function)
     chat_model = FunctionModel(stream_function=chat_stream_function)
-    _mock_turn_models(monkeypatch, compact_model, chat_model)
+
+    def second_compact_function(
+        messages: list[ModelMessage], agent_info: AgentInfo
+    ) -> ModelResponse:
+        second_summary_messages.extend(messages)
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="conversation_checkpoint",
+                    args={
+                        "objectives": ["Finish the investigation"],
+                        "constraints_and_preferences": [],
+                        "decisions": [],
+                        "completed_work": [],
+                        "active_work": [],
+                        "blockers": [],
+                        "next_steps": [],
+                        "important_details": [],
+                    },
+                )
+            ]
+        )
+
+    async def second_chat_stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str]:
+        second_chat_messages.extend(messages)
+        yield "finished"
+
+    _mock_turn_models(
+        monkeypatch,
+        compact_model,
+        chat_model,
+        FunctionModel(function=second_compact_function),
+        FunctionModel(stream_function=second_chat_stream_function),
+    )
 
     transcript = [
         _user_message("Find the slow span", message_id="user-1"),
@@ -349,11 +387,12 @@ async def test_compact_agent_session_persists_checkpoint_and_projects_model_hist
     )
 
     assert compact_response.status_code == 200
-    assert compact_response.json() == {
-        "compacted": True,
-        "compactionMessageId": "assistant-2",
-        "compactionSummary": json.dumps(checkpoint, separators=(",", ":")),
-    }
+    compact_result = compact_response.json()
+    assert compact_result["compacted"] is True
+    compaction_message = compact_result["compactionMessage"]
+    assert compaction_message["role"] == "user"
+    assert compaction_message["metadata"] == {"type": "compaction"}
+    assert json.loads(compaction_message["parts"][0]["text"]) == checkpoint
     assert "Find the slow span" in str(summary_messages)
     assert "trace-id-123" in str(summary_messages)
     assert "What should I inspect next?" in str(summary_messages)
@@ -362,16 +401,18 @@ async def test_compact_agent_session_persists_checkpoint_and_projects_model_hist
         snapshot = await session.scalar(select(models.AgentSessionSnapshot))
         assert snapshot is not None
         assert snapshot.bashkit_snapshot == b"shell-state"
-        assert snapshot.compacted_through_position == 3
-        assert snapshot.compaction_event_position == 3
-        assert json.loads(snapshot.compaction_summary or "{}") == checkpoint
         agent_session_rowid = snapshot.agent_session_id
         original_messages = await _load_session_messages(session, agent_session_rowid)
+        compaction_points = (
+            await session.scalars(select(models.AgentSessionCompactionPoint))
+        ).all()
+    assert len(compaction_points) == 1
     assert [message["id"] for message in original_messages] == [
         "user-1",
         "assistant-1",
         "user-2",
         "assistant-2",
+        compaction_message["id"],
     ]
 
     chat_response = await httpx_client.post(
@@ -397,8 +438,43 @@ async def test_compact_agent_session_persists_checkpoint_and_projects_model_hist
         "assistant-1",
         "user-2",
         "assistant-2",
-        "user-3",
+        compaction_message["id"],
     ]
+    assert stored_messages[5]["id"] == "user-3"
+
+    second_compact_response = await httpx_client.post(
+        _compact_url(agent_session_id),
+        json=_compact_body(),
+    )
+
+    assert second_compact_response.status_code == 200
+    second_compaction_message = second_compact_response.json()["compactionMessage"]
+    assert second_compaction_message["id"] != compaction_message["id"]
+    assert second_compaction_message["metadata"] == {"type": "compaction"}
+    second_summary_input = str(second_summary_messages)
+    assert "Investigate the trace" in second_summary_input
+    assert "Continue" in second_summary_input
+    assert "Find the slow span" not in second_summary_input
+    async with db() as session:
+        compaction_points = (
+            await session.scalars(select(models.AgentSessionCompactionPoint))
+        ).all()
+    assert len(compaction_points) == 2
+
+    second_chat_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "91919191-9191-4191-8191-919191919191",
+            _user_message("Finish", message_id="user-4"),
+        ),
+    )
+
+    assert second_chat_response.status_code == 200
+    second_projected_history = str(second_chat_messages)
+    assert "Finish the investigation" in second_projected_history
+    assert "Investigate the trace" not in second_projected_history
+    assert "Continue" not in second_projected_history
+    assert "Finish" in second_projected_history
 
 
 async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
@@ -622,13 +698,6 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert agent_session_rowid is not None
         stored_messages = await _load_session_messages(session, agent_session_rowid)
-        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
-        if snapshot is None:
-            snapshot = models.AgentSessionSnapshot(agent_session_id=agent_session_rowid)
-            session.add(snapshot)
-        snapshot.compaction_summary = '{"objectives":["list datasets"]}'
-        snapshot.compacted_through_position = 1
-        snapshot.compaction_event_position = 1
     assert len(stored_messages) == 2
     resolved_assistant_message = stored_messages[-1]
     assert resolved_assistant_message["id"] == assistant_message_id
@@ -659,7 +728,6 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
                 .order_by(models.AgentSessionMessage.position)
             )
         ).all()
-        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
     assert len(stored_rows) == 2
     persisted_assistant = stored_rows[-1]
     assert persisted_assistant.message_id == assistant_message_id
@@ -675,10 +743,6 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         isinstance(part, TextUIPart) and part.text == "done"
         for part in persisted_assistant.message.parts
     )
-    assert snapshot is not None
-    assert snapshot.compaction_summary is None
-    assert snapshot.compacted_through_position is None
-    assert snapshot.compaction_event_position is None
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:

@@ -9158,27 +9158,15 @@
             "type": "boolean",
             "title": "Compacted"
           },
-          "compactionMessageId": {
+          "compactionMessage": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PhoenixUIMessage"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Compactionmessageid"
-          },
-          "compactionSummary": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Compactionsummary"
+            ]
           }
         },
         "type": "object",
@@ -9187,6 +9175,20 @@
         ],
         "title": "CompactAgentSessionResponse",
         "description": "Result of compacting the older complete turns in a conversation."
+      },
+      "CompactionMessageMetadata": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "compaction",
+            "title": "Type",
+            "default": "compaction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CompactionMessageMetadata",
+        "description": "Marks a durable user-role message as a conversation compaction point."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
@@ -13409,6 +13411,9 @@
                     "$ref": "#/components/schemas/AssistantMessageMetadata"
                   },
                   {
+                    "$ref": "#/components/schemas/CompactionMessageMetadata"
+                  },
+                  {
                     "$ref": "#/components/schemas/UserMessageMetadata"
                   }
                 ],
@@ -13416,6 +13421,7 @@
                   "propertyName": "type",
                   "mapping": {
                     "assistant": "#/components/schemas/AssistantMessageMetadata",
+                    "compaction": "#/components/schemas/CompactionMessageMetadata",
                     "user": "#/components/schemas/UserMessageMetadata"
                   }
                 }

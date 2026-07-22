@@ -11,6 +11,10 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     TextUIPart,
 )
+from phoenix.server.agents.session_history import (
+    build_compaction_message,
+    load_agent_session_history,
+)
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -34,8 +38,6 @@ _TRUNCATE_MUTATION = """
       agentSession {
         id
         messages
-        compactionMessageId
-        compactionSummary
       }
     }
   }
@@ -220,7 +222,7 @@ async def test_truncate_agent_session_at_an_assistant_message_retains_it(
         assert stored_message.message_id == stored_message.message.id
 
 
-async def test_truncate_agent_session_clears_a_checkpoint_whose_boundary_is_removed(
+async def test_truncate_agent_session_restores_the_latest_surviving_compaction_point(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -228,72 +230,62 @@ async def test_truncate_agent_session_clears_a_checkpoint_whose_boundary_is_remo
     async with db() as session:
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert agent_session_rowid is not None
-        session.add(
-            models.AgentSessionSnapshot(
+        additional_messages = [
+            build_compaction_message(message_id="compaction-1", summary="first summary"),
+            PhoenixUIMessage(
+                id="user-3",
+                role="user",
+                parts=[TextUIPart(text="Continue")],
+            ),
+            PhoenixUIMessage(
+                id="assistant-3",
+                role="assistant",
+                parts=[TextUIPart(text="Continued")],
+            ),
+            build_compaction_message(message_id="compaction-2", summary="second summary"),
+            PhoenixUIMessage(
+                id="user-4",
+                role="user",
+                parts=[TextUIPart(text="Continue again")],
+            ),
+            PhoenixUIMessage(
+                id="assistant-4",
+                role="assistant",
+                parts=[TextUIPart(text="Continued again")],
+            ),
+        ]
+        additional_rows = [
+            models.AgentSessionMessage(
                 agent_session_id=agent_session_rowid,
-                bashkit_snapshot=b"shell-state",
-                compaction_summary='{"objectives":["test"]}',
-                compacted_through_position=3,
-                compaction_event_position=3,
+                position=position,
+                message=message,
             )
+            for position, message in enumerate(additional_messages, start=4)
+        ]
+        session.add_all(additional_rows)
+        await session.flush()
+        session.add_all(
+            models.AgentSessionCompactionPoint(agent_session_message_id=row.id)
+            for row in (additional_rows[0], additional_rows[3])
         )
 
     response = await gql_client.execute(
         query=_TRUNCATE_MUTATION,
-        variables={"id": agent_session_id, "messageId": "user-2"},
+        variables={"id": agent_session_id, "messageId": "user-3"},
     )
 
     assert not response.errors
     assert response.data is not None
-    assert response.data["truncateAgentSession"]["agentSession"]["compactionMessageId"] is None
-    assert response.data["truncateAgentSession"]["agentSession"]["compactionSummary"] is None
+    messages = response.data["truncateAgentSession"]["agentSession"]["messages"]
+    assert [message["id"] for message in messages][-1] == "compaction-1"
     async with db() as session:
-        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
-        assert snapshot is not None
-        assert snapshot.bashkit_snapshot == b"shell-state"
-        assert snapshot.compaction_summary is None
-        assert snapshot.compacted_through_position is None
-        assert snapshot.compaction_event_position is None
-
-
-async def test_truncate_agent_session_preserves_a_checkpoint_before_the_removed_suffix(
-    db: DbSessionFactory,
-    gql_client: AsyncGraphQLClient,
-) -> None:
-    agent_session_id = await _seed_session_with_transcript(db)
-    async with db() as session:
-        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
-        assert agent_session_rowid is not None
-        session.add(
-            models.AgentSessionSnapshot(
-                agent_session_id=agent_session_rowid,
-                compaction_summary='{"objectives":["test"]}',
-                compacted_through_position=1,
-                compaction_event_position=1,
-            )
+        surviving_points = (await session.scalars(select(models.AgentSessionCompactionPoint))).all()
+        history = await load_agent_session_history(
+            session,
+            agent_session_rowid=agent_session_rowid,
         )
-
-    response = await gql_client.execute(
-        query=_TRUNCATE_MUTATION,
-        variables={"id": agent_session_id, "messageId": "assistant-1"},
-    )
-
-    assert not response.errors
-    assert response.data is not None
-    assert (
-        response.data["truncateAgentSession"]["agentSession"]["compactionMessageId"]
-        == "assistant-1"
-    )
-    assert (
-        response.data["truncateAgentSession"]["agentSession"]["compactionSummary"]
-        == '{"objectives":["test"]}'
-    )
-    async with db() as session:
-        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
-        assert snapshot is not None
-        assert snapshot.compaction_summary == '{"objectives":["test"]}'
-        assert snapshot.compacted_through_position == 1
-        assert snapshot.compaction_event_position == 1
+    assert len(surviving_points) == 1
+    assert [message.id for message in history.messages] == ["compaction-1"]
 
 
 async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
@@ -395,6 +387,57 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
         assert branch_session.project_session_id != source_session.project_session_id
         assert branch_session.project_name == configured_project_name
         assert branch_session.project_name != source_session.project_name
+
+
+async def test_branch_agent_session_copies_durable_compaction_points(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    source_agent_session_id = await _seed_session_with_transcript(db)
+    async with db() as session:
+        source_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert source_session_rowid is not None
+        compaction_row = models.AgentSessionMessage(
+            agent_session_id=source_session_rowid,
+            position=4,
+            message=build_compaction_message(
+                message_id="source-compaction",
+                summary="durable summary",
+            ),
+        )
+        assistant_row = models.AgentSessionMessage(
+            agent_session_id=source_session_rowid,
+            position=5,
+            message=PhoenixUIMessage(
+                id="assistant-after-compaction",
+                role="assistant",
+                parts=[TextUIPart(text="retained answer")],
+            ),
+        )
+        session.add_all((compaction_row, assistant_row))
+        await session.flush()
+        session.add(models.AgentSessionCompactionPoint(agent_session_message_id=compaction_row.id))
+
+    response = await gql_client.execute(
+        query=_BRANCH_MUTATION,
+        variables={
+            "id": source_agent_session_id,
+            "messageId": "assistant-after-compaction",
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    branch_messages = response.data["branchAgentSession"]["agentSession"]["messages"]
+    copied_compaction = next(
+        message for message in branch_messages if message.get("metadata") == {"type": "compaction"}
+    )
+    assert copied_compaction["id"] != "source-compaction"
+    async with db() as session:
+        compaction_points = (
+            await session.scalars(select(models.AgentSessionCompactionPoint))
+        ).all()
+    assert len(compaction_points) == 2
 
 
 async def test_branch_agent_session_copies_the_source_title(

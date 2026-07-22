@@ -2029,10 +2029,18 @@ export interface components {
         CompactAgentSessionResponse: {
             /** Compacted */
             compacted: boolean;
-            /** Compactionmessageid */
-            compactionMessageId?: string | null;
-            /** Compactionsummary */
-            compactionSummary?: string | null;
+            compactionMessage?: components["schemas"]["PhoenixUIMessage"] | null;
+        };
+        /**
+         * CompactionMessageMetadata
+         * @description Marks a durable user-role message as a conversation compaction point.
+         */
+        CompactionMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "compaction";
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -3718,7 +3726,7 @@ export interface components {
              */
             role: "system" | "user" | "assistant";
             /** Metadata */
-            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["CompactionMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
             /** Parts */
             parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import {
   getAssistantMessageMetadata,
+  isCompactionMessage,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
 
@@ -10,8 +11,6 @@ import { ChatTokenUsage } from "./ChatTokenUsage";
 type ChatSessionUsageProps = {
   /** The session's current transcript; token usage is accumulated across assistant turns. */
   messages: AgentUIMessage[];
-  /** The compaction boundary, before which usage is no longer part of the active context. */
-  compactionMessageId?: string;
 };
 
 /**
@@ -38,10 +37,8 @@ export type AgentSessionUsage = {
  */
 export function getConversationUsage({
   messages,
-  afterMessageId,
 }: {
   messages: AgentUIMessage[];
-  afterMessageId?: string;
 }): AgentSessionUsage | null {
   let prompt = 0;
   let completion = 0;
@@ -49,9 +46,7 @@ export function getConversationUsage({
   let promptDetails: AgentSessionUsage["tokenCount"]["promptDetails"];
   let hasUsage = false;
 
-  const boundaryIndex = afterMessageId
-    ? messages.findIndex((message) => message.id === afterMessageId)
-    : -1;
+  const boundaryIndex = messages.findLastIndex(isCompactionMessage);
   const activeMessages = messages.slice(boundaryIndex + 1);
 
   for (const message of activeMessages) {
@@ -83,17 +78,13 @@ export function getConversationUsage({
   } satisfies AgentSessionUsage;
 }
 
-export const ChatSessionUsage = ({
-  messages,
-  compactionMessageId,
-}: ChatSessionUsageProps) => {
+export const ChatSessionUsage = ({ messages }: ChatSessionUsageProps) => {
   const usage = useMemo(
     () =>
       getConversationUsage({
         messages,
-        afterMessageId: compactionMessageId,
       }),
-    [compactionMessageId, messages]
+    [messages]
   );
   if (!usage) return null;
   return (

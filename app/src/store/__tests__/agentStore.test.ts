@@ -220,33 +220,6 @@ describe("agentStore", () => {
     });
   });
 
-  describe("setSessionCompaction", () => {
-    it("sets, replaces, and clears the visible compaction event", () => {
-      const store = createAgentStore();
-
-      store.getState().setSessionCompaction("session-node-id", {
-        messageId: "assistant-1",
-        summary: "summary 1",
-      });
-      expect(store.getState().compactionBySessionId["session-node-id"]).toEqual(
-        { messageId: "assistant-1", summary: "summary 1" }
-      );
-
-      store.getState().setSessionCompaction("session-node-id", {
-        messageId: "assistant-2",
-        summary: "summary 2",
-      });
-      expect(store.getState().compactionBySessionId["session-node-id"]).toEqual(
-        { messageId: "assistant-2", summary: "summary 2" }
-      );
-
-      store.getState().setSessionCompaction("session-node-id", null);
-      expect(
-        store.getState().compactionBySessionId["session-node-id"]
-      ).toBeUndefined();
-    });
-  });
-
   describe("draft input", () => {
     it("sets and clears draft input", () => {
       const store = createAgentStore();

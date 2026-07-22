@@ -6,7 +6,7 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from "ai";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -57,7 +57,6 @@ import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
-  type AgentSessionCompaction,
   type PendingAgentMessage,
 } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -136,8 +135,6 @@ const truncateAgentSessionMutation = graphql`
         title
         updatedAt
         messages
-        compactionMessageId
-        compactionSummary
       }
     }
   }
@@ -187,7 +184,6 @@ export function useAgentChat({
   sessionId,
   modelSelection,
   initialMessages,
-  initialCompaction,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -197,8 +193,6 @@ export function useAgentChat({
   modelSelection: AgentModelSelection;
   /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
-  /** Server compaction event used to seed ephemeral session state. */
-  initialCompaction?: AgentSessionCompaction | null;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
@@ -210,9 +204,6 @@ export function useAgentChat({
     sessionId
       ? (state.isCompactionPendingBySessionId[sessionId] ?? false)
       : false
-  );
-  const compaction = useAgentContext((state) =>
-    sessionId ? state.compactionBySessionId[sessionId] : undefined
   );
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
@@ -237,12 +228,6 @@ export function useAgentChat({
   // Guards the draft surface against double-submits while the create-session
   // mutation is in flight.
   const isCreatingSessionRef = useRef(false);
-
-  useEffect(() => {
-    if (sessionId && initialCompaction !== undefined) {
-      store.getState().setSessionCompaction(sessionId, initialCompaction);
-    }
-  }, [initialCompaction, sessionId, store]);
 
   // The Chat is cached per-session in the runtime registry, so its transport
   // and onFinish closures are captured once and reused across model changes.
@@ -623,26 +608,18 @@ export function useAgentChat({
           isRecord(result) && typeof result.compacted === "boolean"
             ? result.compacted
             : false;
-        const compactionMessageId =
-          isRecord(result) && typeof result.compactionMessageId === "string"
-            ? result.compactionMessageId
-            : null;
-        const compactionSummary =
-          isRecord(result) && typeof result.compactionSummary === "string"
-            ? result.compactionSummary
-            : null;
-        store
-          .getState()
-          .setSessionCompaction(
-            sessionId,
-            compactionMessageId && compactionSummary
-              ? { messageId: compactionMessageId, summary: compactionSummary }
-              : null
-          );
-        commitLocalUpdate(relayEnvironment, (relayStore) => {
-          const sessionRecord = relayStore.get(sessionId);
-          sessionRecord?.setValue(compactionMessageId, "compactionMessageId");
-          sessionRecord?.setValue(compactionSummary, "compactionSummary");
+        const compactionMessage = getCompactionMessageFromResponse(result);
+        if (
+          compactionMessage &&
+          !chatInstance.messages.some(
+            (message) => message.id === compactionMessage.id
+          )
+        ) {
+          chatInstance.messages = [...chatInstance.messages, compactionMessage];
+        }
+        void refetchAgentSession({
+          environment: relayEnvironment,
+          sessionId,
         });
         notifySuccess({
           title: wasCompacted
@@ -790,18 +767,6 @@ export function useAgentChat({
               next: nextMessages,
             });
             setMessages(nextMessages);
-            const compactionMessageId =
-              payload.agentSession.compactionMessageId;
-            const compactionSummary = payload.agentSession.compactionSummary;
-            store.getState().setSessionCompaction(
-              sessionId,
-              compactionMessageId && compactionSummary
-                ? {
-                    messageId: compactionMessageId,
-                    summary: compactionSummary,
-                  }
-                : null
-            );
             clearError();
             resolve(restoredInput);
           },
@@ -826,7 +791,6 @@ export function useAgentChat({
       notifyError,
       sessionId,
       setMessages,
-      store,
     ]
   );
 
@@ -908,7 +872,6 @@ export function useAgentChat({
     handleElicitationCancel,
     compactSession,
     isCompacting,
-    compaction,
     rewindToMessage,
     forkFromMessage,
   } as {
@@ -925,7 +888,6 @@ export function useAgentChat({
     handleElicitationCancel: () => void;
     compactSession: (message?: PendingAgentMessage) => void;
     isCompacting: boolean;
-    compaction: AgentSessionCompaction | undefined;
     rewindToMessage: (messageId: string) => Promise<string | null>;
     forkFromMessage: (messageId: string) => void;
   };
@@ -986,6 +948,25 @@ async function getAgentCompactErrorMessage(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function getCompactionMessageFromResponse(
+  result: unknown
+): AgentUIMessage | null {
+  if (!isRecord(result) || !isRecord(result.compactionMessage)) {
+    return null;
+  }
+  const message = result.compactionMessage;
+  if (
+    typeof message.id !== "string" ||
+    message.role !== "user" ||
+    !Array.isArray(message.parts) ||
+    !isRecord(message.metadata) ||
+    message.metadata.type !== "compaction"
+  ) {
+    return null;
+  }
+  return message as unknown as AgentUIMessage;
 }
 
 function appendPartToToolMessage({

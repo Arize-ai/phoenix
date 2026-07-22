@@ -42,6 +42,12 @@ function createAssistantMessage({
 describe("getConversationUsage", () => {
   it("accumulates token counts across assistant turns", () => {
     const messages: AgentUIMessage[] = [
+      {
+        id: "older-compaction-boundary",
+        role: "user",
+        metadata: { type: "compaction" },
+        parts: [{ type: "text", text: "older summary" }],
+      },
       createAssistantMessage({
         id: "assistant-1",
         prompt: 100,
@@ -125,7 +131,8 @@ describe("getConversationUsage", () => {
       {
         id: "compaction-boundary",
         role: "user",
-        parts: [{ type: "text", text: "compact" }],
+        metadata: { type: "compaction" },
+        parts: [{ type: "text", text: "summary" }],
       },
       createAssistantMessage({
         id: "assistant-after-compaction",
@@ -139,7 +146,6 @@ describe("getConversationUsage", () => {
     expect(
       getConversationUsage({
         messages,
-        afterMessageId: "compaction-boundary",
       })
     ).toEqual({
       tokenCount: {
@@ -155,18 +161,23 @@ describe("getConversationUsage", () => {
   });
 
   it("returns null immediately after compaction", () => {
-    const messages = [
+    const messages: AgentUIMessage[] = [
       createAssistantMessage({
         id: "assistant-before-compaction",
         prompt: 1_000,
         completion: 100,
       }),
+      {
+        id: "compaction-boundary",
+        role: "user",
+        metadata: { type: "compaction" },
+        parts: [{ type: "text", text: "summary" }],
+      },
     ];
 
     expect(
       getConversationUsage({
         messages,
-        afterMessageId: "assistant-before-compaction",
       })
     ).toBeNull();
   });

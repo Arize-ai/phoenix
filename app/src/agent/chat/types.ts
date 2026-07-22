@@ -7,6 +7,9 @@ export type AssistantMessageMetadata =
 
 export type UserMessageMetadata = components["schemas"]["UserMessageMetadata"];
 
+export type CompactionMessageMetadata =
+  components["schemas"]["CompactionMessageMetadata"];
+
 type AgentMessageMetadata = NonNullable<
   components["schemas"]["PhoenixUIMessage"]["metadata"]
 >;
@@ -37,4 +40,17 @@ export function getAssistantMessageMetadata(
 ): AssistantMessageMetadata | undefined {
   const metadata = message.metadata;
   return metadata?.type === "assistant" ? metadata : undefined;
+}
+
+/** Whether a user-role transcript message is a durable compaction point. */
+export function isCompactionMessage(message: AgentUIMessage): boolean {
+  return message.role === "user" && message.metadata?.type === "compaction";
+}
+
+/** Return the text content stored in a durable compaction message. */
+export function getCompactionSummary(message: AgentUIMessage): string {
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n");
 }

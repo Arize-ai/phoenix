@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<99e88d1a6665f49da0e18b8facba96a7>>
+ * @generated SignedSource<<7b712c66e3b3be174186ae42e44d0fec>>
  * @lightSyntaxTransform
  */
 
@@ -14,8 +14,6 @@ export type agentSessionRelaySessionQuery$variables = {
 export type agentSessionRelaySessionQuery$data = {
   readonly agentSession: {
     readonly __typename: "AgentSession";
-    readonly compactionMessageId: string | null;
-    readonly compactionSummary: string | null;
     readonly createdAt: string;
     readonly id: string;
     readonly isTemporary: boolean;
@@ -96,20 +94,6 @@ v8 = {
   "kind": "ScalarField",
   "name": "messages",
   "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "compactionMessageId",
-  "storageKey": null
-},
-v10 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "compactionSummary",
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -135,9 +119,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
-              (v9/*:: as any*/),
-              (v10/*:: as any*/)
+              (v8/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -172,9 +154,7 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
-              (v9/*:: as any*/),
-              (v10/*:: as any*/)
+              (v8/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -185,16 +165,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7468157dcea34c0b8a25e744b3bb084c",
+    "cacheID": "9747bb4080b9a1fe64d31cc9520c7997",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      messages\n      compactionMessageId\n      compactionSummary\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8e23e7d6905b27c7c7098ec375307823";
+(node as any).hash = "4bab7009552efc05e5c12fd93a6119a2";
 
 export default node;

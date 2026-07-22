@@ -362,17 +362,6 @@ function AgentSessionTranscript({
         : [],
     [agentSession?.messages]
   );
-  const initialCompaction = useMemo(
-    () =>
-      agentSession?.compactionMessageId && agentSession.compactionSummary
-        ? {
-            messageId: agentSession.compactionMessageId,
-            summary: agentSession.compactionSummary,
-          }
-        : null,
-    [agentSession?.compactionMessageId, agentSession?.compactionSummary]
-  );
-
   useEffect(() => {
     if (!agentSession) {
       onMissing(sessionId);
@@ -383,25 +372,16 @@ function AgentSessionTranscript({
     return <Loading />;
   }
   return (
-    <AgentChatController
-      sessionId={sessionId}
-      initialMessages={messages}
-      initialCompaction={initialCompaction}
-    />
+    <AgentChatController sessionId={sessionId} initialMessages={messages} />
   );
 }
 
 function AgentChatController({
   sessionId,
   initialMessages,
-  initialCompaction,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
-  initialCompaction?: {
-    messageId: string;
-    summary: string;
-  } | null;
 }) {
   const { modelSelection, menuValue, handleModelChange } =
     useAgentChatPanelState();
@@ -416,14 +396,12 @@ function AgentChatController({
     handleElicitationCancel,
     compactSession,
     isCompacting,
-    compaction,
     rewindToMessage,
     forkFromMessage,
   } = useAgentChat({
     sessionId,
     modelSelection,
     initialMessages,
-    initialCompaction,
   });
 
   return (
@@ -440,17 +418,13 @@ function AgentChatController({
       handleElicitationCancel={handleElicitationCancel}
       compactSession={compactSession}
       isCompacting={isCompacting}
-      compaction={compaction}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
       modelMenuValue={menuValue}
       onModelChange={handleModelChange}
       autoFocusInput
     >
-      <ChatSessionUsage
-        messages={messages}
-        compactionMessageId={compaction?.messageId}
-      />
+      <ChatSessionUsage messages={messages} />
     </ChatView>
   );
 }

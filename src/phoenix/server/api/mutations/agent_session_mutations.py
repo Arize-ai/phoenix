@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import strawberry
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
@@ -15,7 +15,7 @@ from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
 )
 from phoenix.db import models
-from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.db.types.data_stream_protocol import CompactionMessageMetadata, PhoenixUIMessage
 from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -167,24 +167,6 @@ class AgentSessionMutationMixin:
                     models.AgentSessionMessage.position >= delete_from_position,
                 )
             )
-            await session.execute(
-                update(models.AgentSessionSnapshot)
-                .where(
-                    models.AgentSessionSnapshot.agent_session_id == agent_session.id,
-                    or_(
-                        models.AgentSessionSnapshot.compacted_through_position
-                        >= delete_from_position,
-                        models.AgentSessionSnapshot.compaction_event_position
-                        >= delete_from_position,
-                    ),
-                )
-                .values(
-                    compaction_summary=None,
-                    compacted_through_position=None,
-                    compaction_event_position=None,
-                    updated_at=func.now(),
-                )
-            )
             agent_session.updated_at = func.now()
         return TruncateAgentSessionMutationPayload(
             agent_session=AgentSession(id=agent_session.id),
@@ -238,13 +220,20 @@ class AgentSessionMutationMixin:
             )
             session.add(branch_session)
             await session.flush()
-            session.add_all(
+            regenerated_message_rows = [
                 models.AgentSessionMessage(
                     agent_session_id=branch_session.id,
                     position=position,
                     message=message,
                 )
                 for position, message in enumerate(regenerated_messages)
+            ]
+            session.add_all(regenerated_message_rows)
+            await session.flush()
+            session.add_all(
+                models.AgentSessionCompactionPoint(agent_session_message_id=row.id)
+                for row in regenerated_message_rows
+                if isinstance(row.message.metadata, CompactionMessageMetadata)
             )
         return BranchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(branch_session),

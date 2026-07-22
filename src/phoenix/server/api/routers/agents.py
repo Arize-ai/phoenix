@@ -120,9 +120,8 @@ from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.session_history import (
-    build_compaction_model_history,
+    build_compaction_message,
     load_agent_session_history,
-    project_agent_session_model_history,
 )
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
@@ -347,8 +346,7 @@ class CompactAgentSessionResponse(_CamelBaseModel):
     """Result of compacting the older complete turns in a conversation."""
 
     compacted: bool
-    compaction_message_id: str | None = None
-    compaction_summary: str | None = None
+    compaction_message: PhoenixUIMessage | None = None
 
 
 _PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
@@ -1379,36 +1377,6 @@ async def _upsert_agent_session_snapshot(
     )
 
 
-async def _upsert_agent_session_compaction(
-    session: AsyncSession,
-    *,
-    agent_session_rowid: int,
-    summary: str,
-    compacted_through_position: int,
-    compaction_event_position: int,
-) -> None:
-    await session.execute(
-        insert_on_conflict(
-            {
-                "agent_session_id": agent_session_rowid,
-                "compaction_summary": summary,
-                "compacted_through_position": compacted_through_position,
-                "compaction_event_position": compaction_event_position,
-            },
-            table=models.AgentSessionSnapshot,
-            dialect=SupportedSQLDialect(session.bind.dialect.name),
-            unique_by=("agent_session_id",),
-            on_conflict=OnConflict.DO_UPDATE,
-            set_={
-                "compaction_summary": summary,
-                "compacted_through_position": compacted_through_position,
-                "compaction_event_position": compaction_event_position,
-                "updated_at": func.now(),
-            },
-        )
-    )
-
-
 async def _update_trailing_assistant_message(
     session: AsyncSession,
     *,
@@ -1435,19 +1403,6 @@ async def _update_trailing_assistant_message(
                 "latest transcript message; reload the conversation"
             ),
         )
-    await session.execute(
-        update(models.AgentSessionSnapshot)
-        .where(
-            models.AgentSessionSnapshot.agent_session_id == agent_session_rowid,
-            models.AgentSessionSnapshot.compacted_through_position >= position,
-        )
-        .values(
-            compaction_summary=None,
-            compacted_through_position=None,
-            compaction_event_position=None,
-            updated_at=func.now(),
-        )
-    )
 
 
 async def _persist_agent_session_turn(
@@ -1632,41 +1587,17 @@ def create_agents_router(
                     agent_session_rowid=agent_session.id,
                 )
                 message_rows = history.message_rows
-                checkpoint = history.checkpoint
-                boundary_row = next(
-                    (row for row in reversed(message_rows) if row.message.role == "assistant"),
-                    None,
-                )
-                if boundary_row is None:
-                    return CompactAgentSessionResponse(compacted=False)
-                compaction_event_row = message_rows[-1]
-                if (
-                    checkpoint is not None
-                    and checkpoint.compacted_through_position >= boundary_row.position
-                ):
-                    current_event = next(
-                        (
-                            row
-                            for row in message_rows
-                            if row.position == checkpoint.compaction_event_position
-                        ),
-                        None,
-                    )
+                latest_compaction = history.latest_compaction
+                latest_row = message_rows[-1] if message_rows else None
+                if latest_row is None or latest_row.message.role != "assistant":
                     return CompactAgentSessionResponse(
                         compacted=False,
-                        compaction_message_id=(
-                            current_event.message_id if current_event is not None else None
+                        compaction_message=(
+                            latest_compaction.message if latest_compaction is not None else None
                         ),
-                        compaction_summary=checkpoint.summary,
                     )
-                first_position = (
-                    checkpoint.compacted_through_position + 1 if checkpoint is not None else 0
-                )
-                messages_to_summarize = [
-                    row.message
-                    for row in message_rows
-                    if first_position <= row.position <= boundary_row.position
-                ]
+                boundary_row = latest_row
+                messages_to_summarize = history.messages
                 model = await build_model(
                     request_body.model,
                     session=session,
@@ -1677,11 +1608,6 @@ def create_agents_router(
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
-        if checkpoint is not None:
-            summary_messages = [
-                *build_compaction_model_history(checkpoint.summary),
-                *summary_messages,
-            ]
         try:
             summary = await summarize_messages_for_compaction(
                 messages=summary_messages,
@@ -1699,62 +1625,49 @@ def create_agents_router(
                 user_id=request_user_id,
                 for_update=True,
             )
-            persisted_boundary_message = await session.scalar(
-                select(models.AgentSessionMessage.message).where(
-                    models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-                    models.AgentSessionMessage.position == boundary_row.position,
-                    models.AgentSessionMessage.message_id == boundary_row.message_id,
-                )
-            )
-            if persisted_boundary_message != boundary_row.message:
-                raise HTTPException(
-                    status_code=409,
-                    detail="The conversation changed while it was being compacted; try again",
-                )
-            persisted_event_message = await session.scalar(
-                select(models.AgentSessionMessage.message).where(
-                    models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-                    models.AgentSessionMessage.position == compaction_event_row.position,
-                    models.AgentSessionMessage.message_id == compaction_event_row.message_id,
-                )
-            )
-            if persisted_event_message != compaction_event_row.message:
-                raise HTTPException(
-                    status_code=409,
-                    detail="The conversation changed while it was being compacted; try again",
-                )
             current_history = await load_agent_session_history(
                 session,
                 agent_session_rowid=agent_session_rowid,
             )
-            current_checkpoint = current_history.checkpoint
-            if (
-                current_checkpoint is not None
-                and current_checkpoint.compacted_through_position >= boundary_row.position
+            current_compaction = current_history.latest_compaction
+            if current_compaction is not None and (
+                latest_compaction is None or current_compaction.rowid != latest_compaction.rowid
             ):
-                current_event_message_id = await session.scalar(
-                    select(models.AgentSessionMessage.message_id).where(
-                        models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-                        models.AgentSessionMessage.position
-                        == current_checkpoint.compaction_event_position,
-                    )
-                )
                 return CompactAgentSessionResponse(
                     compacted=False,
-                    compaction_message_id=current_event_message_id,
-                    compaction_summary=current_checkpoint.summary,
+                    compaction_message=current_compaction.message,
                 )
-            await _upsert_agent_session_compaction(
-                session,
-                agent_session_rowid=agent_session_rowid,
+            current_latest_row = (
+                current_history.message_rows[-1] if current_history.message_rows else None
+            )
+            if (
+                current_latest_row is None
+                or current_latest_row.rowid != boundary_row.rowid
+                or current_latest_row.message != boundary_row.message
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="The conversation changed while it was being compacted; try again",
+                )
+            compaction_message = build_compaction_message(
+                message_id=str(uuid4()),
                 summary=summary,
-                compacted_through_position=boundary_row.position,
-                compaction_event_position=compaction_event_row.position,
+            )
+            compaction_message_row = models.AgentSessionMessage(
+                agent_session_id=agent_session_rowid,
+                position=boundary_row.position + 1,
+                message=compaction_message,
+            )
+            session.add(compaction_message_row)
+            await session.flush()
+            session.add(
+                models.AgentSessionCompactionPoint(
+                    agent_session_message_id=compaction_message_row.id,
+                )
             )
         return CompactAgentSessionResponse(
             compacted=True,
-            compaction_message_id=compaction_event_row.message_id,
-            compaction_summary=summary,
+            compaction_message=compaction_message,
         )
 
     @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
@@ -1886,12 +1799,8 @@ def create_agents_router(
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
         server_message_id = body.message.id if body.message.role == "assistant" else str(uuid4())
-        model_projection = project_agent_session_model_history(
-            session_history,
-            messages=transcript_messages,
-        )
-        model_transcript_messages = model_projection.messages
-        compaction_history = model_projection.message_history
+        model_transcript_messages = transcript_messages
+        compaction_history: list[ModelMessage] = []
 
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] | VercelAIAdapter[None, str]
         run_agent_stream: Callable[
@@ -2067,7 +1976,7 @@ def create_agents_router(
                     _maybe_using_user(attach_user_id, phoenix_user_email),
                 ):
                     summary = await summarize_messages(
-                        messages=[*compaction_history, *adapter.messages],
+                        messages=adapter.messages,
                         model=model,
                     )
             except Exception:

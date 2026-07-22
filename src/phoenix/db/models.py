@@ -25,7 +25,6 @@ from sqlalchemy import (
     Null,
     PrimaryKeyConstraint,
     String,
-    Text,
     TypeDecorator,
     UniqueConstraint,
     case,
@@ -3319,6 +3318,13 @@ class AgentSessionMessage(HasId):
         "AgentSession",
         back_populates="messages",
     )
+    compaction_point: Mapped[Optional["AgentSessionCompactionPoint"]] = relationship(
+        "AgentSessionCompactionPoint",
+        back_populates="message",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
     __table_args__ = (
         UniqueConstraint("agent_session_id", "position"),
         dict(sqlite_autoincrement=True),
@@ -3333,9 +3339,6 @@ class AgentSessionSnapshot(HasId):
         unique=True,
     )
     bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
-    compaction_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    compacted_through_position: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    compaction_event_position: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3344,4 +3347,19 @@ class AgentSessionSnapshot(HasId):
         "AgentSession",
         back_populates="snapshot",
     )
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class AgentSessionCompactionPoint(HasId):
+    __tablename__ = "agent_session_compaction_points"
+    agent_session_message_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    message: Mapped[AgentSessionMessage] = relationship(
+        "AgentSessionMessage",
+        back_populates="compaction_point",
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     __table_args__ = (dict(sqlite_autoincrement=True),)

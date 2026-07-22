@@ -15,7 +15,11 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getCompactionSummary,
+  isCompactionMessage,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
 import type { PromptCommandContext } from "@phoenix/agent/slashCommands/promptCommands";
 import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
@@ -33,7 +37,6 @@ import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
-  type AgentSessionCompaction,
   hasAcknowledgedCurrentTraceConsent,
 } from "@phoenix/store/agentStore";
 
@@ -446,7 +449,6 @@ export function ChatView({
   handleElicitationCancel,
   compactSession,
   isCompacting = false,
-  compaction,
   rewindToMessage,
   forkFromMessage,
   modelMenuValue,
@@ -470,7 +472,6 @@ export function ChatView({
   handleElicitationCancel: () => void;
   compactSession: PromptCommandContext["compactSession"];
   isCompacting?: boolean;
-  compaction?: AgentSessionCompaction;
   /**
    * Truncates the active session at a message; resolves to user text to
    * restore. Absent on read-only surfaces, which hides the rewind/branch
@@ -733,6 +734,14 @@ export function ChatView({
                   </ChatEmptyState>
                 )}
                 {messages.map((message, index) => {
+                  if (isCompactionMessage(message)) {
+                    return (
+                      <ChatCompaction
+                        key={message.id}
+                        summary={getCompactionSummary(message)}
+                      />
+                    );
+                  }
                   let renderedMessage: ReactNode;
                   if (message.role === "user") {
                     renderedMessage = (
@@ -764,12 +773,7 @@ export function ChatView({
                     );
                   }
                   return (
-                    <Fragment key={message.id}>
-                      {renderedMessage}
-                      {message.id === compaction?.messageId ? (
-                        <ChatCompaction summary={compaction.summary} />
-                      ) : null}
-                    </Fragment>
+                    <Fragment key={message.id}>{renderedMessage}</Fragment>
                   );
                 })}
                 {isCompacting ? <ChatCompactionProgress /> : null}

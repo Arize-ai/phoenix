@@ -131,9 +131,6 @@ def upgrade() -> None:
             unique=True,
         ),
         sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
-        sa.Column("compaction_summary", sa.Text, nullable=True),
-        sa.Column("compacted_through_position", sa.Integer, nullable=True),
-        sa.Column("compaction_event_position", sa.Integer, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -150,8 +147,28 @@ def upgrade() -> None:
         sqlite_autoincrement=True,
     )
 
+    op.create_table(
+        "agent_session_compaction_points",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "agent_session_message_id",
+            _Integer,
+            sa.ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
+            nullable=False,
+            unique=True,
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sqlite_autoincrement=True,
+    )
+
 
 def downgrade() -> None:
+    op.drop_table("agent_session_compaction_points")
     op.drop_table("agent_session_snapshots")
     op.drop_table("agent_session_messages")
     op.drop_table("agent_sessions")
