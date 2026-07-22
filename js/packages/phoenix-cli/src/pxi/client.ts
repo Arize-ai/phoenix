@@ -1,4 +1,4 @@
-import { formatApiError, type pathsV1 } from "@arizeai/phoenix-client";
+import { formatApiError, HttpError, type pathsV1 } from "@arizeai/phoenix-client";
 import {
   DefaultChatTransport,
   readUIMessageStream,
@@ -6,6 +6,7 @@ import {
 } from "ai";
 
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
+import { createPhoenixClient } from "../client";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
@@ -19,7 +20,6 @@ import type {
 
 const AGENT_SESSION_CHAT_PATH =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
-const AGENT_SESSIONS_PATH = "/agents/{agent_id}/sessions" satisfies keyof pathsV1;
 const SERVER_AGENT_ID = "server";
 
 function trimTrailingSlash(value: string): string {
@@ -66,18 +66,6 @@ export function buildAgentSessionChatUrl({
   return `${trimTrailingSlash(endpoint)}${path}`;
 }
 
-/**
- * Build the server agent's sessions collection URL, used to create a session.
- */
-export function buildAgentSessionsUrl({
-  endpoint,
-}: {
-  endpoint: string;
-}): string {
-  const path = AGENT_SESSIONS_PATH.replace("{agent_id}", SERVER_AGENT_ID);
-  return `${trimTrailingSlash(endpoint)}${path}`;
-}
-
 /** Pull a printable error message out of an error response body, if any. */
 async function readErrorDetail({
   response,
@@ -99,32 +87,28 @@ async function readErrorDetail({
  */
 export async function createTemporaryAgentSession({
   config,
-  fetchImpl = globalThis.fetch,
+  fetchImpl,
 }: {
   config: PhoenixConfig;
   fetchImpl?: typeof globalThis.fetch;
 }): Promise<string> {
-  const endpoint = config.endpoint;
-  if (!endpoint) {
-    throw new Error("Phoenix endpoint not configured.");
+  const client = createPhoenixClient({ config, fetch: fetchImpl });
+  let agentSessionId: string | undefined;
+  try {
+    const { data: payload } = await client.POST("/agents/{agent_id}/sessions", {
+      params: { path: { agent_id: SERVER_AGENT_ID } },
+      body: { title: "", temporary: true },
+    });
+    agentSessionId = payload?.data.id;
+  } catch (error) {
+    if (error instanceof HttpError) {
+      const detail = await readErrorDetail({ response: error.response });
+      throw new Error(
+        `Could not create a PXI chat session: HTTP ${error.status} ${error.statusText} from ${error.url}.${detail ? ` ${detail}` : ""}`
+      );
+    }
+    throw error;
   }
-  const url = buildAgentSessionsUrl({ endpoint });
-  const response = await fetchImpl(url, {
-    method: "POST",
-    headers: {
-      ...buildPxiHeaders({ config }),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ title: "", temporary: true }),
-  });
-  if (!response.ok) {
-    const detail = await readErrorDetail({ response });
-    throw new Error(
-      `Could not create a PXI chat session: HTTP ${response.status} ${response.statusText} from ${url}.${detail ? ` ${detail}` : ""}`
-    );
-  }
-  const payload = (await response.json()) as { data?: { id?: string } };
-  const agentSessionId = payload.data?.id;
   if (!agentSessionId) {
     throw new Error(
       "Could not create a PXI chat session because Phoenix returned no session id."
