@@ -6,7 +6,7 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from "ai";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -32,6 +32,7 @@ import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import { createTurnTraceContextManager } from "@phoenix/agent/chat/turnTraceContext";
 import {
   getAssistantMessageMetadata,
+  isCompactionMessage,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
 import { buildUserMessageMetadata } from "@phoenix/agent/chat/userMessageMetadata";
@@ -52,7 +53,6 @@ import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPro
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import type { paths } from "@phoenix/api/__generated__/v1";
 import { authFetch } from "@phoenix/authFetch";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
@@ -73,6 +73,11 @@ import {
 type TurnClientState = {
   turnTraceContext: ReturnType<typeof createTurnTraceContextManager>;
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
+};
+
+export type AgentChatOperationError = {
+  title: string;
+  message: string;
 };
 
 const turnClientStateByChat = new WeakMap<
@@ -197,8 +202,9 @@ export function useAgentChat({
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
-  const notifyError = useNotifyError();
-  const notifySuccess = useNotifySuccess();
+  const [operationError, setOperationError] =
+    useState<AgentChatOperationError | null>(null);
+  const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
     sessionId
@@ -497,6 +503,7 @@ export function useAgentChat({
     if (!text || isCreatingSessionRef.current) {
       return;
     }
+    setOperationError(null);
     isCreatingSessionRef.current = true;
     commitCreateAgentSession({
       variables: {
@@ -528,7 +535,7 @@ export function useAgentChat({
         store.getState().setDraftInput(DRAFT_SESSION_ID, text);
         const errorMessages =
           getErrorMessagesFromRelayMutationError(mutationError);
-        notifyError({
+        setOperationError({
           title: "Conversation could not be started",
           message: errorMessages?.[0] ?? mutationError.message,
         });
@@ -537,6 +544,7 @@ export function useAgentChat({
   };
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
+    setCompactionStatus(null);
     if (isDraft) {
       createSessionAndSendMessage(...args);
       return;
@@ -562,6 +570,8 @@ export function useAgentChat({
   };
 
   const compactSession = (pendingMessage?: PendingAgentMessage): void => {
+    setOperationError(null);
+    setCompactionStatus(null);
     const restorePendingMessage = () => {
       if (pendingMessage && sessionId) {
         store.getState().setDraftInput(sessionId, pendingMessage.text);
@@ -569,7 +579,7 @@ export function useAgentChat({
     };
     if (isDraft || !sessionId || !chatInstance) {
       restorePendingMessage();
-      notifyError({
+      setOperationError({
         title: "Conversation could not be compacted",
         message: "There is no persisted conversation to compact.",
       });
@@ -577,7 +587,7 @@ export function useAgentChat({
     }
     if (isRequestActive(chatInstance.status)) {
       restorePendingMessage();
-      notifyError({
+      setOperationError({
         title: "Conversation could not be compacted",
         message: "Wait for the current response to finish and try again.",
       });
@@ -585,7 +595,7 @@ export function useAgentChat({
     }
     if (store.getState().isCompactionPendingBySessionId[sessionId]) {
       restorePendingMessage();
-      notifyError({
+      setOperationError({
         title: "Conversation could not be compacted",
         message: "Conversation compaction is already in progress.",
       });
@@ -621,14 +631,11 @@ export function useAgentChat({
           environment: relayEnvironment,
           sessionId,
         });
-        notifySuccess({
-          title: wasCompacted
-            ? "Conversation compacted"
-            : "Conversation already compact",
-          message: wasCompacted
-            ? "Older turns will be represented by a durable checkpoint."
-            : "There are no older complete turns to compact.",
-        });
+        if (!wasCompacted) {
+          setCompactionStatus(
+            "Conversation is already compact. There are no older complete turns to compact."
+          );
+        }
         if (pendingMessage) {
           store.getState().setSessionCompactionPending(sessionId, false);
           await handleSendMessage(
@@ -640,7 +647,7 @@ export function useAgentChat({
         }
       } catch (error) {
         restorePendingMessage();
-        notifyError({
+        setOperationError({
           title: "Conversation could not be compacted",
           message:
             error instanceof Error
@@ -737,7 +744,7 @@ export function useAgentChat({
   // itself runs server-side (`truncateAgentSession`); the runtime chat is then
   // reset to the persisted transcript and stale tool state is released.
   // Resolves to the user message text to restore into the input (user target)
-  // or null (assistant target / no-op / failure).
+  // or null (assistant target / no-op), and rejects when persistence fails.
   const rewindToMessage = useCallback(
     (messageId: string): Promise<string | null> => {
       if (
@@ -754,7 +761,7 @@ export function useAgentChat({
         chatInstance.messages,
         messageId
       );
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         commitTruncateAgentSession({
           variables: { input: { id: sessionId, messageId } },
           onCompleted: (response) => {
@@ -773,11 +780,7 @@ export function useAgentChat({
           onError: (mutationError) => {
             const errorMessages =
               getErrorMessagesFromRelayMutationError(mutationError);
-            notifyError({
-              title: "Conversation could not be rewound",
-              message: errorMessages?.[0] ?? mutationError.message,
-            });
-            resolve(null);
+            reject(new Error(errorMessages?.[0] ?? mutationError.message));
           },
         });
       });
@@ -788,7 +791,6 @@ export function useAgentChat({
       clearError,
       commitTruncateAgentSession,
       isDraft,
-      notifyError,
       sessionId,
       setMessages,
     ]
@@ -799,9 +801,9 @@ export function useAgentChat({
   // the truncated transcript and derives the branch title; the UI seeds a
   // runtime chat from the returned transcript and activates it.
   const forkFromMessage = useCallback(
-    (messageId: string): void => {
+    (messageId: string): Promise<void> => {
       if (isDraft || !sessionId || !chatInstance) {
-        return;
+        return Promise.resolve();
       }
       clearError();
       // Branching at a user message drops it from the branch; remember its
@@ -810,41 +812,41 @@ export function useAgentChat({
         chatInstance.messages,
         messageId
       );
-      commitBranchAgentSession({
-        variables: {
-          input: { id: sessionId, messageId },
-          connections: [sessionsConnectionId],
-        },
-        onCompleted: (response) => {
-          const payload = response.branchAgentSession;
-          const branchSessionId = payload.agentSession.id;
-          const branchChatApiUrl = buildAgentChatApiUrl(branchSessionId);
-          const branchMessages = Array.isArray(payload.agentSession.messages)
-            ? (payload.agentSession.messages as AgentUIMessage[])
-            : [];
-          runtime.getOrCreateChat({
-            sessionId: branchSessionId,
-            chatApiUrl: branchChatApiUrl,
-            createChat: (previousMessages) =>
-              createChatForSession(
-                branchSessionId,
-                previousMessages ?? branchMessages
-              ),
-          });
-          const state = store.getState();
-          if (restoredInput) {
-            state.setDraftInput(branchSessionId, restoredInput);
-          }
-          state.setActiveSession(branchSessionId);
-        },
-        onError: (mutationError) => {
-          const errorMessages =
-            getErrorMessagesFromRelayMutationError(mutationError);
-          notifyError({
-            title: "Conversation could not be branched",
-            message: errorMessages?.[0] ?? mutationError.message,
-          });
-        },
+      return new Promise((resolve, reject) => {
+        commitBranchAgentSession({
+          variables: {
+            input: { id: sessionId, messageId },
+            connections: [sessionsConnectionId],
+          },
+          onCompleted: (response) => {
+            const payload = response.branchAgentSession;
+            const branchSessionId = payload.agentSession.id;
+            const branchChatApiUrl = buildAgentChatApiUrl(branchSessionId);
+            const branchMessages = Array.isArray(payload.agentSession.messages)
+              ? (payload.agentSession.messages as AgentUIMessage[])
+              : [];
+            runtime.getOrCreateChat({
+              sessionId: branchSessionId,
+              chatApiUrl: branchChatApiUrl,
+              createChat: (previousMessages) =>
+                createChatForSession(
+                  branchSessionId,
+                  previousMessages ?? branchMessages
+                ),
+            });
+            const state = store.getState();
+            if (restoredInput) {
+              state.setDraftInput(branchSessionId, restoredInput);
+            }
+            state.setActiveSession(branchSessionId);
+            resolve();
+          },
+          onError: (mutationError) => {
+            const errorMessages =
+              getErrorMessagesFromRelayMutationError(mutationError);
+            reject(new Error(errorMessages?.[0] ?? mutationError.message));
+          },
+        });
       });
     },
     [
@@ -853,7 +855,6 @@ export function useAgentChat({
       commitBranchAgentSession,
       createChatForSession,
       isDraft,
-      notifyError,
       runtime,
       sessionId,
       sessionsConnectionId,
@@ -872,6 +873,9 @@ export function useAgentChat({
     handleElicitationCancel,
     compactSession,
     isCompacting,
+    compactionStatus,
+    operationError,
+    clearOperationError: () => setOperationError(null),
     rewindToMessage,
     forkFromMessage,
   } as {
@@ -888,8 +892,11 @@ export function useAgentChat({
     handleElicitationCancel: () => void;
     compactSession: (message?: PendingAgentMessage) => void;
     isCompacting: boolean;
+    compactionStatus: string | null;
+    operationError: AgentChatOperationError | null;
+    clearOperationError: () => void;
     rewindToMessage: (messageId: string) => Promise<string | null>;
-    forkFromMessage: (messageId: string) => void;
+    forkFromMessage: (messageId: string) => Promise<void>;
   };
 }
 
@@ -912,14 +919,15 @@ function removeInterruptedToolInputParts(
 
 /**
  * The text of the user message a rewind/branch at `messageId` removes, or null
- * when the target is not a user message (assistant targets are retained).
+ * when the target is not an ordinary user message. Assistant responses and
+ * synthetic compaction checkpoints are retained without staging composer text.
  */
-function getRemovedUserMessageText(
+export function getRemovedUserMessageText(
   messages: AgentUIMessage[],
   messageId: string
 ): string | null {
   const target = messages.find((message) => message.id === messageId);
-  if (!target || target.role !== "user") {
+  if (!target || target.role !== "user" || isCompactionMessage(target)) {
     return null;
   }
   return target.parts

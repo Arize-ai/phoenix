@@ -18,10 +18,9 @@ import {
 } from "react-relay";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { Button, Flex, Text } from "@phoenix/components";
+import { Alert, Button, Flex, Text } from "@phoenix/components";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
-import { useNotifyError } from "@phoenix/contexts";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
@@ -143,7 +142,7 @@ function AgentSessionsContent({
   const clearSessionEphemeralState = useAgentContext(
     (state) => state.clearSessionEphemeralState
   );
-  const notifyError = useNotifyError();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const connectionId = ConnectionHandler.getConnectionID(
     "client:root",
     AGENT_SESSIONS_CONNECTION_KEY
@@ -155,6 +154,7 @@ function AgentSessionsContent({
    * message, so no empty session rows are ever written.
    */
   const startNewSession = useCallback(() => {
+    setDeleteError(null);
     const state = store.getState();
     state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
     setActiveSession(DRAFT_SESSION_ID);
@@ -209,6 +209,7 @@ function AgentSessionsContent({
 
   const deleteSession = useCallback(
     (sessionId: string) => {
+      setDeleteError(null);
       if (sessionId === DRAFT_SESSION_ID) {
         // The draft has no server session; deleting it just resets its
         // ephemeral state (draft input, staged message).
@@ -240,10 +241,7 @@ function AgentSessionsContent({
             setActiveSession(sessionId);
           }
           const messages = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "Session could not be deleted",
-            message: messages?.[0] ?? error.message,
-          });
+          setDeleteError(messages?.[0] ?? error.message);
         },
       });
     },
@@ -252,7 +250,6 @@ function AgentSessionsContent({
       clearSessionEphemeralState,
       commitDelete,
       connectionId,
-      notifyError,
       runtime,
       setActiveSession,
       store,
@@ -263,6 +260,13 @@ function AgentSessionsContent({
     (session) => session.id === activeSessionId
   );
   const sessionDisplayName = activeSession?.title || EMPTY_SESSION_DISPLAY_NAME;
+  const selectSession = useCallback(
+    (sessionId: string | null) => {
+      setDeleteError(null);
+      setActiveSession(sessionId);
+    },
+    [setActiveSession]
+  );
   const panelState = useAgentChatPanelState();
   const handleMissingSession = useCallback(
     (sessionId: string) => {
@@ -305,7 +309,7 @@ function AgentSessionsContent({
         isActiveSessionTemporary={activeSession?.isTemporary}
         position={position}
         isPositionChangeDisabled={isPositionChangeDisabled}
-        onSelectSession={setActiveSession}
+        onSelectSession={selectSession}
         onDeleteSession={deleteSession}
         onCreateSession={startNewSession}
         hasNextSessionPage={hasNext}
@@ -314,6 +318,19 @@ function AgentSessionsContent({
         onPositionChange={panelState.setPosition}
         onClose={panelState.closePanel}
       />
+      {deleteError ? (
+        <div role="alert">
+          <Alert
+            banner
+            variant="danger"
+            title="Session could not be deleted"
+            dismissable
+            onDismissClick={() => setDeleteError(null)}
+          >
+            {deleteError}
+          </Alert>
+        </div>
+      ) : null}
       {activeSessionId == null ? (
         <Loading />
       ) : needsTranscriptSeed ? (
@@ -396,6 +413,9 @@ function AgentChatController({
     handleElicitationCancel,
     compactSession,
     isCompacting,
+    compactionStatus,
+    operationError,
+    clearOperationError,
     rewindToMessage,
     forkFromMessage,
   } = useAgentChat({
@@ -418,6 +438,9 @@ function AgentChatController({
       handleElicitationCancel={handleElicitationCancel}
       compactSession={compactSession}
       isCompacting={isCompacting}
+      compactionStatus={compactionStatus}
+      operationError={operationError}
+      clearOperationError={clearOperationError}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
       modelMenuValue={menuValue}
