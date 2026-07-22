@@ -1,5 +1,36 @@
 # Changelog
 
+## [19.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.3.0...arize-phoenix-v19.4.0) (2026-07-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **js:** upgrade phoenix-otel to openinference-vercel v3 for AI SDK v7 spans ([#14563](https://github.com/Arize-ai/phoenix/issues/14563))
+
+### Features
+
+* **components:** align span kind icon and timeline bar colors with token treatment ([#14573](https://github.com/Arize-ai/phoenix/issues/14573)) ([51cf276](https://github.com/Arize-ai/phoenix/commit/51cf276f28a46d193fb9b9c7299b02e7b139c340))
+* **components:** make IDBadge the consolidated click-to-copy ID element ([#14567](https://github.com/Arize-ai/phoenix/issues/14567)) ([9445683](https://github.com/Arize-ai/phoenix/commit/94456834ec24028b7996b9ed4eaf8e3102cad894))
+* **js:** upgrade phoenix-otel to openinference-vercel v3 for AI SDK v7 spans ([#14563](https://github.com/Arize-ai/phoenix/issues/14563)) ([30f0827](https://github.com/Arize-ai/phoenix/commit/30f08272202dbd0b93c3c4815285c4ada18326aa))
+* **tracing:** redesign span header into identity and meta rows ([#14568](https://github.com/Arize-ai/phoenix/issues/14568)) ([b1a6359](https://github.com/Arize-ai/phoenix/commit/b1a63591f26df6fe7759a525c8d50a257e58080c))
+
+
+### Bug Fixes
+
+* **server:** apply IP rate limiting when PHOENIX_HOST_ROOT_PATH is set ([#14612](https://github.com/Arize-ai/phoenix/issues/14612)) ([5ae4b51](https://github.com/Arize-ai/phoenix/commit/5ae4b51c76e96e27602e947469ded751ffb9d6cd))
+* **server:** serve HEAD on the OAuth2/OIDC discovery documents ([#14611](https://github.com/Arize-ai/phoenix/issues/14611)) ([9e289aa](https://github.com/Arize-ai/phoenix/commit/9e289aaed2896bedfeedf8cfbd759c2b9a9bf04f))
+* **ui:** keep PXI button in nav beside drawers ([#14577](https://github.com/Arize-ai/phoenix/issues/14577)) ([59d992f](https://github.com/Arize-ai/phoenix/commit/59d992f054fbb6ed917494d9587b202ff1ecd68a))
+
+
+### Documentation
+
+* advertise remote MCP server in README ([#14574](https://github.com/Arize-ai/phoenix/issues/14574)) ([37fb247](https://github.com/Arize-ai/phoenix/commit/37fb24782630138f876911f918144b40e936391e))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix 19.4.0 ([#14590](https://github.com/Arize-ai/phoenix/issues/14590)) ([7435236](https://github.com/Arize-ai/phoenix/commit/7435236c78e33796af64e876f0299d514fc027d2))
+
 ## [19.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.2.0...arize-phoenix-v19.3.0) (2026-07-20)
 
 
