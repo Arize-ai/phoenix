@@ -1,14 +1,5 @@
 from typing import Any, Mapping
 
-#: Method list for routes serving a document to be read rather than acted on.
-#:
-#: FastAPI, unlike Starlette's own Route, does not add HEAD to a GET route
-#: implicitly, and leaving it off does not even yield a 405: the SPA mount at /
-#: matches every method, so an unmatched HEAD lands there and gets a 404 claiming
-#: the document does not exist. Handlers need no special casing — uvicorn omits
-#: the body for HEAD at the protocol layer.
-GET_HEAD = ["GET", "HEAD"]
-
 
 def prepend_root_path(scope: Mapping[str, Any], path: str) -> str:
     """

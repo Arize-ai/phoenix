@@ -19,7 +19,6 @@ from phoenix.auth import (
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
 )
 from phoenix.server.oauth2_authorization_server import public_origin
-from phoenix.server.utils import GET_HEAD
 
 router = APIRouter(include_in_schema=False)
 
@@ -44,12 +43,16 @@ def _protected_resource_metadata(request: Request, *, resource: str) -> JSONResp
     )
 
 
-@router.api_route("/.well-known/oauth-protected-resource", methods=GET_HEAD)
+# HEAD is listed explicitly on these routes: FastAPI, unlike Starlette's own
+# Route, does not add HEAD to a GET route implicitly, and an unmatched HEAD
+# falls through to the SPA mount at / and 404s. uvicorn omits the body for
+# HEAD at the protocol layer, so handlers need no special casing.
+@router.api_route("/.well-known/oauth-protected-resource", methods=["GET", "HEAD"])
 async def protected_resource_metadata(request: Request) -> JSONResponse:
     return _protected_resource_metadata(request, resource=public_origin(request))
 
 
-@router.api_route("/.well-known/oauth-protected-resource/mcp", methods=GET_HEAD)
+@router.api_route("/.well-known/oauth-protected-resource/mcp", methods=["GET", "HEAD"])
 async def mcp_protected_resource_metadata(request: Request) -> JSONResponse:
     """RFC 9728 path-inserted metadata for the MCP endpoint mounted at /mcp.
 
@@ -67,7 +70,7 @@ async def mcp_protected_resource_metadata(request: Request) -> JSONResponse:
     return _protected_resource_metadata(request, resource=f"{public_origin(request)}{mount_path}")
 
 
-@router.api_route("/auth.md", methods=GET_HEAD)
+@router.api_route("/auth.md", methods=["GET", "HEAD"])
 async def get_auth_md(request: Request) -> PlainTextResponse:
     base_url = public_origin(request)
     authentication_enabled: bool = getattr(request.app.state, "authentication_enabled", False)
