@@ -146,6 +146,27 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     Launch `codex` and run `/mcp` to verify the server is connected.
   </Accordion>
 
+  <Accordion title="Gemini CLI">
+    <Steps>
+      <Step title="Add the Phoenix MCP server">
+        Gemini CLI ships an `mcp add` that mirrors Claude Code's flags:
+
+        ```bash
+        gemini mcp add --scope user --transport http phoenix http://localhost:6006/mcp
+        ```
+
+        Use `--scope project` instead to write this repo's `.gemini/settings.json`.
+      </Step>
+      <Step title="Log in">
+        Run `/mcp` inside Gemini CLI, select **phoenix**, and complete the browser login.
+      </Step>
+    </Steps>
+
+    <Note>
+      This is **Gemini CLI**, Google's terminal agent — not **Antigravity** (below), which is a separate tool that also writes under `~/.gemini/` but uses an API key rather than OAuth.
+    </Note>
+  </Accordion>
+
   <Accordion title="Antigravity">
     Antigravity configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys) and add to `~/.gemini/config/mcp_config.json` (or open **Manage MCP Servers → View raw config** from the agent panel):
 
