@@ -2,7 +2,8 @@ import { move } from "@dnd-kit/helpers";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { css } from "@emotion/react";
-import { useCallback, useMemo, useState } from "react";
+import type { EditorView } from "@uiw/react-codemirror";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -56,6 +57,15 @@ import type { PlaygroundInstanceProps } from "./types";
  * that would clip autocomplete dropdowns.
  */
 const DRAGGING_MESSAGE_Z_INDEX = 10;
+
+const messageEditorInteractionCSS = css`
+  outline: none;
+
+  &:focus-visible {
+    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--global-border-size-thick));
+  }
+`;
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
@@ -172,6 +182,10 @@ function MessageEditor({
   // Track whether to show validation alerts - becomes true on first blur
   // and stays true so errors remain visible until fixed
   const [showValidation, setShowValidation] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const editorViewRef = useRef<EditorView | null>(null);
+  const messageEditorRef = useRef<HTMLDivElement>(null);
+  const shouldRestoreMessageFocusRef = useRef(false);
 
   const onChange = useCallback(
     (val: string) => {
@@ -179,7 +193,25 @@ function MessageEditor({
     },
     [updateMessage]
   );
-  const onBlur = useCallback(() => setShowValidation(true), []);
+  const onBlur = useCallback(() => {
+    setShowValidation(true);
+    setIsEditing(false);
+  }, []);
+  const startEditing = useCallback(() => setIsEditing(true), []);
+  const stopEditing = useCallback(() => {
+    shouldRestoreMessageFocusRef.current = true;
+    setIsEditing(false);
+  }, []);
+  useEffect(() => {
+    if (isEditing) {
+      editorViewRef.current?.focus();
+      return;
+    }
+    if (shouldRestoreMessageFocusRef.current) {
+      shouldRestoreMessageFocusRef.current = false;
+      messageEditorRef.current?.focus();
+    }
+  }, [isEditing]);
   const sectionValidation = useMemo(() => {
     if (templateFormat !== TemplateFormats.Mustache) {
       return null;
@@ -240,27 +272,61 @@ function MessageEditor({
   }
 
   return (
-    <TemplateEditorWrap>
-      {showValidation && sectionValidation?.errors.length ? (
-        <Alert variant="danger" banner title="Invalid mustache sections">
-          {sectionValidation.errors.join(", ")}
-        </Alert>
-      ) : null}
-      {showValidation && sectionValidation?.warnings.length ? (
-        <Alert variant="warning" banner title="Unclosed mustache sections">
-          {sectionValidation.warnings.join(", ")}
-        </Alert>
-      ) : null}
-      <TemplateEditor
-        height="100%"
-        defaultValue={message.content || ""}
-        aria-label="Message content"
-        templateFormat={templateFormat}
-        onChange={onChange}
-        onBlur={onBlur}
-        availablePaths={availablePaths}
-      />
-    </TemplateEditorWrap>
+    <div
+      ref={messageEditorRef}
+      role={isEditing ? undefined : "button"}
+      tabIndex={isEditing ? -1 : 0}
+      aria-label={isEditing ? undefined : "Edit message content"}
+      css={messageEditorInteractionCSS}
+      onClick={() => {
+        if (!isEditing) {
+          startEditing();
+        }
+      }}
+      onKeyDown={(event) => {
+        if (isEditing && event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          stopEditing();
+          return;
+        }
+        if (
+          !isEditing &&
+          event.currentTarget === event.target &&
+          (event.key === "Enter" || event.key === " ")
+        ) {
+          event.preventDefault();
+          startEditing();
+        }
+      }}
+    >
+      <TemplateEditorWrap>
+        {showValidation && sectionValidation?.errors.length ? (
+          <Alert variant="danger" banner title="Invalid mustache sections">
+            {sectionValidation.errors.join(", ")}
+          </Alert>
+        ) : null}
+        {showValidation && sectionValidation?.warnings.length ? (
+          <Alert variant="warning" banner title="Unclosed mustache sections">
+            {sectionValidation.warnings.join(", ")}
+          </Alert>
+        ) : null}
+        <TemplateEditor
+          height="100%"
+          defaultValue={message.content || ""}
+          aria-label="Message content"
+          aria-hidden={!isEditing}
+          templateFormat={templateFormat}
+          editable={isEditing}
+          onCreateEditor={(editorView) => {
+            editorViewRef.current = editorView;
+          }}
+          onChange={onChange}
+          onBlur={onBlur}
+          availablePaths={availablePaths}
+        />
+      </TemplateEditorWrap>
+    </div>
   );
 }
 
