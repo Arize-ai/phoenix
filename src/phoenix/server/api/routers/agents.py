@@ -1482,17 +1482,13 @@ async def _build_generated_assistant_message(
 def create_agents_router(
     authentication_enabled: bool,
 ) -> tuple[APIRouter, Callable[[str, str, Request, ChatRequest], Awaitable[Response]]]:
-    dependencies = [Depends(is_authenticated)] if authentication_enabled else []
+    dependencies = [Depends(prevent_access_in_read_only_mode)]
+    if authentication_enabled:
+        dependencies.append(Depends(is_authenticated))
+        dependencies.append(Depends(restrict_access_by_viewers))
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
-    @router.post(
-        "/agents/{agent_id}/sessions",
-        status_code=201,
-        dependencies=[
-            Depends(prevent_access_in_read_only_mode),
-            Depends(restrict_access_by_viewers),
-        ],
-    )
+    @router.post("/agents/{agent_id}/sessions", status_code=201)
     async def create_session(
         agent_id: str,
         request: Request,
@@ -1561,8 +1557,6 @@ def create_agents_router(
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
-        if graphql_mutations_enabled and is_viewer:
-            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         try:

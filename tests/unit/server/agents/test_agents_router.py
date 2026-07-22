@@ -1518,6 +1518,26 @@ async def test_create_session_route_forbids_the_server_agent_when_bash_is_disabl
     assert assistant_response.status_code == 201
 
 
+async def test_agents_router_is_forbidden_in_read_only_mode(
+    app: FastAPI,
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Read-only mode turns off the whole agents router, chat included."""
+    session_id = "77777777-7777-4777-8777-777777777777"
+    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    app.state.read_only = True
+
+    create_response = await httpx_client.post("/agents/server/sessions", json={})
+    assert create_response.status_code == 403
+
+    chat_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("hello")),
+    )
+    assert chat_response.status_code == 403
+
+
 # ---------------------------------------------------------------------------
 # Trace ingestion
 # ---------------------------------------------------------------------------
